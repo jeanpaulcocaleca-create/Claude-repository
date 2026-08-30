@@ -2,11 +2,17 @@
 
 **An all-in-one system for a coffee experience in Monteverde, Costa Rica**
 
-**Status: GO — approved with Phase 0 diligence.** No code yet; Phase 0 (discovery) is the next step.
+**Status: GO — Phase 0 (discovery) in progress.** No build code written; Nora discovery complete.
 
 ---
 
-## What's new in v4
+## What's new in v5 (Phase 0 findings & scope changes)
+
+- **Nora discovery done (read-only).** Nora is Project NEED: a WhatsApp-first AI Business Operating System — NestJS + Prisma + Supabase (RLS) + Redis on Render, powered by Claude, using the Meta WhatsApp Cloud API, multi-tenant with department agents (Finance, Operations, Guest Concierge…) and playbooks (Expenses, Reports, Purchases, Daily Operations…). The neednora.com site already ships a proven web-chat pattern: server-side proxy (secret never in the browser) → public conversation API with session tokens → WhatsApp handoff (phone + consent → Meta template → wa.me deep link). **The Hanging Garden integration reuses this exact pattern with a café-facing tenant — web chat confirmed feasible, no WhatsApp-only fallback needed.** Integration is additive: Canopy OS calls Nora's public API and exposes read-only data endpoints for Nora's agents to consume as tools; nothing in the NEED/Nora codebase needs to change for Phase 1.
+- **Hacienda is out of scope for now.** No e-invoicing module. Replaced by an internal **Accountant Pack**: monthly/period reports (sales, IVA collected as information, payroll, tips) exportable and shareable with the accountant — with Nora's Finance agent able to fetch and deliver them.
+- **BAC payment link details pending** — owner will provide; POS design already accommodates it.
+
+## What was new in v4
 
 Engineering review adopted in full:
 
@@ -84,13 +90,17 @@ Everything bilingual (EN/ES), structured data for Google rich results, Google Bu
 
 **C. Menu Manager** — one source of truth for POS, website, and Nora. Bilingual items, photos, modifiers, availability toggles ("86 the banana bread" updates everywhere within a minute), seasonal scheduling.
 
-**D. Sales & Electronic Invoicing** — live order board; daily dashboard (revenue, average ticket, payment mix, best sellers, sales by hour); season-over-season reports and accountant CSV exports; **factura electrónica module (Hacienda v4.4)** with per-document status tracking — *sent / accepted / rejected* — so any sale's Hacienda invoicing status is one lookup away, XML/PDF on file.
+**D. Sales & the Accountant Pack** — live order board; daily dashboard (revenue, average ticket, payment mix, best sellers, sales by hour); season-over-season reports. **Accountant Pack (replaces the Hacienda module for now):** one-tap period reports for internal use and the accountant — sales summary, IVA collected (informational), payroll and tips, expense/purchase log — as clean CSV/PDF exports, and exposed to **Nora's Finance agent** so she can fetch, summarize, and send them on request. The data model still stores everything a factura electrónica would need, so e-invoicing can be added later without rework if it ever comes back into scope.
 
 **E. Time Clock** — PIN clock in/out on the tablet with optional photo; breaks, shift notes, live "who's on"; automatic timesheets per pay period; **sized for 5 now and 10–15 later**, with roles and a shift schedule ready as we grow.
 
 **F. Payroll Ledger** — pay computed from the clock under Costa Rican rules (overtime 1.5× past 8 hrs/day), tip shares, **CCSS contributions and aguinaldo accrual** tracked so December never surprises us; pay statements with payments recorded against them. (Ledger and calculator — money moves through the bank app at first; automated disbursement is a careful later phase.)
 
-**G. Nora Integration** — she's already built; the work is three connections: (1) **website chat widget + WhatsApp deep link** — one assistant, two doors; (2) a **live read-only data feed** from Canopy OS (menu, availability, prices, hours, closures, bookings) so her answers are always current; (3) later, a **write endpoint** so she can place pickup orders and holds — and deliver the owner's morning briefing over WhatsApp, where she already lives.
+**G. Nora Integration** — discovery complete; the design is now concrete and **requires no changes to the NEED/Nora codebase for Phase 1**:
+
+1. **The Hanging Garden becomes a Nora tenant** with a café-facing agent — the same multi-tenant model Nora already uses for its first hospitality customer, with a coffee-shop flavor of her agents and playbooks (Guest Concierge for visitors; Finance and Daily Operations for us).
+2. **Website chat reuses the proven neednora.com pattern:** browser → Canopy's server-side proxy (secret never exposed) → Nora's public conversation API (session tokens) → her existing **WhatsApp handoff** (phone + consent → Meta template → wa.me link). One assistant, two doors, already battle-tested.
+3. **Live data as tools:** Canopy OS exposes read-only endpoints (menu with availability, prices, hours, closures, bookings) secured with a shared-secret header — the same auth style Nora already uses — and her agents consume them as tools, so her answers update the minute we 86 an item. Later, a write endpoint lets her place pickup orders and holds, and her Finance agent fetches the Accountant Pack; the owner's morning briefing rides her existing WhatsApp channel.
 
 ---
 
@@ -145,9 +155,9 @@ Immutable audit log on every sensitive action (who/what/when/before/after): pric
 
 | Phase | Delivers |
 |---|---|
-| **0 · Discovery (1–2 weeks)** | Nora technical questionnaire; BAC executive conversation — gateway API + reconciliation reports; SINPE notification test; Hacienda régimen confirmation; hardware inventory; **load & resilience test plan authored**; design QA checklist finalized |
+| **0 · Discovery (1–2 weeks) — IN PROGRESS** | ✅ Nora architecture discovery (read-only — integration design confirmed, no Nora changes needed); ⏳ BAC payment link details (owner to provide); ⏳ SINPE notification test; ⏳ hardware inventory (owner to provide); load & resilience test plan authored; design QA checklist finalized |
 | **1 · Be found & sell** | Cinematic website with *La Gota* scroll + the Monteverde story chapter (10K Websites + Higgsfield), shipped through the design QA gate; SEO + Google Business Profile; menu manager; POS with cash/BAC/SINPE, IVA, receipts, **lite mode**; **Nora on the website** (cached feed, perf-gated); backups + export + restore runbook; audit-log foundation. **Gates: POS sync stress test, Nora feed burst test, design QA checklist** |
-| **2 · Know the business** | Sales dashboard & reports; order board; factura electrónica with Hacienda status tracking; experience bookings paid by BAC link; **stock deduction, waste log, supplier reorder alerts, cost history → gross margin per item**. **Gate: timed backup/restore drill under load** |
+| **2 · Know the business** | Sales dashboard & reports; order board; **Accountant Pack** (period reports + exports, served to Nora's Finance agent); experience bookings paid by BAC link; **stock deduction, waste log, supplier reorder alerts, cost history → gross margin per item**. **Gate: timed backup/restore drill under load** |
 | **3 · Run the team** | Time clock; timesheets; payroll ledger with Costa Rican labor rules; tip pooling; shift schedule; granular roles + optional MFA |
 | **4 · Nora acts & advises** | Nora places pickup orders and bookings; owner morning briefing via WhatsApp; forecast-driven inventory and prep suggestions built on the cost/margin data |
 
