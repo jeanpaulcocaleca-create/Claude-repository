@@ -1,4 +1,4 @@
-# The Hanging Garden — "Canopy OS" Proposal (v4, Final)
+# The Hanging Garden — "Canopy OS" Proposal (v6)
 
 **An all-in-one system for a coffee experience in Monteverde, Costa Rica**
 
@@ -6,11 +6,11 @@
 
 ---
 
-## What's new in v5 (Phase 0 findings & scope changes)
+## What's new in v5–v6 (Phase 0 findings & scope changes)
 
 - **Nora discovery done (read-only).** Nora is Project NEED: a WhatsApp-first AI Business Operating System — NestJS + Prisma + Supabase (RLS) + Redis on Render, powered by Claude, using the Meta WhatsApp Cloud API, multi-tenant with department agents (Finance, Operations, Guest Concierge…) and playbooks (Expenses, Reports, Purchases, Daily Operations…). The neednora.com site already ships a proven web-chat pattern: server-side proxy (secret never in the browser) → public conversation API with session tokens → WhatsApp handoff (phone + consent → Meta template → wa.me deep link). **The Hanging Garden integration reuses this exact pattern with a café-facing tenant — web chat confirmed feasible, no WhatsApp-only fallback needed.** Integration is additive: Canopy OS calls Nora's public API and exposes read-only data endpoints for Nora's agents to consume as tools; nothing in the NEED/Nora codebase needs to change for Phase 1.
 - **Hacienda is out of scope for now.** No e-invoicing module. Replaced by an internal **Accountant Pack**: monthly/period reports (sales, IVA collected as information, payroll, tips) exportable and shareable with the accountant — with Nora's Finance agent able to fetch and deliver them.
-- **BAC payment link details pending** — owner will provide; POS design already accommodates it.
+- **Payments are fully out of scope (v6 decision).** No payment link exists and none is planned — no online purchases, no payment processing, no SINPE reconciliation, no BAC integration of any kind. Charging happens entirely outside the system (BAC terminal for cards, cash drawer for cash). **Canopy OS only records each transaction** — items, total, IVA, and how it was paid — so sales reports and the Accountant Pack stay accurate. Website bookings become reservation requests (pay at the café); bean sales become "order via Nora, pay on pickup."
 
 ## What was new in v4
 
@@ -84,7 +84,7 @@ Everything bilingual (EN/ES), structured data for Google rich results, Google Bu
 
 **A. Website & Google** — as above, plus the live menu fed from the menu manager and Nora's chat widget + WhatsApp button.
 
-**B. Point of Sale** — offline-first tablet PWA; cash in CRC and USD with live exchange rate; **card via our existing BAC San José terminal** (payments recorded against orders so reports reconcile with the BAC statement); **BAC payment link for everything online** (bookings, deposits, pickup orders — marked paid on confirmation, landing in the same reports as counter money); **SINPE Móvil** with QR + reference matching; 13% IVA on every receipt; tips pooled into payroll.
+**B. Point of Sale — records, never charges.** Offline-first tablet PWA. All charging happens outside the system: cards on the BAC terminal, cash in the drawer. The POS simply records each completed sale — items, modifiers, total, 13% IVA, and a **payment-method tag** (cash CRC / cash USD / card / SINPE / other) — so daily totals, payment-mix reports, and end-of-day cash counts are accurate without touching a single payment rail. A simple end-of-shift reconciliation screen: expected cash vs. counted cash, card total to eyeball against the terminal's batch report. Tips recorded per order and pooled into payroll. No processor integration, nothing to certify, nothing that can break at the counter.
 
 **Low-bandwidth by design, plus a "lite mode":** the POS is an installed PWA, so its entire shell — screens, menu grid, logic — lives on the tablet and never depends on a CDN or DNS at ring-up time; the only network need is one sync endpoint, retried with backoff. On top of that, a **lite mode** (automatic when the connection degrades, or toggled by hand): photos off, text-only menu grid, receipts queued for email instead of printed graphics, sync batched to whatever window of connectivity appears. A visible status chip — *online / offline / degraded* — so staff always know which world they're in.
 
@@ -144,7 +144,7 @@ Immutable audit log on every sensitive action (who/what/when/before/after): pric
 | App | Next.js — one codebase: website, POS, admin | Fast, SEO-friendly, installs as a tablet PWA |
 | Data & auth | Supabase (Postgres, realtime, RLS) + nightly backups | One source of truth; roles for 5 → 15; DR built in |
 | Offline POS | Local-first PWA, single sync endpoint, lite mode | No CDN/DNS dependency at ring-up; survives spotty Monteverde internet |
-| Payments | BAC terminal + BAC payment link + SINPE Móvil | No new processor; manual → automatic upgrade path |
+| Payments | None — external by design (BAC terminal, cash) | POS records method + amount only; zero integration risk |
 | Nora | Integration API — cached read feed now, write later | Our existing assistant becomes the front door |
 | Audit & security | Immutable audit log; granular roles; optional MFA | Accountability as the team grows |
 | Hosting | Vercel + Supabase cloud | ~$0–45/month at café scale; no servers to babysit |
@@ -155,9 +155,9 @@ Immutable audit log on every sensitive action (who/what/when/before/after): pric
 
 | Phase | Delivers |
 |---|---|
-| **0 · Discovery (1–2 weeks) — IN PROGRESS** | ✅ Nora architecture discovery (read-only — integration design confirmed, no Nora changes needed); ⏳ BAC payment link details (owner to provide); ⏳ SINPE notification test; ⏳ hardware inventory (owner to provide); load & resilience test plan authored; design QA checklist finalized |
-| **1 · Be found & sell** | Cinematic website with *La Gota* scroll + the Monteverde story chapter (10K Websites + Higgsfield), shipped through the design QA gate; SEO + Google Business Profile; menu manager; POS with cash/BAC/SINPE, IVA, receipts, **lite mode**; **Nora on the website** (cached feed, perf-gated); backups + export + restore runbook; audit-log foundation. **Gates: POS sync stress test, Nora feed burst test, design QA checklist** |
-| **2 · Know the business** | Sales dashboard & reports; order board; **Accountant Pack** (period reports + exports, served to Nora's Finance agent); experience bookings paid by BAC link; **stock deduction, waste log, supplier reorder alerts, cost history → gross margin per item**. **Gate: timed backup/restore drill under load** |
+| **0 · Discovery — NEARLY DONE** | ✅ Nora architecture discovery (read-only — integration design confirmed, no Nora changes needed); ✅ payments resolved: external by design, nothing to integrate; ✅ load & resilience test plan authored; ✅ design QA checklist finalized; ⏳ hardware inventory (owner to provide) |
+| **1 · Be found & sell** | Cinematic website with *La Gota* scroll + the Monteverde story chapter (10K Websites + Higgsfield), shipped through the design QA gate; SEO + Google Business Profile; menu manager; POS (record-only: items, IVA, payment-method tag, receipts, **lite mode**, end-of-shift reconciliation); **Nora on the website** (cached feed, perf-gated); backups + export + restore runbook; audit-log foundation. **Gates: POS sync stress test, Nora feed burst test, design QA checklist** |
+| **2 · Know the business** | Sales dashboard & reports; order board; **Accountant Pack** (period reports + exports, served to Nora's Finance agent); experience bookings as **reservation requests** (confirmed by staff, paid at the café); **stock deduction, waste log, supplier reorder alerts, cost history → gross margin per item**. **Gate: timed backup/restore drill under load** |
 | **3 · Run the team** | Time clock; timesheets; payroll ledger with Costa Rican labor rules; tip pooling; shift schedule; granular roles + optional MFA |
 | **4 · Nora acts & advises** | Nora places pickup orders and bookings; owner morning briefing via WhatsApp; forecast-driven inventory and prep suggestions built on the cost/margin data |
 
