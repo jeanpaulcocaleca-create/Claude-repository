@@ -1,137 +1,138 @@
-# The Hanging Garden — "Canopy OS" Proposal
+# The Hanging Garden — "Canopy OS" Proposal (v3, Final)
 
 **An all-in-one system for a coffee experience in Monteverde, Costa Rica**
 
-*Proposal v2 — updated with your answers. Still no code, as requested.*
+*Still no code — this is the final pre-build proposal.*
 
 ---
 
-## What changed in v2
+## What's new in v3
 
-Your answers locked in four things:
-
-1. **Payments run through BAC San José (BAC Credomatic).** You already have a card terminal *and* a BAC payment link for online payments. Canopy OS is designed around both — no new processor needed.
-2. **Hacienda invoicing status is in scope.** The system must be able to provide the invoicing status of any sale when asked — so electronic invoicing (factura electrónica) moves from "readiness" to a real module with per-invoice Hacienda status tracking.
-3. **Team of 5 now, 10–15 later.** Time clock, roles, and payroll are sized for that growth from day one — nothing to migrate when you scale.
-4. **Nora already exists.** She's your own WhatsApp system, already built, answering questions about menu, directions, hours, and more. We don't build an AI — we **integrate yours**: on the website, and fed by live data from Canopy OS so her answers are always current.
+- **Design toolchain locked in:** the website will be built with the **10K Websites** cinematic scroll workflow, with all imagery, textures, and hero video generated through **Higgsfield** — a one-of-a-kind site, not a template.
+- **Signature scroll animation:** *La Gota* — coffee drips from the hero and travels with you down the page, connecting every section until it fills the cup.
+- **Monteverde's real history and ideologies woven into the site** — the Quaker founding, the peace heritage, the cloud forest, the golden toad — modern page, vintage soul.
+- **All five of your reviewer suggestions (A–E) confirmed and incorporated**, including a new Phase 0 discovery sprint, disaster recovery, early inventory schema, and audit logs with role granularity.
 
 ---
 
 ## 1. The Vision
 
-The Hanging Garden isn't just a coffee shop — Monteverde sits on the tourist trail between the cloud forest, the hanging bridges, and the coffee farms. Visitors aren't buying a cup of coffee; they're buying a Costa Rican coffee *experience* they'll tell people about back home. The system reflects that split personality:
+Monteverde sits on the tourist trail between the cloud forest, the hanging bridges, and the coffee farms. Visitors aren't buying a cup of coffee — they're buying a Costa Rican coffee *experience*. Canopy OS reflects that:
 
-- **Outward-facing:** a beautiful bilingual website that ranks on Google, tells the story of the garden, and converts tourists planning their Monteverde days into visitors — with **Nora** greeting them in chat.
-- **Inward-facing:** one operational backbone — POS, menu, orders, sales, staff time, payroll — so you run the whole business from a single tablet and a single source of truth, even when Monteverde's internet flickers.
-- **Connecting both:** Nora, your existing WhatsApp assistant, wired into the website and into Canopy OS's live data.
-
----
-
-## 2. The Modules
-
-### A. Website & Google Presence — *"Be found, tell the story"*
-
-- Bilingual (English/Spanish) site: story of the garden, the menu, photos, hours, location with Google Maps embed, and a "plan your visit" page aimed at tourists.
-- **SEO built in from day one:** `CafeOrCoffeeShop` structured data (schema.org), proper meta tags, fast static pages, sitemap — the rich Google result with hours, photos, and reviews.
-- **Google Business Profile** setup and sync — for a tourist-town café this drives more foot traffic than the website itself.
-- Live menu on the site, fed directly from the menu manager (never out of date).
-- **Nora on the site** (see module G): a chat widget plus a "chat on WhatsApp" button, so web visitors and WhatsApp users reach the same assistant.
-- Review funnel: a QR code on receipts routes happy customers to your Google review page.
-
-### B. Point of Sale — *"The counter tablet"*
-
-- Tablet-based POS (a progressive web app — runs on any iPad/Android tablet, no app store needed).
-- **Offline-first:** orders queue locally and sync when the connection returns. The POS never stops because the wifi did.
-- Big-button menu grid with modifiers, order notes, and a kitchen/bar ticket view.
-- **Payments, built around your BAC setup:**
-  - Cash in CRC **and** USD with a live exchange rate (tourists pay in dollars constantly).
-  - **Card via your existing BAC San José terminal** — the POS records the card payment against the order (amount, last digits/auth reference) so sales reports and the register always reconcile with your BAC statement.
-  - **BAC payment link for anything online:** bookings, deposits, pickup orders. Canopy OS attaches your payment link to the order and marks it paid on confirmation, so online money shows up in the same sales reports as counter money.
-  - **SINPE Móvil** with a QR + reference-matching flow.
-- 13% IVA handled correctly on every receipt; printed or emailed receipts.
-- Tips: recorded per order, pooled into the payroll module automatically.
-
-### C. Menu Manager — *"One menu, everywhere"*
-
-- Add, edit, remove, and reorder items from your phone in seconds: name (EN/ES), price, photo, category, modifiers, allergens.
-- **Availability toggle** — "sold out of banana bread" hides it from the POS, the website, and Nora's answers instantly.
-- Seasonal/scheduled items.
-- The website, the POS, **and Nora** all read from this single source — change it once, it's changed everywhere.
-
-### D. Sales, Orders & Electronic Invoicing — *"Know your business, prove it to Hacienda"*
-
-- Live order board: open → preparing → served/picked up.
-- Daily dashboard: revenue, order count, average ticket, payment-method mix, best sellers, sales by hour (so you see the tour-bus waves).
-- Weekly/monthly reports, CSV export for your accountant, and season-over-season comparisons (high season vs. green season matters enormously in Monteverde).
-- **Factura electrónica module:** every sale can be issued as an electronic invoice/tiquete under Hacienda's scheme (v4.4), and the system tracks each document's status — *sent, accepted, rejected* — so **when anyone asks for the Hacienda invoicing status of a sale, it's one lookup away**, with the XML/PDF on file. We'll confirm your régimen (tradicional vs. simplificado) before wiring the submission path, since it changes what must be filed.
-
-### E. Team Time Clock — *"Clock in, clock out"*
-
-- Each employee gets a PIN; clock in/out on the POS tablet (optional photo capture).
-- Break tracking, shift notes, and a manager view of who's on the clock right now.
-- Timesheets roll up automatically per pay period.
-- **Sized for your growth:** built for the starting team of 5 and ready for 10–15 — roles (owner / manager / barista) and per-employee permissions exist from day one, and a simple shift schedule becomes available when the team grows past what fits in your head.
-
-### F. Payroll & Internal Payments — *"Hours become paychecks"*
-
-- Hourly rates per employee; the system computes each pay period from the time clock: regular hours, **overtime at 1.5× past 8 hours/day** (per Costa Rican labor law), and tip shares from the POS tip pool.
-- Tracks the employer-side obligations you must plan for in Costa Rica: **CCSS contributions** and **aguinaldo accrual** (the mandatory 13th-month bonus) — increasingly important as the team triples.
-- Generates a clear pay statement per employee per period; records payments (SINPE/bank transfer/cash) against them so you always know who's been paid what.
-- *Honest scoping note:* this is a payroll **ledger and calculator** — it computes, records, and documents. Actual money movement stays in your bank/SINPE app at first; automating disbursement is a later phase, done carefully.
-
-### G. Nora Integration — *"Your assistant, everywhere, always current"* ⭐
-
-Nora is already built and already answers menu, directions, and hours questions on WhatsApp. The work here is **integration, not construction** — three connections:
-
-1. **Nora on the website.** A chat widget on the site connected to your Nora system, plus a WhatsApp deep-link button for visitors who'd rather chat there. One assistant, two doors. (Exact wiring depends on what Nora is built on — see open questions.)
-2. **Live data feed.** Canopy OS exposes a clean, read-only API for Nora: current menu with today's availability and prices, hours, holiday closures, directions, and booking availability. Nora stops needing manual updates — when you 86 the banana bread on the POS, her answer changes in the same minute.
-3. **Nora takes action (later, optional).** With a write endpoint, Nora can go beyond answering: place a pickup order into the order board, or hold a booking. And since she already lives on WhatsApp — the channel you check anyway — she's the natural voice for an owner-side **morning briefing** (yesterday's sales, today's outlook, low stock), which Canopy OS can generate and send through her.
+- **Outward:** a one-of-a-kind cinematic website that ranks on Google and turns tourists planning their Monteverde days into visitors — with Nora greeting them in chat.
+- **Inward:** one operational backbone — POS, menu, orders, sales, time clock, payroll — running from a single tablet, surviving Monteverde's internet.
+- **Connecting both:** Nora, your existing WhatsApp assistant, integrated on the website and fed live data.
 
 ---
 
-## 3. What I'd Add as Your Partner
+## 2. The Website — One of a Kind
 
-1. **Coffee experience bookings.** Monteverde tourists plan by the hour. A booking page for tastings/tours/workshops — with deposits collected through your **existing BAC payment link** — turns the website into a revenue engine, not a brochure. My Phase-2 priority.
-2. **Sell beans online**, paid by BAC payment link — the highest-margin repeat revenue a café can have.
-3. **Loyalty via QR** — a digital "9th coffee free" card for locals and guides. Tour guides who drink free bring busloads.
-4. **WhatsApp ordering through Nora** for locals ("the usual, ready at 8") — a natural extension of connection 3 above.
-5. **Inventory & waste log** so shrinkage and waste show up in colones, not vibes.
+### Toolchain
+
+- Built on the **10K Websites** cinematic scroll-driven workflow (hero video, scroll choreography, deploy pipeline).
+- **Higgsfield generates the visual world:** the hero film, vintage-style illustrations, textures, and section imagery — custom-made for The Hanging Garden, owned by you, impossible to find on another site.
+
+### The signature moment: *La Gota* (the drip)
+
+The homepage opens on a **chorreador** — the traditional Costa Rican wooden brewing stand with its cloth *bolsita*. As you scroll, a single thread of coffee begins to drip from it and **travels down the page with you**: it becomes the line that connects every section, pooling and pouring past the story, the menu, the experiences — until at the final section it lands in a waiting cup, filling it as the page ends at "visit us." One continuous pour, top to bottom.
+
+Craft notes (for when we build): scroll-linked SVG path + canvas fluid effects choreographed with GSAP ScrollTrigger; a lightweight static version for `prefers-reduced-motion` and low-power phones; the drip is decoration that never blocks reading or slows the page below Google's Core Web Vitals bar — the SEO promise survives the cinema.
+
+### Art direction: modern page, vintage soul
+
+Modern layout, typography, and speed underneath; the decoration layer is vintage Costa Rica:
+
+- **Naturalist engraving style** — quetzals, orchids, coffee branches drawn like 19th-century botanical plates.
+- **Sarchí oxcart motifs** — the hand-painted *carreta* patterns (UNESCO-recognized) that once hauled Costa Rican coffee to port, used as borders and section ornaments.
+- **Aged-paper textures, vintage stamps and postal marks** framing photos and menu cards.
+- A muted cloud-forest palette: mist, moss, espresso, and one golden accent — for the golden toad.
+
+### Monteverde's story, told on the page
+
+A scroll chapter of the site — researched, real, and unique to this place:
+
+- **Early 1900s:** Costa Rican farming families settle the green mountain, planting coffee and raising dairy on the slopes.
+- **1948:** Costa Rica abolishes its army — a nation chooses peace.
+- **1949–1951:** In Fairhope, Alabama, four young Quakers are jailed for refusing the military draft. On release, about 44 Quakers leave the U.S. and choose Costa Rica *because* it has no army. They buy ~1,400 hectares in the cloud forest and name it **Monteverde** — green mountain.
+- **1953:** They found the cheese factory that sustains the community — and deliberately set aside the forested watershed above their farms rather than clear it.
+- **1966:** Herpetologist Jay Savage describes the **golden toad**, found nowhere on Earth but the Monteverde ridge. Scientists pour in.
+- **1972:** The **Monteverde Cloud Forest Reserve** is founded, growing into one of Costa Rica's most treasured protected areas; later, children around the world fund the **Bosque Eterno de los Niños**, the Children's Eternal Rainforest.
+- **1989:** The golden toad is seen for the last time — Monteverde's reminder of why stewardship matters.
+
+**The ideologies of the area become the brand's values, stated on the site:** *peace* (a community founded by people who refused war, in a country that disarmed), *simplicity* (Quaker plainness — honest coffee, honest prices), *stewardship* (protect the watershed, waste nothing), and *community* (cooperatives, neighbors, tour guides — everyone drinks at the same counter). The Hanging Garden's own hanging plants tie the garden itself into the canopy story.
+
+Everything bilingual (EN/ES), structured data for Google's rich results, Google Business Profile synced, and a receipt-QR review funnel — the beauty serves the SEO, not instead of it.
 
 ---
 
-## 4. Architecture (kept boring on purpose)
+## 3. The Operating System — Modules
+
+**A. Website & Google** — as above, plus live menu fed from the menu manager and Nora's chat widget + WhatsApp button.
+
+**B. Point of Sale** — offline-first tablet PWA; cash in CRC and USD with live exchange rate; **card via your existing BAC San José terminal** (payments recorded against orders so reports reconcile with your BAC statement); **BAC payment link for everything online** (bookings, deposits, pickup orders — marked paid on confirmation, landing in the same reports as counter money); **SINPE Móvil** with QR + reference matching; 13% IVA on every receipt; tips pooled into payroll.
+
+**C. Menu Manager** — one source of truth for POS, website, and Nora. Bilingual items, photos, modifiers, availability toggles ("86 the banana bread" updates everywhere in a minute), seasonal scheduling.
+
+**D. Sales & Electronic Invoicing** — live order board; daily dashboard (revenue, average ticket, payment mix, best sellers, sales by hour); season-over-season reports and accountant CSV exports; **factura electrónica module (Hacienda v4.4)** with per-document status tracking — *sent / accepted / rejected* — so any sale's Hacienda invoicing status is one lookup away, XML/PDF on file.
+
+**E. Time Clock** — PIN clock in/out on the tablet with optional photo; breaks, shift notes, live "who's on"; timesheets per pay period; **sized for 5 now and 10–15 later** with roles and a shift schedule ready when you grow.
+
+**F. Payroll Ledger** — pay computed from the clock under Costa Rican rules (overtime 1.5× past 8 hrs/day), tip shares, **CCSS contributions and aguinaldo accrual** tracked so December never surprises you; pay statements with payments recorded against them. (Ledger and calculator — money still moves through your bank app at first.)
+
+**G. Nora Integration** — she's already built; the work is three connections: (1) **website chat widget + WhatsApp deep link** — one assistant, two doors; (2) **live read-only data feed** from Canopy OS (menu, availability, prices, hours, closures, bookings) so her answers are always current; (3) later, a **write endpoint** so she can place pickup orders and holds — and deliver your owner morning briefing over WhatsApp, where she already lives.
+
+---
+
+## 4. Your Five Suggestions — Analyzed & Adopted
+
+**A. Clarify Nora's API capabilities early — ✅ Adopted, moved to Phase 0.** Agreed, this is the integration that everything customer-facing leans on. Before any build: what is Nora built on (WhatsApp Business Cloud API, Twilio, bot platform)? Does she expose an API/webhook for reads (menu, hours) and writes (orders)? Can her engine answer through a web widget, or does the site hand off to WhatsApp? A short technical questionnaire in Phase 0 settles the architecture.
+
+**B. Explore BAC & SINPE APIs — ✅ Adopted, with research done and realistic fallbacks.** Initial findings: BAC's **Compra Click** payment links are generated from BAC's merchant portal (≈$50 setup, $25/month, $0.11 + IVA per transaction per BAC's published terms) with no public link-generation API documented — but BAC does offer full e-commerce gateway products, so Phase 0 includes one conversation with your BAC commercial executive asking for: (1) e-commerce/gateway API access for dynamic payment creation, (2) settlement/reconciliation reports (even daily CSV) for terminal payments. **SINPE Móvil has no public merchant API**, so the plan is honest: automatic reconciliation via bank notification parsing where possible, and a fast manual reference-matching screen in the POS as the guaranteed path. The system is designed so any of these can upgrade from manual → automatic without rework.
+
+**C. Minimal disaster recovery — ✅ Adopted as a real (small) module.** New "keep the shop alive" checklist: automatic nightly database backups with point-in-time recovery (Supabase built-in); a one-tap **export everything** button (sales, timesheets, payroll, invoices → CSV/JSON to email or Drive); the POS offline cache doubles as a same-day buffer; a laminated **tablet restore runbook** at the counter (any spare tablet becomes the POS in under 5 minutes — log in, install PWA, done); quarterly restore drill. Informal, cheap, and it means a stolen tablet or a dead database costs you minutes, not weeks.
+
+**D. Future-proof for inventory — ✅ Adopted, schema from day one.** The database is born with `ingredients`, `recipes` (menu item → ingredient quantities), `stock_movements`, and a **waste log** — and Phase 2 ships the simple habits: receive stock, auto-deduct on each sale, log waste with a reason. That makes shrinkage visible early and means the later intelligence phase (forecast-driven ordering) is a feature flip, not a migration.
+
+**E. Audit logs & role granularity — ✅ Adopted.** Every sensitive action is logged immutably with who/what/when/before/after: price changes, menu edits, refunds and voids, shift edits, payroll adjustments, role changes. Roles get granular (owner / manager / barista, per-permission overrides) — essential at 10–15 staff. **Optional MFA (TOTP app or WhatsApp code) for owner and manager accounts**, and PIN-only baristas can't touch pricing, payroll, or exports. Refund/void thresholds require a manager PIN.
+
+---
+
+## 5. Architecture
 
 | Layer | Choice | Why |
 |---|---|---|
-| App | Next.js (one codebase: website + POS + admin) | Fast, SEO-friendly, installable as a tablet PWA |
-| Database & auth | Supabase (Postgres, realtime, row-level security) | One source of truth; realtime order board; roles for a team growing 5 → 15 |
-| Offline POS | Local-first queue with background sync | Survives Monteverde connectivity |
-| Payments | Your BAC San José terminal + BAC payment link + SINPE | No new processor; online and counter sales reconcile in one report |
-| Nora | Integration API (read: menu/hours; later write: orders/bookings) | Your existing system becomes the front door on web + WhatsApp |
-| Hosting | Vercel + Supabase cloud | ~$0–45/month at café scale; no servers to babysit |
-
-One system, one login, one database. No duct tape between five SaaS subscriptions — and no $300+/month stack of Square + Toast + Deputy + Gusto + a website builder.
-
----
-
-## 5. Roadmap
-
-| Phase | Delivers | Why this order |
-|---|---|---|
-| **1. Be found & sell** | Website + SEO + Google Business Profile; menu manager; POS with cash/BAC card/SINPE, IVA, receipts; **Nora on the website** (widget + WhatsApp button, live menu/hours feed) | Revenue and visibility first; Nora integrates early because she already exists |
-| **2. Know the business** | Sales dashboard & reports; order board; **factura electrónica with Hacienda status tracking**; experience bookings paid via BAC payment link | Money and compliance visibility |
-| **3. Run the team** | Time clock; timesheets; payroll ledger with CR labor rules; tip pooling; shift schedule as the team grows | Operational backbone, ready for 10–15 |
-| **4. Nora acts & advises** | Nora places pickup orders/bookings; owner morning briefing via WhatsApp; inventory intelligence and forecasting | Built on the data phases 1–3 accumulate |
-
-Each phase ships something you use on day one of that phase — no six-month wait for a big bang.
+| Website build | 10K Websites cinematic workflow + Higgsfield imagery/video | One-of-a-kind scroll site; assets custom-generated and owned |
+| App | Next.js — one codebase: website, POS, admin | Fast, SEO-friendly, installs as tablet PWA |
+| Data & auth | Supabase (Postgres, realtime, RLS) + nightly backups | One source of truth; roles for 5 → 15; DR built in |
+| Offline POS | Local-first queue with background sync | Survives Monteverde connectivity; doubles as backup buffer |
+| Payments | BAC terminal + BAC payment link + SINPE Móvil | No new processor; manual → automatic upgrade path |
+| Nora | Integration API — read now, write later | Your existing assistant becomes the front door |
+| Audit & security | Immutable audit log; granular roles; optional MFA | Accountability as the team grows |
+| Hosting | Vercel + Supabase cloud | ~$0–45/month at café scale |
 
 ---
 
-## 6. Remaining Questions Before We Code
+## 6. Roadmap
 
-1. **Nora's plumbing:** what is Nora built on (WhatsApp Business Cloud API, Twilio, a bot platform)? Does she have an API or webhook we can call, and can her engine also answer through a web chat widget — or should the website button hand off to WhatsApp only?
-2. **BAC specifics:** is the terminal standalone (amount typed in by hand) or integrable? And for the payment link — is it generated manually in BAC's portal per sale, or is there an API to create links programmatically? Both work; it changes how automatic reconciliation can be.
-3. **Hacienda régimen:** tradicional or simplificado? (This sets exactly what the factura electrónica module must file and store.)
-4. **Hardware:** how many tablets/printers exist today, if any?
+| Phase | Delivers |
+|---|---|
+| **0 · Discovery (1–2 weeks)** | Nora technical questionnaire (A); BAC executive conversation — gateway API + reconciliation reports (B); SINPE notification test; Hacienda régimen confirmation; hardware inventory |
+| **1 · Be found & sell** | Cinematic website with *La Gota* scroll + Monteverde story chapter (10K Websites + Higgsfield); SEO + Google Business Profile; menu manager; POS with cash/BAC/SINPE, IVA, receipts; **Nora on the website**; backups + export + restore runbook (C); audit log foundation (E) |
+| **2 · Know the business** | Sales dashboard & reports; order board; factura electrónica with Hacienda status; bookings paid by BAC link; **stock deduction + waste log** (D) |
+| **3 · Run the team** | Time clock; timesheets; payroll ledger (CR labor rules); tip pooling; shift schedule; granular roles + optional MFA (E) |
+| **4 · Nora acts & advises** | Nora places orders/bookings; owner morning briefing via WhatsApp; forecast-driven inventory & prep suggestions |
 
-Answer those (or just say "go") and Phase 1 starts.
+---
+
+## 7. Sources & further reading
+
+- Friends Journal — *The Quaker Stewards of Costa Rica's Monteverde Cloud Forest*: https://www.friendsjournal.org/the-quaker-stewards-of-costa-ricas-monteverde-cloud-forest/
+- Wikipedia — *Quakers in Costa Rica*: https://en.wikipedia.org/wiki/Quakers_in_Costa_Rica
+- Wikipedia — *Monteverde Cloud Forest Reserve*: https://en.wikipedia.org/wiki/Monteverde_Cloud_Forest_Reserve
+- Vacations Costa Rica — *History of Monteverde*: https://www.vacationscostarica.com/monteverde/history/
+- Monteverde Tours — *History of Monteverde and the Quakers*: https://monteverdetours.com/history-of-monteverde.html
+- BAC Credomatic — *Compra Click*: https://www.baccredomatic.com/es-cr/pymes/compra-click
+
+---
+
+*Say "go" and Phase 0 starts.*
