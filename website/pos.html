@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POS · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
+  --accent-hover:#54331B; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.4}
+h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+button{font:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+[hidden]{display:none !important}
+
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem;box-shadow:0 2px 14px rgba(107,66,34,.07)}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+
+.app{display:grid;grid-template-columns:1fr 340px;height:100dvh}
+.left{display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;background:var(--panel);border-bottom:1px solid var(--muted)}
+.topbar h1{font-size:1.1rem;margin-right:auto}
+.chip{font-size:.75rem;font-weight:600;padding:.25em .8em;border-radius:99px;border:1.5px solid var(--muted)}
+.chip.on{color:var(--ok)} .chip.off{color:var(--bad)} .chip.pend{color:var(--gold)}
+.grid{flex:1;overflow-y:auto;padding:1rem}
+.grid h2{font-size:1rem;color:var(--sec);margin:.6rem 0 .5rem}
+.btns{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem}
+.pbtn{background:var(--panel);color:var(--ink);border:1.5px solid var(--muted);border-radius:14px;padding:.7em .8em;text-align:left;min-height:64px;display:flex;flex-direction:column;justify-content:space-between;gap:.3em}
+.pbtn:hover{background:#fff}
+.pbtn .p{font-family:'Spline Sans Mono',monospace;font-size:.85rem;color:var(--sec)}
+
+.ticket{background:var(--panel);border-left:1px solid var(--muted);display:flex;flex-direction:column;min-height:0}
+.ticket h2{font-size:1.05rem;padding:0.9rem 1rem .5rem}
+.lines{flex:1;overflow-y:auto;padding:0 1rem}
+.line{display:grid;grid-template-columns:1fr auto;gap:.5rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);align-items:center}
+.line .qbtns{display:flex;gap:.3rem;align-items:center}
+.line .qbtns button{min-height:32px;min-width:32px;padding:0;background:transparent;color:var(--accent);border:1.5px solid var(--muted);border-radius:8px;font-size:1rem}
+.line .nm{font-weight:600;font-size:.95rem}
+.line .amt{font-family:'Spline Sans Mono',monospace;font-size:.9rem}
+.totals{padding: .8rem 1rem;border-top:1px solid var(--muted)}
+.trow{display:flex;justify-content:space-between;padding:.15rem 0;font-size:.9rem;color:var(--sec)}
+.trow.big{font-size:1.25rem;font-weight:700;color:var(--ink)}
+.payrow{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;padding:0 1rem .5rem}
+.payrow button{min-height:52px;font-size:.85rem}
+.payrow button:nth-child(4),.payrow button:nth-child(5){grid-column:span 1}
+.util{display:flex;gap:.45rem;padding:0 1rem 1rem}
+.util button{flex:1}
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FBF7EF;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+.modal{position:fixed;inset:0;background:rgba(62,42,27,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:10}
+.modal .box{background:var(--panel);border-radius:16px;padding:1.3rem;max-width:420px;width:100%;max-height:85dvh;overflow-y:auto}
+.modal h2{margin-bottom:.8rem}
+.dayrow{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px dotted var(--muted);font-size:.95rem}
+.dayrow.big{font-weight:700;font-size:1.1rem;border-bottom:none;padding-top:.6rem}
+.modal .close{width:100%;margin-top:1rem}
+.counted{display:flex;gap:.6rem;align-items:center;margin-top:.8rem}
+.counted input{max-width:150px}
+.diff{font-weight:700}
+.diff.ok{color:var(--ok)} .diff.bad{color:var(--bad)}
+
+@media(max-width:860px){
+  .app{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .ticket{border-left:none;border-top:2px solid var(--muted);max-height:45dvh}
+}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>The Hanging Garden POS</h1>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit" id="loginBtn">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+</div>
+
+<div id="appView" class="app" hidden>
+  <div class="left">
+    <div class="topbar">
+      <h1>The Hanging Garden</h1>
+      <span class="chip on" id="netChip">online</span>
+      <button class="ghost" id="dayBtn">Today</button>
+      <button class="ghost" id="outBtn">Sign out</button>
+    </div>
+    <div class="grid" id="menuGrid"><p style="color:var(--sec)">Loading the menu…</p></div>
+  </div>
+  <div class="ticket">
+    <h2>Order</h2>
+    <div class="lines" id="lines"><p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p></div>
+    <div class="totals">
+      <div class="trow"><span>Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
+      <div class="trow big"><span>Total</span><span class="mono" id="totalAmt">₡0</span></div>
+    </div>
+    <div class="payrow">
+      <button data-pay="cash_crc">Cash ₡</button>
+      <button data-pay="cash_usd">Cash $</button>
+      <button data-pay="card">Card</button>
+      <button data-pay="sinpe">SINPE</button>
+      <button data-pay="other">Other</button>
+    </div>
+    <div class="util">
+      <button class="ghost" id="clearBtn">Clear order</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="dayModal" hidden>
+  <div class="box">
+    <h2>Today at the counter</h2>
+    <div id="dayBody"></div>
+    <div class="counted">
+      <label for="countedCash" style="font-size:.9rem;color:var(--sec)">Cash counted:</label>
+      <input id="countedCash" type="number" min="0" inputmode="numeric" placeholder="₡">
+      <span class="diff mono" id="cashDiff"></span>
+    </div>
+    <button class="close" id="dayClose">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+var ticket = [];          /* {id, name, price, qty} */
+var queue = [];           /* offline orders waiting to sync */
+var QKEY = 'hg-pos-queue';
+var toastTimer = null;
+
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){t.classList.remove('show')},2400);
+}
+
+/* ---------- auth ---------- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  document.getElementById('loginView').hidden = authed;
+  document.getElementById('appView').hidden = !authed;
+  if (authed){ loadMenu(); loadQueue(); syncQueue(); }
+}
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
+  refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---------- menu grid ---------- */
+var MENU_CACHE = 'hg-pos-menu';
+async function loadMenu(){
+  try{
+    var r = await db.from('menu_categories')
+      .select('name,sort,menu_items(id,name,price_crc,available,sort)').order('sort');
+    if (r.error) throw r.error;
+    localStorage.setItem(MENU_CACHE, JSON.stringify(r.data));
+    renderMenu(r.data);
+  }catch(e){
+    var cached = localStorage.getItem(MENU_CACHE);
+    if (cached) renderMenu(JSON.parse(cached));
+    else document.getElementById('menuGrid').innerHTML = '<p style="color:var(--bad)">No connection and no saved menu yet. Connect once and it will work offline after that.</p>';
+  }
+}
+function renderMenu(cats){
+  var g = document.getElementById('menuGrid');
+  g.textContent = '';
+  cats.forEach(function(cat){
+    var items = (cat.menu_items||[]).filter(function(i){return i.available})
+      .sort(function(a,b){return a.sort-b.sort||a.name.localeCompare(b.name)});
+    if (!items.length) return;
+    var h = document.createElement('h2'); h.textContent = cat.name; g.appendChild(h);
+    var wrap = document.createElement('div'); wrap.className = 'btns';
+    items.forEach(function(it){
+      var b = document.createElement('button'); b.className = 'pbtn';
+      var n = document.createElement('span'); n.textContent = it.name;
+      var p = document.createElement('span'); p.className = 'p'; p.textContent = fmt(it.price_crc);
+      b.appendChild(n); b.appendChild(p);
+      b.addEventListener('click', function(){ addLine(it); });
+      wrap.appendChild(b);
+    });
+    g.appendChild(wrap);
+  });
+}
+
+/* ---------- ticket ---------- */
+function addLine(it){
+  var ln = ticket.find(function(l){return l.id === it.id});
+  if (ln) ln.qty++;
+  else ticket.push({id: it.id, name: it.name, price: it.price_crc, qty: 1});
+  renderTicket();
+}
+function renderTicket(){
+  var box = document.getElementById('lines');
+  box.textContent = '';
+  if (!ticket.length){
+    box.innerHTML = '<p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p>';
+  }
+  ticket.forEach(function(l, i){
+    var row = document.createElement('div'); row.className = 'line';
+    var left = document.createElement('div');
+    var nm = document.createElement('div'); nm.className='nm'; nm.textContent = l.name;
+    var q = document.createElement('div'); q.className='qbtns';
+    var minus = document.createElement('button'); minus.textContent='−'; minus.setAttribute('aria-label','One less '+l.name);
+    var qn = document.createElement('span'); qn.className='mono'; qn.textContent = l.qty;
+    var plus = document.createElement('button'); plus.textContent='+'; plus.setAttribute('aria-label','One more '+l.name);
+    minus.addEventListener('click', function(){ l.qty--; if(l.qty<1) ticket.splice(i,1); renderTicket(); });
+    plus.addEventListener('click', function(){ l.qty++; renderTicket(); });
+    q.appendChild(minus); q.appendChild(qn); q.appendChild(plus);
+    left.appendChild(nm); left.appendChild(q);
+    var amt = document.createElement('div'); amt.className='amt'; amt.textContent = fmt(l.price * l.qty);
+    row.appendChild(left); row.appendChild(amt);
+    box.appendChild(row);
+  });
+  var total = ticket.reduce(function(s,l){return s + l.price*l.qty}, 0);
+  document.getElementById('totalAmt').textContent = fmt(total);
+  document.getElementById('ivaAmt').textContent = fmt(Math.round(total - total/1.13));
+}
+document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; renderTicket(); });
+
+/* ---------- charge (record only) ---------- */
+document.querySelectorAll('[data-pay]').forEach(function(b){
+  b.addEventListener('click', function(){
+    if (!ticket.length){ toast('The order is empty.'); return; }
+    var total = ticket.reduce(function(s,l){return s + l.price*l.qty}, 0);
+    var order = {
+      local_id: 'o' + Date.now() + Math.random().toString(36).slice(2,7),
+      created_at: new Date().toISOString(),
+      total_crc: total,
+      payment_method: b.dataset.pay,
+      items: ticket.map(function(l){return {item_name:l.name, price_crc:l.price, qty:l.qty}})
+    };
+    queue.push(order); saveQueue();
+    ticket = []; renderTicket();
+    toast('Recorded ' + fmt(total) + ' · ' + b.textContent.trim());
+    syncQueue();
+  });
+});
+
+/* ---------- offline queue ---------- */
+function loadQueue(){ try{ queue = JSON.parse(localStorage.getItem(QKEY) || '[]'); }catch(e){ queue = []; } updateChip(); }
+function saveQueue(){ localStorage.setItem(QKEY, JSON.stringify(queue)); updateChip(); }
+var syncing = false;
+async function syncQueue(){
+  if (syncing || !queue.length){ updateChip(); return; }
+  syncing = true;
+  while (queue.length){
+    var o = queue[0];
+    try{
+      var r = await db.from('orders').insert({
+        created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method
+      }).select('id').single();
+      if (r.error) throw r.error;
+      var items = o.items.map(function(it){ return Object.assign({order_id: r.data.id}, it); });
+      var r2 = await db.from('order_items').insert(items);
+      if (r2.error) throw r2.error;
+      queue.shift(); saveQueue();
+    }catch(e){ break; }
+  }
+  syncing = false; updateChip();
+}
+setInterval(syncQueue, 20000);
+addEventListener('online', syncQueue);
+function updateChip(){
+  var c = document.getElementById('netChip');
+  if (!navigator.onLine){ c.textContent = 'offline · ' + queue.length + ' saved'; c.className = 'chip off'; }
+  else if (queue.length){ c.textContent = 'syncing ' + queue.length + '…'; c.className = 'chip pend'; }
+  else { c.textContent = 'online'; c.className = 'chip on'; }
+}
+addEventListener('offline', updateChip);
+
+/* ---------- today / reconciliation ---------- */
+document.getElementById('dayBtn').addEventListener('click', openDay);
+document.getElementById('dayClose').addEventListener('click', function(){ document.getElementById('dayModal').hidden = true; });
+var dayCash = 0;
+async function openDay(){
+  var start = new Date(); start.setHours(0,0,0,0);
+  var body = document.getElementById('dayBody');
+  body.innerHTML = '<p style="color:var(--sec)">Adding it up…</p>';
+  document.getElementById('dayModal').hidden = false;
+  var r = await db.from('orders').select('total_crc,payment_method').gte('created_at', start.toISOString());
+  if (r.error){ body.innerHTML = '<p style="color:var(--bad)">Could not load today. Check the connection.</p>'; return; }
+  var rows = r.data || [];
+  queue.forEach(function(o){ rows.push({total_crc:o.total_crc, payment_method:o.payment_method}); });
+  var by = {}; var total = 0;
+  rows.forEach(function(o){ by[o.payment_method] = (by[o.payment_method]||0) + o.total_crc; total += o.total_crc; });
+  var labels = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
+  body.textContent = '';
+  var count = document.createElement('div'); count.className='dayrow';
+  count.innerHTML = '<span>Orders</span><span class="mono">' + rows.length + '</span>';
+  body.appendChild(count);
+  Object.keys(labels).forEach(function(k){
+    if (!by[k]) return;
+    var d = document.createElement('div'); d.className='dayrow';
+    d.innerHTML = '<span>' + labels[k] + '</span><span class="mono">' + fmt(by[k]) + '</span>';
+    body.appendChild(d);
+  });
+  var t = document.createElement('div'); t.className='dayrow big';
+  t.innerHTML = '<span>Total</span><span class="mono">' + fmt(total) + '</span>';
+  body.appendChild(t);
+  dayCash = by.cash_crc || 0;
+  var note = document.createElement('p');
+  note.style.cssText = 'font-size:.85rem;color:var(--sec);margin:.6rem 0 0';
+  note.textContent = 'Compare the card total with the BAC terminal batch. Count the drawer and type it below.';
+  body.appendChild(note);
+  document.getElementById('countedCash').value = '';
+  document.getElementById('cashDiff').textContent = '';
+}
+document.getElementById('countedCash').addEventListener('input', function(){
+  var v = parseInt(this.value, 10);
+  var el = document.getElementById('cashDiff');
+  if (isNaN(v)){ el.textContent=''; return; }
+  var diff = v - dayCash;
+  el.textContent = (diff === 0 ? 'exact' : (diff > 0 ? '+' : '−') + fmt(Math.abs(diff)).slice(0));
+  el.className = 'diff mono ' + (diff === 0 ? 'ok' : 'bad');
+});
+
+refreshAuth();
+</script>
+</body>
+</html>
