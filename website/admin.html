@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu Manager · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
+  --accent-hover:#54331B; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+.wrap{max-width:680px;margin:0 auto;padding:1.2rem 1rem 5rem}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.6rem 0 1rem}
+header h1{font-size:1.4rem}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:.55em 1em;background:var(--accent);color:#fff;font-weight:600;min-height:44px}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
+button.danger{background:transparent;color:var(--bad);border:1.5px solid var(--muted)}
+input,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;width:100%}
+input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem;box-shadow:0 2px 14px rgba(107,66,34,.07);margin-bottom:1rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center}
+.login .cup{width:56px;margin:0 auto 1rem;color:var(--accent)}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.cat h2{font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.4rem}
+.item{display:grid;grid-template-columns:52px 1fr auto;gap:.8rem;align-items:center;padding:.7rem 0;border-bottom:1px dotted var(--muted)}
+.item:last-of-type{border-bottom:none}
+.item .ph{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--canvas);border:1px solid var(--muted);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.3rem;overflow:hidden;cursor:pointer;padding:0}
+.item .ph img{width:100%;height:100%;object-fit:cover}
+.item .nm{font-weight:600}
+.item .pr{font-size:.9rem;color:var(--sec)}
+.item.off .nm,.item.off .pr{opacity:.45;text-decoration:line-through}
+.acts{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
+.toggle{border:1.5px solid var(--muted);background:#fff;color:var(--ok);min-height:36px;padding:.3em .7em;font-size:.85rem;border-radius:99px}
+.toggle.off{color:var(--bad)}
+.addrow{margin-top:.8rem}
+.editbox{grid-column:1/-1;background:#fff;border:1.5px solid var(--muted);border-radius:12px;padding:.9rem;display:grid;gap:.6rem}
+.editbox label{font-size:.8rem;color:var(--sec)}
+.editbox .row{display:flex;gap:.6rem}
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FBF7EF;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.hint{font-size:.85rem;color:var(--sec)}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loginView" class="login card" hidden>
+    <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
+    <h1>Menu Manager</h1>
+    <p class="hint">The Hanging Garden Café</p>
+    <form id="loginForm">
+      <label for="em">Email</label>
+      <input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button type="submit" id="loginBtn">Sign in</button>
+      <p class="err" id="loginErr"></p>
+    </form>
+  </div>
+
+  <div id="appView" hidden>
+    <header>
+      <h1>Menu Manager</h1>
+      <button class="ghost small" id="signOut">Sign out</button>
+    </header>
+    <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture.</p>
+    <div id="cats"></div>
+  </div>
+
+</div>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="photoInput" accept="image/*" hidden>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+var loginView = document.getElementById('loginView');
+var appView = document.getElementById('appView');
+var toastEl = document.getElementById('toast');
+var photoInput = document.getElementById('photoInput');
+var photoTargetItem = null;
+var toastTimer = null;
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){toastEl.classList.remove('show')}, 2600);
+}
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  loginView.hidden = authed;
+  appView.hidden = !authed;
+  if (authed) loadMenu();
+}
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  btn.disabled = false; btn.textContent = 'Sign in';
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work. Check the email and password.'; return; }
+  refreshAuth();
+});
+document.getElementById('signOut').addEventListener('click', async function(){
+  await db.auth.signOut(); refreshAuth();
+});
+
+async function loadMenu(){
+  var r = await db.from('menu_categories')
+    .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort)')
+    .order('sort');
+  if (r.error){ toast('Could not load the menu. Check your connection.'); return; }
+  render(r.data);
+}
+
+function render(cats){
+  var root = document.getElementById('cats');
+  root.textContent = '';
+  cats.forEach(function(cat){
+    var card = document.createElement('div');
+    card.className = 'card cat';
+    var h = document.createElement('h2'); h.textContent = cat.name; card.appendChild(h);
+    cat.menu_items.sort(function(a,b){return a.sort-b.sort || a.name.localeCompare(b.name)});
+    cat.menu_items.forEach(function(it){ card.appendChild(itemRow(it)); });
+    var add = document.createElement('button');
+    add.className = 'ghost small addrow';
+    add.textContent = '+ Add item to ' + cat.name;
+    add.addEventListener('click', function(){ addItem(cat); });
+    card.appendChild(add);
+    root.appendChild(card);
+  });
+}
+
+function itemRow(it){
+  var row = document.createElement('div');
+  row.className = 'item' + (it.available ? '' : ' off');
+
+  var ph = document.createElement('button');
+  ph.className = 'ph'; ph.title = 'Change photo'; ph.setAttribute('aria-label','Change photo for '+it.name);
+  if (it.photo_url){ var im = document.createElement('img'); im.src = it.photo_url; im.alt=''; ph.appendChild(im); }
+  else ph.textContent = '+';
+  ph.addEventListener('click', function(){ photoTargetItem = it; photoInput.click(); });
+  row.appendChild(ph);
+
+  var mid = document.createElement('div');
+  var nm = document.createElement('div'); nm.className='nm'; nm.textContent = it.name;
+  var pr = document.createElement('div'); pr.className='pr';
+  pr.textContent = fmt(it.price_crc) + (it.description ? ' · ' + it.description : '');
+  mid.appendChild(nm); mid.appendChild(pr);
+  row.appendChild(mid);
+
+  var acts = document.createElement('div'); acts.className='acts';
+  var tog = document.createElement('button');
+  tog.className = 'toggle' + (it.available ? '' : ' off');
+  tog.textContent = it.available ? 'Available' : 'Sold out';
+  tog.addEventListener('click', async function(){
+    var r = await db.from('menu_items').update({available: !it.available, updated_at: new Date().toISOString()}).eq('id', it.id);
+    if (r.error){ toast('Could not save. Try again.'); return; }
+    toast(it.name + (it.available ? ' marked sold out' : ' back on the menu'));
+    loadMenu();
+  });
+  var ed = document.createElement('button'); ed.className='ghost small'; ed.textContent='Edit';
+  ed.addEventListener('click', function(){ openEditor(row, it); });
+  acts.appendChild(tog); acts.appendChild(ed);
+  row.appendChild(acts);
+  return row;
+}
+
+function openEditor(row, it){
+  if (row.querySelector('.editbox')) return;
+  var box = document.createElement('form'); box.className='editbox';
+  box.innerHTML =
+    '<label>Name<input name="name" required></label>' +
+    '<label>Price in colones (numbers only)<input name="price" type="number" min="0" step="50" required></label>' +
+    '<label>Description (optional)<textarea name="desc" rows="2"></textarea></label>' +
+    '<div class="row"><button type="submit">Save</button>' +
+    '<button type="button" class="ghost" data-x>Cancel</button>' +
+    '<button type="button" class="danger" data-del style="margin-left:auto">Delete item</button></div>';
+  box.name.value = it.name; box.price.value = it.price_crc; box.desc.value = it.description || '';
+  box.addEventListener('submit', async function(e){
+    e.preventDefault();
+    var r = await db.from('menu_items').update({
+      name: box.name.value.trim(),
+      price_crc: parseInt(box.price.value, 10),
+      description: box.desc.value.trim() || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', it.id);
+    if (r.error){ toast('Could not save. Try again.'); return; }
+    toast('Saved'); loadMenu();
+  });
+  box.querySelector('[data-x]').addEventListener('click', function(){ box.remove(); });
+  box.querySelector('[data-del]').addEventListener('click', async function(){
+    if (!confirm('Delete "' + it.name + '" from the menu? This cannot be undone.')) return;
+    var r = await db.from('menu_items').delete().eq('id', it.id);
+    if (r.error){ toast('Could not delete. Try again.'); return; }
+    toast('Deleted ' + it.name); loadMenu();
+  });
+  row.appendChild(box);
+}
+
+async function addItem(cat){
+  var name = prompt('Name of the new item in ' + cat.name + ':');
+  if (!name) return;
+  var price = prompt('Price in colones (numbers only):');
+  if (price === null) return;
+  var p = parseInt(price, 10);
+  if (isNaN(p) || p < 0){ toast('That price did not look like a number.'); return; }
+  var r = await db.from('menu_items').insert({category_id: cat.id, name: name.trim(), price_crc: p, sort: 99});
+  if (r.error){ toast('Could not add it. Try again.'); return; }
+  toast(name + ' added'); loadMenu();
+}
+
+photoInput.addEventListener('change', async function(){
+  var f = photoInput.files[0];
+  photoInput.value = '';
+  if (!f || !photoTargetItem) return;
+  if (f.size > 8 * 1024 * 1024){ toast('That photo is too big. Pick one under 8 MB.'); return; }
+  toast('Uploading photo…');
+  var ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+  var path = photoTargetItem.id + '-' + Date.now() + '.' + ext;
+  var up = await db.storage.from('menu-photos').upload(path, f, {upsert: true, contentType: f.type});
+  if (up.error){ toast('Photo upload failed. Try again.'); return; }
+  var pub = db.storage.from('menu-photos').getPublicUrl(path);
+  var r = await db.from('menu_items').update({photo_url: pub.data.publicUrl, updated_at: new Date().toISOString()}).eq('id', photoTargetItem.id);
+  if (r.error){ toast('Photo saved but the menu did not update. Try again.'); return; }
+  toast('Photo updated'); loadMenu();
+});
+
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+refreshAuth();
+</script>
+</body>
+</html>

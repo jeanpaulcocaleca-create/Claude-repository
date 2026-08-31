@@ -20,3 +20,9 @@ Higgsfield generation history and never ship.
 
 Live preview (assets referenced by absolute URL, same origin):
 https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fe359cee-3c94-457d-8fb4-4a153a743a05.html
+
+## Menu system pages (Supabase-backed, project nbvczarfweanoxvdqplk)
+
+- Owner dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/756a29eb-fb3d-49e3-ac28-6f87ce27d51b.html
+- TV menu board: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html
+- Site preview v2 (live menu): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html

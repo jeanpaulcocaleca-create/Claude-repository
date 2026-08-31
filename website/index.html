@@ -668,6 +668,39 @@ addEventListener('scroll',function(){
   };
 })();
 
+/* live menu from the menu manager (falls back to the baked-in menu) */
+(function(){
+  var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+  var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+  fetch(SUPA_URL + '/rest/v1/menu_categories?select=name,sort,menu_items(name,description,price_crc,available,sort)&order=sort', {
+    headers: {apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY}
+  })
+  .then(function(r){ if (!r.ok) throw new Error('menu http ' + r.status); return r.json(); })
+  .then(function(cats){
+    var grid = document.querySelector('.menu-grid');
+    if (!grid || !cats.length) return;
+    grid.textContent = '';
+    cats.forEach(function(cat){
+      var col = document.createElement('div'); col.className = 'menu-cat';
+      var h = document.createElement('h3'); h.textContent = cat.name; col.appendChild(h);
+      (cat.menu_items || [])
+        .filter(function(i){ return i.available; })
+        .sort(function(a,b){ return a.sort - b.sort || a.name.localeCompare(b.name); })
+        .forEach(function(it){
+          var mi = document.createElement('div'); mi.className = 'mi'; mi.setAttribute('data-mi','');
+          var nm = document.createElement('span'); nm.textContent = it.name;
+          var dots = document.createElement('span'); dots.className = 'dots';
+          var pr = document.createElement('span'); pr.className = 'price';
+          pr.textContent = '₡' + Number(it.price_crc).toLocaleString('fr-FR');
+          mi.appendChild(nm); mi.appendChild(dots); mi.appendChild(pr);
+          col.appendChild(mi);
+        });
+      grid.appendChild(col);
+    });
+  })
+  .catch(function(){ /* the baked-in menu stays visible */ });
+})();
+
 /* pause everything on hidden tabs */
 document.addEventListener('visibilitychange',function(){
   document.body.classList.toggle('paused',document.hidden);
