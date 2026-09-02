@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
+  --accent-soft:#B08A67; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:40px;padding:.45em 1em}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:920px;margin:0 auto;padding:1.2rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1.1rem}
+header.top h1{font-size:1.4rem;margin-right:auto}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.tabs button{background:transparent;color:var(--sec);border:1.5px solid var(--muted);font-size:.9rem}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;margin-bottom:1.2rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem}
+.kpi .l{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.7rem;font-weight:400;margin-top:.2rem}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+.card h2{font-size:1.05rem;margin-bottom:.9rem}
+.chart{width:100%;overflow:visible}
+.bar{fill:var(--accent)}
+.bar:hover{fill:var(--gold)}
+.grid line{stroke:var(--muted);stroke-opacity:.45;stroke-width:1}
+.axis text{fill:var(--sec);font-size:11px;font-family:'Spline Sans Mono',monospace}
+.blabel{fill:var(--sec);font-size:11px;font-family:'Spline Sans Mono',monospace}
+.hbar-row{display:grid;grid-template-columns:130px 1fr auto;gap:.7rem;align-items:center;padding:.32rem 0}
+.hbar-row .nm{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar-track{background:var(--canvas);border-radius:6px;height:14px;position:relative}
+.hbar-fill{background:var(--accent);border-radius:6px;height:14px;min-width:2px}
+.hbar-row .v{font-size:.85rem;color:var(--sec);white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;color:var(--sec);font-weight:600;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .5rem;border-bottom:1.5px solid var(--muted)}
+td{padding:.45rem .5rem;border-bottom:1px dotted var(--muted);vertical-align:top}
+td.r,th.r{text-align:right}
+.empty{color:var(--sec);text-align:center;padding:2rem 0}
+.tip{position:fixed;background:var(--ink);color:#FBF7EF;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
+.pill{font-size:.75rem;padding:.15em .6em;border-radius:99px;background:var(--canvas);color:var(--sec)}
+@media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>Sales</h1>
+  <p style="color:var(--sec);font-size:.9rem">The Hanging Garden Café</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <header class="top">
+    <h1>Sales</h1>
+    <button class="ghost" id="csvBtn">Download CSV</button>
+    <button class="ghost" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button data-days="1">Today</button>
+    <button data-days="7" class="on">Last 7 days</button>
+    <button data-days="30">Last 30 days</button>
+    <button data-days="month">This month</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">Revenue</div><div class="v" id="kRev">–</div></div>
+    <div class="kpi"><div class="l">Orders</div><div class="v" id="kOrders">–</div></div>
+    <div class="kpi"><div class="l">Average order</div><div class="v" id="kAvg">–</div></div>
+  </div>
+
+  <div class="card" id="dayCard">
+    <h2>Revenue by day</h2>
+    <svg class="chart" id="dayChart" height="190" role="img" aria-label="Revenue by day bar chart"></svg>
+  </div>
+
+  <div class="card">
+    <h2>How people paid</h2>
+    <div id="payBars"></div>
+  </div>
+
+  <div class="card">
+    <h2>Best sellers</h2>
+    <div id="topItems"></div>
+  </div>
+
+  <div class="card">
+    <h2>Transactions</h2>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>When</th><th>Items</th><th>Paid by</th><th class="r">Total</th></tr></thead>
+      <tbody id="txBody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var PAY_LABELS = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
+var rangeDays = 7;
+var lastOrders = [];
+
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+
+/* ---- auth ---- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  document.getElementById('loginView').hidden = authed;
+  document.getElementById('appView').hidden = !authed;
+  if (authed) load();
+}
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
+  refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---- range tabs ---- */
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    rangeDays = b.dataset.days;
+    load();
+  });
+});
+function rangeStart(){
+  var d = new Date();
+  if (rangeDays === 'month'){ d.setDate(1); d.setHours(0,0,0,0); return d; }
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - (parseInt(rangeDays,10) - 1));
+  return d;
+}
+
+/* ---- load & render ---- */
+async function load(){
+  var start = rangeStart();
+  var r = await db.from('orders')
+    .select('id,created_at,total_crc,payment_method,order_items(item_name,qty,price_crc)')
+    .gte('created_at', start.toISOString())
+    .order('created_at', {ascending:false})
+    .limit(1000);
+  if (r.error){ return; }
+  lastOrders = r.data || [];
+  renderKpis(); renderDayChart(start); renderPay(); renderTop(); renderTx();
+}
+
+function renderKpis(){
+  var total = lastOrders.reduce(function(s,o){return s+o.total_crc},0);
+  document.getElementById('kRev').textContent = fmt(total);
+  document.getElementById('kOrders').textContent = lastOrders.length;
+  document.getElementById('kAvg').textContent = lastOrders.length ? fmt(Math.round(total/lastOrders.length)) : '₡0';
+}
+
+function dayKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+function renderDayChart(start){
+  var svg = document.getElementById('dayChart');
+  var card = document.getElementById('dayCard');
+  var days = [];
+  var end = new Date(); end.setHours(0,0,0,0);
+  for (var d = new Date(start); d <= end; d.setDate(d.getDate()+1)) days.push(new Date(d));
+  card.hidden = days.length < 2;
+  if (card.hidden) return;
+  var by = {};
+  lastOrders.forEach(function(o){ var k = dayKey(new Date(o.created_at)); by[k] = (by[k]||0) + o.total_crc; });
+  var vals = days.map(function(d){ return by[dayKey(d)] || 0; });
+  var max = Math.max.apply(null, vals.concat([1]));
+  var W = svg.clientWidth || 800, H = 190, padL = 8, padB = 22, padT = 18;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  var iw = (W - padL*2) / days.length;
+  var bw = Math.max(6, Math.min(46, iw - 4));
+  var html = '<g class="grid">';
+  [0.5, 1].forEach(function(f){
+    var y = padT + (H - padB - padT) * (1 - f);
+    html += '<line x1="'+padL+'" x2="'+(W-padL)+'" y1="'+y+'" y2="'+y+'"/>';
+  });
+  html += '</g>';
+  var maxIdx = vals.indexOf(Math.max.apply(null, vals));
+  days.forEach(function(d,i){
+    var v = vals[i];
+    var h = Math.round((H - padB - padT) * v / max);
+    var x = padL + i*iw + (iw - bw)/2;
+    var y = H - padB - h;
+    html += '<rect class="bar" x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(h, v>0?2:0)+'" rx="4" data-tip="'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+fmt(v)+'"/>';
+    if (i === maxIdx && v > 0){
+      html += '<text class="blabel" text-anchor="middle" x="'+(x+bw/2)+'" y="'+(y-5)+'">'+fmt(v)+'</text>';
+    }
+    var showEvery = days.length > 14 ? Math.ceil(days.length/10) : 1;
+    if (i % showEvery === 0){
+      html += '<g class="axis"><text text-anchor="middle" x="'+(x+bw/2)+'" y="'+(H-6)+'">'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</text></g>';
+    }
+  });
+  svg.innerHTML = html;
+  svg.querySelectorAll('.bar').forEach(function(b){
+    b.addEventListener('mousemove', function(e){
+      var t = document.getElementById('tip');
+      t.hidden = false; t.textContent = b.dataset.tip;
+      t.style.left = e.clientX + 'px'; t.style.top = e.clientY + 'px';
+    });
+    b.addEventListener('mouseleave', function(){ document.getElementById('tip').hidden = true; });
+  });
+}
+
+function hbars(rootId, rows, valueFmt){
+  var root = document.getElementById(rootId);
+  root.textContent = '';
+  if (!rows.length){ root.innerHTML = '<p class="empty">Nothing in this period yet.</p>'; return; }
+  var max = Math.max.apply(null, rows.map(function(r){return r.v}));
+  rows.forEach(function(r){
+    var row = document.createElement('div'); row.className = 'hbar-row';
+    var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = r.label; nm.title = r.label;
+    var tr = document.createElement('div'); tr.className = 'hbar-track';
+    var f = document.createElement('div'); f.className = 'hbar-fill';
+    f.style.width = Math.max(2, Math.round(100 * r.v / max)) + '%';
+    tr.appendChild(f);
+    var v = document.createElement('div'); v.className = 'v mono'; v.textContent = valueFmt(r);
+    row.appendChild(nm); row.appendChild(tr); row.appendChild(v);
+    root.appendChild(row);
+  });
+}
+
+function renderPay(){
+  var by = {};
+  lastOrders.forEach(function(o){ by[o.payment_method] = (by[o.payment_method]||0) + o.total_crc; });
+  var rows = Object.keys(PAY_LABELS).filter(function(k){return by[k]})
+    .map(function(k){ return {label: PAY_LABELS[k], v: by[k]}; })
+    .sort(function(a,b){return b.v-a.v});
+  hbars('payBars', rows, function(r){ return fmt(r.v); });
+}
+
+function renderTop(){
+  var by = {};
+  lastOrders.forEach(function(o){
+    (o.order_items||[]).forEach(function(it){
+      if (!by[it.item_name]) by[it.item_name] = {qty:0, rev:0};
+      by[it.item_name].qty += it.qty;
+      by[it.item_name].rev += it.qty * it.price_crc;
+    });
+  });
+  var rows = Object.keys(by).map(function(k){ return {label:k, v:by[k].rev, qty:by[k].qty}; })
+    .sort(function(a,b){return b.v-a.v}).slice(0,8);
+  hbars('topItems', rows, function(r){ return r.qty + ' sold · ' + fmt(r.v); });
+}
+
+function renderTx(){
+  var body = document.getElementById('txBody');
+  body.textContent = '';
+  if (!lastOrders.length){
+    body.innerHTML = '<tr><td colspan="4" class="empty">No sales in this period yet. Ring one up on the POS and refresh.</td></tr>';
+    return;
+  }
+  lastOrders.slice(0,200).forEach(function(o){
+    var tr = document.createElement('tr');
+    var when = new Date(o.created_at);
+    var items = (o.order_items||[]).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ');
+    var t1 = document.createElement('td'); t1.className='mono';
+    t1.textContent = when.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' +
+      String(when.getHours()).padStart(2,'0') + ':' + String(when.getMinutes()).padStart(2,'0');
+    var t2 = document.createElement('td'); t2.textContent = items || '(no line items)';
+    var t3 = document.createElement('td'); var pill = document.createElement('span'); pill.className='pill';
+    pill.textContent = PAY_LABELS[o.payment_method] || o.payment_method; t3.appendChild(pill);
+    var t4 = document.createElement('td'); t4.className='r mono'; t4.textContent = fmt(o.total_crc);
+    tr.appendChild(t1); tr.appendChild(t2); tr.appendChild(t3); tr.appendChild(t4);
+    body.appendChild(tr);
+  });
+}
+
+/* ---- CSV export ---- */
+document.getElementById('csvBtn').addEventListener('click', function(){
+  var lines = ['date,time,items,payment_method,total_crc'];
+  lastOrders.forEach(function(o){
+    var d = new Date(o.created_at);
+    var items = (o.order_items||[]).map(function(it){return it.qty + 'x ' + it.item_name}).join('; ');
+    lines.push([
+      d.toISOString().slice(0,10),
+      String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'),
+      '"' + items.replace(/"/g,'""') + '"',
+      o.payment_method,
+      o.total_crc
+    ].join(','));
+  });
+  var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hanging-garden-sales.csv';
+  a.click();
+});
+
+addEventListener('resize', function(){ if (lastOrders.length) renderDayChart(rangeStart()); });
+refreshAuth();
+</script>
+</body>
+</html>
