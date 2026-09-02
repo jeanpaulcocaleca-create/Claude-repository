@@ -126,6 +126,10 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 
 .band{position:absolute;inset:0;display:flex;align-items:center;pointer-events:none;opacity:0}
 .band .inner{position:relative;max-width:30ch;padding:0 6vw;text-shadow:var(--tshadow);color:#F6EFE3}
+.band .inner::before{content:"";position:absolute;inset:-1.8rem -2.2rem;z-index:-1;pointer-events:none;
+  border-radius:28px;background:rgba(8,12,6,.72);filter:blur(18px);
+  opacity:calc(.3 + .7*var(--k,1))}
+.band.settle .inner::before{inset:-2.2rem -2.8rem;background:rgba(8,12,6,.78)}
 .band h1,.band h2{font-size:clamp(2rem,4.6vw,3.6rem);color:#F6EFE3}
 .band p{font-size:clamp(1rem,1.6vw,1.25rem);color:#EFE4D2}
 .band.right{justify-content:flex-end;text-align:right}
@@ -146,6 +150,7 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 /* approach-from-depth */
 .b3 .inner>*{opacity:var(--k,0);transform:scale(calc(.85 + .15*var(--k,0)))}
 /* staged settle */
+.b4 .slogo{width:84px;height:84px;border-radius:50%;margin:0 auto .9rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45);opacity:clamp(0,(var(--k,0) - .4)*3,1)}
 .b4 h1 .w{--kc:clamp(0,(var(--k,0) - var(--th,0))*3,1);opacity:var(--kc);transform:translateY(calc((1 - var(--kc))*26px))}
 .b4 .sub{opacity:clamp(0,(var(--k,0) - .55)*3.2,1);transform:translateY(calc((1 - clamp(0,(var(--k,0) - .55)*3.2,1))*14px))}
 .b4 .ctarow{opacity:clamp(0,(var(--k,0) - .72)*4,1);pointer-events:auto}
@@ -292,6 +297,50 @@ footer{padding:10vh 6vw 6vh;text-align:center;color:var(--text-secondary);font-s
 footer .cup{color:var(--accent);margin:0 auto 1rem;width:44px}
 footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
+/* watercolor framing, like the printed menu */
+.deco{position:absolute;pointer-events:none;user-select:none;z-index:-1;opacity:.92;
+  animation:sway 9s var(--ease-soft) infinite alternate}
+.deco.bl{left:max(-30px,-3vw);bottom:-10px;width:clamp(130px,18vw,250px)}
+.deco.br{right:max(-30px,-3vw);bottom:-10px;width:clamp(120px,16vw,220px);transform:scaleX(-1)}
+.deco.tr{right:max(-30px,-3vw);top:-6px;width:clamp(110px,15vw,210px);transform:scale(-1,-1)}
+.deco.tl{left:max(-30px,-3vw);top:-6px;width:clamp(100px,14vw,190px);transform:scaleY(-1)}
+.deco.qz{right:6vw;top:8vh;width:clamp(90px,11vw,150px);animation-duration:12s;animation-delay:-4s}
+@keyframes sway{from{rotate:-1.1deg}to{rotate:1.1deg}}
+@media(max-width:720px){.deco{width:92px;opacity:.75}.deco.qz{display:none}}
+
+.static-hero .slogo-static{width:72px;height:72px;border-radius:50%;margin-bottom:1rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45)}
+
+/* Garden Guide chat */
+.chatfab{position:fixed;right:1.1rem;bottom:1.1rem;z-index:60;width:60px;height:60px;border-radius:50%;
+  background:var(--accent);color:#F6F1E2;border:none;cursor:pointer;box-shadow:0 8px 26px rgba(8,20,13,.35);
+  display:flex;align-items:center;justify-content:center;transition:transform .25s var(--ease),background .25s var(--ease)}
+.chatfab:hover{transform:translateY(-2px) scale(1.04);background:var(--accent-hover)}
+.chatfab svg{width:28px;height:28px}
+.chatfab .ping{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0;animation:ping 8s var(--ease-soft) 4s infinite}
+@keyframes ping{0%,88%{transform:scale(1);opacity:0}90%{opacity:.6}100%{transform:scale(1.5);opacity:0}}
+.chat{position:fixed;right:1.1rem;bottom:5.6rem;z-index:61;width:min(380px,calc(100vw - 1.6rem));
+  max-height:min(560px,calc(100dvh - 7.4rem));display:flex;flex-direction:column;background:var(--panel);
+  border-radius:20px;border:1px solid var(--accent-muted);box-shadow:0 18px 60px rgba(8,20,13,.28);overflow:hidden}
+.chat[hidden]{display:none}
+.chat header{display:flex;align-items:center;gap:.7rem;background:var(--accent);color:#F6F1E2;padding:.8rem 1rem}
+.chat header img{width:40px;height:40px;border-radius:50%;background:#F6F1E2;object-fit:cover;padding:3px;flex:none}
+.chat header .t b{display:block;font-family:'Playfair Display',serif;font-size:1rem}
+.chat header .t span{font-size:.72rem;color:#CBD8C4}
+.chat header button{margin-left:auto;background:none;border:none;color:#F6F1E2;font-size:1.4rem;cursor:pointer;padding:.1rem .5rem;line-height:1}
+.chatlog{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem;min-height:180px}
+.msg{max-width:88%;padding:.55rem .85rem;border-radius:14px;font-size:.92rem;line-height:1.5;white-space:pre-line;overflow-wrap:break-word}
+.msg.bot{background:#EDE7D4;color:var(--ink);border-bottom-left-radius:4px;align-self:flex-start}
+.msg.me{background:var(--accent);color:#F6F1E2;border-bottom-right-radius:4px;align-self:flex-end}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.2rem 1rem .6rem}
+.chips button{background:transparent;border:1.5px solid var(--accent-muted);color:var(--accent);border-radius:99px;
+  font:inherit;font-size:.78rem;padding:.3em .8em;cursor:pointer;min-height:0}
+.chips button:hover{border-color:var(--accent);background:#fff}
+.chatform{display:flex;gap:.5rem;padding:.7rem;border-top:1px solid var(--accent-muted)}
+.chatform input{flex:1;min-width:0;font:inherit;border:1.5px solid var(--accent-muted);border-radius:12px;padding:.55em .8em;background:#fff;color:var(--ink)}
+.chatform button{background:var(--accent);border:none;color:#fff;border-radius:12px;width:46px;flex:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chatform button:hover{background:var(--accent-hover)}
+.chatform button svg{width:20px;height:20px}
+
 /* reduced motion */
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
@@ -312,7 +361,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     <a href="#story">Story</a>
     <a href="#menu">Menu</a>
     <a href="#galeria">Gallery</a>
-    <a href="#nora">Nora</a>
+    <a href="#" id="chatNavOpen">Ask us</a>
     <a class="cta" href="#visit">Plan your visit</a>
   </div>
 </nav>
@@ -326,18 +375,19 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
     <div class="band b1" data-a="0.00" data-b="0.16">
       <div class="inner">
-        <span class="soft" aria-hidden="true"><h2>Born in the cloud forest.</h2></span>
-        <span class="sharp"><h2>Born in the cloud forest.</h2></span>
+        <span class="soft" aria-hidden="true"><h2>Follow the quetzal.</h2></span>
+        <span class="sharp"><h2>Follow the quetzal.</h2></span>
       </div>
     </div>
     <div class="band b2 right" data-a="0.20" data-b="0.42">
-      <div class="inner"><h2 data-split>One drop at a time.</h2></div>
+      <div class="inner"><h2 data-split>Over the cloud forest.</h2></div>
     </div>
     <div class="band b3" data-a="0.46" data-b="0.68">
-      <div class="inner"><h2>Monteverde in every cup.</h2></div>
+      <div class="inner"><h2>Through the coffee harvest.</h2></div>
     </div>
     <div class="band b4 settle" data-a="0.72" data-b="1.00">
       <div class="inner">
+        <img class="slogo" src="assets/logo-badge.svg" alt="">
         <h1 data-split>The Hanging Garden Café</h1>
         <p class="sub">Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
         <p class="ctarow"><a class="btn" href="#visit">Plan your visit</a></p>
@@ -354,6 +404,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 <!-- ===== STATIC HERO (phones, reduced motion) ===== -->
 <header class="static-hero" id="staticHero">
   <div class="inner">
+    <img class="slogo-static" src="assets/logo-badge.svg" alt="">
     <h1>The Hanging Garden Café</h1>
     <p>Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
     <p><a class="btn" href="#visit">Plan your visit</a></p>
@@ -368,6 +419,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
   <!-- STORY -->
   <section id="story" class="story rev">
+    <img class="deco tr" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
     <p class="kicker mono part">The story</p>
     <h2 class="part">A green mountain, a cup of peace</h2>
     <div class="storygrid">
@@ -404,6 +456,9 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
   <!-- MENU -->
   <section id="menu" class="rev">
+    <img class="deco bl" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <img class="deco tl" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <img class="deco qz" src="assets/deco-quetzal.png" alt="" aria-hidden="true" loading="lazy">
     <div class="menuhead part">
       <p class="kicker mono">Specialty coffee · Fresh food</p>
       <h2>The menu</h2>
@@ -513,6 +568,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
   <!-- GALLERY -->
   <section id="galeria" class="rev">
+    <img class="deco br" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
     <p class="kicker mono part">La galería</p>
     <h2 class="part">A table between the clouds</h2>
     <div class="gal-grid part" id="galGrid">
@@ -526,6 +582,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
   <!-- VISIT -->
   <section id="visit" class="rev">
+    <img class="deco tl" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
     <p class="kicker mono part">Visit us</p>
     <h2 class="part">Plan your visit</h2>
     <div class="visit-grid">
@@ -544,17 +601,34 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     </div>
   </section>
 
-  <!-- NORA -->
-  <section class="rev" id="nora" style="padding-left:6vw;padding-right:6vw">
+  <!-- ASK US -->
+  <section class="rev" id="ask" style="padding-left:6vw;padding-right:6vw">
     <div class="nora part">
       <p class="kicker mono">Questions?</p>
-      <h2>Ask Nora</h2>
-      <p>Nora is our assistant. She knows the menu, the hours, and the way here, in English y en español. Chat with her on WhatsApp any time.</p>
-      <!-- DEPLOY STEP: set the real WhatsApp number in the link below -->
-      <a class="btn" href="https://wa.me/50600000000" target="_blank" rel="noopener">Chat on WhatsApp</a>
+      <h2>Ask the Garden Guide</h2>
+      <p>Hours, prices, what to wear in the cloud forest, where the quetzals are: our little guide answers right here on the page, in English y en español.</p>
+      <button class="btn" type="button" id="chatSectionOpen">Ask a question</button>
     </div>
   </section>
 </main>
+
+<button class="chatfab" id="chatFab" aria-label="Ask the Garden Guide a question" aria-expanded="false">
+  <span class="ping" aria-hidden="true"></span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 01-8.5 8.3 9 9 0 01-3.2-.6L3 21l1.9-5.4a8 8 0 01-1.4-4.6A8.4 8.4 0 0112 2.7a8.4 8.4 0 019 8.8z"/><path d="M8 10h8M8 13.4h5"/></svg>
+</button>
+<div class="chat" id="chatBox" hidden role="dialog" aria-label="Garden Guide chat">
+  <header>
+    <img src="assets/deco-quetzal.png" alt="">
+    <div class="t"><b>Garden Guide</b><span>The Hanging Garden · English y español</span></div>
+    <button type="button" id="chatClose" aria-label="Close chat">×</button>
+  </header>
+  <div class="chatlog" id="chatLog" aria-live="polite"></div>
+  <div class="chips" id="chatChips"></div>
+  <form class="chatform" id="chatForm">
+    <input id="chatInput" maxlength="280" placeholder="Ask anything… / Pregúntame algo…" autocomplete="off" aria-label="Your question">
+    <button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l16-7-6 16-2.5-6.5z"/></svg></button>
+  </form>
+</div>
 
 <footer>
   <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
@@ -567,7 +641,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 <script>
 /* ============ config ============ */
 var VIDEO_URL = 'assets/hero-scrub.mp4';
-var VIDEO_BYTES = 4717459;
+var VIDEO_BYTES = 6376416;
 var POSTER_URL = 'assets/hero-poster.jpg';
 var ENDING_URL = 'assets/hero-ending.jpg';
 
@@ -883,6 +957,261 @@ addEventListener('scroll',function(){
     });
   })
   .catch(function(){ /* the baked-in menu stays visible */ });
+})();
+
+/* ---------- Garden Guide: a small bilingual helper, no servers needed ---------- */
+(function(){
+  var SUPA = 'https://nbvczarfweanoxvdqplk.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+  var SID = Math.random().toString(36).slice(2, 10);
+  var fab = document.getElementById('chatFab');
+  var box = document.getElementById('chatBox');
+  var log = document.getElementById('chatLog');
+  var chipsEl = document.getElementById('chatChips');
+  var input = document.getElementById('chatInput');
+  var lang = 'en';
+  var greeted = false;
+
+  function norm(t){
+    return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  function looksSpanish(t){
+    return /[¿¡]/.test(t) || /\b(hola|buenas|buenos dias|gracias|donde|cuanto|cuantos|precio|precios|horario|abren|cierran|tienen|puedo|se puede|como llego|llegar|clima|lluvia|frio|perro|perros|mascotas|ninos|pagar|tarjeta|efectivo|reserva|reservar|vegetariano|vegano|bano|banos|desayuno|almuerzo|comida|cafe con|que hay|cual|cuales|quisiera|me gustaria|habla|hablan|ayuda|pregunta)\b/.test(norm(t));
+  }
+
+  /* the knowledge base: plain answers the owner can edit right here */
+  var KB = [
+    {id:'greet', t:['hello','hi ','hey','good morning','good afternoon','pura vida','hola','buenas','buenos dias'],
+     en:'Pura vida! I am the Garden Guide. Ask me about our hours, the menu and prices, how to get here, the weather, the quetzals, anything at all.',
+     es:'¡Pura vida! Soy la Guía del Jardín. Pregúntame por el horario, el menú y los precios, cómo llegar, el clima, los quetzales, lo que quieras.'},
+    {id:'thanks', t:['thank','thanks','gracias','muchas gracias','perfect','great'],
+     en:'Pura vida! Enjoy the clouds, and come see us soon.',
+     es:'¡Pura vida! Disfruta las nubes y ven a visitarnos pronto.'},
+    {id:'hours', t:['hours','open','close','closing','opening','schedule','what time','when do you','horario','abren','cierran','a que hora','hora abren'],
+     en:'We are open every day. Monday to Saturday 7:00 to 18:00, Sunday 8:00 to 17:00.',
+     es:'Abrimos todos los días. Lunes a sábado de 7:00 a 18:00, domingo de 8:00 a 17:00.'},
+    {id:'location', t:['where are you','location','address','find you','get there','directions','how do i get','map','como llego','donde estan','donde queda','direccion','ubicacion','llegar'],
+     en:'We are in Monteverde, on the road through Santa Elena, Puntarenas. The map in the Visit section of this page takes you right to our door.',
+     es:'Estamos en Monteverde, sobre el camino de Santa Elena, Puntarenas. El mapa en la sección Visit de esta página te lleva hasta la puerta.'},
+    {id:'parking', t:['parking','park my car','parqueo','estacionamiento','aparcar'],
+     en:'There is space to park close by on the road through Santa Elena. On busy mornings, earlier is easier.',
+     es:'Hay espacio para parquear cerca, sobre el camino de Santa Elena. En mañanas ocupadas, entre más temprano mejor.'},
+    {id:'menu', t:['menu','what do you serve','what do you have','food','eat','breakfast','lunch','que tienen','que venden','comida','desayuno','almuerzo'],
+     en:'The full menu is right on this page, in The Menu section: coffee, smoothies, sandwiches, empanadas, pastries and Costa Rican favorites. Ask me about any item and I will tell you its price.',
+     es:'El menú completo está aquí mismo en la sección The Menu: café, batidos, sándwiches, empanadas, repostería y favoritos costarricenses. Pregúntame por cualquier platillo y te digo el precio.'},
+    {id:'origin', t:['coffee from','where is the coffee','your coffee','beans','trapiche','local coffee','de donde es el cafe','granos'],
+     en:'Our coffee is 100% Costa Rican, grown locally at El Trapiche right here in Monteverde. Ask at the counter about taking beans home.',
+     es:'Nuestro café es 100% costarricense, cultivado aquí en Monteverde en El Trapiche. Pregunta en el mostrador si quieres llevar granos a casa.'},
+    {id:'signature', t:['signature','cloud forest latte','specialty','recommend','best drink','what should i order','que me recomiendas','recomendacion','especialidad'],
+     en:'Try the Cloud Forest Latte, our signature: El Trapiche espresso, milk, Costa Rican honey and cinnamon, hot or iced, ₡2 600. The Chorreador-style Café con Leche is the classic choice.',
+     es:'Prueba el Cloud Forest Latte, nuestra especialidad: espresso de El Trapiche, leche, miel costarricense y canela, caliente o frío, ₡2 600. El Café con Leche chorreado es el clásico.'},
+    {id:'smoothies', t:['smoothie','smoothies','batido','batidos','juice','jugo','milk or water'],
+     en:'We make eleven garden smoothies, in water or milk. Water versions are lighter; milk versions cost a little more. Every mix is listed in the menu on this page.',
+     es:'Hacemos once batidos del jardín, en agua o en leche. En agua son más ligeros; en leche cuestan un poco más. Todas las mezclas están en el menú de esta página.'},
+    {id:'abox', t:['adventure box','trail','hike box','lunch box','picnic','to go box','caja de aventura','para el sendero'],
+     en:'The Adventure Box packs your sandwich, fresh fruit, a sweet treat, bottled water and a napkin for the trail. Ham & Cheese or Monteverde ₡6 500, Mano de Piedra or Chicken Pesto ₡7 000. Order by 8 pm, pick it up from 6:30 am.',
+     es:'La Adventure Box lleva tu sándwich, fruta fresca, algo dulce, agua embotellada y servilleta para el sendero. Ham & Cheese o Monteverde ₡6 500, Mano de Piedra o Chicken Pesto ₡7 000. Pídela antes de las 8 pm y recógela desde las 6:30 am.'},
+    {id:'combo', t:['combo','deal','discount','save','descuento','oferta','promocion'],
+     en:'Coffee + pastry saves you ₡500, and sandwich + coffee saves ₡500 too. Just ask at the counter.',
+     es:'Café + repostería te ahorra ₡500, y sándwich + café también ₡500. Solo pídelo en el mostrador.'},
+    {id:'veg', t:['vegetarian','veggie','sin carne','vegetariano','vegetariana'],
+     en:'Yes. The Monteverde sandwich is vegetarian, and most pastries, drinks and smoothies are too.',
+     es:'Sí. El sándwich Monteverde es vegetariano, y casi toda la repostería, las bebidas y los batidos también.'},
+    {id:'vegan', t:['vegan','plant based','sin lacteos','vegano','vegana','dairy free','lactose'],
+     en:'Our smoothies in water, the americano, tea and the sweet cane drink are vegan. For food, ask the team what the kitchen can do that day.',
+     es:'Los batidos en agua, el americano, el té y el agua dulce son veganos. Para comida, pregunta al equipo qué puede hacer la cocina ese día.',},
+    {id:'gluten', t:['gluten','celiac','celiaco','sin gluten'],
+     en:'Our kitchen is small, so we cannot promise zero contact with gluten. Smoothies and most drinks are naturally gluten free; tell the team when you order.',
+     es:'Nuestra cocina es pequeña, así que no podemos prometer cero contacto con gluten. Los batidos y casi todas las bebidas no llevan gluten; avísale al equipo al ordenar.'},
+    {id:'pay', t:['pay','payment','card','credit','cash','dollar','dollars','colones','sinpe','pagar','tarjeta','efectivo','dolares','aceptan'],
+     en:'We take cash in colones or dollars, cards, and SINPE Móvil. Change is given in colones.',
+     es:'Aceptamos efectivo en colones o dólares, tarjetas y SINPE Móvil. El vuelto se da en colones.'},
+    {id:'wifi', t:['wifi','wi-fi','internet','password','clave','contrasena'],
+     en:'Yes, there is wifi for guests. Ask at the counter for the password.',
+     es:'Sí, hay wifi para visitantes. Pide la clave en el mostrador.'},
+    {id:'pets', t:['dog','dogs','pet','pets','perro','perros','mascota','mascotas','cat '],
+     en:'Well behaved pets are welcome in the garden seating. We will find them a water bowl.',
+     es:'Las mascotas educadas son bienvenidas en el jardín. Les buscamos un tazón de agua.'},
+    {id:'kids', t:['kids','children','child','family','baby','ninos','nino','familia','bebe'],
+     en:'Very welcome. The garden gives kids room to wonder, and the Costa Rican hot chocolate was practically made for them.',
+     es:'Muy bienvenidos. El jardín les da espacio para explorar, y el chocolate caliente costarricense es casi para ellos.'},
+    {id:'weather', t:['weather','rain','cold','temperature','wear','jacket','clima','lluvia','frio','temperatura','que llevo','ropa'],
+     en:'Monteverde is cool and misty most of the year, around 15 to 22 °C. Bring layers and a light rain jacket, even on sunny mornings.',
+     es:'Monteverde es fresco y neblinoso casi todo el año, entre 15 y 22 °C. Trae capas y una capa ligera de lluvia, incluso en mañanas soleadas.'},
+    {id:'quetzal', t:['quetzal','quetzals','quetzales','see the bird','bird watching','birdwatching','aves','pajaros','ver aves'],
+     en:'Resplendent quetzals live in the cloud forest around Monteverde. Your best chance is early morning in the reserve, especially February to July. Ask our team where they have been seen this week.',
+     es:'Los quetzales viven en el bosque nuboso alrededor de Monteverde. La mejor hora es temprano en la reserva, sobre todo de febrero a julio. Pregunta al equipo dónde los han visto esta semana.'},
+    {id:'wildlife', t:['animals','wildlife','monkeys','sloth','hummingbird','coati','animales','monos','perezoso','colibri'],
+     en:'Hummingbirds, coatis, agoutis and hundreds of bird species live around Monteverde. Keep your camera close, even here in the garden.',
+     es:'Colibríes, pizotes, guatusas y cientos de especies de aves viven alrededor de Monteverde. Ten la cámara lista, incluso aquí en el jardín.'},
+    {id:'todo', t:['what to do','things to do','tours','hanging bridges','reserve','night tour','zipline','que hacer','puentes colgantes','reserva','canopy'],
+     en:'The cloud forest reserve, the hanging bridges and the night tours are all close by. Grab an Adventure Box and make a whole day of it.',
+     es:'La reserva del bosque nuboso, los puentes colgantes y los tours nocturnos están cerca. Llévate una Adventure Box y haz un día completo.'},
+    {id:'early', t:['sunrise','early morning','before you open','6am','before 7','madrugada','amanecer','antes de abrir'],
+     en:'Heading out before sunrise? Pre-order an Adventure Box by 8 pm tonight and pick it up from 6:30 am, before we officially open.',
+     es:'¿Sales antes del amanecer? Pide una Adventure Box antes de las 8 pm y recógela desde las 6:30 am, antes de que abramos.'},
+    {id:'groups', t:['reservation','reserve a table','book','group','groups','birthday','event','celebration','reserva','grupo','cumpleanos','evento'],
+     en:'No reservation needed, just come in. For groups of eight or more, or a small celebration, tell us a day ahead at the counter and we will set the garden for you.',
+     es:'No necesitas reserva, solo llega. Para grupos de ocho o más, o una celebración pequeña, avísanos un día antes y te acomodamos el jardín.'},
+    {id:'bath', t:['bathroom','restroom','toilet','bano','banos','servicio'],
+     en:'Yes, we have restrooms for guests.',
+     es:'Sí, tenemos baños para visitantes.'},
+    {id:'work', t:['laptop','work here','outlet','plug','remote work','trabajar','enchufe','computadora'],
+     en:'You are welcome to work a while. We have some outlets, and mornings are the quietest.',
+     es:'Puedes venir a trabajar un rato. Tenemos algunos enchufes y las mañanas son lo más tranquilo.'},
+    {id:'history', t:['history','quaker','quakers','1951','story','founded','historia','cuaquer','fundacion'],
+     en:'Monteverde was settled in 1951 by Quaker families who chose Costa Rica because it had put down its weapons. The Story section up this page tells the whole tale.',
+     es:'Monteverde fue fundado en 1951 por familias cuáqueras que eligieron Costa Rica porque había dejado las armas. La sección The Story cuenta toda la historia.'},
+    {id:'name', t:['why hanging','name mean','hanging garden','por que se llama','nombre'],
+     en:'Our garden hangs with plants, ferns and flowers between the clouds. That is the name: The Hanging Garden.',
+     es:'Nuestro jardín cuelga de plantas, helechos y flores entre las nubes. De ahí el nombre: The Hanging Garden.'},
+    {id:'water', t:['tap water','water safe','drink the water','agua del tubo','agua potable','se puede tomar'],
+     en:'Yes, tap water in Monteverde is clean mountain water. We also have bottled water if you prefer.',
+     es:'Sí, el agua del tubo en Monteverde es agua limpia de montaña. También tenemos agua embotellada si prefieres.'},
+    {id:'takeaway', t:['take away','takeaway','to go','para llevar'],
+     en:'Everything on the menu travels well. Just ask for it to go.',
+     es:'Todo el menú viaja bien. Solo pídelo para llevar.'},
+    {id:'tips', t:['tip','tipping','service charge','propina'],
+     en:'Tips are never expected and always appreciated.',
+     es:'La propina nunca es obligatoria y siempre se agradece.'},
+    {id:'jobs', t:['job','jobs','hiring','work for you','trabajo','empleo','contratando'],
+     en:'We would love to meet you. Leave your name and number at the counter.',
+     es:'Nos encantaría conocerte. Deja tu nombre y número en el mostrador.'},
+    {id:'lang', t:['speak english','speak spanish','hablan ingles','hablan espanol','english','espanol'],
+     en:'English y español, con mucho gusto.',
+     es:'English y español, con mucho gusto.'},
+    {id:'altitude', t:['altitude','elevation','how high','altura','altitud'],
+     en:'Monteverde sits around 1,400 meters up. That is why the air is cool and the coffee tastes better.',
+     es:'Monteverde está a unos 1 400 metros de altura. Por eso el aire es fresco y el café sabe mejor.'},
+    {id:'special', t:['special today','garden special','todays special','especial de hoy','especial del dia'],
+     en:'The Garden Special changes with the season. Ask at the counter what is blooming today.',
+     es:'El Especial del Jardín cambia con la temporada. Pregunta en el mostrador qué está floreciendo hoy.'}
+  ];
+
+  var STOP = {iced:1, hot:1, cafe:1, coffee:1, con:1, de:1, the:1, and:1, cake:1, cream:1, milk:1, water:1, drink:1, sweet:1, ham:1, cheese:1, chicken:1, box:1, bloom:1, blossom:1, delight:1, splash:1, lily:1, upgrade:1, add:1};
+  function menuItems(){
+    var out = [];
+    document.querySelectorAll('.menu-grid .mi').forEach(function(mi){
+      var nm = mi.querySelector('.nm'), pr = mi.querySelector('.price'), ds = mi.querySelector('.ds');
+      if (nm && pr) out.push({name: nm.textContent, price: pr.textContent, desc: ds ? ds.textContent : '', norm: norm(nm.textContent)});
+    });
+    return out;
+  }
+  function priceAnswer(q){
+    var items = menuItems();
+    var hits = items.filter(function(it){
+      if (q.indexOf(it.norm) !== -1) return true;
+      return it.norm.split(/[^a-z]+/).some(function(tok){
+        return tok.length >= 4 && !STOP[tok] && new RegExp('\\b' + tok).test(q);
+      });
+    });
+    if (!hits.length) return null;
+    if (hits.length > 4) hits = hits.slice(0, 4);
+    var lines = hits.map(function(it){ return it.name + ' · ' + it.price + (it.desc ? '\n   ' + it.desc : ''); });
+    var head = hits.length === 1
+      ? (lang === 'es' ? 'Aquí está:' : 'Here you go:')
+      : (lang === 'es' ? 'Encontré esto en el menú:' : 'I found these on the menu:');
+    return head + '\n' + lines.join('\n');
+  }
+  function bestKB(q){
+    var best = null, bestScore = 0;
+    KB.forEach(function(e){
+      var s = 0;
+      e.t.forEach(function(trig){
+        if (q.indexOf(trig) !== -1) s += trig.indexOf(' ') !== -1 ? 3 : 1;
+      });
+      if (s > bestScore){ bestScore = s; best = e; }
+    });
+    return bestScore >= 1 ? best : null;
+  }
+  var logOk = true;   /* stops quietly if the chat_questions table is not set up yet */
+  function logQ(message, matched, answered){
+    if (!logOk) return;
+    try {
+      fetch(SUPA + '/rest/v1/chat_questions', {
+        method: 'POST',
+        headers: {apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal'},
+        body: JSON.stringify({message: message.slice(0, 300), matched: matched, answered: answered, lang: lang, session: SID})
+      }).then(function(r){ if (r.status === 404) logOk = false; }).catch(function(){});
+    } catch(e){}
+  }
+
+  function addMsg(text, who){
+    var m = document.createElement('div');
+    m.className = 'msg ' + who;
+    m.textContent = text;
+    log.appendChild(m);
+    log.scrollTop = log.scrollHeight;
+  }
+  var CHIPS = [
+    {en:'Hours', es:'Horario', q:{en:'What are your hours?', es:'¿Cuál es el horario?'}},
+    {en:'How to find us', es:'Cómo llegar', q:{en:'How do I get there?', es:'¿Cómo llego?'}},
+    {en:'Adventure Box', es:'Adventure Box', q:{en:'What is the Adventure Box?', es:'¿Qué es la Adventure Box?'}},
+    {en:'Weather', es:'Clima', q:{en:'What is the weather like?', es:'¿Cómo está el clima?'}},
+    {en:'Quetzals', es:'Quetzales', q:{en:'Where can I see a quetzal?', es:'¿Dónde puedo ver un quetzal?'}}
+  ];
+  function renderChips(){
+    chipsEl.textContent = '';
+    CHIPS.forEach(function(c){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = lang === 'es' ? c.es : c.en;
+      b.addEventListener('click', function(){ ask(c.q[lang] || c.q.en); });
+      chipsEl.appendChild(b);
+    });
+  }
+  function ask(text){
+    addMsg(text, 'me');
+    if (looksSpanish(text)) lang = 'es';
+    else if (/\b(the|what|where|when|how|do you|can i|is there)\b/i.test(text)) lang = 'en';
+    var q = norm(text);
+    setTimeout(function(){
+      var kb = bestKB(q);
+      var priceIntent = /\b(price|cost|how much|cuanto|cuesta|vale|precio)\b/.test(q);
+      var pa = (!kb || priceIntent) ? priceAnswer(q) : null;
+      if (pa){
+        addMsg(pa, 'bot');
+        logQ(text, 'menu-price', true);
+      } else if (kb){
+        addMsg(lang === 'es' ? kb.es : kb.en, 'bot');
+        logQ(text, kb.id, true);
+      } else {
+        addMsg(lang === 'es'
+          ? 'Buena pregunta, y quiero responderla bien. La guardé para el equipo del café. Mientras tanto, pregunta en el mostrador cuando vengas, o prueba una de las opciones de abajo.'
+          : 'Good question, and I want to get it right. I saved it for the café team. Meanwhile, ask at the counter when you visit, or try one of the buttons below.', 'bot');
+        logQ(text, null, false);
+      }
+      renderChips();
+    }, 450);
+  }
+  function openChat(){
+    box.hidden = false;
+    fab.setAttribute('aria-expanded', 'true');
+    if (!greeted){
+      greeted = true;
+      addMsg('Pura vida! I am the Garden Guide. Ask me anything about the café, the menu, or Monteverde.\n¿Prefieres español? Escríbeme en español.', 'bot');
+      renderChips();
+    }
+    input.focus();
+  }
+  function closeChat(){
+    box.hidden = true;
+    fab.setAttribute('aria-expanded', 'false');
+  }
+  fab.addEventListener('click', function(){ box.hidden ? openChat() : closeChat(); });
+  document.getElementById('chatClose').addEventListener('click', closeChat);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !box.hidden) closeChat(); });
+  ['chatNavOpen', 'chatSectionOpen'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e){ e.preventDefault(); openChat(); });
+  });
+  document.getElementById('chatForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = input.value.trim();
+    if (!v) return;
+    input.value = '';
+    ask(v);
+  });
 })();
 
 /* pause everything on hidden tabs */
