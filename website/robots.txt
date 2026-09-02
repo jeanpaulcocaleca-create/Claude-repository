@@ -1,0 +1,7 @@
+# The Hanging Garden Café — deploy to the site root.
+# The staff pages (admin, pos, sales, time, tv) carry their own noindex meta tags.
+User-agent: *
+Allow: /
+
+# DEPLOY STEP: replace example.com with the live domain.
+Sitemap: https://example.com/sitemap.xml

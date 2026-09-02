@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
+  --accent-hover:#54331B; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
+input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+input:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:920px;margin:0 auto;padding:1.4rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login .emblem{width:74px;margin:0 auto .6rem;display:block}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.hint{font-size:.85rem;color:var(--sec)}
+header.top{display:flex;align-items:center;gap:1rem;margin-bottom:1.4rem}
+header.top .emblem{width:52px;flex:none}
+header.top h1{font-size:1.5rem;line-height:1.15}
+header.top .sub{font-family:'Spline Sans Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--sec);margin-top:.15rem}
+header.top button{margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem;margin-bottom:1.6rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem;min-width:0}
+.kpi .l{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.6rem;margin-top:.2rem;overflow-wrap:break-word}
+.kpi .v.names{font-family:'Figtree',system-ui,sans-serif;font-size:1.05rem;font-weight:600;line-height:1.4;margin-top:.45rem}
+.kpi .s{font-size:.78rem;color:var(--sec);margin-top:.2rem}
+h2.section{font-size:1.1rem;margin:0 0 .8rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.9rem}
+.tile{display:flex;flex-direction:column;gap:.5rem;background:var(--panel);border-radius:18px;padding:1.2rem 1.25rem;text-decoration:none;color:var(--ink);border:1.5px solid transparent;transition:transform .15s ease, box-shadow .15s ease}
+.tile:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(107,66,34,.13);border-color:var(--muted)}
+.tile svg{width:32px;height:32px;color:var(--accent)}
+.tile .t{font-family:'Young Serif',Georgia,serif;font-size:1.12rem;display:flex;align-items:center;gap:.4em}
+.tile .t .ext{font-size:.8em;color:var(--sec)}
+.tile .d{font-size:.88rem;color:var(--sec)}
+footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <img class="emblem" src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f57bd646-807c-4a50-82af-e24392f87152.png" alt="The Hanging Garden Café emblem">
+  <h1>The Hanging Garden</h1>
+  <p class="hint">Owner dashboard · Monteverde, Costa Rica</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <header class="top">
+    <img class="emblem" src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f57bd646-807c-4a50-82af-e24392f87152.png" alt="">
+    <div>
+      <h1>The Hanging Garden</h1>
+      <div class="sub">Owner dashboard · Monteverde</div>
+    </div>
+    <button class="ghost small" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">Revenue today</div><div class="v" id="kRev">–</div></div>
+    <div class="kpi"><div class="l">Orders today</div><div class="v" id="kOrders">–</div></div>
+    <div class="kpi"><div class="l">On the clock</div><div class="v names" id="kClock">–</div><div class="s" id="kClockSub"></div></div>
+    <div class="kpi"><div class="l">Sold out</div><div class="v" id="kSoldOut">–</div><div class="s" id="kSoldOutSub"></div></div>
+  </div>
+
+  <h2 class="section">Your café, one tap away</h2>
+  <!-- DEPLOY STEP: on the real domain, switch these links to /pos /sales /admin /time /tv and / -->
+  <div class="tiles">
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/582ea292-85cb-48de-91f0-d0dd094e867e.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21zM9 8h6M9 12h6M9 16h3"/></svg>
+      <span class="t">POS</span>
+      <span class="d">Ring up sales at the counter — cash, card or SINPE, recorded instantly.</span>
+    </a>
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/95e16564-e6bb-4240-9f18-f84cd74d7aba.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-9M21 20H3"/></svg>
+      <span class="t">Sales</span>
+      <span class="d">What you sold today, this week, this month — best sellers and CSV for the accountant.</span>
+    </a>
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/0926d733-d99c-4ab5-b9e9-b8342ca86ff7.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.2"/></svg>
+      <span class="t">Menu Manager</span>
+      <span class="d">Change prices, photos and items — updates the website and TV board in a minute.</span>
+    </a>
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9f36a846-6b6a-4fe5-aa5c-08b7ed1359f5.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.6M9 2h6"/></svg>
+      <span class="t">Time clock</span>
+      <span class="d">The team clocks in and out with a PIN; you see everyone's hours.</span>
+    </a>
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+      <span class="t">TV board <span class="ext">↗</span></span>
+      <span class="d">The live menu screen — open this on the TV in the café.</span>
+    </a>
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg>
+      <span class="t">Website <span class="ext">↗</span></span>
+      <span class="d">What your guests see — the cinematic Monteverde story with the live menu.</span>
+    </a>
+  </div>
+
+  <footer>Canopy OS · The Hanging Garden Café</footer>
+</div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+function fmtTime(d){ return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  document.getElementById('loginView').hidden = authed;
+  document.getElementById('appView').hidden = !authed;
+  if (authed) loadStats();
+}
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work. Check the email and password.'; return; }
+  refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+async function loadStats(){
+  var start = new Date(); start.setHours(0,0,0,0);
+  var rs = await Promise.all([
+    db.from('orders').select('total_crc').gte('created_at', start.toISOString()),
+    db.from('menu_items').select('id,name').eq('available', false),
+    db.from('time_entries').select('clock_in, staff(name)').is('clock_out', null)
+  ]);
+
+  var orders = rs[0];
+  if (!orders.error){
+    var rows = orders.data || [];
+    var total = rows.reduce(function(s,o){ return s + o.total_crc; }, 0);
+    document.getElementById('kRev').textContent = fmt(total);
+    document.getElementById('kOrders').textContent = rows.length;
+  }
+
+  var sold = rs[1];
+  if (!sold.error){
+    var n = (sold.data || []).length;
+    document.getElementById('kSoldOut').textContent = n;
+    document.getElementById('kSoldOutSub').textContent =
+      n ? (sold.data.map(function(i){return i.name}).slice(0,3).join(', ') + (n > 3 ? '…' : '')) : 'everything is available';
+  }
+
+  var clockEl = document.getElementById('kClock');
+  var clockSub = document.getElementById('kClockSub');
+  var tc = rs[2];
+  if (tc.error){
+    clockEl.textContent = '–';
+    clockSub.textContent = /does not exist|schema cache|could not find/i.test(tc.error.message || '')
+      ? 'time clock not set up yet' : '';
+  } else {
+    var people = (tc.data || []).filter(function(e){ return e.staff && e.staff.name; });
+    if (!people.length){
+      clockEl.textContent = 'Nobody in';
+      clockSub.textContent = '';
+    } else {
+      clockEl.textContent = people.map(function(e){ return e.staff.name; }).join(' · ');
+      clockSub.textContent = people.length === 1
+        ? 'since ' + fmtTime(new Date(people[0].clock_in))
+        : people.length + ' people working';
+    }
+  }
+}
+
+setInterval(function(){
+  if (!document.hidden && !document.getElementById('appView').hidden) loadStats();
+}, 60000);
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden && !document.getElementById('appView').hidden) loadStats();
+});
+
+refreshAuth();
+</script>
+</body>
+</html>

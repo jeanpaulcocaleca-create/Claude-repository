@@ -23,13 +23,16 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fe359cee-
 
 ## Menu system pages (Supabase-backed, project nbvczarfweanoxvdqplk)
 
-Current versions (v2, with cross-page link bar):
+Current versions (v3 — owner home, time clock, receipt printing, full cross-page link bar):
 
-- Owner dashboard (Menu Manager): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5d922937-1de3-4d51-9930-7a6f44ca6ff8.html
-- POS (record-only till): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e907d1b9-be6f-4dec-88b8-bcdd1ce181ba.html
-- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9976aac-4ea8-4153-b5ef-5f387c10c423.html
+- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9fb8f71-0543-442f-a5d4-fbb8be7ef5b5.html**
+- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/0926d733-d99c-4ab5-b9e9-b8342ca86ff7.html
+- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/582ea292-85cb-48de-91f0-d0dd094e867e.html
+- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/95e16564-e6bb-4240-9f18-f84cd74d7aba.html
+- Time clock (needs supabase/timeclock.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9f36a846-6b6a-4fe5-aa5c-08b7ed1359f5.html
 - TV menu board: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html
 - Site preview v2 (live menu): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html
 
-Superseded previews (no link bar; CloudFront cache makes same-key re-uploads unreliable, so
-each revision gets a fresh URL): 756a29eb (dashboard v1), 32ee9297 (POS v1), 3769626f (sales v1).
+Superseded previews (CloudFront caches same-key re-uploads, so each revision gets a fresh URL):
+756a29eb (dashboard v1), 32ee9297 (POS v1), 3769626f (sales v1), 5d922937/e907d1b9/e9976aac (v2),
+0db18f7c/48814840/5b799ac5/69aece3e/27999e50 (v3 pre-receipt, never announced).

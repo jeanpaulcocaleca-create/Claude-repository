@@ -11,6 +11,41 @@
 <meta property="og:description" content="Slow coffee, grown in the clouds. Visit us in Monteverde, Costa Rica.">
 <meta property="og:url" content="https://example.com/">
 <meta property="og:image" content="https://example.com/assets/hero-ending.jpg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Hanging Garden Café">
+<!-- DEPLOY STEP: in the JSON-LD below, set url + image to the live domain,
+     confirm openingHours and telephone, and fine-tune the geo pin. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CafeOrCoffeeShop",
+  "name": "The Hanging Garden Café",
+  "description": "A coffee experience in the cloud forest: slow chorreador coffee, garden seating, and fresh pastries in Monteverde, Costa Rica.",
+  "url": "https://example.com/",
+  "image": "https://example.com/assets/hero-ending.jpg",
+  "servesCuisine": ["Coffee", "Pastries", "Café"],
+  "priceRange": "₡₡",
+  "currenciesAccepted": "CRC, USD",
+  "paymentAccepted": "Cash, Credit Card, SINPE Móvil",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Monteverde",
+    "addressRegion": "Puntarenas",
+    "addressCountry": "CR"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 10.3181,
+    "longitude": -84.8253
+  },
+  "openingHoursSpecification": [{
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+    "opens": "07:00",
+    "closes": "17:00"
+  }]
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3Cpath d='M38 12c-3 6 3 8 0 14M52 12c-3 6 3 8 0 14' fill='none' stroke='%236B4222' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

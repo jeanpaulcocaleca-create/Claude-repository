@@ -2,7 +2,7 @@
 
 **An all-in-one system for a coffee experience in Monteverde, Costa Rica**
 
-**Status: GO — Phase 0 (discovery) ✅ COMPLETE.** No build code written. Ready to start Phase 1 on the owner's word.
+**Status: Phase 0 ✅ · Phase 1 build ✅ (live on preview URLs) · Sales dashboard, owner home hub, time clock and receipt printing shipped.** Remaining before Phase 1 close-out: real-domain deploy (Hostinger or alternative), Google Business Profile, Nora WhatsApp number, and the one-time `supabase/timeclock.sql` run.
 
 ---
 
@@ -156,9 +156,9 @@ Immutable audit log on every sensitive action (who/what/when/before/after): pric
 | Phase | Delivers |
 |---|---|
 | **0 · Discovery — ✅ COMPLETE** | ✅ Nora architecture discovery (read-only — integration design confirmed, no Nora changes needed); ✅ payments resolved: external by design, nothing to integrate; ✅ load & resilience test plan authored; ✅ design QA checklist finalized; ✅ hardware inventory: **1 computer + 1 printer, no tablets** — the POS runs in the browser on the computer and prints receipts through the system printer; an inexpensive Android tablet is an optional later upgrade, not a prerequisite |
-| **1 · Be found & sell** | Cinematic website with *La Gota* scroll + the Monteverde story chapter (10K Websites + Higgsfield), shipped through the design QA gate; SEO + Google Business Profile; menu manager; POS (record-only: items, IVA, payment-method tag, receipts, **lite mode**, end-of-shift reconciliation); **Nora on the website** (cached feed, perf-gated); backups + export + restore runbook; audit-log foundation. **Gates: POS sync stress test, Nora feed burst test, design QA checklist** |
-| **2 · Know the business** | Sales dashboard & reports; order board; **Accountant Pack** (period reports + exports, served to Nora's Finance agent); experience bookings as **reservation requests** (confirmed by staff, paid at the café); **stock deduction, waste log, supplier reorder alerts, cost history → gross margin per item**. **Gate: timed backup/restore drill under load** |
-| **3 · Run the team** | Time clock; timesheets; payroll ledger with Costa Rican labor rules; tip pooling; shift schedule; granular roles + optional MFA |
+| **1 · Be found & sell — ✅ built (preview)** | Cinematic website with *La Gota* scroll + the Monteverde story chapter (10K Websites + Higgsfield), shipped through the design QA gate; SEO + Google Business Profile; menu manager; POS (record-only: items, IVA, payment-method tag, receipts, **lite mode**, end-of-shift reconciliation); **Nora on the website** (cached feed, perf-gated); backups + export + restore runbook; audit-log foundation. **Gates: POS sync stress test, Nora feed burst test, design QA checklist** |
+| **2 · Know the business** | ✅ Sales dashboard (KPIs, revenue by day, payment mix, best sellers, transactions, CSV) + ✅ owner home hub with today-at-a-glance — shipped early. Still to come: order board; **Accountant Pack** (period reports + exports, served to Nora's Finance agent); experience bookings as **reservation requests** (confirmed by staff, paid at the café); **stock deduction, waste log, supplier reorder alerts, cost history → gross margin per item**. **Gate: timed backup/restore drill under load** |
+| **3 · Run the team** | ✅ Time clock (PIN clock in/out, who's-in, hours by week/month, shift edit, CSV timesheets, team management) — shipped early. Still to come: payroll ledger with Costa Rican labor rules; tip pooling; shift schedule; granular roles + optional MFA |
 | **4 · Nora acts & advises** | Nora places pickup orders and bookings; owner morning briefing via WhatsApp; forecast-driven inventory and prep suggestions built on the cost/margin data |
 
 ---

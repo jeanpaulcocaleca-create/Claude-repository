@@ -81,6 +81,21 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
   .app{grid-template-columns:1fr;grid-template-rows:1fr auto}
   .ticket{border-left:none;border-top:2px solid var(--muted);max-height:45dvh}
 }
+
+/* printed receipt — hidden on screen, the only thing visible on paper */
+#receipt{display:none}
+@media print{
+  body{background:#fff}
+  .app,.login,.modal,.toast{display:none !important}
+  #receipt{display:block;width:72mm;color:#000;font-family:'Spline Sans Mono',monospace}
+  #receipt .rhead{font-weight:700;text-align:center;font-size:12pt;letter-spacing:.04em}
+  #receipt .rsub{text-align:center;font-size:9pt;margin-top:2pt}
+  #receipt .rrule{border-top:1px dashed #000;margin:6pt 0}
+  #receipt .rrow{display:flex;justify-content:space-between;gap:6pt;font-size:10pt;margin:2pt 0}
+  #receipt .rrow span:last-child{white-space:nowrap}
+  #receipt .rtot{display:flex;justify-content:space-between;font-weight:700;font-size:11pt;margin-top:2pt}
+  #receipt .rfoot{text-align:center;margin-top:10pt;font-size:9pt}
+}
 </style>
 </head>
 <body>
@@ -101,9 +116,11 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
   <div class="left">
     <div class="topbar">
       <h1>The Hanging Garden</h1>
-      <!-- DEPLOY STEP: on the real domain, switch these links to /sales and /admin -->
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9976aac-4ea8-4153-b5ef-5f387c10c423.html">Sales</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5d922937-1de3-4d51-9930-7a6f44ca6ff8.html">Menu</a>
+      <!-- DEPLOY STEP: on the real domain, switch these links to / /sales /admin /time -->
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9fb8f71-0543-442f-a5d4-fbb8be7ef5b5.html">Home</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/95e16564-e6bb-4240-9f18-f84cd74d7aba.html">Sales</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/0926d733-d99c-4ab5-b9e9-b8342ca86ff7.html">Menu</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9f36a846-6b6a-4fe5-aa5c-08b7ed1359f5.html">Time</a>
       <span class="chip on" id="netChip">online</span>
       <button class="ghost" id="dayBtn">Today</button>
       <button class="ghost" id="outBtn">Sign out</button>
@@ -126,6 +143,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
     </div>
     <div class="util">
       <button class="ghost" id="clearBtn">Clear order</button>
+      <button class="ghost" id="printBtn" disabled>Print receipt</button>
     </div>
   </div>
 </div>
@@ -144,6 +162,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 </div>
 
 <div class="toast" id="toast" role="status"></div>
+<div id="receipt" aria-hidden="true"></div>
 
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
@@ -254,6 +273,7 @@ function renderTicket(){
 document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; renderTicket(); });
 
 /* ---------- charge (record only) ---------- */
+var lastOrder = null;   /* the most recent sale, kept for reprinting */
 document.querySelectorAll('[data-pay]').forEach(function(b){
   b.addEventListener('click', function(){
     if (!ticket.length){ toast('The order is empty.'); return; }
@@ -265,11 +285,38 @@ document.querySelectorAll('[data-pay]').forEach(function(b){
       payment_method: b.dataset.pay,
       items: ticket.map(function(l){return {item_name:l.name, price_crc:l.price, qty:l.qty}})
     };
+    lastOrder = {at: new Date(), items: ticket.slice(), total: total, label: b.textContent.trim()};
+    document.getElementById('printBtn').disabled = false;
     queue.push(order); saveQueue();
     ticket = []; renderTicket();
     toast('Recorded ' + fmt(total) + ' · ' + b.textContent.trim());
     syncQueue();
   });
+});
+
+/* ---------- receipt printing (works offline) ---------- */
+function esc(s){ var e = document.createElement('span'); e.textContent = s; return e.innerHTML; }
+document.getElementById('printBtn').addEventListener('click', function(){
+  if (!lastOrder) return;
+  var d = lastOrder.at;
+  var when = d.toLocaleDateString('en-GB') + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  var html =
+    '<div class="rhead">THE HANGING GARDEN CAFÉ</div>' +
+    '<div class="rsub">Monteverde · Costa Rica</div>' +
+    '<div class="rsub">' + when + '</div>' +
+    '<div class="rrule"></div>';
+  lastOrder.items.forEach(function(l){
+    html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + fmt(l.price * l.qty) + '</span></div>';
+  });
+  html +=
+    '<div class="rrule"></div>' +
+    '<div class="rtot"><span>TOTAL</span><span>' + fmt(lastOrder.total) + '</span></div>' +
+    '<div class="rrow"><span>Includes IVA 13%</span><span>' + fmt(Math.round(lastOrder.total - lastOrder.total/1.13)) + '</span></div>' +
+    '<div class="rrow"><span>Paid by</span><span>' + esc(lastOrder.label) + '</span></div>' +
+    '<div class="rfoot">¡Pura vida! · Gracias</div>';
+  document.getElementById('receipt').innerHTML = html;
+  window.print();
 });
 
 /* ---------- offline queue ---------- */
