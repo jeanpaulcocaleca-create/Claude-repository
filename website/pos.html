@@ -5,20 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POS · The Hanging Garden</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <style>
 :root{
-  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
-  --accent-hover:#54331B; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844;
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-hover:#143726; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F;
   --ok:#4A7A4E; --bad:#A8402F;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.4}
-h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
 button{font:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
 button:hover{background:var(--accent-hover)}
 button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
@@ -27,7 +27,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 .mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
 [hidden]{display:none !important}
 
-.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem;box-shadow:0 2px 14px rgba(107,66,34,.07)}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem;box-shadow:0 2px 14px rgba(30,75,51,.07)}
 .login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
 .login button{width:100%;margin-top:1.2rem}
 .err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
@@ -63,10 +63,10 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 .payrow button:nth-child(4),.payrow button:nth-child(5){grid-column:span 1}
 .util{display:flex;gap:.45rem;padding:0 1rem 1rem}
 .util button{flex:1}
-.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FBF7EF;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 
-.modal{position:fixed;inset:0;background:rgba(62,42,27,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:10}
+.modal{position:fixed;inset:0;background:rgba(20,40,28,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:10}
 .modal .box{background:var(--panel);border-radius:16px;padding:1.3rem;max-width:420px;width:100%;max-height:85dvh;overflow-y:auto}
 .modal h2{margin-bottom:.8rem}
 .dayrow{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px dotted var(--muted);font-size:.95rem}
@@ -117,10 +117,10 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
     <div class="topbar">
       <h1>The Hanging Garden</h1>
       <!-- DEPLOY STEP: on the real domain, switch these links to / /sales /admin /time -->
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9fb8f71-0543-442f-a5d4-fbb8be7ef5b5.html">Home</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/95e16564-e6bb-4240-9f18-f84cd74d7aba.html">Sales</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/0926d733-d99c-4ab5-b9e9-b8342ca86ff7.html">Menu</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9f36a846-6b6a-4fe5-aa5c-08b7ed1359f5.html">Time</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e05ea7ec-4823-4525-9da0-1ba7ddb8c41a.html">Home</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/70aa55d9-3b24-43d8-8e20-c4375692a259.html">Sales</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/718fac32-1172-464b-94ec-ec7cd54c65c3.html">Menu</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/323d7b1f-4cca-406c-8bc6-8df9b5ec7906.html">Time</a>
       <span class="chip on" id="netChip">online</span>
       <button class="ghost" id="dayBtn">Today</button>
       <button class="ghost" id="outBtn">Sign out</button>

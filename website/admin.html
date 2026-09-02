@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Menu Manager · The Hanging Garden</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <style>
 :root{
-  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
-  --accent-hover:#54331B; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844;
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-hover:#143726; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F;
   --ok:#4A7A4E; --bad:#A8402F;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
-h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
 .wrap{max-width:680px;margin:0 auto;padding:1.2rem 1rem 5rem}
 header{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.6rem 0 1rem}
 header h1{font-size:1.4rem}
@@ -28,7 +28,7 @@ button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
 button.danger{background:transparent;color:var(--bad);border:1.5px solid var(--muted)}
 input,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;width:100%}
 input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.card{background:var(--panel);border-radius:16px;padding:1.1rem;box-shadow:0 2px 14px rgba(107,66,34,.07);margin-bottom:1rem}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem;box-shadow:0 2px 14px rgba(30,75,51,.07);margin-bottom:1rem}
 .login{max-width:380px;margin:14vh auto 0;text-align:center}
 .login .cup{width:56px;margin:0 auto 1rem;color:var(--accent)}
 .login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
@@ -49,7 +49,7 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 .editbox{grid-column:1/-1;background:#fff;border:1.5px solid var(--muted);border-radius:12px;padding:.9rem;display:grid;gap:.6rem}
 .editbox label{font-size:.8rem;color:var(--sec)}
 .editbox .row{display:flex;gap:.6rem}
-.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FBF7EF;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 .hint{font-size:.85rem;color:var(--sec)}
 .pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
@@ -79,13 +79,13 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   <div id="appView" hidden>
     <!-- DEPLOY STEP: on the real domain, switch these links to / /pos /sales /time /tv -->
     <nav class="pagenav" aria-label="Café pages">
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9fb8f71-0543-442f-a5d4-fbb8be7ef5b5.html">Home</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e05ea7ec-4823-4525-9da0-1ba7ddb8c41a.html">Home</a>
       <span class="here">Menu Manager</span>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/582ea292-85cb-48de-91f0-d0dd094e867e.html">POS</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/95e16564-e6bb-4240-9f18-f84cd74d7aba.html">Sales</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9f36a846-6b6a-4fe5-aa5c-08b7ed1359f5.html">Time clock</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html" target="_blank" rel="noopener">TV board</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html" target="_blank" rel="noopener">Website</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cde84f85-bde9-4106-af9a-7cbdda64afcf.html">POS</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/70aa55d9-3b24-43d8-8e20-c4375692a259.html">Sales</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/323d7b1f-4cca-406c-8bc6-8df9b5ec7906.html">Time clock</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/bf2bfa08-e7ce-40b0-b7aa-d20e25c8aaa7.html" target="_blank" rel="noopener">TV board</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a96264a1-da64-4c82-a903-5a3246ac575c.html" target="_blank" rel="noopener">Website</a>
     </nav>
     <header>
       <h1>Menu Manager</h1>

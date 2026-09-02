@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sales · The Hanging Garden</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <style>
 :root{
-  --canvas:#F4EDE1; --panel:#FBF7EF; --ink:#3E2A1B; --accent:#6B4222;
-  --accent-soft:#B08A67; --muted:#C9B39F; --gold:#C89B4B; --sec:#7A5844; --bad:#A8402F;
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
-h1,h2{font-family:'Young Serif',Georgia,serif;font-weight:400;margin:0}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
 .mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
 button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:40px;padding:.45em 1em}
 button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
@@ -55,7 +55,7 @@ th{text-align:left;color:var(--sec);font-weight:600;font-size:.78rem;letter-spac
 td{padding:.45rem .5rem;border-bottom:1px dotted var(--muted);vertical-align:top}
 td.r,th.r{text-align:right}
 .empty{color:var(--sec);text-align:center;padding:2rem 0}
-.tip{position:fixed;background:var(--ink);color:#FBF7EF;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
+.tip{position:fixed;background:var(--ink);color:#FCF8EC;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
 .pill{font-size:.75rem;padding:.15em .6em;border-radius:99px;background:var(--canvas);color:var(--sec)}
 .pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
 .pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent}
@@ -82,13 +82,13 @@ td.r,th.r{text-align:right}
 <div id="appView" class="wrap" hidden>
   <!-- DEPLOY STEP: on the real domain, switch these links to / /admin /pos /time /tv -->
   <nav class="pagenav" aria-label="Café pages">
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9fb8f71-0543-442f-a5d4-fbb8be7ef5b5.html">Home</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/0926d733-d99c-4ab5-b9e9-b8342ca86ff7.html">Menu Manager</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/582ea292-85cb-48de-91f0-d0dd094e867e.html">POS</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e05ea7ec-4823-4525-9da0-1ba7ddb8c41a.html">Home</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/718fac32-1172-464b-94ec-ec7cd54c65c3.html">Menu Manager</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cde84f85-bde9-4106-af9a-7cbdda64afcf.html">POS</a>
     <span class="here">Sales</span>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9f36a846-6b6a-4fe5-aa5c-08b7ed1359f5.html">Time clock</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html" target="_blank" rel="noopener">TV board</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html" target="_blank" rel="noopener">Website</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/323d7b1f-4cca-406c-8bc6-8df9b5ec7906.html">Time clock</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/bf2bfa08-e7ce-40b0-b7aa-d20e25c8aaa7.html" target="_blank" rel="noopener">TV board</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a96264a1-da64-4c82-a903-5a3246ac575c.html" target="_blank" rel="noopener">Website</a>
   </nav>
   <header class="top">
     <h1>Sales</h1>

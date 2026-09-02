@@ -6,51 +6,55 @@
 <title>Menu Board · The Hanging Garden</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&family=Spline+Sans+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Figtree:wght@400;600&family=Dancing+Script:wght@600&family=Spline+Sans+Mono:wght@400&display=swap">
 <style>
 :root{
-  --bg:#2A1D12; --panel:#33241674; --cream:#F6EFE3; --soft:#D8C9B4;
-  --gold:#D8AC5F; --line:#5A4430;
+  --bg:#0F2418; --panel:#16301F; --cream:#F6F1E2; --soft:#C9D3BC;
+  --gold:#DBB365; --line:#2E4A36; --leaf:#7FA381;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-  margin:0;background:radial-gradient(120% 90% at 50% 0%,#3A2917 0%,var(--bg) 70%);
+  margin:0;background:radial-gradient(120% 90% at 50% 0%,#1A3A26 0%,var(--bg) 70%);
   color:var(--cream);font-family:'Figtree',system-ui,sans-serif;overflow:hidden;
   display:flex;flex-direction:column;padding:2.2vh 2.5vw;cursor:none;
 }
 header{display:flex;align-items:center;justify-content:center;gap:1.6vw;padding-bottom:1.6vh;border-bottom:1px solid var(--line)}
-header .cup{width:4.2vh;color:var(--gold)}
-header h1{font-family:'Young Serif',Georgia,serif;font-weight:400;font-size:4vh;margin:0;letter-spacing:.02em}
-header .sub{font-family:'Spline Sans Mono',monospace;font-size:1.5vh;letter-spacing:.25em;text-transform:uppercase;color:var(--soft)}
-main{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:2.5vw;padding-top:2.4vh;min-height:0}
+header .leafmark{width:4.4vh;color:var(--gold)}
+header h1{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:4vh;margin:0;letter-spacing:.06em;text-transform:uppercase}
+header .sub{font-family:'Dancing Script',cursive;font-size:2.2vh;color:var(--leaf);text-align:center;margin-top:.2vh}
+main{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:2.5vw;padding-top:2.4vh;min-height:0;overflow:hidden}
 .cat h2{
-  font-family:'Young Serif',Georgia,serif;font-weight:400;font-size:2.9vh;margin:0 0 1.6vh;color:var(--gold);
-  display:flex;align-items:center;gap:1vw;
+  font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:2.7vh;margin:0 0 1.4vh;color:var(--gold);
+  letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;gap:1vw;
 }
+.cat h2 svg{width:2.4vh;height:2.4vh;flex:none}
 .cat h2::after{content:"";flex:1;height:1px;background:var(--line)}
-.it{display:grid;grid-template-columns:auto 1fr auto;gap:1vw;align-items:center;padding:1.1vh 0}
-.it .ph{width:5.4vh;height:5.4vh;border-radius:1vh;object-fit:cover;border:1px solid var(--line)}
-.it .noph{width:0;height:5.4vh}
-.it .nm{font-size:2.4vh;font-weight:600;line-height:1.25}
-.it .ds{font-size:1.6vh;color:var(--soft);line-height:1.3;margin-top:.3vh}
-.it .pr{font-family:'Spline Sans Mono',monospace;font-size:2.2vh;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cat{margin-bottom:2vh}
+.it{display:grid;grid-template-columns:auto 1fr auto;gap:1vw;align-items:center;padding:.95vh 0}
+.it .ph{width:5.2vh;height:5.2vh;border-radius:1vh;object-fit:cover;border:1px solid var(--line)}
+.it .noph{width:0;height:5.2vh}
+.it .nm{font-size:2.25vh;font-weight:600;line-height:1.25}
+.it .ds{font-size:1.55vh;color:var(--soft);line-height:1.3;margin-top:.3vh}
+.it .pr{font-family:'Spline Sans Mono',monospace;font-size:2.1vh;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
 footer{display:flex;justify-content:space-between;align-items:baseline;padding-top:1.4vh;border-top:1px solid var(--line);font-family:'Spline Sans Mono',monospace;font-size:1.5vh;letter-spacing:.15em;text-transform:uppercase;color:var(--soft)}
+footer .mid{font-family:'Dancing Script',cursive;font-size:2vh;letter-spacing:0;text-transform:none;color:var(--leaf)}
 .err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);font-size:2.5vh;color:var(--soft);text-align:center;padding:4vw}
 @media (orientation:portrait){ main{grid-template-columns:1fr;overflow:hidden} body{cursor:auto} }
 </style>
 </head>
 <body>
 <header>
-  <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
+  <svg class="leafmark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>
   <div>
-    <h1>The Hanging Garden</h1>
-    <div class="sub">Café · Monteverde · Costa Rica</div>
+    <h1>The Hanging Garden Café</h1>
+    <div class="sub">Monteverde, Costa Rica · made for the cloud forest</div>
   </div>
 </header>
 <main id="board"></main>
 <footer>
   <span>Pura vida</span>
+  <span class="mid">coffee + pastry save ₡500 · sandwich + coffee save ₡500</span>
   <span id="clock"></span>
 </footer>
 <div class="err" id="err">The menu board lost its connection.<br>It will keep trying by itself.</div>
@@ -58,6 +62,8 @@ footer{display:flex;justify-content:space-between;align-items:baseline;padding-t
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var SKIP_CATS = {'Extras & Combos': 1};
+var LEAF = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>';
 
 function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
 
@@ -68,7 +74,7 @@ async function load(){
     });
     if (!res.ok) throw new Error('http ' + res.status);
     var cats = await res.json();
-    render(cats);
+    render(cats.filter(function(c){ return !SKIP_CATS[c.name]; }));
     document.getElementById('err').style.display = 'none';
   } catch(e){
     if (!document.getElementById('board').children.length)
@@ -79,29 +85,44 @@ async function load(){
 function render(cats){
   var board = document.getElementById('board');
   board.textContent = '';
+  /* pack categories into three balanced columns, in menu order */
+  var cols = [[],[],[]], weights = [0,0,0];
   cats.forEach(function(cat){
-    var col = document.createElement('section'); col.className = 'cat';
-    var h = document.createElement('h2'); h.textContent = cat.name; col.appendChild(h);
-    (cat.menu_items || [])
-      .filter(function(it){ return it.available; })
-      .sort(function(a,b){ return a.sort - b.sort || a.name.localeCompare(b.name); })
-      .forEach(function(it){
-        var row = document.createElement('div'); row.className = 'it';
-        if (it.photo_url){
-          var im = document.createElement('img'); im.className='ph'; im.src = it.photo_url; im.alt='';
-          row.appendChild(im);
-        } else {
-          var sp = document.createElement('span'); sp.className='noph'; row.appendChild(sp);
-        }
-        var mid = document.createElement('div');
-        var nm = document.createElement('div'); nm.className='nm'; nm.textContent = it.name; mid.appendChild(nm);
-        if (it.description){ var ds = document.createElement('div'); ds.className='ds'; ds.textContent = it.description; mid.appendChild(ds); }
-        row.appendChild(mid);
-        var pr = document.createElement('div'); pr.className='pr'; pr.textContent = fmt(it.price_crc);
-        row.appendChild(pr);
-        col.appendChild(row);
-      });
-    board.appendChild(col);
+    var n = (cat.menu_items || []).filter(function(i){ return i.available; }).length;
+    if (!n) return;
+    var t = weights.indexOf(Math.min.apply(null, weights));
+    cols[t].push(cat); weights[t] += n + 2;
+  });
+  cols.forEach(function(colCats){
+    var wrap = document.createElement('div');
+    colCats.forEach(function(cat){
+      var sec = document.createElement('section'); sec.className = 'cat';
+      var h = document.createElement('h2');
+      h.innerHTML = LEAF;
+      h.appendChild(document.createTextNode(cat.name));
+      sec.appendChild(h);
+      (cat.menu_items || [])
+        .filter(function(it){ return it.available; })
+        .sort(function(a,b){ return a.sort - b.sort || a.name.localeCompare(b.name); })
+        .forEach(function(it){
+          var row = document.createElement('div'); row.className = 'it';
+          if (it.photo_url){
+            var im = document.createElement('img'); im.className='ph'; im.src = it.photo_url; im.alt='';
+            row.appendChild(im);
+          } else {
+            var sp = document.createElement('span'); sp.className='noph'; row.appendChild(sp);
+          }
+          var mid = document.createElement('div');
+          var nm = document.createElement('div'); nm.className='nm'; nm.textContent = it.name; mid.appendChild(nm);
+          if (it.description){ var ds = document.createElement('div'); ds.className='ds'; ds.textContent = it.description; mid.appendChild(ds); }
+          row.appendChild(mid);
+          var pr = document.createElement('div'); pr.className='pr'; pr.textContent = fmt(it.price_crc);
+          row.appendChild(pr);
+          sec.appendChild(row);
+        });
+      wrap.appendChild(sec);
+    });
+    board.appendChild(wrap);
   });
 }
 

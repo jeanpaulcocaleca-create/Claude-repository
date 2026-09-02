@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The Hanging Garden Café · Monteverde, Costa Rica</title>
 <meta name="description" content="A coffee experience in the cloud forest. The Hanging Garden Café, Monteverde, Costa Rica: slow coffee, garden seating, and the story of the green mountain.">
-<meta name="theme-color" content="#F4EDE1">
+<meta name="theme-color" content="#F6F1E2">
 <!-- DEPLOY STEP: patch og:url and og:image with the live absolute URL before zipping -->
 <meta property="og:title" content="The Hanging Garden Café · Monteverde">
 <meta property="og:description" content="Slow coffee, grown in the clouds. Visit us in Monteverde, Costa Rica.">
@@ -49,18 +49,19 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3Cpath d='M38 12c-3 6 3 8 0 14M52 12c-3 6 3 8 0 14' fill='none' stroke='%236B4222' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;600&family=Spline+Sans+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Figtree:wght@400;600&family=Dancing+Script:wght@600&family=Spline+Sans+Mono:wght@400&display=swap">
 <style>
 :root{
-  --canvas:#F4EDE1;
-  --panel:#FBF7EF;
-  --ink:#3E2A1B;
-  --accent:#6B4222;
-  --accent-hover:#54331B;
-  --accent-muted:#C9B39F;
-  --mist:#9BA795;
-  --gold:#C89B4B;
-  --text-secondary:#7A5844;
+  --canvas:#F6F1E2;
+  --panel:#FCF8EC;
+  --ink:#26392C;
+  --accent:#1E4B33;
+  --accent-hover:#143726;
+  --accent-muted:#C9CFB6;
+  --mist:#9BB09A;
+  --gold:#B98A35;
+  --crimson:#A93A2E;
+  --text-secondary:#54634F;
   --tshadow:0 1px 2px rgba(20,12,5,.95),0 3px 12px rgba(20,12,5,.78),0 10px 44px rgba(20,12,5,.8);
   --ease:cubic-bezier(.33,1,.68,1);
   --ease-soft:cubic-bezier(.25,.46,.45,.94);
@@ -74,7 +75,8 @@ body{
   opacity:0;transition:opacity .8s var(--ease);
 }
 body.ready{opacity:1}
-h1,h2,h3{font-family:'Young Serif',Georgia,serif;font-weight:400;line-height:1.15;text-wrap:balance;margin:0}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+.script{font-family:'Dancing Script',cursive;font-weight:600;color:var(--accent);letter-spacing:.01em}
 .mono{font-family:'Spline Sans Mono',monospace;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase}
 a{color:var(--accent)}
 :focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:3px}
@@ -84,12 +86,12 @@ img{max-width:100%;display:block}
 
 /* ambient environment layer */
 .env{position:fixed;inset:0;z-index:-1;pointer-events:none;background:
-  radial-gradient(90% 60% at 20% 10%,rgba(155,167,149,.14),transparent 60%),
-  radial-gradient(80% 60% at 85% 80%,rgba(200,155,75,.10),transparent 60%),
+  radial-gradient(90% 60% at 20% 10%,rgba(155,176,154,.16),transparent 60%),
+  radial-gradient(80% 60% at 85% 80%,rgba(185,138,53,.09),transparent 60%),
   var(--canvas);
 }
 .env::after{content:"";position:absolute;inset:-40%;
-  background:radial-gradient(40% 30% at 50% 50%,rgba(155,167,149,.10),transparent 70%);
+  background:radial-gradient(40% 30% at 50% 50%,rgba(155,176,154,.11),transparent 70%);
   animation:envdrift 90s linear -30s infinite alternate}
 @keyframes envdrift{from{transform:translate(-6%,-4%)}to{transform:translate(6%,4%)}}
 
@@ -99,7 +101,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:cent
 nav.solid{background:rgba(244,237,225,.92);backdrop-filter:blur(10px);box-shadow:0 1px 0 rgba(107,66,34,.12)}
 .navlogo{display:flex;align-items:baseline;gap:.55rem;text-decoration:none;color:var(--ink)}
 nav.on-video .navlogo{color:#F6EFE3;text-shadow:var(--tshadow)}
-.navlogo b{font-family:'Young Serif',serif;font-weight:400;font-size:1.05rem}
+.navlogo b{font-family:'Playfair Display',serif;font-weight:700;font-size:1.02rem;letter-spacing:.04em;text-transform:uppercase}
 .navlogo span{font-family:'Spline Sans Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;opacity:.75}
 .navlinks{display:flex;gap:1.3rem;align-items:center}
 .navlinks a{text-decoration:none;font-size:.9rem;font-weight:600;color:inherit}
@@ -198,17 +200,59 @@ section .lede{max-width:58ch;color:var(--text-secondary);font-size:1.08rem}
 .timeline h3{font-size:1.15rem;margin-bottom:.3rem}
 .timeline p{margin:0;color:var(--text-secondary);max-width:58ch}
 @media(max-width:640px){.timeline li{grid-template-columns:1fr}}
-.values{margin-top:3rem;font-family:'Young Serif',serif;font-size:clamp(1.2rem,2.6vw,1.8rem);color:var(--accent);text-align:center;letter-spacing:.02em}
+.values{margin-top:3rem;font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(1.2rem,2.6vw,1.8rem);color:var(--accent);text-align:center;letter-spacing:.02em}
 .ornament{color:var(--accent-muted);display:block;margin:2.5rem auto 0;width:min(320px,70%)}
 .ornament path{stroke:currentColor;fill:none;stroke-width:1.5;stroke-dasharray:600;stroke-dashoffset:var(--draw,600)}
 
+/* story grid with the quetzal */
+.storygrid{display:grid;grid-template-columns:1.35fr 1fr;gap:3.5rem;align-items:start}
+.storyside{position:sticky;top:5rem}
+.storyside figure{margin:0;border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(30,75,51,.16)}
+.storyside img{width:100%;display:block}
+.storyside figcaption{font-size:.85rem;color:var(--text-secondary);margin-top:.7rem;text-align:center}
+.storyside .script{display:block;text-align:center;font-size:1.5rem;margin-bottom:.1rem}
+@media(max-width:900px){.storygrid{grid-template-columns:1fr}.storyside{position:static;max-width:420px;margin:2rem auto 0}}
+
+/* canopy interlude */
+.canopy{max-width:none;padding:0;position:relative;z-index:2;min-height:58vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.canopy img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:canopydrift 70s var(--ease-soft) infinite alternate}
+@keyframes canopydrift{from{transform:scale(1.03) translateY(-1.5%)}to{transform:scale(1.1) translateY(1.5%)}}
+.canopy::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 82% 72% at 50% 55%,rgba(8,20,13,.87) 0%,rgba(8,20,13,.62) 55%,rgba(8,20,13,.3) 100%)}
+.canopy .inner{position:relative;z-index:1;text-align:center;color:#F6F1E2;text-shadow:var(--tshadow);padding:14vh 6vw}
+.canopy .inner::before{content:"";position:absolute;inset:4% -18%;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 78% 74% at 50% 50%,rgba(8,20,13,.88) 0%,rgba(8,20,13,.76) 58%,rgba(8,20,13,0) 88%)}
+.canopy .script{color:#F6F1E2;font-size:clamp(1.6rem,3.4vw,2.4rem)}
+.canopy h2{color:#F6F1E2;margin-top:.3rem}
+.canopy p{color:#E4E9D4;max-width:46ch;margin:.9rem auto 0}
+
 /* menu */
-.menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:2.4rem;margin-top:2.5rem}
-.menu-cat h3{font-size:1.25rem;border-bottom:1px solid var(--accent-muted);padding-bottom:.5rem;margin-bottom:1rem}
-.mi{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.42rem 0;border-radius:6px;transition:background .4s var(--ease)}
-.mi .dots{flex:1;border-bottom:1px dotted var(--accent-muted);transform:translateY(-4px)}
-.mi .price{font-family:'Spline Sans Mono',monospace;font-size:.9rem;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}
-.mi.lit{background:rgba(200,155,75,.16)}
+.menuhead .script{font-size:clamp(1.5rem,3vw,2rem)}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:2.6rem 3rem;margin-top:2.5rem}
+.menu-cat h3{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:.55rem;margin-bottom:.9rem}
+.menu-cat h3 svg{width:17px;height:17px;flex:none}
+.menu-cat h3::after{content:"";flex:1;height:1px;background:var(--accent-muted)}
+.mi{display:flex;gap:.75rem;align-items:flex-start;padding:.45rem 0;border-radius:8px;transition:background .4s var(--ease)}
+.mi .ph{width:46px;height:46px;border-radius:10px;object-fit:cover;flex:none;border:1px solid var(--accent-muted)}
+.mi .mbody{flex:1;min-width:0}
+.mi .row1{display:flex;align-items:baseline;gap:.6rem}
+.mi .nm{font-weight:600}
+.mi .dots{flex:1;border-bottom:1px dotted var(--mist);transform:translateY(-4px)}
+.mi .price{font-family:'Spline Sans Mono',monospace;font-size:.9rem;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mi .ds{font-size:.84rem;color:var(--text-secondary);line-height:1.45;margin-top:.05rem}
+.mi.lit{background:rgba(185,138,53,.14)}
+.feature-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem;margin-top:3rem}
+.fcard{background:var(--panel);border:1px solid var(--accent-muted);border-radius:18px;padding:1.5rem 1.6rem;position:relative;overflow:hidden}
+.fcard::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--mist))}
+.fcard .fk{font-family:'Spline Sans Mono',monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.fcard h3{font-size:1.3rem;margin:.35rem 0 .5rem}
+.fcard p{margin:0;color:var(--text-secondary);font-size:.95rem}
+.fcard .fp{font-family:'Spline Sans Mono',monospace;color:var(--accent);margin-top:.8rem;font-size:1.02rem}
+.combo{margin-top:1.2rem;background:var(--accent);color:#F6F1E2;border-radius:18px;padding:1.4rem 1.6rem;display:flex;flex-wrap:wrap;gap:.4rem 2.2rem;align-items:baseline;justify-content:center;text-align:center}
+.combo b{font-family:'Playfair Display',serif;font-size:1.15rem;letter-spacing:.08em;text-transform:uppercase}
+.combo span{font-size:.95rem;color:#E4E9D4}
+.combo .save{color:#E8C989;font-weight:600}
+.special{text-align:center;margin-top:1.8rem;color:var(--text-secondary)}
+.special .script{font-size:1.4rem}
 
 /* brew hold */
 .brew{text-align:center;background:var(--panel);border-radius:24px;padding:12vh 6vw;box-shadow:0 2px 24px rgba(107,66,34,.07)}
@@ -326,6 +370,8 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
   <section id="story" class="story rev">
     <p class="kicker mono part">The story</p>
     <h2 class="part">A green mountain, a cup of peace</h2>
+    <div class="storygrid">
+    <div>
     <p class="lede part">Monteverde was not built for hurry. Every cup we pour carries a century of this mountain: farmers, pacifists, scientists, and a forest that drinks from the clouds.</p>
     <ul class="timeline part">
       <li><span class="year">1900s</span><div><h3>The first farms</h3><p>Costa Rican families settle the green mountain, planting coffee and raising dairy on slopes that touch the clouds.</p></div></li>
@@ -336,36 +382,116 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     </ul>
     <p class="values part">Peace. Simplicity. Stewardship. Community.</p>
     <svg class="ornament" viewBox="0 0 320 40" aria-hidden="true"><path class="drawline" d="M5 20 C60 5 100 35 160 20 C220 5 260 35 315 20 M150 20 q10 -14 20 0 q-10 14 -20 0"/></svg>
+    </div>
+    <aside class="storyside part">
+      <figure>
+        <img src="assets/quetzal.jpg" alt="A resplendent quetzal perched on a mossy branch in the Monteverde cloud forest">
+        <figcaption><span class="script">el quetzal</span>The jewel of the cloud forest, and our neighbor.</figcaption>
+      </figure>
+    </aside>
+    </div>
+  </section>
+
+  <!-- CANOPY INTERLUDE -->
+  <section class="canopy" aria-label="The Monteverde cloud forest">
+    <img class="bg" src="assets/canopy.jpg" alt="">
+    <div class="inner">
+      <span class="script">from Monteverde, for the adventure ahead</span>
+      <h2>Grown in the clouds</h2>
+      <p>100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.</p>
+    </div>
   </section>
 
   <!-- MENU -->
   <section id="menu" class="rev">
-    <p class="kicker mono part">The menu</p>
-    <h2 class="part">From the chorreador</h2>
-    <p class="lede part">Brewed the Costa Rican way. Prices in colones; we also take dollars at the counter.</p>
+    <div class="menuhead part">
+      <p class="kicker mono">Specialty coffee · Fresh food</p>
+      <h2>The menu</h2>
+      <p class="script">made for the cloud forest</p>
+    </div>
+    <p class="lede part" style="margin:0 auto;text-align:center">Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars at the counter.</p>
     <div class="menu-grid part">
       <div class="menu-cat">
-        <h3>Coffee</h3>
-        <div class="mi" data-mi><span>Café chorreado</span><span class="dots"></span><span class="price">₡2 000</span></div>
-        <div class="mi" data-mi><span>Espresso</span><span class="dots"></span><span class="price">₡1 500</span></div>
-        <div class="mi" data-mi><span>Cappuccino</span><span class="dots"></span><span class="price">₡2 200</span></div>
-        <div class="mi" data-mi><span>Latte</span><span class="dots"></span><span class="price">₡2 400</span></div>
-        <div class="mi" data-mi><span>Iced latte</span><span class="dots"></span><span class="price">₡2 600</span></div>
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Coffee</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Espresso</span><span class="dots"></span><span class="price">₡1 300</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Americano</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Macchiato</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Cappuccino</span><span class="dots"></span><span class="price">₡2 000</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Latte</span><span class="dots"></span><span class="price">₡2 200</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Flat White</span><span class="dots"></span><span class="price">₡2 200</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Mocha</span><span class="dots"></span><span class="price">₡2 400</span></div><div class="ds">Costa Rican chocolate</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Café con Leche</span><span class="dots"></span><span class="price">₡1 700</span></div><div class="ds">Traditional chorreado coffee + warm milk</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Cloud Forest Latte</span><span class="dots"></span><span class="price">₡2 600</span></div><div class="ds">El Trapiche espresso · milk · Costa Rican honey · cinnamon · hot or iced</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Iced Americano</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Iced Latte</span><span class="dots"></span><span class="price">₡2 200</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Iced Mocha</span><span class="dots"></span><span class="price">₡2 400</span></div><div class="ds">Costa Rican chocolate</div></div></div>
       </div>
       <div class="menu-cat">
-        <h3>From the garden</h3>
-        <div class="mi" data-mi><span>Fruit batido</span><span class="dots"></span><span class="price">₡2 500</span></div>
-        <div class="mi" data-mi><span>Mountain tea</span><span class="dots"></span><span class="price">₡1 800</span></div>
-        <div class="mi" data-mi><span>Hot chocolate</span><span class="dots"></span><span class="price">₡2 200</span></div>
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Other Drinks</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Costa Rican Hot Chocolate</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Tea</span><span class="dots"></span><span class="price">₡1 000</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Sweet Cane Drink</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
       </div>
       <div class="menu-cat">
-        <h3>To eat</h3>
-        <div class="mi" data-mi><span>Gallo pinto</span><span class="dots"></span><span class="price">₡3 500</span></div>
-        <div class="mi" data-mi><span>Banana bread</span><span class="dots"></span><span class="price">₡1 800</span></div>
-        <div class="mi" data-mi><span>Carrot cake</span><span class="dots"></span><span class="price">₡2 000</span></div>
-        <div class="mi" data-mi><span>Empanadas</span><span class="dots"></span><span class="price">₡1 500</span></div>
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Sandwiches</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Ham &amp; Cheese</span><span class="dots"></span><span class="price">₡4 000</span></div><div class="ds">Quality ham · local cheese · house sauce</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Mano de Piedra</span><span class="dots"></span><span class="price">₡4 500</span></div><div class="ds">Traditional Costa Rican beef · frijoles molidos · local cheese · tomato · house sauce</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Chicken Pesto</span><span class="dots"></span><span class="price">₡4 500</span></div><div class="ds">Chicken breast · pesto · local cheese · tomato</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Monteverde</span><span class="dots"></span><span class="price">₡3 750</span></div><div class="ds">Frijoles molidos · local cheese · tomato · house sauce · vegetarian, add ham +₡500</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Savory</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Chicken Empanada</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Beef Empanada</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Ham &amp; Cheese Croissant</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Warm it up? Absolutely.</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Pastries &amp; Cake</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Butter Croissant</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Chocolate Croissant</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Banana Bread</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Carrot Cake</span><span class="dots"></span><span class="price">₡2 000</span></div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Costa Rican Favorites</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Tres Leches</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Classic three-milk cake</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Tamal Asado</span><span class="dots"></span><span class="price">₡1 500</span></div><div class="ds">Traditional Costa Rican baked corn cake</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Smoothies</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Golden Passion Bloom</span><span class="dots"></span><span class="price">₡3 200</span></div><div class="ds">Mango · pineapple · passion fruit (₡3 500 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Berry Violet Blossom</span><span class="dots"></span><span class="price">₡3 500</span></div><div class="ds">Strawberry · blackberry · ice cream (only in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">White Plumeria Cream</span><span class="dots"></span><span class="price">₡3 500</span></div><div class="ds">Pineapple · coconut cream · ice cream (only in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Sunflower Citrus Bloom</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Watermelon · pineapple · orange juice (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Green Jasmine Mint</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Pineapple · lemon · spearmint (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Coral Rose Splash</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Strawberry · watermelon · orange juice (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Pink Dahlia Delight</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Strawberry · mango (₡2 800 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Emerald Orchid</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Kiwi · strawberry (₡3 100 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Lemon Rose Blossom</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Strawberry · lemon (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Fresh Water Lily</span><span class="dots"></span><span class="price">₡2 200</span></div><div class="ds">Melon · watermelon (₡2 500 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Golden Magnolia</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Papaya · mango (₡2 800 in milk)</div></div></div>
       </div>
     </div>
+    <div class="feature-row part">
+      <div class="fcard">
+        <div class="fk">House signature</div>
+        <h3>Cloud Forest Latte</h3>
+        <p>El Trapiche espresso, milk, Costa Rican honey, and cinnamon. Hot or iced.</p>
+        <div class="fp">₡2 600</div>
+      </div>
+      <div class="fcard">
+        <div class="fk">For the trail</div>
+        <h3>Adventure Box</h3>
+        <p>Your sandwich + fresh fruit + a sweet treat + bottled water + napkin. Order by 8 pm tonight, pick it up from 6:30 am.</p>
+        <div class="fp">Ham &amp; Cheese or Monteverde ₡6 500 · Mano de Piedra or Chicken Pesto ₡7 000</div>
+      </div>
+    </div>
+    <div class="combo part">
+      <b>Make it a combo</b>
+      <span>Coffee + pastry · <span class="save">save ₡500</span></span>
+      <span>Sandwich + coffee · <span class="save">save ₡500</span></span>
+    </div>
+    <p class="special part"><span class="script">Today's Garden Special</span><br>Ask what's blooming today.</p>
   </section>
 
   <!-- BREW HOLD -->
@@ -377,7 +503,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
       <button class="brewcup" id="brewBtn" aria-label="Press and hold to fill the cup">
         <svg width="120" height="110" viewBox="0 0 120 110" aria-hidden="true">
           <defs><clipPath id="cupclip"><path d="M25 35 h60 v28 a22 22 0 01-22 22 H47 a22 22 0 01-22-22 z"/></clipPath></defs>
-          <rect class="fillrect" id="fillRect" x="25" y="85" width="60" height="0" fill="#6B4222" clip-path="url(#cupclip)"/>
+          <rect class="fillrect" id="fillRect" x="25" y="85" width="60" height="0" fill="#1E4B33" clip-path="url(#cupclip)"/>
           <path d="M25 35h60v28a22 22 0 01-22 22H47a22 22 0 01-22-22zM85 41h10a11 11 0 010 22H85" fill="none" stroke="currentColor" stroke-width="6"/>
           <path d="M46 12c-3 7 3 9 0 16M60 12c-3 7 3 9 0 16M74 12c-3 7 3 9 0 16" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" opacity=".7"/>
         </svg>
@@ -433,7 +559,8 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 <footer>
   <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
   <p><b>The Hanging Garden Café</b> · Monteverde, Costa Rica</p>
-  <p>Open every day. Pura vida.</p>
+  <p>100% Costa Rican coffee · Locally sourced · Proudly serving coffee from El Trapiche Monteverde</p>
+  <p>Thank you for supporting our community and our forest. Pura vida.</p>
   <p class="small">Gallery imagery is AI generated for now and will be replaced with photos of the real café. Website by The Hanging Garden.</p>
 </footer>
 
@@ -707,27 +834,49 @@ addEventListener('scroll',function(){
 (function(){
   var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
   var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-  fetch(SUPA_URL + '/rest/v1/menu_categories?select=name,sort,menu_items(name,description,price_crc,available,sort)&order=sort', {
+  /* these two live on the website as designed cards / till helpers, not menu columns */
+  var SKIP_CATS = {'Adventure Box': 1, 'Extras & Combos': 1};
+  var LEAF = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>';
+  fetch(SUPA_URL + '/rest/v1/menu_categories?select=name,sort,menu_items(name,description,price_crc,photo_url,available,sort)&order=sort', {
     headers: {apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY}
   })
   .then(function(r){ if (!r.ok) throw new Error('menu http ' + r.status); return r.json(); })
   .then(function(cats){
     var grid = document.querySelector('.menu-grid');
+    cats = (cats || []).filter(function(c){
+      return !SKIP_CATS[c.name] && (c.menu_items || []).some(function(i){ return i.available; });
+    });
     if (!grid || !cats.length) return;
     grid.textContent = '';
     cats.forEach(function(cat){
       var col = document.createElement('div'); col.className = 'menu-cat';
-      var h = document.createElement('h3'); h.textContent = cat.name; col.appendChild(h);
+      var h = document.createElement('h3');
+      h.innerHTML = LEAF;
+      h.appendChild(document.createTextNode(cat.name));
+      col.appendChild(h);
       (cat.menu_items || [])
         .filter(function(i){ return i.available; })
         .sort(function(a,b){ return a.sort - b.sort || a.name.localeCompare(b.name); })
         .forEach(function(it){
           var mi = document.createElement('div'); mi.className = 'mi'; mi.setAttribute('data-mi','');
-          var nm = document.createElement('span'); nm.textContent = it.name;
+          if (it.photo_url){
+            var im = document.createElement('img'); im.className = 'ph'; im.src = it.photo_url;
+            im.alt = ''; im.loading = 'lazy';
+            mi.appendChild(im);
+          }
+          var body = document.createElement('div'); body.className = 'mbody';
+          var row = document.createElement('div'); row.className = 'row1';
+          var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
           var dots = document.createElement('span'); dots.className = 'dots';
           var pr = document.createElement('span'); pr.className = 'price';
           pr.textContent = '₡' + Number(it.price_crc).toLocaleString('fr-FR');
-          mi.appendChild(nm); mi.appendChild(dots); mi.appendChild(pr);
+          row.appendChild(nm); row.appendChild(dots); row.appendChild(pr);
+          body.appendChild(row);
+          if (it.description){
+            var ds = document.createElement('div'); ds.className = 'ds'; ds.textContent = it.description;
+            body.appendChild(ds);
+          }
+          mi.appendChild(body);
           col.appendChild(mi);
         });
       grid.appendChild(col);
