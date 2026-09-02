@@ -23,8 +23,13 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fe359cee-
 
 ## Menu system pages (Supabase-backed, project nbvczarfweanoxvdqplk)
 
-- Owner dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/756a29eb-fb3d-49e3-ac28-6f87ce27d51b.html
+Current versions (v2, with cross-page link bar):
+
+- Owner dashboard (Menu Manager): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5d922937-1de3-4d51-9930-7a6f44ca6ff8.html
+- POS (record-only till): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e907d1b9-be6f-4dec-88b8-bcdd1ce181ba.html
+- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9976aac-4ea8-4153-b5ef-5f387c10c423.html
 - TV menu board: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html
 - Site preview v2 (live menu): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html
-- POS (record-only till): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/32ee9297-57b5-488f-8f37-b3eec7997b3b.html
-- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/3769626f-bb18-4d2a-849a-abca346e479a.html
+
+Superseded previews (no link bar; CloudFront cache makes same-key re-uploads unreliable, so
+each revision gets a fresh URL): 756a29eb (dashboard v1), 32ee9297 (POS v1), 3769626f (sales v1).

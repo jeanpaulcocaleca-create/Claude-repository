@@ -52,6 +52,10 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FBF7EF;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 .hint{font-size:.85rem;color:var(--sec)}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent;min-height:0}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -73,6 +77,14 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   </div>
 
   <div id="appView" hidden>
+    <!-- DEPLOY STEP: on the real domain, switch these links to /pos /sales /tv and / -->
+    <nav class="pagenav" aria-label="Café pages">
+      <span class="here">Menu Manager</span>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e907d1b9-be6f-4dec-88b8-bcdd1ce181ba.html">POS</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9976aac-4ea8-4153-b5ef-5f387c10c423.html">Sales</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html" target="_blank" rel="noopener">TV board</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html" target="_blank" rel="noopener">Website</a>
+    </nav>
     <header>
       <h1>Menu Manager</h1>
       <button class="ghost small" id="signOut">Sign out</button>

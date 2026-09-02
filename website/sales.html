@@ -57,6 +57,10 @@ td.r,th.r{text-align:right}
 .empty{color:var(--sec);text-align:center;padding:2rem 0}
 .tip{position:fixed;background:var(--ink);color:#FBF7EF;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
 .pill{font-size:.75rem;padding:.15em .6em;border-radius:99px;background:var(--canvas);color:var(--sec)}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
 @media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
 </style>
 </head>
@@ -76,6 +80,14 @@ td.r,th.r{text-align:right}
 </div>
 
 <div id="appView" class="wrap" hidden>
+  <!-- DEPLOY STEP: on the real domain, switch these links to /admin /pos /tv and / -->
+  <nav class="pagenav" aria-label="Café pages">
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5d922937-1de3-4d51-9930-7a6f44ca6ff8.html">Menu Manager</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e907d1b9-be6f-4dec-88b8-bcdd1ce181ba.html">POS</a>
+    <span class="here">Sales</span>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/965f0ba2-6869-475a-8251-f433db23fdec.html" target="_blank" rel="noopener">TV board</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f96185d9-bf92-4f6a-911e-5ae77ac38f5e.html" target="_blank" rel="noopener">Website</a>
+  </nav>
   <header class="top">
     <h1>Sales</h1>
     <button class="ghost" id="csvBtn">Download CSV</button>

@@ -34,8 +34,10 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 
 .app{display:grid;grid-template-columns:1fr 340px;height:100dvh}
 .left{display:flex;flex-direction:column;min-width:0}
-.topbar{display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem;background:var(--panel);border-bottom:1px solid var(--muted)}
+.topbar{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.6rem 1rem;background:var(--panel);border-bottom:1px solid var(--muted)}
 .topbar h1{font-size:1.1rem;margin-right:auto}
+.navlink{color:var(--sec);text-decoration:none;font-size:.85rem;font-weight:600;padding:.35em .6em;border-radius:8px}
+.navlink:hover{color:var(--accent);background:var(--canvas)}
 .chip{font-size:.75rem;font-weight:600;padding:.25em .8em;border-radius:99px;border:1.5px solid var(--muted)}
 .chip.on{color:var(--ok)} .chip.off{color:var(--bad)} .chip.pend{color:var(--gold)}
 .grid{flex:1;overflow-y:auto;padding:1rem}
@@ -99,6 +101,9 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
   <div class="left">
     <div class="topbar">
       <h1>The Hanging Garden</h1>
+      <!-- DEPLOY STEP: on the real domain, switch these links to /sales and /admin -->
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e9976aac-4ea8-4153-b5ef-5f387c10c423.html">Sales</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5d922937-1de3-4d51-9930-7a6f44ca6ff8.html">Menu</a>
       <span class="chip on" id="netChip">online</span>
       <button class="ghost" id="dayBtn">Today</button>
       <button class="ghost" id="outBtn">Sign out</button>
