@@ -164,6 +164,8 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 .static-hero .inner{color:#F6EFE3;text-shadow:var(--tshadow);max-width:34ch}
 .static-hero h1{font-size:clamp(2.2rem,9vw,3.4rem);color:#F6EFE3}
 .static-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,10,5,.15),rgba(15,10,5,.68) 85%)}
+.static-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s ease}
+.static-hero video.on{opacity:1}
 .static-hero .inner{position:relative;z-index:1}
 @media (max-width:720px),
        (orientation:portrait) and (max-width:1024px),
@@ -403,6 +405,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
 <!-- ===== STATIC HERO (phones, reduced motion) ===== -->
 <header class="static-hero" id="staticHero">
+  <video id="mobileFilm" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
   <div class="inner">
     <img class="slogo-static" src="assets/logo-badge.svg" alt="">
     <h1>The Hanging Garden Café</h1>
@@ -644,6 +647,7 @@ var VIDEO_URL = 'assets/hero-scrub.mp4';
 var VIDEO_BYTES = 6376416;
 var POSTER_URL = 'assets/hero-poster.jpg';
 var ENDING_URL = 'assets/hero-ending.jpg';
+var MOBILE_VIDEO_URL = 'assets/hero-mobile.mp4';
 
 var stage = document.getElementById('stage');
 var video = document.getElementById('hv');
@@ -815,10 +819,31 @@ function disableScrub(){
   removeEventListener('scroll',onScroll);
   if(rafId!==null){cancelAnimationFrame(rafId);rafId=null}
 }
+/* phones: play the film once on load (muted, inline), settle on the last frame.
+   reduced-motion keeps the still only; if the download fails the still stays. */
+var mobileFilmStarted=false;
+function initMobileFilm(){
+  if(mobileFilmStarted) return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  mobileFilmStarted=true;
+  var v=document.getElementById('mobileFilm');
+  if(!v) return;
+  v.addEventListener('canplaythrough',function once(){
+    v.removeEventListener('canplaythrough',once);
+    var p=v.play();
+    if(p&&p.then){p.then(function(){v.classList.add('on')}).catch(function(){})}
+    else{v.classList.add('on')}
+  });
+  v.addEventListener('error',function(){v.classList.remove('on')});
+  v.preload='auto';
+  v.src=MOBILE_VIDEO_URL;
+  v.load();
+}
 function applyHeroMode(){
   if(GATES.some(function(q){return matchMedia(q).matches})){
     disableScrub();
     document.getElementById('staticHero').style.backgroundImage="url('"+ENDING_URL+"')";
+    initMobileFilm();
   } else {
     enableScrub();
   }
