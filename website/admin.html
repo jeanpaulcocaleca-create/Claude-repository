@@ -56,6 +56,19 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 .pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent;min-height:0}
 .pagenav a:hover{color:var(--accent);border-color:var(--muted)}
 .pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+.gslide{display:flex;gap:.8rem;align-items:center;padding:.7rem 0;border-bottom:1px dotted var(--muted)}
+.gslide:last-of-type{border-bottom:none}
+.gslide .thumbs{display:flex;gap:3px;flex:0 0 auto}
+.gslide .thumbs img{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--muted)}
+.gslide .gt{flex:1;min-width:0}
+.gslide .gt .nm{font-weight:600}
+.gslide .gt .sub{font-size:.8rem;color:var(--sec);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:.5rem;max-height:44vh;overflow:auto;padding:.2rem;border:1.5px solid var(--muted);border-radius:12px;background:var(--canvas)}
+.pick{position:relative;border:2px solid transparent;border-radius:10px;background:#fff;padding:0;overflow:hidden;min-height:0;cursor:pointer;text-align:left}
+.pick img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+.pick .cap{display:block;font-size:.72rem;color:var(--ink);padding:.3em .4em;line-height:1.25;font-weight:600}
+.pick[aria-pressed="true"]{border-color:var(--accent)}
+.pick[aria-pressed="true"]::after{content:"\2713";position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;display:flex;align-items:center;justify-content:center}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -79,19 +92,19 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   <div id="appView" hidden>
     <!-- DEPLOY STEP: on the real domain, switch these links to / /pos /sales /time /tv -->
     <nav class="pagenav" aria-label="Café pages">
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/00b4983e-71f2-40e2-919d-0f8be81b1e6f.html">Home</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7c2da9c5-2fc8-4092-bc2c-83287906156b.html">Home</a>
       <span class="here">Menu Manager</span>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ca89d0ef-b599-4a5a-9eed-7d90a57d3c17.html">POS</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c7309f20-e294-4fa8-86d4-0dfb8923b6d7.html">Sales</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7a0e2b48-a331-4ef1-8d16-766799de9cb3.html">Time clock</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/bc00deeb-a6eb-469a-b5fc-ef7a8689bafb.html" target="_blank" rel="noopener">TV board</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e42b0085-80e3-420a-85c7-ad8b9af40a23.html">POS</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/4a220491-7036-4751-b3f1-0622befec758.html">Sales</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a4be43a7-fee5-45eb-ba48-7c0725921eca.html">Time clock</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">TV board</a>
       <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
     </nav>
     <header>
       <h1>Menu Manager</h1>
       <button class="ghost small" id="signOut">Sign out</button>
     </header>
-    <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow.</p>
+    <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow, or combine several items into one slide below.</p>
 
     <div class="card" id="tvCard">
       <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">TV board</h2>
@@ -125,6 +138,35 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
         </label>
         <div><button type="submit">Save TV board settings</button></div>
       </form>
+    </div>
+
+    <div class="card" id="groupCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">Combined slides</h2>
+      <p class="hint" style="margin:0 0 .8rem">Pick 2 to 8 items and the TV shows them together in one picture, built from their photos. Nothing to upload.</p>
+      <div id="groupNotReady" class="hint" hidden>Run the combined slides SQL once in Supabase and this section switches on.</div>
+      <div id="groupBody" hidden>
+        <div id="groupList"></div>
+        <button class="ghost small addrow" id="groupNew">+ New combined slide</button>
+        <form id="groupForm" class="editbox" style="margin-top:.8rem" hidden>
+          <label>Slide title
+            <input id="gTitle" maxlength="60" placeholder="Sweet Favorites" required>
+          </label>
+          <label>Small line above the title (optional)
+            <input id="gKicker" maxlength="60" placeholder="From the pastry case">
+          </label>
+          <div>
+            <div class="hint" style="margin-bottom:.35rem" id="gCount">Pick 2 to 8 items</div>
+            <div class="picker" id="gPicker"></div>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <div style="display:flex;gap:.6rem">
+              <button type="submit">Save slide</button>
+              <button type="button" class="ghost" id="gCancel">Cancel</button>
+            </div>
+            <button type="button" class="danger" id="gDelete" hidden>Delete</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <div id="cats"></div>
@@ -178,7 +220,12 @@ document.getElementById('signOut').addEventListener('click', async function(){
   await db.auth.signOut(); refreshAuth();
 });
 
-var tvReady = true; /* false until the TV board SQL has been run */
+var tvReady = true;    /* false until the TV board SQL has been run */
+var groupsReady = false; /* true once the combined slides SQL has been run */
+var allItems = [];     /* every available item, for the combined slide picker */
+var groupRows = [];    /* the saved combined slides */
+var gEditing = null;   /* the slide being edited, or null for a new one */
+var gPicked = [];      /* item ids chosen in the builder */
 
 async function loadMenu(){
   var r = await db.from('menu_categories')
@@ -195,9 +242,157 @@ async function loadMenu(){
   }
   document.getElementById('tvNotReady').hidden = tvReady;
   document.getElementById('tvForm').hidden = !tvReady;
+  allItems = [];
+  (r.data || []).forEach(function(cat){
+    (cat.menu_items || []).forEach(function(it){
+      if (it.available) allItems.push({id: it.id, name: it.name, photo_url: it.photo_url, cat: cat.name});
+    });
+  });
   render(r.data);
   if (tvReady) loadTvSettings();
+  loadGroups();
 }
+
+/* ---------- combined slides ---------- */
+async function loadGroups(){
+  var r = await db.from('board_group_slides').select().order('sort');
+  groupsReady = !r.error;
+  document.getElementById('groupNotReady').hidden = groupsReady;
+  document.getElementById('groupBody').hidden = !groupsReady;
+  if (!groupsReady) return;
+  groupRows = r.data || [];
+  renderGroups();
+}
+
+function itemById(id){
+  for (var i = 0; i < allItems.length; i++) if (String(allItems[i].id) === String(id)) return allItems[i];
+  return null;
+}
+
+function renderGroups(){
+  var list = document.getElementById('groupList');
+  list.textContent = '';
+  if (!groupRows.length){
+    var empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No combined slides yet.';
+    list.appendChild(empty);
+    return;
+  }
+  groupRows.forEach(function(g){
+    var row = document.createElement('div'); row.className = 'gslide';
+    var th = document.createElement('div'); th.className = 'thumbs';
+    (g.item_ids || []).slice(0, 4).forEach(function(id){
+      var it = itemById(id);
+      if (!it || !it.photo_url) return;
+      var im = document.createElement('img'); im.src = it.photo_url; im.alt = ''; th.appendChild(im);
+    });
+    row.appendChild(th);
+    var mid = document.createElement('div'); mid.className = 'gt';
+    var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = g.title; mid.appendChild(nm);
+    var names = (g.item_ids || []).map(function(id){ var it = itemById(id); return it ? it.name : null; })
+      .filter(Boolean).join(' · ');
+    var sub = document.createElement('div'); sub.className = 'sub';
+    sub.textContent = names || 'the chosen items are no longer on the menu';
+    mid.appendChild(sub);
+    row.appendChild(mid);
+    var edit = document.createElement('button');
+    edit.className = 'ghost small'; edit.textContent = 'Edit';
+    edit.addEventListener('click', function(){ openGroup(g); });
+    row.appendChild(edit);
+    list.appendChild(row);
+  });
+}
+
+function openGroup(g){
+  gEditing = g || null;
+  gPicked = g ? (g.item_ids || []).map(String) : [];
+  document.getElementById('gTitle').value = g ? (g.title || '') : '';
+  document.getElementById('gKicker').value = g ? (g.kicker || '') : '';
+  document.getElementById('gDelete').hidden = !g;
+  document.getElementById('groupForm').hidden = false;
+  document.getElementById('groupNew').hidden = true;
+  renderPicker();
+  document.getElementById('gTitle').focus();
+}
+
+function closeGroup(){
+  gEditing = null; gPicked = [];
+  document.getElementById('groupForm').hidden = true;
+  document.getElementById('groupNew').hidden = false;
+}
+
+function renderPicker(){
+  var box = document.getElementById('gPicker');
+  box.textContent = '';
+  var withPhoto = allItems.filter(function(it){ return !!it.photo_url; });
+  if (!withPhoto.length){
+    var p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'Add a photo to a few items first, then they show up here.';
+    box.appendChild(p);
+  }
+  withPhoto.forEach(function(it){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'pick';
+    b.setAttribute('aria-pressed', gPicked.indexOf(String(it.id)) > -1 ? 'true' : 'false');
+    var im = document.createElement('img'); im.src = it.photo_url; im.alt = '';
+    var cap = document.createElement('span'); cap.className = 'cap'; cap.textContent = it.name;
+    b.appendChild(im); b.appendChild(cap);
+    b.addEventListener('click', function(){
+      var id = String(it.id), at = gPicked.indexOf(id);
+      if (at > -1) gPicked.splice(at, 1);
+      else if (gPicked.length >= 8){ toast('A combined slide holds up to 8 items.'); return; }
+      else gPicked.push(id);
+      b.setAttribute('aria-pressed', at > -1 ? 'false' : 'true');
+      updateCount();
+    });
+    box.appendChild(b);
+  });
+  updateCount();
+}
+
+function updateCount(){
+  document.getElementById('gCount').textContent = gPicked.length
+    ? gPicked.length + (gPicked.length === 1 ? ' item picked · pick at least 2' : ' items picked')
+    : 'Pick 2 to 8 items';
+}
+
+document.getElementById('groupNew').addEventListener('click', function(){ openGroup(null); });
+document.getElementById('gCancel').addEventListener('click', closeGroup);
+
+document.getElementById('gDelete').addEventListener('click', async function(){
+  if (!gEditing) return;
+  if (!confirm('Delete this combined slide?')) return;
+  var r = await db.from('board_group_slides').delete().eq('id', gEditing.id);
+  if (r.error){ toast('Could not delete that slide. Try again.'); return; }
+  closeGroup();
+  toast('Combined slide deleted.');
+  loadGroups();
+});
+
+document.getElementById('groupForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var title = document.getElementById('gTitle').value.trim();
+  if (!title){ toast('Give the slide a title.'); return; }
+  if (gPicked.length < 2){ toast('Pick at least 2 items.'); return; }
+  var row = {
+    title: title,
+    kicker: document.getElementById('gKicker').value.trim() || null,
+    item_ids: gPicked.slice(),
+    updated_at: new Date().toISOString()
+  };
+  var r;
+  if (gEditing) r = await db.from('board_group_slides').update(row).eq('id', gEditing.id);
+  else {
+    row.sort = groupRows.length + 1;
+    r = await db.from('board_group_slides').insert(row);
+  }
+  if (r.error){ toast('Could not save that slide. Try again.'); return; }
+  closeGroup();
+  toast('Combined slide saved. The TV follows within a minute.');
+  loadGroups();
+});
 
 var tvSettingsLoaded = false;
 async function loadTvSettings(){

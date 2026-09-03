@@ -89,6 +89,12 @@ body{background:#0A1A10;color:var(--cream);font-family:'Figtree',system-ui,sans-
 @keyframes sway{from{rotate:-1.4deg}to{rotate:1.4deg}}
 .sprig-b{position:absolute;bottom:-1cqh;left:-1cqw;width:16cqh;z-index:2;opacity:.4;pointer-events:none}
 
+/* combined slides: mosaic built automatically from the chosen items' photos */
+.slide .mosaic{position:absolute;inset:0;display:grid;gap:6px;background:#0A1A10}
+.slide .mosaic .cell{position:relative;background-position:center;background-size:cover}
+.slide .mosaic .cell.hero{grid-row:span 2}
+.slide .mosaic .cell::after{content:"";position:absolute;inset:0;background:rgba(10,26,16,.06)}
+
 .err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);font-size:2.5vh;color:var(--soft);text-align:center;padding:4vw;z-index:9}
 @media (prefers-reduced-motion:reduce){.slide .photo,.bg .mist,.qz{animation:none}}
 </style>
@@ -138,6 +144,7 @@ var CANOPY = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS
 var settings = {mode:'cycle', rotation:'auto', menu_seconds:25, slide_seconds:8,
   tagline:'coffee + pastry save ₡500 · sandwich + coffee save ₡500'};
 var slides = [];       /* featured items for the promo reel */
+var groupSlides = [];  /* combined slides: several items in one picture */
 var slideIx = 0;
 var frontIsA = true;
 var phase = 'menu';    /* 'menu' | 'promo' */
@@ -180,20 +187,31 @@ async function loadSettings(){
   } catch(e){}
 }
 
+/* ---------- combined slides ---------- */
+async function loadGroups(){
+  try{
+    var res = await fetch(SUPA_URL + '/rest/v1/board_group_slides?active=eq.true&order=sort', {headers: hdrs()});
+    if (!res.ok) return; /* table not created yet: no combined slides */
+    var rows = await res.json();
+    if (Array.isArray(rows)) groupSlides = rows;
+  } catch(e){}
+}
+
 /* ---------- menu data ---------- */
 async function loadMenu(){
-  var sel = 'name,sort,menu_items(name,description,price_crc,photo_url,available,featured,sort)';
+  var sel = 'name,sort,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)';
   try{
     var res = await fetch(SUPA_URL + '/rest/v1/menu_categories?select=' + sel + '&order=sort', {headers: hdrs()});
     if (!res.ok){ /* featured column may not exist yet */
-      sel = 'name,sort,menu_items(name,description,price_crc,photo_url,available,sort)';
+      sel = 'name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort)';
       res = await fetch(SUPA_URL + '/rest/v1/menu_categories?select=' + sel + '&order=sort', {headers: hdrs()});
     }
     if (!res.ok) throw new Error('http ' + res.status);
-    var cats = (await res.json()).filter(function(c){ return !SKIP_CATS[c.name]; });
+    var raw = await res.json();
+    var cats = raw.filter(function(c){ return !SKIP_CATS[c.name]; });
     lastCats = cats;
     renderBoard(cats);
-    buildSlides(cats);
+    buildSlides(cats, raw);
     document.getElementById('err').style.display = 'none';
   } catch(e){
     if (!document.getElementById('board').children.length)
@@ -247,7 +265,7 @@ function renderBoard(cats){
 }
 
 /* ---------- promo slides ---------- */
-function buildSlides(cats){
+function buildSlides(cats, raw){
   var out = [];
   cats.forEach(function(cat){
     (cat.menu_items || []).forEach(function(it){
@@ -263,11 +281,60 @@ function buildSlides(cats){
       });
     });
   }
-  slides = out;
+  slides = weave(out, buildGroups(raw || cats));
   if (slideIx >= slides.length) slideIx = 0;
 }
 
+function buildGroups(cats){
+  var byId = {};
+  cats.forEach(function(cat){
+    (cat.menu_items || []).forEach(function(it){
+      if (it.available) byId[String(it.id)] = it;
+    });
+  });
+  var out = [];
+  groupSlides.forEach(function(g){
+    var picked = (g.item_ids || [])
+      .map(function(id){ return byId[String(id)]; })
+      .filter(function(it){ return it && it.photo_url; });
+    if (picked.length >= 2) out.push({cat: g.kicker || '', title: g.title || '', items: picked.slice(0, 8)});
+  });
+  return out;
+}
+
+/* combined slides sit evenly between the single-item slides */
+function weave(singles, groups){
+  if (!groups.length) return singles;
+  if (!singles.length) return groups;
+  var out = singles.slice();
+  var stepSize = (singles.length + 1) / (groups.length + 1);
+  groups.forEach(function(g, i){
+    var at = Math.round((i + 1) * stepSize) + i;
+    if (at > out.length) at = out.length;
+    out.splice(at, 0, g);
+  });
+  return out;
+}
+
 function slideHTML(s){
+  if (s.items){ /* combined slide: the mosaic is assembled from the item photos */
+    var n = s.items.length;
+    var odd = (n % 2) === 1;
+    var cols = odd ? (n + 1) / 2 : (n <= 4 ? 2 : (n <= 6 ? 3 : 4));
+    var rows = odd ? 2 : Math.ceil(n / cols);
+    var cells = s.items.map(function(gi, i){
+      var ph = (gi.photo_url || CANOPY).replace(/'/g,'%27');
+      return '<div class="cell' + (odd && i === 0 ? ' hero' : '') + '" style="background-image:url(\'' + ph + '\')"></div>';
+    }).join('');
+    var names = s.items.map(function(gi){ return gi.name; }).join(' \u00b7 ');
+    return '<div class="mosaic" style="grid-template-columns:repeat(' + cols + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + cells + '</div>' +
+      '<div class="scrim"></div>' +
+      '<div class="txt">' +
+        (s.cat ? '<div class="kick">' + esc(s.cat) + '</div>' : '') +
+        '<h2 class="name">' + esc(s.title) + '</h2>' +
+        '<div class="desc">' + esc(names) + '</div>' +
+      '</div>';
+  }
   var it = s.it;
   var photo = it.photo_url || CANOPY;
   return '<div class="photo" style="background-image:url(\'' + photo.replace(/'/g,'%27') + '\')"></div>' +
@@ -333,6 +400,7 @@ function tickClock(){
 
 async function refresh(){
   await loadSettings();
+  await loadGroups();
   await loadMenu();
 }
 applyOrientation();

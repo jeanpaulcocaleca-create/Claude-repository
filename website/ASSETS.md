@@ -27,21 +27,22 @@ sacks), then into the garden café where it lands beside the espresso machine an
 Raw generations (Seedance 2.5 job 05f0dba2 from realistic start frame 9c0ac672; 2K upscale
 job aec12a92) remain in the Higgsfield generation history and never ship.
 
-## Live pages (v10 — TV Board 2.0: Starbucks-style board + product slideshow, portrait/rotation modes, board settings and featured stars in the Menu Manager)
+## Live pages (v11 — combined slides: pick 2 to 8 menu items and the TV builds one mosaic slide from their photos, managed in the Menu Manager)
 
-- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/00b4983e-71f2-40e2-919d-0f8be81b1e6f.html**
+- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7c2da9c5-2fc8-4092-bc2c-83287906156b.html**
 - Website (cinematic, live menu, chatbox): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html
-- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/edb9e04d-5d83-4aa4-ba1f-2eb40eac2084.html
-- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ca89d0ef-b599-4a5a-9eed-7d90a57d3c17.html
-- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c7309f20-e294-4fa8-86d4-0dfb8923b6d7.html
-- Time clock (needs supabase/timeclock.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7a0e2b48-a331-4ef1-8d16-766799de9cb3.html
-- TV menu board 2.0 (needs supabase/tvboard.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/bc00deeb-a6eb-469a-b5fc-ef7a8689bafb.html
+- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d7fa2327-cf40-480e-93ee-02c046fa6963.html
+- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e42b0085-80e3-420a-85c7-ad8b9af40a23.html
+- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/4a220491-7036-4751-b3f1-0622befec758.html
+- Time clock (needs supabase/timeclock.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a4be43a7-fee5-45eb-ba48-7c0725921eca.html
+- TV menu board 2.0 (needs supabase/tvboard.sql + supabase/groupslides.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html
 
 Supabase (project nbvczarfweanoxvdqplk) SQL to run once in the SQL Editor:
 - supabase/menu-2026.sql — full temporary menu (until then pages show the old menu)
 - supabase/chatbox.sql — chat_questions table (Garden Guide question logging)
 - supabase/timeclock.sql — staff + time_entries (time clock)
 - supabase/tvboard.sql — TV Board 2.0 (board settings, featured stars, starter product photos)
+- supabase/groupslides.sql — combined slides (several menu items shown together in one picture)
 
 The website shows every category except Adventure Box (a designed card) and Extras & Combos
 (till helpers); the TV board hides only Extras & Combos.
@@ -54,4 +55,6 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 718fac32/cde84f85/70aa55d9/bf2bfa08 (v5), 99b9d598/ea6e71bb/bd461b37/890421f9 (v6/v7 QA slots),
 78e8bd19/20c14b46/52ed91bd/66ffec4e/976e9488/86dd6477 (v7 pages superseded by v8),
 48045a64/3beadfaf/260e3ab9/2b01e1b2/08cbee36/82459b8d (v8), 7d24c6e8/bb79d408/5b1fa682/149efdb0/
-5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot).
+5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot),
+06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots),
+bc00deeb/edb9e04d/00b4983e/7a0e2b48/ca89d0ef/c7309f20 (v10 pages).
