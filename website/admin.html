@@ -79,19 +79,54 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   <div id="appView" hidden>
     <!-- DEPLOY STEP: on the real domain, switch these links to / /pos /sales /time /tv -->
     <nav class="pagenav" aria-label="Café pages">
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/48045a64-f434-4816-951e-7abe463c452d.html">Home</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/00b4983e-71f2-40e2-919d-0f8be81b1e6f.html">Home</a>
       <span class="here">Menu Manager</span>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/2b01e1b2-37e2-4e69-ad83-4776c509830d.html">POS</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/08cbee36-b695-42f6-befb-72e7c84fe2ba.html">Sales</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/3beadfaf-5995-4977-8c2e-2d5111739175.html">Time clock</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/82459b8d-210c-4b33-b299-199d43e7ec64.html" target="_blank" rel="noopener">TV board</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ca89d0ef-b599-4a5a-9eed-7d90a57d3c17.html">POS</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c7309f20-e294-4fa8-86d4-0dfb8923b6d7.html">Sales</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7a0e2b48-a331-4ef1-8d16-766799de9cb3.html">Time clock</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/bc00deeb-a6eb-469a-b5fc-ef7a8689bafb.html" target="_blank" rel="noopener">TV board</a>
       <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
     </nav>
     <header>
       <h1>Menu Manager</h1>
       <button class="ghost small" id="signOut">Sign out</button>
     </header>
-    <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture.</p>
+    <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow.</p>
+
+    <div class="card" id="tvCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">TV board</h2>
+      <div id="tvNotReady" class="hint" hidden>Run the TV board SQL once in Supabase and these controls switch on.</div>
+      <form id="tvForm" style="display:grid;gap:.8rem">
+        <label class="hint">What the TV shows
+          <select id="tvMode" style="font:inherit;width:100%;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;background:#fff;color:var(--ink)">
+            <option value="cycle">Menu + product slideshow (recommended)</option>
+            <option value="menu">Menu only</option>
+            <option value="promo">Product slideshow only</option>
+          </select>
+        </label>
+        <label class="hint">Screen direction
+          <select id="tvRot" style="font:inherit;width:100%;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;background:#fff;color:var(--ink)">
+            <option value="auto">Automatic (follows the screen)</option>
+            <option value="landscape">Always horizontal</option>
+            <option value="portrait_left">Vertical · TV turned to the left</option>
+            <option value="portrait_right">Vertical · TV turned to the right</option>
+          </select>
+        </label>
+        <div style="display:flex;gap:.8rem">
+          <label class="hint" style="flex:1">Menu stays for (seconds)
+            <input id="tvMenuSec" type="number" min="5" max="600" step="5">
+          </label>
+          <label class="hint" style="flex:1">Each slide stays for (seconds)
+            <input id="tvSlideSec" type="number" min="3" max="120" step="1">
+          </label>
+        </div>
+        <label class="hint">Message at the bottom of the menu
+          <input id="tvTagline" maxlength="120">
+        </label>
+        <div><button type="submit">Save TV board settings</button></div>
+      </form>
+    </div>
+
     <div id="cats"></div>
   </div>
 
@@ -143,13 +178,57 @@ document.getElementById('signOut').addEventListener('click', async function(){
   await db.auth.signOut(); refreshAuth();
 });
 
+var tvReady = true; /* false until the TV board SQL has been run */
+
 async function loadMenu(){
   var r = await db.from('menu_categories')
-    .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort)')
+    .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
     .order('sort');
-  if (r.error){ toast('Could not load the menu. Check your connection.'); return; }
+  if (r.error){
+    tvReady = false;
+    r = await db.from('menu_categories')
+      .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort)')
+      .order('sort');
+    if (r.error){ toast('Could not load the menu. Check your connection.'); return; }
+  } else {
+    tvReady = true;
+  }
+  document.getElementById('tvNotReady').hidden = tvReady;
+  document.getElementById('tvForm').hidden = !tvReady;
   render(r.data);
+  if (tvReady) loadTvSettings();
 }
+
+var tvSettingsLoaded = false;
+async function loadTvSettings(){
+  if (tvSettingsLoaded) return;
+  var r = await db.from('board_settings').select().eq('id', 1);
+  if (r.error) return;
+  tvSettingsLoaded = true;
+  var s = (r.data && r.data[0]) || {};
+  document.getElementById('tvMode').value = s.mode || 'cycle';
+  document.getElementById('tvRot').value = s.rotation || 'auto';
+  document.getElementById('tvMenuSec').value = s.menu_seconds || 25;
+  document.getElementById('tvSlideSec').value = s.slide_seconds || 8;
+  document.getElementById('tvTagline').value = (s.tagline !== null && s.tagline !== undefined)
+    ? s.tagline : 'coffee + pastry save ₡500 · sandwich + coffee save ₡500';
+}
+
+document.getElementById('tvForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var row = {
+    id: 1,
+    mode: document.getElementById('tvMode').value,
+    rotation: document.getElementById('tvRot').value,
+    menu_seconds: Math.max(5, parseInt(document.getElementById('tvMenuSec').value, 10) || 25),
+    slide_seconds: Math.max(3, parseInt(document.getElementById('tvSlideSec').value, 10) || 8),
+    tagline: document.getElementById('tvTagline').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  var r = await db.from('board_settings').upsert(row);
+  if (r.error){ toast('Could not save the TV settings. Try again.'); return; }
+  toast('TV board updated. The screen follows within a minute.');
+});
 
 function render(cats){
   var root = document.getElementById('cats');
@@ -188,6 +267,20 @@ function itemRow(it){
   row.appendChild(mid);
 
   var acts = document.createElement('div'); acts.className='acts';
+  if (tvReady){
+    var star = document.createElement('button');
+    star.className = 'toggle';
+    star.style.color = it.featured ? 'var(--gold)' : 'var(--sec)';
+    star.textContent = it.featured ? '★ On TV' : '☆ TV';
+    star.title = 'Feature this item in the TV slideshow';
+    star.addEventListener('click', async function(){
+      var r = await db.from('menu_items').update({featured: !it.featured, updated_at: new Date().toISOString()}).eq('id', it.id);
+      if (r.error){ toast('Could not save. Try again.'); return; }
+      toast(it.name + (it.featured ? ' removed from the TV slideshow' : ' will star in the TV slideshow'));
+      loadMenu();
+    });
+    acts.appendChild(star);
+  }
   var tog = document.createElement('button');
   tog.className = 'toggle' + (it.available ? '' : ' off');
   tog.textContent = it.available ? 'Available' : 'Sold out';

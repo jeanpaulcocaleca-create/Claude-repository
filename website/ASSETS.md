@@ -18,7 +18,8 @@ URL into `website/assets/` under the name in the left column.
 | assets/deco-sprig.png (foliage page framing) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a7a774e2-b2ff-49db-bb82-9621dba3a00c.png |
 | assets/deco-quetzal.png (bird page framing + chat avatar) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5f81fe73-ded5-4ef6-84ff-47c01b39abcd.png |
 | assets/quetzal.jpg (story section, soul_2 job 19052895) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/09b4a947-54f3-44ea-b6fe-cce8fbc9c427.jpg |
-| assets/canopy.jpg (forest interlude, soul_2 job 73b333f8) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cdf000bc-33ff-4d98-b457-c1726e4e4512.jpg |
+| assets/canopy.jpg (forest interlude + TV board backdrop) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cdf000bc-33ff-4d98-b457-c1726e4e4512.jpg |
+| product photos (soul_2, 1200px, for the TV slideshow; attach via supabase/tvboard.sql or the Menu Manager) | Cloud Forest Latte e9863237 · Cappuccino 574b4dfb · Golden Passion ae462fb2 · Berry Violet c7e68f2c · Choc Croissant df5479cc · Carrot Cake e1bda9ca · Mano de Piedra 4f9edb15 · Tres Leches e2cbc800 (all .jpg on the same CDN base) |
 
 Hero film v3 story: quetzal over the misty Monteverde canopy at dawn, dive through coffee
 plants with red cherries, through an old-fashioned beneficio (beans pouring into burlap
@@ -26,20 +27,21 @@ sacks), then into the garden café where it lands beside the espresso machine an
 Raw generations (Seedance 2.5 job 05f0dba2 from realistic start frame 9c0ac672; 2K upscale
 job aec12a92) remain in the Higgsfield generation history and never ship.
 
-## Live pages (v8 — adds one-shot mobile hero film; TV board unchanged since v7)
+## Live pages (v10 — TV Board 2.0: Starbucks-style board + product slideshow, portrait/rotation modes, board settings and featured stars in the Menu Manager)
 
-- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/48045a64-f434-4816-951e-7abe463c452d.html**
+- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/00b4983e-71f2-40e2-919d-0f8be81b1e6f.html**
 - Website (cinematic, live menu, chatbox): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html
-- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/260e3ab9-9ba4-45a4-8d65-3cecc68d562b.html
-- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/2b01e1b2-37e2-4e69-ad83-4776c509830d.html
-- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/08cbee36-b695-42f6-befb-72e7c84fe2ba.html
-- Time clock (needs supabase/timeclock.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/3beadfaf-5995-4977-8c2e-2d5111739175.html
-- TV menu board (now with logo badge): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/82459b8d-210c-4b33-b299-199d43e7ec64.html
+- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/edb9e04d-5d83-4aa4-ba1f-2eb40eac2084.html
+- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ca89d0ef-b599-4a5a-9eed-7d90a57d3c17.html
+- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c7309f20-e294-4fa8-86d4-0dfb8923b6d7.html
+- Time clock (needs supabase/timeclock.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7a0e2b48-a331-4ef1-8d16-766799de9cb3.html
+- TV menu board 2.0 (needs supabase/tvboard.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/bc00deeb-a6eb-469a-b5fc-ef7a8689bafb.html
 
 Supabase (project nbvczarfweanoxvdqplk) SQL to run once in the SQL Editor:
 - supabase/menu-2026.sql — full temporary menu (until then pages show the old menu)
 - supabase/chatbox.sql — chat_questions table (Garden Guide question logging)
 - supabase/timeclock.sql — staff + time_entries (time clock)
+- supabase/tvboard.sql — TV Board 2.0 (board settings, featured stars, starter product photos)
 
 The website shows every category except Adventure Box (a designed card) and Extras & Combos
 (till helpers); the TV board hides only Extras & Combos.
@@ -50,4 +52,6 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 582ea292/95e16564 (v3 announced), fe359cee/f96185d9 (site v1/v2), 965f0ba2 (TV v1),
 73b7e5de/f3749faa/ecb46e99/14028c34/795bd8a7/fbc0633c (v4), a96264a1/e05ea7ec/323d7b1f/
 718fac32/cde84f85/70aa55d9/bf2bfa08 (v5), 99b9d598/ea6e71bb/bd461b37/890421f9 (v6/v7 QA slots),
-78e8bd19/20c14b46/52ed91bd/66ffec4e/976e9488/86dd6477 (v7 pages superseded by v8).
+78e8bd19/20c14b46/52ed91bd/66ffec4e/976e9488/86dd6477 (v7 pages superseded by v8),
+48045a64/3beadfaf/260e3ab9/2b01e1b2/08cbee36/82459b8d (v8), 7d24c6e8/bb79d408/5b1fa682/149efdb0/
+5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot).
