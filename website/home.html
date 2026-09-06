@@ -91,22 +91,22 @@ footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72r
   <h2 class="section">Your café, one tap away</h2>
   <!-- DEPLOY STEP: on the real domain, switch these links to /pos /sales /admin /time /tv and / -->
   <div class="tiles">
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e42b0085-80e3-420a-85c7-ad8b9af40a23.html">
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/492eb1b6-c9fd-4541-8c96-3ca16611f135.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21zM9 8h6M9 12h6M9 16h3"/></svg>
       <span class="t">POS</span>
       <span class="d">Ring up sales at the counter — cash, card or SINPE, recorded instantly.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/4a220491-7036-4751-b3f1-0622befec758.html">
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9bddf539-c93f-46f4-b57f-10453d249ee8.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-9M21 20H3"/></svg>
       <span class="t">Sales</span>
       <span class="d">What you sold today, this week, this month — best sellers and CSV for the accountant.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d7fa2327-cf40-480e-93ee-02c046fa6963.html">
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5bcd69c6-2f87-41c5-8d4a-a56598ec1096.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.2"/></svg>
       <span class="t">Menu Manager</span>
       <span class="d">Change prices, photos and items — updates the website and TV board in a minute.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a4be43a7-fee5-45eb-ba48-7c0725921eca.html">
+    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/acc489ae-5081-43c7-857a-ddaf1626ee6b.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.6M9 2h6"/></svg>
       <span class="t">Time clock</span>
       <span class="d">The team clocks in and out with a PIN; you see everyone's hours.</span>
@@ -156,14 +156,17 @@ db.auth.onAuthStateChange(function(){ refreshAuth(); });
 async function loadStats(){
   var start = new Date(); start.setHours(0,0,0,0);
   var rs = await Promise.all([
-    db.from('orders').select('total_crc').gte('created_at', start.toISOString()),
+    db.from('orders').select('total_crc,voided_at').gte('created_at', start.toISOString()),
     db.from('menu_items').select('id,name').eq('available', false),
     db.from('time_entries').select('clock_in, staff(name)').is('clock_out', null)
   ]);
 
   var orders = rs[0];
+  if (orders.error && /voided_at/.test(orders.error.message || '')){ /* authorization SQL not run yet */
+    orders = await db.from('orders').select('total_crc').gte('created_at', start.toISOString());
+  }
   if (!orders.error){
-    var rows = orders.data || [];
+    var rows = (orders.data || []).filter(function(o){ return !o.voided_at; });
     var total = rows.reduce(function(s,o){ return s + o.total_crc; }, 0);
     document.getElementById('kRev').textContent = fmt(total);
     document.getElementById('kOrders').textContent = rows.length;

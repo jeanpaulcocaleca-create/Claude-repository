@@ -22,7 +22,19 @@ h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
 button{font:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
 button:hover{background:var(--accent-hover)}
 button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
-input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+input,select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.hint{font-size:.85rem;color:var(--sec)}
+.orow{display:grid;grid-template-columns:auto 1fr auto;gap:.3rem .7rem;align-items:center;padding:.5rem 0;border-bottom:1px dotted var(--muted);font-size:.9rem}
+.orow .when{font-family:'Spline Sans Mono',monospace;color:var(--sec);font-size:.8rem}
+.orow .items{grid-column:2;font-size:.85rem;color:var(--sec)}
+.orow .amt{font-family:'Spline Sans Mono',monospace;text-align:right}
+.orow button{grid-column:3;grid-row:2;min-height:32px;padding:.2em .7em;font-size:.8rem;background:transparent;color:var(--bad);border:1.5px solid var(--muted)}
+.orow.void .amt,.orow.void .items{text-decoration:line-through;opacity:.6}
+.orow .vtag{grid-column:2/4;font-size:.8rem;color:var(--bad)}
+.voidbox{margin-top:.9rem;padding:.9rem;border:1.5px dashed var(--muted);border-radius:12px;background:var(--canvas)}
+.voidbox label{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
+.voidbox .row{display:flex;gap:.6rem;margin-top:.9rem}
+.voidbox .row button{flex:1}
 input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
 [hidden]{display:none !important}
@@ -117,11 +129,12 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
     <div class="topbar">
       <h1>The Hanging Garden</h1>
       <!-- DEPLOY STEP: on the real domain, switch these links to / /sales /admin /time -->
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7c2da9c5-2fc8-4092-bc2c-83287906156b.html">Home</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/4a220491-7036-4751-b3f1-0622befec758.html">Sales</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d7fa2327-cf40-480e-93ee-02c046fa6963.html">Menu</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a4be43a7-fee5-45eb-ba48-7c0725921eca.html">Time</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e85d9893-031e-4154-878c-9b14a2188230.html">Home</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9bddf539-c93f-46f4-b57f-10453d249ee8.html">Sales</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5bcd69c6-2f87-41c5-8d4a-a56598ec1096.html">Menu</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/acc489ae-5081-43c7-857a-ddaf1626ee6b.html">Time</a>
       <span class="chip on" id="netChip">online</span>
+      <button class="ghost" id="ordersBtn">Orders</button>
       <button class="ghost" id="dayBtn">Today</button>
       <button class="ghost" id="outBtn">Sign out</button>
     </div>
@@ -158,6 +171,29 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
       <span class="diff mono" id="cashDiff"></span>
     </div>
     <button class="close" id="dayClose">Close</button>
+  </div>
+</div>
+
+<div class="modal" id="ordersModal" hidden>
+  <div class="box">
+    <h2>Today's orders</h2>
+    <p class="hint" style="margin:0 0 .6rem">Voiding an order needs a manager's PIN and a reason. The order stays on record, marked as voided, and the approval is logged.</p>
+    <div id="ordersBody"></div>
+    <div class="voidbox" id="voidBox" hidden>
+      <strong id="voidWhich">Void this order</strong>
+      <label for="vReason">Reason</label>
+      <input id="vReason" maxlength="120" placeholder="e.g. rang up twice" autocomplete="off">
+      <label for="vMgr">Approved by</label>
+      <select id="vMgr"></select>
+      <label for="vPin">Manager PIN</label>
+      <input id="vPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <p class="err" id="voidErr"></p>
+      <div class="row">
+        <button id="vGo">Void this order</button>
+        <button class="ghost" id="vCancel">Cancel</button>
+      </div>
+    </div>
+    <button class="close" id="ordersClose">Close</button>
   </div>
 </div>
 
@@ -360,9 +396,14 @@ async function openDay(){
   var body = document.getElementById('dayBody');
   body.innerHTML = '<p style="color:var(--sec)">Adding it up…</p>';
   document.getElementById('dayModal').hidden = false;
-  var r = await db.from('orders').select('total_crc,payment_method').gte('created_at', start.toISOString());
+  var r = await db.from('orders').select('total_crc,payment_method,voided_at').gte('created_at', start.toISOString());
+  if (r.error && /voided_at/.test(r.error.message || '')){ /* authorization SQL not run yet */
+    r = await db.from('orders').select('total_crc,payment_method').gte('created_at', start.toISOString());
+  }
   if (r.error){ body.innerHTML = '<p style="color:var(--bad)">Could not load today. Check the connection.</p>'; return; }
-  var rows = r.data || [];
+  var all = r.data || [];
+  var voided = all.filter(function(o){ return o.voided_at; });
+  var rows = all.filter(function(o){ return !o.voided_at; });
   queue.forEach(function(o){ rows.push({total_crc:o.total_crc, payment_method:o.payment_method}); });
   var by = {}; var total = 0;
   rows.forEach(function(o){ by[o.payment_method] = (by[o.payment_method]||0) + o.total_crc; total += o.total_crc; });
@@ -377,6 +418,12 @@ async function openDay(){
     d.innerHTML = '<span>' + labels[k] + '</span><span class="mono">' + fmt(by[k]) + '</span>';
     body.appendChild(d);
   });
+  if (voided.length){
+    var vd = document.createElement('div'); vd.className='dayrow';
+    vd.innerHTML = '<span>Voided (not counted)</span><span class="mono">' + voided.length + ' · ' +
+      fmt(voided.reduce(function(s,o){return s+o.total_crc},0)) + '</span>';
+    body.appendChild(vd);
+  }
   var t = document.createElement('div'); t.className='dayrow big';
   t.innerHTML = '<span>Total</span><span class="mono">' + fmt(total) + '</span>';
   body.appendChild(t);
@@ -395,6 +442,109 @@ document.getElementById('countedCash').addEventListener('input', function(){
   var diff = v - dayCash;
   el.textContent = (diff === 0 ? 'exact' : (diff > 0 ? '+' : '−') + fmt(Math.abs(diff)).slice(0));
   el.className = 'diff mono ' + (diff === 0 ? 'ok' : 'bad');
+});
+
+/* ---------- today's orders + manager-approved voids ---------- */
+var ERR = {bad_pin:'That PIN is not right.', locked:'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager:'That person is not a manager.', inactive:'That person is not active on the team.',
+  unknown_staff:'Pick the manager who is approving this.', missing_reason:'Write the reason for the void.',
+  not_found:'That order no longer exists.', already_voided:'That order was already voided.'};
+var voidTarget = null;
+var managersList = null;
+async function loadManagers(){
+  var r = await db.from('staff').select('id,name').eq('active', true).eq('role', 'manager').order('name');
+  managersList = r.error ? null : (r.data || []);
+  var sel = document.getElementById('vMgr');
+  sel.textContent = '';
+  (managersList || []).forEach(function(m){
+    var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o);
+  });
+  if (!(managersList || []).length){
+    var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2);
+  }
+}
+document.getElementById('ordersBtn').addEventListener('click', openOrders);
+document.getElementById('ordersClose').addEventListener('click', function(){ document.getElementById('ordersModal').hidden = true; });
+document.getElementById('vCancel').addEventListener('click', function(){ voidTarget = null; document.getElementById('voidBox').hidden = true; });
+async function openOrders(){
+  var body = document.getElementById('ordersBody');
+  body.innerHTML = '<p class="hint">Loading…</p>';
+  document.getElementById('voidBox').hidden = true;
+  document.getElementById('ordersModal').hidden = false;
+  loadManagers();
+  var start = new Date(); start.setHours(0,0,0,0);
+  var r = await db.from('orders')
+    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,order_items(item_name,qty)')
+    .gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  var voidReady = true;
+  if (r.error && /voided_at/.test(r.error.message || '')){
+    voidReady = false;
+    r = await db.from('orders').select('id,created_at,total_crc,payment_method,order_items(item_name,qty)')
+      .gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  }
+  if (r.error){ body.innerHTML = '<p style="color:var(--bad)">Could not load the orders. Check the connection.</p>'; return; }
+  body.textContent = '';
+  if (!voidReady){
+    var w = document.createElement('p'); w.className = 'hint';
+    w.textContent = 'Voiding switches on once the manager approval setup is run in Supabase.';
+    body.appendChild(w);
+  }
+  var labels = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
+  var rows = r.data || [];
+  if (queue.length){
+    var q = document.createElement('p'); q.className = 'hint';
+    q.textContent = queue.length + ' order' + (queue.length > 1 ? 's' : '') + ' still saving from offline. They show here once synced.';
+    body.appendChild(q);
+  }
+  if (!rows.length){ var e = document.createElement('p'); e.className = 'hint'; e.textContent = 'No orders yet today.'; body.appendChild(e); return; }
+  rows.forEach(function(o){
+    var row = document.createElement('div'); row.className = 'orow' + (o.voided_at ? ' void' : '');
+    var d = new Date(o.created_at);
+    var when = document.createElement('span'); when.className = 'when';
+    when.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    var head = document.createElement('span'); head.textContent = labels[o.payment_method] || o.payment_method;
+    var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(o.total_crc);
+    var items = document.createElement('span'); items.className = 'items';
+    items.textContent = (o.order_items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ') || '(no line items)';
+    row.appendChild(when); row.appendChild(head); row.appendChild(amt); row.appendChild(items);
+    if (o.voided_at){
+      var vt = document.createElement('span'); vt.className = 'vtag';
+      vt.textContent = 'Voided · ' + (o.void_reason || '');
+      row.appendChild(vt);
+    } else if (voidReady){
+      var b = document.createElement('button'); b.textContent = 'Void';
+      b.addEventListener('click', function(){
+        voidTarget = o;
+        document.getElementById('voidWhich').textContent = 'Void ' + when.textContent + ' · ' + fmt(o.total_crc) + ' · ' + items.textContent;
+        document.getElementById('vReason').value = ''; document.getElementById('vPin').value = '';
+        document.getElementById('voidErr').textContent = '';
+        document.getElementById('voidBox').hidden = false;
+        document.getElementById('vReason').focus();
+      });
+      row.appendChild(b);
+    }
+    body.appendChild(row);
+  });
+}
+document.getElementById('vGo').addEventListener('click', async function(){
+  if (!voidTarget) return;
+  var btn = this; btn.disabled = true;
+  var r = await db.rpc('manager_void_order', {
+    p_manager_id: document.getElementById('vMgr').value || null,
+    p_manager_pin: document.getElementById('vPin').value.trim(),
+    p_order_id: voidTarget.id,
+    p_reason: document.getElementById('vReason').value.trim()
+  });
+  btn.disabled = false;
+  if (r.error || !r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    document.getElementById('voidErr').textContent = r.error ? 'Could not void. Check the connection and try again.' : (ERR[code] || 'Could not void. Try again.');
+    document.getElementById('vPin').value = '';
+    return;
+  }
+  toast('Order voided · ' + fmt(voidTarget.total_crc));
+  voidTarget = null;
+  openOrders();
 });
 
 refreshAuth();

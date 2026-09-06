@@ -25,7 +25,17 @@ button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(-
 button.ghost:hover{background:#fff}
 button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
 button.danger{background:transparent;color:var(--bad);border:1.5px solid var(--muted)}
-input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.approve{margin-top:1rem;padding:.8rem .9rem;border:1.5px dashed var(--muted);border-radius:12px;background:var(--canvas)}
+.approve h3{font-size:.9rem;margin:0;font-weight:700}
+.approve label{margin-top:.6rem}
+.pill.mgr{color:var(--accent);font-weight:600}
+.log{font-size:.88rem}
+.log .lrow{display:grid;grid-template-columns:auto 1fr;gap:.2rem .8rem;padding:.45rem 0;border-bottom:1px dotted var(--muted)}
+.log .lrow:last-child{border-bottom:none}
+.log .when{color:var(--sec);font-family:'Spline Sans Mono',monospace;font-size:.8rem;white-space:nowrap}
+.log .what b{font-weight:700}
+.log .why{color:var(--sec)}
 input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 [hidden]{display:none !important}
 .wrap{max-width:820px;margin:0 auto;padding:1.2rem 1rem 4rem}
@@ -120,23 +130,23 @@ header.top h1{font-size:1.4rem;margin-right:auto}
 
 <div id="setupView" class="setup" hidden>
   <h1>One-time setup needed</h1>
-  <p style="margin:.8rem 0 0">The time clock keeps its data in two new tables that don't exist in
-  Supabase yet. It takes about a minute to create them:</p>
+  <p style="margin:.8rem 0 0">The time clock needs its tables and the manager-approval functions in
+  Supabase. It takes about a minute:</p>
   <ol>
     <li>Open your Supabase project → <strong>SQL Editor</strong> → <strong>New query</strong>.</li>
-    <li>Paste the setup script — it's the file <span class="mono">supabase/timeclock.sql</span>
-        in the project (or ask Claude for it in the chat).</li>
-    <li>Press <strong>Run</strong>, then come back here and reload the page.</li>
+    <li>Paste and run <span class="mono">supabase/timeclock.sql</span>, then paste and run
+        <span class="mono">supabase/authorization.sql</span> (ask Claude for them in the chat).</li>
+    <li>Come back here, reload, and make yourself the first manager under <strong>Hours &amp; team</strong>.</li>
   </ol>
 </div>
 
 <div id="appView" class="wrap" hidden>
   <!-- DEPLOY STEP: on the real domain, switch these links to / /admin /pos /sales /tv -->
   <nav class="pagenav" aria-label="Café pages">
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/7c2da9c5-2fc8-4092-bc2c-83287906156b.html">Home</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d7fa2327-cf40-480e-93ee-02c046fa6963.html">Menu Manager</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e42b0085-80e3-420a-85c7-ad8b9af40a23.html">POS</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/4a220491-7036-4751-b3f1-0622befec758.html">Sales</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e85d9893-031e-4154-878c-9b14a2188230.html">Home</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5bcd69c6-2f87-41c5-8d4a-a56598ec1096.html">Menu Manager</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/492eb1b6-c9fd-4541-8c96-3ca16611f135.html">POS</a>
+    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9bddf539-c93f-46f4-b57f-10453d249ee8.html">Sales</a>
     <span class="here">Time clock</span>
     <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">TV board</a>
     <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
@@ -167,13 +177,19 @@ header.top h1{font-size:1.4rem;margin-right:auto}
     <div class="card">
       <h2 id="hoursTitle">Hours</h2>
       <p class="hint" style="margin:0 0 .6rem">Shifts count on the day they start. Weeks run Monday to Sunday.
-      Tap Edit to fix a forgotten clock-out.</p>
+      Any change to a shift needs a manager's PIN and is written to the approvals log.</p>
       <div id="hoursBody"></div>
     </div>
     <div class="card">
       <h2>Team</h2>
       <div id="teamBody"></div>
+      <p class="hint" id="noMgrNote" hidden style="margin:.6rem 0 0">No manager yet. The first person you save becomes the manager (no approval needed this one time). Do this now.</p>
       <button class="ghost small" id="addStaffBtn" style="margin-top:.8rem">+ Add person</button>
+    </div>
+    <div class="card">
+      <h2>Approvals log</h2>
+      <p class="hint" style="margin:0 0 .6rem">Every shift change, team change and voided order, with who approved it and why.</p>
+      <div class="log" id="logBody"></div>
     </div>
   </section>
 </div>
@@ -204,6 +220,15 @@ header.top h1{font-size:1.4rem;margin-right:auto}
       <input id="shIn" type="datetime-local" required>
       <label for="shOut">Clock out (leave empty if still working)</label>
       <input id="shOut" type="datetime-local">
+      <label for="shReason">Reason for the change</label>
+      <input id="shReason" maxlength="120" placeholder="e.g. forgot to clock out" autocomplete="off">
+      <div class="approve">
+        <h3>Manager approval</h3>
+        <label for="shMgr">Approved by</label>
+        <select id="shMgr"></select>
+        <label for="shPin">Manager PIN</label>
+        <input id="shPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      </div>
       <p class="err" id="shiftErr"></p>
       <div class="row">
         <button type="submit">Save</button>
@@ -221,12 +246,25 @@ header.top h1{font-size:1.4rem;margin-right:auto}
     <form id="staffForm">
       <label for="stName">Name</label>
       <input id="stName" required maxlength="60">
-      <label for="stPin">PIN (4–8 digits, they'll type it to clock in)</label>
-      <input id="stPin" inputmode="numeric" autocomplete="off" required maxlength="8">
+      <label for="stPin" id="stPinLabel">PIN (4–8 digits, they'll type it to clock in)</label>
+      <input id="stPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      <label for="stRole">Role</label>
+      <select id="stRole">
+        <option value="staff">Team member (clock in and out)</option>
+        <option value="manager">Manager (can approve changes with their PIN)</option>
+      </select>
       <div class="checkline" id="stActiveLine">
         <input id="stActive" type="checkbox" checked>
         <label for="stActive" style="margin:0">Currently works here (shows on the clock screen)</label>
       </div>
+      <div class="approve" id="stApprove">
+        <h3>Manager approval</h3>
+        <label for="stMgr">Approved by</label>
+        <select id="stMgr"></select>
+        <label for="stMgrPin">Manager PIN</label>
+        <input id="stMgrPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      </div>
+      <p class="hint" id="stBootstrap" hidden style="margin-top:.8rem">First setup: this person becomes the manager and no approval is needed this one time.</p>
       <p class="err" id="staffErr"></p>
       <div class="row">
         <button type="submit">Save</button>
@@ -306,8 +344,45 @@ function switchTab(t){
 }
 
 /* ---------- shared data ---------- */
+var ERR = {
+  bad_pin: 'That PIN is not right.',
+  locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager: 'That person is not a manager. Ask a manager to approve this.',
+  inactive: 'That person is not active on the team.',
+  unknown_staff: 'Pick who is approving this.',
+  missing_reason: 'Write the reason for the change.',
+  missing_in: 'Clock in time is required.',
+  bad_range: 'Clock out must be after clock in.',
+  missing_name: 'The name cannot be empty.',
+  missing_pin: 'A new person needs a PIN.',
+  bad_pin_format: 'The PIN must be 4 to 8 digits, numbers only.',
+  last_manager: 'This is the only active manager. Make someone else a manager first.',
+  not_found: 'That record no longer exists. Reload the page.',
+  already_voided: 'That order was already voided.'
+};
+function errMsg(r){
+  if (r.error){
+    if (isMissingTables(r.error)) return 'The manager approval setup has not been run in Supabase yet.';
+    return 'Could not save. Check the connection and try again.';
+  }
+  var code = r.data && r.data.error;
+  return ERR[code] || 'Could not save. Try again.';
+}
+function managers(){ return staffList.filter(function(s){ return s.active && s.role === 'manager'; }); }
+function fillManagers(sel){
+  sel.textContent = '';
+  var ms = managers();
+  if (!ms.length){
+    var o = document.createElement('option'); o.value = ''; o.textContent = 'No manager on the team yet'; sel.appendChild(o);
+    return;
+  }
+  ms.forEach(function(m){
+    var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o);
+  });
+}
+
 async function loadStaff(){
-  var r = await db.from('staff').select('*').order('name');
+  var r = await db.from('staff').select('id,name,active,role').order('name');
   if (r.error){ if (isMissingTables(r.error)) showSetup(); else toast('Could not load the team. Check the connection.'); return false; }
   staffList = r.data || [];
   return true;
@@ -405,28 +480,20 @@ document.getElementById('pinForm').addEventListener('submit', async function(e){
   e.preventDefault();
   if (!pinTarget) return;
   var val = document.getElementById('pinInput').value.trim();
-  if (val !== pinTarget.pin){
-    document.getElementById('pinErr').textContent = 'That PIN is not right.';
+  var btn = document.getElementById('pinGo');
+  btn.disabled = true;
+  /* the PIN is checked inside the database; the page never sees anyone's PIN */
+  var r = await db.rpc('clock_punch', {p_staff_id: pinTarget.id, p_pin: val});
+  btn.disabled = false;
+  if (r.error || !r.data || !r.data.ok){
+    document.getElementById('pinErr').textContent = errMsg(r);
     document.getElementById('pinInput').value = '';
     document.getElementById('pinInput').focus();
     return;
   }
-  var btn = document.getElementById('pinGo');
-  btn.disabled = true;
-  var open = openByStaff[pinTarget.id];
-  var r;
-  if (open){
-    r = await db.from('time_entries')
-      .update({clock_out: new Date().toISOString()})
-      .eq('staff_id', pinTarget.id).is('clock_out', null);
-  } else {
-    r = await db.from('time_entries').insert({staff_id: pinTarget.id, clock_in: new Date().toISOString()});
-  }
-  btn.disabled = false;
-  if (r.error){ document.getElementById('pinErr').textContent = 'Could not save. Check the connection and try again.'; return; }
   document.getElementById('pinModal').hidden = true;
-  if (open){
-    var ms = Date.now() - new Date(open.clock_in).getTime();
+  if (r.data.action === 'out'){
+    var ms = new Date(r.data.clock_out).getTime() - new Date(r.data.clock_in).getTime();
     toast(pinTarget.name + ' clocked out · ' + dur(ms) + ' this shift');
   } else {
     toast(pinTarget.name + ' clocked in at ' + fmtTime(new Date()));
@@ -469,7 +536,38 @@ async function loadHours(){
   document.getElementById('hoursTitle').textContent = names[hRange] + ' · from ' + fmtDay(w.start);
   renderHours();
   renderTeam();
+  loadLog();
 }
+
+/* ---------- approvals log ---------- */
+var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_delete:'Shift deleted',
+                    staff_save:'Team updated', order_void:'Order voided'};
+async function loadLog(){
+  var root = document.getElementById('logBody');
+  var r = await db.from('audit_log').select('at,action,manager_name,summary,details')
+    .order('at', {ascending:false}).limit(40);
+  if (r.error){ root.innerHTML = '<p class="hint">The approvals log switches on once the manager approval setup is run.</p>'; return; }
+  root.textContent = '';
+  if (!(r.data || []).length){ root.innerHTML = '<p class="hint">Nothing approved yet.</p>'; return; }
+  r.data.forEach(function(e){
+    var row = document.createElement('div'); row.className = 'lrow';
+    var when = document.createElement('span'); when.className = 'when';
+    var d = new Date(e.at); when.textContent = fmtDay(d) + ' ' + fmtTime(d);
+    var what = document.createElement('span'); what.className = 'what';
+    var b = document.createElement('b'); b.textContent = ACTION_LABEL[e.action] || e.action;
+    what.appendChild(b);
+    var who = (e.details && e.details.staff_name) ? ' · ' + e.details.staff_name : '';
+    if (e.action === 'order_void' && e.details){
+      who = ' · ' + fmtMoney(e.details.total_crc) + (e.details.items ? ' · ' + e.details.items : '');
+    }
+    what.appendChild(document.createTextNode(who + ' · approved by ' + (e.manager_name || '?')));
+    var why = document.createElement('div'); why.className = 'why'; why.textContent = e.summary || '';
+    what.appendChild(why);
+    row.appendChild(when); row.appendChild(what);
+    root.appendChild(row);
+  });
+}
+function fmtMoney(n){ return '\u20a1' + Number(n || 0).toLocaleString('fr-FR'); }
 function renderHours(){
   var root = document.getElementById('hoursBody');
   root.textContent = '';
@@ -548,7 +646,14 @@ function openShiftEditor(entry, staffId){
     outEl.value = dtLocal(o);
   }
   document.getElementById('shDelete').hidden = !entry;
+  document.getElementById('shReason').value = '';
+  document.getElementById('shPin').value = '';
+  fillManagers(document.getElementById('shMgr'));
   document.getElementById('shiftModal').hidden = false;
+}
+function approval(selId, pinId){
+  return {p_manager_id: document.getElementById(selId).value || null,
+          p_manager_pin: document.getElementById(pinId).value.trim()};
 }
 document.getElementById('shCancel').addEventListener('click', function(){ document.getElementById('shiftModal').hidden = true; });
 document.getElementById('shiftForm').addEventListener('submit', async function(e){
@@ -559,21 +664,37 @@ document.getElementById('shiftForm').addEventListener('submit', async function(e
   var inD = new Date(inVal);
   var outD = outVal ? new Date(outVal) : null;
   if (outD && outD <= inD){ document.getElementById('shiftErr').textContent = 'Clock out must be after clock in.'; return; }
-  var payload = {clock_in: inD.toISOString(), clock_out: outD ? outD.toISOString() : null};
-  var r;
-  if (shiftTarget) r = await db.from('time_entries').update(payload).eq('id', shiftTarget.id);
-  else r = await db.from('time_entries').insert(Object.assign({staff_id: shiftStaffId}, payload));
-  if (r.error){ document.getElementById('shiftErr').textContent = 'Could not save. Try again.'; return; }
+  var a = approval('shMgr', 'shPin');
+  var r = await db.rpc('manager_save_shift', Object.assign(a, {
+    p_entry_id: shiftTarget ? shiftTarget.id : null,
+    p_staff_id: shiftStaffId,
+    p_clock_in: inD.toISOString(),
+    p_clock_out: outD ? outD.toISOString() : null,
+    p_reason: document.getElementById('shReason').value.trim()
+  }));
+  if (r.error || !r.data || !r.data.ok){
+    document.getElementById('shiftErr').textContent = errMsg(r);
+    document.getElementById('shPin').value = '';
+    return;
+  }
   document.getElementById('shiftModal').hidden = true;
-  toast('Shift saved'); loadHours();
+  toast('Shift saved and logged'); loadHours();
 });
 document.getElementById('shDelete').addEventListener('click', async function(){
   if (!shiftTarget) return;
-  if (!confirm('Delete this shift? This cannot be undone.')) return;
-  var r = await db.from('time_entries').delete().eq('id', shiftTarget.id);
-  if (r.error){ document.getElementById('shiftErr').textContent = 'Could not delete. Try again.'; return; }
+  if (!confirm('Delete this shift? A manager PIN and a reason are required, and it is logged.')) return;
+  var a = approval('shMgr', 'shPin');
+  var r = await db.rpc('manager_delete_shift', Object.assign(a, {
+    p_entry_id: shiftTarget.id,
+    p_reason: document.getElementById('shReason').value.trim()
+  }));
+  if (r.error || !r.data || !r.data.ok){
+    document.getElementById('shiftErr').textContent = errMsg(r);
+    document.getElementById('shPin').value = '';
+    return;
+  }
   document.getElementById('shiftModal').hidden = true;
-  toast('Shift deleted'); loadHours();
+  toast('Shift deleted and logged'); loadHours();
 });
 
 /* ---------- team ---------- */
@@ -589,19 +710,35 @@ function renderTeam(){
     var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = st.name;
     var pill = document.createElement('span'); pill.className = 'pill ' + (st.active ? 'on' : 'off');
     pill.textContent = st.active ? 'active' : 'not active';
+    row.appendChild(nm); row.appendChild(pill);
+    if (st.role === 'manager'){
+      var mp = document.createElement('span'); mp.className = 'pill mgr'; mp.textContent = 'manager';
+      row.appendChild(mp);
+    }
     var ed = document.createElement('button'); ed.className = 'ghost small'; ed.textContent = 'Edit';
     ed.addEventListener('click', function(){ openStaffEditor(st); });
-    row.appendChild(nm); row.appendChild(pill); row.appendChild(ed);
+    row.appendChild(ed);
     root.appendChild(row);
   });
+  document.getElementById('noMgrNote').hidden = managers().length > 0;
 }
 var staffTarget = null;
 function openStaffEditor(st){
   staffTarget = st;
   document.getElementById('staffTitle').textContent = st ? 'Edit · ' + st.name : 'Add person';
   document.getElementById('stName').value = st ? st.name : '';
-  document.getElementById('stPin').value = st ? st.pin : '';
+  document.getElementById('stPin').value = '';
+  document.getElementById('stPinLabel').textContent = st
+    ? 'New PIN (leave empty to keep the current one)' : 'PIN (4–8 digits, they\'ll type it to clock in)';
   document.getElementById('stActive').checked = st ? st.active : true;
+  var bootstrap = managers().length === 0;
+  var roleSel = document.getElementById('stRole');
+  roleSel.value = bootstrap ? 'manager' : ((st && st.role) || 'staff');
+  roleSel.disabled = bootstrap;
+  document.getElementById('stApprove').hidden = bootstrap;
+  document.getElementById('stBootstrap').hidden = !bootstrap;
+  document.getElementById('stMgrPin').value = '';
+  fillManagers(document.getElementById('stMgr'));
   document.getElementById('staffErr').textContent = '';
   document.getElementById('staffModal').hidden = false;
   document.getElementById('stName').focus();
@@ -616,17 +753,30 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     document.getElementById('staffErr').textContent = 'The name cannot be empty.';
     return;
   }
-  if (!/^[0-9]{4,8}$/.test(pin)){
+  if (pin && !/^[0-9]{4,8}$/.test(pin)){
     document.getElementById('staffErr').textContent = 'The PIN must be 4 to 8 digits, numbers only.';
     return;
   }
-  var payload = {name: name, pin: pin, active: document.getElementById('stActive').checked};
-  var r;
-  if (staffTarget) r = await db.from('staff').update(payload).eq('id', staffTarget.id);
-  else r = await db.from('staff').insert(payload);
-  if (r.error){ document.getElementById('staffErr').textContent = 'Could not save. Try again.'; return; }
+  if (!staffTarget && !pin){
+    document.getElementById('staffErr').textContent = 'A new person needs a PIN.';
+    return;
+  }
+  var bootstrap = managers().length === 0;
+  var a = bootstrap ? {p_manager_id: null, p_manager_pin: null} : approval('stMgr', 'stMgrPin');
+  var r = await db.rpc('manager_save_staff', Object.assign(a, {
+    p_id: staffTarget ? staffTarget.id : null,
+    p_name: name,
+    p_pin: pin || null,
+    p_active: document.getElementById('stActive').checked,
+    p_role: document.getElementById('stRole').value
+  }));
+  if (r.error || !r.data || !r.data.ok){
+    document.getElementById('staffErr').textContent = errMsg(r);
+    document.getElementById('stMgrPin').value = '';
+    return;
+  }
   document.getElementById('staffModal').hidden = true;
-  toast(name + ' saved'); loadHours();
+  toast(name + (r.data.first_setup ? ' is now the manager' : ' saved')); loadHours();
 });
 
 /* ---------- CSV ---------- */
