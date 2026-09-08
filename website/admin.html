@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -69,6 +70,26 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 .pick .cap{display:block;font-size:.72rem;color:var(--ink);padding:.3em .4em;line-height:1.25;font-weight:600}
 .pick[aria-pressed="true"]{border-color:var(--accent)}
 .pick[aria-pressed="true"]::after{content:"\2713";position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;display:flex;align-items:center;justify-content:center}
+.catline{display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--sec);margin:-.2rem 0 .5rem}
+.catline input{width:auto}
+.roomrow{display:flex;align-items:center;gap:.7rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);font-size:.9rem}
+.roomrow:last-child{border-bottom:none}
+.roomrow .rn{font-weight:700;min-width:6.5em}
+.roomrow .code{font-family:'Spline Sans Mono',monospace;color:var(--sec);flex:1}
+#cards{display:none}
+@media print{
+  body{background:#fff}
+  body > *{display:none !important}
+  #cards{display:grid !important;grid-template-columns:1fr 1fr;gap:10mm;padding:8mm}
+  .qcard{border:1.5px solid #1E4B33;border-radius:6mm;padding:8mm 6mm;text-align:center;page-break-inside:avoid;color:#26392C;font-family:'Figtree',system-ui,sans-serif}
+  .qcard img.badge{width:18mm;height:18mm}
+  .qcard h3{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:15pt;margin:2mm 0 0}
+  .qcard .room{font-size:24pt;font-weight:700;color:#1E4B33;margin:1mm 0 3mm}
+  .qcard img.qr{width:48mm;height:48mm;image-rendering:pixelated}
+  .qcard .say{font-size:9.5pt;margin-top:3mm;line-height:1.35}
+  .qcard .say b{display:block}
+  .qcard .url{font-size:6.5pt;color:#54634F;margin-top:2mm;word-break:break-all}
+}
 [hidden]{display:none !important}
 </style>
 </head>
@@ -92,11 +113,11 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   <div id="appView" hidden>
     <!-- DEPLOY STEP: on the real domain, switch these links to / /pos /sales /time /tv -->
     <nav class="pagenav" aria-label="Café pages">
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e85d9893-031e-4154-878c-9b14a2188230.html">Home</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a36d277a-4d0c-4849-83eb-00ab87b86a92.html">Home</a>
       <span class="here">Menu Manager</span>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/492eb1b6-c9fd-4541-8c96-3ca16611f135.html">POS</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9bddf539-c93f-46f4-b57f-10453d249ee8.html">Sales</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/acc489ae-5081-43c7-857a-ddaf1626ee6b.html">Time clock</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/8b354dca-3dac-49ac-bb66-0ee163fd349d.html">POS</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c0d4cb1e-5e66-4837-9675-7271874d6405.html">Sales</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c6a12384-46ec-4782-a908-a8364fb0b5b7.html">Time clock</a>
       <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">TV board</a>
       <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
     </nav>
@@ -169,8 +190,45 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
       </div>
     </div>
 
+    <div class="card" id="kitchenCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">Kitchen, pickup numbers and rooms</h2>
+      <div id="kitchenNotReady" class="hint" hidden>Run the kitchen and rooms SQL once in Supabase and this section switches on.</div>
+      <div id="kitchenBody" hidden>
+        <p class="hint" style="margin:0 0 .8rem">Each category below has a "prepared in the kitchen" switch. Orders with kitchen items show on the Kitchen screen.</p>
+        <form id="setForm" style="display:grid;gap:.8rem">
+          <div style="display:flex;gap:.8rem">
+            <label class="hint" style="flex:1">Number stands you own (1 to…)
+              <input id="setStands" type="number" min="1" max="99">
+            </label>
+            <label class="hint" style="flex:1">Out of service (e.g. 4, 9)
+              <input id="setOut" placeholder="none">
+            </label>
+          </div>
+          <label class="hint" style="display:flex;align-items:center;gap:.5rem">
+            <input id="setRoomOn" type="checkbox" style="width:auto"> Guests can order from their rooms
+          </label>
+          <div style="display:flex;gap:.8rem">
+            <label class="hint" style="flex:1">Room ordering opens
+              <input id="setOpen" type="time">
+            </label>
+            <label class="hint" style="flex:1">and closes
+              <input id="setClose" type="time">
+            </label>
+          </div>
+          <div><button type="submit">Save settings</button></div>
+        </form>
+        <h3 style="font-size:1rem;margin:1.2rem 0 .4rem">Room cards</h3>
+        <p class="hint" style="margin:0 0 .5rem">Each room has a private code inside its QR. If a card gets photographed or lost, tap New code and reprint that one card.</p>
+        <div id="roomList"></div>
+        <div style="display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap">
+          <button class="ghost small" id="printCards">Print all room cards</button>
+        </div>
+      </div>
+    </div>
+
     <div id="cats"></div>
   </div>
+  <div id="cards" aria-hidden="true"></div>
 
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -222,6 +280,9 @@ document.getElementById('signOut').addEventListener('click', async function(){
 
 var tvReady = true;    /* false until the TV board SQL has been run */
 var groupsReady = false; /* true once the combined slides SQL has been run */
+var kitchenReady = false; /* true once the kitchen and rooms SQL has been run */
+/* DEPLOY STEP: on the real domain this becomes https://<domain>/room */
+var ROOM_PAGE_URL = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b789e964-09c1-4c83-ad9d-db2fb9557f76.html';
 var allItems = [];     /* every available item, for the combined slide picker */
 var groupRows = [];    /* the saved combined slides */
 var gEditing = null;   /* the slide being edited, or null for a new one */
@@ -229,8 +290,14 @@ var gPicked = [];      /* item ids chosen in the builder */
 
 async function loadMenu(){
   var r = await db.from('menu_categories')
-    .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
+    .select('id,name,sort,kitchen,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
     .order('sort');
+  kitchenReady = !r.error;
+  if (r.error){
+    r = await db.from('menu_categories')
+      .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
+      .order('sort');
+  }
   if (r.error){
     tvReady = false;
     r = await db.from('menu_categories')
@@ -240,6 +307,9 @@ async function loadMenu(){
   } else {
     tvReady = true;
   }
+  document.getElementById('kitchenNotReady').hidden = kitchenReady;
+  document.getElementById('kitchenBody').hidden = !kitchenReady;
+  if (kitchenReady) loadKitchenSettings();
   document.getElementById('tvNotReady').hidden = tvReady;
   document.getElementById('tvForm').hidden = !tvReady;
   allItems = [];
@@ -252,6 +322,80 @@ async function loadMenu(){
   if (tvReady) loadTvSettings();
   loadGroups();
 }
+
+/* ---------- kitchen settings + rooms ---------- */
+var rooms = [];
+async function loadKitchenSettings(){
+  var r = await db.from('app_settings').select().eq('id', 1);
+  var st = (!r.error && r.data && r.data[0]) || {};
+  document.getElementById('setStands').value = st.pickup_numbers || 12;
+  document.getElementById('setOut').value = (st.numbers_out || []).join(', ');
+  document.getElementById('setRoomOn').checked = st.room_orders_enabled !== false;
+  document.getElementById('setOpen').value = (st.room_open || '07:00').slice(0,5);
+  document.getElementById('setClose').value = (st.room_close || '16:00').slice(0,5);
+  var rr = await db.from('rooms').select('id,number,code,active').order('number');
+  rooms = rr.error ? [] : (rr.data || []);
+  renderRooms();
+}
+document.getElementById('setForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var out = document.getElementById('setOut').value.split(/[,\s]+/).map(function(x){ return parseInt(x, 10); })
+    .filter(function(n){ return n > 0; });
+  var row = {
+    id: 1,
+    pickup_numbers: Math.min(99, Math.max(1, parseInt(document.getElementById('setStands').value, 10) || 12)),
+    numbers_out: out,
+    room_orders_enabled: document.getElementById('setRoomOn').checked,
+    room_open: document.getElementById('setOpen').value || '07:00',
+    room_close: document.getElementById('setClose').value || '16:00',
+    updated_at: new Date().toISOString()
+  };
+  var r = await db.from('app_settings').upsert(row);
+  if (r.error){ toast('Could not save the settings. Try again.'); return; }
+  toast('Settings saved. The POS and room pages follow within a minute.');
+});
+function roomLink(rm){ return ROOM_PAGE_URL + '?r=' + encodeURIComponent(rm.code); }
+function renderRooms(){
+  var root = document.getElementById('roomList'); root.textContent = '';
+  if (!rooms.length){ root.innerHTML = '<p class="hint">No rooms yet.</p>'; return; }
+  rooms.forEach(function(rm){
+    var row = document.createElement('div'); row.className = 'roomrow';
+    var n = document.createElement('span'); n.className = 'rn'; n.textContent = 'Room ' + rm.number;
+    var c = document.createElement('span'); c.className = 'code'; c.textContent = rm.code;
+    var open = document.createElement('a'); open.href = roomLink(rm); open.target = '_blank'; open.rel = 'noopener';
+    open.className = 'ghost small'; open.textContent = 'Open'; open.style.cssText = 'text-decoration:none;padding:.3em .8em;border:1.5px solid var(--muted);border-radius:10px;color:var(--accent);font-size:.85rem';
+    var regen = document.createElement('button'); regen.className = 'ghost small'; regen.textContent = 'New code';
+    regen.addEventListener('click', async function(){
+      if (!confirm('Give room ' + rm.number + ' a new code? The card in that room stops working until you reprint it.')) return;
+      var r = await db.rpc('room_new_code', {p_room_id: rm.id});
+      if (r.error || !r.data || !r.data.ok){ toast('Could not change the code. Try again.'); return; }
+      toast('Room ' + rm.number + ' has a new code. Reprint its card.');
+      loadKitchenSettings();
+    });
+    row.appendChild(n); row.appendChild(c); row.appendChild(open); row.appendChild(regen);
+    root.appendChild(row);
+  });
+}
+document.getElementById('printCards').addEventListener('click', function(){
+  var box = document.getElementById('cards'); box.textContent = '';
+  if (!rooms.length || !window.qrcode){ toast('Nothing to print yet.'); return; }
+  rooms.forEach(function(rm){
+    var card = document.createElement('div'); card.className = 'qcard';
+    var badge = document.createElement('img'); badge.className = 'badge'; badge.alt = '';
+    badge.src = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/62fce9c4-ecce-4fff-a738-2844085bd420.svg';
+    var h = document.createElement('h3'); h.textContent = 'The Hanging Garden Café';
+    var rn = document.createElement('div'); rn.className = 'room'; rn.textContent = 'Room ' + rm.number;
+    var qr = qrcode(0, 'M'); qr.addData(roomLink(rm)); qr.make();
+    var cv = document.createElement('img'); cv.className = 'qr'; cv.alt = 'QR code for room ' + rm.number;
+    cv.src = qr.createDataURL(6, 2);
+    var say = document.createElement('div'); say.className = 'say';
+    say.innerHTML = '<b>Scan to see the menu and order from your room.</b>Pay at the window when you pick up.<br><b>Escanee para ver el menú y pedir desde su habitación.</b>Pague en la ventanilla al recoger.';
+    var url = document.createElement('div'); url.className = 'url'; url.textContent = roomLink(rm);
+    card.appendChild(badge); card.appendChild(h); card.appendChild(rn); card.appendChild(cv); card.appendChild(say); card.appendChild(url);
+    box.appendChild(card);
+  });
+  setTimeout(function(){ window.print(); }, 400);
+});
 
 /* ---------- combined slides ---------- */
 async function loadGroups(){
@@ -432,6 +576,17 @@ function render(cats){
     var card = document.createElement('div');
     card.className = 'card cat';
     var h = document.createElement('h2'); h.textContent = cat.name; card.appendChild(h);
+    if (kitchenReady){
+      var line = document.createElement('label'); line.className = 'catline';
+      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!cat.kitchen;
+      cb.addEventListener('change', async function(){
+        var r = await db.from('menu_categories').update({kitchen: cb.checked}).eq('id', cat.id);
+        if (r.error){ cb.checked = !cb.checked; toast('Could not save. Try again.'); return; }
+        toast(cat.name + (cb.checked ? ' now goes to the kitchen' : ' is made at the front'));
+      });
+      line.appendChild(cb); line.appendChild(document.createTextNode('Prepared in the kitchen (shows on the Kitchen screen)'));
+      card.appendChild(line);
+    }
     cat.menu_items.sort(function(a,b){return a.sort-b.sort || a.name.localeCompare(b.name)});
     cat.menu_items.forEach(function(it){ card.appendChild(itemRow(it)); });
     var add = document.createElement('button');

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitchen · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%23A9C9A4' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#0A1A10; --card:#132B1D; --card2:#1B3A28; --ink:#F3EFE0; --soft:#A9C9A4; --sec:#8FA88C;
+  --line:rgba(169,201,164,.22); --gold:#E4B95B; --ok:#5FBF6F; --warn:#E4B95B; --bad:#E86A5A; --leaf:#A9C9A4;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:18px;line-height:1.35;
+  background-image:radial-gradient(ellipse at 20% 0%,rgba(169,201,164,.10),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(169,201,164,.08),transparent 50%)}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:600;margin:0}
+button{font:inherit;cursor:pointer;border:none;border-radius:14px;background:var(--ok);color:#0A1A10;font-weight:700;min-height:52px;padding:.5em 1.2em}
+button.ghost{background:transparent;color:var(--soft);border:1.5px solid var(--line);font-weight:600}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input{font:inherit;color:#26392C;background:#FCF8EC;border:1.5px solid var(--line);border-radius:10px;padding:.55em .8em;width:100%}
+.login{max-width:380px;margin:14vh auto 0;background:var(--card);border-radius:18px;padding:1.6rem;text-align:center}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.top{display:flex;align-items:center;gap:1rem;padding:.8rem 1.2rem;border-bottom:1px solid var(--line)}
+.top img{width:44px;height:44px;border-radius:50%}
+.top h1{font-size:1.3rem;letter-spacing:.06em;text-transform:uppercase}
+.top .sub{font-size:.85rem;color:var(--sec)}
+.top .sp{flex:1}
+.top .clock{font-family:'Spline Sans Mono',monospace;font-size:1.3rem;color:var(--soft)}
+.top button{min-height:42px;padding:.3em .9em;font-size:.9rem}
+.board{padding:1rem 1.2rem 6rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
+.tk{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:1rem 1.1rem 1.1rem;display:flex;flex-direction:column;gap:.6rem;animation:pop .35s ease}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+.tk.warn{border-color:var(--warn)} .tk.late{border-color:var(--bad)}
+.tk .head{display:flex;align-items:baseline;gap:.8rem}
+.tk .num{font-family:'Playfair Display',Georgia,serif;font-size:3.2rem;line-height:1;color:var(--gold);font-weight:700}
+.tk .num.room{font-size:2rem;color:var(--leaf)}
+.tk .src{font-size:.9rem;color:var(--sec)}
+.tk .wait{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:1.1rem;color:var(--soft)}
+.tk.warn .wait{color:var(--warn)} .tk.late .wait{color:var(--bad)}
+.tk ul{list-style:none;margin:0;padding:0;font-size:1.25rem;line-height:1.3}
+.tk li{padding:.25rem 0;border-bottom:1px dotted var(--line);display:flex;gap:.6rem}
+.tk li:last-child{border-bottom:none}
+.tk li b{font-family:'Spline Sans Mono',monospace;color:var(--gold);min-width:2.2ch}
+.tk .note{background:rgba(228,185,91,.14);border-left:3px solid var(--gold);padding:.4rem .7rem;border-radius:8px;font-size:1rem}
+.tk button{margin-top:auto;width:100%;font-size:1.15rem}
+.empty{grid-column:1/-1;text-align:center;color:var(--sec);padding:4rem 1rem;font-size:1.2rem}
+.readybar{position:fixed;left:0;right:0;bottom:0;background:rgba(10,26,16,.96);border-top:1px solid var(--line);padding:.7rem 1.2rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;backdrop-filter:blur(8px)}
+.readybar .lbl{font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sec)}
+.readybar .rn{font-family:'Spline Sans Mono',monospace;font-size:1.2rem;color:var(--ok);background:rgba(95,191,111,.12);border:1px solid rgba(95,191,111,.35);border-radius:10px;padding:.15em .6em}
+.setup{max-width:560px;margin:12vh auto;background:var(--card);border-radius:18px;padding:1.6rem;color:var(--soft)}
+.setup h2{color:var(--ink);margin-bottom:.6rem}
+.setup ol{padding-left:1.2em}
+.mono{font-family:'Spline Sans Mono',monospace}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>Kitchen screen</h1>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit" id="loginBtn">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+</div>
+
+<div id="setupView" class="setup" hidden>
+  <h2>One step before the kitchen screen works</h2>
+  <p>Run <span class="mono">supabase/kitchen-rooms.sql</span> once in Supabase (SQL Editor → New query → paste → Run), then reload this page.</p>
+</div>
+
+<div id="appView" hidden>
+  <div class="top">
+    <img src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/62fce9c4-ecce-4fff-a738-2844085bd420.svg" alt="">
+    <div><h1>Kitchen</h1><div class="sub">The Hanging Garden · tickets appear here as they come in</div></div>
+    <span class="sp"></span>
+    <span class="clock" id="clock">--:--</span>
+    <button class="ghost" id="soundBtn">Sound: on</button>
+    <button class="ghost" id="outBtn">Sign out</button>
+  </div>
+  <div class="board" id="board"><p class="empty">Nothing to prepare right now.</p></div>
+  <div class="readybar" id="readyBar" hidden>
+    <span class="lbl">Ready, waiting for pickup</span>
+    <span id="readyList"></span>
+  </div>
+</div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+var known = null;        /* ids of tickets already on screen (null until first load) */
+var soundOn = true;
+var pollTimer = null;
+var lastRows = [];
+
+/* ---------- auth ---------- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  document.getElementById('loginView').hidden = authed;
+  document.getElementById('appView').hidden = !authed;
+  document.getElementById('setupView').hidden = true;
+  if (authed){ poll(); clearInterval(pollTimer); pollTimer = setInterval(poll, 4000); keepAwake(); }
+}
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
+  refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---------- sound (no audio file needed) ---------- */
+var actx = null;
+function chime(kind){
+  if (!soundOn) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    var notes = kind === 'new' ? [660, 880, 1100] : [880, 660];
+    notes.forEach(function(f, i){
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, actx.currentTime + i*0.16);
+      g.gain.exponentialRampToValueAtTime(0.25, actx.currentTime + i*0.16 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + i*0.16 + 0.35);
+      o.connect(g); g.connect(actx.destination);
+      o.start(actx.currentTime + i*0.16); o.stop(actx.currentTime + i*0.16 + 0.4);
+    });
+  }catch(e){}
+}
+document.getElementById('soundBtn').addEventListener('click', function(){
+  soundOn = !soundOn;
+  this.textContent = 'Sound: ' + (soundOn ? 'on' : 'off');
+  if (soundOn) chime('new');
+});
+
+/* keep a tablet's screen on while the board is open */
+async function keepAwake(){
+  try{ if (navigator.wakeLock) await navigator.wakeLock.request('screen'); }catch(e){}
+}
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) keepAwake(); });
+
+/* ---------- tickets ---------- */
+async function poll(){
+  var start = new Date(); start.setHours(0,0,0,0);
+  var r = await db.from('orders')
+    .select('id,created_at,accepted_at,ready_at,status,pickup_number,source,notes,guest_name,needs_kitchen,voided_at,rooms(number),order_items(item_name,qty)')
+    .in('status', ['preparing','ready']).eq('needs_kitchen', true).is('voided_at', null)
+    .gte('created_at', start.toISOString()).order('created_at');
+  if (r.error){
+    if (/needs_kitchen|status|schema cache|does not exist/i.test(r.error.message || '')){
+      document.getElementById('appView').hidden = true;
+      document.getElementById('setupView').hidden = false;
+    }
+    return;
+  }
+  lastRows = r.data || [];
+  render();
+}
+
+function label(o){
+  if (o.source === 'room') return {big: 'Room ' + (o.rooms ? o.rooms.number : '?'), room: true,
+    src: (o.guest_name ? o.guest_name + ' · ' : '') + 'ordered from the room' + (o.pickup_number ? ' · #' + o.pickup_number : '')};
+  return {big: o.pickup_number ? '#' + o.pickup_number : 'No number', room: false, src: 'Front counter'};
+}
+function mmss(ms){
+  var s = Math.max(0, Math.floor(ms/1000));
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+function render(){
+  var board = document.getElementById('board');
+  var prep = lastRows.filter(function(o){ return o.status === 'preparing'; });
+  var ready = lastRows.filter(function(o){ return o.status === 'ready'; });
+  var ids = prep.map(function(o){ return o.id; });
+  if (known !== null && ids.some(function(id){ return known.indexOf(id) < 0; })) chime('new');
+  known = ids;
+
+  board.textContent = '';
+  if (!prep.length){
+    var e = document.createElement('p'); e.className = 'empty'; e.textContent = 'Nothing to prepare right now.'; board.appendChild(e);
+  }
+  var now = Date.now();
+  prep.forEach(function(o){
+    var since = new Date(o.accepted_at || o.created_at).getTime();
+    var mins = (now - since) / 60000;
+    var card = document.createElement('div'); card.className = 'tk' + (mins > 20 ? ' late' : mins > 10 ? ' warn' : '');
+    card.dataset.id = o.id;
+    var L = label(o);
+    var head = document.createElement('div'); head.className = 'head';
+    var num = document.createElement('span'); num.className = 'num' + (L.room ? ' room' : ''); num.textContent = L.big;
+    var wait = document.createElement('span'); wait.className = 'wait'; wait.dataset.since = since; wait.textContent = mmss(now - since);
+    head.appendChild(num); head.appendChild(wait);
+    card.appendChild(head);
+    var src = document.createElement('div'); src.className = 'src'; src.textContent = L.src; card.appendChild(src);
+    var ul = document.createElement('ul');
+    (o.order_items || []).forEach(function(it){
+      var li = document.createElement('li');
+      var b = document.createElement('b'); b.textContent = it.qty + '×';
+      li.appendChild(b); li.appendChild(document.createTextNode(it.item_name));
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+    if (o.notes){ var n = document.createElement('div'); n.className = 'note'; n.textContent = o.notes; card.appendChild(n); }
+    var btn = document.createElement('button'); btn.textContent = 'Ready';
+    btn.addEventListener('click', function(){ markReady(o, btn); });
+    card.appendChild(btn);
+    board.appendChild(card);
+  });
+
+  var bar = document.getElementById('readyBar');
+  bar.hidden = !ready.length;
+  var list = document.getElementById('readyList'); list.textContent = '';
+  ready.forEach(function(o){
+    var s = document.createElement('span'); s.className = 'rn'; s.textContent = label(o).big; list.appendChild(s);
+    list.appendChild(document.createTextNode(' '));
+  });
+}
+
+async function markReady(o, btn){
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var r = await db.from('orders').update({status: 'ready', ready_at: new Date().toISOString()}).eq('id', o.id);
+  if (r.error){ btn.disabled = false; btn.textContent = 'Ready'; alert('Could not save. Check the connection and try again.'); return; }
+  chime('ready');
+  poll();
+}
+
+/* live timers between polls */
+setInterval(function(){
+  var now = Date.now();
+  document.querySelectorAll('.tk .wait').forEach(function(w){ w.textContent = mmss(now - Number(w.dataset.since)); });
+  var d = new Date();
+  document.getElementById('clock').textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}, 1000);
+
+refreshAuth();
+</script>
+</body>
+</html>

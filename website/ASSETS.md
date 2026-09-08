@@ -29,12 +29,14 @@ job aec12a92) remain in the Higgsfield generation history and never ship.
 
 ## Live pages (v12 — manager authorization: shift changes, team changes and order voids need a manager PIN checked inside the database, with an approvals log)
 
-- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/e85d9893-031e-4154-878c-9b14a2188230.html**
+- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a36d277a-4d0c-4849-83eb-00ab87b86a92.html**
 - Website (cinematic, live menu, chatbox): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html
-- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5bcd69c6-2f87-41c5-8d4a-a56598ec1096.html
-- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/492eb1b6-c9fd-4541-8c96-3ca16611f135.html
-- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/9bddf539-c93f-46f4-b57f-10453d249ee8.html
-- Time clock (needs supabase/timeclock.sql then supabase/authorization.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/acc489ae-5081-43c7-857a-ddaf1626ee6b.html
+- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c24cdd2-d918-4ee2-baa1-94f156cf9f27.html
+- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/8b354dca-3dac-49ac-bb66-0ee163fd349d.html
+- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c0d4cb1e-5e66-4837-9675-7271874d6405.html
+- Time clock (needs supabase/timeclock.sql then supabase/authorization.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c6a12384-46ec-4782-a908-a8364fb0b5b7.html
+- Kitchen screen (needs supabase/kitchen-rooms.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6bb9c8f9-ebbd-4f20-917b-87b802cc47dd.html
+- Room ordering page (guests reach it through the QR card in each room, `?r=<room code>`): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b789e964-09c1-4c83-ad9d-db2fb9557f76.html
 - TV menu board 2.0 (needs supabase/tvboard.sql + supabase/groupslides.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html
 
 Supabase (project nbvczarfweanoxvdqplk) SQL to run once in the SQL Editor:
@@ -43,6 +45,8 @@ Supabase (project nbvczarfweanoxvdqplk) SQL to run once in the SQL Editor:
 - supabase/timeclock.sql — staff + time_entries (time clock)
 - supabase/tvboard.sql — TV Board 2.0 (board settings, featured stars, starter product photos)
 - supabase/groupslides.sql — combined slides (several menu items shown together in one picture)
+- supabase/authorization.sql — manager roles, hashed PINs, approval functions, audit log, order voids
+- supabase/kitchen-rooms.sql — order status + pickup numbers, kitchen switches per category, settings, rooms with private codes, guest ordering functions
 - supabase/authorization.sql — manager roles, hashed PINs, approval functions, audit log, table lockdown (run after timeclock.sql)
 
 The website shows every category except Adventure Box (a designed card) and Extras & Combos
@@ -57,6 +61,7 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 78e8bd19/20c14b46/52ed91bd/66ffec4e/976e9488/86dd6477 (v7 pages superseded by v8),
 48045a64/3beadfaf/260e3ab9/2b01e1b2/08cbee36/82459b8d (v8), 7d24c6e8/bb79d408/5b1fa682/149efdb0/
 5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot),
-06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots),
+06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots), 3d6d6aed/8d1d85da (v12 QA),
+acc489ae/492eb1b6/9bddf539/e85d9893/5bcd69c6 (v12 pages), 1134c843/097c9722/192daf95/34c1b399 (v13 QA),
 bc00deeb/edb9e04d/00b4983e/7a0e2b48/ca89d0ef/c7309f20 (v10 pages), 3d6d6aed/8d1d85da (v12 QA slots),
 a4be43a7/e42b0085/4a220491/7c2da9c5/d7fa2327 (v11 pages superseded by v12; tv 432efc2c and site 6ef92316 unchanged).
