@@ -126,6 +126,12 @@ header.top h1{font-size:1.4rem;margin-right:auto}
     <button type="submit">Sign in</button>
     <p class="err" id="loginErr"></p>
   </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
 </div>
 
 <div id="setupView" class="setup" hidden>
@@ -141,15 +147,14 @@ header.top h1{font-size:1.4rem;margin-right:auto}
 </div>
 
 <div id="appView" class="wrap" hidden>
-  <!-- DEPLOY STEP: on the real domain, switch these links to / /admin /pos /sales /tv -->
   <nav class="pagenav" aria-label="Café pages">
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html">Home</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5b0e86c6-6fad-40a6-bd0b-660f00113a29.html">Menu Manager</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ea738b4e-a3e3-4192-943b-82b095f3f36e.html">POS</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html">Sales</a>
+    <a href="home.html" data-owner>Home</a>
+    <a href="admin.html" data-owner>Menu Manager</a>
+    <a href="pos.html">POS</a>
+    <a href="sales.html" data-owner>Sales</a>
     <span class="here">Time clock</span>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">TV board</a>
-    <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
+    <a href="tv.html" target="_blank" rel="noopener">TV board</a>
+    <a href="index.html" target="_blank" rel="noopener">Website</a>
   </nav>
 
   <header class="top">
@@ -186,7 +191,7 @@ header.top h1{font-size:1.4rem;margin-right:auto}
       <p class="hint" id="noMgrNote" hidden style="margin:.6rem 0 0">No manager yet. The first person you save becomes the manager (no approval needed this one time). Do this now.</p>
       <button class="ghost small" id="addStaffBtn" style="margin-top:.8rem">+ Add person</button>
     </div>
-    <div class="card">
+    <div class="card" id="logCard">
       <h2>Approvals log</h2>
       <p class="hint" style="margin:0 0 .6rem">Every shift change, team change and voided order, with who approved it and why.</p>
       <div class="log" id="logBody"></div>
@@ -239,6 +244,25 @@ header.top h1{font-size:1.4rem;margin-right:auto}
   </div>
 </div>
 
+<!-- hours PIN modal (café login) -->
+<div class="modal" id="hoursPinModal" hidden>
+  <div class="box">
+    <h2>Who is looking?</h2>
+    <p class="hint" style="margin:0">A manager PIN shows everyone's hours. Your own PIN shows only yours.</p>
+    <form id="hoursPinForm">
+      <label for="hpWho">Name</label>
+      <select id="hpWho"></select>
+      <label for="hpPin">PIN</label>
+      <input id="hpPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <p class="err" id="hpErr"></p>
+      <div class="row">
+        <button type="submit">Show hours</button>
+        <button type="button" class="ghost" id="hpCancel">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- staff editor modal -->
 <div class="modal" id="staffModal" hidden>
   <div class="box">
@@ -256,6 +280,10 @@ header.top h1{font-size:1.4rem;margin-right:auto}
       <div class="checkline" id="stActiveLine">
         <input id="stActive" type="checkbox" checked>
         <label for="stActive" style="margin:0">Currently works here (shows on the clock screen)</label>
+      </div>
+      <div class="checkline" id="stSalesLine" hidden>
+        <input id="stSales" type="checkbox">
+        <label for="stSales" style="margin:0">May open the sales reports with their PIN</label>
       </div>
       <div class="approve" id="stApprove">
         <h3>Manager approval</h3>
@@ -280,6 +308,42 @@ header.top h1{font-size:1.4rem;margin-right:auto}
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+/* phone code (2FA): needed when this login enrolled one and this session has not typed it yet */
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+/* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
+  document.addEventListener(ev, armIdle, {passive: true});
+});
 
 var staffList = [];        /* all staff rows, active + inactive */
 var openByStaff = {};      /* staff_id -> open time_entries row */
@@ -315,10 +379,26 @@ function showSetup(){
 async function refreshAuth(){
   var s = await db.auth.getSession();
   var authed = !!(s.data && s.data.session);
-  document.getElementById('loginView').hidden = authed;
-  document.getElementById('appView').hidden = !authed;
-  if (authed){ document.getElementById('setupView').hidden = true; loadClock(); }
+  var needCode = authed && await codeNeeded();
+  document.getElementById('loginView').hidden = authed && !needCode;
+  document.getElementById('loginForm').hidden = needCode;
+  document.getElementById('codeForm').hidden = !needCode;
+  document.getElementById('appView').hidden = !authed || needCode;
+  if (needCode){ document.getElementById('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  trimNav(); armIdle();
+  document.getElementById('logCard').hidden = isCafeLogin();
+  document.getElementById('setupView').hidden = true; loadClock();
 }
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode(document.getElementById('codeIn').value.trim());
+  if (r.error){ document.getElementById('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  document.getElementById('codeIn').value = '';
+  refreshAuth();
+});
+
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
   var r = await db.auth.signInWithPassword({
@@ -345,6 +425,7 @@ function switchTab(t){
 
 /* ---------- shared data ---------- */
 var ERR = {
+  owner_only: 'Only the owner login can change the team.',
   bad_pin: 'That PIN is not right.',
   locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
   not_manager: 'That person is not a manager. Ask a manager to approve this.',
@@ -382,7 +463,8 @@ function fillManagers(sel){
 }
 
 async function loadStaff(){
-  var r = await db.from('staff').select('id,name,active,role').order('name');
+  var r = await db.from('staff').select('id,name,active,role,can_see_sales').order('name');
+  if (r.error && /can_see_sales/.test(r.error.message || '')) r = await db.from('staff').select('id,name,active,role').order('name');
   if (r.error){ if (isMissingTables(r.error)) showSetup(); else toast('Could not load the team. Check the connection.'); return false; }
   staffList = r.data || [];
   return true;
@@ -523,13 +605,26 @@ function hoursWindow(){
   }
   return {start:start, end:end};
 }
+var hoursAuth = null; /* café login: {id, pin, until} after a PIN, kept for 15 minutes */
 async function loadHours(){
   if (!(await loadStaff())) return;
   var w = hoursWindow();
-  var r = await db.from('time_entries').select('*')
-    .gte('clock_in', w.start.toISOString())
-    .lt('clock_in', w.end.toISOString())
-    .order('clock_in');
+  var r;
+  if (isCafeLogin()){
+    if (!hoursAuth || hoursAuth.until < Date.now()){ hoursEntries = []; renderHours(); renderTeam(); openHoursPin(''); return; }
+    r = await db.rpc('hours_report', {p_staff_id: hoursAuth.id, p_pin: hoursAuth.pin,
+                                      p_from: w.start.toISOString(), p_to: w.end.toISOString()});
+    if (r.error && /pin:/.test(r.error.message || '')){
+      var code = (r.error.message.match(/pin:(\w+)/) || [])[1];
+      hoursAuth = null; hoursEntries = []; renderHours(); renderTeam();
+      openHoursPin(ERR[code] || 'That PIN is not right.'); return;
+    }
+  } else {
+    r = await db.from('time_entries').select('*')
+      .gte('clock_in', w.start.toISOString())
+      .lt('clock_in', w.end.toISOString())
+      .order('clock_in');
+  }
   if (r.error){ toast('Could not load the hours. Check the connection.'); return; }
   hoursEntries = r.data || [];
   var names = {thisweek:'This week', lastweek:'Last week', month:'This month'};
@@ -539,9 +634,28 @@ async function loadHours(){
   loadLog();
 }
 
+function openHoursPin(err){
+  var sel = document.getElementById('hpWho'); sel.textContent = '';
+  staffList.filter(function(x){ return x.active; }).forEach(function(x){
+    var o = document.createElement('option'); o.value = x.id; o.textContent = x.name + (x.role === 'manager' ? ' (manager)' : ''); sel.appendChild(o);
+  });
+  document.getElementById('hpErr').textContent = err || '';
+  document.getElementById('hpPin').value = '';
+  document.getElementById('hoursPinModal').hidden = false;
+  document.getElementById('hpPin').focus();
+}
+document.getElementById('hpCancel').addEventListener('click', function(){ document.getElementById('hoursPinModal').hidden = true; switchTab('clock'); });
+document.getElementById('hoursPinForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  hoursAuth = {id: document.getElementById('hpWho').value, pin: document.getElementById('hpPin').value.trim(), until: Date.now() + 15 * 60000};
+  document.getElementById('hoursPinModal').hidden = true;
+  loadHours();
+});
+
 /* ---------- approvals log ---------- */
 var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_delete:'Shift deleted',
-                    staff_save:'Team updated', order_void:'Order voided'};
+                    staff_save:'Team updated', order_void:'Order voided', menu_change:'Menu changed',
+                    sales_view:'Sales opened', sales_access:'Sales access changed'};
 async function loadLog(){
   var root = document.getElementById('logBody');
   var r = await db.from('audit_log').select('at,action,manager_name,summary,details')
@@ -714,13 +828,20 @@ function renderTeam(){
     if (st.role === 'manager'){
       var mp = document.createElement('span'); mp.className = 'pill mgr'; mp.textContent = 'manager';
       row.appendChild(mp);
+      if (st.can_see_sales){ var sp = document.createElement('span'); sp.className = 'pill'; sp.textContent = 'sales'; row.appendChild(sp); }
     }
-    var ed = document.createElement('button'); ed.className = 'ghost small'; ed.textContent = 'Edit';
-    ed.addEventListener('click', function(){ openStaffEditor(st); });
-    row.appendChild(ed);
+    if (!isCafeLogin()){
+      var ed = document.createElement('button'); ed.className = 'ghost small'; ed.textContent = 'Edit';
+      ed.addEventListener('click', function(){ openStaffEditor(st); });
+      row.appendChild(ed);
+    }
     root.appendChild(row);
   });
-  document.getElementById('noMgrNote').hidden = managers().length > 0;
+  document.getElementById('noMgrNote').hidden = managers().length > 0 || isCafeLogin();
+  document.getElementById('addStaffBtn').hidden = isCafeLogin();
+  var tn = document.getElementById('teamNote');
+  if (!tn){ tn = document.createElement('p'); tn.id = 'teamNote'; tn.className = 'hint'; tn.style.margin = '.6rem 0 0'; tn.textContent = 'Team changes are made from the owner login.'; root.parentNode.appendChild(tn); }
+  tn.hidden = !isCafeLogin();
 }
 var staffTarget = null;
 function openStaffEditor(st){
@@ -737,12 +858,19 @@ function openStaffEditor(st){
   roleSel.disabled = bootstrap;
   document.getElementById('stApprove').hidden = bootstrap;
   document.getElementById('stBootstrap').hidden = !bootstrap;
+  document.getElementById('stSales').checked = !!(st && st.can_see_sales);
+  syncSalesLine();
   document.getElementById('stMgrPin').value = '';
   fillManagers(document.getElementById('stMgr'));
   document.getElementById('staffErr').textContent = '';
   document.getElementById('staffModal').hidden = false;
   document.getElementById('stName').focus();
 }
+function syncSalesLine(){
+  var mgr = document.getElementById('stRole').value === 'manager';
+  document.getElementById('stSalesLine').hidden = !(mgr && ACCOUNT !== null && staffTarget !== null);
+}
+document.getElementById('stRole').addEventListener('change', syncSalesLine);
 document.getElementById('addStaffBtn').addEventListener('click', function(){ openStaffEditor(null); });
 document.getElementById('stCancel').addEventListener('click', function(){ document.getElementById('staffModal').hidden = true; });
 document.getElementById('staffForm').addEventListener('submit', async function(e){
@@ -774,6 +902,11 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     document.getElementById('staffErr').textContent = errMsg(r);
     document.getElementById('stMgrPin').value = '';
     return;
+  }
+  var wantSales = document.getElementById('stSales').checked && document.getElementById('stRole').value === 'manager';
+  if (staffTarget && ACCOUNT !== null && !document.getElementById('stSalesLine').hidden && wantSales !== !!staffTarget.can_see_sales){
+    var sa = await db.rpc('owner_set_sales_access', {p_staff_id: r.data.id, p_allowed: wantSales});
+    if (sa.error || !sa.data || !sa.data.ok) toast('Saved, but the sales access did not change. Try again from the owner login.');
   }
   document.getElementById('staffModal').hidden = true;
   toast(name + (r.data.first_setup ? ' is now the manager' : ' saved')); loadHours();

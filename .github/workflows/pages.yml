@@ -1,0 +1,54 @@
+name: Publish website
+
+# Publishes the website/ folder to GitHub Pages (hanginggardencafe.com).
+# The film and photos are not kept in git: they are fetched from the URLs
+# listed in website/ASSETS.md at build time.
+
+on:
+  push:
+    branches: [main, claude/festive-galileo-0twc1p, claude/hanging-garden-coffee-proposal-1m8zd4]
+    paths: ['website/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the film and photos listed in website/ASSETS.md
+        run: |
+          python3 - <<'PY'
+          import re, os, urllib.request
+          rows = re.findall(r'^\|\s*(assets/[\w.-]+)[^|]*\|\s*(https://\S+?)\s*\|', open('website/ASSETS.md', encoding='utf-8').read(), re.M)
+          assert rows, 'no asset rows found in ASSETS.md'
+          for path, url in rows:
+              dest = os.path.join('website', path)
+              if os.path.exists(dest):
+                  print('kept', path); continue
+              urllib.request.urlretrieve(url, dest)
+              print('fetched', path, os.path.getsize(dest), 'bytes')
+          PY
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -165,11 +165,10 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
   <div class="left">
     <div class="topbar">
       <h1>The Hanging Garden</h1>
-      <!-- DEPLOY STEP: on the real domain, switch these links to / /sales /admin /time -->
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html">Home</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html">Sales</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5b0e86c6-6fad-40a6-bd0b-660f00113a29.html">Menu</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html">Time</a>
+      <a class="navlink" href="home.html" data-owner>Home</a>
+      <a class="navlink" href="sales.html" data-owner>Sales</a>
+      <a class="navlink" href="admin.html" data-owner>Menu</a>
+      <a class="navlink" href="time.html">Time</a>
       <span class="chip on" id="netChip">online</span>
       <button class="ghost" id="ordersBtn">Orders</button>
       <button class="ghost" id="dayBtn">Today</button>
@@ -273,6 +272,13 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+/* owner login or café login: the café login only sees the POS, the clock and the kitchen */
+var ACCOUNT = null;
+async function whoami(){ var r = await db.rpc('account_kind'); ACCOUNT = r.error ? null : (r.data || 'none'); return ACCOUNT; }
+function trimNav(){
+  var cafe = ACCOUNT === 'cafe' || ACCOUNT === 'none';
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = cafe; });
+}
 
 var ticket = [];          /* {id, name, price, qty} */
 var queue = [];           /* offline orders waiting to sync */
@@ -292,7 +298,7 @@ async function refreshAuth(){
   var authed = !!(s.data && s.data.session);
   document.getElementById('loginView').hidden = authed;
   document.getElementById('appView').hidden = !authed;
-  if (authed){ loadMenu(); loadQueue(); syncQueue(); loadSettings(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000); }
+  if (authed){ whoami().then(trimNav); loadMenu(); loadQueue(); syncQueue(); loadSettings(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000); }
 }
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();

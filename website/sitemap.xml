@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- DEPLOY STEP: replace example.com with the live domain. The single public
-     page is the homepage; staff pages are noindex and stay out of the sitemap. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://example.com/</loc>
+    <loc>https://hanginggardencafe.com/</loc>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>

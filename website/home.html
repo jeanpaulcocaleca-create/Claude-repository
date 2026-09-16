@@ -26,6 +26,15 @@ button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
 input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
 input:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 [hidden]{display:none !important}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+.sec{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1.4rem}
+.secrow{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.35rem 0}
+.secrow button{margin-left:auto}
+#enrollBox{margin-top:.8rem;padding-top:.8rem;border-top:1px dotted var(--muted)}
+#enrollBox img{display:block;margin:.6rem 0;border-radius:10px;background:#fff}
+#enrollForm{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+#enrollForm input{width:9em}
+code.mono{background:var(--canvas);padding:.1em .4em;border-radius:6px;user-select:all}
 .wrap{max-width:920px;margin:0 auto;padding:1.4rem 1rem 4rem}
 .login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
 .login .emblem{width:74px;margin:0 auto .6rem;display:block}
@@ -69,6 +78,22 @@ footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72r
     <button type="submit">Sign in</button>
     <p class="err" id="loginErr"></p>
   </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="cafeView" class="login" hidden>
+  <h1>The Hanging Garden</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <a class="ghost btnlink" href="time.html">Time clock</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
 </div>
 
 <div id="appView" class="wrap" hidden>
@@ -89,43 +114,60 @@ footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72r
   </div>
 
   <h2 class="section">Your café, one tap away</h2>
-  <!-- DEPLOY STEP: on the real domain, switch these links to /pos /sales /admin /time /tv and / -->
   <div class="tiles">
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ea738b4e-a3e3-4192-943b-82b095f3f36e.html">
+    <a class="tile" href="pos.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21zM9 8h6M9 12h6M9 16h3"/></svg>
       <span class="t">POS</span>
       <span class="d">Ring up sales at the counter — cash, card or SINPE, recorded instantly.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html">
+    <a class="tile" href="sales.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-9M21 20H3"/></svg>
       <span class="t">Sales</span>
       <span class="d">What you sold today, this week, this month — best sellers and CSV for the accountant.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5b0e86c6-6fad-40a6-bd0b-660f00113a29.html">
+    <a class="tile" href="admin.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.2"/></svg>
       <span class="t">Menu Manager</span>
       <span class="d">Change prices, photos and items — updates the website and TV board in a minute.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html">
+    <a class="tile" href="time.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.6M9 2h6"/></svg>
       <span class="t">Time clock</span>
       <span class="d">The team clocks in and out with a PIN; you see everyone's hours.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">
+    <a class="tile" href="tv.html" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
       <span class="t">TV board <span class="ext">↗</span></span>
       <span class="d">The live menu screen — open this on the TV in the café.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6bb9c8f9-ebbd-4f20-917b-87b802cc47dd.html" target="_blank" rel="noopener">
+    <a class="tile" href="kitchen.html" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 11h16v2a7 7 0 01-7 7h-2a7 7 0 01-7-7zM8 3c0 2-1.5 2-1.5 4S8 9 8 9M12 3c0 2-1.5 2-1.5 4s1.5 2 1.5 2M16 3c0 2-1.5 2-1.5 4s1.5 2 1.5 2"/></svg>
       <span class="t">Kitchen screen <span class="ext">↗</span></span>
       <span class="d">Tickets for the back — open this on the tablet or screen in the kitchen.</span>
     </a>
-    <a class="tile" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">
+    <a class="tile" href="index.html" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg>
       <span class="t">Website <span class="ext">↗</span></span>
       <span class="d">What your guests see — the cinematic Monteverde story with the live menu.</span>
     </a>
+  </div>
+
+  <h2 class="section">Owner login</h2>
+  <div class="sec" id="secCard">
+    <div class="secrow"><span>Signed in as <b id="secEmail"></b></span><button class="ghost small" id="outAllBtn">Sign out everywhere</button></div>
+    <div class="secrow"><span>Phone code (2FA): <b id="secCode">checking</b></span><button class="ghost small" id="codeBtn" hidden>Turn on</button></div>
+    <p class="hint" id="secHint" style="margin:.3rem 0 0"></p>
+    <div id="enrollBox" hidden>
+      <p class="hint">Scan this with Google Authenticator, Microsoft Authenticator or 1Password on your phone, then type the 6-digit code it shows.</p>
+      <img id="enrollQr" alt="QR code for the authenticator app" width="180" height="180">
+      <p class="hint">Or type this key by hand: <code id="enrollSecret" class="mono"></code></p>
+      <form id="enrollForm">
+        <input id="enrollCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit code" required>
+        <button type="submit" class="small">Confirm</button>
+        <button type="button" class="ghost small" id="enrollCancel">Cancel</button>
+      </form>
+      <p class="err" id="enrollErr"></p>
+    </div>
   </div>
 
   <footer>Canopy OS · The Hanging Garden Café</footer>
@@ -136,16 +178,138 @@ var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+/* phone code (2FA): needed when this login enrolled one and this session has not typed it yet */
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+/* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
+  document.addEventListener(ev, armIdle, {passive: true});
+});
+
 function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
 function fmtTime(d){ return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
 
 async function refreshAuth(){
   var s = await db.auth.getSession();
   var authed = !!(s.data && s.data.session);
-  document.getElementById('loginView').hidden = authed;
-  document.getElementById('appView').hidden = !authed;
-  if (authed) loadStats();
+  var needCode = authed && await codeNeeded();
+  document.getElementById('loginView').hidden = authed && !needCode;
+  document.getElementById('loginForm').hidden = needCode;
+  document.getElementById('codeForm').hidden = !needCode;
+  document.getElementById('cafeView').hidden = true;
+  document.getElementById('appView').hidden = !authed || needCode;
+  if (needCode){ document.getElementById('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (isCafeLogin()){ showCafeView(); return; }
+  armIdle();
+  document.getElementById('secEmail').textContent = (s.data.session.user && s.data.session.user.email) || '';
+  loadStats(); loadSecurity();
 }
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode(document.getElementById('codeIn').value.trim());
+  if (r.error){ document.getElementById('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  document.getElementById('codeIn').value = '';
+  refreshAuth();
+});
+
+document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+function showCafeView(){
+  document.getElementById('cafeMsg').textContent = ACCOUNT === 'none'
+    ? 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.'
+    : 'This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.';
+  document.getElementById('cafeView').hidden = false;
+  document.getElementById('appView').hidden = true;
+}
+
+/* ---------- owner login: phone code, sign out everywhere ---------- */
+var enrollId = null;
+async function loadSecurity(){
+  var codeEl = document.getElementById('secCode'), btn = document.getElementById('codeBtn'), hint = document.getElementById('secHint');
+  if (ACCOUNT === null){
+    codeEl.textContent = 'not available yet';
+    hint.textContent = 'Run supabase/accounts.sql once to switch on the owner and café logins.';
+    btn.hidden = true; return;
+  }
+  var f = await db.auth.mfa.listFactors();
+  var on = !!(f.data && f.data.totp && f.data.totp.length);
+  codeEl.textContent = on ? 'on' : 'off';
+  btn.textContent = on ? 'Turn off' : 'Turn on';
+  btn.hidden = false;
+  hint.textContent = on
+    ? 'Every sign-in with the owner login asks for the code from your phone. Without it, the session only gets café-level access.'
+    : 'Recommended: with a phone code, your password alone is not enough to reach sales, menu and team settings.';
+}
+document.getElementById('codeBtn').addEventListener('click', async function(){
+  var f = await db.auth.mfa.listFactors();
+  var verified = (f.data && f.data.totp) || [];
+  if (verified.length){
+    if (!confirm('Turn the phone code off? Your password alone will open the owner login again.')) return;
+    var u = await db.auth.mfa.unenroll({factorId: verified[0].id});
+    if (u.error){ alert('Could not turn it off. Sign out, sign in again with the code, then try once more.'); return; }
+    loadSecurity(); return;
+  }
+  /* clear leftovers from an enrolment that was never confirmed */
+  var all = (f.data && f.data.all) || [];
+  for (var i = 0; i < all.length; i++){
+    if (all[i].factor_type === 'totp' && all[i].status !== 'verified') await db.auth.mfa.unenroll({factorId: all[i].id});
+  }
+  var e = await db.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Owner phone'});
+  if (e.error || !e.data){ alert('Could not start the phone code. In Supabase, check that Authentication > Multi-Factor > TOTP is switched on.'); return; }
+  enrollId = e.data.id;
+  document.getElementById('enrollQr').src = e.data.totp.qr_code;
+  document.getElementById('enrollSecret').textContent = e.data.totp.secret;
+  document.getElementById('enrollErr').textContent = '';
+  document.getElementById('enrollCode').value = '';
+  document.getElementById('enrollBox').hidden = false;
+  document.getElementById('enrollCode').focus();
+});
+document.getElementById('enrollCancel').addEventListener('click', async function(){
+  if (enrollId) await db.auth.mfa.unenroll({factorId: enrollId});
+  enrollId = null; document.getElementById('enrollBox').hidden = true;
+});
+document.getElementById('enrollForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  if (!enrollId) return;
+  var r = await db.auth.mfa.challengeAndVerify({factorId: enrollId, code: document.getElementById('enrollCode').value.trim()});
+  if (r.error){ document.getElementById('enrollErr').textContent = 'That code did not match. Wait for the next code and try again.'; return; }
+  enrollId = null;
+  document.getElementById('enrollBox').hidden = true;
+  loadSecurity();
+});
+document.getElementById('outAllBtn').addEventListener('click', async function(){
+  if (!confirm('Sign the owner login out on every device, including this one?')) return;
+  await db.auth.signOut({scope: 'global'}); refreshAuth();
+});
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
   var r = await db.auth.signInWithPassword({

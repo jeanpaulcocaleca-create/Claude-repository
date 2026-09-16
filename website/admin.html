@@ -95,6 +95,7 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   .qcard .url{font-size:6.5pt;color:#54634F;margin-top:2mm;word-break:break-all}
 }
 [hidden]{display:none !important}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
 </style>
 </head>
 <body>
@@ -112,18 +113,33 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
       <button type="submit" id="loginBtn">Sign in</button>
       <p class="err" id="loginErr"></p>
     </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
   </div>
+<div id="cafeView" class="login" hidden>
+  <h1>Menu Manager</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <a class="ghost btnlink" href="time.html">Time clock</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
 
   <div id="appView" hidden>
-    <!-- DEPLOY STEP: on the real domain, switch these links to / /pos /sales /time /tv -->
     <nav class="pagenav" aria-label="Café pages">
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html">Home</a>
+      <a href="home.html">Home</a>
       <span class="here">Menu Manager</span>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ea738b4e-a3e3-4192-943b-82b095f3f36e.html">POS</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html">Sales</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html">Time clock</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">TV board</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
+      <a href="pos.html">POS</a>
+      <a href="sales.html">Sales</a>
+      <a href="time.html">Time clock</a>
+      <a href="tv.html" target="_blank" rel="noopener">TV board</a>
+      <a href="index.html" target="_blank" rel="noopener">Website</a>
     </nav>
     <header>
       <h1>Menu Manager</h1>
@@ -243,6 +259,42 @@ var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+/* phone code (2FA): needed when this login enrolled one and this session has not typed it yet */
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+/* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
+  document.addEventListener(ev, armIdle, {passive: true});
+});
+
 var loginView = document.getElementById('loginView');
 var appView = document.getElementById('appView');
 var toastEl = document.getElementById('toast');
@@ -261,10 +313,36 @@ function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
 async function refreshAuth(){
   var s = await db.auth.getSession();
   var authed = !!(s.data && s.data.session);
-  loginView.hidden = authed;
-  appView.hidden = !authed;
-  if (authed) loadMenu();
+  var needCode = authed && await codeNeeded();
+  loginView.hidden = authed && !needCode;
+  document.getElementById('loginForm').hidden = needCode;
+  document.getElementById('codeForm').hidden = !needCode;
+  document.getElementById('cafeView').hidden = true;
+  appView.hidden = !authed || needCode;
+  if (needCode){ document.getElementById('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (isCafeLogin()){ showCafeView(); return; }
+  armIdle();
+  loadMenu();
 }
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode(document.getElementById('codeIn').value.trim());
+  if (r.error){ document.getElementById('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  document.getElementById('codeIn').value = '';
+  refreshAuth();
+});
+
+document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+function showCafeView(){
+  document.getElementById('cafeMsg').textContent = ACCOUNT === 'none'
+    ? 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.'
+    : 'This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.';
+  document.getElementById('cafeView').hidden = false;
+  document.getElementById('appView').hidden = true;
+}
+
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
