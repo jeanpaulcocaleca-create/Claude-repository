@@ -284,7 +284,7 @@ document.getElementById('codeBtn').addEventListener('click', async function(){
     if (all[i].factor_type === 'totp' && all[i].status !== 'verified') await db.auth.mfa.unenroll({factorId: all[i].id});
   }
   var e = await db.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Owner phone'});
-  if (e.error || !e.data){ alert('Could not start the phone code. In Supabase, check that Authentication > Multi-Factor > TOTP is switched on.'); return; }
+  if (e.error || !e.data || !e.data.totp){ alert('Could not start the phone code. In Supabase, check that Authentication > Multi-Factor > TOTP is switched on.'); return; }
   enrollId = e.data.id;
   document.getElementById('enrollQr').src = e.data.totp.qr_code;
   document.getElementById('enrollSecret').textContent = e.data.totp.secret;

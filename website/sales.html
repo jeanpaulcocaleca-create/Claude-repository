@@ -284,10 +284,11 @@ async function checkGate(){
   else { salesUntil = null; setLocked(true); fillGateManagers(); }
 }
 async function fillGateManagers(){
-  var sel = document.getElementById('gateMgr'); sel.textContent = '';
+  var sel = document.getElementById('gateMgr');
   var r = await db.from('staff').select('id,name').eq('active', true).eq('role', 'manager').order('name');
-  (r.data || []).forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o); });
-  if (!(r.data || []).length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2); }
+  var opts = (r.data || []).map(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; return o; });
+  if (!opts.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; opts.push(o2); }
+  sel.replaceChildren.apply(sel, opts);
   document.getElementById('gatePin').value = '';
   document.getElementById('gatePin').focus();
 }
