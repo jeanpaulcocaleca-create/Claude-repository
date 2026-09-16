@@ -1,6 +1,7 @@
 name: Publish website
 
-# Publishes the website/ folder to GitHub Pages (hanginggardencafe.com).
+# Publishes the website/ folder to the gh-pages branch, which GitHub Pages serves
+# (hanginggardencafe.com once the domain points here).
 # The film and photos are not kept in git: they are fetched from the URLs
 # listed in website/ASSETS.md at build time.
 
@@ -11,9 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -37,18 +36,10 @@ jobs:
               urllib.request.urlretrieve(url, dest)
               print('fetched', path, os.path.getsize(dest), 'bytes')
           PY
-      - uses: actions/configure-pages@v5
+      - name: Publish to the gh-pages branch (GitHub Pages serves it)
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: website
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website
+          force_orphan: true
+          commit_message: 'Publish website'
