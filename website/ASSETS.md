@@ -45,15 +45,16 @@ last report). Pages link each other by file name, so the same build works on bot
 - Room ordering page: room.html?r=<room code>
 - TV menu board: tv.html
 
-The CloudFront copies below stay online but no longer receive updates. Once the domain is
-live, reprint the room QR cards and repoint the TV from the Menu Manager.
+Until the domain is live, the same v15 pages are also on CloudFront (built with absolute links
+between them; these are the links to use today). Once the domain is live, reprint the room QR
+cards and repoint the TV from the Menu Manager.
 
-- Home (v14): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html
+- Home (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/1d54a49b-96c1-4e99-9bcd-077c4fd90c44.html
 - Website (v10): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html
-- Menu Manager (v14): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5b0e86c6-6fad-40a6-bd0b-660f00113a29.html
-- POS (v14): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ea738b4e-a3e3-4192-943b-82b095f3f36e.html
-- Sales (v14): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html
-- Time clock (v14): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html
+- Menu Manager (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/2c0985b0-f155-466a-a1b0-e96104a4f2e7.html
+- POS (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/221d75a3-249b-4741-90b2-b091705ecd6e.html
+- Sales (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/92f2e118-06a6-4e88-93ca-c49927cfa765.html
+- Time clock (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/dc603426-4bbf-44a4-ba66-599640bddd7b.html
 - Kitchen screen (v13): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6bb9c8f9-ebbd-4f20-917b-87b802cc47dd.html
 - Room ordering page (v13): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b789e964-09c1-4c83-ad9d-db2fb9557f76.html
 - TV menu board: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html
@@ -84,6 +85,6 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot),
 06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots), 3d6d6aed/8d1d85da (v12 QA),
 acc489ae/492eb1b6/9bddf539/e85d9893/5bcd69c6 (v12 pages), 1134c843/097c9722/192daf95/34c1b399/8faa2c9c (v13 QA),
-8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA), d8012aa6/5c5c6197/b24e3583/dcfa70ad/fe546b23/f7f2c256 (v15 QA),
+8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA), d8012aa6/5c5c6197/b24e3583/dcfa70ad/fe546b23/f7f2c256 (v15 QA), 36c139af/396bd665/5b0e86c6/ea738b4e/d1b560d3 (v14 pages),
 bc00deeb/edb9e04d/00b4983e/7a0e2b48/ca89d0ef/c7309f20 (v10 pages), 3d6d6aed/8d1d85da (v12 QA slots),
 a4be43a7/e42b0085/4a220491/7c2da9c5/d7fa2327 (v11 pages superseded by v12; tv 432efc2c and site 6ef92316 unchanged).
