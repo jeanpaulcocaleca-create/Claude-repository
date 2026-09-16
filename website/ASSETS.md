@@ -27,14 +27,14 @@ sacks), then into the garden café where it lands beside the espresso machine an
 Raw generations (Seedance 2.5 job 05f0dba2 from realistic start frame 9c0ac672; 2K upscale
 job aec12a92) remain in the Higgsfield generation history and never ship.
 
-## Live pages (v12 — manager authorization: shift changes, team changes and order voids need a manager PIN checked inside the database, with an approvals log)
+## Live pages (v14 — POS layout 2.0: category bar, checkout pinned in view, automatic Quick tab from sales, category and item colors)
 
-- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a36d277a-4d0c-4849-83eb-00ab87b86a92.html**
+- **Home (owner dashboard hub): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html**
 - Website (cinematic, live menu, chatbox): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html
-- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c24cdd2-d918-4ee2-baa1-94f156cf9f27.html
-- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/8b354dca-3dac-49ac-bb66-0ee163fd349d.html
-- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c0d4cb1e-5e66-4837-9675-7271874d6405.html
-- Time clock (needs supabase/timeclock.sql then supabase/authorization.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c6a12384-46ec-4782-a908-a8364fb0b5b7.html
+- Menu Manager: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5b0e86c6-6fad-40a6-bd0b-660f00113a29.html
+- POS (record-only till + receipt printing): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ea738b4e-a3e3-4192-943b-82b095f3f36e.html
+- Sales dashboard: https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html
+- Time clock (needs supabase/timeclock.sql then supabase/authorization.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html
 - Kitchen screen (needs supabase/kitchen-rooms.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6bb9c8f9-ebbd-4f20-917b-87b802cc47dd.html
 - Room ordering page (guests reach it through the QR card in each room, `?r=<room code>`): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b789e964-09c1-4c83-ad9d-db2fb9557f76.html
 - TV menu board 2.0 (needs supabase/tvboard.sql + supabase/groupslides.sql run once): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html
@@ -47,6 +47,7 @@ Supabase (project nbvczarfweanoxvdqplk) SQL to run once in the SQL Editor:
 - supabase/groupslides.sql — combined slides (several menu items shown together in one picture)
 - supabase/authorization.sql — manager roles, hashed PINs, approval functions, audit log, order voids
 - supabase/kitchen-rooms.sql — order status + pickup numbers, kitchen switches per category, settings, rooms with private codes, guest ordering functions
+- supabase/pos-layout.sql — category and item colors, per-item Quick tab setting, quick_items best-seller function
 - supabase/authorization.sql — manager roles, hashed PINs, approval functions, audit log, table lockdown (run after timeclock.sql)
 
 The website shows every category except Adventure Box (a designed card) and Extras & Combos
@@ -62,6 +63,7 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 48045a64/3beadfaf/260e3ab9/2b01e1b2/08cbee36/82459b8d (v8), 7d24c6e8/bb79d408/5b1fa682/149efdb0/
 5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot),
 06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots), 3d6d6aed/8d1d85da (v12 QA),
-acc489ae/492eb1b6/9bddf539/e85d9893/5bcd69c6 (v12 pages), 1134c843/097c9722/192daf95/34c1b399 (v13 QA),
+acc489ae/492eb1b6/9bddf539/e85d9893/5bcd69c6 (v12 pages), 1134c843/097c9722/192daf95/34c1b399/8faa2c9c (v13 QA),
+8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA),
 bc00deeb/edb9e04d/00b4983e/7a0e2b48/ca89d0ef/c7309f20 (v10 pages), 3d6d6aed/8d1d85da (v12 QA slots),
 a4be43a7/e42b0085/4a220491/7c2da9c5/d7fa2327 (v11 pages superseded by v12; tv 432efc2c and site 6ef92316 unchanged).

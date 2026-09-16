@@ -72,6 +72,10 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 .pick[aria-pressed="true"]::after{content:"\2713";position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;display:flex;align-items:center;justify-content:center}
 .catline{display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--sec);margin:-.2rem 0 .5rem}
 .catline input{width:auto}
+.catline input[type=color]{width:34px;height:26px;padding:0;border:1.5px solid var(--muted);border-radius:6px;background:#fff;cursor:pointer}
+.editbox .swatchrow{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.editbox .swatchrow input[type=color]{width:44px;height:34px;padding:0;border:1.5px solid var(--muted);border-radius:8px;background:#fff}
+.editbox select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em}
 .roomrow{display:flex;align-items:center;gap:.7rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);font-size:.9rem}
 .roomrow:last-child{border-bottom:none}
 .roomrow .rn{font-weight:700;min-width:6.5em}
@@ -113,11 +117,11 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   <div id="appView" hidden>
     <!-- DEPLOY STEP: on the real domain, switch these links to / /pos /sales /time /tv -->
     <nav class="pagenav" aria-label="Café pages">
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a36d277a-4d0c-4849-83eb-00ab87b86a92.html">Home</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html">Home</a>
       <span class="here">Menu Manager</span>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/8b354dca-3dac-49ac-bb66-0ee163fd349d.html">POS</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c0d4cb1e-5e66-4837-9675-7271874d6405.html">Sales</a>
-      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c6a12384-46ec-4782-a908-a8364fb0b5b7.html">Time clock</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ea738b4e-a3e3-4192-943b-82b095f3f36e.html">POS</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html">Sales</a>
+      <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html">Time clock</a>
       <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/432efc2c-ae0d-4121-b1b7-a445dda3ba7b.html" target="_blank" rel="noopener">TV board</a>
       <a href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6ef92316-c4ae-4815-8315-2b67f4ac4717.html" target="_blank" rel="noopener">Website</a>
     </nav>
@@ -281,6 +285,11 @@ document.getElementById('signOut').addEventListener('click', async function(){
 var tvReady = true;    /* false until the TV board SQL has been run */
 var groupsReady = false; /* true once the combined slides SQL has been run */
 var kitchenReady = false; /* true once the kitchen and rooms SQL has been run */
+var colorsReady = false;  /* true once the POS layout SQL has been run */
+var PALETTE = ['#5A3A1E','#1B5F67','#7E3160','#8F4E12','#93392A','#9E4560','#1E4B33','#285F8A','#6B3FA0','#4A5A46','#7D5A1A','#2F6B3A'];
+var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3160','Sandwiches':'#8F4E12','Savory':'#93392A','Pastries & Cake':'#9E4560','Costa Rican Favorites':'#1E4B33','Adventure Box':'#285F8A','Extras & Combos':'#4A5A46'};
+function catColor(cat, i){ return cat.color || CAT_DEFAULT[cat.name] || PALETTE[i % PALETTE.length]; }
+function itemColor(it, i, catIx){ return it.color || PALETTE[(catIx * 5 + i) % PALETTE.length]; }
 /* DEPLOY STEP: on the real domain this becomes https://<domain>/room */
 var ROOM_PAGE_URL = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b789e964-09c1-4c83-ad9d-db2fb9557f76.html';
 var allItems = [];     /* every available item, for the combined slide picker */
@@ -290,8 +299,14 @@ var gPicked = [];      /* item ids chosen in the builder */
 
 async function loadMenu(){
   var r = await db.from('menu_categories')
-    .select('id,name,sort,kitchen,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
+    .select('id,name,sort,kitchen,color,menu_items(id,name,description,price_crc,photo_url,available,featured,sort,color,quick)')
     .order('sort');
+  colorsReady = !r.error;
+  if (r.error){ /* POS layout SQL not run yet */
+    r = await db.from('menu_categories')
+      .select('id,name,sort,kitchen,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
+      .order('sort');
+  }
   kitchenReady = !r.error;
   if (r.error){
     r = await db.from('menu_categories')
@@ -587,8 +602,20 @@ function render(cats){
       line.appendChild(cb); line.appendChild(document.createTextNode('Prepared in the kitchen (shows on the Kitchen screen)'));
       card.appendChild(line);
     }
+    if (colorsReady){
+      var cl = document.createElement('label'); cl.className = 'catline';
+      var cp = document.createElement('input'); cp.type = 'color'; cp.value = catColor(cat, cats.indexOf(cat));
+      cp.addEventListener('change', async function(){
+        var r = await db.from('menu_categories').update({color: cp.value}).eq('id', cat.id);
+        if (r.error){ toast('Could not save the color. Try again.'); return; }
+        toast(cat.name + ' color saved. The POS follows on its next refresh.');
+      });
+      cl.appendChild(cp); cl.appendChild(document.createTextNode('Category color on the POS (tab and button tint)'));
+      card.appendChild(cl);
+    }
+    var catIx = cats.indexOf(cat);
     cat.menu_items.sort(function(a,b){return a.sort-b.sort || a.name.localeCompare(b.name)});
-    cat.menu_items.forEach(function(it){ card.appendChild(itemRow(it)); });
+    cat.menu_items.forEach(function(it, i){ it._color = colorsReady ? itemColor(it, i, catIx) : null; card.appendChild(itemRow(it)); });
     var add = document.createElement('button');
     add.className = 'ghost small addrow';
     add.textContent = '+ Add item to ' + cat.name;
@@ -601,6 +628,7 @@ function render(cats){
 function itemRow(it){
   var row = document.createElement('div');
   row.className = 'item' + (it.available ? '' : ' off');
+  if (it._color){ row.style.borderLeft = '6px solid ' + it._color; row.style.paddingLeft = '.6rem'; }
 
   var ph = document.createElement('button');
   ph.className = 'ph'; ph.title = 'Change photo'; ph.setAttribute('aria-label','Change photo for '+it.name);
@@ -654,18 +682,25 @@ function openEditor(row, it){
     '<label>Name<input name="name" required></label>' +
     '<label>Price in colones (numbers only)<input name="price" type="number" min="0" step="50" required></label>' +
     '<label>Description (optional)<textarea name="desc" rows="2"></textarea></label>' +
+    (colorsReady ?
+      '<div class="swatchrow"><label>Side color on the POS <input name="color" type="color"></label>' +
+      '<label>Quick tab <select name="quick"><option value="auto">Automatic (top sellers)</option><option value="always">Always show</option><option value="never">Never show</option></select></label></div>'
+      : '') +
     '<div class="row"><button type="submit">Save</button>' +
     '<button type="button" class="ghost" data-x>Cancel</button>' +
     '<button type="button" class="danger" data-del style="margin-left:auto">Delete item</button></div>';
   box.name.value = it.name; box.price.value = it.price_crc; box.desc.value = it.description || '';
+  if (colorsReady){ box.color.value = it._color || '#5A3A1E'; box.quick.value = it.quick || 'auto'; }
   box.addEventListener('submit', async function(e){
     e.preventDefault();
-    var r = await db.from('menu_items').update({
+    var patch = {
       name: box.name.value.trim(),
       price_crc: parseInt(box.price.value, 10),
       description: box.desc.value.trim() || null,
       updated_at: new Date().toISOString()
-    }).eq('id', it.id);
+    };
+    if (colorsReady){ patch.color = box.color.value; patch.quick = box.quick.value; }
+    var r = await db.from('menu_items').update(patch).eq('id', it.id);
     if (r.error){ toast('Could not save. Try again.'); return; }
     toast('Saved'); loadMenu();
   });

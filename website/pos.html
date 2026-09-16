@@ -58,24 +58,38 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 .err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
 
 .app{display:grid;grid-template-columns:1fr 340px;height:100dvh}
-.left{display:flex;flex-direction:column;min-width:0}
+.left{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .topbar{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.6rem 1rem;background:var(--panel);border-bottom:1px solid var(--muted)}
 .topbar h1{font-size:1.1rem;margin-right:auto}
 .navlink{color:var(--sec);text-decoration:none;font-size:.85rem;font-weight:600;padding:.35em .6em;border-radius:8px}
 .navlink:hover{color:var(--accent);background:var(--canvas)}
 .chip{font-size:.75rem;font-weight:600;padding:.25em .8em;border-radius:99px;border:1.5px solid var(--muted)}
 .chip.on{color:var(--ok)} .chip.off{color:var(--bad)} .chip.pend{color:var(--gold)}
-.grid{flex:1;overflow-y:auto;padding:1rem}
-.grid h2{font-size:1rem;color:var(--sec);margin:.6rem 0 .5rem}
-.btns{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem}
-.pbtn{background:var(--panel);color:var(--ink);border:1.5px solid var(--muted);border-radius:14px;padding:.7em .8em;text-align:left;min-height:64px;display:flex;flex-direction:column;justify-content:space-between;gap:.3em}
-.pbtn:hover{background:#fff}
-.pbtn .p{font-family:'Spline Sans Mono',monospace;font-size:.85rem;color:var(--sec)}
+/* category bar: always in the same place; tap a category, its items fill the screen */
+.rail{display:flex;flex-wrap:wrap;gap:.45rem;padding:.7rem 1rem .4rem}
+.tab{min-height:46px;padding:.35em .95em;border-radius:12px;font-weight:700;font-size:.92rem;border:2px solid var(--c);background:var(--tint);color:var(--c);display:flex;align-items:center;gap:.45rem}
+.tab .dot{width:11px;height:11px;border-radius:50%;background:var(--c)}
+.tab.on{background:var(--c);color:#fff}
+.tab.on .dot{background:#fff}
+.tab .cnt{font-size:.72rem;font-weight:600;opacity:.8}
+.gridwrap{flex:1;min-height:0;overflow-y:auto;padding:.2rem 1rem 1rem}
+.gridhead{display:flex;align-items:baseline;gap:.8rem;margin:.3rem 0 .5rem}
+.gridhead h2{font-size:1.1rem;color:var(--c)}
+.gridhead .hint{font-size:.8rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem}
+.pbtn{min-height:76px;border-radius:14px;background:var(--tint);color:var(--ink);border:1.5px solid transparent;border-left:7px solid var(--c);text-align:left;padding:.6rem .8rem;display:flex;flex-direction:column;justify-content:space-between;gap:.3rem;box-shadow:0 1px 3px rgba(30,75,51,.08)}
+.pbtn:hover{background:var(--tint);filter:brightness(.97)}
+.pbtn:active{transform:scale(.97)}
+.pbtn .nm{font-weight:700;line-height:1.2}
+.pbtn .p{font-family:'Spline Sans Mono',monospace;font-size:.88rem;color:var(--cc);font-weight:600}
+.pbtn .tag{font-size:.68rem;font-weight:700;color:var(--cc);letter-spacing:.06em;text-transform:uppercase}
 
 .ticket{background:var(--panel);border-left:1px solid var(--muted);display:flex;flex-direction:column;min-height:0}
-.ticket h2{font-size:1.05rem;padding:0.9rem 1rem .5rem}
+.ticket h2{font-size:1.05rem;padding:0.9rem 1rem .5rem;display:flex;justify-content:space-between;align-items:baseline;gap:.6rem}
+.ticket h2 .sum{font-family:'Figtree',sans-serif;font-size:.82rem;color:var(--sec)}
 .lines{flex:1;overflow-y:auto;padding:0 1rem}
-.line{display:grid;grid-template-columns:1fr auto;gap:.5rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);align-items:center}
+.line{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);align-items:center}
+.line .cdot{width:10px;height:10px;border-radius:50%;background:var(--c, var(--muted))}
 .line .qbtns{display:flex;gap:.3rem;align-items:center}
 .line .qbtns button{min-height:32px;min-width:32px;padding:0;background:transparent;color:var(--accent);border:1.5px solid var(--muted);border-radius:8px;font-size:1rem}
 .line .nm{font-weight:600;font-size:.95rem}
@@ -85,7 +99,10 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 .trow.big{font-size:1.25rem;font-weight:700;color:var(--ink)}
 .payrow{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;padding:0 1rem .5rem}
 .payrow button{min-height:52px;font-size:.85rem}
-.payrow button:nth-child(4),.payrow button:nth-child(5){grid-column:span 1}
+.ticket .payrow{grid-template-columns:repeat(2,1fr)}
+.ticket .payrow button{min-height:54px;font-size:1rem;border:2px solid var(--pc);background:var(--pc);color:#fff}
+.ticket .payrow button.alt{background:#fff;color:var(--pc)}
+.ticket .payrow button:hover{filter:brightness(.95)}
 .util{display:flex;gap:.45rem;padding:0 1rem 1rem}
 .util button{flex:1}
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
@@ -104,7 +121,12 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 
 @media(max-width:860px){
   .app{grid-template-columns:1fr;grid-template-rows:1fr auto}
-  .ticket{border-left:none;border-top:2px solid var(--muted);max-height:45dvh}
+  .ticket{border-left:none;border-top:2px solid var(--muted);max-height:52dvh}
+  .ticket h2{cursor:pointer}
+  .ticket.collapsed .lines{display:none}
+  .ticket.collapsed{max-height:none}
+  .ticket .payrow{grid-template-columns:repeat(5,1fr)}
+  .ticket .payrow button{min-height:48px;font-size:.82rem}
 }
 
 /* printed receipt — hidden on screen, the only thing visible on paper */
@@ -144,31 +166,35 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
     <div class="topbar">
       <h1>The Hanging Garden</h1>
       <!-- DEPLOY STEP: on the real domain, switch these links to / /sales /admin /time -->
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a36d277a-4d0c-4849-83eb-00ab87b86a92.html">Home</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c0d4cb1e-5e66-4837-9675-7271874d6405.html">Sales</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c24cdd2-d918-4ee2-baa1-94f156cf9f27.html">Menu</a>
-      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c6a12384-46ec-4782-a908-a8364fb0b5b7.html">Time</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/36c139af-dfa0-4c37-b761-3c00b6700a07.html">Home</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/396bd665-30dd-47d0-a8da-838852a9f23e.html">Sales</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5b0e86c6-6fad-40a6-bd0b-660f00113a29.html">Menu</a>
+      <a class="navlink" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/d1b560d3-bc8e-4d2b-8da1-47329d437f1f.html">Time</a>
       <span class="chip on" id="netChip">online</span>
       <button class="ghost" id="ordersBtn">Orders</button>
       <button class="ghost" id="dayBtn">Today</button>
       <button class="ghost" id="outBtn">Sign out</button>
     </div>
     <div class="livebar" id="liveBar"></div>
-    <div class="grid" id="menuGrid"><p style="color:var(--sec)">Loading the menu…</p></div>
+    <div class="rail" id="rail"></div>
+    <div class="gridwrap">
+      <div class="gridhead"><h2 id="gridTitle"></h2><span class="hint" id="gridHint"></span></div>
+      <div class="grid" id="menuGrid"><p style="color:var(--sec)">Loading the menu…</p></div>
+    </div>
   </div>
   <div class="ticket">
-    <h2>Order</h2>
+    <h2 id="ticketHead">Order <span class="sum" id="ticketSum"></span></h2>
     <div class="lines" id="lines"><p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p></div>
     <div class="totals">
       <div class="trow"><span>Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
       <div class="trow big"><span>Total</span><span class="mono" id="totalAmt">₡0</span></div>
     </div>
     <div class="payrow">
-      <button data-pay="cash_crc">Cash ₡</button>
-      <button data-pay="cash_usd">Cash $</button>
-      <button data-pay="card">Card</button>
-      <button data-pay="sinpe">SINPE</button>
-      <button data-pay="other">Other</button>
+      <button data-pay="cash_crc" style="--pc:#2F6B3A">Cash ₡</button>
+      <button data-pay="cash_usd" style="--pc:#2F6B3A" class="alt">Cash $</button>
+      <button data-pay="card" style="--pc:#285F8A">Card</button>
+      <button data-pay="sinpe" style="--pc:#6B3FA0">SINPE</button>
+      <button data-pay="other" style="--pc:#54634F" class="alt">Other</button>
     </div>
     <div class="util">
       <button class="ghost" id="clearBtn">Clear order</button>
@@ -285,7 +311,11 @@ var MENU_CACHE = 'hg-pos-menu';
 async function loadMenu(){
   try{
     var r = await db.from('menu_categories')
-      .select('name,sort,kitchen,menu_items(id,name,price_crc,available,sort)').order('sort');
+      .select('name,sort,kitchen,color,menu_items(id,name,price_crc,available,sort,color,quick)').order('sort');
+    if (r.error && /color|quick/.test(r.error.message || '')){ /* POS layout SQL not run yet */
+      r = await db.from('menu_categories')
+        .select('name,sort,kitchen,menu_items(id,name,price_crc,available,sort)').order('sort');
+    }
     if (r.error && /kitchen/.test(r.error.message || '')){ /* kitchen SQL not run yet */
       r = await db.from('menu_categories')
         .select('name,sort,menu_items(id,name,price_crc,available,sort)').order('sort');
@@ -293,6 +323,7 @@ async function loadMenu(){
     if (r.error) throw r.error;
     localStorage.setItem(MENU_CACHE, JSON.stringify(r.data));
     renderMenu(r.data);
+    loadQuick();
   }catch(e){
     var cached = localStorage.getItem(MENU_CACHE);
     if (cached) renderMenu(JSON.parse(cached));
@@ -300,25 +331,83 @@ async function loadMenu(){
   }
 }
 var kitchenOf = {};   /* item id -> prepared in the kitchen? */
+var itemMeta = {};    /* item id -> {color, catColor, catName, quick} */
+var menuCats = [];    /* categories with their available items, in order */
+var currentTab = localStorage.getItem('hg-pos-tab') || 'Quick';
+var quickSales = null;   /* [{item_name, qty}] from the last 30 days, or null before the SQL runs */
+var QUICK_CACHE = 'hg-pos-quick';
+var PALETTE = ['#5A3A1E','#1B5F67','#7E3160','#8F4E12','#93392A','#9E4560','#1E4B33','#285F8A','#6B3FA0','#4A5A46','#7D5A1A','#2F6B3A'];
+var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3160','Sandwiches':'#8F4E12','Savory':'#93392A','Pastries & Cake':'#9E4560','Costa Rican Favorites':'#1E4B33','Adventure Box':'#285F8A','Extras & Combos':'#4A5A46'};
+function tint(hex){ var n = parseInt(String(hex).slice(1), 16); if (isNaN(n)) return 'rgba(30,75,51,.1)'; return 'rgba(' + (n>>16) + ',' + ((n>>8)&255) + ',' + (n&255) + ',.13)'; }
+
 function renderMenu(cats){
-  var g = document.getElementById('menuGrid');
-  g.textContent = '';
-  cats.forEach(function(cat){
-    (cat.menu_items || []).forEach(function(i){ kitchenOf[i.id] = !!cat.kitchen; });
+  menuCats = [];
+  cats.forEach(function(cat, ci){
+    var cc = cat.color || CAT_DEFAULT[cat.name] || PALETTE[ci % PALETTE.length];
     var items = (cat.menu_items||[]).filter(function(i){return i.available})
       .sort(function(a,b){return a.sort-b.sort||a.name.localeCompare(b.name)});
-    if (!items.length) return;
-    var h = document.createElement('h2'); h.textContent = cat.name; g.appendChild(h);
-    var wrap = document.createElement('div'); wrap.className = 'btns';
-    items.forEach(function(it){
-      var b = document.createElement('button'); b.className = 'pbtn';
-      var n = document.createElement('span'); n.textContent = it.name;
-      var p = document.createElement('span'); p.className = 'p'; p.textContent = fmt(it.price_crc);
-      b.appendChild(n); b.appendChild(p);
-      b.addEventListener('click', function(){ addLine(it); });
-      wrap.appendChild(b);
+    (cat.menu_items || []).forEach(function(i){ kitchenOf[i.id] = !!cat.kitchen; });
+    items.forEach(function(it, ii){
+      /* every item in a category gets its own side color; the tint stays the category's */
+      itemMeta[it.id] = {color: it.color || PALETTE[(ci * 5 + ii) % PALETTE.length], catColor: cc, catName: cat.name, quick: it.quick || 'auto'};
     });
-    g.appendChild(wrap);
+    if (items.length) menuCats.push({name: cat.name, color: cc, items: items});
+  });
+  renderRail(); renderGrid();
+}
+
+/* Quick tab: pinned items first, then the best sellers of the last 30 days */
+async function loadQuick(){
+  var r = await db.rpc('quick_items', {p_days: 30, p_limit: 12});
+  if (r.error){ try{ quickSales = JSON.parse(localStorage.getItem(QUICK_CACHE)) || null; }catch(e){ quickSales = null; } }
+  else { quickSales = r.data || []; localStorage.setItem(QUICK_CACHE, JSON.stringify(quickSales)); }
+  renderRail(); if (currentTab === 'Quick') renderGrid();
+}
+function quickItems(){
+  var all = []; menuCats.forEach(function(c){ c.items.forEach(function(it){ all.push(it); }); });
+  var byName = {}; all.forEach(function(it){ byName[it.name] = byName[it.name] || it; });
+  var out = all.filter(function(it){ return itemMeta[it.id].quick === 'always'; });
+  (quickSales || []).forEach(function(q){
+    var it = byName[q.item_name];
+    if (it && itemMeta[it.id].quick !== 'never' && out.indexOf(it) < 0) out.push(it);
+  });
+  return out.slice(0, 12);
+}
+function renderRail(){
+  var rail = document.getElementById('rail'); rail.textContent = '';
+  var tabs = [];
+  var q = quickItems();
+  if (q.length) tabs.push({name:'Quick', color:'#7D5A1A', count:q.length});
+  menuCats.forEach(function(c){ tabs.push({name:c.name, color:c.color, count:c.items.length}); });
+  if (!tabs.some(function(t){ return t.name === currentTab; })) currentTab = tabs.length ? tabs[0].name : 'Quick';
+  tabs.forEach(function(t){
+    var b = document.createElement('button'); b.className = 'tab' + (t.name === currentTab ? ' on' : '');
+    b.style.setProperty('--c', t.color); b.style.setProperty('--tint', tint(t.color));
+    var d = document.createElement('span'); d.className = 'dot'; b.appendChild(d);
+    b.appendChild(document.createTextNode(t.name));
+    var n = document.createElement('span'); n.className = 'cnt'; n.textContent = t.count; b.appendChild(n);
+    b.addEventListener('click', function(){ currentTab = t.name; localStorage.setItem('hg-pos-tab', t.name); renderRail(); renderGrid(); });
+    rail.appendChild(b);
+  });
+}
+function renderGrid(){
+  var g = document.getElementById('menuGrid'); g.textContent = '';
+  var head = document.getElementById('gridTitle'), hint = document.getElementById('gridHint');
+  var isQuick = currentTab === 'Quick';
+  var cat = isQuick ? {name:'Quick', color:'#7D5A1A', items: quickItems()} : menuCats.find(function(c){ return c.name === currentTab; });
+  if (!cat){ head.textContent = ''; hint.textContent = ''; return; }
+  head.textContent = cat.name; head.style.setProperty('--c', cat.color);
+  hint.textContent = isQuick ? 'your best sellers, updated from Sales · set Always or Never per item in the Menu Manager' : cat.items.length + ' items';
+  cat.items.forEach(function(it){
+    var m = itemMeta[it.id];
+    var b = document.createElement('button'); b.className = 'pbtn';
+    b.style.setProperty('--c', m.color); b.style.setProperty('--cc', m.catColor); b.style.setProperty('--tint', tint(m.catColor));
+    if (isQuick){ var t = document.createElement('span'); t.className = 'tag'; t.textContent = m.catName; b.appendChild(t); }
+    var n = document.createElement('span'); n.className = 'nm'; n.textContent = it.name;
+    var p = document.createElement('span'); p.className = 'p'; p.textContent = fmt(it.price_crc);
+    b.appendChild(n); b.appendChild(p);
+    b.addEventListener('click', function(){ addLine(it); });
+    g.appendChild(b);
   });
 }
 
@@ -337,6 +426,8 @@ function renderTicket(){
   }
   ticket.forEach(function(l, i){
     var row = document.createElement('div'); row.className = 'line';
+    row.style.setProperty('--c', (itemMeta[l.id] || {}).color || 'var(--muted)');
+    var dot = document.createElement('span'); dot.className = 'cdot'; row.appendChild(dot);
     var left = document.createElement('div');
     var nm = document.createElement('div'); nm.className='nm'; nm.textContent = l.name;
     var q = document.createElement('div'); q.className='qbtns';
@@ -352,10 +443,17 @@ function renderTicket(){
     box.appendChild(row);
   });
   var total = ticket.reduce(function(s,l){return s + l.price*l.qty}, 0);
+  var n = ticket.reduce(function(s,l){return s + l.qty}, 0);
   document.getElementById('totalAmt').textContent = fmt(total);
   document.getElementById('ivaAmt').textContent = fmt(Math.round(total - total/1.13));
+  document.getElementById('ticketSum').textContent = n ? n + (n === 1 ? ' item · ' : ' items · ') + fmt(total) : '';
 }
 document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; renderTicket(); });
+/* on a portrait tablet the order is a bottom panel: tap its title to fold the lines away, checkout stays visible */
+document.getElementById('ticketHead').addEventListener('click', function(){
+  if (innerWidth <= 860) document.querySelector('.ticket').classList.toggle('collapsed');
+});
+if (innerWidth <= 860) document.querySelector('.ticket').classList.add('collapsed');
 
 /* ---------- charge (record only) ---------- */
 var lastOrder = null;   /* the most recent sale, kept for reprinting */
