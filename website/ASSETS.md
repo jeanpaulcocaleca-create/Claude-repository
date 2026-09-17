@@ -30,27 +30,23 @@ sacks), then into the garden café where it lands beside the espresso machine an
 Raw generations (Seedance 2.5 job 05f0dba2 from realistic start frame 9c0ac672; 2K upscale
 job aec12a92) remain in the Higgsfield generation history and never ship.
 
-## Live pages (v15 — owner and café logins, sales behind a PIN, published from the repo)
+## Live pages (hanginggardencafe.com, published from the repo)
 
-The website and every staff page now publish from this repository: the `Publish website`
-workflow copies `website/` to the `gh-pages` branch on every push. GitHub Pages serves that
-branch, first at https://jeanpaulcocaleca-create.github.io/Claude-repository/ and then at
-https://hanginggardencafe.com once the domain points at GitHub (see the DNS notes in the
-last report). Pages link each other by file name, so the same build works on both hosts:
+The domain is live over HTTPS. The `Publish website` workflow copies `website/` to the
+`gh-pages` branch on every push and GitHub Pages serves it at https://hanginggardencafe.com
+(www redirects there). Pages link each other by file name.
 
-- Home (owner dashboard): home.html
-- Website: index.html (the root)
-- Menu Manager: admin.html
-- POS: pos.html
-- Sales (manager PIN to open): sales.html
-- Time clock: time.html
-- Kitchen screen: kitchen.html
-- Room ordering page: room.html?r=<room code>
-- TV menu board: tv.html
+- Website: https://hanginggardencafe.com/
+- Home (owner dashboard): https://hanginggardencafe.com/home.html
+- Menu Manager: https://hanginggardencafe.com/admin.html
+- POS: https://hanginggardencafe.com/pos.html
+- Sales (manager PIN to open): https://hanginggardencafe.com/sales.html
+- Time clock: https://hanginggardencafe.com/time.html
+- Kitchen screen: https://hanginggardencafe.com/kitchen.html
+- Room ordering page: https://hanginggardencafe.com/room.html?r=<room code> (the QR cards in the Menu Manager use this)
+- TV menu board: https://hanginggardencafe.com/tv.html
 
-Until the domain is live, the same v15 pages are also on CloudFront (built with absolute links
-between them; these are the links to use today). Once the domain is live, reprint the room QR
-cards and repoint the TV from the Menu Manager.
+Older CloudFront copies of the pages (kept only as a fallback; the domain is the address to use):
 
 - Home (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/1d54a49b-96c1-4e99-9bcd-077c4fd90c44.html
 - Website (v18, real logo, hours 6:00 to 19:00, WhatsApp): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/1bb4d5fa-ac65-40b2-a95d-efcd326b7024.html

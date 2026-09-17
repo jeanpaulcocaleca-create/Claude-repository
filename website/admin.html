@@ -369,7 +369,7 @@ var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3
 function catColor(cat, i){ return cat.color || CAT_DEFAULT[cat.name] || PALETTE[i % PALETTE.length]; }
 function itemColor(it, i, catIx){ return it.color || PALETTE[(catIx * 5 + i) % PALETTE.length]; }
 /* DEPLOY STEP: on the real domain this becomes https://<domain>/room */
-var ROOM_PAGE_URL = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b789e964-09c1-4c83-ad9d-db2fb9557f76.html';
+var ROOM_PAGE_URL = 'https://hanginggardencafe.com/room.html';
 var allItems = [];     /* every available item, for the combined slide picker */
 var groupRows = [];    /* the saved combined slides */
 var gEditing = null;   /* the slide being edited, or null for a new one */
