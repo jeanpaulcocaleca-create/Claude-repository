@@ -112,7 +112,7 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 @media(pointer:coarse){.navlinks a{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
 
 /* ===================== HERO (scrub) ===================== */
-.hero{position:relative;height:400vh}
+.hero{position:relative;height:320vh}
 .stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#241a10}
 .stage .poster{position:absolute;inset:0;background-size:cover;background-position:center}
 .stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s var(--ease);will-change:transform;transform:translateZ(0)}
@@ -128,15 +128,19 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 .band .inner::before{content:"";position:absolute;inset:-1.8rem -2.2rem;z-index:-1;pointer-events:none;
   border-radius:28px;background:rgba(8,12,6,.72);filter:blur(18px);
   opacity:calc(.3 + .7*var(--k,1))}
-.band.settle .inner::before{inset:-2.2rem -2.8rem;background:rgba(8,12,6,.78)}
+.band.settle .inner::before{inset:-1.1rem -1.5rem;background:rgba(8,12,6,.6);filter:blur(14px)}
 .band h1,.band h2{font-size:clamp(2rem,4.6vw,3.6rem);color:#F6EFE3}
 .band p{font-size:clamp(1rem,1.6vw,1.25rem);color:#EFE4D2}
 .band.right{justify-content:flex-end;text-align:right}
 .band::before{content:"";position:absolute;inset:-4%;pointer-events:none;opacity:calc(.25 + .75*var(--k,1));
   background:radial-gradient(ellipse 60% 55% at 24% 50%,rgba(12,8,4,.66) 0%,rgba(12,8,4,.44) 46%,rgba(12,8,4,0) 76%)}
 .band.right::before{background:radial-gradient(ellipse 60% 55% at 76% 50%,rgba(12,8,4,.66) 0%,rgba(12,8,4,.44) 46%,rgba(12,8,4,0) 76%)}
-.band.settle{justify-content:center;text-align:center}
-.band.settle::before{background:radial-gradient(ellipse 88% 66% at 50% 44%,rgba(12,8,4,.88) 0%,rgba(12,8,4,.66) 50%,rgba(12,8,4,0) 82%)}
+.band.settle{align-items:flex-end;justify-content:flex-start;text-align:left;padding-bottom:8svh}
+.band.settle .inner{max-width:none}
+.band.settle h1{font-size:clamp(1.5rem,2.5vw,2.15rem);line-height:1.12;max-width:11ch}
+.band.settle p{font-size:clamp(.92rem,1.15vw,1.05rem);max-width:30ch}
+.band.settle .btn{padding:.7em 1.4em;font-size:.95rem}
+.band.settle::before{background:radial-gradient(ellipse 42% 46% at 12% 96%,rgba(12,8,4,.78) 0%,rgba(12,8,4,.46) 46%,rgba(12,8,4,0) 76%)}
 .band .btn{text-shadow:none}
 
 /* entrances: blur-to-sharp */
@@ -149,7 +153,7 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 /* approach-from-depth */
 .b3 .inner>*{opacity:var(--k,0);transform:scale(calc(.85 + .15*var(--k,0)))}
 /* staged settle */
-.b4 .slogo{width:84px;height:84px;border-radius:50%;margin:0 auto .9rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45);opacity:clamp(0,(var(--k,0) - .4)*3,1)}
+.b4 .slogo{width:56px;height:56px;border-radius:50%;margin:0 0 .6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45);opacity:clamp(0,(var(--k,0) - .4)*3,1)}
 .b4 h1 .w{--kc:clamp(0,(var(--k,0) - var(--th,0))*3,1);opacity:var(--kc);transform:translateY(calc((1 - var(--kc))*26px))}
 .b4 .sub{opacity:clamp(0,(var(--k,0) - .55)*3.2,1);transform:translateY(calc((1 - clamp(0,(var(--k,0) - .55)*3.2,1))*14px))}
 .b4 .ctarow{opacity:clamp(0,(var(--k,0) - .72)*4,1);pointer-events:auto}
@@ -159,10 +163,11 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 @media(pointer:coarse){.btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
 
 /* static hero (five gates; keep identical to JS) */
-.static-hero{display:none;position:relative;min-height:92svh;align-items:flex-end;background:#241a10 center/cover no-repeat;padding:0 6vw 14svh}
-.static-hero .inner{color:#F6EFE3;text-shadow:var(--tshadow);max-width:34ch}
-.static-hero h1{font-size:clamp(2.2rem,9vw,3.4rem);color:#F6EFE3}
-.static-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,10,5,.15),rgba(15,10,5,.68) 85%)}
+.static-hero{display:none;position:relative;min-height:92svh;align-items:flex-end;background:#241a10 center/cover no-repeat;padding:0 6vw 9svh}
+.static-hero .inner{color:#F6EFE3;text-shadow:var(--tshadow);max-width:none}
+.static-hero h1{font-size:clamp(1.6rem,7vw,2.4rem);line-height:1.12;color:#F6EFE3;max-width:11ch}
+.static-hero p{font-size:clamp(.95rem,4vw,1.05rem);max-width:30ch}
+.static-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,10,5,0) 52%,rgba(15,10,5,.62) 100%)}
 .static-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s ease}
 .static-hero video.on{opacity:1}
 .static-hero .inner{position:relative;z-index:1}
@@ -309,7 +314,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 @keyframes sway{from{rotate:-1.1deg}to{rotate:1.1deg}}
 @media(max-width:720px){.deco{width:92px;opacity:.75}.deco.qz{display:none}}
 
-.static-hero .slogo-static{width:72px;height:72px;border-radius:50%;margin-bottom:1rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45)}
+.static-hero .slogo-static{width:54px;height:54px;border-radius:50%;margin-bottom:.6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45)}
 
 /* Garden Guide chat */
 .chatfab{position:fixed;right:1.1rem;bottom:1.1rem;z-index:60;width:60px;height:60px;border-radius:50%;
@@ -374,22 +379,19 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     <video id="hv" preload="none" muted playsinline aria-hidden="true" tabindex="-1"></video>
     <div class="scrim" aria-hidden="true"></div>
 
-    <div class="band b1" data-a="0.00" data-b="0.08">
+    <div class="band b1" data-a="0.00" data-b="0.10">
       <div class="inner">
         <span class="soft" aria-hidden="true"><h2>Follow the quetzal.</h2></span>
         <span class="sharp"><h2>Follow the quetzal.</h2></span>
       </div>
     </div>
-    <div class="band b2 right" data-a="0.10" data-b="0.22">
-      <div class="inner"><h2 data-split>Over the cloud forest.</h2></div>
-    </div>
-    <div class="band b3" data-a="0.24" data-b="0.36">
+    <div class="band b3" data-a="0.14" data-b="0.32">
       <div class="inner"><h2>Through the coffee harvest.</h2></div>
     </div>
-    <div class="band b5 right" data-a="0.44" data-b="0.66">
+    <div class="band b5 right" data-a="0.40" data-b="0.62">
       <div class="inner"><h2 data-split>Home to the garden.</h2></div>
     </div>
-    <div class="band b4 settle" data-a="0.76" data-b="1.00">
+    <div class="band b4 settle" data-a="0.74" data-b="1.00">
       <div class="inner">
         <img class="slogo" src="assets/logo-badge.svg" alt="">
         <h1 data-split>The Hanging Garden Café</h1>
@@ -646,7 +648,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 <script>
 /* ============ config ============ */
 var VIDEO_URL = 'assets/hero-scrub.mp4';
-var VIDEO_BYTES = 16764117;
+var VIDEO_BYTES = 14115316;
 var POSTER_URL = 'assets/hero-poster.jpg';
 var ENDING_URL = 'assets/hero-ending.jpg';
 var MOBILE_VIDEO_URL = 'assets/hero-mobile.mp4';
