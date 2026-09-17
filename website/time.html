@@ -368,7 +368,7 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer = setTimeout(function(){t.classList.remove('show')},2600);
 }
 function isMissingTables(err){
-  return err && /does not exist|schema cache|could not find/i.test(err.message || '');
+  return err && /relation .* does not exist|schema cache|could not find the function/i.test(err.message || '');
 }
 function showSetup(){
   document.getElementById('appView').hidden = true;
@@ -444,7 +444,7 @@ var ERR = {
 function errMsg(r){
   if (r.error){
     if (isMissingTables(r.error)) return 'The manager approval setup has not been run in Supabase yet.';
-    return 'Could not save. Check the connection and try again.';
+    return 'Could not save: ' + ((r.error.message || 'no connection').replace(/^.*?(function|column|relation) /i, '$1 ').slice(0, 160));
   }
   var code = r.data && r.data.error;
   return ERR[code] || 'Could not save. Try again.';

@@ -55,7 +55,7 @@ create index if not exists audit_log_at_idx on public.audit_log (at desc);
 -- Five wrong PINs in a row lock that person out for 10 minutes.
 create or replace function public._verify_pin(p_staff_id uuid, p_pin text, p_need_manager boolean,
                                               out err text, out sid uuid, out sname text)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare s public.staff;
 begin
   select * into s from public.staff where id = p_staff_id;
@@ -154,7 +154,7 @@ end $$;
 -- manager's PIN, and the last active manager can never be removed or demoted.
 create or replace function public.manager_save_staff(p_manager_id uuid, p_manager_pin text,
     p_id uuid, p_name text, p_pin text, p_active boolean, p_role text)
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare v record; bootstrap boolean; nid uuid; role_final text; old public.staff;
         managers_left int; msid uuid; msname text;
 begin

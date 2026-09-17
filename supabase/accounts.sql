@@ -188,7 +188,7 @@ grant execute on function public.hours_report(uuid, text, timestamptz, timestamp
 -- 5) Team changes: owner login only ------------------------------------------
 create or replace function public.manager_save_staff(p_manager_id uuid, p_manager_pin text,
     p_id uuid, p_name text, p_pin text, p_active boolean, p_role text)
-returns jsonb language plpgsql security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare v record; bootstrap boolean; nid uuid; role_final text; old public.staff;
         managers_left int; msid uuid; msname text;
 begin
