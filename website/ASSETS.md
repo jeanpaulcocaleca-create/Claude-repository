@@ -14,7 +14,8 @@ URL into `website/assets/` under the name in the left column.
 | assets/gal-2.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fcb7d720-2dbe-45f0-88e6-a641e8408aab.jpg |
 | assets/gal-3.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f3bf5267-3592-44d3-9e8a-a491b69eff40.jpg |
 | assets/gal-4.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/ec6253b8-490a-4dab-9f41-46051d76e168.jpg |
-| assets/logo-badge.svg (round green badge, cup + steam, used site-wide) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/62fce9c4-ecce-4fff-a738-2844085bd420.svg |
+| assets/logo.png (the real Hanging Garden Café logo, 2048 px, transparent outside the circle, used site-wide) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png |
+| assets/logo-512.png (same logo at 512 px: favicon and home-screen icon) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cbafe712-72c1-4ab4-b8cb-715ff9c5c120.png |
 | assets/deco-sprig.png (foliage page framing) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a7a774e2-b2ff-49db-bb82-9621dba3a00c.png |
 | assets/deco-quetzal.png (bird page framing + chat avatar) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5f81fe73-ded5-4ef6-84ff-47c01b39abcd.png |
 | assets/quetzal.jpg (story section, soul_2 job 19052895) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/09b4a947-54f3-44ea-b6fe-cce8fbc9c427.jpg |
@@ -52,7 +53,7 @@ between them; these are the links to use today). Once the domain is live, reprin
 cards and repoint the TV from the Menu Manager.
 
 - Home (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/1d54a49b-96c1-4e99-9bcd-077c4fd90c44.html
-- Website (v17, shorter film, ending block in the corner): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/0ac0fce2-0486-4750-916a-e19d46fb631c.html
+- Website (v18, real logo, hours 6:00 to 19:00, WhatsApp): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/1bb4d5fa-ac65-40b2-a95d-efcd326b7024.html
 - Menu Manager (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/2c0985b0-f155-466a-a1b0-e96104a4f2e7.html
 - POS (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/221d75a3-249b-4741-90b2-b091705ecd6e.html
 - Sales (v15): https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/92f2e118-06a6-4e88-93ca-c49927cfa765.html
@@ -87,6 +88,6 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot),
 06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots), 3d6d6aed/8d1d85da (v12 QA),
 acc489ae/492eb1b6/9bddf539/e85d9893/5bcd69c6 (v12 pages), 1134c843/097c9722/192daf95/34c1b399/8faa2c9c (v13 QA),
-8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA), d8012aa6/5c5c6197/b24e3583/dcfa70ad/fe546b23/f7f2c256 (v15 QA), 36c139af/396bd665/5b0e86c6/ea738b4e/d1b560d3 (v14 pages), 6ef92316 (site v10), 4ddb50c9/9fd0edc0/9220fe24 (film v3 assets), 417a39e3/0b3250a2 (film v4), f0fe9ae6 (site v16), 3c90a450 (v17 QA),
+8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA), d8012aa6/5c5c6197/b24e3583/dcfa70ad/fe546b23/f7f2c256 (v15 QA), 36c139af/396bd665/5b0e86c6/ea738b4e/d1b560d3 (v14 pages), 6ef92316 (site v10), 4ddb50c9/9fd0edc0/9220fe24 (film v3 assets), 417a39e3/0b3250a2 (film v4), f0fe9ae6 (site v16), 3c90a450 (v17 QA), 0ac0fce2 (site v17), 62fce9c4 (drawn badge, replaced by the real logo),
 bc00deeb/edb9e04d/00b4983e/7a0e2b48/ca89d0ef/c7309f20 (v10 pages), 3d6d6aed/8d1d85da (v12 QA slots),
 a4be43a7/e42b0085/4a220491/7c2da9c5/d7fa2327 (v11 pages superseded by v12; tv 432efc2c and site 6ef92316 unchanged).

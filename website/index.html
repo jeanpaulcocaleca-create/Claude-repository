@@ -12,8 +12,6 @@
 <meta property="og:image" content="https://hanginggardencafe.com/assets/hero-ending.jpg">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="The Hanging Garden Café">
-<!-- DEPLOY STEP: in the JSON-LD below, set url + image to the live domain,
-     confirm openingHours and telephone, and fine-tune the geo pin. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -22,6 +20,8 @@
   "description": "A coffee experience in the cloud forest: slow chorreador coffee, garden seating, and fresh pastries in Monteverde, Costa Rica.",
   "url": "https://hanginggardencafe.com/",
   "image": "https://hanginggardencafe.com/assets/hero-ending.jpg",
+  "logo": "https://hanginggardencafe.com/assets/logo.png",
+  "telephone": "+506 6400 6601",
   "servesCuisine": ["Coffee", "Pastries", "Café"],
   "priceRange": "₡₡",
   "currenciesAccepted": "CRC, USD",
@@ -40,12 +40,13 @@
   "openingHoursSpecification": [{
     "@type": "OpeningHoursSpecification",
     "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-    "opens": "07:00",
-    "closes": "17:00"
+    "opens": "06:00",
+    "closes": "19:00"
   }]
 }
 </script>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%236B4222' stroke-width='7'/%3E%3Cpath d='M38 12c-3 6 3 8 0 14M52 12c-3 6 3 8 0 14' fill='none' stroke='%236B4222' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="assets/logo-512.png">
+<link rel="apple-touch-icon" href="assets/logo-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Figtree:wght@400;600&family=Dancing+Script:wght@600&family=Spline+Sans+Mono:wght@400&display=swap">
@@ -287,6 +288,9 @@ section .lede{max-width:58ch;color:var(--text-secondary);font-size:1.08rem}
 .hours{list-style:none;margin:1rem 0 0;padding:0}
 .hours li{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px dotted var(--accent-muted)}
 .hours .t{font-family:'Spline Sans Mono',monospace;font-size:.9rem;font-variant-numeric:tabular-nums}
+.hours .t a{color:var(--accent)}
+.visit-btns{margin-top:2rem;display:flex;flex-wrap:wrap;gap:.6rem}
+.btn-wa{background:#1F8F86}.btn-wa:hover{background:#176F68}
 .map{border-radius:16px;overflow:hidden;background:var(--panel);min-height:320px}
 .map iframe{width:100%;height:100%;min-height:320px;border:0;display:block}
 
@@ -393,7 +397,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     </div>
     <div class="band b4 settle" data-a="0.74" data-b="1.00">
       <div class="inner">
-        <img class="slogo" src="assets/logo-badge.svg" alt="">
+        <img class="slogo" src="assets/logo.png" alt="">
         <h1 data-split>The Hanging Garden Café</h1>
         <p class="sub">Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
         <p class="ctarow"><a class="btn" href="#visit">Plan your visit</a></p>
@@ -411,7 +415,7 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 <header class="static-hero" id="staticHero">
   <video id="mobileFilm" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
   <div class="inner">
-    <img class="slogo-static" src="assets/logo-badge.svg" alt="">
+    <img class="slogo-static" src="assets/logo.png" alt="">
     <h1>The Hanging Garden Café</h1>
     <p>Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
     <p><a class="btn" href="#visit">Plan your visit</a></p>
@@ -596,10 +600,10 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
       <div class="part">
         <p class="lede">Find us in Monteverde, on the road through Santa Elena, Puntarenas, Costa Rica. Come before the forest walk or after the hanging bridges. The coffee waits either way.</p>
         <ul class="hours">
-          <li><span>Monday to Saturday</span><span class="t">7:00 – 18:00</span></li>
-          <li><span>Sunday</span><span class="t">8:00 – 17:00</span></li>
+          <li><span>Every day</span><span class="t">6:00 – 19:00</span></li>
+          <li><span>WhatsApp</span><span class="t"><a href="https://wa.me/50664006601" target="_blank" rel="noopener">+506 6400 6601</a></span></li>
         </ul>
-        <p style="margin-top:2rem"><a class="btn" href="https://www.google.com/maps/search/The+Hanging+Garden+Cafe+Monteverde" target="_blank" rel="noopener">Get directions</a></p>
+        <p class="visit-btns"><a class="btn" href="https://www.google.com/maps/search/The+Hanging+Garden+Cafe+Monteverde" target="_blank" rel="noopener">Get directions</a> <a class="btn btn-wa" href="https://wa.me/50664006601" target="_blank" rel="noopener">Message us on WhatsApp</a></p>
       </div>
       <div class="map part">
         <iframe title="Map of The Hanging Garden Café, Monteverde" loading="lazy"
@@ -1017,8 +1021,11 @@ addEventListener('scroll',function(){
      en:'Pura vida! Enjoy the clouds, and come see us soon.',
      es:'¡Pura vida! Disfruta las nubes y ven a visitarnos pronto.'},
     {id:'hours', t:['hours','open','close','closing','opening','schedule','what time','when do you','horario','abren','cierran','a que hora','hora abren'],
-     en:'We are open every day. Monday to Saturday 7:00 to 18:00, Sunday 8:00 to 17:00.',
-     es:'Abrimos todos los días. Lunes a sábado de 7:00 a 18:00, domingo de 8:00 a 17:00.'},
+     en:'We are open every day from 6:00 in the morning to 7:00 in the evening.',
+     es:'Abrimos todos los días de 6:00 de la mañana a 7:00 de la noche.'},
+    {id:'contact', t:['phone','whatsapp','contact','call','number','message','telefono','teléfono','contacto','llamar','numero','número','mensaje'],
+     en:'The quickest way to reach us is WhatsApp: +506 6400 6601. We answer during opening hours.',
+     es:'La forma más rápida de contactarnos es WhatsApp: +506 6400 6601. Respondemos en horario de atención.'},
     {id:'location', t:['where are you','location','address','find you','get there','directions','how do i get','map','como llego','donde estan','donde queda','direccion','ubicacion','llegar'],
      en:'We are in Monteverde, on the road through Santa Elena, Puntarenas. The map in the Visit section of this page takes you right to our door.',
      es:'Estamos en Monteverde, sobre el camino de Santa Elena, Puntarenas. El mapa en la sección Visit de esta página te lleva hasta la puerta.'},
@@ -1175,6 +1182,7 @@ addEventListener('scroll',function(){
   var CHIPS = [
     {en:'Hours', es:'Horario', q:{en:'What are your hours?', es:'¿Cuál es el horario?'}},
     {en:'How to find us', es:'Cómo llegar', q:{en:'How do I get there?', es:'¿Cómo llego?'}},
+    {en:'WhatsApp', es:'WhatsApp', q:{en:'How can I contact you?', es:'¿Cómo los contacto?'}},
     {en:'Adventure Box', es:'Adventure Box', q:{en:'What is the Adventure Box?', es:'¿Qué es la Adventure Box?'}},
     {en:'Weather', es:'Clima', q:{en:'What is the weather like?', es:'¿Cómo está el clima?'}},
     {en:'Quetzals', es:'Quetzales', q:{en:'Where can I see a quetzal?', es:'¿Dónde puedo ver un quetzal?'}}
