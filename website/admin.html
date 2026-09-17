@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu Manager · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-hover:#143726; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.wrap{max-width:680px;margin:0 auto;padding:1.2rem 1rem 5rem}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.6rem 0 1rem}
+header h1{font-size:1.4rem}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:.55em 1em;background:var(--accent);color:#fff;font-weight:600;min-height:44px}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
+button.danger{background:transparent;color:var(--bad);border:1.5px solid var(--muted)}
+input,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;width:100%}
+input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem;box-shadow:0 2px 14px rgba(30,75,51,.07);margin-bottom:1rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center}
+.login .cup{width:56px;margin:0 auto 1rem;color:var(--accent)}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.cat h2{font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.4rem}
+.item{display:grid;grid-template-columns:52px 1fr auto;gap:.8rem;align-items:center;padding:.7rem 0;border-bottom:1px dotted var(--muted)}
+.item:last-of-type{border-bottom:none}
+.item .ph{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--canvas);border:1px solid var(--muted);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1.3rem;overflow:hidden;cursor:pointer;padding:0}
+.item .ph img{width:100%;height:100%;object-fit:cover}
+.item .nm{font-weight:600}
+.item .pr{font-size:.9rem;color:var(--sec)}
+.item.off .nm,.item.off .pr{opacity:.45;text-decoration:line-through}
+.acts{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
+.toggle{border:1.5px solid var(--muted);background:#fff;color:var(--ok);min-height:36px;padding:.3em .7em;font-size:.85rem;border-radius:99px}
+.toggle.off{color:var(--bad)}
+.addrow{margin-top:.8rem}
+.editbox{grid-column:1/-1;background:#fff;border:1.5px solid var(--muted);border-radius:12px;padding:.9rem;display:grid;gap:.6rem}
+.editbox label{font-size:.8rem;color:var(--sec)}
+.editbox .row{display:flex;gap:.6rem}
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.hint{font-size:.85rem;color:var(--sec)}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent;min-height:0}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+.gslide{display:flex;gap:.8rem;align-items:center;padding:.7rem 0;border-bottom:1px dotted var(--muted)}
+.gslide:last-of-type{border-bottom:none}
+.gslide .thumbs{display:flex;gap:3px;flex:0 0 auto}
+.gslide .thumbs img{width:34px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--muted)}
+.gslide .gt{flex:1;min-width:0}
+.gslide .gt .nm{font-weight:600}
+.gslide .gt .sub{font-size:.8rem;color:var(--sec);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:.5rem;max-height:44vh;overflow:auto;padding:.2rem;border:1.5px solid var(--muted);border-radius:12px;background:var(--canvas)}
+.pick{position:relative;border:2px solid transparent;border-radius:10px;background:#fff;padding:0;overflow:hidden;min-height:0;cursor:pointer;text-align:left}
+.pick img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}
+.pick .cap{display:block;font-size:.72rem;color:var(--ink);padding:.3em .4em;line-height:1.25;font-weight:600}
+.pick[aria-pressed="true"]{border-color:var(--accent)}
+.pick[aria-pressed="true"]::after{content:"\2713";position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:.8rem;display:flex;align-items:center;justify-content:center}
+.catline{display:flex;align-items:center;gap:.6rem;font-size:.8rem;color:var(--sec);margin:-.2rem 0 .5rem}
+.catline input{width:auto}
+.catline input[type=color]{width:34px;height:26px;padding:0;border:1.5px solid var(--muted);border-radius:6px;background:#fff;cursor:pointer}
+.editbox .swatchrow{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap}
+.editbox .swatchrow input[type=color]{width:44px;height:34px;padding:0;border:1.5px solid var(--muted);border-radius:8px;background:#fff}
+.editbox select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em}
+.roomrow{display:flex;align-items:center;gap:.7rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);font-size:.9rem}
+.roomrow:last-child{border-bottom:none}
+.roomrow .rn{font-weight:700;min-width:6.5em}
+.roomrow .code{font-family:'Spline Sans Mono',monospace;color:var(--sec);flex:1}
+#cards{display:none}
+@media print{
+  body{background:#fff}
+  body > *{display:none !important}
+  #cards{display:grid !important;grid-template-columns:1fr 1fr;gap:10mm;padding:8mm}
+  .qcard{border:1.5px solid #1E4B33;border-radius:6mm;padding:8mm 6mm;text-align:center;page-break-inside:avoid;color:#26392C;font-family:'Figtree',system-ui,sans-serif}
+  .qcard img.badge{width:18mm;height:18mm}
+  .qcard h3{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:15pt;margin:2mm 0 0}
+  .qcard .room{font-size:24pt;font-weight:700;color:#1E4B33;margin:1mm 0 3mm}
+  .qcard img.qr{width:48mm;height:48mm;image-rendering:pixelated}
+  .qcard .say{font-size:9.5pt;margin-top:3mm;line-height:1.35}
+  .qcard .say b{display:block}
+  .qcard .url{font-size:6.5pt;color:#54634F;margin-top:2mm;word-break:break-all}
+}
+[hidden]{display:none !important}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loginView" class="login card" hidden>
+    <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
+    <h1>Menu Manager</h1>
+    <p class="hint">The Hanging Garden Café</p>
+    <form id="loginForm">
+      <label for="em">Email</label>
+      <input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button type="submit" id="loginBtn">Sign in</button>
+      <p class="err" id="loginErr"></p>
+    </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+  </div>
+<div id="cafeView" class="login" hidden>
+  <h1>Menu Manager</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <a class="ghost btnlink" href="time.html">Time clock</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
+
+  <div id="appView" hidden>
+    <nav class="pagenav" aria-label="Café pages">
+      <a href="home.html">Home</a>
+      <span class="here">Menu Manager</span>
+      <a href="pos.html">POS</a>
+      <a href="sales.html">Sales</a>
+      <a href="time.html">Time clock</a>
+      <a href="tv.html" target="_blank" rel="noopener">TV board</a>
+      <a href="index.html" target="_blank" rel="noopener">Website</a>
+    </nav>
+    <header>
+      <h1>Menu Manager</h1>
+      <button class="ghost small" id="signOut">Sign out</button>
+    </header>
+    <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow, or combine several items into one slide below.</p>
+
+    <div class="card" id="tvCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">TV board</h2>
+      <div id="tvNotReady" class="hint" hidden>Run the TV board SQL once in Supabase and these controls switch on.</div>
+      <form id="tvForm" style="display:grid;gap:.8rem">
+        <label class="hint">What the TV shows
+          <select id="tvMode" style="font:inherit;width:100%;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;background:#fff;color:var(--ink)">
+            <option value="cycle">Menu + product slideshow (recommended)</option>
+            <option value="menu">Menu only</option>
+            <option value="promo">Product slideshow only</option>
+          </select>
+        </label>
+        <label class="hint">Screen direction
+          <select id="tvRot" style="font:inherit;width:100%;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;background:#fff;color:var(--ink)">
+            <option value="auto">Automatic (follows the screen)</option>
+            <option value="landscape">Always horizontal</option>
+            <option value="portrait_left">Vertical · TV turned to the left</option>
+            <option value="portrait_right">Vertical · TV turned to the right</option>
+          </select>
+        </label>
+        <div style="display:flex;gap:.8rem">
+          <label class="hint" style="flex:1">Menu stays for (seconds)
+            <input id="tvMenuSec" type="number" min="5" max="600" step="5">
+          </label>
+          <label class="hint" style="flex:1">Each slide stays for (seconds)
+            <input id="tvSlideSec" type="number" min="3" max="120" step="1">
+          </label>
+        </div>
+        <label class="hint">Message at the bottom of the menu
+          <input id="tvTagline" maxlength="120">
+        </label>
+        <div><button type="submit">Save TV board settings</button></div>
+      </form>
+    </div>
+
+    <div class="card" id="groupCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">Combined slides</h2>
+      <p class="hint" style="margin:0 0 .8rem">Pick 2 to 8 items and the TV shows them together in one picture, built from their photos. Nothing to upload.</p>
+      <div id="groupNotReady" class="hint" hidden>Run the combined slides SQL once in Supabase and this section switches on.</div>
+      <div id="groupBody" hidden>
+        <div id="groupList"></div>
+        <button class="ghost small addrow" id="groupNew">+ New combined slide</button>
+        <form id="groupForm" class="editbox" style="margin-top:.8rem" hidden>
+          <label>Slide title
+            <input id="gTitle" maxlength="60" placeholder="Sweet Favorites" required>
+          </label>
+          <label>Small line above the title (optional)
+            <input id="gKicker" maxlength="60" placeholder="From the pastry case">
+          </label>
+          <div>
+            <div class="hint" style="margin-bottom:.35rem" id="gCount">Pick 2 to 8 items</div>
+            <div class="picker" id="gPicker"></div>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <div style="display:flex;gap:.6rem">
+              <button type="submit">Save slide</button>
+              <button type="button" class="ghost" id="gCancel">Cancel</button>
+            </div>
+            <button type="button" class="danger" id="gDelete" hidden>Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card" id="kitchenCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">Kitchen, pickup numbers and rooms</h2>
+      <div id="kitchenNotReady" class="hint" hidden>Run the kitchen and rooms SQL once in Supabase and this section switches on.</div>
+      <div id="kitchenBody" hidden>
+        <p class="hint" style="margin:0 0 .8rem">Each category below has a "prepared in the kitchen" switch. Orders with kitchen items show on the Kitchen screen.</p>
+        <form id="setForm" style="display:grid;gap:.8rem">
+          <div style="display:flex;gap:.8rem">
+            <label class="hint" style="flex:1">Number stands you own (1 to…)
+              <input id="setStands" type="number" min="1" max="99">
+            </label>
+            <label class="hint" style="flex:1">Out of service (e.g. 4, 9)
+              <input id="setOut" placeholder="none">
+            </label>
+          </div>
+          <label class="hint" style="display:flex;align-items:center;gap:.5rem">
+            <input id="setRoomOn" type="checkbox" style="width:auto"> Guests can order from their rooms
+          </label>
+          <div style="display:flex;gap:.8rem">
+            <label class="hint" style="flex:1">Room ordering opens
+              <input id="setOpen" type="time">
+            </label>
+            <label class="hint" style="flex:1">and closes
+              <input id="setClose" type="time">
+            </label>
+          </div>
+          <div><button type="submit">Save settings</button></div>
+        </form>
+        <h3 style="font-size:1rem;margin:1.2rem 0 .4rem">Room cards</h3>
+        <p class="hint" style="margin:0 0 .5rem">Each room has a private code inside its QR. If a card gets photographed or lost, tap New code and reprint that one card.</p>
+        <div id="roomList"></div>
+        <div style="display:flex;gap:.6rem;margin-top:.8rem;flex-wrap:wrap">
+          <button class="ghost small" id="printCards">Print all room cards</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cats"></div>
+  </div>
+  <div id="cards" aria-hidden="true"></div>
+
+</div>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="photoInput" accept="image/*" hidden>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+/* phone code (2FA): needed when this login enrolled one and this session has not typed it yet */
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+/* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
+  document.addEventListener(ev, armIdle, {passive: true});
+});
+
+var loginView = document.getElementById('loginView');
+var appView = document.getElementById('appView');
+var toastEl = document.getElementById('toast');
+var photoInput = document.getElementById('photoInput');
+var photoTargetItem = null;
+var toastTimer = null;
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){toastEl.classList.remove('show')}, 2600);
+}
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  var needCode = authed && await codeNeeded();
+  loginView.hidden = authed && !needCode;
+  document.getElementById('loginForm').hidden = needCode;
+  document.getElementById('codeForm').hidden = !needCode;
+  document.getElementById('cafeView').hidden = true;
+  appView.hidden = !authed || needCode;
+  if (needCode){ document.getElementById('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (isCafeLogin()){ showCafeView(); return; }
+  armIdle();
+  loadMenu();
+}
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode(document.getElementById('codeIn').value.trim());
+  if (r.error){ document.getElementById('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  document.getElementById('codeIn').value = '';
+  refreshAuth();
+});
+
+document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+function showCafeView(){
+  document.getElementById('cafeMsg').textContent = ACCOUNT === 'none'
+    ? 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.'
+    : 'This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.';
+  document.getElementById('cafeView').hidden = false;
+  document.getElementById('appView').hidden = true;
+}
+
+
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  btn.disabled = false; btn.textContent = 'Sign in';
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work. Check the email and password.'; return; }
+  refreshAuth();
+});
+document.getElementById('signOut').addEventListener('click', async function(){
+  await db.auth.signOut(); refreshAuth();
+});
+
+var tvReady = true;    /* false until the TV board SQL has been run */
+var groupsReady = false; /* true once the combined slides SQL has been run */
+var kitchenReady = false; /* true once the kitchen and rooms SQL has been run */
+var colorsReady = false;  /* true once the POS layout SQL has been run */
+var PALETTE = ['#5A3A1E','#1B5F67','#7E3160','#8F4E12','#93392A','#9E4560','#1E4B33','#285F8A','#6B3FA0','#4A5A46','#7D5A1A','#2F6B3A'];
+var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3160','Sandwiches':'#8F4E12','Savory':'#93392A','Pastries & Cake':'#9E4560','Costa Rican Favorites':'#1E4B33','Adventure Box':'#285F8A','Extras & Combos':'#4A5A46'};
+function catColor(cat, i){ return cat.color || CAT_DEFAULT[cat.name] || PALETTE[i % PALETTE.length]; }
+function itemColor(it, i, catIx){ return it.color || PALETTE[(catIx * 5 + i) % PALETTE.length]; }
+/* DEPLOY STEP: on the real domain this becomes https://<domain>/room */
+var ROOM_PAGE_URL = 'https://hanginggardencafe.com/room.html';
+var allItems = [];     /* every available item, for the combined slide picker */
+var groupRows = [];    /* the saved combined slides */
+var gEditing = null;   /* the slide being edited, or null for a new one */
+var gPicked = [];      /* item ids chosen in the builder */
+
+async function loadMenu(){
+  var r = await db.from('menu_categories')
+    .select('id,name,sort,kitchen,color,menu_items(id,name,description,price_crc,photo_url,available,featured,sort,color,quick)')
+    .order('sort');
+  colorsReady = !r.error;
+  if (r.error){ /* POS layout SQL not run yet */
+    r = await db.from('menu_categories')
+      .select('id,name,sort,kitchen,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
+      .order('sort');
+  }
+  kitchenReady = !r.error;
+  if (r.error){
+    r = await db.from('menu_categories')
+      .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,featured,sort)')
+      .order('sort');
+  }
+  if (r.error){
+    tvReady = false;
+    r = await db.from('menu_categories')
+      .select('id,name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort)')
+      .order('sort');
+    if (r.error){ toast('Could not load the menu. Check your connection.'); return; }
+  } else {
+    tvReady = true;
+  }
+  document.getElementById('kitchenNotReady').hidden = kitchenReady;
+  document.getElementById('kitchenBody').hidden = !kitchenReady;
+  if (kitchenReady) loadKitchenSettings();
+  document.getElementById('tvNotReady').hidden = tvReady;
+  document.getElementById('tvForm').hidden = !tvReady;
+  allItems = [];
+  (r.data || []).forEach(function(cat){
+    (cat.menu_items || []).forEach(function(it){
+      if (it.available) allItems.push({id: it.id, name: it.name, photo_url: it.photo_url, cat: cat.name});
+    });
+  });
+  render(r.data);
+  if (tvReady) loadTvSettings();
+  loadGroups();
+}
+
+/* ---------- kitchen settings + rooms ---------- */
+var rooms = [];
+async function loadKitchenSettings(){
+  var r = await db.from('app_settings').select().eq('id', 1);
+  var st = (!r.error && r.data && r.data[0]) || {};
+  document.getElementById('setStands').value = st.pickup_numbers || 12;
+  document.getElementById('setOut').value = (st.numbers_out || []).join(', ');
+  document.getElementById('setRoomOn').checked = st.room_orders_enabled !== false;
+  document.getElementById('setOpen').value = (st.room_open || '07:00').slice(0,5);
+  document.getElementById('setClose').value = (st.room_close || '16:00').slice(0,5);
+  var rr = await db.from('rooms').select('id,number,code,active').order('number');
+  rooms = rr.error ? [] : (rr.data || []);
+  renderRooms();
+}
+document.getElementById('setForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var out = document.getElementById('setOut').value.split(/[,\s]+/).map(function(x){ return parseInt(x, 10); })
+    .filter(function(n){ return n > 0; });
+  var row = {
+    id: 1,
+    pickup_numbers: Math.min(99, Math.max(1, parseInt(document.getElementById('setStands').value, 10) || 12)),
+    numbers_out: out,
+    room_orders_enabled: document.getElementById('setRoomOn').checked,
+    room_open: document.getElementById('setOpen').value || '07:00',
+    room_close: document.getElementById('setClose').value || '16:00',
+    updated_at: new Date().toISOString()
+  };
+  var r = await db.from('app_settings').upsert(row);
+  if (r.error){ toast('Could not save the settings. Try again.'); return; }
+  toast('Settings saved. The POS and room pages follow within a minute.');
+});
+function roomLink(rm){ return ROOM_PAGE_URL + '?r=' + encodeURIComponent(rm.code); }
+function renderRooms(){
+  var root = document.getElementById('roomList'); root.textContent = '';
+  if (!rooms.length){ root.innerHTML = '<p class="hint">No rooms yet.</p>'; return; }
+  rooms.forEach(function(rm){
+    var row = document.createElement('div'); row.className = 'roomrow';
+    var n = document.createElement('span'); n.className = 'rn'; n.textContent = 'Room ' + rm.number;
+    var c = document.createElement('span'); c.className = 'code'; c.textContent = rm.code;
+    var open = document.createElement('a'); open.href = roomLink(rm); open.target = '_blank'; open.rel = 'noopener';
+    open.className = 'ghost small'; open.textContent = 'Open'; open.style.cssText = 'text-decoration:none;padding:.3em .8em;border:1.5px solid var(--muted);border-radius:10px;color:var(--accent);font-size:.85rem';
+    var regen = document.createElement('button'); regen.className = 'ghost small'; regen.textContent = 'New code';
+    regen.addEventListener('click', async function(){
+      if (!confirm('Give room ' + rm.number + ' a new code? The card in that room stops working until you reprint it.')) return;
+      var r = await db.rpc('room_new_code', {p_room_id: rm.id});
+      if (r.error || !r.data || !r.data.ok){ toast('Could not change the code. Try again.'); return; }
+      toast('Room ' + rm.number + ' has a new code. Reprint its card.');
+      loadKitchenSettings();
+    });
+    row.appendChild(n); row.appendChild(c); row.appendChild(open); row.appendChild(regen);
+    root.appendChild(row);
+  });
+}
+document.getElementById('printCards').addEventListener('click', function(){
+  var box = document.getElementById('cards'); box.textContent = '';
+  if (!rooms.length || !window.qrcode){ toast('Nothing to print yet.'); return; }
+  rooms.forEach(function(rm){
+    var card = document.createElement('div'); card.className = 'qcard';
+    var badge = document.createElement('img'); badge.className = 'badge'; badge.alt = '';
+    badge.src = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png';
+    var h = document.createElement('h3'); h.textContent = 'The Hanging Garden Café';
+    var rn = document.createElement('div'); rn.className = 'room'; rn.textContent = 'Room ' + rm.number;
+    var qr = qrcode(0, 'M'); qr.addData(roomLink(rm)); qr.make();
+    var cv = document.createElement('img'); cv.className = 'qr'; cv.alt = 'QR code for room ' + rm.number;
+    cv.src = qr.createDataURL(6, 2);
+    var say = document.createElement('div'); say.className = 'say';
+    say.innerHTML = '<b>Scan to see the menu and order from your room.</b>Pay at the window when you pick up.<br><b>Escanee para ver el menú y pedir desde su habitación.</b>Pague en la ventanilla al recoger.';
+    var url = document.createElement('div'); url.className = 'url'; url.textContent = roomLink(rm);
+    card.appendChild(badge); card.appendChild(h); card.appendChild(rn); card.appendChild(cv); card.appendChild(say); card.appendChild(url);
+    box.appendChild(card);
+  });
+  setTimeout(function(){ window.print(); }, 400);
+});
+
+/* ---------- combined slides ---------- */
+async function loadGroups(){
+  var r = await db.from('board_group_slides').select().order('sort');
+  groupsReady = !r.error;
+  document.getElementById('groupNotReady').hidden = groupsReady;
+  document.getElementById('groupBody').hidden = !groupsReady;
+  if (!groupsReady) return;
+  groupRows = r.data || [];
+  renderGroups();
+}
+
+function itemById(id){
+  for (var i = 0; i < allItems.length; i++) if (String(allItems[i].id) === String(id)) return allItems[i];
+  return null;
+}
+
+function renderGroups(){
+  var list = document.getElementById('groupList');
+  list.textContent = '';
+  if (!groupRows.length){
+    var empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No combined slides yet.';
+    list.appendChild(empty);
+    return;
+  }
+  groupRows.forEach(function(g){
+    var row = document.createElement('div'); row.className = 'gslide';
+    var th = document.createElement('div'); th.className = 'thumbs';
+    (g.item_ids || []).slice(0, 4).forEach(function(id){
+      var it = itemById(id);
+      if (!it || !it.photo_url) return;
+      var im = document.createElement('img'); im.src = it.photo_url; im.alt = ''; th.appendChild(im);
+    });
+    row.appendChild(th);
+    var mid = document.createElement('div'); mid.className = 'gt';
+    var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = g.title; mid.appendChild(nm);
+    var names = (g.item_ids || []).map(function(id){ var it = itemById(id); return it ? it.name : null; })
+      .filter(Boolean).join(' · ');
+    var sub = document.createElement('div'); sub.className = 'sub';
+    sub.textContent = names || 'the chosen items are no longer on the menu';
+    mid.appendChild(sub);
+    row.appendChild(mid);
+    var edit = document.createElement('button');
+    edit.className = 'ghost small'; edit.textContent = 'Edit';
+    edit.addEventListener('click', function(){ openGroup(g); });
+    row.appendChild(edit);
+    list.appendChild(row);
+  });
+}
+
+function openGroup(g){
+  gEditing = g || null;
+  gPicked = g ? (g.item_ids || []).map(String) : [];
+  document.getElementById('gTitle').value = g ? (g.title || '') : '';
+  document.getElementById('gKicker').value = g ? (g.kicker || '') : '';
+  document.getElementById('gDelete').hidden = !g;
+  document.getElementById('groupForm').hidden = false;
+  document.getElementById('groupNew').hidden = true;
+  renderPicker();
+  document.getElementById('gTitle').focus();
+}
+
+function closeGroup(){
+  gEditing = null; gPicked = [];
+  document.getElementById('groupForm').hidden = true;
+  document.getElementById('groupNew').hidden = false;
+}
+
+function renderPicker(){
+  var box = document.getElementById('gPicker');
+  box.textContent = '';
+  var withPhoto = allItems.filter(function(it){ return !!it.photo_url; });
+  if (!withPhoto.length){
+    var p = document.createElement('p');
+    p.className = 'hint';
+    p.textContent = 'Add a photo to a few items first, then they show up here.';
+    box.appendChild(p);
+  }
+  withPhoto.forEach(function(it){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'pick';
+    b.setAttribute('aria-pressed', gPicked.indexOf(String(it.id)) > -1 ? 'true' : 'false');
+    var im = document.createElement('img'); im.src = it.photo_url; im.alt = '';
+    var cap = document.createElement('span'); cap.className = 'cap'; cap.textContent = it.name;
+    b.appendChild(im); b.appendChild(cap);
+    b.addEventListener('click', function(){
+      var id = String(it.id), at = gPicked.indexOf(id);
+      if (at > -1) gPicked.splice(at, 1);
+      else if (gPicked.length >= 8){ toast('A combined slide holds up to 8 items.'); return; }
+      else gPicked.push(id);
+      b.setAttribute('aria-pressed', at > -1 ? 'false' : 'true');
+      updateCount();
+    });
+    box.appendChild(b);
+  });
+  updateCount();
+}
+
+function updateCount(){
+  document.getElementById('gCount').textContent = gPicked.length
+    ? gPicked.length + (gPicked.length === 1 ? ' item picked · pick at least 2' : ' items picked')
+    : 'Pick 2 to 8 items';
+}
+
+document.getElementById('groupNew').addEventListener('click', function(){ openGroup(null); });
+document.getElementById('gCancel').addEventListener('click', closeGroup);
+
+document.getElementById('gDelete').addEventListener('click', async function(){
+  if (!gEditing) return;
+  if (!confirm('Delete this combined slide?')) return;
+  var r = await db.from('board_group_slides').delete().eq('id', gEditing.id);
+  if (r.error){ toast('Could not delete that slide. Try again.'); return; }
+  closeGroup();
+  toast('Combined slide deleted.');
+  loadGroups();
+});
+
+document.getElementById('groupForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var title = document.getElementById('gTitle').value.trim();
+  if (!title){ toast('Give the slide a title.'); return; }
+  if (gPicked.length < 2){ toast('Pick at least 2 items.'); return; }
+  var row = {
+    title: title,
+    kicker: document.getElementById('gKicker').value.trim() || null,
+    item_ids: gPicked.slice(),
+    updated_at: new Date().toISOString()
+  };
+  var r;
+  if (gEditing) r = await db.from('board_group_slides').update(row).eq('id', gEditing.id);
+  else {
+    row.sort = groupRows.length + 1;
+    r = await db.from('board_group_slides').insert(row);
+  }
+  if (r.error){ toast('Could not save that slide. Try again.'); return; }
+  closeGroup();
+  toast('Combined slide saved. The TV follows within a minute.');
+  loadGroups();
+});
+
+var tvSettingsLoaded = false;
+async function loadTvSettings(){
+  if (tvSettingsLoaded) return;
+  var r = await db.from('board_settings').select().eq('id', 1);
+  if (r.error) return;
+  tvSettingsLoaded = true;
+  var s = (r.data && r.data[0]) || {};
+  document.getElementById('tvMode').value = s.mode || 'cycle';
+  document.getElementById('tvRot').value = s.rotation || 'auto';
+  document.getElementById('tvMenuSec').value = s.menu_seconds || 25;
+  document.getElementById('tvSlideSec').value = s.slide_seconds || 8;
+  document.getElementById('tvTagline').value = (s.tagline !== null && s.tagline !== undefined)
+    ? s.tagline : 'coffee + pastry save ₡500 · sandwich + coffee save ₡500';
+}
+
+document.getElementById('tvForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var row = {
+    id: 1,
+    mode: document.getElementById('tvMode').value,
+    rotation: document.getElementById('tvRot').value,
+    menu_seconds: Math.max(5, parseInt(document.getElementById('tvMenuSec').value, 10) || 25),
+    slide_seconds: Math.max(3, parseInt(document.getElementById('tvSlideSec').value, 10) || 8),
+    tagline: document.getElementById('tvTagline').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  var r = await db.from('board_settings').upsert(row);
+  if (r.error){ toast('Could not save the TV settings. Try again.'); return; }
+  toast('TV board updated. The screen follows within a minute.');
+});
+
+function render(cats){
+  var root = document.getElementById('cats');
+  root.textContent = '';
+  cats.forEach(function(cat){
+    var card = document.createElement('div');
+    card.className = 'card cat';
+    var h = document.createElement('h2'); h.textContent = cat.name; card.appendChild(h);
+    if (kitchenReady){
+      var line = document.createElement('label'); line.className = 'catline';
+      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!cat.kitchen;
+      cb.addEventListener('change', async function(){
+        var r = await db.from('menu_categories').update({kitchen: cb.checked}).eq('id', cat.id);
+        if (r.error){ cb.checked = !cb.checked; toast('Could not save. Try again.'); return; }
+        toast(cat.name + (cb.checked ? ' now goes to the kitchen' : ' is made at the front'));
+      });
+      line.appendChild(cb); line.appendChild(document.createTextNode('Prepared in the kitchen (shows on the Kitchen screen)'));
+      card.appendChild(line);
+    }
+    if (colorsReady){
+      var cl = document.createElement('label'); cl.className = 'catline';
+      var cp = document.createElement('input'); cp.type = 'color'; cp.value = catColor(cat, cats.indexOf(cat));
+      cp.addEventListener('change', async function(){
+        var r = await db.from('menu_categories').update({color: cp.value}).eq('id', cat.id);
+        if (r.error){ toast('Could not save the color. Try again.'); return; }
+        toast(cat.name + ' color saved. The POS follows on its next refresh.');
+      });
+      cl.appendChild(cp); cl.appendChild(document.createTextNode('Category color on the POS (tab and button tint)'));
+      card.appendChild(cl);
+    }
+    var catIx = cats.indexOf(cat);
+    cat.menu_items.sort(function(a,b){return a.sort-b.sort || a.name.localeCompare(b.name)});
+    cat.menu_items.forEach(function(it, i){ it._color = colorsReady ? itemColor(it, i, catIx) : null; card.appendChild(itemRow(it)); });
+    var add = document.createElement('button');
+    add.className = 'ghost small addrow';
+    add.textContent = '+ Add item to ' + cat.name;
+    add.addEventListener('click', function(){ addItem(cat); });
+    card.appendChild(add);
+    root.appendChild(card);
+  });
+}
+
+function itemRow(it){
+  var row = document.createElement('div');
+  row.className = 'item' + (it.available ? '' : ' off');
+  if (it._color){ row.style.borderLeft = '6px solid ' + it._color; row.style.paddingLeft = '.6rem'; }
+
+  var ph = document.createElement('button');
+  ph.className = 'ph'; ph.title = 'Change photo'; ph.setAttribute('aria-label','Change photo for '+it.name);
+  if (it.photo_url){ var im = document.createElement('img'); im.src = it.photo_url; im.alt=''; ph.appendChild(im); }
+  else ph.textContent = '+';
+  ph.addEventListener('click', function(){ photoTargetItem = it; photoInput.click(); });
+  row.appendChild(ph);
+
+  var mid = document.createElement('div');
+  var nm = document.createElement('div'); nm.className='nm'; nm.textContent = it.name;
+  var pr = document.createElement('div'); pr.className='pr';
+  pr.textContent = fmt(it.price_crc) + (it.description ? ' · ' + it.description : '');
+  mid.appendChild(nm); mid.appendChild(pr);
+  row.appendChild(mid);
+
+  var acts = document.createElement('div'); acts.className='acts';
+  if (tvReady){
+    var star = document.createElement('button');
+    star.className = 'toggle';
+    star.style.color = it.featured ? 'var(--gold)' : 'var(--sec)';
+    star.textContent = it.featured ? '★ On TV' : '☆ TV';
+    star.title = 'Feature this item in the TV slideshow';
+    star.addEventListener('click', async function(){
+      var r = await db.from('menu_items').update({featured: !it.featured, updated_at: new Date().toISOString()}).eq('id', it.id);
+      if (r.error){ toast('Could not save. Try again.'); return; }
+      toast(it.name + (it.featured ? ' removed from the TV slideshow' : ' will star in the TV slideshow'));
+      loadMenu();
+    });
+    acts.appendChild(star);
+  }
+  var tog = document.createElement('button');
+  tog.className = 'toggle' + (it.available ? '' : ' off');
+  tog.textContent = it.available ? 'Available' : 'Sold out';
+  tog.addEventListener('click', async function(){
+    var r = await db.from('menu_items').update({available: !it.available, updated_at: new Date().toISOString()}).eq('id', it.id);
+    if (r.error){ toast('Could not save. Try again.'); return; }
+    toast(it.name + (it.available ? ' marked sold out' : ' back on the menu'));
+    loadMenu();
+  });
+  var ed = document.createElement('button'); ed.className='ghost small'; ed.textContent='Edit';
+  ed.addEventListener('click', function(){ openEditor(row, it); });
+  acts.appendChild(tog); acts.appendChild(ed);
+  row.appendChild(acts);
+  return row;
+}
+
+function openEditor(row, it){
+  if (row.querySelector('.editbox')) return;
+  var box = document.createElement('form'); box.className='editbox';
+  box.innerHTML =
+    '<label>Name<input name="name" required></label>' +
+    '<label>Price in colones (numbers only)<input name="price" type="number" min="0" step="50" required></label>' +
+    '<label>Description (optional)<textarea name="desc" rows="2"></textarea></label>' +
+    (colorsReady ?
+      '<div class="swatchrow"><label>Side color on the POS <input name="color" type="color"></label>' +
+      '<label>Quick tab <select name="quick"><option value="auto">Automatic (top sellers)</option><option value="always">Always show</option><option value="never">Never show</option></select></label></div>'
+      : '') +
+    '<div class="row"><button type="submit">Save</button>' +
+    '<button type="button" class="ghost" data-x>Cancel</button>' +
+    '<button type="button" class="danger" data-del style="margin-left:auto">Delete item</button></div>';
+  box.name.value = it.name; box.price.value = it.price_crc; box.desc.value = it.description || '';
+  if (colorsReady){ box.color.value = it._color || '#5A3A1E'; box.quick.value = it.quick || 'auto'; }
+  box.addEventListener('submit', async function(e){
+    e.preventDefault();
+    var patch = {
+      name: box.name.value.trim(),
+      price_crc: parseInt(box.price.value, 10),
+      description: box.desc.value.trim() || null,
+      updated_at: new Date().toISOString()
+    };
+    if (colorsReady){ patch.color = box.color.value; patch.quick = box.quick.value; }
+    var r = await db.from('menu_items').update(patch).eq('id', it.id);
+    if (r.error){ toast('Could not save. Try again.'); return; }
+    toast('Saved'); loadMenu();
+  });
+  box.querySelector('[data-x]').addEventListener('click', function(){ box.remove(); });
+  box.querySelector('[data-del]').addEventListener('click', async function(){
+    if (!confirm('Delete "' + it.name + '" from the menu? This cannot be undone.')) return;
+    var r = await db.from('menu_items').delete().eq('id', it.id);
+    if (r.error){ toast('Could not delete. Try again.'); return; }
+    toast('Deleted ' + it.name); loadMenu();
+  });
+  row.appendChild(box);
+}
+
+async function addItem(cat){
+  var name = prompt('Name of the new item in ' + cat.name + ':');
+  if (!name) return;
+  var price = prompt('Price in colones (numbers only):');
+  if (price === null) return;
+  var p = parseInt(price, 10);
+  if (isNaN(p) || p < 0){ toast('That price did not look like a number.'); return; }
+  var r = await db.from('menu_items').insert({category_id: cat.id, name: name.trim(), price_crc: p, sort: 99});
+  if (r.error){ toast('Could not add it. Try again.'); return; }
+  toast(name + ' added'); loadMenu();
+}
+
+photoInput.addEventListener('change', async function(){
+  var f = photoInput.files[0];
+  photoInput.value = '';
+  if (!f || !photoTargetItem) return;
+  if (f.size > 8 * 1024 * 1024){ toast('That photo is too big. Pick one under 8 MB.'); return; }
+  toast('Uploading photo…');
+  var ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+  var path = photoTargetItem.id + '-' + Date.now() + '.' + ext;
+  var up = await db.storage.from('menu-photos').upload(path, f, {upsert: true, contentType: f.type});
+  if (up.error){ toast('Photo upload failed. Try again.'); return; }
+  var pub = db.storage.from('menu-photos').getPublicUrl(path);
+  var r = await db.from('menu_items').update({photo_url: pub.data.publicUrl, updated_at: new Date().toISOString()}).eq('id', photoTargetItem.id);
+  if (r.error){ toast('Photo saved but the menu did not update. Try again.'); return; }
+  toast('Photo updated'); loadMenu();
+});
+
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+refreshAuth();
+</script>
+</body>
+</html>

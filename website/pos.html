@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POS · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-hover:#143726; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.4}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+button{font:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+input,select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.hint{font-size:.85rem;color:var(--sec)}
+.livebar{display:flex;gap:.5rem;flex-wrap:wrap;padding:.5rem 1rem;border-bottom:1px solid var(--muted);background:var(--panel)}
+.livebar:empty{display:none}
+.lv{display:flex;align-items:center;gap:.5rem;border:1.5px solid var(--muted);border-radius:12px;padding:.3rem .5rem .3rem .7rem;font-size:.85rem;background:#fff}
+.lv .n{font-family:'Spline Sans Mono',monospace;font-weight:700;font-size:1.05rem}
+.lv .d{color:var(--sec);max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv.new{border-color:var(--gold);background:#FFF8E6}
+.lv.ready{border-color:var(--ok);background:#EEF7EE}
+.lv button{min-height:32px;padding:.2em .7em;font-size:.8rem}
+.lv button.wa{background:#25D366;color:#fff}
+.numgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:.6rem 0}
+.numgrid button{min-height:56px;font-size:1.3rem;font-family:'Spline Sans Mono',monospace}
+.numgrid button.used{background:var(--muted);color:var(--sec);cursor:default}
+.stag{font-size:.75rem;padding:.1em .5em;border-radius:99px;background:var(--canvas);color:var(--sec);margin-left:.4rem}
+.orow{display:grid;grid-template-columns:auto 1fr auto;gap:.3rem .7rem;align-items:center;padding:.5rem 0;border-bottom:1px dotted var(--muted);font-size:.9rem}
+.orow .when{font-family:'Spline Sans Mono',monospace;color:var(--sec);font-size:.8rem}
+.orow .items{grid-column:2;font-size:.85rem;color:var(--sec)}
+.orow .amt{font-family:'Spline Sans Mono',monospace;text-align:right}
+.orow button{grid-column:3;grid-row:2;min-height:32px;padding:.2em .7em;font-size:.8rem;background:transparent;color:var(--bad);border:1.5px solid var(--muted)}
+.orow.void .amt,.orow.void .items{text-decoration:line-through;opacity:.6}
+.orow .vtag{grid-column:2/4;font-size:.8rem;color:var(--bad)}
+.voidbox{margin-top:.9rem;padding:.9rem;border:1.5px dashed var(--muted);border-radius:12px;background:var(--canvas)}
+.voidbox label{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
+.voidbox .row{display:flex;gap:.6rem;margin-top:.9rem}
+.voidbox .row button{flex:1}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+[hidden]{display:none !important}
+
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem;box-shadow:0 2px 14px rgba(30,75,51,.07)}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+
+.app{display:grid;grid-template-columns:1fr 340px;height:100dvh}
+.left{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.6rem 1rem;background:var(--panel);border-bottom:1px solid var(--muted)}
+.topbar h1{font-size:1.1rem;margin-right:auto}
+.navlink{color:var(--sec);text-decoration:none;font-size:.85rem;font-weight:600;padding:.35em .6em;border-radius:8px}
+.navlink:hover{color:var(--accent);background:var(--canvas)}
+.chip{font-size:.75rem;font-weight:600;padding:.25em .8em;border-radius:99px;border:1.5px solid var(--muted)}
+.chip.on{color:var(--ok)} .chip.off{color:var(--bad)} .chip.pend{color:var(--gold)}
+/* category bar: always in the same place; tap a category, its items fill the screen */
+.rail{display:flex;flex-wrap:wrap;gap:.45rem;padding:.7rem 1rem .4rem}
+.tab{min-height:46px;padding:.35em .95em;border-radius:12px;font-weight:700;font-size:.92rem;border:2px solid var(--c);background:var(--tint);color:var(--c);display:flex;align-items:center;gap:.45rem}
+.tab .dot{width:11px;height:11px;border-radius:50%;background:var(--c)}
+.tab.on{background:var(--c);color:#fff}
+.tab.on .dot{background:#fff}
+.tab .cnt{font-size:.72rem;font-weight:600;opacity:.8}
+.gridwrap{flex:1;min-height:0;overflow-y:auto;padding:.2rem 1rem 1rem}
+.gridhead{display:flex;align-items:baseline;gap:.8rem;margin:.3rem 0 .5rem}
+.gridhead h2{font-size:1.1rem;color:var(--c)}
+.gridhead .hint{font-size:.8rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.6rem}
+.pbtn{min-height:76px;border-radius:14px;background:var(--tint);color:var(--ink);border:1.5px solid transparent;border-left:7px solid var(--c);text-align:left;padding:.6rem .8rem;display:flex;flex-direction:column;justify-content:space-between;gap:.3rem;box-shadow:0 1px 3px rgba(30,75,51,.08)}
+.pbtn:hover{background:var(--tint);filter:brightness(.97)}
+.pbtn:active{transform:scale(.97)}
+.pbtn .nm{font-weight:700;line-height:1.2}
+.pbtn .p{font-family:'Spline Sans Mono',monospace;font-size:.88rem;color:var(--cc);font-weight:600}
+.pbtn .tag{font-size:.68rem;font-weight:700;color:var(--cc);letter-spacing:.06em;text-transform:uppercase}
+
+.ticket{background:var(--panel);border-left:1px solid var(--muted);display:flex;flex-direction:column;min-height:0}
+.ticket h2{font-size:1.05rem;padding:0.9rem 1rem .5rem;display:flex;justify-content:space-between;align-items:baseline;gap:.6rem}
+.ticket h2 .sum{font-family:'Figtree',sans-serif;font-size:.82rem;color:var(--sec)}
+.lines{flex:1;overflow-y:auto;padding:0 1rem}
+.line{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem;padding:.45rem 0;border-bottom:1px dotted var(--muted);align-items:center}
+.line .cdot{width:10px;height:10px;border-radius:50%;background:var(--c, var(--muted))}
+.line .qbtns{display:flex;gap:.3rem;align-items:center}
+.line .qbtns button{min-height:32px;min-width:32px;padding:0;background:transparent;color:var(--accent);border:1.5px solid var(--muted);border-radius:8px;font-size:1rem}
+.line .nm{font-weight:600;font-size:.95rem}
+.line .amt{font-family:'Spline Sans Mono',monospace;font-size:.9rem}
+.totals{padding: .8rem 1rem;border-top:1px solid var(--muted)}
+.trow{display:flex;justify-content:space-between;padding:.15rem 0;font-size:.9rem;color:var(--sec)}
+.trow.big{font-size:1.25rem;font-weight:700;color:var(--ink)}
+.payrow{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;padding:0 1rem .5rem}
+.payrow button{min-height:52px;font-size:.85rem}
+.ticket .payrow{grid-template-columns:repeat(2,1fr)}
+.ticket .payrow button{min-height:54px;font-size:1rem;border:2px solid var(--pc);background:var(--pc);color:#fff}
+.ticket .payrow button.alt{background:#fff;color:var(--pc)}
+.ticket .payrow button:hover{filter:brightness(.95)}
+.util{display:flex;gap:.45rem;padding:0 1rem 1rem}
+.util button{flex:1}
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+
+.modal{position:fixed;inset:0;background:rgba(20,40,28,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:10}
+.modal .box{background:var(--panel);border-radius:16px;padding:1.3rem;max-width:420px;width:100%;max-height:85dvh;overflow-y:auto}
+.modal h2{margin-bottom:.8rem}
+.dayrow{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px dotted var(--muted);font-size:.95rem}
+.dayrow.big{font-weight:700;font-size:1.1rem;border-bottom:none;padding-top:.6rem}
+.modal .close{width:100%;margin-top:1rem}
+.counted{display:flex;gap:.6rem;align-items:center;margin-top:.8rem}
+.counted input{max-width:150px}
+.diff{font-weight:700}
+.diff.ok{color:var(--ok)} .diff.bad{color:var(--bad)}
+
+@media(max-width:860px){
+  .app{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .ticket{border-left:none;border-top:2px solid var(--muted);max-height:52dvh}
+  .ticket h2{cursor:pointer}
+  .ticket.collapsed .lines{display:none}
+  .ticket.collapsed{max-height:none}
+  .ticket .payrow{grid-template-columns:repeat(5,1fr)}
+  .ticket .payrow button{min-height:48px;font-size:.82rem}
+}
+
+/* printed receipt — hidden on screen, the only thing visible on paper */
+#receipt{display:none}
+@media print{
+  body{background:#fff}
+  .app,.login,.modal,.toast{display:none !important}
+  #receipt{display:block;width:72mm;color:#000;font-family:'Spline Sans Mono',monospace}
+  #receipt .rhead{font-weight:700;text-align:center;font-size:12pt;letter-spacing:.04em}
+  #receipt .rsub{text-align:center;font-size:9pt;margin-top:2pt}
+  #receipt .rrule{border-top:1px dashed #000;margin:6pt 0}
+  #receipt .rrow{display:flex;justify-content:space-between;gap:6pt;font-size:10pt;margin:2pt 0}
+  #receipt .rrow span:last-child{white-space:nowrap}
+  #receipt .rtot{display:flex;justify-content:space-between;font-weight:700;font-size:11pt;margin-top:2pt}
+  #receipt .rfoot{text-align:center;margin-top:10pt;font-size:9pt}
+  #receipt .rnum{text-align:center;font-size:22pt;font-weight:700;margin:6pt 0 2pt}
+  #receipt .rnum small{display:block;font-size:8pt;font-weight:400;letter-spacing:.1em}
+}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>The Hanging Garden POS</h1>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit" id="loginBtn">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+</div>
+
+<div id="appView" class="app" hidden>
+  <div class="left">
+    <div class="topbar">
+      <h1>The Hanging Garden</h1>
+      <a class="navlink" href="home.html" data-owner>Home</a>
+      <a class="navlink" href="sales.html" data-owner>Sales</a>
+      <a class="navlink" href="admin.html" data-owner>Menu</a>
+      <a class="navlink" href="time.html">Time</a>
+      <span class="chip on" id="netChip">online</span>
+      <button class="ghost" id="ordersBtn">Orders</button>
+      <button class="ghost" id="dayBtn">Today</button>
+      <button class="ghost" id="outBtn">Sign out</button>
+    </div>
+    <div class="livebar" id="liveBar"></div>
+    <div class="rail" id="rail"></div>
+    <div class="gridwrap">
+      <div class="gridhead"><h2 id="gridTitle"></h2><span class="hint" id="gridHint"></span></div>
+      <div class="grid" id="menuGrid"><p style="color:var(--sec)">Loading the menu…</p></div>
+    </div>
+  </div>
+  <div class="ticket">
+    <h2 id="ticketHead">Order <span class="sum" id="ticketSum"></span></h2>
+    <div class="lines" id="lines"><p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p></div>
+    <div class="totals">
+      <div class="trow"><span>Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
+      <div class="trow big"><span>Total</span><span class="mono" id="totalAmt">₡0</span></div>
+    </div>
+    <div class="payrow">
+      <button data-pay="cash_crc" style="--pc:#2F6B3A">Cash ₡</button>
+      <button data-pay="cash_usd" style="--pc:#2F6B3A" class="alt">Cash $</button>
+      <button data-pay="card" style="--pc:#285F8A">Card</button>
+      <button data-pay="sinpe" style="--pc:#6B3FA0">SINPE</button>
+      <button data-pay="other" style="--pc:#54634F" class="alt">Other</button>
+    </div>
+    <div class="util">
+      <button class="ghost" id="clearBtn">Clear order</button>
+      <button class="ghost" id="printBtn" disabled>Print receipt</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="dayModal" hidden>
+  <div class="box">
+    <h2>Today at the counter</h2>
+    <div id="dayBody"></div>
+    <div class="counted">
+      <label for="countedCash" style="font-size:.9rem;color:var(--sec)">Cash counted:</label>
+      <input id="countedCash" type="number" min="0" inputmode="numeric" placeholder="₡">
+      <span class="diff mono" id="cashDiff"></span>
+    </div>
+    <button class="close" id="dayClose">Close</button>
+  </div>
+</div>
+
+<div class="modal" id="ordersModal" hidden>
+  <div class="box">
+    <h2>Today's orders</h2>
+    <p class="hint" style="margin:0 0 .6rem">Voiding an order needs a manager's PIN and a reason. The order stays on record, marked as voided, and the approval is logged.</p>
+    <div id="ordersBody"></div>
+    <div class="voidbox" id="voidBox" hidden>
+      <strong id="voidWhich">Void this order</strong>
+      <label for="vReason">Reason</label>
+      <input id="vReason" maxlength="120" placeholder="e.g. rang up twice" autocomplete="off">
+      <label for="vMgr">Approved by</label>
+      <select id="vMgr"></select>
+      <label for="vPin">Manager PIN</label>
+      <input id="vPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <p class="err" id="voidErr"></p>
+      <div class="row">
+        <button id="vGo">Void this order</button>
+        <button class="ghost" id="vCancel">Cancel</button>
+      </div>
+    </div>
+    <button class="close" id="ordersClose">Close</button>
+  </div>
+</div>
+
+<div class="modal" id="numModal" hidden>
+  <div class="box">
+    <h2>Which number stand?</h2>
+    <p class="hint" style="margin:0 0 .4rem">Tap the number you are handing to the customer. Greyed numbers are in use.</p>
+    <div class="numgrid" id="numGrid"></div>
+    <div style="display:flex;gap:.6rem">
+      <button class="ghost" id="numNone" style="flex:1">No number</button>
+      <button class="ghost" id="numCancel" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="payModal" hidden>
+  <div class="box">
+    <h2>Paid and picked up</h2>
+    <p class="hint" id="payDetail"></p>
+    <div class="payrow" style="padding:0;margin:.6rem 0">
+      <button data-rpay="cash_crc">Cash ₡</button>
+      <button data-rpay="cash_usd">Cash $</button>
+      <button data-rpay="card">Card</button>
+      <button data-rpay="sinpe">SINPE</button>
+      <button data-rpay="other">Other</button>
+    </div>
+    <button class="close ghost" id="payCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div id="receipt" aria-hidden="true"></div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+/* owner login or café login: the café login only sees the POS, the clock and the kitchen */
+var ACCOUNT = null;
+async function whoami(){ var r = await db.rpc('account_kind'); ACCOUNT = r.error ? null : (r.data || 'none'); return ACCOUNT; }
+function trimNav(){
+  var cafe = ACCOUNT === 'cafe' || ACCOUNT === 'none';
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = cafe; });
+}
+
+var ticket = [];          /* {id, name, price, qty} */
+var queue = [];           /* offline orders waiting to sync */
+var QKEY = 'hg-pos-queue';
+var toastTimer = null;
+
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){t.classList.remove('show')},2400);
+}
+
+/* ---------- auth ---------- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  document.getElementById('loginView').hidden = authed;
+  document.getElementById('appView').hidden = !authed;
+  if (authed){ whoami().then(trimNav); loadMenu(); loadQueue(); syncQueue(); loadSettings(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000); }
+}
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
+  refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---------- menu grid ---------- */
+var MENU_CACHE = 'hg-pos-menu';
+async function loadMenu(){
+  try{
+    var r = await db.from('menu_categories')
+      .select('name,sort,kitchen,color,menu_items(id,name,price_crc,available,sort,color,quick)').order('sort');
+    if (r.error && /color|quick/.test(r.error.message || '')){ /* POS layout SQL not run yet */
+      r = await db.from('menu_categories')
+        .select('name,sort,kitchen,menu_items(id,name,price_crc,available,sort)').order('sort');
+    }
+    if (r.error && /kitchen/.test(r.error.message || '')){ /* kitchen SQL not run yet */
+      r = await db.from('menu_categories')
+        .select('name,sort,menu_items(id,name,price_crc,available,sort)').order('sort');
+    }
+    if (r.error) throw r.error;
+    localStorage.setItem(MENU_CACHE, JSON.stringify(r.data));
+    renderMenu(r.data);
+    loadQuick();
+  }catch(e){
+    var cached = localStorage.getItem(MENU_CACHE);
+    if (cached) renderMenu(JSON.parse(cached));
+    else document.getElementById('menuGrid').innerHTML = '<p style="color:var(--bad)">No connection and no saved menu yet. Connect once and it will work offline after that.</p>';
+  }
+}
+var kitchenOf = {};   /* item id -> prepared in the kitchen? */
+var itemMeta = {};    /* item id -> {color, catColor, catName, quick} */
+var menuCats = [];    /* categories with their available items, in order */
+var currentTab = localStorage.getItem('hg-pos-tab') || 'Quick';
+var quickSales = null;   /* [{item_name, qty}] from the last 30 days, or null before the SQL runs */
+var QUICK_CACHE = 'hg-pos-quick';
+var PALETTE = ['#5A3A1E','#1B5F67','#7E3160','#8F4E12','#93392A','#9E4560','#1E4B33','#285F8A','#6B3FA0','#4A5A46','#7D5A1A','#2F6B3A'];
+var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3160','Sandwiches':'#8F4E12','Savory':'#93392A','Pastries & Cake':'#9E4560','Costa Rican Favorites':'#1E4B33','Adventure Box':'#285F8A','Extras & Combos':'#4A5A46'};
+function tint(hex){ var n = parseInt(String(hex).slice(1), 16); if (isNaN(n)) return 'rgba(30,75,51,.1)'; return 'rgba(' + (n>>16) + ',' + ((n>>8)&255) + ',' + (n&255) + ',.13)'; }
+
+function renderMenu(cats){
+  menuCats = [];
+  cats.forEach(function(cat, ci){
+    var cc = cat.color || CAT_DEFAULT[cat.name] || PALETTE[ci % PALETTE.length];
+    var items = (cat.menu_items||[]).filter(function(i){return i.available})
+      .sort(function(a,b){return a.sort-b.sort||a.name.localeCompare(b.name)});
+    (cat.menu_items || []).forEach(function(i){ kitchenOf[i.id] = !!cat.kitchen; });
+    items.forEach(function(it, ii){
+      /* every item in a category gets its own side color; the tint stays the category's */
+      itemMeta[it.id] = {color: it.color || PALETTE[(ci * 5 + ii) % PALETTE.length], catColor: cc, catName: cat.name, quick: it.quick || 'auto'};
+    });
+    if (items.length) menuCats.push({name: cat.name, color: cc, items: items});
+  });
+  renderRail(); renderGrid();
+}
+
+/* Quick tab: pinned items first, then the best sellers of the last 30 days */
+async function loadQuick(){
+  var r = await db.rpc('quick_items', {p_days: 30, p_limit: 12});
+  if (r.error){ try{ quickSales = JSON.parse(localStorage.getItem(QUICK_CACHE)) || null; }catch(e){ quickSales = null; } }
+  else { quickSales = r.data || []; localStorage.setItem(QUICK_CACHE, JSON.stringify(quickSales)); }
+  renderRail(); if (currentTab === 'Quick') renderGrid();
+}
+function quickItems(){
+  var all = []; menuCats.forEach(function(c){ c.items.forEach(function(it){ all.push(it); }); });
+  var byName = {}; all.forEach(function(it){ byName[it.name] = byName[it.name] || it; });
+  var out = all.filter(function(it){ return itemMeta[it.id].quick === 'always'; });
+  (quickSales || []).forEach(function(q){
+    var it = byName[q.item_name];
+    if (it && itemMeta[it.id].quick !== 'never' && out.indexOf(it) < 0) out.push(it);
+  });
+  return out.slice(0, 12);
+}
+function renderRail(){
+  var rail = document.getElementById('rail'); rail.textContent = '';
+  var tabs = [];
+  var q = quickItems();
+  if (q.length) tabs.push({name:'Quick', color:'#7D5A1A', count:q.length});
+  menuCats.forEach(function(c){ tabs.push({name:c.name, color:c.color, count:c.items.length}); });
+  if (!tabs.some(function(t){ return t.name === currentTab; })) currentTab = tabs.length ? tabs[0].name : 'Quick';
+  tabs.forEach(function(t){
+    var b = document.createElement('button'); b.className = 'tab' + (t.name === currentTab ? ' on' : '');
+    b.style.setProperty('--c', t.color); b.style.setProperty('--tint', tint(t.color));
+    var d = document.createElement('span'); d.className = 'dot'; b.appendChild(d);
+    b.appendChild(document.createTextNode(t.name));
+    var n = document.createElement('span'); n.className = 'cnt'; n.textContent = t.count; b.appendChild(n);
+    b.addEventListener('click', function(){ currentTab = t.name; localStorage.setItem('hg-pos-tab', t.name); renderRail(); renderGrid(); });
+    rail.appendChild(b);
+  });
+}
+function renderGrid(){
+  var g = document.getElementById('menuGrid'); g.textContent = '';
+  var head = document.getElementById('gridTitle'), hint = document.getElementById('gridHint');
+  var isQuick = currentTab === 'Quick';
+  var cat = isQuick ? {name:'Quick', color:'#7D5A1A', items: quickItems()} : menuCats.find(function(c){ return c.name === currentTab; });
+  if (!cat){ head.textContent = ''; hint.textContent = ''; return; }
+  head.textContent = cat.name; head.style.setProperty('--c', cat.color);
+  hint.textContent = isQuick ? 'your best sellers, updated from Sales · set Always or Never per item in the Menu Manager' : cat.items.length + ' items';
+  cat.items.forEach(function(it){
+    var m = itemMeta[it.id];
+    var b = document.createElement('button'); b.className = 'pbtn';
+    b.style.setProperty('--c', m.color); b.style.setProperty('--cc', m.catColor); b.style.setProperty('--tint', tint(m.catColor));
+    if (isQuick){ var t = document.createElement('span'); t.className = 'tag'; t.textContent = m.catName; b.appendChild(t); }
+    var n = document.createElement('span'); n.className = 'nm'; n.textContent = it.name;
+    var p = document.createElement('span'); p.className = 'p'; p.textContent = fmt(it.price_crc);
+    b.appendChild(n); b.appendChild(p);
+    b.addEventListener('click', function(){ addLine(it); });
+    g.appendChild(b);
+  });
+}
+
+/* ---------- ticket ---------- */
+function addLine(it){
+  var ln = ticket.find(function(l){return l.id === it.id});
+  if (ln) ln.qty++;
+  else ticket.push({id: it.id, name: it.name, price: it.price_crc, qty: 1});
+  renderTicket();
+}
+function renderTicket(){
+  var box = document.getElementById('lines');
+  box.textContent = '';
+  if (!ticket.length){
+    box.innerHTML = '<p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p>';
+  }
+  ticket.forEach(function(l, i){
+    var row = document.createElement('div'); row.className = 'line';
+    row.style.setProperty('--c', (itemMeta[l.id] || {}).color || 'var(--muted)');
+    var dot = document.createElement('span'); dot.className = 'cdot'; row.appendChild(dot);
+    var left = document.createElement('div');
+    var nm = document.createElement('div'); nm.className='nm'; nm.textContent = l.name;
+    var q = document.createElement('div'); q.className='qbtns';
+    var minus = document.createElement('button'); minus.textContent='−'; minus.setAttribute('aria-label','One less '+l.name);
+    var qn = document.createElement('span'); qn.className='mono'; qn.textContent = l.qty;
+    var plus = document.createElement('button'); plus.textContent='+'; plus.setAttribute('aria-label','One more '+l.name);
+    minus.addEventListener('click', function(){ l.qty--; if(l.qty<1) ticket.splice(i,1); renderTicket(); });
+    plus.addEventListener('click', function(){ l.qty++; renderTicket(); });
+    q.appendChild(minus); q.appendChild(qn); q.appendChild(plus);
+    left.appendChild(nm); left.appendChild(q);
+    var amt = document.createElement('div'); amt.className='amt'; amt.textContent = fmt(l.price * l.qty);
+    row.appendChild(left); row.appendChild(amt);
+    box.appendChild(row);
+  });
+  var total = ticket.reduce(function(s,l){return s + l.price*l.qty}, 0);
+  var n = ticket.reduce(function(s,l){return s + l.qty}, 0);
+  document.getElementById('totalAmt').textContent = fmt(total);
+  document.getElementById('ivaAmt').textContent = fmt(Math.round(total - total/1.13));
+  document.getElementById('ticketSum').textContent = n ? n + (n === 1 ? ' item · ' : ' items · ') + fmt(total) : '';
+}
+document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; renderTicket(); });
+/* on a portrait tablet the order is a bottom panel: tap its title to fold the lines away, checkout stays visible */
+document.getElementById('ticketHead').addEventListener('click', function(){
+  if (innerWidth <= 860) document.querySelector('.ticket').classList.toggle('collapsed');
+});
+if (innerWidth <= 860) document.querySelector('.ticket').classList.add('collapsed');
+
+/* ---------- charge (record only) ---------- */
+var lastOrder = null;   /* the most recent sale, kept for reprinting */
+var settings = null;       /* app_settings row once the kitchen SQL has been run */
+var pendingPay = null;
+async function loadSettings(){
+  var r = await db.from('app_settings').select('pickup_numbers,numbers_out').eq('id', 1);
+  settings = (!r.error && r.data && r.data[0]) ? r.data[0] : null;
+}
+document.querySelectorAll('[data-pay]').forEach(function(b){
+  b.addEventListener('click', function(){
+    if (!ticket.length){ toast('The order is empty.'); return; }
+    pendingPay = {method: b.dataset.pay, label: b.textContent.trim()};
+    if (!settings){ recordSale(null); return; }   /* number stands switch on after the kitchen SQL */
+    openNumbers();
+  });
+});
+function usedNumbers(){
+  var used = {};
+  liveOrders.forEach(function(o){ if (o.pickup_number) used[o.pickup_number] = true; });
+  queue.forEach(function(o){ if (o.pickup_number) used[o.pickup_number] = true; });
+  return used;
+}
+function openNumbers(){
+  var grid = document.getElementById('numGrid'); grid.textContent = '';
+  var used = usedNumbers(), out = settings.numbers_out || [];
+  for (var n = 1; n <= (settings.pickup_numbers || 12); n++){
+    if (out.indexOf(n) > -1) continue;
+    var b = document.createElement('button'); b.textContent = n;
+    if (used[n]){ b.className = 'used'; b.disabled = true; }
+    else b.addEventListener('click', (function(num){ return function(){ recordSale(num); }; })(n));
+    grid.appendChild(b);
+  }
+  document.getElementById('numModal').hidden = false;
+}
+document.getElementById('numNone').addEventListener('click', function(){ recordSale(null); });
+document.getElementById('numCancel').addEventListener('click', function(){ pendingPay = null; document.getElementById('numModal').hidden = true; });
+function recordSale(number){
+  document.getElementById('numModal').hidden = true;
+  if (!pendingPay || !ticket.length) return;
+  var total = ticket.reduce(function(s,l){return s + l.price*l.qty}, 0);
+  var needsKitchen = ticket.some(function(l){ return kitchenOf[l.id]; });
+  var order = {
+    local_id: 'o' + Date.now() + Math.random().toString(36).slice(2,7),
+    created_at: new Date().toISOString(),
+    total_crc: total,
+    payment_method: pendingPay.method,
+    pickup_number: number,
+    needs_kitchen: needsKitchen,
+    status: needsKitchen ? 'preparing' : (number ? 'ready' : 'done'),
+    items: ticket.map(function(l){return {item_name:l.name, price_crc:l.price, qty:l.qty}})
+  };
+  lastOrder = {at: new Date(), items: ticket.slice(), total: total, label: pendingPay.label, number: number};
+  document.getElementById('printBtn').disabled = false;
+  queue.push(order); saveQueue();
+  ticket = []; renderTicket();
+  toast('Recorded ' + fmt(total) + ' · ' + pendingPay.label + (number ? ' · number ' + number : ''));
+  pendingPay = null;
+  syncQueue();
+}
+
+/* ---------- receipt printing (works offline) ---------- */
+function esc(s){ var e = document.createElement('span'); e.textContent = s; return e.innerHTML; }
+document.getElementById('printBtn').addEventListener('click', function(){
+  if (!lastOrder) return;
+  var d = lastOrder.at;
+  var when = d.toLocaleDateString('en-GB') + ' ' +
+    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  var html =
+    '<div class="rhead">THE HANGING GARDEN CAFÉ</div>' +
+    '<div class="rsub">Monteverde · Costa Rica</div>' +
+    '<div class="rsub">' + when + '</div>' +
+    (lastOrder.number ? '<div class="rnum"><small>YOUR NUMBER · SU NÚMERO</small>' + lastOrder.number + '</div>' : '') +
+    '<div class="rrule"></div>';
+  lastOrder.items.forEach(function(l){
+    html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + fmt(l.price * l.qty) + '</span></div>';
+  });
+  html +=
+    '<div class="rrule"></div>' +
+    '<div class="rtot"><span>TOTAL</span><span>' + fmt(lastOrder.total) + '</span></div>' +
+    '<div class="rrow"><span>Includes IVA 13%</span><span>' + fmt(Math.round(lastOrder.total - lastOrder.total/1.13)) + '</span></div>' +
+    '<div class="rrow"><span>Paid by</span><span>' + esc(lastOrder.label) + '</span></div>' +
+    '<div class="rfoot">¡Pura vida! · Gracias</div>';
+  document.getElementById('receipt').innerHTML = html;
+  window.print();
+});
+
+/* ---------- offline queue ---------- */
+function loadQueue(){ try{ queue = JSON.parse(localStorage.getItem(QKEY) || '[]'); }catch(e){ queue = []; } updateChip(); }
+function saveQueue(){ localStorage.setItem(QKEY, JSON.stringify(queue)); updateChip(); }
+var syncing = false;
+async function syncQueue(){
+  if (syncing || !queue.length){ updateChip(); return; }
+  syncing = true;
+  while (queue.length){
+    var o = queue[0];
+    try{
+      var row = {created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method};
+      if (o.status){ row.source = 'front'; row.status = o.status; row.needs_kitchen = !!o.needs_kitchen;
+                     row.pickup_number = o.pickup_number || null; row.paid = true; }
+      var r = await db.from('orders').insert(row).select('id').single();
+      if (r.error && o.status && /column|schema cache/i.test(r.error.message || '')){ /* kitchen SQL not run yet */
+        r = await db.from('orders').insert({created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method}).select('id').single();
+      }
+      if (r.error) throw r.error;
+      var items = o.items.map(function(it){ return Object.assign({order_id: r.data.id}, it); });
+      var r2 = await db.from('order_items').insert(items);
+      if (r2.error) throw r2.error;
+      queue.shift(); saveQueue();
+    }catch(e){ break; }
+  }
+  syncing = false; updateChip();
+}
+setInterval(syncQueue, 20000);
+addEventListener('online', syncQueue);
+function updateChip(){
+  var c = document.getElementById('netChip');
+  if (!navigator.onLine){ c.textContent = 'offline · ' + queue.length + ' saved'; c.className = 'chip off'; }
+  else if (queue.length){ c.textContent = 'syncing ' + queue.length + '…'; c.className = 'chip pend'; }
+  else { c.textContent = 'online'; c.className = 'chip on'; }
+}
+addEventListener('offline', updateChip);
+
+/* ---------- today / reconciliation ---------- */
+document.getElementById('dayBtn').addEventListener('click', openDay);
+document.getElementById('dayClose').addEventListener('click', function(){ document.getElementById('dayModal').hidden = true; });
+var dayCash = 0;
+async function openDay(){
+  var start = new Date(); start.setHours(0,0,0,0);
+  var body = document.getElementById('dayBody');
+  body.innerHTML = '<p style="color:var(--sec)">Adding it up…</p>';
+  document.getElementById('dayModal').hidden = false;
+  var r = await db.from('orders').select('total_crc,payment_method,voided_at,paid').gte('created_at', start.toISOString());
+  if (r.error && /paid/.test(r.error.message || '')){ /* kitchen SQL not run yet */
+    r = await db.from('orders').select('total_crc,payment_method,voided_at').gte('created_at', start.toISOString());
+  }
+  if (r.error && /voided_at/.test(r.error.message || '')){ /* authorization SQL not run yet */
+    r = await db.from('orders').select('total_crc,payment_method').gte('created_at', start.toISOString());
+  }
+  if (r.error){ body.innerHTML = '<p style="color:var(--bad)">Could not load today. Check the connection.</p>'; return; }
+  var all = r.data || [];
+  var voided = all.filter(function(o){ return o.voided_at; });
+  var rows = all.filter(function(o){ return !o.voided_at && o.paid !== false; });
+  queue.forEach(function(o){ rows.push({total_crc:o.total_crc, payment_method:o.payment_method}); });
+  var by = {}; var total = 0;
+  rows.forEach(function(o){ by[o.payment_method] = (by[o.payment_method]||0) + o.total_crc; total += o.total_crc; });
+  var labels = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
+  body.textContent = '';
+  var count = document.createElement('div'); count.className='dayrow';
+  count.innerHTML = '<span>Orders</span><span class="mono">' + rows.length + '</span>';
+  body.appendChild(count);
+  Object.keys(labels).forEach(function(k){
+    if (!by[k]) return;
+    var d = document.createElement('div'); d.className='dayrow';
+    d.innerHTML = '<span>' + labels[k] + '</span><span class="mono">' + fmt(by[k]) + '</span>';
+    body.appendChild(d);
+  });
+  if (voided.length){
+    var vd = document.createElement('div'); vd.className='dayrow';
+    vd.innerHTML = '<span>Voided (not counted)</span><span class="mono">' + voided.length + ' · ' +
+      fmt(voided.reduce(function(s,o){return s+o.total_crc},0)) + '</span>';
+    body.appendChild(vd);
+  }
+  var t = document.createElement('div'); t.className='dayrow big';
+  t.innerHTML = '<span>Total</span><span class="mono">' + fmt(total) + '</span>';
+  body.appendChild(t);
+  dayCash = by.cash_crc || 0;
+  var note = document.createElement('p');
+  note.style.cssText = 'font-size:.85rem;color:var(--sec);margin:.6rem 0 0';
+  note.textContent = 'Compare the card total with the BAC terminal batch. Count the drawer and type it below.';
+  body.appendChild(note);
+  document.getElementById('countedCash').value = '';
+  document.getElementById('cashDiff').textContent = '';
+}
+document.getElementById('countedCash').addEventListener('input', function(){
+  var v = parseInt(this.value, 10);
+  var el = document.getElementById('cashDiff');
+  if (isNaN(v)){ el.textContent=''; return; }
+  var diff = v - dayCash;
+  el.textContent = (diff === 0 ? 'exact' : (diff > 0 ? '+' : '−') + fmt(Math.abs(diff)).slice(0));
+  el.className = 'diff mono ' + (diff === 0 ? 'ok' : 'bad');
+});
+
+/* ---------- today's orders + manager-approved voids ---------- */
+var ERR = {bad_pin:'That PIN is not right.', locked:'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager:'That person is not a manager.', inactive:'That person is not active on the team.',
+  unknown_staff:'Pick the manager who is approving this.', missing_reason:'Write the reason for the void.',
+  not_found:'That order no longer exists.', already_voided:'That order was already voided.'};
+var voidTarget = null;
+var managersList = null;
+async function loadManagers(){
+  var r = await db.from('staff').select('id,name').eq('active', true).eq('role', 'manager').order('name');
+  managersList = r.error ? null : (r.data || []);
+  var sel = document.getElementById('vMgr');
+  sel.textContent = '';
+  (managersList || []).forEach(function(m){
+    var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o);
+  });
+  if (!(managersList || []).length){
+    var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2);
+  }
+}
+document.getElementById('ordersBtn').addEventListener('click', openOrders);
+document.getElementById('ordersClose').addEventListener('click', function(){ document.getElementById('ordersModal').hidden = true; });
+document.getElementById('vCancel').addEventListener('click', function(){ voidTarget = null; document.getElementById('voidBox').hidden = true; });
+async function openOrders(){
+  var body = document.getElementById('ordersBody');
+  body.innerHTML = '<p class="hint">Loading…</p>';
+  document.getElementById('voidBox').hidden = true;
+  document.getElementById('ordersModal').hidden = false;
+  loadManagers();
+  var start = new Date(); start.setHours(0,0,0,0);
+  var r = await db.from('orders')
+    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,status,pickup_number,source,paid,rooms(number),order_items(item_name,qty)')
+    .gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  if (r.error && /status|pickup_number|paid|rooms/.test(r.error.message || '')){ /* kitchen SQL not run yet */
+    r = await db.from('orders')
+      .select('id,created_at,total_crc,payment_method,voided_at,void_reason,order_items(item_name,qty)')
+      .gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  }
+  var voidReady = true;
+  if (r.error && /voided_at/.test(r.error.message || '')){
+    voidReady = false;
+    r = await db.from('orders').select('id,created_at,total_crc,payment_method,order_items(item_name,qty)')
+      .gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  }
+  if (r.error){ body.innerHTML = '<p style="color:var(--bad)">Could not load the orders. Check the connection.</p>'; return; }
+  body.textContent = '';
+  if (!voidReady){
+    var w = document.createElement('p'); w.className = 'hint';
+    w.textContent = 'Voiding switches on once the manager approval setup is run in Supabase.';
+    body.appendChild(w);
+  }
+  var labels = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
+  var rows = r.data || [];
+  if (queue.length){
+    var q = document.createElement('p'); q.className = 'hint';
+    q.textContent = queue.length + ' order' + (queue.length > 1 ? 's' : '') + ' still saving from offline. They show here once synced.';
+    body.appendChild(q);
+  }
+  if (!rows.length){ var e = document.createElement('p'); e.className = 'hint'; e.textContent = 'No orders yet today.'; body.appendChild(e); return; }
+  rows.forEach(function(o){
+    var row = document.createElement('div'); row.className = 'orow' + (o.voided_at ? ' void' : '');
+    var d = new Date(o.created_at);
+    var when = document.createElement('span'); when.className = 'when';
+    when.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    var head = document.createElement('span');
+    head.textContent = (o.source === 'room' ? 'Room ' + (o.rooms ? o.rooms.number : '?') + ' · ' : '') +
+      (o.paid === false ? 'not paid yet' : (labels[o.payment_method] || o.payment_method));
+    if (o.pickup_number || (o.status && o.status !== 'done')){
+      var tg = document.createElement('span'); tg.className = 'stag';
+      tg.textContent = (o.pickup_number ? '#' + o.pickup_number + ' ' : '') + (o.status && o.status !== 'done' ? o.status : '');
+      head.appendChild(tg);
+    }
+    var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(o.total_crc);
+    var items = document.createElement('span'); items.className = 'items';
+    items.textContent = (o.order_items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ') || '(no line items)';
+    row.appendChild(when); row.appendChild(head); row.appendChild(amt); row.appendChild(items);
+    if (o.voided_at){
+      var vt = document.createElement('span'); vt.className = 'vtag';
+      vt.textContent = 'Voided · ' + (o.void_reason || '');
+      row.appendChild(vt);
+    } else if (voidReady){
+      var b = document.createElement('button'); b.textContent = 'Void';
+      b.addEventListener('click', function(){
+        voidTarget = o;
+        document.getElementById('voidWhich').textContent = 'Void ' + when.textContent + ' · ' + fmt(o.total_crc) + ' · ' + items.textContent;
+        document.getElementById('vReason').value = ''; document.getElementById('vPin').value = '';
+        document.getElementById('voidErr').textContent = '';
+        document.getElementById('voidBox').hidden = false;
+        document.getElementById('vReason').focus();
+      });
+      row.appendChild(b);
+    }
+    body.appendChild(row);
+  });
+}
+document.getElementById('vGo').addEventListener('click', async function(){
+  if (!voidTarget) return;
+  var btn = this; btn.disabled = true;
+  var r = await db.rpc('manager_void_order', {
+    p_manager_id: document.getElementById('vMgr').value || null,
+    p_manager_pin: document.getElementById('vPin').value.trim(),
+    p_order_id: voidTarget.id,
+    p_reason: document.getElementById('vReason').value.trim()
+  });
+  btn.disabled = false;
+  if (r.error || !r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    document.getElementById('voidErr').textContent = r.error ? 'Could not void. Check the connection and try again.' : (ERR[code] || 'Could not void. Try again.');
+    document.getElementById('vPin').value = '';
+    return;
+  }
+  toast('Order voided · ' + fmt(voidTarget.total_crc));
+  voidTarget = null;
+  openOrders();
+});
+
+/* ---------- live orders: new room orders, kitchen tickets, ready numbers ---------- */
+var liveOrders = [];
+var liveTimer = null;
+var seenNew = null, seenReady = null;
+var actx = null;
+function chime(kind){
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    var notes = kind === 'new' ? [660, 880, 1100] : [880, 1100];
+    notes.forEach(function(f, i){
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = f; g.gain.setValueAtTime(0.0001, actx.currentTime + i*0.15);
+      g.gain.exponentialRampToValueAtTime(0.2, actx.currentTime + i*0.15 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + i*0.15 + 0.3);
+      o.connect(g); g.connect(actx.destination); o.start(actx.currentTime + i*0.15); o.stop(actx.currentTime + i*0.15 + 0.35);
+    });
+  }catch(e){}
+}
+async function pollLive(){
+  if (!navigator.onLine) return;
+  var start = new Date(); start.setHours(0,0,0,0);
+  var r = await db.from('orders')
+    .select('id,created_at,status,source,pickup_number,needs_kitchen,total_crc,guest_name,guest_phone,guest_lang,notes,rooms(number),order_items(item_name,qty)')
+    .in('status', ['new','preparing','ready']).is('voided_at', null)
+    .gte('created_at', start.toISOString()).order('created_at');
+  if (r.error) return;   /* before the kitchen SQL runs there is simply no live bar */
+  liveOrders = r.data || [];
+  var newIds = liveOrders.filter(function(o){ return o.status === 'new'; }).map(function(o){ return o.id; });
+  var readyIds = liveOrders.filter(function(o){ return o.status === 'ready'; }).map(function(o){ return o.id; });
+  if (seenNew !== null && newIds.some(function(id){ return seenNew.indexOf(id) < 0; })) chime('new');
+  if (seenReady !== null && readyIds.some(function(id){ return seenReady.indexOf(id) < 0; })) chime('ready');
+  seenNew = newIds; seenReady = readyIds;
+  renderLive();
+}
+function orderLabel(o){
+  if (o.source === 'room') return 'Room ' + (o.rooms ? o.rooms.number : '?');
+  return o.pickup_number ? '#' + o.pickup_number : 'No number';
+}
+function orderItems(o){ return (o.order_items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', '); }
+function renderLive(){
+  var bar = document.getElementById('liveBar'); bar.textContent = '';
+  liveOrders.forEach(function(o){
+    var chip = document.createElement('div'); chip.className = 'lv ' + o.status;
+    var n = document.createElement('span'); n.className = 'n'; n.textContent = orderLabel(o); chip.appendChild(n);
+    var d = document.createElement('span'); d.className = 'd';
+    d.textContent = (o.source === 'room' && o.guest_name ? o.guest_name + ' · ' : '') + orderItems(o) + (o.notes ? ' · ' + o.notes : '');
+    d.title = d.textContent; chip.appendChild(d);
+    if (o.status === 'new'){
+      chip.appendChild(btn('Accept', function(){ setStatus(o, 'preparing'); }));
+      chip.appendChild(btn('No show', function(){ if (confirm('Cancel this room order? (guest never came)')) cancelRoom(o); }, 'ghost'));
+    } else if (o.status === 'preparing'){
+      chip.appendChild(btn(o.needs_kitchen ? 'In kitchen · Ready' : 'Ready', function(){ setStatus(o, 'ready'); }, o.needs_kitchen ? 'ghost' : ''));
+    } else if (o.status === 'ready'){
+      if (o.source === 'room') chip.appendChild(btn('Paid & picked up', function(){ openPay(o); }));
+      else chip.appendChild(btn('Picked up', function(){ setStatus(o, 'done'); }));
+    }
+    if (o.source === 'room' && o.guest_phone && o.status !== 'new'){
+      chip.appendChild(btn('WhatsApp', function(){ whatsapp(o, o.status === 'ready' ? 'ready' : 'preparing'); }, 'wa'));
+    }
+    bar.appendChild(chip);
+  });
+}
+function btn(label, fn, cls){ var b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); return b; }
+async function setStatus(o, st){
+  var patch = {status: st};
+  if (st === 'preparing') patch.accepted_at = new Date().toISOString();
+  if (st === 'ready') patch.ready_at = new Date().toISOString();
+  if (st === 'done') patch.done_at = new Date().toISOString();
+  var r = await db.from('orders').update(patch).eq('id', o.id);
+  if (r.error){ toast('Could not save. Check the connection.'); return; }
+  if (o.source === 'room' && o.guest_phone && (st === 'preparing' || st === 'ready')) whatsapp(o, st);
+  pollLive();
+}
+async function cancelRoom(o){
+  var r = await db.rpc('cancel_room_order', {p_order_id: o.id});
+  if (r.error || !r.data || !r.data.ok){ toast('Could not cancel. Try again.'); return; }
+  toast('Room order cancelled'); pollLive();
+}
+var payTarget = null;
+function openPay(o){
+  payTarget = o;
+  document.getElementById('payDetail').textContent = orderLabel(o) + ' · ' + (o.guest_name || '') + ' · ' + orderItems(o) + ' · ' + fmt(o.total_crc) + '. How did they pay?';
+  document.getElementById('payModal').hidden = false;
+}
+document.getElementById('payCancel').addEventListener('click', function(){ payTarget = null; document.getElementById('payModal').hidden = true; });
+document.querySelectorAll('[data-rpay]').forEach(function(b){
+  b.addEventListener('click', async function(){
+    if (!payTarget) return;
+    var r = await db.rpc('finish_room_order', {p_order_id: payTarget.id, p_payment_method: b.dataset.rpay});
+    if (r.error || !r.data || !r.data.ok){ toast('Could not record the payment. Try again.'); return; }
+    document.getElementById('payModal').hidden = true;
+    toast('Recorded ' + fmt(payTarget.total_crc) + ' · ' + b.textContent.trim() + ' · ' + orderLabel(payTarget));
+    payTarget = null; pollLive();
+  });
+});
+/* WhatsApp draft: opens a chat with the guest's number, message pre-written, one tap to send. Free, no account needed. */
+var WA = {
+  en: {preparing: 'Hi {name}, this is The Hanging Garden Café. Your order for room {room} is being prepared. We will message you when it is ready.',
+       ready: 'Hi {name}, your order from The Hanging Garden Café is ready! Please come to the window to pay and pick it up{num}. Pura vida!'},
+  es: {preparing: 'Hola {name}, le escribe The Hanging Garden Café. Su pedido para la habitación {room} se está preparando. Le avisamos cuando esté listo.',
+       ready: 'Hola {name}, ¡su pedido de The Hanging Garden Café está listo! Pase a la ventanilla para pagar y recogerlo{num}. ¡Pura vida!'}
+};
+function whatsapp(o, kind){
+  var L = WA[o.guest_lang === 'es' ? 'es' : 'en'];
+  var msg = L[kind].replace('{name}', o.guest_name || '').replace('{room}', o.rooms ? o.rooms.number : '')
+    .replace('{num}', o.pickup_number ? (o.guest_lang === 'es' ? ' (número ' + o.pickup_number + ')' : ' (number ' + o.pickup_number + ')') : '');
+  window.open('https://wa.me/' + String(o.guest_phone).replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+}
+
+refreshAuth();
+</script>
+</body>
+</html>
