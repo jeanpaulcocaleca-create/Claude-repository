@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Order from your room · The Hanging Garden Café</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400;600&family=Dancing+Script:wght@600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#0A1A10; --panel:#FCF8EC; --canvas:#F3EFE0; --ink:#26392C; --accent:#1E4B33; --accent-hover:#143726;
+  --muted:#C9CFB6; --sec:#54634F; --gold:#B98A35; --leaf:#A9C9A4; --ok:#4A7A4E; --bad:#A8402F; --cream:#F3EFE0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5;min-height:100dvh;
+  background-image:linear-gradient(rgba(10,26,16,.82),rgba(10,26,16,.92)),url('https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cdf000bc-33ff-4d98-b457-c1726e4e4512.jpg');background-size:cover;background-attachment:fixed;background-position:center}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:600;margin:0}
+button{font:inherit;cursor:pointer;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;min-height:46px;padding:.5em 1.1em}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button:disabled{opacity:.55;cursor:default}
+input,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.6em .8em;width:100%}
+input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+label{display:block;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.wrap{max-width:560px;margin:0 auto;padding:1rem 1rem 7rem}
+.hero{text-align:center;color:var(--cream);padding:1.2rem 0 .6rem}
+.hero img{width:76px;height:76px;border-radius:50%;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.hero h1{font-size:1.5rem;margin-top:.5rem}
+.hero .room{font-family:'Dancing Script',cursive;font-size:1.6rem;color:var(--leaf)}
+.hero .sub{font-size:.9rem;color:var(--leaf);opacity:.9}
+.lang{display:flex;justify-content:center;gap:.4rem;margin:.6rem 0 1rem}
+.lang button{min-height:34px;padding:.2em .9em;font-size:.85rem;background:transparent;color:var(--leaf);border:1.5px solid rgba(169,201,164,.4);border-radius:99px}
+.lang button.on{background:var(--leaf);color:var(--bg)}
+.card{background:var(--panel);border-radius:18px;padding:1.1rem;margin-bottom:1rem;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.cat h2{font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.45rem;margin-bottom:.4rem}
+.it{display:grid;grid-template-columns:auto 1fr auto;gap:.8rem;align-items:center;padding:.65rem 0;border-bottom:1px dotted var(--muted)}
+.it:last-child{border-bottom:none}
+.it img,.it .noph{width:62px;height:62px;border-radius:12px;object-fit:cover;background:var(--canvas);border:1px solid var(--muted)}
+.it .nm{font-weight:700}
+.it .ds{font-size:.82rem;color:var(--sec);line-height:1.35}
+.it .pr{font-family:'Spline Sans Mono',monospace;font-size:.9rem;color:var(--accent);margin-top:.15rem}
+.it .add{display:flex;align-items:center;gap:.35rem}
+.it .add button{min-height:40px;min-width:40px;padding:0;border-radius:50%;font-size:1.2rem}
+.it .add .q{font-family:'Spline Sans Mono',monospace;min-width:1.4ch;text-align:center}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:.8rem 1rem calc(.8rem + env(safe-area-inset-bottom));background:rgba(10,26,16,.94);backdrop-filter:blur(10px);border-top:1px solid rgba(169,201,164,.25)}
+.bar .in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:1rem;color:var(--cream)}
+.bar .tot{font-family:'Spline Sans Mono',monospace;font-size:1.15rem;flex:1}
+.bar .tot small{display:block;font-family:'Figtree',sans-serif;font-size:.78rem;color:var(--leaf)}
+.bar button{background:var(--leaf);color:var(--bg)}
+.line{display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px dotted var(--muted)}
+.line .nm{flex:1;font-weight:600}
+.line .q button{min-height:34px;min-width:34px;padding:0;background:transparent;color:var(--accent);border:1.5px solid var(--muted);border-radius:8px}
+.line .q span{font-family:'Spline Sans Mono',monospace;padding:0 .5rem}
+.line .amt{font-family:'Spline Sans Mono',monospace;min-width:6ch;text-align:right}
+.total{display:flex;justify-content:space-between;font-weight:700;font-size:1.15rem;padding-top:.6rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.6rem}
+.hint{font-size:.85rem;color:var(--sec)}
+.closed{background:rgba(228,185,91,.15);border:1.5px solid var(--gold);border-radius:12px;padding:.8rem 1rem;color:var(--ink)}
+/* status */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin:.8rem 0 1rem}
+.step{text-align:center;font-size:.78rem;color:var(--sec);padding:.6rem .3rem;border-radius:10px;background:var(--canvas)}
+.step .dot{width:14px;height:14px;border-radius:50%;background:var(--muted);margin:0 auto .35rem}
+.step.done .dot{background:var(--ok)} .step.now .dot{background:var(--gold);box-shadow:0 0 0 5px rgba(185,138,53,.2);animation:pulse 1.4s infinite}
+.step.now{color:var(--ink);font-weight:700}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(185,138,53,.15)}50%{box-shadow:0 0 0 9px rgba(185,138,53,.05)}}
+.big{font-family:'Playfair Display',Georgia,serif;font-size:1.5rem;line-height:1.2;text-align:center;margin:.3rem 0 .5rem}
+.big.ready{color:var(--ok)}
+.pick{font-family:'Playfair Display',Georgia,serif;font-size:3rem;color:var(--gold);text-align:center;line-height:1}
+.center{text-align:center}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <img src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="">
+    <h1>The Hanging Garden Café</h1>
+    <div class="room" id="roomLine"></div>
+    <div class="sub" id="subLine"></div>
+  </div>
+  <div class="lang"><button id="langEn" class="on">English</button><button id="langEs">Español</button></div>
+
+  <div id="badView" class="card" hidden><h2 data-t="bad_title"></h2><p data-t="bad_body"></p></div>
+
+  <div id="menuView" hidden>
+    <div id="closedBox" class="closed" hidden style="margin-bottom:1rem"></div>
+    <div id="cats"></div>
+  </div>
+
+  <div id="reviewView" hidden>
+    <div class="card">
+      <h2 data-t="review_title"></h2>
+      <div id="reviewLines"></div>
+      <div class="total"><span data-t="total"></span><span class="mono" id="reviewTotal"></span></div>
+      <p class="hint" data-t="pay_note" style="margin:.6rem 0 0"></p>
+    </div>
+    <div class="card">
+      <form id="orderForm">
+        <label for="gName" data-t="name"></label>
+        <input id="gName" maxlength="60" autocomplete="name" required>
+        <label for="gPhone" data-t="phone"></label>
+        <input id="gPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+506 8888 8888" required>
+        <p class="hint" data-t="phone_why" style="margin:.3rem 0 0"></p>
+        <label for="gNotes" data-t="notes"></label>
+        <textarea id="gNotes" rows="2" maxlength="200"></textarea>
+        <p class="err" id="orderErr"></p>
+        <div style="display:flex;gap:.6rem;margin-top:.6rem">
+          <button type="submit" id="sendBtn" style="flex:1" data-t="send"></button>
+          <button type="button" class="ghost" id="backBtn" data-t="back"></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="statusView" hidden>
+    <div class="card">
+      <div class="steps">
+        <div class="step" id="s1"><div class="dot"></div><span data-t="st_received"></span></div>
+        <div class="step" id="s2"><div class="dot"></div><span data-t="st_preparing"></span></div>
+        <div class="step" id="s3"><div class="dot"></div><span data-t="st_ready"></span></div>
+      </div>
+      <div class="big" id="bigLine"></div>
+      <div class="pick" id="pickLine" hidden></div>
+      <p class="center hint" id="detailLine"></p>
+    </div>
+    <div class="card">
+      <h3 data-t="your_order" style="font-size:1.05rem;margin-bottom:.4rem"></h3>
+      <div id="statusLines"></div>
+      <div class="total"><span data-t="total"></span><span class="mono" id="statusTotal"></span></div>
+    </div>
+    <div class="center"><button class="ghost" id="againBtn" hidden data-t="again"></button></div>
+  </div>
+</div>
+
+<div class="bar" id="cartBar" hidden>
+  <div class="in">
+    <div class="tot"><span id="cartTotal">₡0</span><small id="cartCount"></small></div>
+    <button id="reviewBtn" data-t="review"></button>
+  </div>
+</div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var SKIP_CATS = {'Extras & Combos': 1};
+var CODE = new URLSearchParams(location.search).get('r') || '';
+var TOKEN_KEY = 'hg-room-order-' + CODE;
+
+var T = {
+  en: {bad_title:'This card is not valid', bad_body:'Please ask at the café and we will sort it out.',
+       room:'Room {n}', sub:'Order from your room, pay at the window when you pick up.',
+       closed:'Room ordering is open from {o} to {c}. See you then!', closed_off:'Room ordering is paused right now. Please come to the counter.',
+       review_title:'Your order', total:'Total', pay_note:'You pay at the window when your order is ready. Cash, card or SINPE.',
+       name:'Your name', phone:'WhatsApp or phone number', phone_why:'We will message you when your order is ready.',
+       notes:'Anything we should know? (optional)', send:'Send order', back:'Back', review:'Review order',
+       st_received:'Received', st_preparing:'Preparing', st_ready:'Ready',
+       big_new:'We got your order', big_preparing:'Your order is being prepared', big_ready:'Ready! Come to the window to pay and pick up.',
+       big_done:'Enjoy! Thank you.', big_cancelled:'This order was cancelled. Come to the counter if you still want it.',
+       detail_new:'The café will confirm it in a moment.', detail_preparing:'We will let you know when it is ready.',
+       detail_ready:'Your number:', your_order:'Your order', again:'Order something else', items:'{n} items', item:'1 item',
+       e_missing_name:'Please tell us your name.', e_bad_phone:'Please enter a phone number with the country code, like +506 8888 8888.',
+       e_empty:'Your order is empty.', e_room_busy:'There is already an order in progress for this room. Wait for it to finish, then order again.',
+       e_closed:'Room ordering is closed right now.', e_item_unavailable:'One of the items just sold out. Please review your order.',
+       e_generic:'Could not send the order. Check your connection and try again.', sending:'Sending…'},
+  es: {bad_title:'Esta tarjeta no es válida', bad_body:'Consulte en el café y lo resolvemos.',
+       room:'Habitación {n}', sub:'Pida desde su habitación y pague en la ventanilla al recoger.',
+       closed:'Los pedidos desde la habitación están abiertos de {o} a {c}. ¡Nos vemos!', closed_off:'Los pedidos desde la habitación están en pausa. Acérquese al mostrador.',
+       review_title:'Su pedido', total:'Total', pay_note:'Paga en la ventanilla cuando su pedido esté listo. Efectivo, tarjeta o SINPE.',
+       name:'Su nombre', phone:'WhatsApp o número de teléfono', phone_why:'Le avisamos cuando su pedido esté listo.',
+       notes:'¿Algo que debamos saber? (opcional)', send:'Enviar pedido', back:'Volver', review:'Revisar pedido',
+       st_received:'Recibido', st_preparing:'Preparando', st_ready:'Listo',
+       big_new:'Recibimos su pedido', big_preparing:'Estamos preparando su pedido', big_ready:'¡Listo! Pase a la ventanilla para pagar y recoger.',
+       big_done:'¡Buen provecho! Gracias.', big_cancelled:'Este pedido fue cancelado. Acérquese al mostrador si aún lo desea.',
+       detail_new:'El café lo confirmará en un momento.', detail_preparing:'Le avisamos cuando esté listo.',
+       detail_ready:'Su número:', your_order:'Su pedido', again:'Pedir algo más', items:'{n} artículos', item:'1 artículo',
+       e_missing_name:'Por favor escriba su nombre.', e_bad_phone:'Escriba un número con el código de país, por ejemplo +506 8888 8888.',
+       e_empty:'Su pedido está vacío.', e_room_busy:'Ya hay un pedido en curso para esta habitación. Espere a que termine y vuelva a pedir.',
+       e_closed:'Los pedidos desde la habitación están cerrados ahora.', e_item_unavailable:'Uno de los artículos se acaba de agotar. Revise su pedido.',
+       e_generic:'No se pudo enviar el pedido. Revise su conexión e intente de nuevo.', sending:'Enviando…'}
+};
+var lang = /^es/i.test(navigator.language || '') ? 'es' : 'en';
+try { var savedLang = localStorage.getItem('hg_lang'); if (savedLang === 'en' || savedLang === 'es') lang = savedLang; } catch (e) {}
+function t(k, v){ var s = (T[lang][k] || T.en[k] || k); if (v) Object.keys(v).forEach(function(x){ s = s.replace('{' + x + '}', v[x]); }); return s; }
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.getElementById('langEn').classList.toggle('on', lang === 'en');
+  document.getElementById('langEs').classList.toggle('on', lang === 'es');
+  document.querySelectorAll('[data-t]').forEach(function(el){ el.textContent = t(el.dataset.t); });
+  if (room){ document.getElementById('roomLine').textContent = t('room', {n: room.room}); document.getElementById('subLine').textContent = t('sub'); }
+  renderCart(); if (lastStatus) renderStatus(lastStatus);
+  renderClosed();
+}
+document.getElementById('langEn').addEventListener('click', function(){ lang = 'en'; try { localStorage.setItem('hg_lang', 'en'); } catch (e) {} applyLang(); });
+document.getElementById('langEs').addEventListener('click', function(){ lang = 'es'; try { localStorage.setItem('hg_lang', 'es'); } catch (e) {} applyLang(); });
+
+var room = null, cart = {}, menu = [], lastStatus = null, statusTimer = null;
+
+function show(id){
+  ['badView','menuView','reviewView','statusView'].forEach(function(v){ document.getElementById(v).hidden = v !== id; });
+  document.getElementById('cartBar').hidden = id !== 'menuView' || !Object.keys(cart).length;
+}
+
+/* ---------- start ---------- */
+async function start(){
+  applyLang();
+  if (!CODE){ show('badView'); return; }
+  var r = await db.rpc('room_lookup', {p_code: CODE});
+  if (r.error || !r.data || !r.data.ok){ show('badView'); return; }
+  room = r.data;
+  applyLang();
+  var tok = null; try{ tok = localStorage.getItem(TOKEN_KEY); }catch(e){}
+  if (tok){ var ok = await followOrder(tok); if (ok) return; }
+  await loadMenu();
+  show('menuView');
+}
+function renderClosed(){
+  var box = document.getElementById('closedBox');
+  if (!room){ box.hidden = true; return; }
+  box.hidden = room.open;
+  box.textContent = room.open ? '' : t('closed', {o: room.opens, c: room.closes});
+}
+
+/* ---------- menu ---------- */
+async function loadMenu(){
+  var r = await db.from('menu_categories')
+    .select('name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort)').order('sort');
+  if (r.error) return;
+  menu = r.data.filter(function(c){ return !SKIP_CATS[c.name]; });
+  var root = document.getElementById('cats'); root.textContent = '';
+  menu.forEach(function(cat){
+    var items = (cat.menu_items || []).filter(function(i){ return i.available; })
+      .sort(function(a,b){ return a.sort - b.sort || a.name.localeCompare(b.name); });
+    if (!items.length) return;
+    var card = document.createElement('div'); card.className = 'card cat';
+    var h = document.createElement('h2'); h.textContent = cat.name; card.appendChild(h);
+    items.forEach(function(it){
+      var row = document.createElement('div'); row.className = 'it';
+      if (it.photo_url){ var im = document.createElement('img'); im.src = it.photo_url; im.alt = ''; im.loading = 'lazy'; row.appendChild(im); }
+      else { var sp = document.createElement('span'); sp.className = 'noph'; row.appendChild(sp); }
+      var mid = document.createElement('div');
+      var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = it.name; mid.appendChild(nm);
+      if (it.description){ var ds = document.createElement('div'); ds.className = 'ds'; ds.textContent = it.description; mid.appendChild(ds); }
+      var pr = document.createElement('div'); pr.className = 'pr'; pr.textContent = fmt(it.price_crc); mid.appendChild(pr);
+      row.appendChild(mid);
+      var add = document.createElement('div'); add.className = 'add';
+      var minus = document.createElement('button'); minus.textContent = '−'; minus.className = 'ghost'; minus.setAttribute('aria-label', 'less');
+      var q = document.createElement('span'); q.className = 'q'; q.textContent = cart[it.id] ? cart[it.id].qty : '';
+      var plus = document.createElement('button'); plus.textContent = '+'; plus.setAttribute('aria-label', 'add ' + it.name);
+      minus.hidden = !cart[it.id];
+      plus.addEventListener('click', function(){ change(it, 1); q.textContent = cart[it.id].qty; minus.hidden = false; });
+      minus.addEventListener('click', function(){ change(it, -1); q.textContent = cart[it.id] ? cart[it.id].qty : ''; minus.hidden = !cart[it.id]; });
+      add.appendChild(minus); add.appendChild(q); add.appendChild(plus);
+      row.appendChild(add);
+      card.appendChild(row);
+    });
+    root.appendChild(card);
+  });
+}
+function change(it, d){
+  var c = cart[it.id] || {id: it.id, name: it.name, price: it.price_crc, qty: 0};
+  c.qty = Math.min(20, c.qty + d);
+  if (c.qty <= 0) delete cart[it.id]; else cart[it.id] = c;
+  renderCart();
+}
+function cartTotal(){ return Object.keys(cart).reduce(function(s,k){ return s + cart[k].price * cart[k].qty; }, 0); }
+function renderCart(){
+  var n = Object.keys(cart).reduce(function(s,k){ return s + cart[k].qty; }, 0);
+  document.getElementById('cartTotal').textContent = fmt(cartTotal());
+  document.getElementById('cartCount').textContent = n === 1 ? t('item') : t('items', {n: n});
+  document.getElementById('cartBar').hidden = !n || document.getElementById('menuView').hidden;
+}
+
+/* ---------- review ---------- */
+document.getElementById('reviewBtn').addEventListener('click', function(){
+  renderReview(); show('reviewView'); window.scrollTo(0, 0);
+});
+document.getElementById('backBtn').addEventListener('click', function(){ show('menuView'); });
+function renderReview(){
+  var root = document.getElementById('reviewLines'); root.textContent = '';
+  Object.keys(cart).forEach(function(k){
+    var c = cart[k];
+    var row = document.createElement('div'); row.className = 'line';
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = c.name;
+    var q = document.createElement('span'); q.className = 'q';
+    var minus = document.createElement('button'); minus.textContent = '−';
+    var qn = document.createElement('span'); qn.textContent = c.qty;
+    var plus = document.createElement('button'); plus.textContent = '+';
+    minus.addEventListener('click', function(){ change({id:c.id, name:c.name, price_crc:c.price}, -1); renderReview(); if (!Object.keys(cart).length) show('menuView'); });
+    plus.addEventListener('click', function(){ change({id:c.id, name:c.name, price_crc:c.price}, 1); renderReview(); });
+    q.appendChild(minus); q.appendChild(qn); q.appendChild(plus);
+    var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(c.price * c.qty);
+    row.appendChild(nm); row.appendChild(q); row.appendChild(amt);
+    root.appendChild(row);
+  });
+  document.getElementById('reviewTotal').textContent = fmt(cartTotal());
+}
+
+document.getElementById('orderForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var err = document.getElementById('orderErr'); err.textContent = '';
+  var btn = document.getElementById('sendBtn'); btn.disabled = true; btn.textContent = t('sending');
+  var items = Object.keys(cart).map(function(k){ return {id: cart[k].id, qty: cart[k].qty}; });
+  var r = await db.rpc('place_room_order', {
+    p_code: CODE, p_name: document.getElementById('gName').value.trim(),
+    p_phone: document.getElementById('gPhone').value.trim(), p_lang: lang,
+    p_notes: document.getElementById('gNotes').value.trim(), p_items: items
+  });
+  btn.disabled = false; btn.textContent = t('send');
+  if (r.error || !r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    err.textContent = r.error ? t('e_generic') : (t('e_' + code) !== 'e_' + code ? t('e_' + code) : t('e_generic'));
+    return;
+  }
+  try{ localStorage.setItem(TOKEN_KEY, r.data.token); }catch(x){}
+  cart = {};
+  followOrder(r.data.token);
+});
+
+/* ---------- status ---------- */
+async function followOrder(token){
+  var r = await db.rpc('order_status', {p_token: token});
+  if (r.error || !r.data || !r.data.ok){ try{ localStorage.removeItem(TOKEN_KEY); }catch(x){} return false; }
+  if (r.data.status === 'done' || r.data.status === 'cancelled'){
+    /* an old finished order: let the guest order again */
+    if (lastStatus === null){ try{ localStorage.removeItem(TOKEN_KEY); }catch(x){} return false; }
+  }
+  renderStatus(r.data);
+  show('statusView');
+  clearInterval(statusTimer);
+  if (r.data.status !== 'done' && r.data.status !== 'cancelled'){
+    statusTimer = setInterval(async function(){
+      var s = await db.rpc('order_status', {p_token: token});
+      if (s.error || !s.data || !s.data.ok) return;
+      var changed = lastStatus && lastStatus.status !== s.data.status;
+      renderStatus(s.data);
+      if (changed){ ping(s.data.status === 'ready'); }
+      if (s.data.status === 'done' || s.data.status === 'cancelled') clearInterval(statusTimer);
+    }, 5000);
+  }
+  return true;
+}
+function renderStatus(s){
+  lastStatus = s;
+  var st = s.status;
+  var order = ['new','preparing','ready','done'];
+  var ix = Math.max(0, order.indexOf(st === 'done' ? 'done' : st));
+  [['s1',0],['s2',1],['s3',2]].forEach(function(p){
+    var el = document.getElementById(p[0]);
+    el.className = 'step' + (ix > p[1] || st === 'done' ? ' done' : ix === p[1] ? ' now' : '');
+  });
+  var big = document.getElementById('bigLine');
+  big.textContent = t('big_' + (st === 'cancelled' ? 'cancelled' : st));
+  big.className = 'big' + (st === 'ready' ? ' ready' : '');
+  var pick = document.getElementById('pickLine');
+  pick.hidden = !(st === 'ready' && s.pickup_number);
+  pick.textContent = s.pickup_number ? '#' + s.pickup_number : '';
+  var d = document.getElementById('detailLine');
+  d.textContent = st === 'new' ? t('detail_new') : st === 'preparing' ? t('detail_preparing') : (st === 'ready' && s.pickup_number) ? t('detail_ready') : '';
+  var lines = document.getElementById('statusLines'); lines.textContent = '';
+  (s.items || []).forEach(function(it){
+    var row = document.createElement('div'); row.className = 'line';
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.qty + '× ' + it.name;
+    var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(it.price_crc * it.qty);
+    row.appendChild(nm); row.appendChild(amt); lines.appendChild(row);
+  });
+  document.getElementById('statusTotal').textContent = fmt(s.total);
+  document.getElementById('againBtn').hidden = !(st === 'done' || st === 'cancelled');
+  if (st === 'ready') document.title = '✓ ' + t('st_ready') + ' · The Hanging Garden Café';
+}
+document.getElementById('againBtn').addEventListener('click', async function(){
+  try{ localStorage.removeItem(TOKEN_KEY); }catch(x){}
+  lastStatus = null; clearInterval(statusTimer);
+  await loadMenu(); show('menuView'); window.scrollTo(0, 0);
+});
+function ping(strong){
+  try{ if (navigator.vibrate) navigator.vibrate(strong ? [200, 100, 200, 100, 400] : [120]); }catch(e){}
+  try{
+    var a = new (window.AudioContext || window.webkitAudioContext)();
+    (strong ? [660, 880, 1100, 1320] : [880]).forEach(function(f, i){
+      var o = a.createOscillator(), g = a.createGain();
+      o.frequency.value = f; g.gain.setValueAtTime(0.0001, a.currentTime + i*0.18);
+      g.gain.exponentialRampToValueAtTime(0.3, a.currentTime + i*0.18 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + i*0.18 + 0.4);
+      o.connect(g); g.connect(a.destination); o.start(a.currentTime + i*0.18); o.stop(a.currentTime + i*0.18 + 0.45);
+    });
+  }catch(e){}
+}
+
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Hanging Garden Café · Monteverde, Costa Rica</title>
+<meta name="description" content="A coffee experience in the cloud forest. The Hanging Garden Café, Monteverde, Costa Rica: slow coffee, garden seating, and the story of the green mountain.">
+<meta name="theme-color" content="#F6F1E2">
+<meta property="og:title" content="The Hanging Garden Café · Monteverde">
+<meta property="og:description" content="Slow coffee, grown in the clouds. Visit us in Monteverde, Costa Rica.">
+<meta property="og:url" content="https://hanginggardencafe.com/">
+<meta property="og:image" content="https://hanginggardencafe.com/assets/hero-ending.jpg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Hanging Garden Café">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CafeOrCoffeeShop",
+  "name": "The Hanging Garden Café",
+  "description": "A coffee experience in the cloud forest: slow chorreador coffee, garden seating, and fresh pastries in Monteverde, Costa Rica.",
+  "url": "https://hanginggardencafe.com/",
+  "image": "https://hanginggardencafe.com/assets/hero-ending.jpg",
+  "logo": "https://hanginggardencafe.com/assets/logo.png",
+  "telephone": "+506 6400 6601",
+  "servesCuisine": ["Coffee", "Pastries", "Café"],
+  "priceRange": "₡₡",
+  "currenciesAccepted": "CRC, USD",
+  "paymentAccepted": "Cash, Credit Card, SINPE Móvil",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Monteverde",
+    "addressRegion": "Puntarenas",
+    "addressCountry": "CR"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 10.3181,
+    "longitude": -84.8253
+  },
+  "openingHoursSpecification": [{
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+    "opens": "06:00",
+    "closes": "19:00"
+  }]
+}
+</script>
+<link rel="icon" type="image/png" href="assets/logo-512.png">
+<link rel="apple-touch-icon" href="assets/logo-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Figtree:wght@400;600&family=Dancing+Script:wght@600&family=Spline+Sans+Mono:wght@400&display=swap">
+<style>
+:root{
+  --canvas:#F6F1E2;
+  --panel:#FCF8EC;
+  --ink:#26392C;
+  --accent:#1E4B33;
+  --accent-hover:#143726;
+  --accent-muted:#C9CFB6;
+  --mist:#9BB09A;
+  --gold:#B98A35;
+  --crimson:#A93A2E;
+  --text-secondary:#54634F;
+  --tshadow:0 1px 2px rgba(20,12,5,.95),0 3px 12px rgba(20,12,5,.78),0 10px 44px rgba(20,12,5,.8);
+  --ease:cubic-bezier(.33,1,.68,1);
+  --ease-soft:cubic-bezier(.25,.46,.45,.94);
+}
+*{box-sizing:border-box}
+html,body{overflow-x:hidden;overflow-x:clip}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--canvas);color:var(--ink);
+  font-family:'Figtree',system-ui,sans-serif;font-size:17px;line-height:1.65;
+  opacity:0;transition:opacity .8s var(--ease);
+}
+body.ready{opacity:1}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+.script{font-family:'Dancing Script',cursive;font-weight:600;color:var(--accent);letter-spacing:.01em}
+.mono{font-family:'Spline Sans Mono',monospace;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:3px}
+.skip{position:absolute;left:-999px;top:0;background:var(--accent);color:#fff;padding:.6em 1em;z-index:99}
+.skip:focus{left:8px;top:8px}
+img{max-width:100%;display:block}
+
+/* ambient environment layer */
+.env{position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(90% 60% at 20% 10%,rgba(155,176,154,.16),transparent 60%),
+  radial-gradient(80% 60% at 85% 80%,rgba(185,138,53,.09),transparent 60%),
+  var(--canvas);
+}
+.env::after{content:"";position:absolute;inset:-40%;
+  background:radial-gradient(40% 30% at 50% 50%,rgba(155,176,154,.11),transparent 70%);
+  animation:envdrift 90s linear -30s infinite alternate}
+@keyframes envdrift{from{transform:translate(-6%,-4%)}to{transform:translate(6%,4%)}}
+
+/* ===================== NAV ===================== */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+  padding:.7rem 1.4rem;transition:background .5s var(--ease),box-shadow .5s var(--ease)}
+nav.solid{background:rgba(244,237,225,.92);backdrop-filter:blur(10px);box-shadow:0 1px 0 rgba(107,66,34,.12)}
+.navlogo{display:flex;align-items:baseline;gap:.55rem;text-decoration:none;color:var(--ink)}
+nav.on-video .navlogo{color:#F6EFE3;text-shadow:var(--tshadow)}
+.navlogo b{font-family:'Playfair Display',serif;font-weight:700;font-size:1.02rem;letter-spacing:.04em;text-transform:uppercase}
+.navlogo span{font-family:'Spline Sans Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;opacity:.75}
+.navlinks{display:flex;gap:1.3rem;align-items:center}
+.navlinks a{text-decoration:none;font-size:.9rem;font-weight:600;color:inherit}
+nav.on-video .navlinks a{color:#F6EFE3;text-shadow:var(--tshadow)}
+nav:not(.on-video) .navlinks a{color:var(--ink)}
+.navlinks a.cta{background:var(--accent);color:#fff !important;text-shadow:none;padding:.5em 1.05em;border-radius:99px;transition:background .3s var(--ease)}
+.navlinks a.cta:hover{background:var(--accent-hover)}
+@media(max-width:720px){.navlinks a:not(.cta){display:none}}
+@media(pointer:coarse){.navlinks a{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
+
+/* ===================== HERO (scrub) ===================== */
+.hero{position:relative;height:320vh}
+.stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#241a10}
+.stage .poster{position:absolute;inset:0;background-size:cover;background-position:center}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s var(--ease);will-change:transform;transform:translateZ(0)}
+.stage.video-ready video{opacity:1}
+.stage.video-failed video{display:none}
+.scrim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 120% 90% at 50% 45%,rgba(15,10,5,0) 35%,rgba(15,10,5,.62) 100%)}
+.ring{position:absolute;right:1.2rem;bottom:1.2rem;width:34px;height:34px;color:#F6EFE3;opacity:.85;transform:rotate(-90deg)}
+.chev{position:absolute;left:50%;bottom:1.1rem;transform:translateX(-50%);color:#F6EFE3;opacity:.8;font-size:1.3rem;animation:bob 2.4s var(--ease-soft) -1.2s infinite}
+@keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,8px)}}
+
+.band{position:absolute;inset:0;display:flex;align-items:center;pointer-events:none;opacity:0}
+.band .inner{position:relative;max-width:30ch;padding:0 6vw;text-shadow:var(--tshadow);color:#F6EFE3}
+.band .inner::before{content:"";position:absolute;inset:-1.8rem -2.2rem;z-index:-1;pointer-events:none;
+  border-radius:28px;background:rgba(8,12,6,.72);filter:blur(18px);
+  opacity:calc(.3 + .7*var(--k,1))}
+.band.settle .inner::before{inset:-1.1rem -1.5rem;background:rgba(8,12,6,.6);filter:blur(14px)}
+.band h1,.band h2{font-size:clamp(2rem,4.6vw,3.6rem);color:#F6EFE3}
+.band p{font-size:clamp(1rem,1.6vw,1.25rem);color:#EFE4D2}
+.band.right{justify-content:flex-end;text-align:right}
+.band::before{content:"";position:absolute;inset:-4%;pointer-events:none;opacity:calc(.25 + .75*var(--k,1));
+  background:radial-gradient(ellipse 60% 55% at 24% 50%,rgba(12,8,4,.66) 0%,rgba(12,8,4,.44) 46%,rgba(12,8,4,0) 76%)}
+.band.right::before{background:radial-gradient(ellipse 60% 55% at 76% 50%,rgba(12,8,4,.66) 0%,rgba(12,8,4,.44) 46%,rgba(12,8,4,0) 76%)}
+.band.settle{align-items:flex-end;justify-content:flex-start;text-align:left;padding-bottom:8svh}
+.band.settle .inner{max-width:none}
+.band.settle h1{font-size:clamp(1.5rem,2.5vw,2.15rem);line-height:1.12;max-width:11ch}
+.band.settle p{font-size:clamp(.92rem,1.15vw,1.05rem);max-width:30ch}
+.band.settle .btn{padding:.7em 1.4em;font-size:.95rem}
+.band.settle::before{background:radial-gradient(ellipse 42% 46% at 12% 96%,rgba(12,8,4,.78) 0%,rgba(12,8,4,.46) 46%,rgba(12,8,4,0) 76%)}
+.band .btn{text-shadow:none}
+
+/* entrances: blur-to-sharp */
+.b1 .soft,.b1 .sharp{display:block}
+.b1 .soft{filter:blur(10px);opacity:calc(1 - var(--k,0));position:absolute;inset:auto 6vw}
+.b1 .sharp{opacity:var(--k,0)}
+/* drift-down words */
+.w{display:inline-block;--kc:clamp(0,(var(--k,0) - var(--th,0))*2.8,1);opacity:var(--kc);
+  transform:translateY(calc((1 - var(--kc))*-24px))}
+/* approach-from-depth */
+.b3 .inner>*{opacity:var(--k,0);transform:scale(calc(.85 + .15*var(--k,0)))}
+/* staged settle */
+.b4 .slogo{width:56px;height:56px;border-radius:50%;margin:0 0 .6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45);opacity:clamp(0,(var(--k,0) - .4)*3,1)}
+.b4 h1 .w{--kc:clamp(0,(var(--k,0) - var(--th,0))*3,1);opacity:var(--kc);transform:translateY(calc((1 - var(--kc))*26px))}
+.b4 .sub{opacity:clamp(0,(var(--k,0) - .55)*3.2,1);transform:translateY(calc((1 - clamp(0,(var(--k,0) - .55)*3.2,1))*14px))}
+.b4 .ctarow{opacity:clamp(0,(var(--k,0) - .72)*4,1);pointer-events:auto}
+.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;
+  padding:.85em 1.7em;border-radius:99px;transition:background .3s var(--ease),transform .3s var(--ease)}
+.btn:hover{background:var(--accent-hover);transform:translateY(-2px)}
+@media(pointer:coarse){.btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
+
+/* static hero (five gates; keep identical to JS) */
+.static-hero{display:none;position:relative;min-height:92svh;align-items:flex-end;background:#241a10 center/cover no-repeat;padding:0 6vw 9svh}
+.static-hero .inner{color:#F6EFE3;text-shadow:var(--tshadow);max-width:none}
+.static-hero h1{font-size:clamp(1.6rem,7vw,2.4rem);line-height:1.12;color:#F6EFE3;max-width:11ch}
+.static-hero p{font-size:clamp(.95rem,4vw,1.05rem);max-width:30ch}
+.static-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,10,5,0) 52%,rgba(15,10,5,.62) 100%)}
+.static-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s ease}
+.static-hero video.on{opacity:1}
+.static-hero .inner{position:relative;z-index:1}
+@media (max-width:720px),
+       (orientation:portrait) and (max-width:1024px),
+       (orientation:portrait) and (pointer:coarse),
+       (orientation:landscape) and (pointer:coarse) and (max-height:560px),
+       (prefers-reduced-motion:reduce){
+  .hero{display:none}
+  .static-hero{display:flex}
+}
+@media(max-height:560px){.chev,.ring{display:none}}
+
+/* ===================== PAGE ===================== */
+main{position:relative}
+.thread{position:absolute;top:0;left:50%;transform:translateX(-.5px);height:100%;width:2px;pointer-events:none;z-index:1}
+.thread svg{position:absolute;top:0;left:-8px;width:18px;height:100%;overflow:visible}
+.thread path{stroke:var(--accent);stroke-width:2;fill:none;opacity:.5}
+.thread .cupend{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);color:var(--accent)}
+@media(max-width:900px){.thread{display:none}}
+
+section{position:relative;padding:16vh 6vw;max-width:1100px;margin:0 auto}
+.kicker{color:var(--accent);margin-bottom:.8rem}
+section h2{font-size:clamp(1.7rem,3.4vw,2.6rem);margin-bottom:1.2rem}
+section .lede{max-width:58ch;color:var(--text-secondary);font-size:1.08rem}
+
+/* entrances on scroll */
+.rev .part{opacity:0;transform:translateY(26px)}
+.rev.in .part{opacity:1;transform:none;transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.rev.in .part:nth-child(2){transition-delay:.12s}
+.rev.in .part:nth-child(3){transition-delay:.24s}
+.rev.in .part:nth-child(4){transition-delay:.36s}
+.rev.in .part:nth-child(5){transition-delay:.48s}
+.rev.done .part,.rev.done .part:nth-child(2),.rev.done .part:nth-child(3),.rev.done .part:nth-child(4),.rev.done .part:nth-child(5){transition-delay:0s}
+
+/* story timeline */
+.story{max-width:1100px}
+.timeline{list-style:none;margin:2.5rem 0 0;padding:0;display:grid;gap:2.2rem}
+.timeline li{display:grid;grid-template-columns:110px 1fr;gap:1.4rem;align-items:baseline}
+.timeline .year{font-family:'Spline Sans Mono',monospace;color:var(--gold);font-size:1.05rem}
+.timeline h3{font-size:1.15rem;margin-bottom:.3rem}
+.timeline p{margin:0;color:var(--text-secondary);max-width:58ch}
+@media(max-width:640px){.timeline li{grid-template-columns:1fr}}
+.values{margin-top:3rem;font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(1.2rem,2.6vw,1.8rem);color:var(--accent);text-align:center;letter-spacing:.02em}
+.ornament{color:var(--accent-muted);display:block;margin:2.5rem auto 0;width:min(320px,70%)}
+.ornament path{stroke:currentColor;fill:none;stroke-width:1.5;stroke-dasharray:600;stroke-dashoffset:var(--draw,600)}
+
+/* story grid with the quetzal */
+.storygrid{display:grid;grid-template-columns:1.35fr 1fr;gap:3.5rem;align-items:start}
+.storyside{position:sticky;top:5rem}
+.storyside figure{margin:0;border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(30,75,51,.16)}
+.storyside img{width:100%;display:block}
+.storyside figcaption{font-size:.85rem;color:var(--text-secondary);margin-top:.7rem;text-align:center}
+.storyside .script{display:block;text-align:center;font-size:1.5rem;margin-bottom:.1rem}
+@media(max-width:900px){.storygrid{grid-template-columns:1fr}.storyside{position:static;max-width:420px;margin:2rem auto 0}}
+
+/* canopy interlude */
+.canopy{max-width:none;padding:0;position:relative;z-index:2;min-height:58vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.canopy img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:canopydrift 70s var(--ease-soft) infinite alternate}
+@keyframes canopydrift{from{transform:scale(1.03) translateY(-1.5%)}to{transform:scale(1.1) translateY(1.5%)}}
+.canopy::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 82% 72% at 50% 55%,rgba(8,20,13,.87) 0%,rgba(8,20,13,.62) 55%,rgba(8,20,13,.3) 100%)}
+.canopy .inner{position:relative;z-index:1;text-align:center;color:#F6F1E2;text-shadow:var(--tshadow);padding:14vh 6vw}
+.canopy .inner::before{content:"";position:absolute;inset:4% -18%;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 78% 74% at 50% 50%,rgba(8,20,13,.88) 0%,rgba(8,20,13,.76) 58%,rgba(8,20,13,0) 88%)}
+.canopy .script{color:#F6F1E2;font-size:clamp(1.6rem,3.4vw,2.4rem)}
+.canopy h2{color:#F6F1E2;margin-top:.3rem}
+.canopy p{color:#E4E9D4;max-width:46ch;margin:.9rem auto 0}
+
+/* menu */
+.menuhead .script{font-size:clamp(1.5rem,3vw,2rem)}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:2.6rem 3rem;margin-top:2.5rem}
+.menu-cat h3{font-family:'Playfair Display',serif;font-weight:700;font-size:1rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:.55rem;margin-bottom:.9rem}
+.menu-cat h3 svg{width:17px;height:17px;flex:none}
+.menu-cat h3::after{content:"";flex:1;height:1px;background:var(--accent-muted)}
+.mi{display:flex;gap:.75rem;align-items:flex-start;padding:.45rem 0;border-radius:8px;transition:background .4s var(--ease)}
+.mi .ph{width:46px;height:46px;border-radius:10px;object-fit:cover;flex:none;border:1px solid var(--accent-muted)}
+.mi .mbody{flex:1;min-width:0}
+.mi .row1{display:flex;align-items:baseline;gap:.6rem}
+.mi .nm{font-weight:600}
+.mi .dots{flex:1;border-bottom:1px dotted var(--mist);transform:translateY(-4px)}
+.mi .price{font-family:'Spline Sans Mono',monospace;font-size:.9rem;color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mi .ds{font-size:.84rem;color:var(--text-secondary);line-height:1.45;margin-top:.05rem}
+.mi.lit{background:rgba(185,138,53,.14)}
+.feature-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem;margin-top:3rem}
+.fcard{background:var(--panel);border:1px solid var(--accent-muted);border-radius:18px;padding:1.5rem 1.6rem;position:relative;overflow:hidden}
+.fcard::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--mist))}
+.fcard .fk{font-family:'Spline Sans Mono',monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.fcard h3{font-size:1.3rem;margin:.35rem 0 .5rem}
+.fcard p{margin:0;color:var(--text-secondary);font-size:.95rem}
+.fcard .fp{font-family:'Spline Sans Mono',monospace;color:var(--accent);margin-top:.8rem;font-size:1.02rem}
+.combo{margin-top:1.2rem;background:var(--accent);color:#F6F1E2;border-radius:18px;padding:1.4rem 1.6rem;display:flex;flex-wrap:wrap;gap:.4rem 2.2rem;align-items:baseline;justify-content:center;text-align:center}
+.combo b{font-family:'Playfair Display',serif;font-size:1.15rem;letter-spacing:.08em;text-transform:uppercase}
+.combo span{font-size:.95rem;color:#E4E9D4}
+.combo .save{color:#E8C989;font-weight:600}
+.special{text-align:center;margin-top:1.8rem;color:var(--text-secondary)}
+.special .script{font-size:1.4rem}
+
+/* brew hold */
+.brew{text-align:center;background:var(--panel);border-radius:24px;padding:12vh 6vw;box-shadow:0 2px 24px rgba(107,66,34,.07)}
+.brewcup{width:120px;margin:2rem auto 1rem;cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:none;border:none;background:none;padding:0;color:var(--accent);display:block}
+.brewcup:active{transform:scale(.97)}
+.brew .hint{color:var(--text-secondary);font-size:.95rem}
+.brew .fillrect{transition:none}
+.brew.brewed .hint{color:var(--gold)}
+
+/* gallery */
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1.2rem;margin-top:2.5rem}
+.gal-grid figure{margin:0;border-radius:16px;overflow:hidden;background:var(--panel);aspect-ratio:4/3;position:relative}
+.gal-grid img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}
+.gal-grid figure:hover img{transform:scale(1.04)}
+.gal-grid figcaption{position:absolute;left:0;right:0;bottom:0;padding:.6rem .9rem;color:#F6EFE3;font-size:.85rem;background:linear-gradient(transparent,rgba(20,12,5,.65));text-shadow:0 1px 3px rgba(5,5,10,.8)}
+.gal-note{margin-top:1rem;font-size:.85rem;color:var(--text-secondary)}
+
+/* visit */
+.visit-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-top:2.5rem;align-items:start}
+@media(max-width:820px){.visit-grid{grid-template-columns:1fr}}
+.hours{list-style:none;margin:1rem 0 0;padding:0}
+.hours li{display:flex;justify-content:space-between;padding:.5rem 0;border-bottom:1px dotted var(--accent-muted)}
+.hours .t{font-family:'Spline Sans Mono',monospace;font-size:.9rem;font-variant-numeric:tabular-nums}
+.hours .t a{color:var(--accent)}
+.visit-btns{margin-top:2rem;display:flex;flex-wrap:wrap;gap:.6rem}
+.btn-wa{background:#1F8F86}.btn-wa:hover{background:#176F68}
+.map{border-radius:16px;overflow:hidden;background:var(--panel);min-height:320px}
+.map iframe{width:100%;height:100%;min-height:320px;border:0;display:block}
+
+/* nora */
+.nora{background:#2C3A2E;color:#EDF2E6;border-radius:24px;max-width:1100px;margin:0 auto;padding:12vh 6vw;text-align:center}
+.nora h2,.nora .kicker{color:#EDF2E6}
+.nora .kicker{color:#A9BCA0}
+.nora p{color:#C9D4C0;max-width:52ch;margin:0 auto 2rem}
+.nora .btn{background:#EDF2E6;color:#2C3A2E}
+.nora .btn:hover{background:#fff}
+
+/* footer */
+footer{padding:10vh 6vw 6vh;text-align:center;color:var(--text-secondary);font-size:.9rem}
+footer .cup{color:var(--accent);margin:0 auto 1rem;width:44px}
+footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
+
+/* watercolor framing, like the printed menu */
+.deco{position:absolute;pointer-events:none;user-select:none;z-index:-1;opacity:.92;
+  animation:sway 9s var(--ease-soft) infinite alternate}
+.deco.bl{left:max(-30px,-3vw);bottom:-10px;width:clamp(130px,18vw,250px)}
+.deco.br{right:max(-30px,-3vw);bottom:-10px;width:clamp(120px,16vw,220px);transform:scaleX(-1)}
+.deco.tr{right:max(-30px,-3vw);top:-6px;width:clamp(110px,15vw,210px);transform:scale(-1,-1)}
+.deco.tl{left:max(-30px,-3vw);top:-6px;width:clamp(100px,14vw,190px);transform:scaleY(-1)}
+.deco.qz{right:6vw;top:8vh;width:clamp(90px,11vw,150px);animation-duration:12s;animation-delay:-4s}
+@keyframes sway{from{rotate:-1.1deg}to{rotate:1.1deg}}
+@media(max-width:720px){.deco{width:92px;opacity:.75}.deco.qz{display:none}}
+
+.static-hero .slogo-static{width:54px;height:54px;border-radius:50%;margin-bottom:.6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45)}
+
+/* Garden Guide chat */
+.chatfab{position:fixed;right:1.1rem;bottom:1.1rem;z-index:60;width:60px;height:60px;border-radius:50%;
+  background:var(--accent);color:#F6F1E2;border:none;cursor:pointer;box-shadow:0 8px 26px rgba(8,20,13,.35);
+  display:flex;align-items:center;justify-content:center;transition:transform .25s var(--ease),background .25s var(--ease)}
+.chatfab:hover{transform:translateY(-2px) scale(1.04);background:var(--accent-hover)}
+.chatfab svg{width:28px;height:28px}
+.chatfab .ping{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0;animation:ping 8s var(--ease-soft) 4s infinite}
+@keyframes ping{0%,88%{transform:scale(1);opacity:0}90%{opacity:.6}100%{transform:scale(1.5);opacity:0}}
+.chat{position:fixed;right:1.1rem;bottom:5.6rem;z-index:61;width:min(380px,calc(100vw - 1.6rem));
+  max-height:min(560px,calc(100dvh - 7.4rem));display:flex;flex-direction:column;background:var(--panel);
+  border-radius:20px;border:1px solid var(--accent-muted);box-shadow:0 18px 60px rgba(8,20,13,.28);overflow:hidden}
+.chat[hidden]{display:none}
+.chat header{display:flex;align-items:center;gap:.7rem;background:var(--accent);color:#F6F1E2;padding:.8rem 1rem}
+.chat header img{width:40px;height:40px;border-radius:50%;background:#F6F1E2;object-fit:cover;padding:3px;flex:none}
+.chat header .t b{display:block;font-family:'Playfair Display',serif;font-size:1rem}
+.chat header .t span{font-size:.72rem;color:#CBD8C4}
+.chat header button{margin-left:auto;background:none;border:none;color:#F6F1E2;font-size:1.4rem;cursor:pointer;padding:.1rem .5rem;line-height:1}
+.chatlog{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.55rem;min-height:180px}
+.msg{max-width:88%;padding:.55rem .85rem;border-radius:14px;font-size:.92rem;line-height:1.5;white-space:pre-line;overflow-wrap:break-word}
+.msg.bot{background:#EDE7D4;color:var(--ink);border-bottom-left-radius:4px;align-self:flex-start}
+.msg.me{background:var(--accent);color:#F6F1E2;border-bottom-right-radius:4px;align-self:flex-end}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem;padding:.2rem 1rem .6rem}
+.chips button{background:transparent;border:1.5px solid var(--accent-muted);color:var(--accent);border-radius:99px;
+  font:inherit;font-size:.78rem;padding:.3em .8em;cursor:pointer;min-height:0}
+.chips button:hover{border-color:var(--accent);background:#fff}
+.chatform{display:flex;gap:.5rem;padding:.7rem;border-top:1px solid var(--accent-muted)}
+.chatform input{flex:1;min-width:0;font:inherit;border:1.5px solid var(--accent-muted);border-radius:12px;padding:.55em .8em;background:#fff;color:var(--ink)}
+.chatform button{background:var(--accent);border:none;color:#fff;border-radius:12px;width:46px;flex:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chatform button:hover{background:var(--accent-hover)}
+.chatform button svg{width:20px;height:20px}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .rev .part{opacity:1;transform:none}
+  .ornament path{stroke-dashoffset:0}
+  .thread path{stroke-dashoffset:0 !important}
+  body{opacity:1}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="env" aria-hidden="true"></div>
+
+<nav id="nav" class="on-video">
+  <a class="navlogo" href="#top"><b>The Hanging Garden</b><span>Café · Monteverde</span></a>
+  <div class="navlinks">
+    <a href="#story">Story</a>
+    <a href="#menu">Menu</a>
+    <a href="#galeria">Gallery</a>
+    <a href="#" id="chatNavOpen">Ask us</a>
+    <a class="cta" href="#visit">Plan your visit</a>
+  </div>
+</nav>
+
+<!-- ===== SCRUB HERO ===== -->
+<header class="hero" id="top">
+  <div class="stage" id="stage">
+    <div class="poster" id="poster" aria-hidden="true"></div>
+    <video id="hv" preload="none" muted playsinline aria-hidden="true" tabindex="-1"></video>
+    <div class="scrim" aria-hidden="true"></div>
+
+    <div class="band b1" data-a="0.00" data-b="0.10">
+      <div class="inner">
+        <span class="soft" aria-hidden="true"><h2>Follow the quetzal.</h2></span>
+        <span class="sharp"><h2>Follow the quetzal.</h2></span>
+      </div>
+    </div>
+    <div class="band b3" data-a="0.14" data-b="0.32">
+      <div class="inner"><h2>Through the coffee harvest.</h2></div>
+    </div>
+    <div class="band b5 right" data-a="0.40" data-b="0.62">
+      <div class="inner"><h2 data-split>Home to the garden.</h2></div>
+    </div>
+    <div class="band b4 settle" data-a="0.74" data-b="1.00">
+      <div class="inner">
+        <img class="slogo" src="assets/logo.png" alt="">
+        <h1 data-split>The Hanging Garden Café</h1>
+        <p class="sub">Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
+        <p class="ctarow"><a class="btn" href="#visit">Plan your visit</a></p>
+      </div>
+    </div>
+
+    <svg class="ring" viewBox="0 0 48 48" aria-hidden="true">
+      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-dasharray="126" style="stroke-dashoffset:var(--ld,126)"/>
+    </svg>
+  </div>
+</header>
+
+<!-- ===== STATIC HERO (phones, reduced motion) ===== -->
+<header class="static-hero" id="staticHero">
+  <video id="mobileFilm" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
+  <div class="inner">
+    <img class="slogo-static" src="assets/logo.png" alt="">
+    <h1>The Hanging Garden Café</h1>
+    <p>Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
+    <p><a class="btn" href="#visit">Plan your visit</a></p>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+  <div class="thread" aria-hidden="true">
+    <svg preserveAspectRatio="none"><path id="threadPath" d="M9 0 V 12000"/></svg>
+    <svg class="cupend" width="26" height="22" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="8"/></svg>
+  </div>
+
+  <!-- STORY -->
+  <section id="story" class="story rev">
+    <img class="deco tr" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <p class="kicker mono part">The story</p>
+    <h2 class="part">A green mountain, a cup of peace</h2>
+    <div class="storygrid">
+    <div>
+    <p class="lede part">Monteverde was not built for hurry. Every cup we pour carries a century of this mountain: farmers, pacifists, scientists, and a forest that drinks from the clouds.</p>
+    <ul class="timeline part">
+      <li><span class="year">1900s</span><div><h3>The first farms</h3><p>Costa Rican families settle the green mountain, planting coffee and raising dairy on slopes that touch the clouds.</p></div></li>
+      <li><span class="year">1948</span><div><h3>A nation chooses peace</h3><p>Costa Rica abolishes its army. The country puts down its weapons for good.</p></div></li>
+      <li><span class="year">1951</span><div><h3>The Quakers arrive</h3><p>Forty four Quakers leave Alabama, choosing Costa Rica because it has no army. They buy land in the cloud forest and name it Monteverde, the green mountain.</p></div></li>
+      <li><span class="year">1972</span><div><h3>The forest protected</h3><p>The Monteverde Cloud Forest Reserve is founded. The community protects the watershed instead of clearing it, and the world comes to walk under its canopy.</p></div></li>
+      <li><span class="year">Today</span><div><h3>Your cup</h3><p>The Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.</p></div></li>
+    </ul>
+    <p class="values part">Peace. Simplicity. Stewardship. Community.</p>
+    <svg class="ornament" viewBox="0 0 320 40" aria-hidden="true"><path class="drawline" d="M5 20 C60 5 100 35 160 20 C220 5 260 35 315 20 M150 20 q10 -14 20 0 q-10 14 -20 0"/></svg>
+    </div>
+    <aside class="storyside part">
+      <figure>
+        <img src="assets/quetzal.jpg" alt="A resplendent quetzal perched on a mossy branch in the Monteverde cloud forest">
+        <figcaption><span class="script">el quetzal</span>The jewel of the cloud forest, and our neighbor.</figcaption>
+      </figure>
+    </aside>
+    </div>
+  </section>
+
+  <!-- CANOPY INTERLUDE -->
+  <section class="canopy" aria-label="The Monteverde cloud forest">
+    <img class="bg" src="assets/canopy.jpg" alt="">
+    <div class="inner">
+      <span class="script">from Monteverde, for the adventure ahead</span>
+      <h2>Grown in the clouds</h2>
+      <p>100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.</p>
+    </div>
+  </section>
+
+  <!-- MENU -->
+  <section id="menu" class="rev">
+    <img class="deco bl" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <img class="deco tl" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <img class="deco qz" src="assets/deco-quetzal.png" alt="" aria-hidden="true" loading="lazy">
+    <div class="menuhead part">
+      <p class="kicker mono">Specialty coffee · Fresh food</p>
+      <h2>The menu</h2>
+      <p class="script">made for the cloud forest</p>
+    </div>
+    <p class="lede part" style="margin:0 auto;text-align:center">Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars at the counter.</p>
+    <div class="menu-grid part">
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Coffee</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Espresso</span><span class="dots"></span><span class="price">₡1 300</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Americano</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Macchiato</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Cappuccino</span><span class="dots"></span><span class="price">₡2 000</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Latte</span><span class="dots"></span><span class="price">₡2 200</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Flat White</span><span class="dots"></span><span class="price">₡2 200</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Mocha</span><span class="dots"></span><span class="price">₡2 400</span></div><div class="ds">Costa Rican chocolate</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Café con Leche</span><span class="dots"></span><span class="price">₡1 700</span></div><div class="ds">Traditional chorreado coffee + warm milk</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Cloud Forest Latte</span><span class="dots"></span><span class="price">₡2 600</span></div><div class="ds">El Trapiche espresso · milk · Costa Rican honey · cinnamon · hot or iced</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Iced Americano</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Iced Latte</span><span class="dots"></span><span class="price">₡2 200</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Iced Mocha</span><span class="dots"></span><span class="price">₡2 400</span></div><div class="ds">Costa Rican chocolate</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Other Drinks</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Costa Rican Hot Chocolate</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Tea</span><span class="dots"></span><span class="price">₡1 000</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Sweet Cane Drink</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Sandwiches</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Ham &amp; Cheese</span><span class="dots"></span><span class="price">₡4 000</span></div><div class="ds">Quality ham · local cheese · house sauce</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Mano de Piedra</span><span class="dots"></span><span class="price">₡4 500</span></div><div class="ds">Traditional Costa Rican beef · frijoles molidos · local cheese · tomato · house sauce</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Chicken Pesto</span><span class="dots"></span><span class="price">₡4 500</span></div><div class="ds">Chicken breast · pesto · local cheese · tomato</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Monteverde</span><span class="dots"></span><span class="price">₡3 750</span></div><div class="ds">Frijoles molidos · local cheese · tomato · house sauce · vegetarian, add ham +₡500</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Savory</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Chicken Empanada</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Beef Empanada</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Ham &amp; Cheese Croissant</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Warm it up? Absolutely.</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Pastries &amp; Cake</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Butter Croissant</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Chocolate Croissant</span><span class="dots"></span><span class="price">₡1 800</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Banana Bread</span><span class="dots"></span><span class="price">₡1 500</span></div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Carrot Cake</span><span class="dots"></span><span class="price">₡2 000</span></div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Costa Rican Favorites</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Tres Leches</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Classic three-milk cake</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Tamal Asado</span><span class="dots"></span><span class="price">₡1 500</span></div><div class="ds">Traditional Costa Rican baked corn cake</div></div></div>
+      </div>
+      <div class="menu-cat">
+        <h3><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Smoothies</h3>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Golden Passion Bloom</span><span class="dots"></span><span class="price">₡3 200</span></div><div class="ds">Mango · pineapple · passion fruit (₡3 500 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Berry Violet Blossom</span><span class="dots"></span><span class="price">₡3 500</span></div><div class="ds">Strawberry · blackberry · ice cream (only in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">White Plumeria Cream</span><span class="dots"></span><span class="price">₡3 500</span></div><div class="ds">Pineapple · coconut cream · ice cream (only in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Sunflower Citrus Bloom</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Watermelon · pineapple · orange juice (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Green Jasmine Mint</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Pineapple · lemon · spearmint (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Coral Rose Splash</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Strawberry · watermelon · orange juice (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Pink Dahlia Delight</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Strawberry · mango (₡2 800 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Emerald Orchid</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Kiwi · strawberry (₡3 100 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Lemon Rose Blossom</span><span class="dots"></span><span class="price">₡2 700</span></div><div class="ds">Strawberry · lemon (only in water)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Fresh Water Lily</span><span class="dots"></span><span class="price">₡2 200</span></div><div class="ds">Melon · watermelon (₡2 500 in milk)</div></div></div>
+        <div class="mi" data-mi><div class="mbody"><div class="row1"><span class="nm">Golden Magnolia</span><span class="dots"></span><span class="price">₡2 500</span></div><div class="ds">Papaya · mango (₡2 800 in milk)</div></div></div>
+      </div>
+    </div>
+    <div class="feature-row part">
+      <div class="fcard">
+        <div class="fk">House signature</div>
+        <h3>Cloud Forest Latte</h3>
+        <p>El Trapiche espresso, milk, Costa Rican honey, and cinnamon. Hot or iced.</p>
+        <div class="fp">₡2 600</div>
+      </div>
+      <div class="fcard">
+        <div class="fk">For the trail</div>
+        <h3>Adventure Box</h3>
+        <p>Your sandwich + fresh fruit + a sweet treat + bottled water + napkin. Order by 8 pm tonight, pick it up from 6:30 am.</p>
+        <div class="fp">Ham &amp; Cheese or Monteverde ₡6 500 · Mano de Piedra or Chicken Pesto ₡7 000</div>
+      </div>
+    </div>
+    <div class="combo part">
+      <b>Make it a combo</b>
+      <span>Coffee + pastry · <span class="save">save ₡500</span></span>
+      <span>Sandwich + coffee · <span class="save">save ₡500</span></span>
+    </div>
+    <p class="special part"><span class="script">Today's Garden Special</span><br>Ask what's blooming today.</p>
+  </section>
+
+  <!-- BREW HOLD -->
+  <section class="rev">
+    <div class="brew part" id="brew">
+      <p class="kicker mono">Try it yourself</p>
+      <h2>Hold to brew</h2>
+      <p class="hint" id="brewHint">Press and hold the cup. Good coffee cannot be rushed.</p>
+      <button class="brewcup" id="brewBtn" aria-label="Press and hold to fill the cup">
+        <svg width="120" height="110" viewBox="0 0 120 110" aria-hidden="true">
+          <defs><clipPath id="cupclip"><path d="M25 35 h60 v28 a22 22 0 01-22 22 H47 a22 22 0 01-22-22 z"/></clipPath></defs>
+          <rect class="fillrect" id="fillRect" x="25" y="85" width="60" height="0" fill="#1E4B33" clip-path="url(#cupclip)"/>
+          <path d="M25 35h60v28a22 22 0 01-22 22H47a22 22 0 01-22-22zM85 41h10a11 11 0 010 22H85" fill="none" stroke="currentColor" stroke-width="6"/>
+          <path d="M46 12c-3 7 3 9 0 16M60 12c-3 7 3 9 0 16M74 12c-3 7 3 9 0 16" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" opacity=".7"/>
+        </svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section id="galeria" class="rev">
+    <img class="deco br" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <p class="kicker mono part">La galería</p>
+    <h2 class="part">A table between the clouds</h2>
+    <div class="gal-grid part" id="galGrid">
+      <figure><img src="assets/gal-1.jpg" alt="Coffee served at the garden" loading="lazy"><figcaption>Morning chorreado</figcaption></figure>
+      <figure><img src="assets/gal-2.jpg" alt="Fresh pastries" loading="lazy"><figcaption>Baked this morning</figcaption></figure>
+      <figure><img src="assets/gal-3.jpg" alt="Coffee pouring" loading="lazy"><figcaption>Poured slow</figcaption></figure>
+      <figure><img src="assets/gal-4.jpg" alt="Garden seating among hanging plants" loading="lazy"><figcaption>The hanging garden</figcaption></figure>
+    </div>
+    <p class="gal-note part">These images are AI generated placeholders. Photos of the real garden are coming soon.</p>
+  </section>
+
+  <!-- VISIT -->
+  <section id="visit" class="rev">
+    <img class="deco tl" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <p class="kicker mono part">Visit us</p>
+    <h2 class="part">Plan your visit</h2>
+    <div class="visit-grid">
+      <div class="part">
+        <p class="lede">Find us in Monteverde, on the road through Santa Elena, Puntarenas, Costa Rica. Come before the forest walk or after the hanging bridges. The coffee waits either way.</p>
+        <ul class="hours">
+          <li><span>Every day</span><span class="t">6:00 – 19:00</span></li>
+          <li><span>WhatsApp</span><span class="t"><a href="https://wa.me/50664006601" target="_blank" rel="noopener">+506 6400 6601</a></span></li>
+        </ul>
+        <p class="visit-btns"><a class="btn" href="https://www.google.com/maps/search/The+Hanging+Garden+Cafe+Monteverde" target="_blank" rel="noopener">Get directions</a> <a class="btn btn-wa" href="https://wa.me/50664006601" target="_blank" rel="noopener">Message us on WhatsApp</a></p>
+      </div>
+      <div class="map part">
+        <iframe title="Map of The Hanging Garden Café, Monteverde" loading="lazy"
+          src="https://www.google.com/maps?q=The+Hanging+Garden+Cafe+Monteverde+Costa+Rica&output=embed"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <!-- ASK US -->
+  <section class="rev" id="ask" style="padding-left:6vw;padding-right:6vw">
+    <div class="nora part">
+      <p class="kicker mono">Questions?</p>
+      <h2>Ask the Garden Guide</h2>
+      <p>Hours, prices, what to wear in the cloud forest, where the quetzals are: our little guide answers right here on the page, in English y en español.</p>
+      <button class="btn" type="button" id="chatSectionOpen">Ask a question</button>
+    </div>
+  </section>
+</main>
+
+<button class="chatfab" id="chatFab" aria-label="Ask the Garden Guide a question" aria-expanded="false">
+  <span class="ping" aria-hidden="true"></span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 01-8.5 8.3 9 9 0 01-3.2-.6L3 21l1.9-5.4a8 8 0 01-1.4-4.6A8.4 8.4 0 0112 2.7a8.4 8.4 0 019 8.8z"/><path d="M8 10h8M8 13.4h5"/></svg>
+</button>
+<div class="chat" id="chatBox" hidden role="dialog" aria-label="Garden Guide chat">
+  <header>
+    <img src="assets/deco-quetzal.png" alt="">
+    <div class="t"><b>Garden Guide</b><span>The Hanging Garden · English y español</span></div>
+    <button type="button" id="chatClose" aria-label="Close chat">×</button>
+  </header>
+  <div class="chatlog" id="chatLog" aria-live="polite"></div>
+  <div class="chips" id="chatChips"></div>
+  <form class="chatform" id="chatForm">
+    <input id="chatInput" maxlength="280" placeholder="Ask anything… / Pregúntame algo…" autocomplete="off" aria-label="Your question">
+    <button type="submit" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12l16-7-6 16-2.5-6.5z"/></svg></button>
+  </form>
+</div>
+
+<footer>
+  <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
+  <p><b>The Hanging Garden Café</b> · Monteverde, Costa Rica</p>
+  <p>100% Costa Rican coffee · Locally sourced · Proudly serving coffee from El Trapiche Monteverde</p>
+  <p>Thank you for supporting our community and our forest. Pura vida.</p>
+  <p class="small">Gallery imagery is AI generated for now and will be replaced with photos of the real café. Website by The Hanging Garden.</p>
+</footer>
+
+<script>
+/* ============ config ============ */
+var VIDEO_URL = 'assets/hero-scrub.mp4';
+var VIDEO_BYTES = 14115316;
+var POSTER_URL = 'assets/hero-poster.jpg';
+var ENDING_URL = 'assets/hero-ending.jpg';
+var MOBILE_VIDEO_URL = 'assets/hero-mobile.mp4';
+
+var stage = document.getElementById('stage');
+var video = document.getElementById('hv');
+var posterLayer = document.getElementById('poster');
+var ring = document.querySelector('.ring circle');
+var hero = document.querySelector('.hero');
+var nav = document.getElementById('nav');
+var bands = [];
+
+/* seeded rng for stable splits */
+function rng(seed){var s=seed>>>0;return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296}}
+var rand = rng(20260830);
+
+/* split words for entrances */
+document.querySelectorAll('[data-split]').forEach(function(el){
+  var text = el.textContent;
+  el.setAttribute('aria-label', text);
+  el.textContent = '';
+  var vis = document.createElement('span'); vis.setAttribute('aria-hidden','true');
+  text.split(' ').forEach(function(wd,i,arr){
+    var w = document.createElement('span'); w.className='w'; w.textContent=wd;
+    w.style.setProperty('--th', (i/arr.length*0.5 + rand()*0.06).toFixed(3));
+    vis.appendChild(w);
+    if(i<arr.length-1) vis.appendChild(document.createTextNode(' '));
+  });
+  el.appendChild(vis);
+});
+
+document.querySelectorAll('.band').forEach(function(b){
+  bands.push({el:b, a:parseFloat(b.dataset.a), b:parseFloat(b.dataset.b), op:-1, k:-1});
+});
+
+var smoothstep=function(p,e0,e1){var t=Math.min(1,Math.max(0,(p-e0)/(e1-e0)));return t*t*(3-2*t)};
+var clamp=function(v,lo,hi){return Math.min(hi,Math.max(lo,v))};
+
+/* band 1 load ramp */
+var loadK = 0, loadStart = null;
+function loadRamp(now){
+  if(loadStart===null) loadStart=now;
+  loadK = clamp((now-loadStart)/1400,0,1);
+  updateCaptions(shown);
+  if(loadK<1) requestAnimationFrame(loadRamp);
+}
+
+function updateCaptions(p){
+  for(var i=0;i<bands.length;i++){
+    var bd=bands[i];
+    var f=Math.min(0.02,(bd.b-bd.a)/3);
+    var op=smoothstep(p,bd.a,bd.a+f)*(1-smoothstep(p,bd.b-f,bd.b));
+    if(i===0) op=(1-smoothstep(p,bd.b-f,bd.b)); /* first band opens settled */
+    if(i===bands.length-1) op=smoothstep(p,bd.a,bd.a+f); /* last band holds */
+    var ramp=Math.min(0.025,(bd.b-bd.a)*0.35);
+    var k=clamp((p-bd.a)/ramp,0,1);
+    if(i===0) k=Math.max(k,loadK);
+    if(Math.abs(op-bd.op)>0.008){bd.op=op;bd.el.style.opacity=op}
+    if(Math.abs(k-bd.k)>0.008){bd.k=k;bd.el.style.setProperty('--k',k)}
+  }
+  /* nav swaps to solid past the hero */
+  var solid = p>0.985 || !scrubOn;
+  if(solid!==navSolid){navSolid=solid;nav.classList.toggle('solid',solid);nav.classList.toggle('on-video',!solid)}
+}
+var navSolid=false;
+
+/* scrub engine */
+var target=0, shown=0, rafId=null, lastTick=0;
+function heroProgress(){
+  var r=hero.getBoundingClientRect();
+  var range=r.height-innerHeight;
+  return range>0?clamp(-r.top/range,0,1):0;
+}
+var seekBusy=false, pendingTime=null;
+function requestSeek(t){
+  if(!video.duration) return;
+  if(seekBusy){pendingTime=t;return}
+  seekBusy=true; video.currentTime=t;
+}
+video.addEventListener('seeked',function(){
+  seekBusy=false;
+  if(pendingTime!==null){var t=pendingTime;pendingTime=null;requestSeek(t)}
+});
+video.addEventListener('error',function(){seekBusy=false;pendingTime=null;failVideo()});
+
+function tick(now){
+  var dt=Math.min(100,now-(lastTick||now)); lastTick=now;
+  var k=0.16;
+  shown+=(target-shown)*(1-Math.pow(1-k,dt/16.667));
+  if(Math.abs(target-shown)<0.0005){shown=target;rafId=null;lastTick=0}
+  else{rafId=requestAnimationFrame(tick)}
+  requestSeek(shown*video.duration);
+  updateCaptions(shown);
+}
+var heroOnScreen=true;
+new IntersectionObserver(function(es){heroOnScreen=es[0].isIntersecting},{rootMargin:'20%'}).observe(hero);
+function onScroll(){
+  target=heroProgress();
+  if(rafId===null&&heroOnScreen) rafId=requestAnimationFrame(tick);
+}
+
+/* blob loader */
+var heroInit=false, started=false;
+function initHeroOnce(){
+  if(heroInit) return; heroInit=true;
+  posterLayer.style.backgroundImage="url('"+POSTER_URL+"')";
+  var pi=new Image(); pi.onload=startBlobFetch; pi.onerror=startBlobFetch; pi.src=POSTER_URL;
+  setTimeout(startBlobFetch,4000);
+  requestAnimationFrame(loadRamp);
+}
+function startBlobFetch(){
+  if(started) return; started=true;
+  loadHeroBlob().catch(failVideo);
+}
+async function loadHeroBlob(){
+  var ctrl=new AbortController();
+  var watchdog=setTimeout(function(){ctrl.abort()},20000);
+  var res=await fetch(VIDEO_URL,{priority:'low',signal:ctrl.signal});
+  if(!res.ok) throw new Error('video http '+res.status);
+  var total=Number(res.headers.get('Content-Length'))||VIDEO_BYTES;
+  var reader=res.body.getReader();
+  var chunks=[],got=0,lastRing=0;
+  for(;;){
+    var r=await reader.read();
+    if(r.done) break;
+    clearTimeout(watchdog);
+    watchdog=setTimeout(function(){ctrl.abort()},20000);
+    chunks.push(r.value); got+=r.value.length;
+    var frac=Math.min(1,got/total);
+    var now=performance.now();
+    if(now-lastRing>100||frac===1){lastRing=now;ring.style.setProperty('--ld',Math.round(126*(1-frac)))}
+  }
+  clearTimeout(watchdog);
+  ring.style.setProperty('--ld',0);
+  video.src=URL.createObjectURL(new Blob(chunks,{type:'video/mp4'}));
+  video.load();
+  video.addEventListener('canplay',function(){
+    requestSeek(heroProgress()*video.duration);
+    stage.classList.add('video-ready');
+    ring.parentElement.style.display='none';
+  },{once:true});
+}
+function failVideo(){
+  var ringSvg=document.querySelector('.ring');
+  if(ringSvg){
+    var chev=document.createElement('div');
+    chev.className='chev'; chev.textContent='↓'; chev.setAttribute('aria-hidden','true');
+    ringSvg.replaceWith(chev);
+  }
+  stage.classList.add('video-failed');
+}
+
+/* five gates, live */
+var GATES=[
+  '(max-width: 720px)',
+  '(orientation: portrait) and (max-width: 1024px)',
+  '(orientation: portrait) and (pointer: coarse)',
+  '(orientation: landscape) and (pointer: coarse) and (max-height: 560px)',
+  '(prefers-reduced-motion: reduce)'
+];
+var scrubOn=false;
+function enableScrub(){
+  if(scrubOn) return; scrubOn=true;
+  initHeroOnce();
+  addEventListener('scroll',onScroll,{passive:true});
+  bands.forEach(function(b){b.op=-1;b.k=-1});
+  updateCaptions(heroProgress());
+  onScroll();
+}
+function disableScrub(){
+  if(!scrubOn) return; scrubOn=false;
+  removeEventListener('scroll',onScroll);
+  if(rafId!==null){cancelAnimationFrame(rafId);rafId=null}
+}
+/* phones: play the film once on load (muted, inline), settle on the last frame.
+   reduced-motion keeps the still only; if the download fails the still stays. */
+var mobileFilmStarted=false;
+function initMobileFilm(){
+  if(mobileFilmStarted) return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  mobileFilmStarted=true;
+  var v=document.getElementById('mobileFilm');
+  if(!v) return;
+  v.addEventListener('canplaythrough',function once(){
+    v.removeEventListener('canplaythrough',once);
+    var p=v.play();
+    if(p&&p.then){p.then(function(){v.classList.add('on')}).catch(function(){})}
+    else{v.classList.add('on')}
+  });
+  v.addEventListener('error',function(){v.classList.remove('on')});
+  v.preload='auto';
+  v.src=MOBILE_VIDEO_URL;
+  v.load();
+}
+function applyHeroMode(){
+  if(GATES.some(function(q){return matchMedia(q).matches})){
+    disableScrub();
+    document.getElementById('staticHero').style.backgroundImage="url('"+ENDING_URL+"')";
+    initMobileFilm();
+  } else {
+    enableScrub();
+  }
+}
+var MQLS=GATES.map(function(q){return matchMedia(q)});
+MQLS.forEach(function(m){m.addEventListener('change',applyHeroMode)});
+applyHeroMode();
+
+matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',function(e){
+  if(e.matches) pinToFinalStates(); else applyHeroMode();
+});
+function pinToFinalStates(){
+  document.querySelectorAll('.rev').forEach(function(s){s.classList.add('in','done')});
+  document.querySelectorAll('.drawline').forEach(function(p){p.style.setProperty('--draw',0)});
+  var tp=document.getElementById('threadPath'); if(tp) tp.style.strokeDashoffset=0;
+  finishBrew(true);
+}
+
+/* section entrances */
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      setTimeout(function(){e.target.classList.add('done')},1400);
+      io.unobserve(e.target);
+    }
+  });
+},{threshold:0.15});
+document.querySelectorAll('.rev').forEach(function(s){io.observe(s)});
+
+/* drip thread + ornament draw on scroll */
+var threadPath=document.getElementById('threadPath');
+var mainEl=document.getElementById('main');
+function sizeThread(){
+  var h=mainEl.scrollHeight;
+  threadPath.setAttribute('d','M9 0 V '+h);
+  threadPath.style.strokeDasharray=h;
+  threadPath.style.strokeDashoffset=h;
+}
+sizeThread();
+addEventListener('resize',sizeThread);
+var lastThread=-1;
+addEventListener('scroll',function(){
+  var r=mainEl.getBoundingClientRect();
+  var drawn=clamp((innerHeight*0.7-r.top)/r.height,0,1);
+  var off=Math.round(mainEl.scrollHeight*(1-drawn));
+  if(Math.abs(off-lastThread)>4){lastThread=off;threadPath.style.strokeDashoffset=off}
+  document.querySelectorAll('.ornament').forEach(function(o){
+    var or=o.getBoundingClientRect();
+    var k=clamp((innerHeight-or.top)/(innerHeight*0.6),0,1);
+    o.querySelector('path').style.setProperty('--draw',Math.round(600*(1-k)));
+  });
+},{passive:true});
+
+/* hold to brew */
+(function(){
+  var btn=document.getElementById('brewBtn');
+  var fill=document.getElementById('fillRect');
+  var hint=document.getElementById('brewHint');
+  var prog=0,holding=false,raf=null,done=false;
+  function frame(){
+    prog=clamp(prog+(holding?0.014:-0.02),0,1);
+    fill.setAttribute('y',85-50*prog);
+    fill.setAttribute('height',50*prog);
+    if(prog>=1&&!done){done=true;finishBrew(false);return}
+    if(prog>0||holding){raf=requestAnimationFrame(frame)}else{raf=null}
+  }
+  function start(e){if(done)return;e.preventDefault();holding=true;if(raf===null)raf=requestAnimationFrame(frame)}
+  function stop(){holding=false}
+  btn.addEventListener('pointerdown',start);
+  addEventListener('pointerup',stop);
+  btn.addEventListener('keydown',function(e){if(e.key===' '||e.key==='Enter')start(e)});
+  btn.addEventListener('keyup',stop);
+  window.finishBrew=function(instant){
+    done=true;
+    fill.setAttribute('y',35);fill.setAttribute('height',50);
+    hint.textContent='Brewed. That patience is the whole secret.';
+    document.getElementById('brew').classList.add('brewed');
+    var items=document.querySelectorAll('[data-mi]');
+    [].slice.call(items,0,4).forEach(function(mi,i){
+      setTimeout(function(){mi.classList.add('lit')},instant?0:i*180);
+    });
+  };
+})();
+
+/* live menu from the menu manager (falls back to the baked-in menu) */
+(function(){
+  var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+  var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+  /* these two live on the website as designed cards / till helpers, not menu columns */
+  var SKIP_CATS = {'Adventure Box': 1, 'Extras & Combos': 1};
+  var LEAF = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>';
+  fetch(SUPA_URL + '/rest/v1/menu_categories?select=name,sort,menu_items(name,description,price_crc,photo_url,available,sort)&order=sort', {
+    headers: {apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY}
+  })
+  .then(function(r){ if (!r.ok) throw new Error('menu http ' + r.status); return r.json(); })
+  .then(function(cats){
+    var grid = document.querySelector('.menu-grid');
+    cats = (cats || []).filter(function(c){
+      return !SKIP_CATS[c.name] && (c.menu_items || []).some(function(i){ return i.available; });
+    });
+    if (!grid || !cats.length) return;
+    grid.textContent = '';
+    cats.forEach(function(cat){
+      var col = document.createElement('div'); col.className = 'menu-cat';
+      var h = document.createElement('h3');
+      h.innerHTML = LEAF;
+      h.appendChild(document.createTextNode(cat.name));
+      col.appendChild(h);
+      (cat.menu_items || [])
+        .filter(function(i){ return i.available; })
+        .sort(function(a,b){ return a.sort - b.sort || a.name.localeCompare(b.name); })
+        .forEach(function(it){
+          var mi = document.createElement('div'); mi.className = 'mi'; mi.setAttribute('data-mi','');
+          if (it.photo_url){
+            var im = document.createElement('img'); im.className = 'ph'; im.src = it.photo_url;
+            im.alt = ''; im.loading = 'lazy';
+            mi.appendChild(im);
+          }
+          var body = document.createElement('div'); body.className = 'mbody';
+          var row = document.createElement('div'); row.className = 'row1';
+          var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.name;
+          var dots = document.createElement('span'); dots.className = 'dots';
+          var pr = document.createElement('span'); pr.className = 'price';
+          pr.textContent = '₡' + Number(it.price_crc).toLocaleString('fr-FR');
+          row.appendChild(nm); row.appendChild(dots); row.appendChild(pr);
+          body.appendChild(row);
+          if (it.description){
+            var ds = document.createElement('div'); ds.className = 'ds'; ds.textContent = it.description;
+            body.appendChild(ds);
+          }
+          mi.appendChild(body);
+          col.appendChild(mi);
+        });
+      grid.appendChild(col);
+    });
+  })
+  .catch(function(){ /* the baked-in menu stays visible */ });
+})();
+
+/* ---------- Garden Guide: a small bilingual helper, no servers needed ---------- */
+(function(){
+  var SUPA = 'https://nbvczarfweanoxvdqplk.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+  var SID = Math.random().toString(36).slice(2, 10);
+  var fab = document.getElementById('chatFab');
+  var box = document.getElementById('chatBox');
+  var log = document.getElementById('chatLog');
+  var chipsEl = document.getElementById('chatChips');
+  var input = document.getElementById('chatInput');
+  var lang = (document.documentElement.lang === 'es' || window.HG_LANG === 'es') ? 'es' : 'en';
+  var greeted = false;
+  document.addEventListener('hg-lang', function(e){ lang = e.detail === 'es' ? 'es' : 'en'; });
+
+  function norm(t){
+    return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  function looksSpanish(t){
+    return /[¿¡]/.test(t) || /\b(hola|buenas|buenos dias|gracias|donde|cuanto|cuantos|precio|precios|horario|abren|cierran|tienen|puedo|se puede|como llego|llegar|clima|lluvia|frio|perro|perros|mascotas|ninos|pagar|tarjeta|efectivo|reserva|reservar|vegetariano|vegano|bano|banos|desayuno|almuerzo|comida|cafe con|que hay|cual|cuales|quisiera|me gustaria|habla|hablan|ayuda|pregunta)\b/.test(norm(t));
+  }
+
+  /* the knowledge base: plain answers the owner can edit right here */
+  var KB = [
+    {id:'greet', t:['hello','hi ','hey','good morning','good afternoon','pura vida','hola','buenas','buenos dias'],
+     en:'Pura vida! I am the Garden Guide. Ask me about our hours, the menu and prices, how to get here, the weather, the quetzals, anything at all.',
+     es:'¡Pura vida! Soy la Guía del Jardín. Pregúntame por el horario, el menú y los precios, cómo llegar, el clima, los quetzales, lo que quieras.'},
+    {id:'thanks', t:['thank','thanks','gracias','muchas gracias','perfect','great'],
+     en:'Pura vida! Enjoy the clouds, and come see us soon.',
+     es:'¡Pura vida! Disfruta las nubes y ven a visitarnos pronto.'},
+    {id:'hours', t:['hours','open','close','closing','opening','schedule','what time','when do you','horario','abren','cierran','a que hora','hora abren'],
+     en:'We are open every day from 6:00 in the morning to 7:00 in the evening.',
+     es:'Abrimos todos los días de 6:00 de la mañana a 7:00 de la noche.'},
+    {id:'contact', t:['phone','whatsapp','contact','call','number','message','telefono','teléfono','contacto','llamar','numero','número','mensaje'],
+     en:'The quickest way to reach us is WhatsApp: +506 6400 6601. We answer during opening hours.',
+     es:'La forma más rápida de contactarnos es WhatsApp: +506 6400 6601. Respondemos en horario de atención.'},
+    {id:'location', t:['where are you','location','address','find you','get there','directions','how do i get','map','como llego','donde estan','donde queda','direccion','ubicacion','llegar'],
+     en:'We are in Monteverde, on the road through Santa Elena, Puntarenas. The map in the Visit section of this page takes you right to our door.',
+     es:'Estamos en Monteverde, sobre el camino de Santa Elena, Puntarenas. El mapa en la sección Visit de esta página te lleva hasta la puerta.'},
+    {id:'parking', t:['parking','park my car','parqueo','estacionamiento','aparcar'],
+     en:'There is space to park close by on the road through Santa Elena. On busy mornings, earlier is easier.',
+     es:'Hay espacio para parquear cerca, sobre el camino de Santa Elena. En mañanas ocupadas, entre más temprano mejor.'},
+    {id:'menu', t:['menu','what do you serve','what do you have','food','eat','breakfast','lunch','que tienen','que venden','comida','desayuno','almuerzo'],
+     en:'The full menu is right on this page, in The Menu section: coffee, smoothies, sandwiches, empanadas, pastries and Costa Rican favorites. Ask me about any item and I will tell you its price.',
+     es:'El menú completo está aquí mismo en la sección The Menu: café, batidos, sándwiches, empanadas, repostería y favoritos costarricenses. Pregúntame por cualquier platillo y te digo el precio.'},
+    {id:'origin', t:['coffee from','where is the coffee','your coffee','beans','trapiche','local coffee','de donde es el cafe','granos'],
+     en:'Our coffee is 100% Costa Rican, grown locally at El Trapiche right here in Monteverde. Ask at the counter about taking beans home.',
+     es:'Nuestro café es 100% costarricense, cultivado aquí en Monteverde en El Trapiche. Pregunta en el mostrador si quieres llevar granos a casa.'},
+    {id:'signature', t:['signature','cloud forest latte','specialty','recommend','best drink','what should i order','que me recomiendas','recomendacion','especialidad'],
+     en:'Try the Cloud Forest Latte, our signature: El Trapiche espresso, milk, Costa Rican honey and cinnamon, hot or iced, ₡2 600. The Chorreador-style Café con Leche is the classic choice.',
+     es:'Prueba el Cloud Forest Latte, nuestra especialidad: espresso de El Trapiche, leche, miel costarricense y canela, caliente o frío, ₡2 600. El Café con Leche chorreado es el clásico.'},
+    {id:'smoothies', t:['smoothie','smoothies','batido','batidos','juice','jugo','milk or water'],
+     en:'We make eleven garden smoothies, in water or milk. Water versions are lighter; milk versions cost a little more. Every mix is listed in the menu on this page.',
+     es:'Hacemos once batidos del jardín, en agua o en leche. En agua son más ligeros; en leche cuestan un poco más. Todas las mezclas están en el menú de esta página.'},
+    {id:'abox', t:['adventure box','trail','hike box','lunch box','picnic','to go box','caja de aventura','para el sendero'],
+     en:'The Adventure Box packs your sandwich, fresh fruit, a sweet treat, bottled water and a napkin for the trail. Ham & Cheese or Monteverde ₡6 500, Mano de Piedra or Chicken Pesto ₡7 000. Order by 8 pm, pick it up from 6:30 am.',
+     es:'La Adventure Box lleva tu sándwich, fruta fresca, algo dulce, agua embotellada y servilleta para el sendero. Ham & Cheese o Monteverde ₡6 500, Mano de Piedra o Chicken Pesto ₡7 000. Pídela antes de las 8 pm y recógela desde las 6:30 am.'},
+    {id:'combo', t:['combo','deal','discount','save','descuento','oferta','promocion'],
+     en:'Coffee + pastry saves you ₡500, and sandwich + coffee saves ₡500 too. Just ask at the counter.',
+     es:'Café + repostería te ahorra ₡500, y sándwich + café también ₡500. Solo pídelo en el mostrador.'},
+    {id:'veg', t:['vegetarian','veggie','sin carne','vegetariano','vegetariana'],
+     en:'Yes. The Monteverde sandwich is vegetarian, and most pastries, drinks and smoothies are too.',
+     es:'Sí. El sándwich Monteverde es vegetariano, y casi toda la repostería, las bebidas y los batidos también.'},
+    {id:'vegan', t:['vegan','plant based','sin lacteos','vegano','vegana','dairy free','lactose'],
+     en:'Our smoothies in water, the americano, tea and the sweet cane drink are vegan. For food, ask the team what the kitchen can do that day.',
+     es:'Los batidos en agua, el americano, el té y el agua dulce son veganos. Para comida, pregunta al equipo qué puede hacer la cocina ese día.',},
+    {id:'gluten', t:['gluten','celiac','celiaco','sin gluten'],
+     en:'Our kitchen is small, so we cannot promise zero contact with gluten. Smoothies and most drinks are naturally gluten free; tell the team when you order.',
+     es:'Nuestra cocina es pequeña, así que no podemos prometer cero contacto con gluten. Los batidos y casi todas las bebidas no llevan gluten; avísale al equipo al ordenar.'},
+    {id:'pay', t:['pay','payment','card','credit','cash','dollar','dollars','colones','sinpe','pagar','tarjeta','efectivo','dolares','aceptan'],
+     en:'We take cash in colones or dollars, cards, and SINPE Móvil. Change is given in colones.',
+     es:'Aceptamos efectivo en colones o dólares, tarjetas y SINPE Móvil. El vuelto se da en colones.'},
+    {id:'wifi', t:['wifi','wi-fi','internet','password','clave','contrasena'],
+     en:'Yes, there is wifi for guests. Ask at the counter for the password.',
+     es:'Sí, hay wifi para visitantes. Pide la clave en el mostrador.'},
+    {id:'pets', t:['dog','dogs','pet','pets','perro','perros','mascota','mascotas','cat '],
+     en:'Well behaved pets are welcome in the garden seating. We will find them a water bowl.',
+     es:'Las mascotas educadas son bienvenidas en el jardín. Les buscamos un tazón de agua.'},
+    {id:'kids', t:['kids','children','child','family','baby','ninos','nino','familia','bebe'],
+     en:'Very welcome. The garden gives kids room to wonder, and the Costa Rican hot chocolate was practically made for them.',
+     es:'Muy bienvenidos. El jardín les da espacio para explorar, y el chocolate caliente costarricense es casi para ellos.'},
+    {id:'weather', t:['weather','rain','cold','temperature','wear','jacket','clima','lluvia','frio','temperatura','que llevo','ropa'],
+     en:'Monteverde is cool and misty most of the year, around 15 to 22 °C. Bring layers and a light rain jacket, even on sunny mornings.',
+     es:'Monteverde es fresco y neblinoso casi todo el año, entre 15 y 22 °C. Trae capas y una capa ligera de lluvia, incluso en mañanas soleadas.'},
+    {id:'quetzal', t:['quetzal','quetzals','quetzales','see the bird','bird watching','birdwatching','aves','pajaros','ver aves'],
+     en:'Resplendent quetzals live in the cloud forest around Monteverde. Your best chance is early morning in the reserve, especially February to July. Ask our team where they have been seen this week.',
+     es:'Los quetzales viven en el bosque nuboso alrededor de Monteverde. La mejor hora es temprano en la reserva, sobre todo de febrero a julio. Pregunta al equipo dónde los han visto esta semana.'},
+    {id:'wildlife', t:['animals','wildlife','monkeys','sloth','hummingbird','coati','animales','monos','perezoso','colibri'],
+     en:'Hummingbirds, coatis, agoutis and hundreds of bird species live around Monteverde. Keep your camera close, even here in the garden.',
+     es:'Colibríes, pizotes, guatusas y cientos de especies de aves viven alrededor de Monteverde. Ten la cámara lista, incluso aquí en el jardín.'},
+    {id:'todo', t:['what to do','things to do','tours','hanging bridges','reserve','night tour','zipline','que hacer','puentes colgantes','reserva','canopy'],
+     en:'The cloud forest reserve, the hanging bridges and the night tours are all close by. Grab an Adventure Box and make a whole day of it.',
+     es:'La reserva del bosque nuboso, los puentes colgantes y los tours nocturnos están cerca. Llévate una Adventure Box y haz un día completo.'},
+    {id:'early', t:['sunrise','early morning','before you open','6am','before 7','madrugada','amanecer','antes de abrir'],
+     en:'Heading out before sunrise? Pre-order an Adventure Box by 8 pm tonight and pick it up from 6:30 am, before we officially open.',
+     es:'¿Sales antes del amanecer? Pide una Adventure Box antes de las 8 pm y recógela desde las 6:30 am, antes de que abramos.'},
+    {id:'groups', t:['reservation','reserve a table','book','group','groups','birthday','event','celebration','reserva','grupo','cumpleanos','evento'],
+     en:'No reservation needed, just come in. For groups of eight or more, or a small celebration, tell us a day ahead at the counter and we will set the garden for you.',
+     es:'No necesitas reserva, solo llega. Para grupos de ocho o más, o una celebración pequeña, avísanos un día antes y te acomodamos el jardín.'},
+    {id:'bath', t:['bathroom','restroom','toilet','bano','banos','servicio'],
+     en:'Yes, we have restrooms for guests.',
+     es:'Sí, tenemos baños para visitantes.'},
+    {id:'work', t:['laptop','work here','outlet','plug','remote work','trabajar','enchufe','computadora'],
+     en:'You are welcome to work a while. We have some outlets, and mornings are the quietest.',
+     es:'Puedes venir a trabajar un rato. Tenemos algunos enchufes y las mañanas son lo más tranquilo.'},
+    {id:'history', t:['history','quaker','quakers','1951','story','founded','historia','cuaquer','fundacion'],
+     en:'Monteverde was settled in 1951 by Quaker families who chose Costa Rica because it had put down its weapons. The Story section up this page tells the whole tale.',
+     es:'Monteverde fue fundado en 1951 por familias cuáqueras que eligieron Costa Rica porque había dejado las armas. La sección The Story cuenta toda la historia.'},
+    {id:'name', t:['why hanging','name mean','hanging garden','por que se llama','nombre'],
+     en:'Our garden hangs with plants, ferns and flowers between the clouds. That is the name: The Hanging Garden.',
+     es:'Nuestro jardín cuelga de plantas, helechos y flores entre las nubes. De ahí el nombre: The Hanging Garden.'},
+    {id:'water', t:['tap water','water safe','drink the water','agua del tubo','agua potable','se puede tomar'],
+     en:'Yes, tap water in Monteverde is clean mountain water. We also have bottled water if you prefer.',
+     es:'Sí, el agua del tubo en Monteverde es agua limpia de montaña. También tenemos agua embotellada si prefieres.'},
+    {id:'takeaway', t:['take away','takeaway','to go','para llevar'],
+     en:'Everything on the menu travels well. Just ask for it to go.',
+     es:'Todo el menú viaja bien. Solo pídelo para llevar.'},
+    {id:'tips', t:['tip','tipping','service charge','propina'],
+     en:'Tips are never expected and always appreciated.',
+     es:'La propina nunca es obligatoria y siempre se agradece.'},
+    {id:'jobs', t:['job','jobs','hiring','work for you','trabajo','empleo','contratando'],
+     en:'We would love to meet you. Leave your name and number at the counter.',
+     es:'Nos encantaría conocerte. Deja tu nombre y número en el mostrador.'},
+    {id:'lang', t:['speak english','speak spanish','hablan ingles','hablan espanol','english','espanol'],
+     en:'English y español, con mucho gusto.',
+     es:'English y español, con mucho gusto.'},
+    {id:'altitude', t:['altitude','elevation','how high','altura','altitud'],
+     en:'Monteverde sits around 1,400 meters up. That is why the air is cool and the coffee tastes better.',
+     es:'Monteverde está a unos 1 400 metros de altura. Por eso el aire es fresco y el café sabe mejor.'},
+    {id:'special', t:['special today','garden special','todays special','especial de hoy','especial del dia'],
+     en:'The Garden Special changes with the season. Ask at the counter what is blooming today.',
+     es:'El Especial del Jardín cambia con la temporada. Pregunta en el mostrador qué está floreciendo hoy.'}
+  ];
+
+  var STOP = {iced:1, hot:1, cafe:1, coffee:1, con:1, de:1, the:1, and:1, cake:1, cream:1, milk:1, water:1, drink:1, sweet:1, ham:1, cheese:1, chicken:1, box:1, bloom:1, blossom:1, delight:1, splash:1, lily:1, upgrade:1, add:1};
+  function menuItems(){
+    var out = [];
+    document.querySelectorAll('.menu-grid .mi').forEach(function(mi){
+      var nm = mi.querySelector('.nm'), pr = mi.querySelector('.price'), ds = mi.querySelector('.ds');
+      if (nm && pr) out.push({name: nm.textContent, price: pr.textContent, desc: ds ? ds.textContent : '', norm: norm(nm.textContent)});
+    });
+    return out;
+  }
+  function priceAnswer(q){
+    var items = menuItems();
+    var hits = items.filter(function(it){
+      if (q.indexOf(it.norm) !== -1) return true;
+      return it.norm.split(/[^a-z]+/).some(function(tok){
+        return tok.length >= 4 && !STOP[tok] && new RegExp('\\b' + tok).test(q);
+      });
+    });
+    if (!hits.length) return null;
+    if (hits.length > 4) hits = hits.slice(0, 4);
+    var lines = hits.map(function(it){ return it.name + ' · ' + it.price + (it.desc ? '\n   ' + it.desc : ''); });
+    var head = hits.length === 1
+      ? (lang === 'es' ? 'Aquí está:' : 'Here you go:')
+      : (lang === 'es' ? 'Encontré esto en el menú:' : 'I found these on the menu:');
+    return head + '\n' + lines.join('\n');
+  }
+  function bestKB(q){
+    var best = null, bestScore = 0;
+    KB.forEach(function(e){
+      var s = 0;
+      e.t.forEach(function(trig){
+        if (q.indexOf(trig) !== -1) s += trig.indexOf(' ') !== -1 ? 3 : 1;
+      });
+      if (s > bestScore){ bestScore = s; best = e; }
+    });
+    return bestScore >= 1 ? best : null;
+  }
+  var logOk = true;   /* stops quietly if the chat_questions table is not set up yet */
+  function logQ(message, matched, answered){
+    if (!logOk) return;
+    try {
+      fetch(SUPA + '/rest/v1/chat_questions', {
+        method: 'POST',
+        headers: {apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal'},
+        body: JSON.stringify({message: message.slice(0, 300), matched: matched, answered: answered, lang: lang, session: SID})
+      }).then(function(r){ if (r.status === 404) logOk = false; }).catch(function(){});
+    } catch(e){}
+  }
+
+  function addMsg(text, who){
+    var m = document.createElement('div');
+    m.className = 'msg ' + who;
+    m.textContent = text;
+    log.appendChild(m);
+    log.scrollTop = log.scrollHeight;
+  }
+  var CHIPS = [
+    {en:'Hours', es:'Horario', q:{en:'What are your hours?', es:'¿Cuál es el horario?'}},
+    {en:'How to find us', es:'Cómo llegar', q:{en:'How do I get there?', es:'¿Cómo llego?'}},
+    {en:'WhatsApp', es:'WhatsApp', q:{en:'How can I contact you?', es:'¿Cómo los contacto?'}},
+    {en:'Adventure Box', es:'Adventure Box', q:{en:'What is the Adventure Box?', es:'¿Qué es la Adventure Box?'}},
+    {en:'Weather', es:'Clima', q:{en:'What is the weather like?', es:'¿Cómo está el clima?'}},
+    {en:'Quetzals', es:'Quetzales', q:{en:'Where can I see a quetzal?', es:'¿Dónde puedo ver un quetzal?'}}
+  ];
+  function renderChips(){
+    chipsEl.textContent = '';
+    CHIPS.forEach(function(c){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = lang === 'es' ? c.es : c.en;
+      b.addEventListener('click', function(){ ask(c.q[lang] || c.q.en); });
+      chipsEl.appendChild(b);
+    });
+  }
+  function ask(text){
+    addMsg(text, 'me');
+    if (looksSpanish(text)) lang = 'es';
+    else if (/\b(the|what|where|when|how|do you|can i|is there)\b/i.test(text)) lang = 'en';
+    var q = norm(text);
+    setTimeout(function(){
+      var kb = bestKB(q);
+      var priceIntent = /\b(price|cost|how much|cuanto|cuesta|vale|precio)\b/.test(q);
+      var pa = (!kb || priceIntent) ? priceAnswer(q) : null;
+      if (pa){
+        addMsg(pa, 'bot');
+        logQ(text, 'menu-price', true);
+      } else if (kb){
+        addMsg(lang === 'es' ? kb.es : kb.en, 'bot');
+        logQ(text, kb.id, true);
+      } else {
+        addMsg(lang === 'es'
+          ? 'Buena pregunta, y quiero responderla bien. La guardé para el equipo del café. Mientras tanto, pregunta en el mostrador cuando vengas, o prueba una de las opciones de abajo.'
+          : 'Good question, and I want to get it right. I saved it for the café team. Meanwhile, ask at the counter when you visit, or try one of the buttons below.', 'bot');
+        logQ(text, null, false);
+      }
+      renderChips();
+    }, 450);
+  }
+  function openChat(){
+    box.hidden = false;
+    fab.setAttribute('aria-expanded', 'true');
+    if (!greeted){
+      greeted = true;
+      addMsg(lang === 'es'
+        ? '¡Pura vida! Soy la Guía del Jardín. Pregúnteme lo que quiera sobre el café, el menú o Monteverde.\nPrefer English? Just write to me in English.'
+        : 'Pura vida! I am the Garden Guide. Ask me anything about the café, the menu, or Monteverde.\n¿Prefieres español? Escríbeme en español.', 'bot');
+      renderChips();
+    }
+    input.focus();
+  }
+  function closeChat(){
+    box.hidden = true;
+    fab.setAttribute('aria-expanded', 'false');
+  }
+  fab.addEventListener('click', function(){ box.hidden ? openChat() : closeChat(); });
+  document.getElementById('chatClose').addEventListener('click', closeChat);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !box.hidden) closeChat(); });
+  ['chatNavOpen', 'chatSectionOpen'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e){ e.preventDefault(); openChat(); });
+  });
+  document.getElementById('chatForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = input.value.trim();
+    if (!v) return;
+    input.value = '';
+    ask(v);
+  });
+})();
+
+/* pause everything on hidden tabs */
+document.addEventListener('visibilitychange',function(){
+  document.body.classList.toggle('paused',document.hidden);
+});
+var st=document.createElement('style');
+st.textContent='body.paused *,body.paused *::before,body.paused *::after{animation-play-state:paused !important}';
+document.head.appendChild(st);
+
+requestAnimationFrame(function(){document.body.classList.add('ready')});
+</script>
+<script src="lang.js"></script>
+</body>
+</html>
