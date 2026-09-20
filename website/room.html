@@ -183,6 +183,7 @@ var T = {
        e_generic:'No se pudo enviar el pedido. Revise su conexión e intente de nuevo.', sending:'Enviando…'}
 };
 var lang = /^es/i.test(navigator.language || '') ? 'es' : 'en';
+try { var savedLang = localStorage.getItem('hg_lang'); if (savedLang === 'en' || savedLang === 'es') lang = savedLang; } catch (e) {}
 function t(k, v){ var s = (T[lang][k] || T.en[k] || k); if (v) Object.keys(v).forEach(function(x){ s = s.replace('{' + x + '}', v[x]); }); return s; }
 function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
 function applyLang(){
@@ -194,8 +195,8 @@ function applyLang(){
   renderCart(); if (lastStatus) renderStatus(lastStatus);
   renderClosed();
 }
-document.getElementById('langEn').addEventListener('click', function(){ lang = 'en'; applyLang(); });
-document.getElementById('langEs').addEventListener('click', function(){ lang = 'es'; applyLang(); });
+document.getElementById('langEn').addEventListener('click', function(){ lang = 'en'; try { localStorage.setItem('hg_lang', 'en'); } catch (e) {} applyLang(); });
+document.getElementById('langEs').addEventListener('click', function(){ lang = 'es'; try { localStorage.setItem('hg_lang', 'es'); } catch (e) {} applyLang(); });
 
 var room = null, cart = {}, menu = [], lastStatus = null, statusTimer = null;
 
