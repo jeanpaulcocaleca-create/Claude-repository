@@ -310,7 +310,7 @@
     'No manager on the team yet': 'Todavía no hay encargado en el equipo', 'Could not load the team. Check the connection.': 'No se pudo cargar el equipo. Revise la conexión.',
     'Former team member': 'Exmiembro del equipo', 'Could not load the clock. Check the connection.': 'No se pudo cargar el reloj. Revise la conexión.',
     'No one on the team yet.': 'Todavía no hay nadie en el equipo.', 'Go to': 'Vaya a', 'and tap': 'y toque',
-    'In since {t}': 'Desde las {t}', 'Forgot to clock out? Fix it in Hours.': '¿Olvidó marcar la salida? Corríjalo en Horas.',
+    'In since {t}': 'En turno desde {t}', 'Forgot to clock out? Fix it in Hours.': '¿Olvidó marcar la salida? Corríjalo en Horas.',
     'Type your PIN to clock OUT.': 'Escriba su PIN para marcar la SALIDA.', 'Type your PIN to clock IN.': 'Escriba su PIN para marcar la ENTRADA.',
     'clocked out · {t}': 'salida marcada · {t}', 'Could not load the hours. Check the connection.': 'No se pudieron cargar las horas. Revise la conexión.',
     'This week · from {d}': 'Esta semana · desde el {d}', 'Last week · from {d}': 'Semana pasada · desde el {d}', 'This month · from {d}': 'Este mes · desde el {d}',
