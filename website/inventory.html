@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cbafe712-72c1-4ab4-b8cb-715ff9c5c120.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F; --warn:#B98A35; --ok:#2F7A4F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:40px;padding:.45em 1em}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:32px;padding:.3em .75em;font-size:.85rem}
+button.danger{background:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:1080px;margin:0 auto;padding:1.2rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.hint{color:var(--sec);font-size:.88rem}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent;min-height:0}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1.1rem}
+header.top img{width:44px;height:44px;border-radius:50%}
+header.top h1{font-size:1.4rem}
+header.top .sub{font-size:.85rem;color:var(--sec)}
+header.top .grow{flex:1}
+#appView.locked .tabs,#appView.locked .view{display:none}
+.gate{max-width:420px}
+.gate label,.modal label{display:block;font-size:.85rem;color:var(--sec);margin:.8rem 0 .25rem}
+.gate select,.gate input,.modal select,.modal input,.modal textarea,.tools input,.tools select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.gate button{margin-top:1rem;width:100%}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.tabs button{background:transparent;color:var(--sec);border:1.5px solid var(--muted);font-size:.9rem}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tabs button .n{display:inline-block;min-width:1.3em;padding:0 .35em;border-radius:99px;background:var(--bad);color:#fff;font-size:.72rem;margin-left:.35em;line-height:1.5}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin-bottom:1.2rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem}
+.kpi .l{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.6rem;margin-top:.2rem}
+.kpi .s{font-size:.82rem;color:var(--sec)}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+.card h2{font-size:1.05rem;margin-bottom:.8rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.card h2 .sp{flex:1}
+.tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.8rem}
+.tools input,.tools select{width:auto;min-width:140px}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;color:var(--sec);font-weight:600;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .5rem;border-bottom:1.5px solid var(--muted);white-space:nowrap}
+td{padding:.5rem .5rem;border-bottom:1px solid rgba(201,207,182,.5);vertical-align:middle}
+td.num,th.num{text-align:right;font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td .sub{display:block;font-size:.78rem;color:var(--sec)}
+.acts{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end}
+.pill{display:inline-block;padding:.12em .6em;border-radius:99px;font-size:.74rem;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+.pill.out{background:var(--bad);color:#fff}.pill.low{background:#E7C7A0;color:#5a3a12}.pill.soon{background:#F1E3B3;color:#5a4a12}.pill.ok{background:#D6E7D5;color:#1E4B33}.pill.exp{background:#E3D2EE;color:#4a2a63}
+.pill.draft{background:var(--muted);color:var(--ink)}.pill.sent{background:#D9E6F2;color:#1e3a5a}.pill.received{background:#D6E7D5;color:#1E4B33}.pill.cancelled{background:#eee;color:#666}
+.alert{display:grid;grid-template-columns:1fr auto;gap:.6rem;align-items:center;padding:.6rem 0;border-bottom:1px solid rgba(201,207,182,.5)}
+.alert .n{font-weight:600}.alert .d{font-size:.84rem;color:var(--sec)}
+.empty{color:var(--sec);font-size:.9rem;padding:.6rem 0}
+.tablewrap{overflow-x:auto}
+.modalbg{position:fixed;inset:0;background:rgba(20,30,20,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
+.modal{background:var(--panel);border-radius:16px;padding:1.2rem 1.3rem;width:100%;max-width:520px;max-height:92vh;overflow:auto}
+.modal h2{font-size:1.15rem;margin-bottom:.4rem}
+.modal .row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.modal .btns{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.1rem;flex-wrap:wrap}
+.modal .btns .left{margin-right:auto}
+.checkline{display:flex;gap:.5rem;align-items:center;margin-top:.8rem}
+.checkline input{width:auto}
+.toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6em 1.1em;border-radius:99px;font-size:.9rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.po{border:1.5px solid var(--muted);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem}
+.po .head{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.4rem}
+.po .head b{font-size:1rem}
+.po .lines{font-size:.88rem;color:var(--sec)}
+.recipe-row{display:grid;grid-template-columns:1fr 100px 60px auto;gap:.5rem;align-items:center;margin-bottom:.4rem}
+.recipe-row select,.recipe-row input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.4em .6em;width:100%;background:#fff}
+.menu-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.5rem}
+.menu-list button{background:#fff;color:var(--ink);border:1.5px solid var(--muted);text-align:left;font-weight:500;display:flex;justify-content:space-between;gap:.4rem;align-items:center}
+.menu-list button.on{border-color:var(--accent);background:#EEF3EA}
+.menu-list button .c{font-size:.78rem;color:var(--sec)}
+.setup ol{padding-left:1.2rem}
+.setup code{background:#fff;padding:.1em .4em;border-radius:6px}
+.mono-small{font-family:'Spline Sans Mono',monospace;font-size:.82rem}
+@media (max-width:720px){.modal .row{grid-template-columns:1fr}.recipe-row{grid-template-columns:1fr 80px 50px auto}}
+@media print{.pagenav,.tabs,header.top button,.tools,.acts,.hg-lang{display:none !important}}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>The Hanging Garden</h1>
+  <p class="hint">Inventory · Monteverde, Costa Rica</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="cafeView" class="login" hidden>
+  <h1>The Hanging Garden</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This login is not connected to the café yet.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <nav class="pagenav" aria-label="Café pages">
+    <a href="home.html" data-owner>Home</a>
+    <a href="admin.html" data-owner>Menu Manager</a>
+    <a href="pos.html">POS</a>
+    <a href="sales.html">Sales</a>
+    <a href="time.html">Time clock</a>
+    <span class="here">Inventory</span>
+    <a href="tv.html" target="_blank" rel="noopener">TV board</a>
+  </nav>
+  <header class="top">
+    <img src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="">
+    <div class="grow">
+      <h1>Inventory</h1>
+      <div class="sub">What you have, what you sell, what to order</div>
+    </div>
+    <span class="hint" id="lockInfo" hidden></span>
+    <button class="ghost small" id="lockBtn" hidden>Lock now</button>
+    <button class="ghost small" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="card setup" id="setupCard" hidden>
+    <h2>One step before the inventory works</h2>
+    <p class="hint">Run <code>supabase/inventory.sql</code> once in Supabase (SQL Editor → New query → paste → Run), then reload this page.</p>
+  </div>
+
+  <div class="card gate" id="gate" hidden>
+    <h2>Inventory is locked</h2>
+    <p class="hint">Type a manager PIN to open the inventory for 15 minutes. Every opening is written to the approvals log.</p>
+    <form id="gateForm">
+      <label for="gateMgr">Manager</label>
+      <select id="gateMgr"></select>
+      <label for="gatePin">PIN</label>
+      <input id="gatePin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <button type="submit">Open the inventory</button>
+      <p class="err" id="gateErr"></p>
+    </form>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-view="today" class="on">Today<span class="n" id="alertCount" hidden></span></button>
+    <button data-view="stock">Stock</button>
+    <button data-view="orders">Orders<span class="n" id="poCount" hidden></span></button>
+    <button data-view="recipes">Recipes</button>
+    <button data-view="vendors">Vendors</button>
+    <button data-view="history">History</button>
+    <button data-view="month">By month</button>
+  </div>
+
+  <!-- TODAY -->
+  <section class="view" id="view-today">
+    <div class="kpis">
+      <div class="kpi"><div class="l">Items tracked</div><div class="v" id="kItems">–</div><div class="s" id="kItemsSub"></div></div>
+      <div class="kpi"><div class="l">Need attention</div><div class="v" id="kAttention">–</div><div class="s" id="kAttentionSub"></div></div>
+      <div class="kpi"><div class="l">Expiring soon</div><div class="v" id="kExpiring">–</div><div class="s">within 3 days</div></div>
+      <div class="kpi"><div class="l">Stock value</div><div class="v" id="kValue">–</div><div class="s">at last purchase cost</div></div>
+    </div>
+    <div class="card">
+      <h2>Before it runs out <span class="sp"></span><button class="small" id="goOrderBtn">Build the order</button></h2>
+      <div id="alertList"></div>
+    </div>
+    <div class="card">
+      <h2>Last 30 days</h2>
+      <div class="kpis" style="margin-bottom:0">
+        <div class="kpi"><div class="l">Sales</div><div class="v" id="fcRevenue">–</div></div>
+        <div class="kpi"><div class="l">Ingredients used</div><div class="v" id="fcUsage">–</div><div class="s" id="fcPct"></div></div>
+        <div class="kpi"><div class="l">Waste</div><div class="v" id="fcWaste">–</div><div class="s" id="fcWastePct"></div></div>
+      </div>
+      <p class="hint" style="margin:.8rem 0 0">Ingredient cost follows the recipes: link each menu item to what it uses in the Recipes tab and this becomes your real food cost.</p>
+    </div>
+  </section>
+
+  <!-- STOCK -->
+  <section class="view" id="view-stock" hidden>
+    <div class="card">
+      <h2>Stock <span class="sp"></span>
+        <button class="small ghost" id="csvStockBtn">Download CSV</button>
+        <button class="small" id="addItemBtn">+ Add item</button>
+      </h2>
+      <div class="tools">
+        <input id="stockSearch" placeholder="Search…">
+        <select id="stockCat"><option value="">All categories</option></select>
+        <select id="stockStatus"><option value="">Everything</option><option value="attention">Needs attention</option><option value="inactive">Inactive items</option></select>
+      </div>
+      <div class="tablewrap">
+        <table id="stockTable">
+          <thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Par · reorder</th><th class="num">Use / day</th><th class="num">Days left</th><th>Vendor</th><th class="num">Value</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="stockEmpty" hidden>No items yet. Tap + Add item, or start with the coffee, milk and pastries you buy every week.</p>
+    </div>
+  </section>
+
+  <!-- ORDERS -->
+  <section class="view" id="view-orders" hidden>
+    <div class="card">
+      <h2>Suggested order <span class="sp"></span><span class="hint">based on the last 30 days of sales and each vendor's lead time</span></h2>
+      <div id="suggestList"></div>
+    </div>
+    <div class="card">
+      <h2>Open orders <span class="sp"></span><button class="small ghost" id="newPoBtn">+ Blank order</button></h2>
+      <div id="poList"></div>
+    </div>
+    <div class="card">
+      <h2>Received orders</h2>
+      <div id="poDone"></div>
+    </div>
+  </section>
+
+  <!-- RECIPES -->
+  <section class="view" id="view-recipes" hidden>
+    <div class="card">
+      <h2>What each menu item uses <span class="sp"></span><button class="small ghost" id="autolinkBtn">Link same-name items</button></h2>
+      <p class="hint">Pick a menu item, then list what goes out of stock each time it sells. A croissant you buy ready-made is simply 1 croissant. A latte is grams of coffee and millilitres of milk. Sales then take stock out by themselves.</p>
+      <div class="menu-list" id="menuList" style="margin-top:.8rem"></div>
+    </div>
+    <div class="card" id="recipeCard" hidden>
+      <h2 id="recipeTitle">Recipe</h2>
+      <div id="recipeRows"></div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-top:.6rem">
+        <button class="small ghost" id="recipeAddRow">+ Ingredient</button>
+        <span class="hint" id="recipeCost"></span>
+        <span class="sp" style="flex:1"></span>
+        <button class="small" id="recipeSave">Save recipe</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- VENDORS -->
+  <section class="view" id="view-vendors" hidden>
+    <div class="card">
+      <h2>Vendors <span class="sp"></span><button class="small" id="addVendorBtn">+ Add vendor</button></h2>
+      <div class="tablewrap">
+        <table id="vendorTable">
+          <thead><tr><th>Vendor</th><th>Contact</th><th>Orders on</th><th class="num">Lead days</th><th class="num">Items</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="vendorEmpty" hidden>No vendors yet. Add the people you buy from, with their WhatsApp, and orders go out in one tap.</p>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history" hidden>
+    <div class="card">
+      <h2>Every movement <span class="sp"></span><button class="small ghost" id="csvHistBtn">Download CSV</button></h2>
+      <div class="tools">
+        <select id="histItem"><option value="">All items</option></select>
+        <select id="histKind"><option value="">All kinds</option><option value="purchase">Received</option><option value="sale">Sold</option><option value="void">Returned (void)</option><option value="waste">Waste</option><option value="count">Count adjustments</option></select>
+      </div>
+      <div class="tablewrap">
+        <table id="histTable">
+          <thead><tr><th>When</th><th>Item</th><th>Kind</th><th class="num">Qty</th><th class="num">Unit cost</th><th>Note</th><th>By</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="histEmpty" hidden>Nothing yet.</p>
+    </div>
+  </section>
+
+  <!-- MONTH -->
+  <section class="view" id="view-month" hidden>
+    <div class="card">
+      <h2><button class="small ghost" id="monthPrev" aria-label="Previous month">‹</button> <span id="monthLabel" class="mono"></span> <button class="small ghost" id="monthNext" aria-label="Next month">›</button>
+        <span class="sp"></span><button class="small ghost" id="csvMonthBtn">Download CSV</button></h2>
+      <p class="hint">What came in, what went out through sales, what was wasted, and what is on the shelf right now.</p>
+      <div class="tablewrap">
+        <table id="monthTable">
+          <thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Cost</th><th class="num">Sold</th><th class="num">Waste</th><th class="num">Count adj.</th><th class="num">In stock now</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modalbg" id="itemModal" hidden>
+  <form class="modal" id="itemForm">
+    <h2 id="itemTitle">Add item</h2>
+    <label for="itName">Name</label>
+    <input id="itName" required maxlength="80" placeholder="e.g. Whole milk">
+    <div class="row">
+      <div><label for="itCat">Category</label>
+        <select id="itCat">
+          <option value="coffee">Coffee</option><option value="dairy">Dairy</option><option value="bakery">Bakery</option><option value="sandwich">Sandwich</option>
+          <option value="produce">Produce</option><option value="drinks">Drinks</option><option value="packaging">Packaging</option><option value="cleaning">Cleaning</option><option value="other">Other</option>
+        </select></div>
+      <div><label for="itUnit">Counted in</label>
+        <select id="itUnit"><option value="unit">units</option><option value="g">grams</option><option value="kg">kilograms</option><option value="ml">millilitres</option><option value="L">litres</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="itPackLabel">What you buy</label><input id="itPackLabel" maxlength="60" placeholder="e.g. bottle 1 L"></div>
+      <div><label for="itPackQty">Units per pack</label><input id="itPackQty" type="number" min="0.001" step="any" value="1" required></div>
+    </div>
+    <div class="row">
+      <div><label for="itCost">Cost per pack (₡)</label><input id="itCost" type="number" min="0" step="any" value="0"></div>
+      <div><label for="itVendor">Vendor</label><select id="itVendor"><option value="">No vendor</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="itPar">Par level (target after an order)</label><input id="itPar" type="number" min="0" step="any" value="0"></div>
+      <div><label for="itReorder">Reorder point (alert at)</label><input id="itReorder" type="number" min="0" step="any" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label for="itShelf">Shelf life (days, optional)</label><input id="itShelf" type="number" min="0" step="1"></div>
+      <div><label for="itStart">Starting stock (new items)</label><input id="itStart" type="number" min="0" step="any" value="0"></div>
+    </div>
+    <label for="itNotes">Notes</label>
+    <input id="itNotes" maxlength="200">
+    <div class="checkline" id="itActiveLine"><input id="itActive" type="checkbox" checked><label for="itActive" style="margin:0">Active (counted and ordered)</label></div>
+    <p class="err" id="itErr"></p>
+    <div class="btns">
+      <button type="button" class="ghost danger left small" id="itDelete" hidden>Delete item</button>
+      <button type="button" class="ghost" id="itCancel">Cancel</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- MOVE MODAL (count / receive / waste) -->
+<div class="modalbg" id="moveModal" hidden>
+  <form class="modal" id="moveForm">
+    <h2 id="moveTitle">Count</h2>
+    <p class="hint" id="moveHint"></p>
+    <div id="moveCountBox">
+      <label for="mvCounted">Counted now</label>
+      <input id="mvCounted" type="number" min="0" step="any">
+    </div>
+    <div id="moveQtyBox" hidden>
+      <div class="row">
+        <div><label for="mvPacks">Packs</label><input id="mvPacks" type="number" min="0" step="any"></div>
+        <div><label for="mvQty">Units</label><input id="mvQty" type="number" min="0" step="any"></div>
+      </div>
+      <div class="row" id="moveCostRow">
+        <div><label for="mvCost">Cost per pack (₡)</label><input id="mvCost" type="number" min="0" step="any"></div>
+        <div><label for="mvExp">Expires on</label><input id="mvExp" type="date"></div>
+      </div>
+    </div>
+    <label for="mvNote">Note</label>
+    <input id="mvNote" maxlength="120" placeholder="optional">
+    <p class="err" id="mvErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="mvCancel">Cancel</button><button type="submit" id="mvSave">Save</button></div>
+  </form>
+</div>
+
+<!-- VENDOR MODAL -->
+<div class="modalbg" id="vendorModal" hidden>
+  <form class="modal" id="vendorForm">
+    <h2 id="vendorTitle">Add vendor</h2>
+    <label for="vName">Name</label><input id="vName" required maxlength="80">
+    <div class="row">
+      <div><label for="vContact">Contact person</label><input id="vContact" maxlength="80"></div>
+      <div><label for="vPhone">Phone</label><input id="vPhone" maxlength="40"></div>
+    </div>
+    <div class="row">
+      <div><label for="vWa">WhatsApp (with country code)</label><input id="vWa" maxlength="40" placeholder="+506 8888 8888"></div>
+      <div><label for="vEmail">Email</label><input id="vEmail" type="email" maxlength="120"></div>
+    </div>
+    <div class="row">
+      <div><label for="vLead">Lead days (order to delivery)</label><input id="vLead" type="number" min="0" step="1" value="2"></div>
+      <div><label for="vDays">Takes orders on</label><input id="vDays" maxlength="60" placeholder="e.g. Mon, Thu"></div>
+    </div>
+    <label for="vNotes">Notes</label><input id="vNotes" maxlength="200">
+    <div class="checkline"><input id="vActive" type="checkbox" checked><label for="vActive" style="margin:0">Active</label></div>
+    <p class="err" id="vErr"></p>
+    <div class="btns">
+      <button type="button" class="ghost danger left small" id="vDelete" hidden>Delete vendor</button>
+      <button type="button" class="ghost" id="vCancel">Cancel</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- RECEIVE PO MODAL -->
+<div class="modalbg" id="recvModal" hidden>
+  <form class="modal" id="recvForm" style="max-width:640px">
+    <h2>Mark as received</h2>
+    <p class="hint">Change any quantity that arrived short or long. Costs update the item's price.</p>
+    <div class="tablewrap"><table id="recvTable"><thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Received</th><th class="num">Cost / pack</th><th>Expires</th></tr></thead><tbody></tbody></table></div>
+    <p class="err" id="recvErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="recvCancel">Cancel</button><button type="submit">Add to stock</button></div>
+  </form>
+</div>
+
+<!-- ADD LINE TO ORDER MODAL -->
+<div class="modalbg" id="lineModal" hidden>
+  <form class="modal" id="lineForm">
+    <h2>Add to order</h2>
+    <label for="lnItem">Item</label><select id="lnItem"></select>
+    <div class="row"><div><label for="lnPacks">Packs</label><input id="lnPacks" type="number" min="0.5" step="any" value="1"></div><div><label>&nbsp;</label><span class="hint" id="lnHint"></span></div></div>
+    <p class="err" id="lnErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="lnCancel">Cancel</button><button type="submit">Add</button></div>
+  </form>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null;
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
+
+/* ---------- helpers ---------- */
+function $(id){ return document.getElementById(id); }
+function fmt(n){ return '₡' + Math.round(Number(n) || 0).toLocaleString('fr-FR'); }
+function num(n, d){ n = Number(n) || 0; return n.toLocaleString('fr-FR', {maximumFractionDigits: d === undefined ? 1 : d}); }
+function qtyU(n, unit){ return num(n, unit === 'unit' ? 0 : 1) + ' ' + unitLabel(unit); }
+var UNITS = {unit: 'units', g: 'g', kg: 'kg', ml: 'ml', L: 'L'};
+function unitLabel(u){ return UNITS[u] || u; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(function(){ t.classList.remove('on'); }, 2600); }
+function fmtDT(iso){ var d = new Date(iso); return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function fmtD(iso){ if (!iso) return ''; var d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')); return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}); }
+function isMissing(err){ return err && /does not exist|schema cache|could not find/i.test(err.message || ''); }
+function statusLabel(s){ return {out: 'Out of stock', low: 'Low', soon: 'Running out', ok: 'OK'}[s] || s; }
+var CATS = {coffee: 'Coffee', dairy: 'Dairy', bakery: 'Bakery', sandwich: 'Sandwich', produce: 'Produce', drinks: 'Drinks', packaging: 'Packaging', cleaning: 'Cleaning', other: 'Other'};
+function catLabel(c){ return CATS[c] || c; }
+function download(name, rows){
+  var csv = rows.map(function(r){ return r.map(function(v){ return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'})); a.download = name; a.click();
+}
+
+/* ---------- auth ---------- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  var needCode = authed && await codeNeeded();
+  $('loginView').hidden = authed && !needCode;
+  $('loginForm').hidden = needCode;
+  $('codeForm').hidden = !needCode;
+  $('cafeView').hidden = true;
+  $('appView').hidden = !authed || needCode;
+  if (needCode){ $('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (ACCOUNT === 'none'){ showCafeView(); return; }
+  trimNav(); armIdle();
+  checkGate();
+}
+$('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode($('codeIn').value.trim());
+  if (r.error){ $('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; $('codeIn').value = ''; return; }
+  $('codeIn').value = ''; refreshAuth();
+});
+$('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+function showCafeView(){
+  $('cafeMsg').textContent = 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.';
+  $('cafeView').hidden = false; $('appView').hidden = true;
+}
+$('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({email: $('em').value.trim(), password: $('pw').value});
+  if (r.error){ $('loginErr').textContent = 'That login did not work.'; return; }
+  refreshAuth();
+});
+$('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---------- the PIN gate: open for 15 minutes after a manager PIN ---------- */
+var GATE_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager: 'That person is not a manager.', inactive: 'That person is not active on the team.',
+  unknown_staff: 'Pick the manager.', no_account: 'This login is not connected to the café yet.'};
+var openUntil = null, lockTimer = null;
+function fmtTime(d){ return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function setLocked(locked){
+  $('appView').classList.toggle('locked', locked);
+  $('gate').hidden = !locked;
+  $('lockBtn').hidden = locked || ACCOUNT !== 'cafe';
+  $('lockInfo').hidden = locked || ACCOUNT !== 'cafe' || !openUntil;
+  clearTimeout(lockTimer);
+  if (!locked && openUntil && ACCOUNT === 'cafe'){
+    $('lockInfo').textContent = 'open until ' + fmtTime(openUntil);
+    lockTimer = setTimeout(checkGate, Math.max(1000, openUntil - new Date() + 500));
+  }
+}
+async function checkGate(){
+  var r = await db.rpc('inventory_unlocked');
+  if (r.error){ if (isMissing(r.error)){ $('setupCard').hidden = false; $('appView').classList.add('locked'); } return; }
+  $('setupCard').hidden = true;
+  openUntil = r.data ? new Date(r.data) : null;
+  if (openUntil && openUntil > new Date()){ setLocked(false); loadAll(); }
+  else { openUntil = null; setLocked(true); fillGateManagers(); }
+}
+async function fillGateManagers(){
+  var sel = $('gateMgr');
+  var r = await db.from('staff').select('id,name').eq('active', true).eq('role', 'manager').order('name');
+  var opts = (r.data || []).map(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; return o; });
+  if (!opts.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; opts.push(o2); }
+  sel.replaceChildren.apply(sel, opts);
+  $('gatePin').value = ''; $('gatePin').focus();
+}
+$('gateForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.rpc('inventory_unlock', {p_staff_id: $('gateMgr').value || null, p_pin: $('gatePin').value.trim()});
+  $('gatePin').value = '';
+  if (r.error || !r.data || !r.data.ok){ $('gateErr').textContent = r.error ? 'Could not check the PIN. Check the connection.' : (GATE_ERR[r.data.error] || 'Could not open the inventory.'); return; }
+  $('gateErr').textContent = '';
+  openUntil = new Date(r.data.until);
+  setLocked(false); loadAll();
+});
+$('lockBtn').addEventListener('click', async function(){ await db.rpc('inventory_lock'); checkGate(); });
+
+/* ---------- tabs ---------- */
+var view = 'today';
+document.querySelectorAll('#tabs button').forEach(function(b){
+  b.addEventListener('click', function(){ showView(b.dataset.view); });
+});
+function showView(v){
+  view = v;
+  document.querySelectorAll('#tabs button').forEach(function(x){ x.classList.toggle('on', x.dataset.view === v); });
+  document.querySelectorAll('.view').forEach(function(s){ s.hidden = s.id !== 'view-' + v; });
+  if (v === 'history') loadHistory();
+  if (v === 'month') loadMonth();
+  if (v === 'recipes') renderMenuList();
+}
+$('goOrderBtn').addEventListener('click', function(){ showView('orders'); });
+
+/* ---------- data ---------- */
+var STATS = [], VENDORS = [], MENU = [], RECIPES = [], POS = [], FOOD = null, ALERTS = null;
+var byId = {};
+async function loadAll(){
+  var rs = await Promise.all([
+    db.rpc('inventory_stats', {p_days: 30}),
+    db.from('vendors').select('*').order('name'),
+    db.rpc('inventory_alerts'),
+    db.rpc('inventory_food_cost', {p_days: 30}),
+    db.from('purchase_orders').select('*, purchase_lines(*)').order('created_at', {ascending: false}).limit(60)
+  ]);
+  if (rs[0].error){ if (isMissing(rs[0].error)){ $('setupCard').hidden = false; } else toast('Could not load the inventory. Check the connection.'); return; }
+  STATS = rs[0].data || []; VENDORS = rs[1].data || []; ALERTS = rs[2].data || null; FOOD = rs[3].data || null; POS = rs[4].data || [];
+  byId = {}; STATS.forEach(function(i){ byId[i.id] = i; });
+  renderToday(); renderStock(); renderOrders(); renderVendors(); fillSelects();
+  if (view === 'history') loadHistory();
+  if (view === 'month') loadMonth();
+  if (view === 'recipes') renderMenuList();
+}
+async function loadMenu(){
+  if (MENU.length) return;
+  var r = await db.from('menu_categories').select('id,name,sort,menu_items(id,name,price_crc,available,sort)').order('sort');
+  MENU = r.data || [];
+  var rr = await db.from('recipes').select('id,menu_item_id,stock_item_id,qty');
+  RECIPES = rr.data || [];
+}
+function fillSelects(){
+  var cats = {}; STATS.forEach(function(i){ cats[i.category] = true; });
+  var sel = $('stockCat'); var keep = sel.value;
+  sel.replaceChildren(); var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'All categories'; sel.appendChild(o0);
+  Object.keys(cats).sort().forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = catLabel(c); sel.appendChild(o); });
+  sel.value = keep;
+  var hs = $('histItem'); var hk = hs.value; hs.replaceChildren(); var h0 = document.createElement('option'); h0.value = ''; h0.textContent = 'All items'; hs.appendChild(h0);
+  STATS.forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name; hs.appendChild(o); });
+  hs.value = hk;
+}
+
+/* ---------- today ---------- */
+function renderToday(){
+  var active = STATS.filter(function(i){ return i.active; });
+  var att = active.filter(function(i){ return i.status !== 'ok'; });
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var exp = active.filter(function(i){ return i.expires_on && i.on_hand > 0 && (new Date(i.expires_on + 'T12:00:00') - today) <= 3 * 86400000; });
+  $('kItems').textContent = active.length;
+  $('kItemsSub').textContent = VENDORS.length + ' vendors';
+  $('kAttention').textContent = att.length;
+  var outN = att.filter(function(i){ return i.status === 'out'; }).length, lowN = att.filter(function(i){ return i.status === 'low'; }).length;
+  $('kAttentionSub').textContent = att.length ? (outN + ' out · ' + lowN + ' low · ' + (att.length - outN - lowN) + ' running out') : 'all good';
+  $('kExpiring').textContent = exp.length;
+  $('kValue').textContent = fmt(active.reduce(function(s, i){ return s + Number(i.value_on_hand || 0); }, 0));
+  $('alertCount').hidden = !att.length; $('alertCount').textContent = att.length;
+  var list = $('alertList'); list.replaceChildren();
+  var rows = att.slice().sort(function(a, b){ var o = {out: 0, low: 1, soon: 2}; return (o[a.status] - o[b.status]) || ((a.days_left || 999) - (b.days_left || 999)); });
+  exp.forEach(function(i){ if (rows.indexOf(i) < 0) rows.push(i); });
+  if (!rows.length){ list.innerHTML = '<p class="empty">Nothing is running out. Enjoy the calm.</p>'; }
+  rows.forEach(function(i){
+    var d = document.createElement('div'); d.className = 'alert';
+    var isExp = exp.indexOf(i) >= 0;
+    var left = document.createElement('div');
+    left.innerHTML = '<span class="n">' + esc(i.name) + '</span> ' +
+      (i.status !== 'ok' ? '<span class="pill ' + i.status + '">' + statusLabel(i.status) + '</span> ' : '') +
+      (isExp ? '<span class="pill exp">Expires ' + esc(fmtD(i.expires_on)) + '</span>' : '') +
+      '<div class="d">' + esc(qtyU(i.on_hand, i.unit)) + ' on hand' +
+      (i.days_left != null ? ' · about ' + num(i.days_left, 0) + ' days left' : '') +
+      (i.vendor_name ? ' · ' + esc(i.vendor_name) : '') + '</div>';
+    var acts = document.createElement('div'); acts.className = 'acts';
+    acts.appendChild(actBtn('Count', function(){ openMove('count', i); }));
+    acts.appendChild(actBtn('Receive', function(){ openMove('receive', i); }));
+    d.appendChild(left); d.appendChild(acts); list.appendChild(d);
+  });
+  if (FOOD && FOOD.ok !== false){
+    $('fcRevenue').textContent = fmt(FOOD.revenue); $('fcUsage').textContent = fmt(FOOD.usage_cost); $('fcWaste').textContent = fmt(FOOD.waste_cost);
+    $('fcPct').textContent = FOOD.revenue > 0 ? num(100 * FOOD.usage_cost / FOOD.revenue, 1) + '% of sales' : '';
+    $('fcWastePct').textContent = FOOD.usage_cost > 0 ? num(100 * FOOD.waste_cost / FOOD.usage_cost, 1) + '% of what was used' : '';
+  }
+}
+function actBtn(label, fn, cls){ var b = document.createElement('button'); b.type = 'button'; b.className = 'small ghost' + (cls ? ' ' + cls : ''); b.textContent = label; b.addEventListener('click', fn); return b; }
+
+/* ---------- stock ---------- */
+['stockSearch', 'stockCat', 'stockStatus'].forEach(function(id){ $(id).addEventListener('input', renderStock); });
+function renderStock(){
+  var q = $('stockSearch').value.trim().toLowerCase(), cat = $('stockCat').value, st = $('stockStatus').value;
+  var rows = STATS.filter(function(i){
+    if (st === 'inactive') { if (i.active) return false; } else if (!i.active) return false;
+    if (st === 'attention' && i.status === 'ok') return false;
+    if (cat && i.category !== cat) return false;
+    if (q && i.name.toLowerCase().indexOf(q) < 0 && !(i.vendor_name || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  var tb = $('stockTable').querySelector('tbody'); tb.replaceChildren();
+  $('stockEmpty').hidden = !!STATS.length;
+  rows.forEach(function(i){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + esc(i.name) + '</b><span class="sub">' + esc(catLabel(i.category)) + (i.pack_label ? ' · ' + esc(i.pack_label) : '') + '</span></td>' +
+      '<td class="num">' + esc(qtyU(i.on_hand, i.unit)) + '<span class="sub"><span class="pill ' + i.status + '">' + statusLabel(i.status) + '</span></span></td>' +
+      '<td class="num">' + num(i.par_level, 1) + ' · ' + num(i.reorder_point, 1) + '</td>' +
+      '<td class="num">' + num(i.avg_daily, 1) + '</td>' +
+      '<td class="num">' + (i.days_left != null ? num(i.days_left, 0) : '–') + '</td>' +
+      '<td>' + esc(i.vendor_name || '') + '</td>' +
+      '<td class="num">' + fmt(i.value_on_hand) + '</td>';
+    var td = document.createElement('td'); var acts = document.createElement('div'); acts.className = 'acts';
+    acts.appendChild(actBtn('Count', function(){ openMove('count', i); }));
+    acts.appendChild(actBtn('Receive', function(){ openMove('receive', i); }));
+    acts.appendChild(actBtn('Waste', function(){ openMove('waste', i); }));
+    acts.appendChild(actBtn('Edit', function(){ openItem(i); }));
+    td.appendChild(acts); tr.appendChild(td); tb.appendChild(tr);
+  });
+}
+$('csvStockBtn').addEventListener('click', function(){
+  download('stock.csv', [['item', 'category', 'unit', 'on_hand', 'par', 'reorder_point', 'use_per_day', 'days_left', 'vendor', 'cost_per_pack', 'pack_qty', 'value']].concat(
+    STATS.map(function(i){ return [i.name, i.category, i.unit, i.on_hand, i.par_level, i.reorder_point, i.avg_daily, i.days_left, i.vendor_name, i.cost_per_pack, i.pack_qty, i.value_on_hand]; })));
+});
+
+/* item modal */
+var itemTarget = null;
+$('addItemBtn').addEventListener('click', function(){ openItem(null); });
+function fillVendorSelect(sel, value){
+  sel.replaceChildren(); var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'No vendor'; sel.appendChild(o0);
+  VENDORS.filter(function(v){ return v.active; }).forEach(function(v){ var o = document.createElement('option'); o.value = v.id; o.textContent = v.name; sel.appendChild(o); });
+  sel.value = value || '';
+}
+function openItem(i){
+  itemTarget = i;
+  $('itemTitle').textContent = i ? 'Edit · ' + i.name : 'Add item';
+  $('itName').value = i ? i.name : ''; $('itCat').value = i ? i.category : 'other'; $('itUnit').value = i ? i.unit : 'unit';
+  $('itPackLabel').value = i ? (i.pack_label || '') : ''; $('itPackQty').value = i ? i.pack_qty : 1; $('itCost').value = i ? i.cost_per_pack : 0;
+  fillVendorSelect($('itVendor'), i ? i.vendor_id : '');
+  $('itPar').value = i ? i.par_level : 0; $('itReorder').value = i ? i.reorder_point : 0; $('itShelf').value = i && i.shelf_life_days != null ? i.shelf_life_days : '';
+  $('itStart').value = 0; $('itStart').parentNode.hidden = !!i;
+  $('itNotes').value = i ? (i.notes || '') : ''; $('itActive').checked = i ? i.active : true; $('itActiveLine').hidden = !i;
+  $('itDelete').hidden = !i; $('itErr').textContent = '';
+  $('itemModal').hidden = false; $('itName').focus();
+}
+$('itCancel').addEventListener('click', function(){ $('itemModal').hidden = true; });
+$('itemForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var row = {name: $('itName').value.trim(), category: $('itCat').value, unit: $('itUnit').value, pack_label: $('itPackLabel').value.trim() || null,
+    pack_qty: Number($('itPackQty').value) || 1, cost_per_pack: Number($('itCost').value) || 0, vendor_id: $('itVendor').value || null,
+    par_level: Number($('itPar').value) || 0, reorder_point: Number($('itReorder').value) || 0,
+    shelf_life_days: $('itShelf').value === '' ? null : Number($('itShelf').value), notes: $('itNotes').value.trim() || null, active: $('itActive').checked};
+  if (!row.name){ $('itErr').textContent = 'The name cannot be empty.'; return; }
+  var r;
+  if (itemTarget){ r = await db.from('stock_items').update(row).eq('id', itemTarget.id).select('id'); }
+  else { r = await db.from('stock_items').insert(row).select('id'); }
+  if (r.error || !r.data || !r.data.length){ $('itErr').textContent = 'Could not save. Check the connection and try again.'; return; }
+  var start = Number($('itStart').value) || 0;
+  if (!itemTarget && start > 0){ await db.rpc('stock_receive', {p_item_id: r.data[0].id, p_qty: start, p_unit_cost: row.pack_qty ? row.cost_per_pack / row.pack_qty : null, p_expires_on: null, p_note: 'starting stock'}); }
+  $('itemModal').hidden = true; toast(row.name + ' saved'); loadAll();
+});
+$('itDelete').addEventListener('click', async function(){
+  if (!itemTarget) return;
+  if (!confirm('Delete "' + itemTarget.name + '" and its history? If you only stopped buying it, untick Active instead.')) return;
+  var r = await db.from('stock_items').delete().eq('id', itemTarget.id);
+  if (r.error){ $('itErr').textContent = 'Could not delete. Try again.'; return; }
+  $('itemModal').hidden = true; toast('Item deleted'); loadAll();
+});
+
+/* count / receive / waste */
+var moveKind = null, moveItem = null;
+function openMove(kind, item){
+  moveKind = kind; moveItem = item;
+  var titles = {count: 'Count', receive: 'Receive', waste: 'Waste'};
+  $('moveTitle').textContent = titles[kind] + ' · ' + item.name;
+  $('moveHint').textContent = kind === 'count' ? 'On the books: ' + qtyU(item.on_hand, item.unit) + '. Type what you actually see; the difference is logged.'
+    : kind === 'receive' ? 'Add what just arrived. Packs or units, either one. ' + (item.pack_label ? 'One pack = ' + esc(item.pack_label) + ' = ' + qtyU(item.pack_qty, item.unit) + '.' : '')
+    : 'Take out what was thrown away, spilled or expired.';
+  $('moveCountBox').hidden = kind !== 'count'; $('moveQtyBox').hidden = kind === 'count'; $('moveCostRow').hidden = kind !== 'receive';
+  $('mvCounted').value = ''; $('mvPacks').value = ''; $('mvQty').value = ''; $('mvNote').value = ''; $('mvErr').textContent = '';
+  $('mvCost').value = item.cost_per_pack || ''; $('mvExp').value = item.shelf_life_days ? new Date(Date.now() + item.shelf_life_days * 86400000).toISOString().slice(0, 10) : '';
+  $('moveModal').hidden = false;
+  (kind === 'count' ? $('mvCounted') : $('mvPacks')).focus();
+}
+$('mvPacks').addEventListener('input', function(){ if (moveItem) $('mvQty').value = $('mvPacks').value === '' ? '' : String(Math.round(Number($('mvPacks').value) * moveItem.pack_qty * 1000) / 1000); });
+$('mvQty').addEventListener('input', function(){ if (moveItem && moveItem.pack_qty) $('mvPacks').value = $('mvQty').value === '' ? '' : String(Math.round(Number($('mvQty').value) / moveItem.pack_qty * 1000) / 1000); });
+$('mvCancel').addEventListener('click', function(){ $('moveModal').hidden = true; });
+$('moveForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var note = $('mvNote').value.trim() || null, r;
+  if (moveKind === 'count'){
+    if ($('mvCounted').value === ''){ $('mvErr').textContent = 'Type the quantity you counted.'; return; }
+    r = await db.rpc('stock_count', {p_item_id: moveItem.id, p_counted: Number($('mvCounted').value), p_note: note});
+  } else {
+    var q = Number($('mvQty').value);
+    if (!(q > 0)){ $('mvErr').textContent = 'Type a quantity above zero.'; return; }
+    if (moveKind === 'receive'){
+      var cpp = Number($('mvCost').value);
+      r = await db.rpc('stock_receive', {p_item_id: moveItem.id, p_qty: q, p_unit_cost: cpp > 0 ? cpp / moveItem.pack_qty : null, p_expires_on: $('mvExp').value || null, p_note: note});
+    } else r = await db.rpc('stock_waste', {p_item_id: moveItem.id, p_qty: q, p_note: note});
+  }
+  if (r.error || !r.data || !r.data.ok){ $('mvErr').textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.error === 'locked' ? 'The inventory is locked. Type a manager PIN again.' : 'Could not save. Try again.'); return; }
+  $('moveModal').hidden = true;
+  toast(moveKind === 'count' ? moveItem.name + ' counted' : moveKind === 'receive' ? moveItem.name + ' received' : moveItem.name + ' waste logged');
+  loadAll();
+});
+
+/* ---------- orders ---------- */
+function unitCost(i){ return i.pack_qty ? Number(i.cost_per_pack) / Number(i.pack_qty) : 0; }
+function renderOrders(){
+  var openPos = POS.filter(function(p){ return p.status === 'draft' || p.status === 'sent'; });
+  $('poCount').hidden = !openPos.length; $('poCount').textContent = openPos.length;
+  /* suggestions grouped by vendor */
+  var sug = STATS.filter(function(i){ return i.active && i.status !== 'ok' && Number(i.suggested_packs) > 0; });
+  var groups = {}; sug.forEach(function(i){ var k = i.vendor_id || ''; (groups[k] = groups[k] || []).push(i); });
+  var box = $('suggestList'); box.replaceChildren();
+  if (!sug.length) box.innerHTML = '<p class="empty">Nothing needs ordering right now.</p>';
+  Object.keys(groups).forEach(function(vid){
+    var v = VENDORS.filter(function(x){ return x.id === vid; })[0];
+    var d = document.createElement('div'); d.className = 'po';
+    var head = document.createElement('div'); head.className = 'head';
+    head.innerHTML = '<b>' + esc(v ? v.name : 'No vendor set') + '</b>' + (v && v.order_days ? '<span class="hint">orders on ' + esc(v.order_days) + '</span>' : '') + (v ? '<span class="hint">' + v.lead_days + ' day lead</span>' : '');
+    var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
+    var tb = document.createElement('table'); tb.innerHTML = '<thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Par</th><th class="num">Packs to order</th></tr></thead>';
+    var body = document.createElement('tbody');
+    groups[vid].forEach(function(i){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + esc(i.name) + '<span class="sub">' + esc(i.pack_label || ('pack of ' + qtyU(i.pack_qty, i.unit))) + ' · ' + fmt(i.cost_per_pack) + '</span></td><td class="num">' + esc(qtyU(i.on_hand, i.unit)) + '<span class="sub"><span class="pill ' + i.status + '">' + statusLabel(i.status) + '</span></span></td><td class="num">' + num(i.par_level, 1) + '</td>';
+      var td = document.createElement('td'); td.className = 'num'; var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = 'any'; inp.value = i.suggested_packs; inp.style.width = '80px'; inp.dataset.item = i.id; td.appendChild(inp); tr.appendChild(td);
+      body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    var btn = actBtn('Create order', async function(){
+      var lines = []; body.querySelectorAll('input').forEach(function(inp){ var packs = Number(inp.value); if (packs > 0) lines.push({item: byId[inp.dataset.item], packs: packs}); });
+      if (!lines.length){ toast('Nothing to order.'); return; }
+      await createPo(vid || null, lines);
+    }, '');
+    btn.className = 'small';
+    head.appendChild(btn); d.appendChild(head); d.appendChild(tb); box.appendChild(d);
+  });
+  /* open orders */
+  var list = $('poList'); list.replaceChildren();
+  if (!openPos.length) list.innerHTML = '<p class="empty">No open orders.</p>';
+  openPos.forEach(function(p){ list.appendChild(poCard(p, true)); });
+  var done = $('poDone'); done.replaceChildren();
+  var recv = POS.filter(function(p){ return p.status === 'received' || p.status === 'cancelled'; }).slice(0, 12);
+  if (!recv.length) done.innerHTML = '<p class="empty">Nothing received yet.</p>';
+  recv.forEach(function(p){ done.appendChild(poCard(p, false)); });
+}
+function poTotal(p){ return (p.purchase_lines || []).reduce(function(s, l){ return s + Number(l.received_qty != null && p.status === 'received' ? l.received_qty : l.qty) * Number(l.unit_cost || 0); }, 0); }
+function poCard(p, open){
+  var v = VENDORS.filter(function(x){ return x.id === p.vendor_id; })[0];
+  var d = document.createElement('div'); d.className = 'po';
+  var head = document.createElement('div'); head.className = 'head';
+  var statusText = {draft: 'Draft', sent: 'Sent', received: 'Received', cancelled: 'Cancelled'}[p.status] || p.status;
+  head.innerHTML = '<b>' + esc(v ? v.name : 'No vendor') + '</b><span class="pill ' + p.status + '">' + statusText + '</span><span class="hint">' + esc(fmtDT(p.received_at || p.sent_at || p.created_at)) + '</span><span class="hint">' + fmt(poTotal(p)) + '</span>';
+  var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
+  var lines = document.createElement('div'); lines.className = 'lines';
+  lines.textContent = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return (i ? i.name : '?') + ' × ' + num(l.packs, 2) + (p.status === 'received' && l.received_qty != null && Number(l.received_qty) !== Number(l.qty) ? ' (got ' + num(l.received_qty, 1) + (i ? ' ' + unitLabel(i.unit) : '') + ')' : ''); }).join(' · ') || 'No lines yet';
+  if (open){
+    head.appendChild(actBtn('+ Add line', function(){ openLine(p); }));
+    if (v && v.whatsapp) head.appendChild(actBtn('Send by WhatsApp', function(){ sendPo(p, v); }));
+    head.appendChild(actBtn('Print', function(){ printPo(p, v); }));
+    var rb = actBtn('Mark received', function(){ openRecv(p); }); rb.className = 'small'; head.appendChild(rb);
+    head.appendChild(actBtn('Cancel order', async function(){ if (!confirm('Cancel this order?')) return; await db.from('purchase_orders').update({status: 'cancelled'}).eq('id', p.id); loadAll(); }));
+  }
+  d.appendChild(head); d.appendChild(lines);
+  return d;
+}
+async function createPo(vendorId, lines){
+  var r = await db.from('purchase_orders').insert({vendor_id: vendorId, status: 'draft', by_name: ACCOUNT === 'cafe' ? 'café' : 'owner'}).select('id');
+  if (r.error || !r.data || !r.data.length){ toast('Could not create the order. Try again.'); return; }
+  var rows = lines.map(function(l){ return {po_id: r.data[0].id, item_id: l.item.id, packs: l.packs, qty: l.packs * Number(l.item.pack_qty), unit_cost: unitCost(l.item) || null}; });
+  var r2 = await db.from('purchase_lines').insert(rows);
+  if (r2.error){ toast('Could not add the lines. Try again.'); return; }
+  toast('Order created'); await loadAll(); showView('orders');
+}
+$('newPoBtn').addEventListener('click', async function(){
+  var v = VENDORS.filter(function(x){ return x.active; })[0];
+  await createPo(v ? v.id : null, []);
+});
+var lineTarget = null;
+function openLine(p){
+  lineTarget = p; var sel = $('lnItem'); sel.replaceChildren();
+  STATS.filter(function(i){ return i.active; }).forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name + (i.vendor_name ? ' · ' + i.vendor_name : ''); sel.appendChild(o); });
+  $('lnPacks').value = 1; $('lnErr').textContent = ''; lnHint(); $('lineModal').hidden = false;
+}
+function lnHint(){ var i = byId[$('lnItem').value]; $('lnHint').textContent = i ? ('1 pack = ' + (i.pack_label || qtyU(i.pack_qty, i.unit)) + ' · ' + fmt(i.cost_per_pack)) : ''; }
+$('lnItem').addEventListener('change', lnHint);
+$('lnCancel').addEventListener('click', function(){ $('lineModal').hidden = true; });
+$('lineForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var i = byId[$('lnItem').value], packs = Number($('lnPacks').value);
+  if (!i || !(packs > 0)){ $('lnErr').textContent = 'Pick an item and a number of packs.'; return; }
+  var r = await db.from('purchase_lines').insert({po_id: lineTarget.id, item_id: i.id, packs: packs, qty: packs * Number(i.pack_qty), unit_cost: unitCost(i) || null});
+  if (r.error){ $('lnErr').textContent = 'Could not add it. Try again.'; return; }
+  $('lineModal').hidden = true; loadAll();
+});
+function poText(p, v){
+  var lines = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return '• ' + (i ? i.name : '?') + ': ' + num(l.packs, 2) + ' × ' + (i && i.pack_label ? i.pack_label : 'pack') + ' (' + (i ? qtyU(l.qty, i.unit) : l.qty) + ')'; });
+  return 'Hola' + (v && v.contact_name ? ' ' + v.contact_name : '') + ', pedido de The Hanging Garden Café:\n' + lines.join('\n') + '\n\nGracias. / Order from The Hanging Garden Café, thank you.';
+}
+async function sendPo(p, v){
+  var url = 'https://wa.me/' + String(v.whatsapp).replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(poText(p, v));
+  window.open(url, '_blank', 'noopener');
+  if (p.status === 'draft'){ await db.from('purchase_orders').update({status: 'sent', sent_at: new Date().toISOString()}).eq('id', p.id); loadAll(); }
+}
+function printPo(p, v){
+  var w = window.open('', '_blank');
+  if (!w) return;
+  w.document.write('<title>Order · The Hanging Garden Café</title><pre style="font:14px/1.5 monospace;padding:2rem">' + esc(poText(p, v)) + '</pre>');
+  w.document.close(); w.print();
+}
+var recvTarget = null;
+function openRecv(p){
+  recvTarget = p; var tb = $('recvTable').querySelector('tbody'); tb.replaceChildren();
+  (p.purchase_lines || []).forEach(function(l){
+    var i = byId[l.item_id]; if (!i) return;
+    var tr = document.createElement('tr'); tr.dataset.line = l.id;
+    var exp = l.expires_on || (i.shelf_life_days ? new Date(Date.now() + i.shelf_life_days * 86400000).toISOString().slice(0, 10) : '');
+    tr.innerHTML = '<td>' + esc(i.name) + '<span class="sub">' + esc(unitLabel(i.unit)) + '</span></td><td class="num">' + num(l.qty, 1) + '</td>' +
+      '<td class="num"><input type="number" min="0" step="any" value="' + esc(l.qty) + '" data-f="qty" style="width:90px"></td>' +
+      '<td class="num"><input type="number" min="0" step="any" value="' + esc(l.unit_cost != null ? Math.round(Number(l.unit_cost) * Number(i.pack_qty) * 100) / 100 : '') + '" data-f="cost" style="width:100px"></td>' +
+      '<td><input type="date" value="' + esc(exp) + '" data-f="exp" style="width:150px"></td>';
+    tb.appendChild(tr);
+  });
+  $('recvErr').textContent = ''; $('recvModal').hidden = false;
+}
+$('recvCancel').addEventListener('click', function(){ $('recvModal').hidden = true; });
+$('recvForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var lines = [];
+  $('recvTable').querySelectorAll('tbody tr').forEach(function(tr){
+    var i = byId[(recvTarget.purchase_lines || []).filter(function(l){ return l.id === tr.dataset.line; })[0].item_id];
+    var cost = Number(tr.querySelector('[data-f=cost]').value);
+    lines.push({line_id: tr.dataset.line, received_qty: Number(tr.querySelector('[data-f=qty]').value) || 0, unit_cost: cost > 0 && i ? cost / Number(i.pack_qty) : null, expires_on: tr.querySelector('[data-f=exp]').value || null});
+  });
+  var r = await db.rpc('po_receive', {p_po_id: recvTarget.id, p_lines: lines});
+  if (r.error || !r.data || !r.data.ok){ $('recvErr').textContent = 'Could not save. Check the connection and try again.'; return; }
+  $('recvModal').hidden = true; toast('Order received, stock updated'); loadAll();
+});
+
+/* ---------- recipes ---------- */
+var recipeItem = null, recipeDraft = [];
+async function renderMenuList(){
+  await loadMenu();
+  var box = $('menuList'); box.replaceChildren();
+  MENU.forEach(function(c){
+    (c.menu_items || []).slice().sort(function(a, b){ return (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name); }).forEach(function(mi){
+      var n = RECIPES.filter(function(r){ return r.menu_item_id === mi.id; }).length;
+      var b = document.createElement('button'); b.type = 'button'; b.classList.toggle('on', recipeItem && recipeItem.id === mi.id);
+      b.innerHTML = '<span>' + esc(mi.name) + '<br><span class="c">' + esc(c.name) + '</span></span><span class="c">' + (n ? n + (n === 1 ? ' ingredient' : ' ingredients') : 'not linked') + '</span>';
+      b.addEventListener('click', function(){ openRecipe(mi); });
+      box.appendChild(b);
+    });
+  });
+}
+function openRecipe(mi){
+  recipeItem = mi;
+  recipeDraft = RECIPES.filter(function(r){ return r.menu_item_id === mi.id; }).map(function(r){ return {stock_item_id: r.stock_item_id, qty: Number(r.qty)}; });
+  if (!recipeDraft.length) recipeDraft.push({stock_item_id: '', qty: 1});
+  $('recipeTitle').textContent = mi.name + ' · ' + fmt(mi.price_crc);
+  $('recipeCard').hidden = false; renderRecipeRows(); renderMenuList();
+  $('recipeCard').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function renderRecipeRows(){
+  var box = $('recipeRows'); box.replaceChildren();
+  recipeDraft.forEach(function(row, idx){
+    var d = document.createElement('div'); d.className = 'recipe-row';
+    var sel = document.createElement('select'); var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Pick a stock item'; sel.appendChild(o0);
+    STATS.filter(function(i){ return i.active; }).forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name + ' (' + unitLabel(i.unit) + ')'; sel.appendChild(o); });
+    sel.value = row.stock_item_id; sel.addEventListener('change', function(){ row.stock_item_id = sel.value; renderRecipeCost(); });
+    var q = document.createElement('input'); q.type = 'number'; q.min = '0'; q.step = 'any'; q.value = row.qty; q.addEventListener('input', function(){ row.qty = Number(q.value); renderRecipeCost(); });
+    var u = document.createElement('span'); u.className = 'hint'; u.textContent = byId[row.stock_item_id] ? unitLabel(byId[row.stock_item_id].unit) : '';
+    sel.addEventListener('change', function(){ u.textContent = byId[sel.value] ? unitLabel(byId[sel.value].unit) : ''; });
+    var x = actBtn('Remove', function(){ recipeDraft.splice(idx, 1); renderRecipeRows(); });
+    d.appendChild(sel); d.appendChild(q); d.appendChild(u); d.appendChild(x); box.appendChild(d);
+  });
+  renderRecipeCost();
+}
+function renderRecipeCost(){
+  var cost = recipeDraft.reduce(function(s, r){ var i = byId[r.stock_item_id]; return s + (i ? unitCost(i) * (Number(r.qty) || 0) : 0); }, 0);
+  var price = recipeItem ? Number(recipeItem.price_crc) : 0;
+  $('recipeCost').textContent = cost ? ('Ingredients ' + fmt(cost) + ' per sale' + (price ? ' · ' + num(100 * cost / price, 0) + '% of the price' : '')) : '';
+}
+$('recipeAddRow').addEventListener('click', function(){ recipeDraft.push({stock_item_id: '', qty: 1}); renderRecipeRows(); });
+$('recipeSave').addEventListener('click', async function(){
+  if (!recipeItem) return;
+  var rows = recipeDraft.filter(function(r){ return r.stock_item_id && Number(r.qty) > 0; });
+  var seen = {}; rows = rows.filter(function(r){ if (seen[r.stock_item_id]) return false; seen[r.stock_item_id] = true; return true; });
+  var del = await db.from('recipes').delete().eq('menu_item_id', recipeItem.id);
+  if (del.error){ toast('Could not save the recipe. Try again.'); return; }
+  if (rows.length){
+    var ins = await db.from('recipes').insert(rows.map(function(r){ return {menu_item_id: recipeItem.id, stock_item_id: r.stock_item_id, qty: r.qty}; }));
+    if (ins.error){ toast('Could not save the recipe. Try again.'); return; }
+  }
+  var rr = await db.from('recipes').select('id,menu_item_id,stock_item_id,qty'); RECIPES = rr.data || [];
+  toast('Recipe saved'); renderMenuList();
+});
+$('autolinkBtn').addEventListener('click', async function(){
+  var r = await db.rpc('recipes_autolink');
+  if (r.error || !r.data || !r.data.ok){ toast('Could not link. Try again.'); return; }
+  var rr = await db.from('recipes').select('id,menu_item_id,stock_item_id,qty'); RECIPES = rr.data || [];
+  toast(r.data.linked + ' linked'); renderMenuList();
+});
+
+/* ---------- vendors ---------- */
+var vendorTarget = null;
+function renderVendors(){
+  var tb = $('vendorTable').querySelector('tbody'); tb.replaceChildren();
+  $('vendorEmpty').hidden = !!VENDORS.length;
+  VENDORS.forEach(function(v){
+    var n = STATS.filter(function(i){ return i.vendor_id === v.id && i.active; }).length;
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + esc(v.name) + '</b>' + (!v.active ? ' <span class="pill cancelled">inactive</span>' : '') + (v.notes ? '<span class="sub">' + esc(v.notes) + '</span>' : '') + '</td>' +
+      '<td>' + esc(v.contact_name || '') + (v.whatsapp ? '<span class="sub"><a href="https://wa.me/' + esc(String(v.whatsapp).replace(/[^0-9]/g, '')) + '" target="_blank" rel="noopener">WhatsApp ' + esc(v.whatsapp) + '</a></span>' : '') + (v.phone ? '<span class="sub">' + esc(v.phone) + '</span>' : '') + (v.email ? '<span class="sub">' + esc(v.email) + '</span>' : '') + '</td>' +
+      '<td>' + esc(v.order_days || '') + '</td><td class="num">' + esc(v.lead_days) + '</td><td class="num">' + n + '</td>';
+    var td = document.createElement('td'); var acts = document.createElement('div'); acts.className = 'acts'; acts.appendChild(actBtn('Edit', function(){ openVendor(v); })); td.appendChild(acts); tr.appendChild(td); tb.appendChild(tr);
+  });
+}
+$('addVendorBtn').addEventListener('click', function(){ openVendor(null); });
+function openVendor(v){
+  vendorTarget = v;
+  $('vendorTitle').textContent = v ? 'Edit · ' + v.name : 'Add vendor';
+  $('vName').value = v ? v.name : ''; $('vContact').value = v ? (v.contact_name || '') : ''; $('vPhone').value = v ? (v.phone || '') : ''; $('vWa').value = v ? (v.whatsapp || '') : '';
+  $('vEmail').value = v ? (v.email || '') : ''; $('vLead').value = v ? v.lead_days : 2; $('vDays').value = v ? (v.order_days || '') : ''; $('vNotes').value = v ? (v.notes || '') : ''; $('vActive').checked = v ? v.active : true;
+  $('vDelete').hidden = !v; $('vErr').textContent = ''; $('vendorModal').hidden = false; $('vName').focus();
+}
+$('vCancel').addEventListener('click', function(){ $('vendorModal').hidden = true; });
+$('vendorForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var row = {name: $('vName').value.trim(), contact_name: $('vContact').value.trim() || null, phone: $('vPhone').value.trim() || null, whatsapp: $('vWa').value.trim() || null,
+    email: $('vEmail').value.trim() || null, lead_days: Number($('vLead').value) || 0, order_days: $('vDays').value.trim() || null, notes: $('vNotes').value.trim() || null, active: $('vActive').checked};
+  if (!row.name){ $('vErr').textContent = 'The name cannot be empty.'; return; }
+  var r = vendorTarget ? await db.from('vendors').update(row).eq('id', vendorTarget.id) : await db.from('vendors').insert(row);
+  if (r.error){ $('vErr').textContent = 'Could not save. Check the connection and try again.'; return; }
+  $('vendorModal').hidden = true; toast(row.name + ' saved'); loadAll();
+});
+$('vDelete').addEventListener('click', async function(){
+  if (!vendorTarget || !confirm('Delete "' + vendorTarget.name + '"? Its items stay, without a vendor.')) return;
+  var r = await db.from('vendors').delete().eq('id', vendorTarget.id);
+  if (r.error){ $('vErr').textContent = 'Could not delete. Try again.'; return; }
+  $('vendorModal').hidden = true; toast('Vendor deleted'); loadAll();
+});
+
+/* ---------- history ---------- */
+var HIST = [];
+['histItem', 'histKind'].forEach(function(id){ $(id).addEventListener('change', loadHistory); });
+var KIND_LABEL = {purchase: 'Received', sale: 'Sold', void: 'Returned', waste: 'Waste', count: 'Count', adjust: 'Adjustment'};
+async function loadHistory(){
+  var q = db.from('stock_moves').select('*').order('at', {ascending: false}).limit(400);
+  if ($('histItem').value) q = q.eq('item_id', $('histItem').value);
+  if ($('histKind').value) q = q.eq('kind', $('histKind').value);
+  var r = await q; HIST = r.data || [];
+  var tb = $('histTable').querySelector('tbody'); tb.replaceChildren();
+  $('histEmpty').hidden = !!HIST.length;
+  HIST.forEach(function(m){
+    var i = byId[m.item_id]; var tr = document.createElement('tr');
+    tr.innerHTML = '<td class="mono-small">' + esc(fmtDT(m.at)) + '</td><td>' + esc(i ? i.name : '?') + '</td><td>' + esc(KIND_LABEL[m.kind] || m.kind) + '</td>' +
+      '<td class="num" style="color:' + (Number(m.qty) < 0 ? 'var(--bad)' : 'var(--ok)') + '">' + (Number(m.qty) > 0 ? '+' : '') + num(m.qty, 1) + (i ? ' ' + unitLabel(i.unit) : '') + '</td>' +
+      '<td class="num">' + (m.unit_cost != null ? fmt(Number(m.unit_cost) * (i ? Number(i.pack_qty) : 1)) + '<span class="sub">per pack</span>' : '') + '</td><td>' + esc(m.note || '') + (m.expires_on ? '<span class="sub">expires ' + esc(fmtD(m.expires_on)) + '</span>' : '') + '</td><td>' + esc(m.by_name || (m.order_id ? 'POS' : '')) + '</td>';
+    tb.appendChild(tr);
+  });
+}
+$('csvHistBtn').addEventListener('click', function(){
+  download('stock-history.csv', [['when', 'item', 'kind', 'qty', 'unit', 'unit_cost', 'note', 'by']].concat(HIST.map(function(m){ var i = byId[m.item_id]; return [m.at, i ? i.name : '', m.kind, m.qty, i ? i.unit : '', m.unit_cost, m.note, m.by_name]; })));
+});
+
+/* ---------- month ---------- */
+var monthDate = new Date(); monthDate.setDate(1); monthDate.setMonth(monthDate.getMonth() - 1);
+var MONTH = [];
+$('monthPrev').addEventListener('click', function(){ monthDate.setMonth(monthDate.getMonth() - 1); loadMonth(); });
+$('monthNext').addEventListener('click', function(){ monthDate.setMonth(monthDate.getMonth() + 1); loadMonth(); });
+async function loadMonth(){
+  var iso = monthDate.getFullYear() + '-' + String(monthDate.getMonth() + 1).padStart(2, '0') + '-01';
+  $('monthLabel').textContent = monthDate.toLocaleDateString('en-GB', {month: 'long', year: 'numeric'});
+  var r = await db.rpc('inventory_month', {p_month: iso}); MONTH = r.data || [];
+  var tb = $('monthTable').querySelector('tbody'); tb.replaceChildren();
+  var tot = {recv: 0, cost: 0, sold: 0, waste: 0};
+  MONTH.forEach(function(m){
+    tot.cost += Number(m.received_cost || 0);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + esc(m.name) + '</b><span class="sub">' + esc(catLabel(m.category)) + '</span></td><td class="num">' + num(m.received_qty, 1) + ' ' + esc(unitLabel(m.unit)) + '</td><td class="num">' + fmt(m.received_cost) + '</td>' +
+      '<td class="num">' + num(m.sold_qty, 1) + '</td><td class="num">' + num(m.waste_qty, 1) + '</td><td class="num">' + (Number(m.count_diff) > 0 ? '+' : '') + num(m.count_diff, 1) + '</td><td class="num">' + num(m.on_hand, 1) + '</td>';
+    tb.appendChild(tr);
+  });
+  var tr = document.createElement('tr'); tr.innerHTML = '<td><b>Total spent</b></td><td></td><td class="num"><b>' + fmt(tot.cost) + '</b></td><td colspan="4"></td>'; tb.appendChild(tr);
+  if (!MONTH.length) tb.innerHTML = '<tr><td colspan="7" class="empty">Nothing in this month.</td></tr>';
+}
+$('csvMonthBtn').addEventListener('click', function(){
+  download('stock-' + $('monthLabel').textContent.replace(/\s+/g, '-').toLowerCase() + '.csv', [['item', 'category', 'unit', 'ordered', 'ordered_cost', 'sold', 'waste', 'count_adjustment', 'in_stock_now']].concat(MONTH.map(function(m){ return [m.name, m.category, m.unit, m.received_qty, m.received_cost, m.sold_qty, m.waste_qty, m.count_diff, m.on_hand]; })));
+});
+
+/* modals close on backdrop tap */
+document.querySelectorAll('.modalbg').forEach(function(m){ m.addEventListener('click', function(e){ if (e.target === m) m.hidden = true; }); });
+
+refreshAuth();
+</script>
+<script src="lang.js"></script>
+</body>
+</html>

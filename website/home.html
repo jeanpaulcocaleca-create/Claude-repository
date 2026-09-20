@@ -61,6 +61,14 @@ h2.section{font-size:1.1rem;margin:0 0 .8rem}
 .tile .t{font-family:'Playfair Display',Georgia,serif;font-size:1.12rem;display:flex;align-items:center;gap:.4em}
 .tile .t .ext{font-size:.8em;color:var(--sec)}
 .tile .d{font-size:.88rem;color:var(--sec)}
+.invcard{background:var(--panel);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid #E7C7A0}
+.invhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem}
+.invhead .btnlink{display:inline-flex;align-items:center;min-height:36px;padding:.3em .9em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600;font-size:.85rem}
+.invrow{display:flex;justify-content:space-between;gap:.6rem;padding:.4rem 0;border-bottom:1px solid rgba(201,207,182,.5);font-size:.92rem}
+.invrow:last-child{border-bottom:0}
+.invrow .s{color:var(--sec);font-size:.84rem}
+.invpill{display:inline-block;padding:.1em .55em;border-radius:99px;font-size:.72rem;font-weight:600;margin-left:.4em;vertical-align:middle}
+.invpill.out{background:#A8402F;color:#fff}.invpill.low{background:#E7C7A0;color:#5a3a12}.invpill.soon{background:#F1E3B3;color:#5a4a12}.invpill.exp{background:#E3D2EE;color:#4a2a63}
 footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:center}
 </style>
 </head>
@@ -113,6 +121,11 @@ footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72r
     <div class="kpi"><div class="l">Sold out</div><div class="v" id="kSoldOut">–</div><div class="s" id="kSoldOutSub"></div></div>
   </div>
 
+  <div class="card invcard" id="invCard" hidden>
+    <div class="invhead"><h2 class="section" style="margin:0">Before it runs out</h2><a class="ghost btnlink small" href="inventory.html">Open inventory</a></div>
+    <div id="invList"></div>
+  </div>
+
   <h2 class="section">Your café, one tap away</h2>
   <div class="tiles">
     <a class="tile" href="pos.html">
@@ -129,6 +142,11 @@ footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72r
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.2"/></svg>
       <span class="t">Menu Manager</span>
       <span class="d">Change prices, photos and items — updates the website and TV board in a minute.</span>
+    </a>
+    <a class="tile" href="inventory.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 8l8-4 8 4v9l-8 4-8-4zM4 8l8 4 8-4M12 12v9"/></svg>
+      <span class="t">Inventory</span>
+      <span class="d">What is on the shelf, what each sale uses, and what to order before it runs out.</span>
     </a>
     <a class="tile" href="time.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.6M9 2h6"/></svg>
@@ -322,7 +340,30 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
 document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
 
+async function loadInventoryAlerts(){
+  var card = document.getElementById('invCard');
+  var r = await db.rpc('inventory_alerts');
+  if (r.error || !r.data || r.data.ok === false){ card.hidden = true; return; }   /* inventory SQL not run yet, or locked */
+  var a = r.data, list = document.getElementById('invList'); list.replaceChildren();
+  var items = a.items || [];
+  if (!items.length){ card.hidden = true; return; }
+  items.forEach(function(i){
+    var d = document.createElement('div'); d.className = 'invrow';
+    var label = {out: 'Out of stock', low: 'Low', soon: 'Running out'}[i.status];
+    var today = new Date(); today.setHours(0,0,0,0);
+    var exp = i.expires_on && (new Date(i.expires_on + 'T12:00:00') - today) <= 3 * 86400000;
+    var left = document.createElement('div');
+    left.innerHTML = '<b>' + i.name.replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }) + '</b>' +
+      (label ? '<span class="invpill ' + i.status + '">' + label + '</span>' : '') + (exp ? '<span class="invpill exp">Expiring</span>' : '');
+    var right = document.createElement('div'); right.className = 's';
+    right.textContent = Number(i.on_hand).toLocaleString('fr-FR', {maximumFractionDigits: 1}) + ' ' + (i.unit === 'unit' ? 'units' : i.unit) +
+      (i.days_left != null ? ' · about ' + Math.round(i.days_left) + ' days left' : '') + (i.vendor ? ' · ' + i.vendor : '');
+    d.appendChild(left); d.appendChild(right); list.appendChild(d);
+  });
+  card.hidden = false;
+}
 async function loadStats(){
+  loadInventoryAlerts();
   var start = new Date(); start.setHours(0,0,0,0);
   var rs = await Promise.all([
     db.from('orders').select('total_crc,voided_at,paid').gte('created_at', start.toISOString()),
