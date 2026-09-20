@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales · The Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:40px;padding:.45em 1em}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:920px;margin:0 auto;padding:1.2rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+#appView.locked .tabs,#appView.locked .kpis,#appView.locked .card:not(.gate){display:none}
+.gate{max-width:420px}
+.gate label{display:block;font-size:.85rem;color:var(--sec);margin:.8rem 0 .25rem}
+.gate select,.gate input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.gate button{margin-top:1rem;width:100%}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1.1rem}
+header.top h1{font-size:1.4rem;margin-right:auto}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.tabs button{background:transparent;color:var(--sec);border:1.5px solid var(--muted);font-size:.9rem}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;margin-bottom:1.2rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem}
+.kpi .l{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.7rem;font-weight:400;margin-top:.2rem}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+.card h2{font-size:1.05rem;margin-bottom:.9rem}
+.chart{width:100%;overflow:visible}
+.bar{fill:var(--accent)}
+.bar:hover{fill:var(--gold)}
+.grid line{stroke:var(--muted);stroke-opacity:.45;stroke-width:1}
+.axis text{fill:var(--sec);font-size:11px;font-family:'Spline Sans Mono',monospace}
+.blabel{fill:var(--sec);font-size:11px;font-family:'Spline Sans Mono',monospace}
+.hbar-row{display:grid;grid-template-columns:130px 1fr auto;gap:.7rem;align-items:center;padding:.32rem 0}
+.hbar-row .nm{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar-track{background:var(--canvas);border-radius:6px;height:14px;position:relative}
+.hbar-fill{background:var(--accent);border-radius:6px;height:14px;min-width:2px}
+.hbar-row .v{font-size:.85rem;color:var(--sec);white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;color:var(--sec);font-weight:600;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .5rem;border-bottom:1.5px solid var(--muted)}
+td{padding:.45rem .5rem;border-bottom:1px dotted var(--muted);vertical-align:top}
+td.r,th.r{text-align:right}
+.empty{color:var(--sec);text-align:center;padding:2rem 0}
+.tip{position:fixed;background:var(--ink);color:#FCF8EC;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
+.pill{font-size:.75rem;padding:.15em .6em;border-radius:99px;background:var(--canvas);color:var(--sec)}
+tr.void td{opacity:.55}
+tr.void td.strike{text-decoration:line-through}
+tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:none;opacity:1}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+@media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>Sales</h1>
+  <p style="color:var(--sec);font-size:.9rem">The Hanging Garden Café</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="cafeView" class="login" hidden>
+  <h1>Sales</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <a class="ghost btnlink" href="time.html">Time clock</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <nav class="pagenav" aria-label="Café pages">
+    <a href="home.html" data-owner>Home</a>
+    <a href="admin.html" data-owner>Menu Manager</a>
+    <a href="pos.html">POS</a>
+    <span class="here">Sales</span>
+    <a href="time.html">Time clock</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="tv.html" target="_blank" rel="noopener">TV board</a>
+    <a href="index.html" target="_blank" rel="noopener">Website</a>
+  </nav>
+  <header class="top">
+    <h1>Sales</h1>
+    <span class="pill" id="lockInfo" hidden></span>
+    <button class="ghost" id="lockBtn" hidden>Lock now</button>
+    <button class="ghost" id="csvBtn">Download CSV</button>
+    <button class="ghost" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="card gate" id="gate" hidden>
+    <h2>Sales are locked</h2>
+    <p class="hint" style="color:var(--sec);font-size:.9rem;margin:0">Type a manager PIN to open the reports for 15 minutes. Every opening is written to the approvals log.</p>
+    <form id="gateForm">
+      <label for="gateMgr">Manager</label>
+      <select id="gateMgr"></select>
+      <label for="gatePin">PIN</label>
+      <input id="gatePin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <button type="submit">Open the sales reports</button>
+      <p class="err" id="gateErr"></p>
+    </form>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button data-days="1">Today</button>
+    <button data-days="7" class="on">Last 7 days</button>
+    <button data-days="30">Last 30 days</button>
+    <button data-days="month">This month</button>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">Revenue</div><div class="v" id="kRev">–</div></div>
+    <div class="kpi"><div class="l">Orders</div><div class="v" id="kOrders">–</div></div>
+    <div class="kpi"><div class="l">Average order</div><div class="v" id="kAvg">–</div></div>
+    <div class="kpi"><div class="l">Voided (not counted)</div><div class="v" id="kVoid">–</div></div>
+  </div>
+
+  <div class="card" id="dayCard">
+    <h2>Revenue by day</h2>
+    <svg class="chart" id="dayChart" height="190" role="img" aria-label="Revenue by day bar chart"></svg>
+  </div>
+
+  <div class="card">
+    <h2>How people paid</h2>
+    <div id="payBars"></div>
+  </div>
+
+  <div class="card">
+    <h2>Best sellers</h2>
+    <div id="topItems"></div>
+  </div>
+
+  <div class="card">
+    <h2>Transactions</h2>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>When</th><th>Items</th><th>Paid by</th><th class="r">Total</th></tr></thead>
+      <tbody id="txBody"></tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+/* phone code (2FA): needed when this login enrolled one and this session has not typed it yet */
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+/* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
+  document.addEventListener(ev, armIdle, {passive: true});
+});
+var PAY_LABELS = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
+var rangeDays = 7;
+var lastOrders = [];
+
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+
+/* ---- auth ---- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  var needCode = authed && await codeNeeded();
+  document.getElementById('loginView').hidden = authed && !needCode;
+  document.getElementById('loginForm').hidden = needCode;
+  document.getElementById('codeForm').hidden = !needCode;
+  document.getElementById('cafeView').hidden = true;
+  document.getElementById('appView').hidden = !authed || needCode;
+  if (needCode){ document.getElementById('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (ACCOUNT === 'none'){ showCafeView(); return; }
+  trimNav(); armIdle();
+  checkGate();
+}
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode(document.getElementById('codeIn').value.trim());
+  if (r.error){ document.getElementById('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  document.getElementById('codeIn').value = '';
+  refreshAuth();
+});
+
+document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+function showCafeView(){
+  document.getElementById('cafeMsg').textContent = ACCOUNT === 'none'
+    ? 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.'
+    : 'This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.';
+  document.getElementById('cafeView').hidden = false;
+  document.getElementById('appView').hidden = true;
+}
+
+/* ---------- the PIN gate: sales open for 15 minutes after a manager PIN ---------- */
+var GATE_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager: 'That person is not a manager.', inactive: 'That person is not active on the team.',
+  unknown_staff: 'Pick the manager.', no_account: 'This login is not connected to the café yet.',
+  no_sales_access: 'This manager may not open the sales reports. The owner can allow it in the Time clock, Team section.'};
+var salesUntil = null, lockTimer = null;
+function fmtTime(d){ return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+function setLocked(locked){
+  document.getElementById('appView').classList.toggle('locked', locked);
+  document.getElementById('gate').hidden = !locked;
+  document.getElementById('csvBtn').hidden = locked;
+  document.getElementById('lockBtn').hidden = locked || ACCOUNT === null;
+  document.getElementById('lockInfo').hidden = locked || !salesUntil;
+  clearTimeout(lockTimer);
+  if (!locked && salesUntil){
+    document.getElementById('lockInfo').textContent = 'open until ' + fmtTime(salesUntil);
+    lockTimer = setTimeout(checkGate, Math.max(1000, salesUntil - new Date() + 500));
+  }
+}
+async function checkGate(){
+  if (ACCOUNT === null){ salesUntil = null; setLocked(false); load(); return; } /* accounts SQL not run yet: as before */
+  var r = await db.rpc('sales_unlocked');
+  salesUntil = (!r.error && r.data) ? new Date(r.data) : null;
+  if (salesUntil && salesUntil > new Date()){ setLocked(false); load(); }
+  else { salesUntil = null; setLocked(true); fillGateManagers(); }
+}
+async function fillGateManagers(){
+  var sel = document.getElementById('gateMgr');
+  var r = await db.from('staff').select('id,name').eq('active', true).eq('role', 'manager').order('name');
+  var opts = (r.data || []).map(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; return o; });
+  if (!opts.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; opts.push(o2); }
+  sel.replaceChildren.apply(sel, opts);
+  document.getElementById('gatePin').value = '';
+  document.getElementById('gatePin').focus();
+}
+document.getElementById('gateForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.rpc('sales_unlock', {p_staff_id: document.getElementById('gateMgr').value || null,
+                                        p_pin: document.getElementById('gatePin').value.trim()});
+  document.getElementById('gatePin').value = '';
+  if (r.error || !r.data || !r.data.ok){
+    document.getElementById('gateErr').textContent = r.error ? 'Could not check the PIN. Check the connection.' : (GATE_ERR[r.data.error] || 'Could not open the reports.');
+    return;
+  }
+  document.getElementById('gateErr').textContent = '';
+  salesUntil = new Date(r.data.until);
+  setLocked(false); load();
+});
+document.getElementById('lockBtn').addEventListener('click', async function(){ await db.rpc('sales_lock'); checkGate(); });
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.auth.signInWithPassword({
+    email: document.getElementById('em').value.trim(),
+    password: document.getElementById('pw').value
+  });
+  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
+  refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---- range tabs ---- */
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on');
+    rangeDays = b.dataset.days;
+    load();
+  });
+});
+function rangeStart(){
+  var d = new Date();
+  if (rangeDays === 'month'){ d.setDate(1); d.setHours(0,0,0,0); return d; }
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - (parseInt(rangeDays,10) - 1));
+  return d;
+}
+
+/* ---- load & render ---- */
+async function load(){
+  var start = rangeStart();
+  var r = await db.from('orders')
+    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,order_items(item_name,qty,price_crc)')
+    .gte('created_at', start.toISOString())
+    .order('created_at', {ascending:false})
+    .limit(1000);
+  if (r.error && /paid|status|source|pickup_number/.test(r.error.message || '')){ /* kitchen SQL not run yet */
+    r = await db.from('orders')
+      .select('id,created_at,total_crc,payment_method,voided_at,void_reason,order_items(item_name,qty,price_crc)')
+      .gte('created_at', start.toISOString())
+      .order('created_at', {ascending:false})
+      .limit(1000);
+  }
+  if (r.error && /voided_at/.test(r.error.message || '')){ /* authorization SQL not run yet */
+    r = await db.from('orders')
+      .select('id,created_at,total_crc,payment_method,order_items(item_name,qty,price_crc)')
+      .gte('created_at', start.toISOString())
+      .order('created_at', {ascending:false})
+      .limit(1000);
+  }
+  if (r.error){ return; }
+  /* voided orders stay on record but never count toward revenue; room orders count once paid at the window */
+  allOrders = (r.data || []).filter(function(o){ return o.paid !== false; });
+  lastOrders = allOrders.filter(function(o){ return !o.voided_at; });
+  renderKpis(); renderDayChart(start); renderPay(); renderTop(); renderTx();
+}
+var allOrders = [];
+
+function renderKpis(){
+  var total = lastOrders.reduce(function(s,o){return s+o.total_crc},0);
+  document.getElementById('kRev').textContent = fmt(total);
+  document.getElementById('kOrders').textContent = lastOrders.length;
+  document.getElementById('kAvg').textContent = lastOrders.length ? fmt(Math.round(total/lastOrders.length)) : '₡0';
+  var voided = allOrders.filter(function(o){ return o.voided_at; });
+  document.getElementById('kVoid').textContent = voided.length
+    ? voided.length + ' · ' + fmt(voided.reduce(function(s,o){return s+o.total_crc},0)) : '0';
+}
+
+function dayKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+function renderDayChart(start){
+  var svg = document.getElementById('dayChart');
+  var card = document.getElementById('dayCard');
+  var days = [];
+  var end = new Date(); end.setHours(0,0,0,0);
+  for (var d = new Date(start); d <= end; d.setDate(d.getDate()+1)) days.push(new Date(d));
+  card.hidden = days.length < 2;
+  if (card.hidden) return;
+  var by = {};
+  lastOrders.forEach(function(o){ var k = dayKey(new Date(o.created_at)); by[k] = (by[k]||0) + o.total_crc; });
+  var vals = days.map(function(d){ return by[dayKey(d)] || 0; });
+  var max = Math.max.apply(null, vals.concat([1]));
+  var W = svg.clientWidth || 800, H = 190, padL = 8, padB = 22, padT = 18;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  var iw = (W - padL*2) / days.length;
+  var bw = Math.max(6, Math.min(46, iw - 4));
+  var html = '<g class="grid">';
+  [0.5, 1].forEach(function(f){
+    var y = padT + (H - padB - padT) * (1 - f);
+    html += '<line x1="'+padL+'" x2="'+(W-padL)+'" y1="'+y+'" y2="'+y+'"/>';
+  });
+  html += '</g>';
+  var maxIdx = vals.indexOf(Math.max.apply(null, vals));
+  days.forEach(function(d,i){
+    var v = vals[i];
+    var h = Math.round((H - padB - padT) * v / max);
+    var x = padL + i*iw + (iw - bw)/2;
+    var y = H - padB - h;
+    html += '<rect class="bar" x="'+x+'" y="'+y+'" width="'+bw+'" height="'+Math.max(h, v>0?2:0)+'" rx="4" data-tip="'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' · '+fmt(v)+'"/>';
+    if (i === maxIdx && v > 0){
+      html += '<text class="blabel" text-anchor="middle" x="'+(x+bw/2)+'" y="'+(y-5)+'">'+fmt(v)+'</text>';
+    }
+    var showEvery = days.length > 14 ? Math.ceil(days.length/10) : 1;
+    if (i % showEvery === 0){
+      html += '<g class="axis"><text text-anchor="middle" x="'+(x+bw/2)+'" y="'+(H-6)+'">'+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+'</text></g>';
+    }
+  });
+  svg.innerHTML = html;
+  svg.querySelectorAll('.bar').forEach(function(b){
+    b.addEventListener('mousemove', function(e){
+      var t = document.getElementById('tip');
+      t.hidden = false; t.textContent = b.dataset.tip;
+      t.style.left = e.clientX + 'px'; t.style.top = e.clientY + 'px';
+    });
+    b.addEventListener('mouseleave', function(){ document.getElementById('tip').hidden = true; });
+  });
+}
+
+function hbars(rootId, rows, valueFmt){
+  var root = document.getElementById(rootId);
+  root.textContent = '';
+  if (!rows.length){ root.innerHTML = '<p class="empty">Nothing in this period yet.</p>'; return; }
+  var max = Math.max.apply(null, rows.map(function(r){return r.v}));
+  rows.forEach(function(r){
+    var row = document.createElement('div'); row.className = 'hbar-row';
+    var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = r.label; nm.title = r.label;
+    var tr = document.createElement('div'); tr.className = 'hbar-track';
+    var f = document.createElement('div'); f.className = 'hbar-fill';
+    f.style.width = Math.max(2, Math.round(100 * r.v / max)) + '%';
+    tr.appendChild(f);
+    var v = document.createElement('div'); v.className = 'v mono'; v.textContent = valueFmt(r);
+    row.appendChild(nm); row.appendChild(tr); row.appendChild(v);
+    root.appendChild(row);
+  });
+}
+
+function renderPay(){
+  var by = {};
+  lastOrders.forEach(function(o){ by[o.payment_method] = (by[o.payment_method]||0) + o.total_crc; });
+  var rows = Object.keys(PAY_LABELS).filter(function(k){return by[k]})
+    .map(function(k){ return {label: PAY_LABELS[k], v: by[k]}; })
+    .sort(function(a,b){return b.v-a.v});
+  hbars('payBars', rows, function(r){ return fmt(r.v); });
+}
+
+function renderTop(){
+  var by = {};
+  lastOrders.forEach(function(o){
+    (o.order_items||[]).forEach(function(it){
+      if (!by[it.item_name]) by[it.item_name] = {qty:0, rev:0};
+      by[it.item_name].qty += it.qty;
+      by[it.item_name].rev += it.qty * it.price_crc;
+    });
+  });
+  var rows = Object.keys(by).map(function(k){ return {label:k, v:by[k].rev, qty:by[k].qty}; })
+    .sort(function(a,b){return b.v-a.v}).slice(0,8);
+  hbars('topItems', rows, function(r){ return r.qty + ' sold · ' + fmt(r.v); });
+}
+
+function renderTx(){
+  var body = document.getElementById('txBody');
+  body.textContent = '';
+  if (!allOrders.length){
+    body.innerHTML = '<tr><td colspan="4" class="empty">No sales in this period yet. Ring one up on the POS and refresh.</td></tr>';
+    return;
+  }
+  allOrders.slice(0,200).forEach(function(o){
+    var tr = document.createElement('tr');
+    if (o.voided_at) tr.className = 'void';
+    var when = new Date(o.created_at);
+    var items = (o.order_items||[]).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ');
+    var t1 = document.createElement('td'); t1.className='mono';
+    t1.textContent = when.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' +
+      String(when.getHours()).padStart(2,'0') + ':' + String(when.getMinutes()).padStart(2,'0');
+    var t2 = document.createElement('td'); t2.textContent = items || '(no line items)';
+    if (o.voided_at){
+      t2.className = 'strike';
+      var vr = document.createElement('span'); vr.className = 'vreason';
+      vr.textContent = 'Voided · ' + (o.void_reason || '');
+      t2.appendChild(vr);
+    }
+    var t3 = document.createElement('td'); var pill = document.createElement('span'); pill.className='pill';
+    pill.textContent = PAY_LABELS[o.payment_method] || o.payment_method; t3.appendChild(pill);
+    if (o.source === 'room'){ var rp = document.createElement('span'); rp.className = 'pill'; rp.style.marginLeft = '.3rem'; rp.textContent = 'room'; t3.appendChild(rp); }
+    var t4 = document.createElement('td'); t4.className='r mono' + (o.voided_at ? ' strike' : ''); t4.textContent = fmt(o.total_crc);
+    tr.appendChild(t1); tr.appendChild(t2); tr.appendChild(t3); tr.appendChild(t4);
+    body.appendChild(tr);
+  });
+}
+
+/* ---- CSV export ---- */
+document.getElementById('csvBtn').addEventListener('click', function(){
+  var lines = ['date,time,items,payment_method,total_crc,status,void_reason'];
+  allOrders.forEach(function(o){
+    var d = new Date(o.created_at);
+    var items = (o.order_items||[]).map(function(it){return it.qty + 'x ' + it.item_name}).join('; ');
+    lines.push([
+      d.toISOString().slice(0,10),
+      String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'),
+      '"' + items.replace(/"/g,'""') + '"',
+      o.payment_method,
+      o.total_crc,
+      o.voided_at ? 'voided' : 'ok',
+      '"' + String(o.void_reason || '').replace(/"/g,'""') + '"'
+    ].join(','));
+  });
+  var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hanging-garden-sales.csv';
+  a.click();
+});
+
+addEventListener('resize', function(){ if (lastOrders.length) renderDayChart(rangeStart()); });
+refreshAuth();
+</script>
+<script src="lang.js"></script>
+</body>
+</html>

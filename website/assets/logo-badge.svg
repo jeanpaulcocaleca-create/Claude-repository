@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="The Hanging Garden Café logo">
+  <circle cx="100" cy="100" r="99" fill="#0E6B4C"/>
+  <circle cx="100" cy="100" r="99" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="100" cy="100" r="91" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>
+  <defs>
+    <path id="topArc" d="M 26 116 A 76 76 0 1 1 174 116" fill="none"/>
+  </defs>
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="22.5" font-weight="bold" fill="#FFFFFF" letter-spacing="1">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">The Hanging Garden</textPath>
+  </text>
+  <!-- steam -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.95">
+    <path d="M78 62 c-4 7 4 9 0 16"/>
+    <path d="M97 58 c-4 8 4 10 0 18"/>
+    <path d="M116 62 c-4 7 4 9 0 16"/>
+  </g>
+  <!-- cup -->
+  <g stroke="#FFFFFF" fill="none" stroke-width="7">
+    <path d="M55 92 h84 v22 a26 26 0 0 1 -26 26 h-32 a26 26 0 0 1 -26 -26 z" fill="#0E6B4C"/>
+    <path d="M139 98 h10 a13 13 0 0 1 0 26 h-12"/>
+  </g>
+  <path d="M52 148 h90 a8 8 0 0 1 -14 6 h-62 a8 8 0 0 1 -14 -6 z" fill="#FFFFFF"/>
+  <text x="100" y="177" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" font-weight="bold" letter-spacing="7" fill="#FFFFFF">CAFÉ</text>
+</svg>
