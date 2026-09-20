@@ -342,6 +342,9 @@
 
     /* small words and lines the pages build on the fly */
     'everything is available': 'todo está disponible', 'on': 'activado', 'off': 'apagado',
+    'Your café, one tap away': 'Su café, a un toque', 'The Hanging Garden Café emblem': 'Emblema de The Hanging Garden Café',
+    'Good question, and I want to get it right. I saved it for the café team. Meanwhile, ask at the counter when you visit, or try one of the buttons below.':
+      'Buena pregunta, y quiero responderla bien. La guardé para el equipo del café. Mientras tanto, pregunte en el mostrador cuando nos visite, o pruebe uno de los botones de abajo.',
     'and closes': 'y cierra', 'Open': 'Abrir', 'Available': 'Disponible', 'none': 'ninguno',
     'Out': 'Fuera', '{t} today': '{t} hoy', '{n} shift': '{n} turno', '{n} shifts': '{n} turnos',
     'online': 'en línea', 'offline': 'sin conexión', '{n} items': '{n} productos', '{n} item': '{n} producto',
