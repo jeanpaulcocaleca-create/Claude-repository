@@ -152,7 +152,7 @@
     /* owner home */
     'Owner dashboard · Monteverde, Costa Rica': 'Panel del propietario · Monteverde, Costa Rica', 'Owner dashboard · Monteverde': 'Panel del propietario · Monteverde',
     'Home · The Hanging Garden': 'Inicio · The Hanging Garden', 'Revenue today': 'Ingresos de hoy', 'Orders today': 'Pedidos de hoy',
-    'On the clock': 'En turno', 'Sold out': 'Agotados', 'Nobody in': 'Nadie en turno',
+    'On the clock': 'En turno', 'Sold out': 'Agotado', 'Nobody in': 'Nadie en turno',
     'Ring up sales at the counter — cash, card or SINPE, recorded instantly.': 'Cobre en el mostrador: efectivo, tarjeta o SINPE, registrado al instante.',
     'What you sold today, this week, this month — best sellers and CSV for the accountant.': 'Lo vendido hoy, esta semana y este mes: los más vendidos y CSV para el contador.',
     'Change prices, photos and items — updates the website and TV board in a minute.': 'Cambie precios, fotos y productos; el sitio web y la pantalla TV se actualizan en un minuto.',
@@ -338,7 +338,16 @@
 
     /* TV board */
     'Menu Board · The Hanging Garden': 'Pantalla del menú · The Hanging Garden', 'Monteverde, Costa Rica · made for the cloud forest': 'Monteverde, Costa Rica · hecho para el bosque nuboso',
-    'Pura vida': 'Pura vida', 'The menu board lost its connection.': 'La pantalla del menú perdió la conexión.', 'It will keep trying by itself.': 'Seguirá intentando por su cuenta.'
+    'Pura vida': 'Pura vida', 'The menu board lost its connection.': 'La pantalla del menú perdió la conexión.', 'It will keep trying by itself.': 'Seguirá intentando por su cuenta.',
+
+    /* small words and lines the pages build on the fly */
+    'everything is available': 'todo está disponible', 'on': 'activado', 'off': 'apagado',
+    'and closes': 'y cierra', 'Open': 'Abrir', 'Available': 'Disponible', 'none': 'ninguno',
+    'Out': 'Fuera', '{t} today': '{t} hoy', '{n} shift': '{n} turno', '{n} shifts': '{n} turnos',
+    'online': 'en línea', 'offline': 'sin conexión', '{n} items': '{n} productos', '{n} item': '{n} producto',
+    'updated {x}': 'actualizó a {x}', 'added {x}': 'agregó a {x}', 'opened the sales reports': 'abrió los reportes de ventas',
+    'voided order {x}': 'anuló el pedido {x}', 'changed shift {x}': 'cambió el turno {x}', 'added shift {x}': 'agregó el turno {x}',
+    'deleted shift {x}': 'eliminó el turno {x}', 'sales access on for {x}': 'acceso a ventas activado para {x}', 'sales access off for {x}': 'acceso a ventas desactivado para {x}'
   };
 
   /* ---------- pattern entries ({x} placeholders) ---------- */
