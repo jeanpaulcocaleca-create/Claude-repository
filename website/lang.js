@@ -371,11 +371,20 @@
     }
     return null;
   }
+  /* short English day and month names the pages print next to numbers */
+  var DAYS = { Mon: 'lun', Tue: 'mar', Wed: 'mié', Thu: 'jue', Fri: 'vie', Sat: 'sáb', Sun: 'dom' };
+  var MONTHS = { Jan: 'ene', Feb: 'feb', Mar: 'mar', Apr: 'abr', May: 'may', June: 'jun', Jun: 'jun', July: 'jul', Jul: 'jul', Aug: 'ago', Sept: 'set', Sep: 'set', Oct: 'oct', Nov: 'nov', Dec: 'dic' };
+  function esDates(str) {
+    return str.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?= \d)/g, function (d) { return DAYS[d]; })
+              .replace(/(?<=\d )(Jan|Feb|Mar|Apr|May|June|Jun|July|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\b/g, function (m) { return MONTHS[m]; });
+  }
   function tr(text) {
     var k = text.replace(/\s+/g, ' ').trim();
     if (!k || !/[A-Za-z]/.test(k)) return null;
     var t = lookup(k);
-    if (t !== null) return t;
+    if (t !== null) return esDates(t);
+    var dated = esDates(k);
+    if (dated !== k) { var t2 = lookup(dated); return t2 !== null ? t2 : dated; }
     /* "Label:" or "Label…" */
     var m = k.match(/^(.*?)([:…]|\.\.\.)$/);
     if (m && (t = lookup(m[1].trim())) !== null) return t + m[2];
