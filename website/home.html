@@ -357,7 +357,7 @@ async function loadInventoryAlerts(){
       (label ? '<span class="invpill ' + i.status + '">' + label + '</span>' : '') + (exp ? '<span class="invpill exp">Expiring</span>' : '');
     var right = document.createElement('div'); right.className = 's';
     right.textContent = Number(i.on_hand).toLocaleString('fr-FR', {maximumFractionDigits: 1}) + ' ' + (i.unit === 'unit' ? 'units' : i.unit) +
-      (i.days_left != null ? ' · about ' + Math.round(i.days_left) + ' days left' : '') + (i.vendor ? ' · ' + i.vendor : '');
+      (i.days_left != null && i.days_left > 0 ? ' · about ' + Math.round(i.days_left) + ' days left' : '') + (i.vendor ? ' · ' + i.vendor : '');
     d.appendChild(left); d.appendChild(right); list.appendChild(d);
   });
   card.hidden = false;

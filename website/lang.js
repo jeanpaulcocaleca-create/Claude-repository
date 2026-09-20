@@ -415,7 +415,8 @@
     'Order created': 'Pedido creado', 'Draft': 'Borrador', 'Sent': 'Enviado', 'Cancelled': 'Cancelado', 'Add to order': 'Agregar al pedido', '1 pack = {x}': '1 paquete = {x}',
     'Pick an item and a number of packs.': 'Elija un producto y un número de paquetes.', 'Mark as received': 'Marcar como recibido',
     "Change any quantity that arrived short or long. Costs update the item's price.": 'Cambie cualquier cantidad que llegó de menos o de más. Los costos actualizan el precio del producto.',
-    'Cost / pack': 'Costo / paquete', 'Add to stock': 'Agregar a existencias', 'Order received, stock updated': 'Pedido recibido, existencias actualizadas', 'per sale': 'por venta'
+    'Cost / pack': 'Costo / paquete', 'Add to stock': 'Agregar a existencias', 'Order received, stock updated': 'Pedido recibido, existencias actualizadas', 'per sale': 'por venta',
+    'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'propietario', 'POS': 'Caja', 'about {n} days left': 'unos {n} días'
   };
 
   /* ---------- pattern entries ({x} placeholders) ---------- */
@@ -442,8 +443,10 @@
   /* short English day and month names the pages print next to numbers */
   var DAYS = { Mon: 'lun', Tue: 'mar', Wed: 'mié', Thu: 'jue', Fri: 'vie', Sat: 'sáb', Sun: 'dom' };
   var MONTHS = { Jan: 'ene', Feb: 'feb', Mar: 'mar', Apr: 'abr', May: 'may', June: 'jun', Jun: 'jun', July: 'jul', Jul: 'jul', Aug: 'ago', Sept: 'set', Sep: 'set', Oct: 'oct', Nov: 'nov', Dec: 'dic' };
+  var LONG = { January: 'enero', February: 'febrero', March: 'marzo', April: 'abril', May: 'mayo', June: 'junio', July: 'julio', August: 'agosto', September: 'setiembre', October: 'octubre', November: 'noviembre', December: 'diciembre' };
   function esDates(str) {
-    return str.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?= \d)/g, function (d) { return DAYS[d]; })
+    return str.replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)(?= \d{4}\b)/g, function (m) { return LONG[m]; })
+              .replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?= \d)/g, function (d) { return DAYS[d]; })
               .replace(/(?<=\d )(Jan|Feb|Mar|Apr|May|June|Jun|July|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\b/g, function (m) { return MONTHS[m]; });
   }
   function tr(text) {
