@@ -112,75 +112,46 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 @media(max-width:720px){.navlinks a:not(.cta){display:none}}
 @media(pointer:coarse){.navlinks a{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
 
-/* ===================== HERO (scrub) ===================== */
-.hero{position:relative;height:320vh}
-.stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#241a10}
-.stage .poster{position:absolute;inset:0;background-size:cover;background-position:center}
-.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s var(--ease);will-change:transform;transform:translateZ(0)}
-.stage.video-ready video{opacity:1}
-.stage.video-failed video{display:none}
-.scrim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 120% 90% at 50% 45%,rgba(15,10,5,0) 35%,rgba(15,10,5,.62) 100%)}
-.ring{position:absolute;right:1.2rem;bottom:1.2rem;width:34px;height:34px;color:#F6EFE3;opacity:.85;transform:rotate(-90deg)}
-.chev{position:absolute;left:50%;bottom:1.1rem;transform:translateX(-50%);color:#F6EFE3;opacity:.8;font-size:1.3rem;animation:bob 2.4s var(--ease-soft) -1.2s infinite}
+/* ===================== HERO (film) ===================== */
+.hero{position:relative;height:100vh;height:100svh;min-height:520px;overflow:hidden;background:#241a10}
+.hero video,.hero .still,.hero .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+.hero .poster,.hero .still{background:#241a10 center/cover no-repeat}
+.hero video{opacity:0;transition:opacity .8s var(--ease)}
+.hero.playing video{opacity:1}
+.hero .still{opacity:0;transition:opacity 1.4s var(--ease)}
+.hero.ended .still{opacity:1}
+.scrim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 120% 90% at 50% 45%,rgba(15,10,5,0) 40%,rgba(15,10,5,.5) 100%)}
+.cap{position:absolute;left:0;right:0;bottom:0;padding:0 6vw 8svh;display:flex;align-items:flex-end;pointer-events:none;opacity:0;transform:translateY(12px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.cap.on{opacity:1;transform:none}
+.cap .inner{position:relative;max-width:none;color:#F6EFE3;text-shadow:var(--tshadow)}
+.cap .inner::before{content:"";position:absolute;inset:-1.1rem -1.5rem;z-index:-1;border-radius:24px;background:rgba(8,12,6,.55);filter:blur(16px)}
+.cap h2{font-size:clamp(1.35rem,2.6vw,2.3rem);line-height:1.15;max-width:22ch;color:#F6EFE3}
+.cap .kicker{font-family:'Spline Sans Mono',monospace;font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;opacity:.85;margin-bottom:.4rem}
+.cap.final h1{font-size:clamp(1.5rem,2.5vw,2.15rem);line-height:1.12;max-width:11ch;color:#F6EFE3}
+.cap.final p{font-size:clamp(.92rem,1.15vw,1.05rem);max-width:30ch;color:#EFE4D2}
+.cap.final .slogo{width:56px;height:56px;border-radius:50%;margin:0 0 .6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45)}
+.cap.final .ctarow{pointer-events:auto;margin:.9rem 0 0}
+.cap.final .btn{padding:.7em 1.4em;font-size:.95rem;text-shadow:none}
+.hero .ctrl{position:absolute;right:1rem;bottom:1rem;display:flex;gap:.4rem;z-index:3}
+.hero .ctrl button{all:unset;cursor:pointer;font:600 .72rem/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#F6EFE3;background:rgba(8,12,6,.45);border:1.5px solid rgba(246,239,227,.45);border-radius:99px;padding:.55em .9em;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.hero .ctrl button:focus-visible{outline:2px solid #F6EFE3;outline-offset:2px}
+.hero .ctrl button[hidden]{display:none}
+.hero .playbig{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:78px;height:78px;border-radius:50%;border:2px solid rgba(246,239,227,.8);background:rgba(8,12,6,.45);color:#F6EFE3;font-size:1.6rem;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
+.hero .playbig[hidden]{display:none}
+.chev{position:absolute;left:50%;bottom:1.1rem;transform:translateX(-50%);color:#F6EFE3;opacity:0;font-size:1.3rem;animation:bob 2.4s var(--ease-soft) -1.2s infinite;transition:opacity .6s;pointer-events:none}
+.hero.ended .chev{opacity:.8}
 @keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,8px)}}
-
-.band{position:absolute;inset:0;display:flex;align-items:center;pointer-events:none;opacity:0}
-.band .inner{position:relative;max-width:30ch;padding:0 6vw;text-shadow:var(--tshadow);color:#F6EFE3}
-.band .inner::before{content:"";position:absolute;inset:-1.8rem -2.2rem;z-index:-1;pointer-events:none;
-  border-radius:28px;background:rgba(8,12,6,.72);filter:blur(18px);
-  opacity:calc(.3 + .7*var(--k,1))}
-.band.settle .inner::before{inset:-1.1rem -1.5rem;background:rgba(8,12,6,.6);filter:blur(14px)}
-.band h1,.band h2{font-size:clamp(2rem,4.6vw,3.6rem);color:#F6EFE3}
-.band p{font-size:clamp(1rem,1.6vw,1.25rem);color:#EFE4D2}
-.band.right{justify-content:flex-end;text-align:right}
-.band::before{content:"";position:absolute;inset:-4%;pointer-events:none;opacity:calc(.25 + .75*var(--k,1));
-  background:radial-gradient(ellipse 60% 55% at 24% 50%,rgba(12,8,4,.66) 0%,rgba(12,8,4,.44) 46%,rgba(12,8,4,0) 76%)}
-.band.right::before{background:radial-gradient(ellipse 60% 55% at 76% 50%,rgba(12,8,4,.66) 0%,rgba(12,8,4,.44) 46%,rgba(12,8,4,0) 76%)}
-.band.settle{align-items:flex-end;justify-content:flex-start;text-align:left;padding-bottom:8svh}
-.band.settle .inner{max-width:none}
-.band.settle h1{font-size:clamp(1.5rem,2.5vw,2.15rem);line-height:1.12;max-width:11ch}
-.band.settle p{font-size:clamp(.92rem,1.15vw,1.05rem);max-width:30ch}
-.band.settle .btn{padding:.7em 1.4em;font-size:.95rem}
-.band.settle::before{background:radial-gradient(ellipse 42% 46% at 12% 96%,rgba(12,8,4,.78) 0%,rgba(12,8,4,.46) 46%,rgba(12,8,4,0) 76%)}
-.band .btn{text-shadow:none}
-
-/* entrances: blur-to-sharp */
-.b1 .soft,.b1 .sharp{display:block}
-.b1 .soft{filter:blur(10px);opacity:calc(1 - var(--k,0));position:absolute;inset:auto 6vw}
-.b1 .sharp{opacity:var(--k,0)}
-/* drift-down words */
-.w{display:inline-block;--kc:clamp(0,(var(--k,0) - var(--th,0))*2.8,1);opacity:var(--kc);
-  transform:translateY(calc((1 - var(--kc))*-24px))}
-/* approach-from-depth */
-.b3 .inner>*{opacity:var(--k,0);transform:scale(calc(.85 + .15*var(--k,0)))}
-/* staged settle */
-.b4 .slogo{width:56px;height:56px;border-radius:50%;margin:0 0 .6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45);opacity:clamp(0,(var(--k,0) - .4)*3,1)}
-.b4 h1 .w{--kc:clamp(0,(var(--k,0) - var(--th,0))*3,1);opacity:var(--kc);transform:translateY(calc((1 - var(--kc))*26px))}
-.b4 .sub{opacity:clamp(0,(var(--k,0) - .55)*3.2,1);transform:translateY(calc((1 - clamp(0,(var(--k,0) - .55)*3.2,1))*14px))}
-.b4 .ctarow{opacity:clamp(0,(var(--k,0) - .72)*4,1);pointer-events:auto}
 .btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;
   padding:.85em 1.7em;border-radius:99px;transition:background .3s var(--ease),transform .3s var(--ease)}
 .btn:hover{background:var(--accent-hover);transform:translateY(-2px)}
 @media(pointer:coarse){.btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
-
-/* static hero (five gates; keep identical to JS) */
-.static-hero{display:none;position:relative;min-height:92svh;align-items:flex-end;background:#241a10 center/cover no-repeat;padding:0 6vw 9svh}
-.static-hero .inner{color:#F6EFE3;text-shadow:var(--tshadow);max-width:none}
-.static-hero h1{font-size:clamp(1.6rem,7vw,2.4rem);line-height:1.12;color:#F6EFE3;max-width:11ch}
-.static-hero p{font-size:clamp(.95rem,4vw,1.05rem);max-width:30ch}
-.static-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,10,5,0) 52%,rgba(15,10,5,.62) 100%)}
-.static-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s ease}
-.static-hero video.on{opacity:1}
-.static-hero .inner{position:relative;z-index:1}
-@media (max-width:720px),
-       (orientation:portrait) and (max-width:1024px),
-       (orientation:portrait) and (pointer:coarse),
-       (orientation:landscape) and (pointer:coarse) and (max-height:560px),
-       (prefers-reduced-motion:reduce){
-  .hero{display:none}
-  .static-hero{display:flex}
+@media(max-width:720px){
+  .cap{padding:0 5vw 9svh}
+  .cap h2{font-size:clamp(1.25rem,5.6vw,1.7rem);max-width:18ch}
+  .cap.final h1{font-size:clamp(1.45rem,6.5vw,1.9rem)}
+  .hero .ctrl{bottom:.7rem;right:.7rem}
 }
-@media(max-height:560px){.chev,.ring{display:none}}
+@media(max-height:560px){.chev{display:none}}
 
 /* ===================== PAGE ===================== */
 main{position:relative}
@@ -318,7 +289,6 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 @keyframes sway{from{rotate:-1.1deg}to{rotate:1.1deg}}
 @media(max-width:720px){.deco{width:92px;opacity:.75}.deco.qz{display:none}}
 
-.static-hero .slogo-static{width:54px;height:54px;border-radius:50%;margin-bottom:.6rem;display:block;box-shadow:0 6px 24px rgba(8,20,13,.45)}
 
 /* Garden Guide chat */
 .chatfab{position:fixed;right:1.1rem;bottom:1.1rem;z-index:60;width:60px;height:60px;border-radius:50%;
@@ -368,58 +338,43 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 <nav id="nav" class="on-video">
   <a class="navlogo" href="#top"><b>The Hanging Garden</b><span>Café · Monteverde</span></a>
   <div class="navlinks">
-    <a href="#story">Story</a>
     <a href="#menu">Menu</a>
+    <a href="#story">Story</a>
     <a href="#galeria">Gallery</a>
     <a href="#" id="chatNavOpen">Ask us</a>
     <a class="cta" href="#visit">Plan your visit</a>
   </div>
 </nav>
 
-<!-- ===== SCRUB HERO ===== -->
+<!-- ===== FILM HERO =====
+     The film plays once on its own. The final still (assets/hero-ending.jpg) fades over the last frame,
+     so the building photo can be replaced on its own: swap that one file and the film keeps working. -->
 <header class="hero" id="top">
-  <div class="stage" id="stage">
-    <div class="poster" id="poster" aria-hidden="true"></div>
-    <video id="hv" preload="none" muted playsinline aria-hidden="true" tabindex="-1"></video>
-    <div class="scrim" aria-hidden="true"></div>
+  <div class="poster" id="poster" aria-hidden="true"></div>
+  <video id="hv" muted playsinline preload="auto" aria-label="A quetzal flies from the cloud forest down through the coffee plants to The Hanging Garden Café" tabindex="-1"></video>
+  <div class="still" id="still" aria-hidden="true"></div>
+  <div class="scrim" aria-hidden="true"></div>
 
-    <div class="band b1" data-a="0.00" data-b="0.10">
-      <div class="inner">
-        <span class="soft" aria-hidden="true"><h2>Follow the quetzal.</h2></span>
-        <span class="sharp"><h2>Follow the quetzal.</h2></span>
-      </div>
+  <div class="cap" data-a="0" data-b="2.2"><div class="inner"><p class="kicker">Monteverde, Costa Rica</p><h2>1,400 metres above the sea.</h2></div></div>
+  <div class="cap" data-a="2.2" data-b="4.2"><div class="inner"><h2>Cool nights ripen the cherry slowly.</h2></div></div>
+  <div class="cap" data-a="4.2" data-b="6.2"><div class="inner"><h2>Picked by hand, only when it turns deep red.</h2></div></div>
+  <div class="cap" data-a="6.4" data-b="8.6"><div class="inner"><h2>Locally roasted to perfection.</h2></div></div>
+  <div class="cap" data-a="8.7" data-b="11.5"><div class="inner"><h2>And here, ground fresh and poured with care, for you.</h2></div></div>
+  <div class="cap final" data-a="11.6" data-b="999">
+    <div class="inner">
+      <img class="slogo" src="assets/logo.png" alt="">
+      <h1>The Hanging Garden Café</h1>
+      <p>Monteverde, Costa Rica.</p>
+      <p class="ctarow"><a class="btn" href="#menu">See the menu</a></p>
     </div>
-    <div class="band b3" data-a="0.14" data-b="0.32">
-      <div class="inner"><h2>Through the coffee harvest.</h2></div>
-    </div>
-    <div class="band b5 right" data-a="0.40" data-b="0.62">
-      <div class="inner"><h2 data-split>Home to the garden.</h2></div>
-    </div>
-    <div class="band b4 settle" data-a="0.74" data-b="1.00">
-      <div class="inner">
-        <img class="slogo" src="assets/logo.png" alt="">
-        <h1 data-split>The Hanging Garden Café</h1>
-        <p class="sub">Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
-        <p class="ctarow"><a class="btn" href="#visit">Plan your visit</a></p>
-      </div>
-    </div>
-
-    <svg class="ring" viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="3"
-              stroke-dasharray="126" style="stroke-dashoffset:var(--ld,126)"/>
-    </svg>
   </div>
-</header>
 
-<!-- ===== STATIC HERO (phones, reduced motion) ===== -->
-<header class="static-hero" id="staticHero">
-  <video id="mobileFilm" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
-  <div class="inner">
-    <img class="slogo-static" src="assets/logo.png" alt="">
-    <h1>The Hanging Garden Café</h1>
-    <p>Coffee, garden, and cloud. Monteverde, Costa Rica.</p>
-    <p><a class="btn" href="#visit">Plan your visit</a></p>
+  <button class="playbig" id="playBig" type="button" aria-label="Play the film" hidden>▶</button>
+  <div class="ctrl">
+    <button type="button" id="skipBtn" hidden>Skip</button>
+    <button type="button" id="replayBtn" hidden>Replay</button>
   </div>
+  <div class="chev" aria-hidden="true">↓</div>
 </header>
 
 <main id="main" tabindex="-1">
@@ -427,43 +382,6 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     <svg preserveAspectRatio="none"><path id="threadPath" d="M9 0 V 12000"/></svg>
     <svg class="cupend" width="26" height="22" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="8"/></svg>
   </div>
-
-  <!-- STORY -->
-  <section id="story" class="story rev">
-    <img class="deco tr" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
-    <p class="kicker mono part">The story</p>
-    <h2 class="part">A green mountain, a cup of peace</h2>
-    <div class="storygrid">
-    <div>
-    <p class="lede part">Monteverde was not built for hurry. Every cup we pour carries a century of this mountain: farmers, pacifists, scientists, and a forest that drinks from the clouds.</p>
-    <ul class="timeline part">
-      <li><span class="year">1900s</span><div><h3>The first farms</h3><p>Costa Rican families settle the green mountain, planting coffee and raising dairy on slopes that touch the clouds.</p></div></li>
-      <li><span class="year">1948</span><div><h3>A nation chooses peace</h3><p>Costa Rica abolishes its army. The country puts down its weapons for good.</p></div></li>
-      <li><span class="year">1951</span><div><h3>The Quakers arrive</h3><p>Forty four Quakers leave Alabama, choosing Costa Rica because it has no army. They buy land in the cloud forest and name it Monteverde, the green mountain.</p></div></li>
-      <li><span class="year">1972</span><div><h3>The forest protected</h3><p>The Monteverde Cloud Forest Reserve is founded. The community protects the watershed instead of clearing it, and the world comes to walk under its canopy.</p></div></li>
-      <li><span class="year">Today</span><div><h3>Your cup</h3><p>The Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.</p></div></li>
-    </ul>
-    <p class="values part">Peace. Simplicity. Stewardship. Community.</p>
-    <svg class="ornament" viewBox="0 0 320 40" aria-hidden="true"><path class="drawline" d="M5 20 C60 5 100 35 160 20 C220 5 260 35 315 20 M150 20 q10 -14 20 0 q-10 14 -20 0"/></svg>
-    </div>
-    <aside class="storyside part">
-      <figure>
-        <img src="assets/quetzal.jpg" alt="A resplendent quetzal perched on a mossy branch in the Monteverde cloud forest">
-        <figcaption><span class="script">el quetzal</span>The jewel of the cloud forest, and our neighbor.</figcaption>
-      </figure>
-    </aside>
-    </div>
-  </section>
-
-  <!-- CANOPY INTERLUDE -->
-  <section class="canopy" aria-label="The Monteverde cloud forest">
-    <img class="bg" src="assets/canopy.jpg" alt="">
-    <div class="inner">
-      <span class="script">from Monteverde, for the adventure ahead</span>
-      <h2>Grown in the clouds</h2>
-      <p>100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.</p>
-    </div>
-  </section>
 
   <!-- MENU -->
   <section id="menu" class="rev">
@@ -577,6 +495,43 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
     </div>
   </section>
 
+  <!-- STORY -->
+  <section id="story" class="story rev">
+    <img class="deco tr" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
+    <p class="kicker mono part">The story</p>
+    <h2 class="part">A green mountain, a cup of peace</h2>
+    <div class="storygrid">
+    <div>
+    <p class="lede part">Monteverde was not built for hurry. Every cup we pour carries a century of this mountain: farmers, pacifists, scientists, and a forest that drinks from the clouds.</p>
+    <ul class="timeline part">
+      <li><span class="year">1900s</span><div><h3>The first farms</h3><p>Costa Rican families settle the green mountain, planting coffee and raising dairy on slopes that touch the clouds.</p></div></li>
+      <li><span class="year">1948</span><div><h3>A nation chooses peace</h3><p>Costa Rica abolishes its army. The country puts down its weapons for good.</p></div></li>
+      <li><span class="year">1951</span><div><h3>The Quakers arrive</h3><p>Forty four Quakers leave Alabama, choosing Costa Rica because it has no army. They buy land in the cloud forest and name it Monteverde, the green mountain.</p></div></li>
+      <li><span class="year">1972</span><div><h3>The forest protected</h3><p>The Monteverde Cloud Forest Reserve is founded. The community protects the watershed instead of clearing it, and the world comes to walk under its canopy.</p></div></li>
+      <li><span class="year">Today</span><div><h3>Your cup</h3><p>The Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.</p></div></li>
+    </ul>
+    <p class="values part">Peace. Simplicity. Stewardship. Community.</p>
+    <svg class="ornament" viewBox="0 0 320 40" aria-hidden="true"><path class="drawline" d="M5 20 C60 5 100 35 160 20 C220 5 260 35 315 20 M150 20 q10 -14 20 0 q-10 14 -20 0"/></svg>
+    </div>
+    <aside class="storyside part">
+      <figure>
+        <img src="assets/quetzal.jpg" alt="A resplendent quetzal perched on a mossy branch in the Monteverde cloud forest">
+        <figcaption><span class="script">el quetzal</span>The jewel of the cloud forest, and our neighbor.</figcaption>
+      </figure>
+    </aside>
+    </div>
+  </section>
+
+  <!-- CANOPY INTERLUDE -->
+  <section class="canopy" aria-label="The Monteverde cloud forest">
+    <img class="bg" src="assets/canopy.jpg" alt="">
+    <div class="inner">
+      <span class="script">from Monteverde, for the adventure ahead</span>
+      <h2>Grown in the clouds</h2>
+      <p>100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.</p>
+    </div>
+  </section>
+
   <!-- GALLERY -->
   <section id="galeria" class="rev">
     <img class="deco br" src="assets/deco-sprig.png" alt="" aria-hidden="true" loading="lazy">
@@ -651,217 +606,77 @@ footer .small{font-size:.78rem;opacity:.8;max-width:60ch;margin:1.5rem auto 0}
 
 <script>
 /* ============ config ============ */
-var VIDEO_URL = 'assets/hero-scrub.mp4';
-var VIDEO_BYTES = 14115316;
+var VIDEO_URL = 'assets/hero-film.mp4';
+var MOBILE_VIDEO_URL = 'assets/hero-film-mobile.mp4';
 var POSTER_URL = 'assets/hero-poster.jpg';
-var ENDING_URL = 'assets/hero-ending.jpg';
-var MOBILE_VIDEO_URL = 'assets/hero-mobile.mp4';
+var ENDING_URL = 'assets/hero-ending.jpg';   /* the building photo: replace this file alone to update the ending */
 
-var stage = document.getElementById('stage');
+var hero = document.getElementById('top');
 var video = document.getElementById('hv');
-var posterLayer = document.getElementById('poster');
-var ring = document.querySelector('.ring circle');
-var hero = document.querySelector('.hero');
 var nav = document.getElementById('nav');
-var bands = [];
-
-/* seeded rng for stable splits */
-function rng(seed){var s=seed>>>0;return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296}}
-var rand = rng(20260830);
-
-/* split words for entrances */
-document.querySelectorAll('[data-split]').forEach(function(el){
-  var text = el.textContent;
-  el.setAttribute('aria-label', text);
-  el.textContent = '';
-  var vis = document.createElement('span'); vis.setAttribute('aria-hidden','true');
-  text.split(' ').forEach(function(wd,i,arr){
-    var w = document.createElement('span'); w.className='w'; w.textContent=wd;
-    w.style.setProperty('--th', (i/arr.length*0.5 + rand()*0.06).toFixed(3));
-    vis.appendChild(w);
-    if(i<arr.length-1) vis.appendChild(document.createTextNode(' '));
-  });
-  el.appendChild(vis);
-});
-
-document.querySelectorAll('.band').forEach(function(b){
-  bands.push({el:b, a:parseFloat(b.dataset.a), b:parseFloat(b.dataset.b), op:-1, k:-1});
-});
-
-var smoothstep=function(p,e0,e1){var t=Math.min(1,Math.max(0,(p-e0)/(e1-e0)));return t*t*(3-2*t)};
 var clamp=function(v,lo,hi){return Math.min(hi,Math.max(lo,v))};
+var caps = Array.prototype.map.call(document.querySelectorAll('.cap'), function(c){ return {el:c, a:parseFloat(c.dataset.a), b:parseFloat(c.dataset.b), on:false}; });
+var finalCap = caps[caps.length-1];
+var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+var smallScreen = matchMedia('(max-width: 720px)').matches;
 
-/* band 1 load ramp */
-var loadK = 0, loadStart = null;
-function loadRamp(now){
-  if(loadStart===null) loadStart=now;
-  loadK = clamp((now-loadStart)/1400,0,1);
-  updateCaptions(shown);
-  if(loadK<1) requestAnimationFrame(loadRamp);
-}
+document.getElementById('poster').style.backgroundImage = "url('" + POSTER_URL + "')";
+document.getElementById('still').style.backgroundImage = "url('" + ENDING_URL + "')";
 
-function updateCaptions(p){
-  for(var i=0;i<bands.length;i++){
-    var bd=bands[i];
-    var f=Math.min(0.02,(bd.b-bd.a)/3);
-    var op=smoothstep(p,bd.a,bd.a+f)*(1-smoothstep(p,bd.b-f,bd.b));
-    if(i===0) op=(1-smoothstep(p,bd.b-f,bd.b)); /* first band opens settled */
-    if(i===bands.length-1) op=smoothstep(p,bd.a,bd.a+f); /* last band holds */
-    var ramp=Math.min(0.025,(bd.b-bd.a)*0.35);
-    var k=clamp((p-bd.a)/ramp,0,1);
-    if(i===0) k=Math.max(k,loadK);
-    if(Math.abs(op-bd.op)>0.008){bd.op=op;bd.el.style.opacity=op}
-    if(Math.abs(k-bd.k)>0.008){bd.k=k;bd.el.style.setProperty('--k',k)}
-  }
-  /* nav swaps to solid past the hero */
-  var solid = p>0.985 || !scrubOn;
-  if(solid!==navSolid){navSolid=solid;nav.classList.toggle('solid',solid);nav.classList.toggle('on-video',!solid)}
-}
-var navSolid=false;
-
-/* scrub engine */
-var target=0, shown=0, rafId=null, lastTick=0;
-function heroProgress(){
-  var r=hero.getBoundingClientRect();
-  var range=r.height-innerHeight;
-  return range>0?clamp(-r.top/range,0,1):0;
-}
-var seekBusy=false, pendingTime=null;
-function requestSeek(t){
-  if(!video.duration) return;
-  if(seekBusy){pendingTime=t;return}
-  seekBusy=true; video.currentTime=t;
-}
-video.addEventListener('seeked',function(){
-  seekBusy=false;
-  if(pendingTime!==null){var t=pendingTime;pendingTime=null;requestSeek(t)}
-});
-video.addEventListener('error',function(){seekBusy=false;pendingTime=null;failVideo()});
-
-function tick(now){
-  var dt=Math.min(100,now-(lastTick||now)); lastTick=now;
-  var k=0.16;
-  shown+=(target-shown)*(1-Math.pow(1-k,dt/16.667));
-  if(Math.abs(target-shown)<0.0005){shown=target;rafId=null;lastTick=0}
-  else{rafId=requestAnimationFrame(tick)}
-  requestSeek(shown*video.duration);
-  updateCaptions(shown);
-}
-var heroOnScreen=true;
-new IntersectionObserver(function(es){heroOnScreen=es[0].isIntersecting},{rootMargin:'20%'}).observe(hero);
-function onScroll(){
-  target=heroProgress();
-  if(rafId===null&&heroOnScreen) rafId=requestAnimationFrame(tick);
-}
-
-/* blob loader */
-var heroInit=false, started=false;
-function initHeroOnce(){
-  if(heroInit) return; heroInit=true;
-  posterLayer.style.backgroundImage="url('"+POSTER_URL+"')";
-  var pi=new Image(); pi.onload=startBlobFetch; pi.onerror=startBlobFetch; pi.src=POSTER_URL;
-  setTimeout(startBlobFetch,4000);
-  requestAnimationFrame(loadRamp);
-}
-function startBlobFetch(){
-  if(started) return; started=true;
-  loadHeroBlob().catch(failVideo);
-}
-async function loadHeroBlob(){
-  var ctrl=new AbortController();
-  var watchdog=setTimeout(function(){ctrl.abort()},20000);
-  var res=await fetch(VIDEO_URL,{priority:'low',signal:ctrl.signal});
-  if(!res.ok) throw new Error('video http '+res.status);
-  var total=Number(res.headers.get('Content-Length'))||VIDEO_BYTES;
-  var reader=res.body.getReader();
-  var chunks=[],got=0,lastRing=0;
-  for(;;){
-    var r=await reader.read();
-    if(r.done) break;
-    clearTimeout(watchdog);
-    watchdog=setTimeout(function(){ctrl.abort()},20000);
-    chunks.push(r.value); got+=r.value.length;
-    var frac=Math.min(1,got/total);
-    var now=performance.now();
-    if(now-lastRing>100||frac===1){lastRing=now;ring.style.setProperty('--ld',Math.round(126*(1-frac)))}
-  }
-  clearTimeout(watchdog);
-  ring.style.setProperty('--ld',0);
-  video.src=URL.createObjectURL(new Blob(chunks,{type:'video/mp4'}));
-  video.load();
-  video.addEventListener('canplay',function(){
-    requestSeek(heroProgress()*video.duration);
-    stage.classList.add('video-ready');
-    ring.parentElement.style.display='none';
-  },{once:true});
-}
-function failVideo(){
-  var ringSvg=document.querySelector('.ring');
-  if(ringSvg){
-    var chev=document.createElement('div');
-    chev.className='chev'; chev.textContent='↓'; chev.setAttribute('aria-hidden','true');
-    ringSvg.replaceWith(chev);
-  }
-  stage.classList.add('video-failed');
-}
-
-/* five gates, live */
-var GATES=[
-  '(max-width: 720px)',
-  '(orientation: portrait) and (max-width: 1024px)',
-  '(orientation: portrait) and (pointer: coarse)',
-  '(orientation: landscape) and (pointer: coarse) and (max-height: 560px)',
-  '(prefers-reduced-motion: reduce)'
-];
-var scrubOn=false;
-function enableScrub(){
-  if(scrubOn) return; scrubOn=true;
-  initHeroOnce();
-  addEventListener('scroll',onScroll,{passive:true});
-  bands.forEach(function(b){b.op=-1;b.k=-1});
-  updateCaptions(heroProgress());
-  onScroll();
-}
-function disableScrub(){
-  if(!scrubOn) return; scrubOn=false;
-  removeEventListener('scroll',onScroll);
-  if(rafId!==null){cancelAnimationFrame(rafId);rafId=null}
-}
-/* phones: play the film once on load (muted, inline), settle on the last frame.
-   reduced-motion keeps the still only; if the download fails the still stays. */
-var mobileFilmStarted=false;
-function initMobileFilm(){
-  if(mobileFilmStarted) return;
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  mobileFilmStarted=true;
-  var v=document.getElementById('mobileFilm');
-  if(!v) return;
-  v.addEventListener('canplaythrough',function once(){
-    v.removeEventListener('canplaythrough',once);
-    var p=v.play();
-    if(p&&p.then){p.then(function(){v.classList.add('on')}).catch(function(){})}
-    else{v.classList.add('on')}
+function showCaps(t, ended){
+  caps.forEach(function(c, i){
+    var on = ended ? (c === finalCap) : (t >= c.a && t < c.b);
+    if (on !== c.on){ c.on = on; c.el.classList.toggle('on', on); }
   });
-  v.addEventListener('error',function(){v.classList.remove('on')});
-  v.preload='auto';
-  v.src=MOBILE_VIDEO_URL;
-  v.load();
 }
-function applyHeroMode(){
-  if(GATES.some(function(q){return matchMedia(q).matches})){
-    disableScrub();
-    document.getElementById('staticHero').style.backgroundImage="url('"+ENDING_URL+"')";
-    initMobileFilm();
-  } else {
-    enableScrub();
-  }
+function setEnded(){
+  hero.classList.add('ended');
+  showCaps(0, true);
+  document.getElementById('skipBtn').hidden = true;
+  document.getElementById('replayBtn').hidden = reduced;
+  document.getElementById('playBig').hidden = true;
 }
-var MQLS=GATES.map(function(q){return matchMedia(q)});
-MQLS.forEach(function(m){m.addEventListener('change',applyHeroMode)});
-applyHeroMode();
+function startFilm(){
+  var p = video.play();
+  if (p && p.then){
+    p.then(function(){ hero.classList.add('playing'); document.getElementById('playBig').hidden = true; document.getElementById('skipBtn').hidden = false; })
+     .catch(function(){ /* autoplay refused (low power mode, data saver): offer a tap */ document.getElementById('playBig').hidden = false; showCaps(0, false); caps[0].el.classList.add('on'); });
+  } else { hero.classList.add('playing'); }
+}
+video.addEventListener('timeupdate', function(){ if (!hero.classList.contains('ended')) showCaps(video.currentTime, false); });
+video.addEventListener('ended', setEnded);
+video.addEventListener('error', function(){ hero.classList.remove('playing'); setEnded(); });
+document.getElementById('playBig').addEventListener('click', startFilm);
+document.getElementById('skipBtn').addEventListener('click', function(){ video.pause(); setEnded(); });
+document.getElementById('replayBtn').addEventListener('click', function(){
+  hero.classList.remove('ended'); caps.forEach(function(c){ c.on = false; c.el.classList.remove('on'); });
+  document.getElementById('replayBtn').hidden = true; video.currentTime = 0; startFilm();
+});
+/* a light tick so captions keep time even when timeupdate is sparse */
+(function tick(){ if (hero.classList.contains('playing') && !video.paused && !hero.classList.contains('ended')) showCaps(video.currentTime, false); requestAnimationFrame(tick); })();
+
+if (reduced){
+  setEnded();
+} else {
+  video.src = smallScreen ? MOBILE_VIDEO_URL : VIDEO_URL;
+  video.load();
+  caps[0].el.classList.add('on'); caps[0].on = true;   /* first line shows over the poster while the film loads */
+  var kicked = false;
+  function kick(){ if (kicked) return; kicked = true; startFilm(); }
+  video.addEventListener('canplay', kick, {once:true});
+  setTimeout(function(){ if (!kicked && video.readyState >= 2) kick(); }, 2500);
+  setTimeout(function(){ if (!kicked && video.readyState < 2) { /* slow connection: do not keep people waiting */ document.getElementById('playBig').hidden = false; } }, 9000);
+}
+
+/* nav swaps to solid past the hero */
+var navSolid=false;
+new IntersectionObserver(function(es){
+  var solid = !es[0].isIntersecting;
+  if(solid!==navSolid){navSolid=solid;nav.classList.toggle('solid',solid);nav.classList.toggle('on-video',!solid)}
+},{threshold:0.08}).observe(hero);
 
 matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',function(e){
-  if(e.matches) pinToFinalStates(); else applyHeroMode();
+  if(e.matches){ video.pause(); setEnded(); pinToFinalStates(); }
 });
 function pinToFinalStates(){
   document.querySelectorAll('.rev').forEach(function(s){s.classList.add('in','done')});

@@ -6,10 +6,10 @@ URL into `website/assets/` under the name in the left column.
 
 | Deploy path | Source URL |
 |---|---|
-| assets/hero-scrub.mp4 (14.1 MB, 1920px, g=8, quetzal flight v5: shorter, opens over the harvest, ends landing on the real mural) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/c7242b7d-2378-4e77-98ea-751d9dacaa45.mp4 |
+| assets/hero-film.mp4 (12 s auto-playing film: quetzal flight v3 opening + landing on the real mural; the copper cup shots replace the tail next) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c66f312-0717-4f9d-b5fd-ae41003db13b.mp4 |
 | assets/hero-poster.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5231ff45-7b82-4a33-a099-6c1d17a0754b.jpg |
-| assets/hero-ending.jpg (the real building, mural completed, quetzal on the branch) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b3174e2b-3bbe-4fc6-9807-038d2e5fbc2f.jpg |
-| assets/hero-mobile.mp4 (960px, plays once on phones, v5) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/94681e79-ff9d-42c8-82b9-28eaa5d6fca9.mp4 |
+| assets/hero-ending.jpg (the building photo the film ends on; REPLACE THIS ROW ALONE to update the ending when the mural is finished) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b3174e2b-3bbe-4fc6-9807-038d2e5fbc2f.jpg |
+| assets/hero-film-mobile.mp4 (same film at 960 px for phones) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5011ba71-37ea-4efb-83fb-196b773bb5a2.mp4 |
 | assets/gal-1.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/49b9d308-00fe-40ad-b29a-09809d8bcaae.jpg |
 | assets/gal-2.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fcb7d720-2dbe-45f0-88e6-a641e8408aab.jpg |
 | assets/gal-3.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f3bf5267-3592-44d3-9e8a-a491b69eff40.jpg |
@@ -84,6 +84,6 @@ revision needs a fresh URL): 756a29eb/32ee9297/3769626f (v1), 5d922937/e907d1b9/
 5a312371/1115a36b (v9 unannounced), 328ef81a (TV scrim QA slot),
 06dd0092/4ebea556 (combined-slide previews), cca7165f/b3780112 (v11 QA slots), 3d6d6aed/8d1d85da (v12 QA),
 acc489ae/492eb1b6/9bddf539/e85d9893/5bcd69c6 (v12 pages), 1134c843/097c9722/192daf95/34c1b399/8faa2c9c (v13 QA),
-8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA), d8012aa6/5c5c6197/b24e3583/dcfa70ad/fe546b23/f7f2c256 (v15 QA), 36c139af/396bd665/5b0e86c6/ea738b4e/d1b560d3 (v14 pages), 6ef92316 (site v10), 4ddb50c9/9fd0edc0/9220fe24 (film v3 assets), 417a39e3/0b3250a2 (film v4), f0fe9ae6 (site v16), 3c90a450 (v17 QA), 0ac0fce2 (site v17), 62fce9c4 (drawn badge, replaced by the real logo),
+8b354dca/6c24cdd2/a36d277a/c6a12384/c0d4cb1e (v13 pages), f0de2adb (POS layout mockup), 7dfb3b81/f4716fc7/25da86f5/69e27445 (v14 QA), d8012aa6/5c5c6197/b24e3583/dcfa70ad/fe546b23/f7f2c256 (v15 QA), 36c139af/396bd665/5b0e86c6/ea738b4e/d1b560d3 (v14 pages), 6ef92316 (site v10), 4ddb50c9/9fd0edc0/9220fe24 (film v3 assets), 417a39e3/0b3250a2 (film v4), c7242b7d/94681e79 (film v5 scroll version), f0fe9ae6 (site v16), 3c90a450 (v17 QA), 0ac0fce2 (site v17), 62fce9c4 (drawn badge, replaced by the real logo),
 bc00deeb/edb9e04d/00b4983e/7a0e2b48/ca89d0ef/c7309f20 (v10 pages), 3d6d6aed/8d1d85da (v12 QA slots),
 a4be43a7/e42b0085/4a220491/7c2da9c5/d7fa2327 (v11 pages superseded by v12; tv 432efc2c and site 6ef92316 unchanged).

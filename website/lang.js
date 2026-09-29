@@ -38,6 +38,15 @@
     'That code did not work. Codes change every 30 seconds, try the newest one.': 'Ese código no funcionó. Los códigos cambian cada 30 segundos; pruebe el más reciente.',
     'Nothing to print yet.': 'Todavía no hay nada que imprimir.',
 
+    /* website: the film */
+    '1,400 metres above the sea.': 'A 1 400 metros sobre el mar.', 'Monteverde, Costa Rica': 'Monteverde, Costa Rica',
+    'Cool nights ripen the cherry slowly.': 'Las noches frías maduran el fruto despacio.',
+    'Picked by hand, only when it turns deep red.': 'Recolectado a mano, solo cuando está rojo intenso.',
+    'Locally roasted to perfection.': 'Tostado localmente a la perfección.',
+    'And here, ground fresh and poured with care, for you.': 'Y aquí, molido al momento y servido con cariño, para usted.',
+    'Monteverde, Costa Rica.': 'Monteverde, Costa Rica.', 'See the menu': 'Ver el menú', 'Skip': 'Saltar', 'Replay': 'Repetir', 'Play the film': 'Ver el video',
+    'A quetzal flies from the cloud forest down through the coffee plants to The Hanging Garden Café': 'Un quetzal vuela desde el bosque nuboso, baja por los cafetales y llega a The Hanging Garden Café',
+
     /* website: nav + hero */
     'Skip to content': 'Ir al contenido', 'Story': 'Historia', 'Gallery': 'Galería', 'Ask us': 'Pregúntenos',
     'Plan your visit': 'Planee su visita', 'Café · Monteverde': 'Café · Monteverde',
