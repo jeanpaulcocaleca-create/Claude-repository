@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>POS · The Hanging Garden</title>
+<title>POS · Hanging Garden</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -150,7 +150,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 <body>
 
 <div id="loginView" class="login" hidden>
-  <h1>The Hanging Garden POS</h1>
+  <h1>Hanging Garden POS</h1>
   <form id="loginForm">
     <label for="em">Email</label>
     <input id="em" type="email" autocomplete="username" required>
@@ -164,7 +164,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 <div id="appView" class="app" hidden>
   <div class="left">
     <div class="topbar">
-      <h1>The Hanging Garden</h1>
+      <h1>Hanging Garden</h1>
       <a class="navlink" href="home.html" data-owner>Home</a>
       <a class="navlink" href="sales.html" data-owner>Sales</a>
       <a class="navlink" href="admin.html" data-owner>Menu</a>
@@ -855,10 +855,10 @@ document.querySelectorAll('[data-rpay]').forEach(function(b){
 });
 /* WhatsApp draft: opens a chat with the guest's number, message pre-written, one tap to send. Free, no account needed. */
 var WA = {
-  en: {preparing: 'Hi {name}, this is The Hanging Garden Café. Your order for room {room} is being prepared. We will message you when it is ready.',
-       ready: 'Hi {name}, your order from The Hanging Garden Café is ready! Please come to the window to pay and pick it up{num}. Pura vida!'},
-  es: {preparing: 'Hola {name}, le escribe The Hanging Garden Café. Su pedido para la habitación {room} se está preparando. Le avisamos cuando esté listo.',
-       ready: 'Hola {name}, ¡su pedido de The Hanging Garden Café está listo! Pase a la ventanilla para pagar y recogerlo{num}. ¡Pura vida!'}
+  en: {preparing: 'Hi {name}, this is Hanging Garden Café. Your order for room {room} is being prepared. We will message you when it is ready.',
+       ready: 'Hi {name}, your order from Hanging Garden Café is ready! Please come to the window to pay and pick it up{num}. Pura vida!'},
+  es: {preparing: 'Hola {name}, le escribe Hanging Garden Café. Su pedido para la habitación {room} se está preparando. Le avisamos cuando esté listo.',
+       ready: 'Hola {name}, ¡su pedido de Hanging Garden Café está listo! Pase a la ventanilla para pagar y recogerlo{num}. ¡Pura vida!'}
 };
 function whatsapp(o, kind){
   var L = WA[o.guest_lang === 'es' ? 'es' : 'en'];

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="The Hanging Garden Café logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Hanging Garden Café logo">
   <circle cx="100" cy="100" r="99" fill="#0E6B4C"/>
   <circle cx="100" cy="100" r="99" fill="none" stroke="#FFFFFF" stroke-width="2"/>
   <circle cx="100" cy="100" r="91" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>
@@ -6,7 +6,7 @@
     <path id="topArc" d="M 26 116 A 76 76 0 1 1 174 116" fill="none"/>
   </defs>
   <text font-family="Georgia, 'Times New Roman', serif" font-size="22.5" font-weight="bold" fill="#FFFFFF" letter-spacing="1">
-    <textPath href="#topArc" startOffset="50%" text-anchor="middle">The Hanging Garden</textPath>
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">Hanging Garden</textPath>
   </text>
   <!-- steam -->
   <g fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.95">

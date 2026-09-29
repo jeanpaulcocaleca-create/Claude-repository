@@ -1,4 +1,4 @@
-# Asset manifest — The Hanging Garden website
+# Asset manifest — Hanging Garden website
 
 Processed deploy assets (generated via Higgsfield, processed with ffmpeg per the scrub pipeline).
 Permanent copies live in the owner's Higgsfield media library; for final deploy, download each
@@ -37,6 +37,9 @@ The domain is live over HTTPS. The `Publish website` workflow copies `website/` 
 (www redirects there). Pages link each other by file name.
 
 - Website: https://hanginggardencafe.com/
+- Menu page: https://hanginggardencafe.com/menu.html (Spanish: /es/menu.html)
+- Our coffee: https://hanginggardencafe.com/coffee.html (Spanish: /es/cafe.html)
+- Guides: /best-coffee-monteverde.html, /breakfast-monteverde.html, /rainy-day-monteverde.html (Spanish twins under /es/). All built from tools/pages/content.js with `node tools/pages/build.js`.
 - Home (owner dashboard): https://hanginggardencafe.com/home.html
 - Menu Manager: https://hanginggardencafe.com/admin.html
 - POS: https://hanginggardencafe.com/pos.html

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menu Manager · The Hanging Garden</title>
+<title>Menu Manager · Hanging Garden</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +104,7 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
   <div id="loginView" class="login card" hidden>
     <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
     <h1>Menu Manager</h1>
-    <p class="hint">The Hanging Garden Café</p>
+    <p class="hint">Hanging Garden Café</p>
     <form id="loginForm">
       <label for="em">Email</label>
       <input id="em" type="email" autocomplete="username" required>
@@ -477,7 +477,7 @@ document.getElementById('printCards').addEventListener('click', function(){
     var card = document.createElement('div'); card.className = 'qcard';
     var badge = document.createElement('img'); badge.className = 'badge'; badge.alt = '';
     badge.src = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png';
-    var h = document.createElement('h3'); h.textContent = 'The Hanging Garden Café';
+    var h = document.createElement('h3'); h.textContent = 'Hanging Garden Café';
     var rn = document.createElement('div'); rn.className = 'room'; rn.textContent = 'Room ' + rm.number;
     var qr = qrcode(0, 'M'); qr.addData(roomLink(rm)); qr.make();
     var cv = document.createElement('img'); cv.className = 'qr'; cv.alt = 'QR code for room ' + rm.number;

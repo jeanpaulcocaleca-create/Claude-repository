@@ -1,4 +1,4 @@
-/* The Hanging Garden Café · English / Español switch
+/* Hanging Garden Café · English / Español switch
    One small script shared by every page. It adds a visible EN | ES control,
    remembers the choice, and swaps the words on the page from the dictionary
    below without touching how any page works. Text the dictionary does not
@@ -45,7 +45,7 @@
     'Locally roasted to perfection.': 'Tostado localmente a la perfección.',
     'And here, ground fresh and poured with care, for you.': 'Y aquí, molido al momento y servido con cariño, para usted.',
     'Monteverde, Costa Rica.': 'Monteverde, Costa Rica.', 'See the menu': 'Ver el menú', 'Skip': 'Saltar', 'Replay': 'Repetir', 'Play the film': 'Ver el video',
-    'A quetzal flies from the cloud forest down through the coffee plants to The Hanging Garden Café': 'Un quetzal vuela desde el bosque nuboso, baja por los cafetales y llega a The Hanging Garden Café',
+    'A quetzal flies from the cloud forest down through the coffee plants to Hanging Garden Café': 'Un quetzal vuela desde el bosque nuboso, baja por los cafetales y llega a Hanging Garden Café',
 
     /* website: nav + hero */
     'Skip to content': 'Ir al contenido', 'Story': 'Historia', 'Gallery': 'Galería', 'Ask us': 'Pregúntenos',
@@ -53,7 +53,7 @@
     'Follow the quetzal.': 'Siga al quetzal.', 'Through the coffee harvest.': 'Por la cosecha de café.',
     'Home to the garden.': 'De vuelta al jardín.',
     'Coffee, garden, and cloud. Monteverde, Costa Rica.': 'Café, jardín y nubes. Monteverde, Costa Rica.',
-    'The Hanging Garden Café · Monteverde, Costa Rica': 'The Hanging Garden Café · Monteverde, Costa Rica',
+    'Hanging Garden Café · Monteverde, Costa Rica': 'Hanging Garden Café · Monteverde, Costa Rica',
 
     /* website: story */
     'The story': 'La historia', 'A green mountain, a cup of peace': 'Una montaña verde, una taza de paz',
@@ -71,8 +71,8 @@
     'The Monteverde Cloud Forest Reserve is founded. The community protects the watershed instead of clearing it, and the world comes to walk under its canopy.':
       'Se funda la Reserva Biológica Bosque Nuboso Monteverde. La comunidad protege la cuenca en vez de talarla, y el mundo viene a caminar bajo su dosel.',
     'Your cup': 'Su taza',
-    'The Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.':
-      'The Hanging Garden continúa la historia: café sin prisa, plantas colgantes y una mesa que lo espera entre las nubes.',
+    'Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.':
+      'Hanging Garden continúa la historia: café sin prisa, plantas colgantes y una mesa que lo espera entre las nubes.',
     'Peace. Simplicity. Stewardship. Community.': 'Paz. Sencillez. Cuidado. Comunidad.',
     'The jewel of the cloud forest, and our neighbor.': 'La joya del bosque nuboso, y nuestro vecino.',
     'from Monteverde, for the adventure ahead': 'desde Monteverde, para la aventura que viene',
@@ -142,7 +142,7 @@
     'Questions?': '¿Preguntas?', 'Ask the Garden Guide': 'Pregunte a la Guía del Jardín',
     'Hours, prices, what to wear in the cloud forest, where the quetzals are: our little guide answers right here on the page, in English y en español.':
       'Horario, precios, qué ponerse en el bosque nuboso, dónde están los quetzales: nuestra guía responde aquí mismo, en español y en inglés.',
-    'Ask a question': 'Hacer una pregunta', 'Garden Guide': 'Guía del Jardín', 'The Hanging Garden · English y español': 'The Hanging Garden · español e inglés',
+    'Ask a question': 'Hacer una pregunta', 'Garden Guide': 'Guía del Jardín', 'Hanging Garden · English y español': 'Hanging Garden · español e inglés',
     'Ask the Garden Guide a question': 'Hacer una pregunta a la Guía del Jardín', 'Garden Guide chat': 'Chat de la Guía del Jardín',
     'Close chat': 'Cerrar el chat', 'Your question': 'Su pregunta', 'Send': 'Enviar',
     'What are your hours?': '¿Cuál es el horario?', 'How to find us': 'Cómo llegar', 'How do I get there?': '¿Cómo llego?',
@@ -151,16 +151,16 @@
     '· Monteverde, Costa Rica': '· Monteverde, Costa Rica',
     '100% Costa Rican coffee · Locally sourced · Proudly serving coffee from El Trapiche Monteverde': 'Café 100% costarricense · De productores locales · Servimos con orgullo café de El Trapiche Monteverde',
     'Thank you for supporting our community and our forest. Pura vida.': 'Gracias por apoyar a nuestra comunidad y a nuestro bosque. Pura vida.',
-    'Gallery imagery is AI generated for now and will be replaced with photos of the real café. Website by The Hanging Garden.':
-      'Las imágenes de la galería son generadas con IA por ahora y se cambiarán por fotos del café real. Sitio web de The Hanging Garden.',
+    'Gallery imagery is AI generated for now and will be replaced with photos of the real café. Website by Hanging Garden.':
+      'Las imágenes de la galería son generadas con IA por ahora y se cambiarán por fotos del café real. Sitio web de Hanging Garden.',
     'A resplendent quetzal perched on a mossy branch in the Monteverde cloud forest': 'Un quetzal posado en una rama con musgo en el bosque nuboso de Monteverde',
     'The Monteverde cloud forest': 'El bosque nuboso de Monteverde', 'Coffee served at the garden': 'Café servido en el jardín',
     'Fresh pastries': 'Repostería fresca', 'Coffee pouring': 'Café sirviéndose', 'Garden seating among hanging plants': 'Mesas del jardín entre plantas colgantes',
-    'Map of The Hanging Garden Café, Monteverde': 'Mapa de The Hanging Garden Café, Monteverde',
+    'Map of Hanging Garden Café, Monteverde': 'Mapa de Hanging Garden Café, Monteverde',
 
     /* owner home */
     'Owner dashboard · Monteverde, Costa Rica': 'Panel del propietario · Monteverde, Costa Rica', 'Owner dashboard · Monteverde': 'Panel del propietario · Monteverde',
-    'Home · The Hanging Garden': 'Inicio · The Hanging Garden', 'Revenue today': 'Ingresos de hoy', 'Orders today': 'Pedidos de hoy',
+    'Home · Hanging Garden': 'Inicio · Hanging Garden', 'Revenue today': 'Ingresos de hoy', 'Orders today': 'Pedidos de hoy',
     'On the clock': 'En turno', 'Sold out': 'Agotado', 'Nobody in': 'Nadie en turno',
     'Ring up sales at the counter — cash, card or SINPE, recorded instantly.': 'Cobre en el mostrador: efectivo, tarjeta o SINPE, registrado al instante.',
     'What you sold today, this week, this month — best sellers and CSV for the accountant.': 'Lo vendido hoy, esta semana y este mes: los más vendidos y CSV para el contador.',
@@ -186,7 +186,7 @@
     'Run supabase/accounts.sql once to switch on the owner and café logins.': 'Ejecute supabase/accounts.sql una vez para activar los ingresos de propietario y café.',
 
     /* menu manager */
-    'Menu Manager · The Hanging Garden': 'Gestor del menú · The Hanging Garden',
+    'Menu Manager · Hanging Garden': 'Gestor del menú · Hanging Garden',
     "Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow, or combine several items into one slide below.":
       'Los cambios se guardan al instante y aparecen en el sitio web y la pantalla TV en un minuto. Toque el cuadro de foto para cambiar la imagen de un producto. Marque con estrella un producto para destacarlo en la presentación del TV, o combine varios en una sola diapositiva abajo.',
     'Run the TV board SQL once in Supabase and these controls switch on.': 'Ejecute el SQL de la pantalla TV una vez en Supabase y estos controles se activan.',
@@ -248,7 +248,7 @@
     'Photo updated': 'Foto actualizada',
 
     /* POS */
-    'The Hanging Garden POS': 'Caja The Hanging Garden', 'POS · The Hanging Garden': 'Caja · The Hanging Garden',
+    'Hanging Garden POS': 'Caja Hanging Garden', 'POS · Hanging Garden': 'Caja · Hanging Garden',
     'Time': 'Reloj', 'Orders': 'Pedidos', 'Loading the menu…': 'Cargando el menú…', 'Order': 'Pedido', 'Tap items to add them.': 'Toque los productos para agregarlos.',
     'Includes IVA 13%': 'Incluye IVA 13%', 'Total': 'Total', 'Cash ₡': 'Efectivo ₡', 'Cash $': 'Efectivo $', 'Card': 'Tarjeta', 'SINPE': 'SINPE', 'Other': 'Otro',
     'Clear order': 'Vaciar pedido', 'Print receipt': 'Imprimir recibo', 'Today at the counter': 'Hoy en el mostrador', 'Cash counted:': 'Efectivo contado:',
@@ -278,7 +278,7 @@
     'Ready': 'Listo', 'Room': 'Habitación', 'Cash': 'Efectivo',
 
     /* sales */
-    'Sales · The Hanging Garden': 'Ventas · The Hanging Garden', 'Lock now': 'Bloquear ahora', 'Sales are locked': 'Las ventas están bloqueadas',
+    'Sales · Hanging Garden': 'Ventas · Hanging Garden', 'Lock now': 'Bloquear ahora', 'Sales are locked': 'Las ventas están bloqueadas',
     'Type a manager PIN to open the reports for 15 minutes. Every opening is written to the approvals log.': 'Escriba un PIN de encargado para abrir los reportes por 15 minutos. Cada apertura se anota en la bitácora de aprobaciones.',
     'Open the sales reports': 'Abrir los reportes de ventas', 'Revenue': 'Ingresos', 'Average order': 'Pedido promedio', 'Revenue by day': 'Ingresos por día',
     'How people paid': 'Cómo pagaron', 'Best sellers': 'Más vendidos', 'Transactions': 'Transacciones', 'When': 'Cuándo', 'Items': 'Productos',
@@ -289,7 +289,7 @@
     'No sales in this period yet. Ring one up on the POS and refresh.': 'Todavía no hay ventas en este periodo. Cobre una en la caja y actualice.',
 
     /* time clock */
-    'Time clock · The Hanging Garden': 'Reloj de marcas · The Hanging Garden', 'One-time setup needed': 'Falta una configuración inicial',
+    'Time clock · Hanging Garden': 'Reloj de marcas · Hanging Garden', 'One-time setup needed': 'Falta una configuración inicial',
     'The time clock needs its tables and the manager-approval functions in Supabase. It takes about a minute:': 'El reloj de marcas necesita sus tablas y las funciones de aprobación en Supabase. Toma como un minuto:',
     'Open your Supabase project →': 'Abra su proyecto de Supabase →', 'SQL Editor': 'SQL Editor', 'New query': 'New query', 'Paste and run': 'Pegue y ejecute',
     ', then paste and run': ', luego pegue y ejecute', 'Come back here, reload, and make yourself the first manager under': 'Vuelva aquí, recargue y hágase el primer encargado en',
@@ -339,19 +339,19 @@
     'no shifts': 'sin turnos', 'Edit': 'Editar',
 
     /* kitchen */
-    'Kitchen · The Hanging Garden': 'Cocina · The Hanging Garden', 'One step before the kitchen screen works': 'Falta un paso para que funcione la pantalla de cocina',
+    'Kitchen · Hanging Garden': 'Cocina · Hanging Garden', 'One step before the kitchen screen works': 'Falta un paso para que funcione la pantalla de cocina',
     'Run': 'Ejecute', 'once in Supabase (SQL Editor → New query → paste → Run), then reload this page.': 'una vez en Supabase (SQL Editor → New query → pegar → Run) y recargue esta página.',
-    'The Hanging Garden · tickets appear here as they come in': 'The Hanging Garden · las comandas aparecen aquí al llegar',
+    'Hanging Garden · tickets appear here as they come in': 'Hanging Garden · las comandas aparecen aquí al llegar',
     'Sound: on': 'Sonido: activado', 'Sound: off': 'Sonido: apagado', 'Nothing to prepare right now.': 'Nada que preparar por ahora.',
     'Ready, waiting for pickup': 'Listos, esperando entrega', 'Front counter': 'Mostrador', 'Start': 'Empezar', 'Done': 'Listo',
 
     /* TV board */
-    'Menu Board · The Hanging Garden': 'Pantalla del menú · The Hanging Garden', 'Monteverde, Costa Rica · made for the cloud forest': 'Monteverde, Costa Rica · hecho para el bosque nuboso',
+    'Menu Board · Hanging Garden': 'Pantalla del menú · Hanging Garden', 'Monteverde, Costa Rica · made for the cloud forest': 'Monteverde, Costa Rica · hecho para el bosque nuboso',
     'Pura vida': 'Pura vida', 'The menu board lost its connection.': 'La pantalla del menú perdió la conexión.', 'It will keep trying by itself.': 'Seguirá intentando por su cuenta.',
 
     /* small words and lines the pages build on the fly */
     'everything is available': 'todo está disponible', 'on': 'activado', 'off': 'apagado',
-    'Your café, one tap away': 'Su café, a un toque', 'The Hanging Garden Café emblem': 'Emblema de The Hanging Garden Café',
+    'Your café, one tap away': 'Su café, a un toque', 'Hanging Garden Café emblem': 'Emblema de Hanging Garden Café',
     'Good question, and I want to get it right. I saved it for the café team. Meanwhile, ask at the counter when you visit, or try one of the buttons below.':
       'Buena pregunta, y quiero responderla bien. La guardé para el equipo del café. Mientras tanto, pregunte en el mostrador cuando nos visite, o pruebe uno de los botones de abajo.',
     'and closes': 'y cierra', 'Open': 'Abrir', 'Available': 'Disponible', 'none': 'ninguno',
@@ -362,7 +362,7 @@
     'deleted shift {x}': 'eliminó el turno {x}', 'sales access on for {x}': 'acceso a ventas activado para {x}', 'sales access off for {x}': 'acceso a ventas desactivado para {x}',
 
     /* inventory */
-    'Inventory': 'Inventario', 'Inventory · The Hanging Garden': 'Inventario · The Hanging Garden', 'Inventory · Monteverde, Costa Rica': 'Inventario · Monteverde, Costa Rica',
+    'Inventory': 'Inventario', 'Inventory · Hanging Garden': 'Inventario · Hanging Garden', 'Inventory · Monteverde, Costa Rica': 'Inventario · Monteverde, Costa Rica',
     'What you have, what you sell, what to order': 'Lo que tiene, lo que vende, lo que hay que pedir',
     'One step before the inventory works': 'Falta un paso para que funcione el inventario',
     'Inventory is locked': 'El inventario está bloqueado',
@@ -425,7 +425,74 @@
     'Pick an item and a number of packs.': 'Elija un producto y un número de paquetes.', 'Mark as received': 'Marcar como recibido',
     "Change any quantity that arrived short or long. Costs update the item's price.": 'Cambie cualquier cantidad que llegó de menos o de más. Los costos actualizan el precio del producto.',
     'Cost / pack': 'Costo / paquete', 'Add to stock': 'Agregar a existencias', 'Order received, stock updated': 'Pedido recibido, existencias actualizadas', 'per sale': 'por venta',
-    'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'propietario', 'POS': 'Caja', 'about {n} days left': 'unos {n} días'
+    'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'propietario', 'POS': 'Caja', 'about {n} days left': 'unos {n} días',
+    /* faq:start */
+    "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
+    "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",
+    "What time do you open? I want coffee before the cloud forest reserve.": "¿A qué hora abren? Quiero café antes de la reserva del bosque nuboso.",
+    "We open at 6:00 every day, one hour before the Monteverde Cloud Forest Reserve opens its gate at 7:00. Coffee, a warm croissant or an empanada, and you are on the trail before the crowds. We close at 19:00.": "Abrimos a las 6:00 todos los días, una hora antes de que la Reserva del Bosque Nuboso Monteverde abra su portón a las 7:00. Un café, un croissant caliente o una empanada, y está en el sendero antes que todos. Cerramos a las 19:00.",
+    "Where can I have breakfast in Santa Elena before a tour?": "¿Dónde puedo desayunar en Santa Elena antes de un tour?",
+    "Right here, from 6:00. Sandwiches such as the Mano de Piedra with Costa Rican beef, empanadas, croissants, banana bread and a chorreado coffee. Leaving before dawn? Order an Adventure Box by 20:00 the night before and pick it up from 6:30.": "Aquí mismo, desde las 6:00. Sándwiches como el Mano de Piedra con carne costarricense, empanadas, croissants, pan de banano y un café chorreado. ¿Sale antes del amanecer? Pida una Adventure Box antes de las 20:00 la noche anterior y recójala desde las 6:30.",
+    "Where is Hanging Garden Café, and how far is it from the reserve?": "¿Dónde queda Hanging Garden Café y a qué distancia está de la reserva?",
+    "We are in Monteverde, on the road through Santa Elena, Puntarenas, Costa Rica. The Monteverde Cloud Forest Reserve is about 10 minutes away by car, and the centre of Santa Elena is a short walk. Tap \"Get directions\" in the visit section and Google Maps takes you to the door.": "Estamos en Monteverde, sobre la carretera que atraviesa Santa Elena, Puntarenas, Costa Rica. La Reserva del Bosque Nuboso Monteverde queda a unos 10 minutos en carro, y el centro de Santa Elena a una caminata corta. Toque \"Cómo llegar\" en la sección de visita y Google Maps lo lleva a la puerta.",
+    "Is Monteverde coffee really that good?": "¿De verdad es tan bueno el café de Monteverde?",
+    "Yes, and there is a reason. Monteverde sits at about 1,400 metres, where cool nights make the coffee cherry ripen slowly and build sugar. That is why a Monteverde cup tastes sweet and clean, with chocolate and citrus notes. Our coffee page explains altitude, harvest and roast in plain words.": "Sí, y hay una razón. Monteverde está a unos 1 400 metros, donde las noches frías hacen que el fruto madure despacio y acumule azúcar. Por eso una taza de Monteverde sabe dulce y limpia, con notas de chocolate y cítricos. Nuestra página del café explica altitud, cosecha y tueste en palabras sencillas.",
+    "Is there a coffee tour near Santa Elena, and how long does it take?": "¿Hay un tour de café cerca de Santa Elena y cuánto dura?",
+    "Yes. Several family farms around Monteverde run coffee tours of two to three hours, from the plant to the roaster, usually with sugar cane and chocolate too. If you only have twenty minutes, come and taste the same mountain in a cup: we serve El Trapiche coffee and are happy to tell you how it is made.": "Sí. Varias fincas familiares alrededor de Monteverde hacen tours de café de dos a tres horas, de la planta al tostador, casi siempre con caña de azúcar y chocolate también. Si solo tiene veinte minutos, venga a probar la misma montaña en una taza: servimos café de El Trapiche y con gusto le contamos cómo se hace.",
+    "Can I buy Monteverde coffee beans to take home?": "¿Puedo comprar café de Monteverde en grano para llevar a casa?",
+    "Ask at the counter. We sell what we brew when we have it, whole bean or ground, and we can tell you which farm it comes from and when it was roasted. It packs flat in a suitcase and it is the souvenir people write to us about.": "Pregunte en el mostrador. Vendemos lo mismo que servimos cuando lo tenemos, en grano o molido, y le decimos de qué finca viene y cuándo se tostó. Cabe plano en la maleta y es el recuerdo por el que la gente nos escribe.",
+    "What can I do in Monteverde when it rains?": "¿Qué puedo hacer en Monteverde cuando llueve?",
+    "Let it rain, this is a cloud forest. A hot chocolate or a Cloud Forest Latte under the hanging plants is the local way to wait it out, and the forest is at its greenest right after. Our rainy day guide lists what stays open and what is better in the mist.": "Que llueva, esto es un bosque nuboso. Un chocolate caliente o un Cloud Forest Latte bajo las plantas colgantes es la forma local de esperar, y el bosque está más verde justo después. Nuestra guía de días de lluvia dice qué sigue abierto y qué es mejor con neblina.",
+    "Do you have garden seating or a view?": "¿Tienen mesas en el jardín o vista?",
+    "Our tables sit under hanging plants, ferns and flowers, with the cloud forest air coming through. It is a garden more than a view: hummingbirds visit, and on clear afternoons the light comes in sideways through the mist.": "Nuestras mesas están bajo plantas colgantes, helechos y flores, con el aire del bosque nuboso entrando. Es más jardín que vista: los colibríes visitan, y en las tardes despejadas la luz entra de lado a través de la neblina.",
+    "Is Monteverde cold? What should I wear?": "¿Hace frío en Monteverde? ¿Qué debo llevar?",
+    "Cool, not cold: about 15 to 22 °C most of the year, with mist and wind. Bring layers and a light rain jacket even on sunny mornings. Then come in for something hot; we have coffee, tea and Costa Rican hot chocolate.": "Fresco, no frío: unos 15 a 22 °C casi todo el año, con neblina y viento. Lleve capas y una capa ligera de lluvia incluso en mañanas soleadas. Luego pase por algo caliente; tenemos café, té y chocolate caliente costarricense.",
+    "Do you accept credit cards, US dollars and colones?": "¿Aceptan tarjetas, dólares y colones?",
+    "Yes to all three. Prices are in colones; we also take dollars at the counter, cards, and SINPE Móvil. Change is given in colones.": "Sí, los tres. Los precios están en colones; también aceptamos dólares en el mostrador, tarjetas y SINPE Móvil. El vuelto se da en colones.",
+    "Do you have wifi? Can I work on my laptop?": "¿Tienen wifi? ¿Puedo trabajar con mi computadora?",
+    "Yes, there is free wifi for guests; ask at the counter for the password. You are welcome to work a while. Mornings are the quietest and there are some outlets.": "Sí, hay wifi gratis para visitantes; pida la clave en el mostrador. Puede venir a trabajar un rato. Las mañanas son lo más tranquilo y hay algunos enchufes.",
+    "Do you have gluten free, vegan or vegetarian options?": "¿Tienen opciones sin gluten, veganas o vegetarianas?",
+    "Vegetarian, yes: the Monteverde sandwich, most pastries, drinks and smoothies. Vegan: smoothies in water, americano, tea and the sweet cane drink. Our kitchen is small, so we cannot promise zero contact with gluten; tell the team when you order and they will guide you.": "Vegetarianas, sí: el sándwich Monteverde, casi toda la repostería, las bebidas y los batidos. Veganas: batidos en agua, americano, té y agua dulce. Nuestra cocina es pequeña, así que no podemos prometer cero contacto con gluten; avise al equipo al ordenar y le orientan.",
+    "Is the café dog friendly?": "¿Se puede ir con perro?",
+    "Well behaved dogs are welcome at the garden tables, and we will find them a bowl of water.": "Los perros educados son bienvenidos en las mesas del jardín, y les buscamos un tazón de agua.",
+    "Is it good for kids?": "¿Es bueno para niños?",
+    "Very. The garden gives children room to look at plants and hummingbirds, and the Costa Rican hot chocolate was practically made for them.": "Mucho. El jardín les da espacio para mirar plantas y colibríes, y el chocolate caliente costarricense es casi para ellos.",
+    "Can I book a table, or bring a group?": "¿Puedo reservar mesa o venir en grupo?",
+    "No reservation needed, just come in. For groups of eight or more, or a small celebration, message us on WhatsApp a day ahead and we will set the garden for you.": "No necesita reserva, solo llegue. Para grupos de ocho o más, o una celebración pequeña, escríbanos por WhatsApp un día antes y le acomodamos el jardín.",
+    "Do you do takeaway, and can I order on WhatsApp?": "¿Tienen para llevar y puedo pedir por WhatsApp?",
+    "Everything on the menu travels well; just ask for it to go. To order ahead, write to us on WhatsApp at +506 6400 6601 and tell us when you will pick it up.": "Todo el menú viaja bien; solo pídalo para llevar. Para pedir con anticipación, escríbanos por WhatsApp al +506 6400 6601 y díganos a qué hora lo recoge.",
+    "Are you open on Sundays and holidays?": "¿Abren domingos y feriados?",
+    "Yes. We open every day of the week, 6:00 to 19:00, holidays included. If a storm or a special day changes that, we post it on our Google profile first.": "Sí. Abrimos todos los días de la semana, de 6:00 a 19:00, feriados incluidos. Si una tormenta o un día especial cambia eso, lo publicamos primero en nuestro perfil de Google.",
+    "Is there a bathroom?": "¿Hay baño?",
+    "Yes, we have restrooms for guests.": "Sí, tenemos baños para visitantes.",
+    "Is tipping expected in Costa Rica?": "¿Se deja propina en Costa Rica?",
+    "Tips are never expected in Costa Rica and always appreciated. If someone made your morning, a small extra says so.": "La propina nunca es obligatoria en Costa Rica y siempre se agradece. Si alguien le alegró la mañana, un poco extra lo dice.",
+    "Do you speak English?": "¿Hablan inglés?",
+    "English y español, con mucho gusto. The menu, this website and our team speak both.": "English y español, con mucho gusto. El menú, este sitio y nuestro equipo hablan los dos.",
+    "Our coffee": "Nuestro café",
+    "Why coffee from 1,400 metres tastes sweeter": "Por qué el café de 1 400 metros sabe más dulce",
+    "What makes Monteverde coffee taste the way it does: 1,400 metres of altitude, hand picking, honey and washed processing, local roasting, and the chorreado.": "Qué hace que el café de Monteverde sepa como sabe: 1 400 metros de altura, recolección a mano, proceso honey y lavado, tueste local y el chorreado.",
+    "Monteverde guide": "Guía de Monteverde",
+    "Looking for the best coffee in Monteverde, Costa Rica? Five signs of a great cup, where the coffee comes from, what to order, and why Hanging Garden Café opens at 6:00 for it..": "¿Busca el mejor café de Monteverde, Costa Rica? Cinco señales de una gran taza, de dónde viene el café, qué pedir y por qué Hanging Garden Café abre a las 6:00 para eso..",
+    "Best coffee in Monteverde": "El mejor café de Monteverde",
+    "Breakfast in Santa Elena before the cloud forest": "Desayuno en Santa Elena antes del bosque nuboso",
+    "Where to have breakfast in Santa Elena, Monteverde before the cloud forest reserve, the hanging bridges or a sunrise tour.": "Dónde desayunar en Santa Elena, Monteverde antes de la reserva del bosque nuboso, los puentes colgantes o un tour al amanecer.",
+    "Breakfast before the reserve": "Desayuno antes de la reserva",
+    "What to do in Monteverde when it rains": "Qué hacer en Monteverde cuando llueve",
+    "Rain in Monteverde is normal and the forest is better for it.": "Llover en Monteverde es normal y el bosque está mejor así.",
+    "Rainy day in Monteverde": "Día de lluvia en Monteverde",
+    "Specialty coffee · Fresh food": "Café de especialidad · Comida fresca",
+    "The menu": "El menú",
+    "The full menu of Hanging Garden Café in Monteverde, Costa Rica with prices in colones: specialty coffee from El Trapiche, chorreado, sandwiches, empanadas, pastries, Costa Rican favourites and garden smoothies.": "El menú completo de Hanging Garden Café en Monteverde, Costa Rica con precios en colones: café de especialidad de El Trapiche, chorreado, sándwiches, empanadas, repostería, favoritos costarricenses y batidos del jardín.",
+    "Menu": "Menú",
+    "Questions people ask before they visit": "Preguntas que la gente hace antes de visitar",
+    "Good to know": "Bueno saberlo",
+    "Hours, coffee, payment, what to wear: the answers we give at the counter, here before you arrive.": "Horario, café, pagos, qué ponerse: las respuestas que damos en el mostrador, aquí antes de que llegue.",
+    "Read before you come": "Lea antes de venir",
+    "Monteverde guides": "Guías de Monteverde",
+    "Leave a review on Google": "Deje una reseña en Google",
+    "Open the menu as its own page": "Abrir el menú en su propia página",
+/* faq:end */
   };
 
   /* ---------- pattern entries ({x} placeholders) ---------- */

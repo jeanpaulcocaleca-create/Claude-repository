@@ -1,8 +1,99 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://hanginggardencafe.com/</loc>
-    <changefreq>monthly</changefreq>
+    <lastmod>2026-09-29</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/coffee.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/coffee.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/cafe.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/coffee.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/es/cafe.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/coffee.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/cafe.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/coffee.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/best-coffee-monteverde.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/best-coffee-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/mejor-cafe-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/best-coffee-monteverde.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/es/mejor-cafe-monteverde.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/best-coffee-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/mejor-cafe-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/best-coffee-monteverde.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/breakfast-monteverde.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/breakfast-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/desayuno-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/breakfast-monteverde.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/es/desayuno-monteverde.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/breakfast-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/desayuno-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/breakfast-monteverde.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/rainy-day-monteverde.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/rainy-day-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/dia-de-lluvia-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/rainy-day-monteverde.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/es/dia-de-lluvia-monteverde.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/rainy-day-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/dia-de-lluvia-monteverde.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/rainy-day-monteverde.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/menu.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/menu.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/menu.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/menu.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://hanginggardencafe.com/es/menu.html</loc>
+    <lastmod>2026-09-29</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://hanginggardencafe.com/menu.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://hanginggardencafe.com/es/menu.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://hanginggardencafe.com/menu.html"/>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
   </url>
 </urlset>

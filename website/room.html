@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Order from your room · The Hanging Garden Café</title>
+<title>Order from your room · Hanging Garden Café</title>
 <meta name="robots" content="noindex">
 <link rel="icon" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,7 +77,7 @@ label{display:block;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
 <div class="wrap">
   <div class="hero">
     <img src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="">
-    <h1>The Hanging Garden Café</h1>
+    <h1>Hanging Garden Café</h1>
     <div class="room" id="roomLine"></div>
     <div class="sub" id="subLine"></div>
   </div>
@@ -370,7 +370,7 @@ function renderStatus(s){
   });
   document.getElementById('statusTotal').textContent = fmt(s.total);
   document.getElementById('againBtn').hidden = !(st === 'done' || st === 'cancelled');
-  if (st === 'ready') document.title = '✓ ' + t('st_ready') + ' · The Hanging Garden Café';
+  if (st === 'ready') document.title = '✓ ' + t('st_ready') + ' · Hanging Garden Café';
 }
 document.getElementById('againBtn').addEventListener('click', async function(){
   try{ localStorage.removeItem(TOKEN_KEY); }catch(x){}

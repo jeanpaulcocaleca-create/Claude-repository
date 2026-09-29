@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventory · The Hanging Garden</title>
+<title>Inventory · Hanging Garden</title>
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cbafe712-72c1-4ab4-b8cb-715ff9c5c120.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,7 +104,7 @@ td .sub{display:block;font-size:.78rem;color:var(--sec)}
 <body>
 
 <div id="loginView" class="login" hidden>
-  <h1>The Hanging Garden</h1>
+  <h1>Hanging Garden</h1>
   <p class="hint">Inventory · Monteverde, Costa Rica</p>
   <form id="loginForm">
     <label for="em">Email</label>
@@ -123,7 +123,7 @@ td .sub{display:block;font-size:.78rem;color:var(--sec)}
 </div>
 
 <div id="cafeView" class="login" hidden>
-  <h1>The Hanging Garden</h1>
+  <h1>Hanging Garden</h1>
   <p class="hint" id="cafeMsg" style="margin-top:.8rem">This login is not connected to the café yet.</p>
   <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
     <a class="ghost btnlink" href="pos.html">Open the POS</a>
@@ -870,7 +870,7 @@ $('lineForm').addEventListener('submit', async function(e){
 });
 function poText(p, v){
   var lines = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return '• ' + (i ? i.name : '?') + ': ' + num(l.packs, 2) + ' × ' + (i && i.pack_label ? i.pack_label : 'pack') + ' (' + (i ? qtyU(l.qty, i.unit) : l.qty) + ')'; });
-  return 'Hola' + (v && v.contact_name ? ' ' + v.contact_name : '') + ', pedido de The Hanging Garden Café:\n' + lines.join('\n') + '\n\nGracias. / Order from The Hanging Garden Café, thank you.';
+  return 'Hola' + (v && v.contact_name ? ' ' + v.contact_name : '') + ', pedido de Hanging Garden Café:\n' + lines.join('\n') + '\n\nGracias. / Order from Hanging Garden Café, thank you.';
 }
 async function sendPo(p, v){
   var url = 'https://wa.me/' + String(v.whatsapp).replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(poText(p, v));
@@ -880,7 +880,7 @@ async function sendPo(p, v){
 function printPo(p, v){
   var w = window.open('', '_blank');
   if (!w) return;
-  w.document.write('<title>Order · The Hanging Garden Café</title><pre style="font:14px/1.5 monospace;padding:2rem">' + esc(poText(p, v)) + '</pre>');
+  w.document.write('<title>Order · Hanging Garden Café</title><pre style="font:14px/1.5 monospace;padding:2rem">' + esc(poText(p, v)) + '</pre>');
   w.document.close(); w.print();
 }
 var recvTarget = null;
