@@ -6,7 +6,7 @@ URL into `website/assets/` under the name in the left column.
 
 | Deploy path | Source URL |
 |---|---|
-| assets/hero-film.mp4 (12 s auto-playing film: quetzal flight v3 opening + landing on the real mural; the copper cup shots replace the tail next) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c66f312-0717-4f9d-b5fd-ae41003db13b.mp4 |
+| assets/hero-film.mp4 (12 s auto-playing film: quetzal flight v3 opening + landing on the real mural; final cut) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c66f312-0717-4f9d-b5fd-ae41003db13b.mp4 |
 | assets/hero-poster.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5231ff45-7b82-4a33-a099-6c1d17a0754b.jpg |
 | assets/hero-ending.jpg (the building photo the film ends on; REPLACE THIS ROW ALONE to update the ending when the mural is finished) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b3174e2b-3bbe-4fc6-9807-038d2e5fbc2f.jpg |
 | assets/hero-film-mobile.mp4 (same film at 960 px for phones) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5011ba71-37ea-4efb-83fb-196b773bb5a2.mp4 |
