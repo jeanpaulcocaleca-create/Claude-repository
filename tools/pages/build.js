@@ -223,7 +223,7 @@ function menuPage(p, lang) {
   const menuLd = ld({ '@context': 'https://schema.org', '@type': 'CafeOrCoffeeShop', name: C.CAFE, url: C.SITE + '/', telephone: C.PHONE,
     image: C.SITE + '/' + C.IMG.building, servesCuisine: ['Coffee', 'Costa Rican', 'Café'], priceRange: '₡₡', currenciesAccepted: 'CRC, USD',
     paymentAccepted: 'Cash, Credit Card, SINPE Móvil',
-    address: { '@type': 'PostalAddress', addressLocality: 'Monteverde', addressRegion: 'Puntarenas', addressCountry: 'CR' },
+    address: { '@type': 'PostalAddress', streetAddress: C.STREET, addressLocality: 'Santa Elena, Monteverde', addressRegion: 'Puntarenas', postalCode: '60109', addressCountry: 'CR' },
     openingHoursSpecification: [{ '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], opens: '06:00', closes: '19:00' }],
     hasMenu: { '@type': 'Menu', '@id': pageUrl(p, lang) + '#menu', name: L.h1, url: pageUrl(p, lang), inLanguage: lang,
       hasMenuSection: menu.map(c => ({ '@type': 'MenuSection', name: t(c.name), hasMenuItem: c.items.map(i => {

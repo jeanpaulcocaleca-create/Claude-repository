@@ -15,6 +15,7 @@ const MAPS = 'https://www.google.com/maps/search/Hanging+Garden+Cafe+Monteverde'
 /* The short "write a review" link from the Google Business Profile (Business Profile → Ask for reviews). */
 const REVIEW_URL = 'https://g.page/r/CfHitxq6bJ3AEBM/review';
 const UPDATED = '2026-09-29';
+const STREET = '50 metros sur y 50 metros este de la Iglesia';
 
 /* ------------------------------------------------------------------ */
 /*  Home page FAQ: the questions people type before they visit          */
@@ -35,9 +36,9 @@ const FAQ = [
     es: { q: '¿Dónde puedo desayunar en Santa Elena antes de un tour?',
       a: 'Aquí mismo, desde las 6:00. Sándwiches como el Mano de Piedra con carne costarricense, empanadas, croissants, pan de banano y un café chorreado. ¿Sale antes del amanecer? Pida una Adventure Box antes de las 20:00 la noche anterior y recójala desde las 6:30.' } },
   { id: 'where', en: { q: 'Where is Hanging Garden Café, and how far is it from the reserve?',
-      a: 'We are in Monteverde, on the road through Santa Elena, Puntarenas, Costa Rica. The Monteverde Cloud Forest Reserve is about 10 minutes away by car, and the centre of Santa Elena is a short walk. Tap "Get directions" in the visit section and Google Maps takes you to the door.' },
+      a: 'We are 50 metres south and 50 metres east of the church in Santa Elena, Monteverde, Puntarenas, Costa Rica. The Monteverde Cloud Forest Reserve is about 10 minutes away by car, and the centre of Santa Elena is a short walk. Tap "Get directions" in the visit section and Google Maps takes you to the door.' },
     es: { q: '¿Dónde queda Hanging Garden Café y a qué distancia está de la reserva?',
-      a: 'Estamos en Monteverde, sobre la carretera que atraviesa Santa Elena, Puntarenas, Costa Rica. La Reserva del Bosque Nuboso Monteverde queda a unos 10 minutos en carro, y el centro de Santa Elena a una caminata corta. Toque "Cómo llegar" en la sección de visita y Google Maps lo lleva a la puerta.' } },
+      a: 'Estamos 50 metros sur y 50 metros este de la Iglesia de Santa Elena, Monteverde, Puntarenas, Costa Rica. La Reserva del Bosque Nuboso Monteverde queda a unos 10 minutos en carro, y el centro de Santa Elena a una caminata corta. Toque "Cómo llegar" en la sección de visita y Google Maps lo lleva a la puerta.' } },
   { id: 'why', en: { q: 'Is Monteverde coffee really that good?',
       a: 'Yes, and there is a reason. Monteverde sits at about 1,400 metres, where cool nights make the coffee cherry ripen slowly and build sugar. That is why a Monteverde cup tastes sweet and clean, with chocolate and citrus notes. Our coffee page explains altitude, harvest and roast in plain words.' },
     es: { q: '¿De verdad es tan bueno el café de Monteverde?',
@@ -445,7 +446,7 @@ const UI = {
     home: 'Home', menu: 'Menu', coffee: 'Our coffee', story: 'Story', visit: 'Plan your visit', guides: 'Monteverde guides',
     inThisPage: 'In this page', updated: 'Updated', readNext: 'Read next', backHome: 'Back to the café',
     seeMenu: 'See the menu', whatsapp: 'Message us on WhatsApp', directions: 'Get directions', review: 'Leave a review on Google',
-    hours: 'Every day 6:00 – 19:00', address: 'Monteverde, on the road through Santa Elena, Puntarenas, Costa Rica',
+    hours: 'Every day 6:00 – 19:00', address: '50 m south and 50 m east of the church, Santa Elena, Monteverde, Puntarenas 60109, Costa Rica',
     footer1: '100% Costa Rican coffee · Locally sourced · Proudly serving coffee from El Trapiche Monteverde',
     footer2: 'Thank you for supporting our community and our forest. Pura vida.',
     faqTitle: 'Questions people ask before they visit', faqKicker: 'Good to know',
@@ -457,7 +458,7 @@ const UI = {
     home: 'Inicio', menu: 'Menú', coffee: 'Nuestro café', story: 'Historia', visit: 'Planee su visita', guides: 'Guías de Monteverde',
     inThisPage: 'En esta página', updated: 'Actualizado', readNext: 'Siga leyendo', backHome: 'Volver al café',
     seeMenu: 'Ver el menú', whatsapp: 'Escríbanos por WhatsApp', directions: 'Cómo llegar', review: 'Deje una reseña en Google',
-    hours: 'Todos los días 6:00 – 19:00', address: 'Monteverde, sobre la carretera que atraviesa Santa Elena, Puntarenas, Costa Rica',
+    hours: 'Todos los días 6:00 – 19:00', address: '50 metros sur y 50 metros este de la Iglesia, Santa Elena, Monteverde, Puntarenas 60109, Costa Rica',
     footer1: 'Café 100 % costarricense · De origen local · Servimos con orgullo café de El Trapiche Monteverde',
     footer2: 'Gracias por apoyar a nuestra comunidad y a nuestro bosque. Pura vida.',
     faqTitle: 'Preguntas que la gente hace antes de visitar', faqKicker: 'Bueno saberlo',
@@ -467,4 +468,4 @@ const UI = {
   }
 };
 
-module.exports = { SITE, CAFE, WHATSAPP, PHONE, MAPS, REVIEW_URL, UPDATED, FAQ, PAGES, UI, IMG };
+module.exports = { SITE, CAFE, WHATSAPP, PHONE, MAPS, REVIEW_URL, UPDATED, STREET, FAQ, PAGES, UI, IMG };

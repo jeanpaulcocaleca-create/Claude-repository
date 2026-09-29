@@ -9,6 +9,7 @@ profile and the site confirm each other, which is what Google rewards.
 | Field | Set it to |
 |---|---|
 | Business name | Hanging Garden Café (exactly this, no "The", no slogans) |
+| Address | 50 metros sur y 50 metros este de la Iglesia, Provincia de Puntarenas, Santa Elena, 60109, Costa Rica (identical on every listing) |
 | Primary category | Coffee shop |
 | Additional categories | Café, Breakfast restaurant, Espresso bar |
 | Phone | +506 6400 6601 |
@@ -55,7 +56,7 @@ Front:
 
 Back:
 
-> Hanging Garden Café · Monteverde · open every day 6:00 – 19:00 · WhatsApp +506 6400 6601 · hanginggardencafe.com
+> Hanging Garden Café · 50 metros sur y 50 metros este de la Iglesia, Santa Elena, Monteverde · open every day 6:00 – 19:00 · WhatsApp +506 6400 6601 · hanginggardencafe.com
 
 ### WhatsApp follow-up (send the same afternoon to guests who ordered an Adventure Box or messaged you)
 
