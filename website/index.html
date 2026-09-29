@@ -153,6 +153,22 @@
   },
   {
    "@type": "Question",
+   "name": "Do you have oat milk, almond milk or lactose free milk?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "We have lactose free milk for any coffee or hot chocolate, just ask. We do not stock oat or almond milk. Every smoothie can be made in water instead of milk."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Do you have decaf?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "No, we do not serve decaf. Our coffee is arabica from Monteverde, which is naturally lower in caffeine than most supermarket blends. For no caffeine at all, try the tea, the Costa Rican hot chocolate or a garden smoothie."
+   }
+  },
+  {
+   "@type": "Question",
    "name": "Do you have gluten free, vegan or vegetarian options?",
    "acceptedAnswer": {
     "@type": "Answer",
@@ -173,6 +189,14 @@
    "acceptedAnswer": {
     "@type": "Answer",
     "text": "Very. The garden gives children room to look at plants and hummingbirds, and the Costa Rican hot chocolate was practically made for them."
+   }
+  },
+  {
+   "@type": "Question",
+   "name": "Is there parking?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Yes, free street parking right by the café. Mornings before 7:00 are the easiest time to find a spot."
    }
   },
   {
@@ -789,9 +813,12 @@ footer .flinks a{margin:0 .2rem}
     <details class="faq"><summary>Is Monteverde cold? What should I wear?</summary><div class="fa"><p>Cool, not cold: about 15 to 22 °C most of the year, with mist and wind. Bring layers and a light rain jacket even on sunny mornings. Then come in for something hot; we have coffee, tea and Costa Rican hot chocolate.</p></div></details>
     <details class="faq"><summary>Do you accept credit cards, US dollars and colones?</summary><div class="fa"><p>Yes to all three. Prices are in colones; we also take dollars at the counter, cards, and SINPE Móvil. Change is given in colones.</p></div></details>
     <details class="faq"><summary>Do you have wifi? Can I work on my laptop?</summary><div class="fa"><p>Yes, there is free wifi for guests; ask at the counter for the password. You are welcome to work a while. Mornings are the quietest and there are some outlets.</p></div></details>
+    <details class="faq"><summary>Do you have oat milk, almond milk or lactose free milk?</summary><div class="fa"><p>We have lactose free milk for any coffee or hot chocolate, just ask. We do not stock oat or almond milk. Every smoothie can be made in water instead of milk.</p></div></details>
+    <details class="faq"><summary>Do you have decaf?</summary><div class="fa"><p>No, we do not serve decaf. Our coffee is arabica from Monteverde, which is naturally lower in caffeine than most supermarket blends. For no caffeine at all, try the tea, the Costa Rican hot chocolate or a garden smoothie.</p></div></details>
     <details class="faq"><summary>Do you have gluten free, vegan or vegetarian options?</summary><div class="fa"><p>Vegetarian, yes: the Monteverde sandwich, most pastries, drinks and smoothies. Vegan: smoothies in water, americano, tea and the sweet cane drink. Our kitchen is small, so we cannot promise zero contact with gluten; tell the team when you order and they will guide you.</p></div></details>
     <details class="faq"><summary>Is the café dog friendly?</summary><div class="fa"><p>Well behaved dogs are welcome at the garden tables, and we will find them a bowl of water.</p></div></details>
     <details class="faq"><summary>Is it good for kids?</summary><div class="fa"><p>Very. The garden gives children room to look at plants and hummingbirds, and the Costa Rican hot chocolate was practically made for them.</p></div></details>
+    <details class="faq"><summary>Is there parking?</summary><div class="fa"><p>Yes, free street parking right by the café. Mornings before 7:00 are the easiest time to find a spot.</p></div></details>
     <details class="faq"><summary>Can I book a table, or bring a group?</summary><div class="fa"><p>No reservation needed, just come in. For groups of eight or more, or a small celebration, message us on WhatsApp a day ahead and we will set the garden for you.</p></div></details>
     <details class="faq"><summary>Do you do takeaway, and can I order on WhatsApp?</summary><div class="fa"><p>Everything on the menu travels well; just ask for it to go. To order ahead, write to us on WhatsApp at +506 6400 6601 and tell us when you will pick it up.</p></div></details>
     <details class="faq"><summary>Are you open on Sundays and holidays?</summary><div class="fa"><p>Yes. We open every day of the week, 6:00 to 19:00, holidays included. If a storm or a special day changes that, we post it on our Google profile first.</p></div></details>
@@ -1096,9 +1123,9 @@ addEventListener('scroll',function(){
     {id:'location', t:['where are you','location','address','find you','get there','directions','how do i get','map','como llego','donde estan','donde queda','direccion','ubicacion','llegar'],
      en:'We are in Monteverde, on the road through Santa Elena, Puntarenas. The map in the Visit section of this page takes you right to our door.',
      es:'Estamos en Monteverde, sobre el camino de Santa Elena, Puntarenas. El mapa en la sección Visit de esta página te lleva hasta la puerta.'},
-    {id:'parking', t:['parking','park my car','parqueo','estacionamiento','aparcar'],
-     en:'There is space to park close by on the road through Santa Elena. On busy mornings, earlier is easier.',
-     es:'Hay espacio para parquear cerca, sobre el camino de Santa Elena. En mañanas ocupadas, entre más temprano mejor.'},
+    {id:'parking', t:['parking','park my car','park the car','parqueo','estacionamiento','aparcar'],
+     en:'Yes, free street parking right by the café. Before 7:00 is the easiest time to find a spot.',
+     es:'Sí, hay parqueo gratis en la calle junto al café. Antes de las 7:00 es la hora más fácil para encontrar campo.'},
     {id:'menu', t:['menu','what do you serve','what do you have','food','eat','breakfast','lunch','que tienen','que venden','comida','desayuno','almuerzo'],
      en:'The full menu is right on this page, in The Menu section: coffee, smoothies, sandwiches, empanadas, pastries and Costa Rican favorites. Ask me about any item and I will tell you its price.',
      es:'El menú completo está aquí mismo en la sección The Menu: café, batidos, sándwiches, empanadas, repostería y favoritos costarricenses. Pregúntame por cualquier platillo y te digo el precio.'},
@@ -1129,6 +1156,12 @@ addEventListener('scroll',function(){
     {id:'pay', t:['pay','payment','card','credit','cash','dollar','dollars','colones','sinpe','pagar','tarjeta','efectivo','dolares','aceptan'],
      en:'We take cash in colones or dollars, cards, and SINPE Móvil. Change is given in colones.',
      es:'Aceptamos efectivo en colones o dólares, tarjetas y SINPE Móvil. El vuelto se da en colones.'},
+    {id:'milk', t:['oat milk','almond milk','lactose free','lactose-free','soy milk','plant milk','leche de avena','leche de almendra','deslactosada','sin lactosa'],
+     en:'We have lactose free milk for any coffee or hot chocolate. We do not stock oat or almond milk; every smoothie can be made in water.',
+     es:'Tenemos leche deslactosada para cualquier café o chocolate caliente. No tenemos leche de avena ni de almendra; todos los batidos se pueden hacer en agua.'},
+    {id:'decaf', t:['decaf','decaffeinated','descafeinado','sin cafeina'],
+     en:'We do not serve decaf. For no caffeine at all, try the tea, the Costa Rican hot chocolate or a garden smoothie.',
+     es:'No servimos descafeinado. Si no quiere nada de cafeína, pruebe el té, el chocolate caliente costarricense o un batido del jardín.'},
     {id:'wifi', t:['wifi','wi-fi','internet','password','clave','contrasena'],
      en:'Yes, there is wifi for guests. Ask at the counter for the password.',
      es:'Sí, hay wifi para visitantes. Pide la clave en el mostrador.'},

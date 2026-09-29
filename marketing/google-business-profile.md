@@ -17,7 +17,7 @@ profile and the site confirm each other, which is what Google rewards.
 | Hours | Monday to Sunday 06:00 – 19:00 |
 | Opening date | the real opening month and year |
 | Description (750 characters max) | see below |
-| Attributes | Serves coffee, Breakfast, Dine-in, Takeaway, Outdoor seating, Free wifi, Good for kids, Dogs allowed, Accepts credit cards, Accepts debit cards, LGBTQ friendly, Wheelchair accessible (only the ones that are true) |
+| Attributes | Serves coffee, Breakfast, Dine-in, Takeaway, Outdoor seating, Free wifi, Good for kids, Dogs allowed, Free street parking, Accepts credit cards, Accepts debit cards (add Wheelchair accessible and LGBTQ friendly if true) |
 | Messaging | turn on WhatsApp / chat so people can write from the profile |
 
 Description to paste:
@@ -91,7 +91,9 @@ Ask each question from your own account and answer it as the owner. These match 
 9. **Do you do takeaway?** Everything travels well; order ahead on WhatsApp +506 6400 6601. / **¿Tienen para llevar?** Todo viaja bien; pida con anticipación por WhatsApp.
 10. **How far are you from the cloud forest reserve?** About 10 minutes by car, on the road through Santa Elena. / **¿A qué distancia están de la reserva?** Unos 10 minutos en carro, sobre la carretera de Santa Elena.
 11. **Can I buy coffee beans to take home?** Ask at the counter; we sell what we brew when we have it. / **¿Venden café en grano?** Pregunte en el mostrador; vendemos lo mismo que servimos cuando lo tenemos.
-12. **Are you open on Sundays and holidays?** Yes, every day 6:00 to 19:00. / **¿Abren domingos y feriados?** Sí, todos los días de 6:00 a 19:00.
+12. **Is there parking?** Yes, free street parking by the café. / **¿Hay parqueo?** Sí, gratis en la calle junto al café.
+13. **Do you have lactose free milk or decaf?** Lactose free milk yes; no oat or almond milk; no decaf. / **¿Tienen leche deslactosada o descafeinado?** Deslactosada sí; sin leche de avena ni almendra; sin descafeinado.
+14. **Are you open on Sundays and holidays?** Yes, every day 6:00 to 19:00. / **¿Abren domingos y feriados?** Sí, todos los días de 6:00 a 19:00.
 
 ## 5. Weekly post (every Monday, 100 to 300 characters, one photo)
 
