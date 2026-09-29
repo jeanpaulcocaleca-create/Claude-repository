@@ -42,8 +42,7 @@ Take them on a phone in daylight, horizontal, no filters. Name the files before 
 
 Target: 15 to 25 new reviews per month. Reply to every one within 48 hours, in the reviewer's language, mentioning something they said.
 
-Get the review link: Business Profile → "Ask for reviews" → copy the short link. Paste it into
-`tools/pages/content.js` as `REVIEW_URL` and run `node tools/pages/build.js`; the website buttons then open the review box directly.
+Review link (already wired into every website button): https://g.page/r/CfHitxq6bJ3AEBM/review
 
 ### Table card / receipt card (print, 9 × 5 cm, QR code to the review link)
 
@@ -62,11 +61,11 @@ Back:
 
 English:
 
-> Hi! Thank you for visiting Hanging Garden Café today. If you have 30 seconds, a quick review on Google helps us more than you can imagine: [review link]. Pura vida, and safe travels.
+> Hi! Thank you for visiting Hanging Garden Café today. If you have 30 seconds, a quick review on Google helps us more than you can imagine: https://g.page/r/CfHitxq6bJ3AEBM/review. Pura vida, and safe travels.
 
 Español:
 
-> ¡Hola! Gracias por visitar Hanging Garden Café hoy. Si tiene 30 segundos, una reseña rápida en Google nos ayuda más de lo que imagina: [enlace de reseña]. Pura vida y buen viaje.
+> ¡Hola! Gracias por visitar Hanging Garden Café hoy. Si tiene 30 segundos, una reseña rápida en Google nos ayuda más de lo que imagina: https://g.page/r/CfHitxq6bJ3AEBM/review. Pura vida y buen viaje.
 
 ### Reply templates
 

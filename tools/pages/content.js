@@ -12,9 +12,8 @@ const CAFE = 'Hanging Garden Café';
 const WHATSAPP = 'https://wa.me/50664006601';
 const PHONE = '+506 6400 6601';
 const MAPS = 'https://www.google.com/maps/search/Hanging+Garden+Cafe+Monteverde';
-/* Paste the short "write a review" link from the Google Business Profile here when you have it
-   (Business Profile → Ask for reviews). Until then the button opens the café on Google Maps. */
-const REVIEW_URL = 'https://www.google.com/maps/search/Hanging+Garden+Cafe+Monteverde';
+/* The short "write a review" link from the Google Business Profile (Business Profile → Ask for reviews). */
+const REVIEW_URL = 'https://g.page/r/CfHitxq6bJ3AEBM/review';
 const UPDATED = '2026-09-29';
 
 /* ------------------------------------------------------------------ */
