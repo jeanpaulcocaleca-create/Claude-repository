@@ -95,11 +95,16 @@ end $$;
 -- 6) Manager: add or edit a shift ----------------------------------------------
 create or replace function public.manager_save_shift(p_manager_id uuid, p_manager_pin text,
     p_entry_id uuid, p_staff_id uuid, p_clock_in timestamptz, p_clock_out timestamptz, p_reason text)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare v record; old public.time_entries; nid uuid; who text;
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare v record; old public.time_entries; nid uuid; who text; msid uuid; msname text;
 begin
-  select * into v from public._verify_pin(p_manager_id, p_manager_pin, true);
-  if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
+  if public.is_owner() and p_manager_id is null and coalesce(p_manager_pin, '') = '' then
+    msid := null; msname := public._owner_label();
+  else
+    select * into v from public._verify_pin(p_manager_id, p_manager_pin, true);
+    if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
+    msid := v.sid; msname := v.sname;
+  end if;
   if p_clock_in is null then return jsonb_build_object('ok', false, 'error', 'missing_in'); end if;
   if p_clock_out is not null and p_clock_out <= p_clock_in then
     return jsonb_build_object('ok', false, 'error', 'bad_range'); end if;
@@ -111,7 +116,7 @@ begin
     nid := p_entry_id;
     select name into who from public.staff where id = old.staff_id;
     insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
-      values ('shift_edit', v.sid, v.sname, nid::text, trim(p_reason),
+      values ('shift_edit', msid, msname, nid::text, trim(p_reason),
         jsonb_build_object('staff_id', old.staff_id, 'staff_name', who,
           'before', jsonb_build_object('clock_in', old.clock_in, 'clock_out', old.clock_out),
           'after',  jsonb_build_object('clock_in', p_clock_in, 'clock_out', p_clock_out)));
@@ -121,28 +126,32 @@ begin
       values (p_staff_id, p_clock_in, p_clock_out) returning id into nid;
     select name into who from public.staff where id = p_staff_id;
     insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
-      values ('shift_add', v.sid, v.sname, nid::text, trim(p_reason),
+      values ('shift_add', msid, msname, nid::text, trim(p_reason),
         jsonb_build_object('staff_id', p_staff_id, 'staff_name', who,
           'after', jsonb_build_object('clock_in', p_clock_in, 'clock_out', p_clock_out)));
   end if;
   return jsonb_build_object('ok', true, 'id', nid);
 end $$;
 
--- 7) Manager: delete a shift ---------------------------------------------------
 create or replace function public.manager_delete_shift(p_manager_id uuid, p_manager_pin text,
     p_entry_id uuid, p_reason text)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare v record; old public.time_entries; who text;
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare v record; old public.time_entries; who text; msid uuid; msname text;
 begin
-  select * into v from public._verify_pin(p_manager_id, p_manager_pin, true);
-  if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
+  if public.is_owner() and p_manager_id is null and coalesce(p_manager_pin, '') = '' then
+    msid := null; msname := public._owner_label();
+  else
+    select * into v from public._verify_pin(p_manager_id, p_manager_pin, true);
+    if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
+    msid := v.sid; msname := v.sname;
+  end if;
   if coalesce(trim(p_reason), '') = '' then return jsonb_build_object('ok', false, 'error', 'missing_reason'); end if;
   select * into old from public.time_entries where id = p_entry_id;
   if old.id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   select name into who from public.staff where id = old.staff_id;
   delete from public.time_entries where id = p_entry_id;
   insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
-    values ('shift_delete', v.sid, v.sname, p_entry_id::text, trim(p_reason),
+    values ('shift_delete', msid, msname, p_entry_id::text, trim(p_reason),
       jsonb_build_object('staff_id', old.staff_id, 'staff_name', who,
         'before', jsonb_build_object('clock_in', old.clock_in, 'clock_out', old.clock_out)));
   return jsonb_build_object('ok', true);
@@ -152,23 +161,54 @@ end $$;
 -- While no active manager exists yet, the first person saved becomes the manager
 -- with no approval needed (one-time setup). After that, every change needs a
 -- manager's PIN, and the last active manager can never be removed or demoted.
+create or replace function public._owner_label()
+returns text language plpgsql stable security definer set search_path = public as $$
+declare em text;
+begin
+  begin
+    select email into em from auth.users where id = auth.uid();
+  exception when others then em := null;
+  end;
+  return 'owner login' || coalesce(' · ' || em, '');
+end $$;
+revoke all on function public._owner_label() from public, anon, authenticated;
+
+-- PINs anyone would guess: one repeated digit, runs (1234, 4321, 7890), repeated pairs (1212, 1122),
+-- keypad lines (2580, 1470, 3690...), years (1900-2030) and the usual favourites.
+create or replace function public._weak_pin(p text)
+returns boolean language sql immutable as $$
+  select p ~ '^(\d)\1+$'
+      or '01234567890123456789' like '%' || p || '%'
+      or '98765432109876543210' like '%' || p || '%'
+      or p ~ '^(\d\d)\1+$'
+      or p ~ '^(\d)\1(\d)\2$'
+      or p in ('2580','0852','1470','0741','3690','0963','1357','7531','2468','8642','1004','2000','2001','6969','1010','1020','1230','0007','1313','4545','1122','1212','0101','2020','2022','2023','2024','2025','2026')
+      or (length(p) = 4 and p::int between 1900 and 2030);
+$$;
+grant execute on function public._weak_pin(text) to authenticated;
+
 create or replace function public.manager_save_staff(p_manager_id uuid, p_manager_pin text,
     p_id uuid, p_name text, p_pin text, p_active boolean, p_role text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare v record; bootstrap boolean; nid uuid; role_final text; old public.staff;
         managers_left int; msid uuid; msname text;
 begin
+  if not public.is_owner() then return jsonb_build_object('ok', false, 'error', 'owner_only'); end if;
   bootstrap := not exists (select 1 from public.staff where active and role = 'manager');
   if bootstrap then
     msid := null; msname := 'first setup';
+  elsif p_manager_id is null and coalesce(p_manager_pin, '') = '' then
+    msid := null; msname := public._owner_label();                      -- the owner needs nobody's approval
   else
     select * into v from public._verify_pin(p_manager_id, p_manager_pin, true);
     if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
     msid := v.sid; msname := v.sname;
   end if;
   if coalesce(trim(p_name), '') = '' then return jsonb_build_object('ok', false, 'error', 'missing_name'); end if;
-  if p_pin is not null and p_pin <> '' and p_pin !~ '^[0-9]{4,8}$' then
-    return jsonb_build_object('ok', false, 'error', 'bad_pin_format'); end if;
+  if p_pin is not null and p_pin <> '' then
+    if p_pin !~ '^[0-9]{4,8}$' then return jsonb_build_object('ok', false, 'error', 'bad_pin_format'); end if;
+    if public._weak_pin(p_pin) then return jsonb_build_object('ok', false, 'error', 'weak_pin'); end if;
+  end if;
   role_final := case when bootstrap then 'manager' when p_role = 'manager' then 'manager' else 'staff' end;
 
   if p_id is null then
@@ -179,7 +219,6 @@ begin
   else
     select * into old from public.staff where id = p_id;
     if old.id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
-    -- never remove or demote the last active manager
     if old.role = 'manager' and old.active and (role_final <> 'manager' or not coalesce(p_active, true)) then
       select count(*) into managers_left from public.staff
         where active and role = 'manager' and id <> old.id;
@@ -191,7 +230,8 @@ begin
       failed_pins = case when p_pin is not null and p_pin <> '' then 0 else failed_pins end,
       locked_until = case when p_pin is not null and p_pin <> '' then null else locked_until end,
       active = coalesce(p_active, active),
-      role = role_final
+      role = role_final,
+      can_see_sales = case when role_final = 'manager' then can_see_sales else false end
       where id = p_id;
     nid := p_id;
   end if;

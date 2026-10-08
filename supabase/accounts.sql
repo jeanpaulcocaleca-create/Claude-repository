@@ -106,8 +106,8 @@ revoke all on public.sales_unlocks from anon, authenticated;
 
 create or replace function public.sales_open()
 returns boolean language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.sales_unlocks
-                 where user_id = auth.uid() and expires_at > now());
+  select public.is_owner()
+      or exists (select 1 from public.sales_unlocks where user_id = auth.uid() and expires_at > now());
 $$;
 revoke all on function public.sales_open() from public, anon;
 grant execute on function public.sales_open() to authenticated;
@@ -140,7 +140,8 @@ $$;
 
 create or replace function public.sales_unlocked()
 returns timestamptz language sql stable security definer set search_path = public as $$
-  select expires_at from public.sales_unlocks where user_id = auth.uid() and expires_at > now();
+  select case when public.is_owner() then now() + interval '10 years'
+              else (select expires_at from public.sales_unlocks where user_id = auth.uid() and expires_at > now()) end;
 $$;
 
 -- Owner switches "may unlock sales" on or off for a manager.
@@ -186,6 +187,32 @@ revoke all on function public.hours_report(uuid, text, timestamptz, timestamptz)
 grant execute on function public.hours_report(uuid, text, timestamptz, timestamptz) to authenticated;
 
 -- 5) Team changes: owner login only ------------------------------------------
+create or replace function public._owner_label()
+returns text language plpgsql stable security definer set search_path = public as $$
+declare em text;
+begin
+  begin
+    select email into em from auth.users where id = auth.uid();
+  exception when others then em := null;
+  end;
+  return 'owner login' || coalesce(' · ' || em, '');
+end $$;
+revoke all on function public._owner_label() from public, anon, authenticated;
+
+-- PINs anyone would guess: one repeated digit, runs (1234, 4321, 7890), repeated pairs (1212, 1122),
+-- keypad lines (2580, 1470, 3690...), years (1900-2030) and the usual favourites.
+create or replace function public._weak_pin(p text)
+returns boolean language sql immutable as $$
+  select p ~ '^(\d)\1+$'
+      or '01234567890123456789' like '%' || p || '%'
+      or '98765432109876543210' like '%' || p || '%'
+      or p ~ '^(\d\d)\1+$'
+      or p ~ '^(\d)\1(\d)\2$'
+      or p in ('2580','0852','1470','0741','3690','0963','1357','7531','2468','8642','1004','2000','2001','6969','1010','1020','1230','0007','1313','4545','1122','1212','0101','2020','2022','2023','2024','2025','2026')
+      or (length(p) = 4 and p::int between 1900 and 2030);
+$$;
+grant execute on function public._weak_pin(text) to authenticated;
+
 create or replace function public.manager_save_staff(p_manager_id uuid, p_manager_pin text,
     p_id uuid, p_name text, p_pin text, p_active boolean, p_role text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
@@ -196,14 +223,18 @@ begin
   bootstrap := not exists (select 1 from public.staff where active and role = 'manager');
   if bootstrap then
     msid := null; msname := 'first setup';
+  elsif p_manager_id is null and coalesce(p_manager_pin, '') = '' then
+    msid := null; msname := public._owner_label();                      -- the owner needs nobody's approval
   else
     select * into v from public._verify_pin(p_manager_id, p_manager_pin, true);
     if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
     msid := v.sid; msname := v.sname;
   end if;
   if coalesce(trim(p_name), '') = '' then return jsonb_build_object('ok', false, 'error', 'missing_name'); end if;
-  if p_pin is not null and p_pin <> '' and p_pin !~ '^[0-9]{4,8}$' then
-    return jsonb_build_object('ok', false, 'error', 'bad_pin_format'); end if;
+  if p_pin is not null and p_pin <> '' then
+    if p_pin !~ '^[0-9]{4,8}$' then return jsonb_build_object('ok', false, 'error', 'bad_pin_format'); end if;
+    if public._weak_pin(p_pin) then return jsonb_build_object('ok', false, 'error', 'weak_pin'); end if;
+  end if;
   role_final := case when bootstrap then 'manager' when p_role = 'manager' then 'manager' else 'staff' end;
 
   if p_id is null then

@@ -113,7 +113,7 @@ header.top h1{font-size:1.4rem;margin-right:auto}
 .empty{color:var(--sec);text-align:center;padding:1.6rem 0}
 /* PIN keypad */
 .pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.8rem}
-.pinpad button{min-height:58px;font-size:1.4rem;font-family:'Spline Sans Mono',monospace;background:#fff;color:var(--ink);border:1.5px solid var(--muted)}
+.pinpad button{min-height:58px;font-size:1.4rem;font-family:'Spline Sans Mono',monospace;background:#fff;color:var(--ink);border:1.5px solid var(--muted);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .pinpad button:hover{background:var(--canvas)}
 .pinpad button.del{font-size:1.1rem}
 .pinpad button.ok{background:var(--accent);color:#fff;border-color:var(--accent);font-family:'Figtree',system-ui,sans-serif;font-size:1.05rem}
@@ -237,10 +237,10 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="pinInput">PIN</label>
       <input id="pinInput" class="pinbig" type="password" inputmode="none" autocomplete="off" maxlength="8" aria-describedby="pinSub">
       <div class="pinpad" id="pinPad" aria-label="Keypad">
-        <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
-        <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
-        <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
-        <button type="button" class="del" data-k="del" aria-label="Delete the last digit">⌫</button><button type="button" data-k="0">0</button><button type="submit" class="ok" id="pinGo">OK</button>
+        <button type="button" tabindex="-1" data-k="1">1</button><button type="button" tabindex="-1" data-k="2">2</button><button type="button" tabindex="-1" data-k="3">3</button>
+        <button type="button" tabindex="-1" data-k="4">4</button><button type="button" tabindex="-1" data-k="5">5</button><button type="button" tabindex="-1" data-k="6">6</button>
+        <button type="button" tabindex="-1" data-k="7">7</button><button type="button" tabindex="-1" data-k="8">8</button><button type="button" tabindex="-1" data-k="9">9</button>
+        <button type="button" class="del" data-k="del" aria-label="Delete the last digit">⌫</button><button type="button" tabindex="-1" data-k="0">0</button><button type="submit" class="ok" id="pinGo" data-no-translate>OK</button>
       </div>
       <p class="err" id="pinErr"></p>
       <div class="row">
@@ -609,6 +609,7 @@ function openPin(st){
   document.getElementById('pinInput').focus();
 }
 document.getElementById('pinCancel').addEventListener('click', function(){ document.getElementById('pinModal').hidden = true; });
+document.getElementById('pinPad').addEventListener('mousedown', function(e){ if (e.target.closest('button')) e.preventDefault(); });   /* keys never steal focus from the PIN box */
 document.getElementById('pinPad').addEventListener('click', function(e){
   var b = e.target.closest('button[data-k]'); if (!b) return;
   var inp = document.getElementById('pinInput');
@@ -912,9 +913,9 @@ function renderTeam(){
   if (!tn){ tn = document.createElement('p'); tn.id = 'teamNote'; tn.className = 'hint'; tn.style.margin = '.6rem 0 0'; tn.textContent = 'Team changes are made from the owner login.'; root.parentNode.appendChild(tn); }
   tn.hidden = !isCafeLogin();
 }
-var staffTarget = null;
+var staffTarget = null, staffPinOnly = false;
 function openStaffEditor(st, pinOnly){
-  staffTarget = st;
+  staffTarget = st; staffPinOnly = !!(st && pinOnly);
   document.getElementById('staffTitle').textContent = st ? (pinOnly ? 'New PIN · ' : 'Edit · ') + st.name : 'Add person';
   document.getElementById('stName').value = st ? st.name : '';
   document.getElementById('stPin').value = '';
@@ -961,6 +962,11 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     document.getElementById('staffErr').textContent = 'A new person needs a PIN.';
     return;
   }
+  if (staffPinOnly && !pin){
+    document.getElementById('staffErr').textContent = 'Type the new PIN.';
+    document.getElementById('stPin').focus();
+    return;
+  }
   if (pin && pin !== document.getElementById('stPin2').value.trim()){
     document.getElementById('staffErr').textContent = 'The two PINs do not match.';
     document.getElementById('stPin2').focus();
@@ -988,7 +994,8 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     if (sa.error || !sa.data || !sa.data.ok) toast('Saved, but the sales access did not change. Try again from the owner login.');
   }
   document.getElementById('staffModal').hidden = true;
-  toast(name + (r.data.first_setup ? ' is now the manager' : ' saved')); loadHours();
+  toast(name + (r.data.first_setup ? ' is now the manager' : ' saved'));
+  if (curTab === 'clock') loadClock(); else loadHours();
 });
 
 /* ---------- CSV ---------- */

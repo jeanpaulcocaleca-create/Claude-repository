@@ -324,6 +324,8 @@
     'To clock in, each person taps their name and types their PIN on the keypad.': 'Para marcar, cada persona toca su nombre y escribe su PIN en el teclado.',
     'Forgot a PIN later? The owner login changes any PIN from Hours & team, no other PIN needed.': '¿Se olvida un PIN después? El ingreso del propietario cambia cualquier PIN desde Horas y equipo, sin pedir otro PIN.',
     'Add the first manager': 'Agregar al primer encargado', 'Keypad': 'Teclado', 'Delete the last digit': 'Borrar el último dígito',
+    'Type the new PIN.': 'Escriba el PIN nuevo.', '{n} clocked in at {t}': '{n} marcó entrada a las {t}', '{n} clocked out · {t} this shift': '{n} marcó salida · {t} en este turno',
+    '{n} is now the manager': '{n} ahora es el encargado', '{n} saved': '{n} guardado',
     'Type the PIN again': 'Escriba el PIN otra vez', 'Numbers only. Not 1234, 0000 or a birthday everyone knows.': 'Solo números. No 1234, 0000 ni un cumpleaños que todos conozcan.',
     'Manager / GM (approves changes with their PIN)': 'Encargado / GM (aprueba cambios con su PIN)',
     'Owner login: saved directly and written to the approvals log.': 'Ingreso del propietario: se guarda directo y queda en la bitácora de aprobaciones.',
