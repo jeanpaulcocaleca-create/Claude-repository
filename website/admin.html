@@ -84,6 +84,8 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 @media print{
   body{background:#fff}
   body > *{display:none !important}
+  .wrap{display:block !important}                 /* #cards lives inside .wrap: show the wrapper, hide its other children */
+  .wrap > *:not(#cards){display:none !important}
   #cards{display:grid !important;grid-template-columns:1fr 1fr;gap:10mm;padding:8mm}
   .qcard{border:1.5px solid #1E4B33;border-radius:6mm;padding:8mm 6mm;text-align:center;page-break-inside:avoid;color:#26392C;font-family:'Figtree',system-ui,sans-serif}
   .qcard img.badge{width:18mm;height:18mm}

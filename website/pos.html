@@ -145,6 +145,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 #receipt .rsub{text-align:center;font-size:9pt;margin-top:2pt}
 #receipt .rrule{border-top:1px dashed #000;margin:6pt 0}
 #receipt .rrow{display:flex;justify-content:space-between;gap:6pt;font-size:10pt;margin:2pt 0}
+#receipt .rrow span:first-child{min-width:0;overflow-wrap:anywhere}
 #receipt .rrow span:last-child{white-space:nowrap}
 #receipt .rtot{display:flex;justify-content:space-between;font-weight:700;font-size:11pt;margin-top:2pt}
 #receipt .rfoot{text-align:center;margin-top:10pt;font-size:9pt}
@@ -560,7 +561,7 @@ function recordSale(number){
     status: needsKitchen ? 'preparing' : (number ? 'ready' : 'done'),
     items: ticket.map(function(l){return {item_name:l.name, price_crc:l.price, qty:l.qty}})
   };
-  lastOrder = {at: new Date(), items: ticket.slice(), total: total, label: pendingPay.label, number: number};
+  lastOrder = {at: new Date(), items: ticket.slice(), total: total, label: pendingPay.label, method: pendingPay.method, number: number};
   document.getElementById('printBtn').disabled = false;
   queue.push(order); saveQueue();
   ticket = []; renderTicket();
@@ -580,6 +581,9 @@ function printReceipt(){
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(go, go); else go();
 }
 function esc(s){ var e = document.createElement('span'); e.textContent = s; return e.innerHTML; }
+/* fixed bilingual labels on paper, whatever language the screen is in; plain spaces so the mono font keeps the digits together */
+var PAY_RECEIPT = {cash_crc: 'Efectivo ₡ · Cash', cash_usd: 'Efectivo $ · Cash USD', card: 'Tarjeta · Card', sinpe: 'SINPE Móvil', other: 'Otro · Other'};
+function rfmt(n){ return fmt(n).replace(/[\u202f\u00a0]/g, ' '); }
 document.getElementById('printBtn').addEventListener('click', function(){
   if (!lastOrder) return;
   var d = lastOrder.at;
@@ -592,13 +596,13 @@ document.getElementById('printBtn').addEventListener('click', function(){
     (lastOrder.number ? '<div class="rnum"><small>YOUR NUMBER · SU NÚMERO</small>' + lastOrder.number + '</div>' : '') +
     '<div class="rrule"></div>';
   lastOrder.items.forEach(function(l){
-    html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + fmt(l.price * l.qty) + '</span></div>';
+    html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + rfmt(l.price * l.qty) + '</span></div>';
   });
   html +=
     '<div class="rrule"></div>' +
-    '<div class="rtot"><span>TOTAL</span><span>' + fmt(lastOrder.total) + '</span></div>' +
-    '<div class="rrow"><span>Includes IVA 13%</span><span>' + fmt(Math.round(lastOrder.total - lastOrder.total/1.13)) + '</span></div>' +
-    '<div class="rrow"><span>Paid by</span><span>' + esc(lastOrder.label) + '</span></div>' +
+    '<div class="rtot"><span>TOTAL</span><span>' + rfmt(lastOrder.total) + '</span></div>' +
+    '<div class="rrow"><span>Incluye IVA 13% · Includes VAT</span><span>' + rfmt(Math.round(lastOrder.total - lastOrder.total/1.13)) + '</span></div>' +
+    '<div class="rrow"><span>Pago · Paid by</span><span>' + esc(PAY_RECEIPT[lastOrder.method] || lastOrder.label) + '</span></div>' +
     '<div class="rfoot">¡Pura vida! · Gracias</div>';
   document.getElementById('receipt').innerHTML = html;
   printReceipt();
