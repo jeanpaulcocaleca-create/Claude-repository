@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -174,7 +175,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     </a>
   </div>
 
-  <h2 class="section">Owner login</h2>
+  <h2 class="section" id="secHead">Owner login</h2>
   <div class="sec" id="secCard">
     <div class="secrow"><span>Signed in as <b id="secEmail"></b></span><button class="ghost small" id="outAllBtn">Sign out everywhere</button></div>
     <div class="secrow"><span>Phone code (2FA): <b id="secCode">checking</b></span><button class="ghost small" id="codeBtn" hidden>Turn on</button></div>
@@ -198,7 +199,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_ACCESS ? HG_ACCESS.options() : undefined);
 
 /* ---------- who is signed in: owner login or café login ---------- */
 var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
@@ -251,10 +252,21 @@ async function refreshAuth(){
   if (needCode){ document.getElementById('codeIn').focus(); return; }
   if (!authed) return;
   await whoami();
-  if (isCafeLogin()){ showCafeView(); return; }
+  if (ACCOUNT === 'none'){ showCafeView(); return; }
+  /* owner areas open with the PIN of an owner, GM or manager on this device (supabase/manager-mode.sql) */
+  var st = await HG_ACCESS.load(db);
+  if (st.missing){ if (isCafeLogin()){ showCafeView(); return; } }
+  else if (!st.level){
+    document.getElementById('appView').hidden = true;
+    HG_ACCESS.gate(db, {title: 'Home · owners and managers'}).then(refreshAuth);
+    return;
+  } else HG_ACCESS.pill(db);
+  var ownerLogin = !isCafeLogin();
+  document.getElementById('secHead').hidden = !ownerLogin;
+  document.getElementById('secCard').hidden = !ownerLogin;
   armIdle();
   document.getElementById('secEmail').textContent = (s.data.session.user && s.data.session.user.email) || '';
-  loadStats(); loadSecurity();
+  loadStats(); if (ownerLogin) loadSecurity();
 }
 document.getElementById('codeForm').addEventListener('submit', async function(e){
   e.preventDefault();

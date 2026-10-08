@@ -162,12 +162,15 @@ async function keepAwake(){
 document.addEventListener('visibilitychange', function(){ if (!document.hidden) keepAwake(); });
 
 /* ---------- tickets ---------- */
+var withStation = true;    /* false until supabase/pos-stations.sql has been run */
 async function poll(){
   var start = new Date(); start.setHours(0,0,0,0);
-  var r = await db.from('orders')
-    .select('id,created_at,accepted_at,ready_at,status,pickup_number,source,notes,guest_name,needs_kitchen,voided_at,rooms(number),order_items(item_name,qty)')
+  var q = function(cols){ return db.from('orders').select(cols)
     .in('status', ['preparing','ready']).eq('needs_kitchen', true).is('voided_at', null)
-    .gte('created_at', start.toISOString()).order('created_at');
+    .gte('created_at', start.toISOString()).order('created_at'); };
+  var cols = 'id,created_at,accepted_at,ready_at,status,pickup_number,source,notes,guest_name,needs_kitchen,voided_at,rooms(number),order_items(item_name,qty)';
+  var r = await q(withStation ? cols + ',station' : cols);
+  if (r.error && withStation && /station/.test(r.error.message || '')){ withStation = false; r = await q(cols); }
   if (r.error){
     if (/needs_kitchen|status|schema cache|does not exist/i.test(r.error.message || '')){
       document.getElementById('appView').hidden = true;
@@ -182,7 +185,9 @@ async function poll(){
 function label(o){
   if (o.source === 'room') return {big: 'Room ' + (o.rooms ? o.rooms.number : '?'), room: true,
     src: (o.guest_name ? o.guest_name + ' · ' : '') + 'ordered from the room' + (o.pickup_number ? ' · #' + o.pickup_number : '')};
-  return {big: o.pickup_number ? '#' + o.pickup_number : 'No number', room: false, src: 'Front counter'};
+  /* the name or table typed at the POS, and the device that took the order (front register, iPad) */
+  return {big: o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number'), room: false,
+    src: (o.pickup_number && o.guest_name ? o.guest_name + ' · ' : '') + (o.station || 'Front counter')};
 }
 function mmss(ms){
   var s = Math.max(0, Math.floor(ms/1000));

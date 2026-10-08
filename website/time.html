@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -223,7 +224,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     </div>
     <div class="card" id="logCard">
       <h2>Approvals log</h2>
-      <p class="hint" style="margin:0 0 .6rem">Every shift change, team change and voided order, with who approved it and why.</p>
+      <p class="hint" style="margin:0 0 .6rem">Every shift change, team change, voided order and discount, with who approved it and why.</p>
       <div class="log" id="logBody"></div>
     </div>
   </section>
@@ -314,6 +315,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <select id="stRole">
         <option value="staff">Team member (clock in and out)</option>
         <option value="manager">Manager / GM (approves changes with their PIN)</option>
+        <option value="owner">Owner (full access)</option>
       </select>
       <div class="checkline" id="stActiveLine">
         <input id="stActive" type="checkbox" checked>
@@ -346,7 +348,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_ACCESS ? HG_ACCESS.options() : undefined);
 
 /* ---------- who is signed in: owner login or café login ---------- */
 var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
@@ -427,7 +429,9 @@ async function refreshAuth(){
   if (!authed) return;
   await whoami();
   trimNav(); armIdle();
-  document.getElementById('logCard').hidden = isCafeLogin();
+  ACCESS = await HG_ACCESS.load(db);
+  if (ACCESS.level) HG_ACCESS.pill(db);
+  document.getElementById('logCard').hidden = !canManage();
   document.getElementById('setupView').hidden = true; loadClock();
 }
 document.getElementById('codeForm').addEventListener('submit', async function(e){
@@ -478,6 +482,7 @@ var ERR = {
   bad_pin_format: 'The PIN must be 4 to 8 digits, numbers only.',
   last_manager: 'This is the only active manager. Make someone else a manager first.',
   not_found: 'That record no longer exists. Reload the page.',
+  owner_role_only: 'Only an owner can add or change an owner.',
   already_voided: 'That order was already voided.',
   weak_pin: 'That PIN is too easy to guess (like 1234 or 0000). Pick another.',
   missing_staff: 'Pick the person.',
@@ -500,7 +505,15 @@ function errMsg(r){
   var code = r.data && r.data.error;
   return ERR[code] || 'Could not save. Try again.';
 }
-function managers(){ return staffList.filter(function(s){ return s.active && s.role === 'manager'; }); }
+function managers(){ return staffList.filter(function(s){ return s.active && (s.role === 'manager' || s.role === 'owner'); }); }
+/* manager mode (supabase/manager-mode.sql): Hours & team open with the PIN of an owner, GM or manager.
+   Before that script runs, the owner login decides, as before. */
+var ACCESS = {missing: true};
+function newAccess(){ return !!ACCESS && !ACCESS.missing && !ACCESS.error; }
+function canManage(){ return newAccess() ? !!ACCESS.level : !isCafeLogin(); }
+function isOwnerLevel(){ return newAccess() ? ACCESS.level === 'owner' : !isCafeLogin(); }
+function ownersExist(){ return staffList.some(function(s){ return s.active && s.role === 'owner'; }); }
+function mayTouchOwners(){ return isOwnerLevel() || managers().length === 0 || (ACCOUNT === 'owner' && !ownersExist()); }
 function fillManagers(sel){
   sel.textContent = '';
   var ms = managers();
@@ -558,7 +571,7 @@ function workedTodayMs(staffId){
 function renderClock(){
   var g = document.getElementById('staffGrid');
   g.textContent = '';
-  document.getElementById('startCard').hidden = isCafeLogin() || managers().length > 0;
+  document.getElementById('startCard').hidden = managers().length > 0 || !(canManage() || ACCOUNT === 'owner');
   var active = staffList.filter(function(s){ return s.active; });
   if (!active.length){
     g.innerHTML = '<p class="empty" style="grid-column:1/-1">No one on the team yet.<br>Go to <strong>Hours &amp; team</strong> and tap <strong>+ Add person</strong>.</p>';
@@ -671,7 +684,7 @@ async function loadHours(){
   if (!(await loadStaff())) return;
   var w = hoursWindow();
   var r;
-  if (isCafeLogin()){
+  if (!canManage()){
     if (!hoursAuth || hoursAuth.until < Date.now()){ hoursEntries = []; renderHours(); renderTeam(); openHoursPin(''); return; }
     r = await db.rpc('hours_report', {p_staff_id: hoursAuth.id, p_pin: hoursAuth.pin,
                                       p_from: w.start.toISOString(), p_to: w.end.toISOString()});
@@ -698,7 +711,7 @@ async function loadHours(){
 function openHoursPin(err){
   var sel = document.getElementById('hpWho'); sel.textContent = '';
   staffList.filter(function(x){ return x.active; }).forEach(function(x){
-    var o = document.createElement('option'); o.value = x.id; o.textContent = x.name + (x.role === 'manager' ? ' (manager)' : ''); sel.appendChild(o);
+    var o = document.createElement('option'); o.value = x.id; o.textContent = x.name + (x.role === 'owner' ? ' (owner)' : x.role === 'manager' ? ' (manager)' : ''); sel.appendChild(o);
   });
   document.getElementById('hpErr').textContent = err || '';
   document.getElementById('hpPin').value = '';
@@ -706,9 +719,19 @@ function openHoursPin(err){
   document.getElementById('hpPin').focus();
 }
 document.getElementById('hpCancel').addEventListener('click', function(){ document.getElementById('hoursPinModal').hidden = true; switchTab('clock'); });
-document.getElementById('hoursPinForm').addEventListener('submit', function(e){
+document.getElementById('hoursPinForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  hoursAuth = {id: document.getElementById('hpWho').value, pin: document.getElementById('hpPin').value.trim(), until: Date.now() + 15 * 60000};
+  var who = document.getElementById('hpWho').value, pin = document.getElementById('hpPin').value.trim();
+  var person = staffList.find(function(s){ return s.id === who; });
+  if (newAccess() && person && (person.role === 'manager' || person.role === 'owner')){
+    var res = await HG_ACCESS.unlock(db, who, pin);
+    if (!res.ok){ document.getElementById('hpErr').textContent = res.message; document.getElementById('hpPin').value = ''; return; }
+    ACCESS = res.state; HG_ACCESS.pill(db);
+    document.getElementById('logCard').hidden = !canManage();
+    document.getElementById('hoursPinModal').hidden = true;
+    loadHours(); return;
+  }
+  hoursAuth = {id: who, pin: pin, until: Date.now() + 15 * 60000};
   document.getElementById('hoursPinModal').hidden = true;
   loadHours();
 });
@@ -716,7 +739,9 @@ document.getElementById('hoursPinForm').addEventListener('submit', function(e){
 /* ---------- approvals log ---------- */
 var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_delete:'Shift deleted',
                     staff_save:'Team updated', order_void:'Order voided', menu_change:'Menu changed',
-                    sales_view:'Sales opened', sales_access:'Sales access changed'};
+                    sales_view:'Sales opened', sales_access:'Sales access changed', access_open:'Owner areas opened',
+                    discount_approved:'Discount approved', register_open:'Register opened', register_close:'Register closed',
+                    register_reclose:'Register closed again', inventory_view:'Inventory opened', unpaid_cancelled:'Unpaid order cancelled'};
 async function loadLog(){
   var root = document.getElementById('logBody');
   var r = await db.from('audit_log').select('at,action,manager_name,summary,details')
@@ -735,7 +760,11 @@ async function loadLog(){
     if (e.action === 'order_void' && e.details){
       who = ' · ' + fmtMoney(e.details.total_crc) + (e.details.items ? ' · ' + e.details.items : '');
     }
-    what.appendChild(document.createTextNode(who + ' · approved by ' + (e.manager_name || '?')));
+    if (e.action === 'discount_approved' && e.details && e.details.discount_crc != null) who = ' · ' + fmtMoney(e.details.discount_crc);
+    if (e.action === 'unpaid_cancelled'){
+      /* no approval needed (nothing was charged): show the amount and the device */
+      what.appendChild(document.createTextNode(' · ' + fmtMoney((e.details && e.details.total_crc) || 0) + ' · ' + (e.manager_name || '')));
+    } else what.appendChild(document.createTextNode(who + ' · approved by ' + (e.manager_name || '?')));
     var why = document.createElement('div'); why.className = 'why'; why.textContent = e.summary || '';
     what.appendChild(why);
     row.appendChild(when); row.appendChild(what);
@@ -893,12 +922,12 @@ function renderTeam(){
     var pill = document.createElement('span'); pill.className = 'pill ' + (st.active ? 'on' : 'off');
     pill.textContent = st.active ? 'active' : 'not active';
     row.appendChild(nm); row.appendChild(pill);
-    if (st.role === 'manager'){
-      var mp = document.createElement('span'); mp.className = 'pill mgr'; mp.textContent = 'manager';
+    if (st.role === 'manager' || st.role === 'owner'){
+      var mp = document.createElement('span'); mp.className = 'pill mgr'; mp.textContent = st.role === 'owner' ? 'owner' : 'manager';
       row.appendChild(mp);
-      if (st.can_see_sales){ var sp = document.createElement('span'); sp.className = 'pill'; sp.textContent = 'sales'; row.appendChild(sp); }
+      if (st.role === 'manager' && st.can_see_sales){ var sp = document.createElement('span'); sp.className = 'pill'; sp.textContent = 'sales'; row.appendChild(sp); }
     }
-    if (!isCafeLogin()){
+    if (canManage() && (st.role !== 'owner' || mayTouchOwners())){
       var rp = document.createElement('button'); rp.className = 'ghost small'; rp.textContent = 'Reset PIN';
       rp.addEventListener('click', function(){ openStaffEditor(st, true); });
       var ed = document.createElement('button'); ed.className = 'ghost small'; ed.textContent = 'Edit';
@@ -908,11 +937,13 @@ function renderTeam(){
     }
     root.appendChild(row);
   });
-  document.getElementById('noMgrNote').hidden = managers().length > 0 || isCafeLogin();
-  document.getElementById('addStaffBtn').hidden = isCafeLogin();
+  var canAdd = canManage() || (managers().length === 0 && ACCOUNT === 'owner');
+  document.getElementById('noMgrNote').hidden = managers().length > 0 || !canAdd;
+  document.getElementById('addStaffBtn').hidden = !canAdd;
   var tn = document.getElementById('teamNote');
-  if (!tn){ tn = document.createElement('p'); tn.id = 'teamNote'; tn.className = 'hint'; tn.style.margin = '.6rem 0 0'; tn.textContent = 'Team changes are made from the owner login.'; root.parentNode.appendChild(tn); }
-  tn.hidden = !isCafeLogin();
+  if (!tn){ tn = document.createElement('p'); tn.id = 'teamNote'; tn.className = 'hint'; tn.style.margin = '.6rem 0 0'; root.parentNode.appendChild(tn); }
+  tn.textContent = newAccess() ? 'Team changes need the PIN of an owner, GM or manager.' : 'Team changes are made from the owner login.';
+  tn.hidden = canAdd;
 }
 var staffTarget = null, staffPinOnly = false;
 function openStaffEditor(st, pinOnly){
@@ -926,6 +957,8 @@ function openStaffEditor(st, pinOnly){
   document.getElementById('stActive').checked = st ? st.active : true;
   var bootstrap = managers().length === 0;
   var roleSel = document.getElementById('stRole');
+  var ownerOpt = roleSel.querySelector('option[value=owner]');
+  ownerOpt.hidden = ownerOpt.disabled = !(mayTouchOwners() || (st && st.role === 'owner'));   /* iPad Safari ignores hidden options */
   roleSel.value = bootstrap ? 'manager' : ((st && st.role) || 'staff');
   roleSel.disabled = bootstrap;
   /* the owner login saves directly; the manager approval block only shows when the database insists */
@@ -942,7 +975,7 @@ function openStaffEditor(st, pinOnly){
 }
 function syncSalesLine(){
   var mgr = document.getElementById('stRole').value === 'manager';
-  document.getElementById('stSalesLine').hidden = !(mgr && ACCOUNT !== null && staffTarget !== null);
+  document.getElementById('stSalesLine').hidden = !(mgr && ACCOUNT !== null && staffTarget !== null && isOwnerLevel());
 }
 document.getElementById('stRole').addEventListener('change', syncSalesLine);
 document.getElementById('addStaffBtn').addEventListener('click', function(){ openStaffEditor(null); });

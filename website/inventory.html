@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -436,7 +437,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_ACCESS ? HG_ACCESS.options() : undefined);
 
 /* ---------- who is signed in: owner login or café login ---------- */
 var ACCOUNT = null;
@@ -548,6 +549,14 @@ async function checkGate(){
   var r = await db.rpc('inventory_unlocked');
   if (r.error){ if (isMissing(r.error)){ $('setupCard').hidden = false; $('appView').classList.add('locked'); } return; }
   $('setupCard').hidden = true;
+  /* manager mode (supabase/manager-mode.sql): the PIN of an owner, GM or manager opens it on this device */
+  var st = await HG_ACCESS.load(db);
+  if (!st.missing && !st.error){
+    if (st.level){ openUntil = null; setLocked(false); $('lockBtn').hidden = true; $('lockInfo').hidden = true; HG_ACCESS.pill(db); loadAll(); return; }
+    setLocked(true); $('gate').hidden = true;
+    HG_ACCESS.gate(db, {title: 'Inventory · owners and managers'}).then(checkGate);
+    return;
+  }
   openUntil = r.data ? new Date(r.data) : null;
   if (openUntil && openUntil > new Date()){ setLocked(false); loadAll(); }
   else { openUntil = null; setLocked(true); fillGateManagers(); }
@@ -844,7 +853,7 @@ function poCard(p, open){
   return d;
 }
 async function createPo(vendorId, lines){
-  var r = await db.from('purchase_orders').insert({vendor_id: vendorId, status: 'draft', by_name: ACCOUNT === 'cafe' ? 'café' : 'owner'}).select('id');
+  var r = await db.from('purchase_orders').insert({vendor_id: vendorId, status: 'draft', by_name: (HG_ACCESS.state() && HG_ACCESS.state().name) || (ACCOUNT === 'cafe' ? 'café' : 'owner')}).select('id');
   if (r.error || !r.data || !r.data.length){ toast('Could not create the order. Try again.'); return; }
   var rows = lines.map(function(l){ return {po_id: r.data[0].id, item_id: l.item.id, packs: l.packs, qty: l.packs * Number(l.item.pack_qty), unit_cost: unitCost(l.item) || null}; });
   var r2 = await db.from('purchase_lines').insert(rows);

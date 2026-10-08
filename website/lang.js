@@ -363,6 +363,7 @@
     'No manager yet. The first person you save becomes the manager (no approval needed this one time). Do this now.': 'Todavía no hay encargado. La primera persona que guarde será el encargado (sin aprobación esta única vez). Hágalo ahora.',
     '+ Add person': '+ Agregar persona', 'Approvals log': 'Bitácora de aprobaciones',
     'Every shift change, team change and voided order, with who approved it and why.': 'Cada cambio de turno, cambio de equipo y pedido anulado, con quién lo aprobó y por qué.',
+    'Every shift change, team change, voided order and discount, with who approved it and why.': 'Cada cambio de turno, cambio de equipo, pedido anulado y descuento, con quién lo aprobó y por qué.',
     'Edit shift': 'Editar turno', 'Clock in': 'Entrada', 'Clock out (leave empty if still working)': 'Salida (déjelo vacío si sigue trabajando)',
     'Reason for the change': 'Motivo del cambio', 'Manager approval': 'Aprobación del encargado', 'Who is looking?': '¿Quién consulta?',
     'A manager PIN shows everyone\'s hours. Your own PIN shows only yours.': 'Un PIN de encargado muestra las horas de todos. Su propio PIN muestra solo las suyas.',
@@ -489,7 +490,67 @@
     'Pick an item and a number of packs.': 'Elija un producto y un número de paquetes.', 'Mark as received': 'Marcar como recibido',
     "Change any quantity that arrived short or long. Costs update the item's price.": 'Cambie cualquier cantidad que llegó de menos o de más. Los costos actualizan el precio del producto.',
     'Cost / pack': 'Costo / paquete', 'Add to stock': 'Agregar a existencias', 'Order received, stock updated': 'Pedido recibido, existencias actualizadas', 'per sale': 'por venta',
-    'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'propietario', 'POS': 'Caja', 'about {n} days left': 'unos {n} días',
+    'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'dueño', 'POS': 'Caja', 'about {n} days left': 'unos {n} días',
+    /* owner areas behind a PIN (access.js) */
+    'Owners and managers only': 'Solo dueños y encargados', 'owners and managers': 'dueños y encargados', 'Owner': 'Dueño',
+    'Type the PIN of an owner, GM or manager. It stays open on this device for 15 minutes, or until someone taps Lock.':
+      'Escriba el PIN de un dueño, GM o encargado. Queda abierto en este dispositivo por 15 minutos, o hasta que alguien toque Bloquear.',
+    'Back to the POS': 'Volver a la caja', 'No owner or manager set up yet': 'Todavía no hay dueño ni encargado', 'Lock': 'Bloquear',
+    'Needs the PIN of an owner, GM or manager': 'Necesita el PIN de un dueño, GM o encargado',
+    'Owner areas open': 'Áreas de dueños abiertas', 'until {t}': 'hasta las {t}',
+    'Only an owner, GM or manager can open this area.': 'Solo un dueño, GM o encargado puede abrir esta área.',
+    'Pick who is opening.': 'Elija quién abre.',
+    'Could not open. Try again.': 'No se pudo abrir. Intente de nuevo.',
+    'The PIN was right, but this device could not confirm it. Reload the page and try again.': 'El PIN era correcto, pero este dispositivo no pudo confirmarlo. Recargue la página e intente de nuevo.',
+    'This manager may not open the sales reports. The owner can allow it in the Time clock, Team section. Or someone else can open them.':
+      'Este encargado no puede abrir los reportes de ventas. El dueño lo puede permitir en el Reloj de marcas, sección Equipo. O que los abra otra persona.',
+    'Owner (full access)': 'Dueño (acceso total)', 'Only an owner can add or change an owner.': 'Solo un dueño puede agregar o cambiar a un dueño.',
+    'Team changes need the PIN of an owner, GM or manager.': 'Los cambios del equipo necesitan el PIN de un dueño, GM o encargado.',
+    '{n} (owner)': '{n} (dueño)', '{n} (manager)': '{n} (encargado)',
+    'Owner areas opened': 'Áreas de dueños abiertas', 'Discount approved': 'Descuento aprobado', 'Inventory opened': 'Inventario abierto',
+    'Unpaid order cancelled': 'Pedido sin pagar cancelado',
+    /* POS: discounts approved with a PIN */
+    'Discount': 'Descuento', 'Discount approved by {n}': 'Descuento aprobado por {n}', 'Discount {a}': 'Descuento {a}', 'Subtotal': 'Subtotal', 'Remove the discount': 'Quitar el descuento',
+    'Approved by {x}': 'Aprobado por {x}', 'approved by {x}': 'aprobado por {x}', 'New total {a}': 'Nuevo total {a}',
+    'A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.':
+      'Un descuento necesita un motivo y el PIN de un dueño, GM o encargado. Queda guardado con el pedido.',
+    'How much': 'Cuánto', 'Or an amount in colones': 'O un monto en colones', 'Pick a reason': 'Elija un motivo',
+    'Regular customer': 'Cliente frecuente', 'Team member': 'Miembro del equipo', 'Courtesy for a mistake or a wait': 'Cortesía por un error o una espera',
+    'Promotion': 'Promoción', 'Details (needed for Other)': 'Detalles (necesarios para Otro)', 'Details': 'Detalles',
+    'Approve the discount': 'Aprobar el descuento',
+    'Only an owner, GM or manager can approve a discount.': 'Solo un dueño, GM o encargado puede aprobar un descuento.',
+    'Pick who is approving the discount.': 'Elija quién aprueba el descuento.', 'Pick the reason for the discount.': 'Elija el motivo del descuento.',
+    'Pick a percentage or type an amount.': 'Elija un porcentaje o escriba un monto.', 'The discount is bigger than the order.': 'El descuento es mayor que el pedido.',
+    'Write the reason in Details.': 'Escriba el motivo en Detalles.', 'Type the PIN.': 'Escriba el PIN.', 'Could not approve. Try again.': 'No se pudo aprobar. Intente de nuevo.',
+    'Discounts switch on once supabase/pos-stations.sql is run in Supabase.': 'Los descuentos se activan cuando se ejecute supabase/pos-stations.sql en Supabase.',
+    'A discount needs the internet to check the PIN.': 'Un descuento necesita internet para revisar el PIN.',
+    'Discount removed': 'Descuento quitado',
+    'Recorded {x}': 'Registrado {x}', 'number {n}': 'número {n}',
+    /* POS: devices (front register, iPad) */
+    'This device': 'Este dispositivo', 'Which device is this?': '¿Qué dispositivo es este?',
+    'Every order keeps the name of the device that took it. Orders still to deliver or to charge show at the top of every device.':
+      'Cada pedido guarda el nombre del dispositivo que lo tomó. Los pedidos por entregar o por cobrar aparecen arriba en todos los dispositivos.',
+    'Main register': 'Caja principal', 'The front counter, with the cash drawer. Charges the orders sent from other devices.':
+      'El mostrador del frente, con la gaveta del efectivo. Cobra los pedidos enviados desde otros dispositivos.',
+    'Second device': 'Segundo dispositivo', 'The iPad or a phone. Takes orders and sends them to the register, or charges them here.':
+      'El iPad o un teléfono. Toma pedidos y los envía a la caja, o los cobra aquí.',
+    'Name of this device': 'Nombre de este dispositivo', 'e.g. Front register, iPad': 'p. ej. Caja del frente, iPad',
+    'Type a name for this device.': 'Escriba un nombre para este dispositivo.', 'Front register': 'Caja del frente',
+    'Name or table (optional)': 'Nombre o mesa (opcional)', 'Name or table': 'Nombre o mesa',
+    'Pay later': 'Cobrar después', 'Send to the register': 'Enviar a la caja', 'Sent to the register': 'Enviado a la caja',
+    'Run supabase/pos-stations.sql in Supabase to send orders between devices.': 'Ejecute supabase/pos-stations.sql en Supabase para enviar pedidos entre dispositivos.',
+    'Not paid': 'Sin pagar', 'Delivered': 'Entregado', 'Charge': 'Cobrar',
+    'Cancel this order? It was not paid, so nothing is charged.': '¿Cancelar este pedido? No se pagó, así que no se cobra nada.',
+    'It was already paid. A manager can void it from Orders.': 'Ya estaba pagado. Un encargado lo puede anular desde Pedidos.',
+    'It was already delivered. Charge it, or a manager voids it from Orders.': 'Ya se entregó. Cóbrelo, o que un encargado lo anule desde Pedidos.',
+    'Order cancelled': 'Pedido cancelado', 'Already charged on another device.': 'Ya se cobró en otro dispositivo.',
+    'That order was cancelled.': 'Ese pedido fue cancelado.', 'Cancelled before payment': 'Cancelado antes de pagar',
+    'Not paid yet (not counted)': 'Sin pagar todavía (no se cuenta)',
+    'One order is not paid yet ({x}). Charge it or cancel it before closing: unpaid orders are not counted.':
+      'Un pedido todavía no está pagado ({x}). Cóbrelo o cancélelo antes de cerrar: los pedidos sin pagar no se cuentan.',
+    '{n} orders are not paid yet ({x}). Charge them or cancel them before closing: unpaid orders are not counted.':
+      '{n} pedidos todavía no están pagados ({x}). Cóbrelos o cancélelos antes de cerrar: los pedidos sin pagar no se cuentan.',
+    'Discounts given': 'Descuentos dados',
     /* faq:start */
     "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
     "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",
@@ -571,13 +632,17 @@
     if (k.indexOf('{') < 0) return;
     var names = [];
     var re = '^' + k.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{(\w+)\}/g, function (_, n) { names.push(n); return '(.+?)'; }) + '$';
-    PAT.push({ re: new RegExp(re), names: names, es: D[k] });
+    PAT.push({ re: new RegExp(re), names: names, es: D[k], sep: k.indexOf(' · ') > -1,
+               head: /^\{\w+\}/.test(k), tail: /\{\w+\}$/.test(k) });
   });
 
   function lookup(k) {
     if (D.hasOwnProperty(k)) return D[k];
     for (var i = 0; i < PAT.length; i++) {
       var m = k.match(PAT[i].re);
+      /* an open-ended entry never swallows a " · " it does not have itself: "Recorded {x}" must not eat
+         "₡5 000 · Cash ₡ · number 3"; such a line is translated part by part below */
+      if (m && !PAT[i].sep && ((PAT[i].head && m[1].indexOf(' · ') > -1) || (PAT[i].tail && m[m.length - 1].indexOf(' · ') > -1))) continue;
       if (m) {
         var out = PAT[i].es;
         PAT[i].names.forEach(function (n, j) { out = out.replace('{' + n + '}', m[j + 1]); });
@@ -674,7 +739,8 @@
     if (!sw) return;
     if (swHost === null) {
       swHost = document.querySelector('#nav .navlinks') || document.querySelector('nav.pagenav') ||
-               document.querySelector('header.top') || document.getElementById('soundBtn') || false;
+               document.querySelector('header.top') || document.getElementById('soundBtn') ||
+               document.querySelector('.app .topbar') || false;
     }
     var host = swHost;
     if (host && visible(host)) {

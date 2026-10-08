@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -68,6 +69,8 @@ td.bad{color:var(--bad);font-weight:600}
 tr.void td{opacity:.55}
 tr.void td.strike{text-decoration:line-through}
 tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:none;opacity:1}
+.dreason{display:block;font-size:.8rem;color:var(--sec)}
+tr.void .dreason{color:var(--sec)}
 .pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
 .pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent}
 .pagenav a:hover{color:var(--accent);border-color:var(--muted)}
@@ -154,6 +157,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <div class="kpi"><div class="l">Orders</div><div class="v" id="kOrders">–</div></div>
     <div class="kpi"><div class="l">Average order</div><div class="v" id="kAvg">–</div></div>
     <div class="kpi"><div class="l">Voided (not counted)</div><div class="v" id="kVoid">–</div></div>
+    <div class="kpi" id="kDiscBox" hidden><div class="l">Discounts given</div><div class="v" id="kDisc">–</div></div>
   </div>
 
   <div class="card" id="dayCard">
@@ -198,7 +202,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_ACCESS ? HG_ACCESS.options() : undefined);
 
 /* ---------- who is signed in: owner login or café login ---------- */
 var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
@@ -297,6 +301,20 @@ function setLocked(locked){
 }
 async function checkGate(){
   if (ACCOUNT === null){ salesUntil = null; setLocked(false); load(); return; } /* accounts SQL not run yet: as before */
+  /* manager mode (supabase/manager-mode.sql): owners always, managers only with the owner's permission */
+  var st = await HG_ACCESS.load(db);
+  if (!st.missing && !st.error){
+    if (st.sales){
+      salesUntil = null; setLocked(false);
+      document.getElementById('lockBtn').hidden = true; document.getElementById('lockInfo').hidden = true;
+      HG_ACCESS.pill(db); load(); return;
+    }
+    setLocked(true); document.getElementById('gate').hidden = true;
+    HG_ACCESS.gate(db, {title: 'Sales · owners and managers',
+      message: st.level ? 'This manager may not open the sales reports. The owner can allow it in the Time clock, Team section. Or someone else can open them.' : ''})
+      .then(checkGate);
+    return;
+  }
   var r = await db.rpc('sales_unlocked');
   salesUntil = (!r.error && r.data) ? new Date(r.data) : null;
   if (salesUntil && salesUntil > new Date()){ setLocked(false); load(); }
@@ -358,10 +376,17 @@ function rangeStart(){
 async function load(){
   var start = rangeStart();
   var r = await db.from('orders')
-    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,order_items(item_name,qty,price_crc)')
+    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,station,guest_name,subtotal_crc,discount_crc,discount_reason,discount_by,order_items(item_name,qty,price_crc)')
     .gte('created_at', start.toISOString())
     .order('created_at', {ascending:false})
     .limit(1000);
+  if (r.error && /station|subtotal|discount/.test(r.error.message || '')){ /* pos-stations SQL not run yet */
+    r = await db.from('orders')
+      .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,order_items(item_name,qty,price_crc)')
+      .gte('created_at', start.toISOString())
+      .order('created_at', {ascending:false})
+      .limit(1000);
+  }
   if (r.error && /paid|status|source|pickup_number/.test(r.error.message || '')){ /* kitchen SQL not run yet */
     r = await db.from('orders')
       .select('id,created_at,total_crc,payment_method,voided_at,void_reason,order_items(item_name,qty,price_crc)')
@@ -426,6 +451,11 @@ function renderKpis(){
   var voided = allOrders.filter(function(o){ return o.voided_at; });
   document.getElementById('kVoid').textContent = voided.length
     ? voided.length + ' · ' + fmt(voided.reduce(function(s,o){return s+o.total_crc},0)) : '0';
+  /* discounts approved by a manager, on orders that count */
+  var disc = lastOrders.filter(function(o){ return o.discount_crc > 0; });
+  document.getElementById('kDiscBox').hidden = !lastOrders.some(function(o){ return 'discount_crc' in o; });
+  document.getElementById('kDisc').textContent = disc.length
+    ? disc.length + ' · ' + fmt(disc.reduce(function(s,o){ return s + o.discount_crc; }, 0)) : '0';
 }
 
 function dayKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
@@ -541,9 +571,15 @@ function renderTx(){
       vr.textContent = 'Voided · ' + (o.void_reason || '');
       t2.appendChild(vr);
     }
+    if (o.discount_crc > 0){
+      var dr = document.createElement('span'); dr.className = 'vreason dreason';
+      dr.textContent = 'Discount ' + fmt(o.discount_crc) + ' · ' + (o.discount_reason || '') + (o.discount_by ? ' · approved by ' + o.discount_by : '');
+      t2.appendChild(dr);
+    }
     var t3 = document.createElement('td'); var pill = document.createElement('span'); pill.className='pill';
     pill.textContent = PAY_LABELS[o.payment_method] || o.payment_method; t3.appendChild(pill);
     if (o.source === 'room'){ var rp = document.createElement('span'); rp.className = 'pill'; rp.style.marginLeft = '.3rem'; rp.textContent = 'room'; t3.appendChild(rp); }
+    else if (o.station){ var sp = document.createElement('span'); sp.className = 'pill'; sp.style.marginLeft = '.3rem'; sp.textContent = o.station; t3.appendChild(sp); }
     var t4 = document.createElement('td'); t4.className='r mono' + (o.voided_at ? ' strike' : ''); t4.textContent = fmt(o.total_crc);
     tr.appendChild(t1); tr.appendChild(t2); tr.appendChild(t3); tr.appendChild(t4);
     body.appendChild(tr);
@@ -552,7 +588,7 @@ function renderTx(){
 
 /* ---- CSV export ---- */
 document.getElementById('csvBtn').addEventListener('click', function(){
-  var lines = ['date,time,items,payment_method,total_crc,status,void_reason'];
+  var lines = ['date,time,items,payment_method,total_crc,status,void_reason,subtotal_crc,discount_crc,discount_reason,discount_by,station'];
   allOrders.forEach(function(o){
     var d = new Date(o.created_at);
     var items = (o.order_items||[]).map(function(it){return it.qty + 'x ' + it.item_name}).join('; ');
@@ -563,7 +599,12 @@ document.getElementById('csvBtn').addEventListener('click', function(){
       o.payment_method,
       o.total_crc,
       o.voided_at ? 'voided' : 'ok',
-      '"' + String(o.void_reason || '').replace(/"/g,'""') + '"'
+      '"' + String(o.void_reason || '').replace(/"/g,'""') + '"',
+      o.subtotal_crc == null ? o.total_crc : o.subtotal_crc,
+      o.discount_crc || 0,
+      '"' + String(o.discount_reason || '').replace(/"/g,'""') + '"',
+      '"' + String(o.discount_by || '').replace(/"/g,'""') + '"',
+      '"' + String(o.station || '').replace(/"/g,'""') + '"'
     ].join(','));
   });
   var blob = new Blob([lines.join('\n')], {type:'text/csv'});
