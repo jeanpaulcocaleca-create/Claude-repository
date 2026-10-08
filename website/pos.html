@@ -236,7 +236,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="roPin">PIN</label>
       <input id="roPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
       <label for="roFloat">Cash float received (₡)</label>
-      <input id="roFloat" type="number" min="0" step="500" inputmode="numeric" value="50000" required>
+      <input id="roFloat" type="number" min="0" step="1" inputmode="numeric" value="50000" required>
       <p class="err" id="roErr"></p>
       <button type="submit">Open the register</button>
     </form>
@@ -258,6 +258,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <p class="err" id="rcErr"></p>
       <button type="submit" id="rcSubmit">Close the register</button>
     </form>
+    <button class="ghost" id="recloseBtn" hidden style="width:100%;margin-top:.8rem">Close again (late sale)</button>
     <div class="counted" id="countedBox" hidden>
       <label for="countedCash" style="font-size:.9rem;color:var(--sec)">Cash counted:</label>
       <input id="countedCash" type="number" min="0" inputmode="numeric" placeholder="₡">
@@ -318,7 +319,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </div>
 
 <div class="toast" id="toast" role="status"></div>
-<div id="receipt" aria-hidden="true"></div>
+<div id="receipt" aria-hidden="true" data-no-translate></div>
 
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
@@ -640,6 +641,7 @@ async function syncQueue(){
 setInterval(syncQueue, 20000);
 addEventListener('online', syncQueue);
 function updateChip(){
+  if (typeof regQueueState === 'function') regQueueState();
   var c = document.getElementById('netChip');
   if (!navigator.onLine){ c.textContent = 'offline · ' + queue.length + ' saved'; c.className = 'chip off'; }
   else if (queue.length){ c.textContent = 'syncing ' + queue.length + '…'; c.className = 'chip pend'; }
@@ -655,19 +657,34 @@ document.getElementById('dayBtn').addEventListener('click', openDay);
 document.getElementById('dayClose').addEventListener('click', function(){ document.getElementById('dayModal').hidden = true; });
 var dayCash = 0;
 var dayBy = {};
-var REG = null;             /* today's register row, null until opened */
+var REG = null;             /* the register row to show: a day still open, or today's; null until opened */
 var REG_SUPPORT = true;     /* false until supabase/register.sql has been run */
+var REG_CHECK_FAILED = false;
 var REG_ERR = {already_open: 'The register was already opened today.', already_closed: 'The register is already closed for today.',
   not_open: 'Open the register first.', bad_amounts: 'Type both amounts.', bad_float: 'Type the float received.',
-  no_account: 'This login is not connected to the café yet.'};
+  no_account: 'This login is not connected to the café yet.',
+  unknown_staff: 'Pick who is opening or closing. If the list is empty, add the team in the Time clock first.',
+  previous_open: 'Close the register of the previous day first.'};
+function regErr(r){
+  if (r.error) return 'Could not save. Check the connection and try again.';
+  var code = r.data && r.data.error;
+  return REG_ERR[code] || ERR[code] || 'Could not save. Try again.';
+}
 async function loadRegister(){
   var r = await db.rpc('register_today');
-  if (r.error){ REG_SUPPORT = !/register_today|schema cache|could not find/i.test(r.error.message || ''); REG = null; return REG; }
-  REG_SUPPORT = true; REG = r.data || null; return REG;
+  if (r.error){
+    if (/register_today|schema cache|could not find/i.test(r.error.message || '')){ REG_SUPPORT = false; REG = null; }
+    else REG_CHECK_FAILED = true;              /* keep what we knew; the Today button retries */
+    return REG;
+  }
+  REG_SUPPORT = true; REG_CHECK_FAILED = false; REG = r.data || null; return REG;
 }
+/* a register day from before today that was never closed (no internet at closing time, or forgotten) */
+function staleDay(){ return !!(REG && !REG.closed_at && REG.today && REG.business_date !== REG.today); }
+function dayLabel(iso){ var d = new Date(iso + 'T12:00:00'); return d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short'}); }
 function todayKey(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function nudgeRegister(){
-  if (!REG_SUPPORT || REG) return;
+  if (!REG_SUPPORT || (REG && !staleDay())) return;
   try { if (localStorage.getItem('hg-pos-reg-nudge') === todayKey()) return; localStorage.setItem('hg-pos-reg-nudge', todayKey()); } catch (e) {}
   if (document.getElementById('appView').hidden) return;
   openDay();
@@ -675,14 +692,27 @@ function nudgeRegister(){
 var staffList = null;
 async function loadStaffList(){
   var r = await db.from('staff').select('id,name').eq('active', true).order('name');
-  staffList = r.error ? [] : (r.data || []);
+  var list = r.error ? [] : (r.data || []);
+  staffList = r.error ? null : list;                 /* a failed load is retried next time the modal opens */
   var remembered = ''; try { remembered = localStorage.getItem('hg-pos-reg-staff') || ''; } catch (e) {}
   ['roStaff', 'rcStaff'].forEach(function(id){
     var sel = document.getElementById(id); sel.textContent = '';
-    staffList.forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o); });
-    if (!staffList.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No team members yet'; sel.appendChild(o2); }
-    if (remembered && staffList.some(function(m){ return m.id === remembered; })) sel.value = remembered;
+    list.forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o); });
+    if (!list.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = r.error ? 'Could not load the team. Reopen Today to try again.' : 'No team members yet'; sel.appendChild(o2); }
+    if (remembered && list.some(function(m){ return m.id === remembered; })) sel.value = remembered;
   });
+}
+/* the close button waits for offline sales to sync; re-checked every time the queue changes */
+function regQueueState(){
+  if (document.getElementById('dayModal').hidden || document.getElementById('regCloseForm').hidden) return;
+  var q = document.getElementById('rcQueue');
+  q.hidden = !queue.length;
+  if (queue.length) q.textContent = queue.length + ' sales are waiting to sync. Connect to the internet before closing.';
+  document.getElementById('rcSubmit').disabled = !!queue.length;
+}
+function hideRegisterBlocks(){
+  ['regState', 'regOpenForm', 'regCloseForm', 'countedBox', 'recloseBtn'].forEach(function(id){ document.getElementById(id).hidden = true; });
+  document.getElementById('rcCardDiff').textContent = ''; document.getElementById('rcCashDiff').textContent = '';
 }
 function hhmm(iso){ var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 function signed(n){ return n === 0 ? 'exact' : (n > 0 ? '+' : '−') + fmt(Math.abs(n)) + ' ' + (n > 0 ? 'over' : 'short'); }
@@ -697,7 +727,11 @@ function renderRegister(body){
   var state = document.getElementById('regState');
   var openF = document.getElementById('regOpenForm'), closeF = document.getElementById('regCloseForm');
   var fallback = document.getElementById('countedBox');
-  state.hidden = true; openF.hidden = true; closeF.hidden = true; fallback.hidden = true;
+  hideRegisterBlocks();
+  if (REG_CHECK_FAILED && !REG){
+    state.hidden = false; state.textContent = 'Could not check the register. Check the connection and try again.';
+    return;
+  }
   if (!REG_SUPPORT){
     fallback.hidden = false;
     var note = document.createElement('p');
@@ -722,19 +756,27 @@ function renderRegister(body){
   }
   var expected = REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
   if (!REG.closed_at){
-    state.textContent = 'Opened at ' + hhmm(REG.opened_at) + ' by ' + REG.opened_by_name + ' · float ' + fmt(REG.float_crc);
-    dayRow(body, 'Expected in the drawer (float + cash)', fmt(expected));
+    if (staleDay()){
+      /* an earlier day still open: today's sums on screen do not apply to it; the server adds up that day on close */
+      body.textContent = '';
+      state.textContent = 'The register of ' + dayLabel(REG.business_date) + ' is still open. Close it first.';
+      dayRow(body, 'Float', fmt(REG.float_crc));
+      var sn = document.createElement('p'); sn.style.cssText = 'font-size:.85rem;color:var(--sec);margin:.6rem 0 0';
+      sn.textContent = 'The sales of that day are added up when you close it. Then open today.';
+      body.appendChild(sn);
+    } else {
+      state.textContent = 'Opened at ' + hhmm(REG.opened_at) + ' by ' + REG.opened_by_name + ' · float ' + fmt(REG.float_crc);
+      dayRow(body, 'Expected in the drawer (float + cash)', fmt(expected));
+    }
     closeF.hidden = false;
     document.getElementById('rcErr').textContent = '';
     document.getElementById('rcPin').value = '';
-    var q = document.getElementById('rcQueue');
-    q.hidden = !queue.length;
-    if (queue.length) q.textContent = queue.length + ' sales are waiting to sync. Connect to the internet before closing.';
-    document.getElementById('rcSubmit').disabled = !!queue.length;
-    liveDiffs();
+    regQueueState();
+    if (!staleDay()) liveDiffs();
     return;
   }
   state.textContent = 'Closed at ' + hhmm(REG.closed_at) + ' by ' + REG.closed_by_name;
+  document.getElementById('recloseBtn').hidden = false;
   dayRow(body, 'Float', fmt(REG.float_crc));
   dayRow(body, 'Cash sales', fmt((REG.sales_cash_crc || 0) + (REG.sales_cash_usd_crc || 0)));
   dayRow(body, 'Expected cash', fmt(REG.expected_cash_crc));
@@ -751,13 +793,14 @@ function renderRegister(body){
   body.appendChild(after);
 }
 function liveDiffs(){
-  if (!REG || REG.closed_at) return;
+  if (!REG || staleDay() || (REG.closed_at && document.getElementById('regCloseForm').hidden)) return;
   var t = parseInt(document.getElementById('rcTerminal').value, 10);
   var c = parseInt(document.getElementById('rcCash').value, 10);
   var cd = document.getElementById('rcCardDiff'), cc = document.getElementById('rcCashDiff');
-  if (isNaN(t)) cd.textContent = ''; else { var dt = t - (dayBy.card || 0); cd.textContent = 'Card sales ' + fmt(dayBy.card || 0) + ' · ' + signed(dt); cd.className = 'diff mono ' + (dt === 0 ? 'ok' : 'bad'); }
+  function twoPart(el, head, amount, d){ el.textContent = head + ' ' + fmt(amount) + ' · '; var s = document.createElement('span'); s.textContent = signed(d); el.appendChild(s); el.className = 'diff mono ' + (d === 0 ? 'ok' : 'bad'); }
+  if (isNaN(t)) cd.textContent = ''; else twoPart(cd, 'Card sales', dayBy.card || 0, t - (dayBy.card || 0));
   var expected = REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
-  if (isNaN(c)) cc.textContent = ''; else { var dc = c - expected; cc.textContent = 'Expected ' + fmt(expected) + ' · ' + signed(dc); cc.className = 'diff mono ' + (dc === 0 ? 'ok' : 'bad'); }
+  if (isNaN(c)) cc.textContent = ''; else twoPart(cc, 'Expected', expected, c - expected);
 }
 document.getElementById('rcTerminal').addEventListener('input', liveDiffs);
 document.getElementById('rcCash').addEventListener('input', liveDiffs);
@@ -767,8 +810,7 @@ document.getElementById('regOpenForm').addEventListener('submit', async function
   var staff = document.getElementById('roStaff').value;
   var r = await db.rpc('register_open', {p_staff_id: staff || null, p_pin: document.getElementById('roPin').value,
     p_float_crc: parseInt(document.getElementById('roFloat').value, 10)});
-  if (r.error){ err.textContent = 'Could not save. Check the connection and try again.'; return; }
-  if (!r.data || !r.data.ok){ err.textContent = ERR[r.data && r.data.error] || REG_ERR[r.data && r.data.error] || 'Could not save. Try again.'; return; }
+  if (r.error || !r.data || !r.data.ok){ err.textContent = regErr(r); return; }
   try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
   REG = r.data.register; toast('Register opened'); openDay();
 });
@@ -780,15 +822,27 @@ document.getElementById('regCloseForm').addEventListener('submit', async functio
   var r = await db.rpc('register_close', {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value,
     p_terminal_crc: parseInt(document.getElementById('rcTerminal').value, 10), p_cash_counted_crc: parseInt(document.getElementById('rcCash').value, 10),
     p_notes: document.getElementById('rcNotes').value});
-  if (r.error){ err.textContent = 'Could not save. Check the connection and try again.'; return; }
-  if (!r.data || !r.data.ok){ err.textContent = ERR[r.data && r.data.error] || REG_ERR[r.data && r.data.error] || 'Could not save. Try again.'; return; }
+  if (r.error || !r.data || !r.data.ok){ err.textContent = regErr(r); return; }
   try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
-  REG = r.data.register; toast('Register closed'); openDay();
+  REG = r.data.register; toast(r.data.reclosed ? 'Register closed again' : 'Register closed'); openDay();
+});
+document.getElementById('recloseBtn').addEventListener('click', function(){
+  /* a sale after closing: close the day again with the new totals */
+  if (!REG || !REG.closed_at) return;
+  document.getElementById('recloseBtn').hidden = true;
+  document.getElementById('rcTerminal').value = REG.terminal_crc == null ? '' : REG.terminal_crc;
+  document.getElementById('rcCash').value = REG.cash_counted_crc == null ? '' : REG.cash_counted_crc;
+  document.getElementById('rcNotes').value = REG.notes || '';
+  document.getElementById('rcErr').textContent = ''; document.getElementById('rcPin').value = '';
+  document.getElementById('regCloseForm').hidden = false;
+  regQueueState(); liveDiffs();
+  document.getElementById('rcPin').focus();
 });
 async function openDay(){
   var start = new Date(); start.setHours(0,0,0,0);
   var body = document.getElementById('dayBody');
   body.innerHTML = '<p style="color:var(--sec)">Adding it up…</p>';
+  hideRegisterBlocks();
   document.getElementById('dayModal').hidden = false;
   var regP = loadRegister();
   if (!staffList) loadStaffList();

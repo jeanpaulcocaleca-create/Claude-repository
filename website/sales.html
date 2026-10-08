@@ -12,7 +12,7 @@
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
-  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F; --ok:#4A7A4E;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
@@ -63,6 +63,8 @@ td.r,th.r{text-align:right}
 .empty{color:var(--sec);text-align:center;padding:2rem 0}
 .tip{position:fixed;background:var(--ink);color:#FCF8EC;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
 .pill{font-size:.75rem;padding:.15em .6em;border-radius:99px;background:var(--canvas);color:var(--sec)}
+td.ok{color:var(--ok)}
+td.bad{color:var(--bad);font-weight:600}
 tr.void td{opacity:.55}
 tr.void td.strike{text-decoration:line-through}
 tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:none;opacity:1}
@@ -400,12 +402,12 @@ async function loadRegisters(start){
       [g.closed_at ? fmt((g.sales_cash_crc || 0) + (g.sales_cash_usd_crc || 0)) : '', 'r mono'],
       [g.closed_at ? fmt(g.expected_cash_crc) : '', 'r mono'],
       [g.closed_at ? fmt(g.cash_counted_crc) : '', 'r mono'],
-      [g.closed_at ? sgn(g.cash_diff_crc) : '', 'r mono ' + (g.cash_diff_crc ? 'bad' : 'ok')],
+      [g.closed_at ? sgn(g.cash_diff_crc) : '', 'r mono ' + (g.closed_at ? (g.cash_diff_crc ? 'bad' : 'ok') : '')],
       [g.closed_at ? fmt(g.sales_card_crc) : '', 'r mono'],
       [g.closed_at ? fmt(g.terminal_crc) : '', 'r mono'],
-      [g.closed_at ? sgn(g.card_diff_crc) : '', 'r mono ' + (g.card_diff_crc ? 'bad' : 'ok')],
+      [g.closed_at ? sgn(g.card_diff_crc) : '', 'r mono ' + (g.closed_at ? (g.card_diff_crc ? 'bad' : 'ok') : '')],
       [g.closed_at ? fmt(g.sales_sinpe_crc || 0) : '', 'r mono'],
-      [g.closed_at ? (g.closed_by_name || '') + ' ' + hhmmOf(g.closed_at) : 'open', '']
+      [g.closed_at ? (g.closed_by_name || '') + ' ' + hhmmOf(g.closed_at) : 'still open', '']
     ];
     cells.forEach(function(c){ var td = document.createElement('td'); td.className = c[1]; td.textContent = c[0]; tr.appendChild(td); });
     if (g.notes){ var n = document.createElement('span'); n.className = 'vreason'; n.style.color = 'var(--sec)'; n.textContent = g.notes; tr.lastChild.appendChild(n); }
