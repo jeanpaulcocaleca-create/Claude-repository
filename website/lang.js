@@ -551,6 +551,15 @@
     '{n} orders are not paid yet ({x}). Charge them or cancel them before closing: unpaid orders are not counted.':
       '{n} pedidos todavía no están pagados ({x}). Cóbrelos o cancélelos antes de cerrar: los pedidos sin pagar no se cuentan.',
     'Discounts given': 'Descuentos dados',
+    /* TV board */
+    "Vertical · the TV's top edge is on the left": 'Vertical · el borde de arriba del televisor quedó a la izquierda',
+    "Vertical · the TV's top edge is on the right": 'Vertical · el borde de arriba del televisor quedó a la derecha',
+    "The TV's top edge is the side where its browser bar or its brand logo ended up. If the menu shows upside down, pick the other vertical option.":
+      'El borde de arriba es el lado donde quedó la barra del navegador o el logo de la marca del televisor. Si el menú sale de cabeza, elija la otra opción vertical.',
+    'Look': 'Apariencia', 'Automatic: bright by day, dark at night (recommended behind a window)': 'Automática: clara de día, oscura de noche (recomendada detrás de una ventana)',
+    'Always bright (easiest to read with reflections)': 'Siempre clara (la más fácil de leer con reflejos)', 'Always dark': 'Siempre oscura',
+    'Saved. To keep the look, run supabase/tv-board-look.sql once in Supabase.': 'Guardado. Para guardar la apariencia, ejecute supabase/tv-board-look.sql una vez en Supabase.',
+    'Press OK on the remote for full screen': 'Presione OK en el control para pantalla completa',
     /* faq:start */
     "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
     "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",

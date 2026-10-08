@@ -170,8 +170,16 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
           <select id="tvRot" style="font:inherit;width:100%;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;background:#fff;color:var(--ink)">
             <option value="auto">Automatic (follows the screen)</option>
             <option value="landscape">Always horizontal</option>
-            <option value="portrait_left">Vertical · TV turned to the left</option>
-            <option value="portrait_right">Vertical · TV turned to the right</option>
+            <option value="portrait_right">Vertical · the TV's top edge is on the left</option>
+            <option value="portrait_left">Vertical · the TV's top edge is on the right</option>
+          </select>
+          <span style="display:block;margin-top:.3rem">The TV's top edge is the side where its browser bar or its brand logo ended up. If the menu shows upside down, pick the other vertical option.</span>
+        </label>
+        <label class="hint">Look
+          <select id="tvTheme" style="font:inherit;width:100%;border:1.5px solid var(--muted);border-radius:10px;padding:.55em .8em;background:#fff;color:var(--ink)">
+            <option value="auto">Automatic: bright by day, dark at night (recommended behind a window)</option>
+            <option value="day">Always bright (easiest to read with reflections)</option>
+            <option value="night">Always dark</option>
           </select>
         </label>
         <div style="display:flex;gap:.8rem">
@@ -647,6 +655,7 @@ document.getElementById('groupForm').addEventListener('submit', async function(e
 });
 
 var tvSettingsLoaded = false;
+var tvThemeReady = false;   /* false until supabase/tv-board-look.sql adds the "theme" column */
 async function loadTvSettings(){
   if (tvSettingsLoaded) return;
   var r = await db.from('board_settings').select().eq('id', 1);
@@ -655,6 +664,8 @@ async function loadTvSettings(){
   var s = (r.data && r.data[0]) || {};
   document.getElementById('tvMode').value = s.mode || 'cycle';
   document.getElementById('tvRot').value = s.rotation || 'auto';
+  document.getElementById('tvTheme').value = s.theme || 'auto';
+  tvThemeReady = 'theme' in s;
   document.getElementById('tvMenuSec').value = s.menu_seconds || 25;
   document.getElementById('tvSlideSec').value = s.slide_seconds || 8;
   document.getElementById('tvTagline').value = (s.tagline !== null && s.tagline !== undefined)
@@ -672,8 +683,12 @@ document.getElementById('tvForm').addEventListener('submit', async function(e){
     tagline: document.getElementById('tvTagline').value.trim(),
     updated_at: new Date().toISOString()
   };
+  if (tvThemeReady) row.theme = document.getElementById('tvTheme').value;
   var r = await db.from('board_settings').upsert(row);
   if (r.error){ toast('Could not save the TV settings. Try again.'); return; }
+  if (!tvThemeReady && document.getElementById('tvTheme').value !== 'auto'){
+    toast('Saved. To keep the look, run supabase/tv-board-look.sql once in Supabase.'); return;
+  }
   toast('TV board updated. The screen follows within a minute.');
 });
 

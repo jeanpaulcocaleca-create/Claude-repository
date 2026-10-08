@@ -16,11 +16,12 @@
 html,body{height:100%;margin:0}
 body{background:#0A1A10;color:var(--cream);font-family:'Figtree',system-ui,sans-serif;overflow:hidden;cursor:none}
 
-/* == stage: rotation wrapper; all sizes inside use cqh/cqw (stage-relative) == */
-#stage{position:absolute;top:0;left:0;width:100vw;height:100vh;container-type:size;overflow:hidden;
+/* == stage: rotation wrapper; all sizes inside use cqh/cqw (stage-relative) ==
+   Its size and turn are set in pixels by applyOrientation() from the real window size, so a TV browser's
+   own bar (which shrinks the window) never pushes the menu off the screen. */
+#stage{position:absolute;top:0;left:0;width:100vw;height:100vh;container-type:size;overflow:hidden;transform-origin:0 0;
   background:radial-gradient(120% 90% at 50% 0%,#1A3A26 0%,var(--bg) 70%)}
-#stage.rotl{width:100vh;height:100vw;transform:rotate(-90deg) translateX(-100vh);transform-origin:top left}
-#stage.rotr{width:100vh;height:100vw;transform:rotate(90deg) translateY(-100vh);transform-origin:top left}
+.hg-lang{display:none !important}   /* no language switch on the TV */
 
 /* misty canopy backdrop, always behind everything */
 .bg{position:absolute;inset:0;z-index:0}
@@ -45,22 +46,33 @@ body{background:#0A1A10;color:var(--cream);font-family:'Figtree',system-ui,sans-
 #menuView header .sprig{position:absolute;top:-1cqh;width:9cqh;opacity:.5;pointer-events:none}
 #menuView header .sprig.l{left:0}
 #menuView header .sprig.r{right:0;transform:scaleX(-1)}
-#board{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:2.5cqw;padding-top:2.2cqh;min-height:0;overflow:hidden}
-#stage.portrait #board{grid-template-columns:repeat(2,1fr)}
-.cat h2{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:2.6cqh;margin:0 0 1.3cqh;color:var(--gold);letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;gap:1cqw}
-.cat h2 svg{width:2.3cqh;height:2.3cqh;flex:none}
+/* the menu flows through columns (CSS multi-column); when it does not fit at a readable size it continues
+   in more columns to the right, and the board shows them a page at a time. --s scales every size. */
+#board{flex:1;min-height:0;overflow:hidden;position:relative;margin-top:2.2cqh;--s:1;--cols:3;--gap:2.5cqw}
+#pages{height:100%;column-count:var(--cols);column-gap:var(--gap);column-fill:auto;transition:opacity .45s ease}
+#board.flip #pages{opacity:0}
+.cat h2{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:calc(2.6cqh * var(--s));margin:0 0 calc(1.1cqh * var(--s));color:var(--gold);letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:center;gap:1cqw;break-after:avoid}
+.cat h2 svg{width:calc(2.3cqh * var(--s));height:calc(2.3cqh * var(--s));flex:none}
 .cat h2::after{content:"";flex:1;height:1px;background:var(--line)}
-.cat{margin-bottom:1.9cqh}
-.it{display:grid;grid-template-columns:auto 1fr auto;gap:1cqw;align-items:center;padding:.9cqh 0}
-.it .ph{width:5.6cqh;height:5.6cqh;border-radius:1.1cqh;object-fit:cover;border:1px solid var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.35)}
-.it .noph{width:0;height:5.2cqh}
-.it .nm{font-size:2.15cqh;font-weight:600;line-height:1.25}
-.it .ds{font-size:1.5cqh;color:var(--soft);line-height:1.3;margin-top:.3cqh}
-.it .pr{font-family:'Spline Sans Mono',monospace;font-size:2cqh;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
-#stage.portrait .it .nm{font-size:1.95cqh}
-#stage.portrait .it .ds{font-size:1.35cqh}
-#stage.portrait .it .pr{font-size:1.8cqh}
-#stage.portrait .cat h2{font-size:2.3cqh}
+.cat{margin-bottom:calc(1.7cqh * var(--s))}
+.cat.keep{break-inside:avoid}
+.it{display:grid;grid-template-columns:auto 1fr auto;gap:1cqw;align-items:center;padding:calc(.7cqh * var(--s)) 0;break-inside:avoid}
+.it .ph{width:calc(5.2cqh * var(--s));height:calc(5.2cqh * var(--s));border-radius:1.1cqh;object-fit:cover;border:1px solid var(--gold);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.it .noph{width:0;height:calc(2.6cqh * var(--s))}
+.it .nm{font-size:calc(2.15cqh * var(--s));font-weight:600;line-height:1.2}
+.it .ds{font-size:calc(1.5cqh * var(--s));color:var(--soft);line-height:1.3;margin-top:.3cqh}
+.it .pr{font-family:'Spline Sans Mono',monospace;font-size:calc(2cqh * var(--s));color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
+#stage.portrait .it .nm{font-size:calc(1.95cqh * var(--s))}
+#stage.portrait .it .ds{font-size:calc(1.35cqh * var(--s))}
+#stage.portrait .it .pr{font-size:calc(1.8cqh * var(--s))}
+#stage.portrait .cat h2{font-size:calc(2.3cqh * var(--s))}
+#stage.portrait #menuView header h1{font-size:min(4cqh, 5cqw)}
+#pageNo{white-space:nowrap}
+/* a vertical screen is narrow: the bottom message may take two lines instead of being cut */
+#stage.portrait #menuView footer .mid{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25}
+#stage.portrait #menuView footer{align-items:center}
+/* narrow columns: a smaller photo leaves room for the name and the price */
+#stage.portrait .it .ph{width:calc(min(5.2cqh, 9cqw) * var(--s));height:calc(min(5.2cqh, 9cqw) * var(--s))}
 #menuView footer{display:flex;justify-content:space-between;align-items:baseline;padding-top:1.4cqh;border-top:1px solid var(--line);font-family:'Spline Sans Mono',monospace;font-size:1.5cqh;letter-spacing:.15em;text-transform:uppercase;color:var(--soft);gap:2cqw}
 #menuView footer .mid{font-family:'Dancing Script',cursive;font-size:2cqh;letter-spacing:0;text-transform:none;color:var(--leaf);text-align:center;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
@@ -97,6 +109,28 @@ body{background:#0A1A10;color:var(--cream);font-family:'Figtree',system-ui,sans-
 
 .err{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);font-size:2.5vh;color:var(--soft);text-align:center;padding:4vw;z-index:9}
 @media (prefers-reduced-motion:reduce){.slide .photo,.bg .mist,.qz{animation:none}}
+
+/* ===================== DAYLIGHT LOOK =====================
+   For a screen behind a window: a bright page with near-black bold text. A dark screen behaves like a
+   mirror (the street and the sky show on it); a bright one outshines most of that reflection. */
+#stage.day{--cream:#0F2618;--soft:#2F3F33;--gold:#7A4A00;--line:#D6C69C;--leaf:#2F6B3A;background:#FFFBF1;color:var(--cream)}
+#stage.day .bg{display:none}
+#stage.day #menuView header .sprig{display:none}
+#stage.day .cat h2{color:#1E4B33;font-weight:700}
+#stage.day .cat h2::after{height:2px;background:#C9A253}
+#stage.day .it .nm{font-weight:700}
+#stage.day .it .pr{font-weight:700}
+#stage.day .it .ph{border-color:#C9A253;box-shadow:none}
+#stage.day #menuView header,#stage.day #menuView footer{border-color:#C9A253}
+#stage.day #menuView header .sub,#stage.day #menuView footer .mid{font-family:'Figtree',system-ui,sans-serif;font-style:italic;font-weight:600}
+#stage.day #menuView footer{color:#2F3F33}
+/* the photo slides keep light text on the darkened photo in both looks */
+#stage.day #promoView{--cream:#F6F1E2;--soft:#C9D3BC;--gold:#DBB365;--line:#2E4A36;--leaf:#7FA381;color:#F6F1E2}
+
+/* "press OK for full screen": only for a few seconds after the page opens */
+#fsHint{position:absolute;left:50%;top:2cqh;transform:translateX(-50%);z-index:5;background:rgba(10,26,16,.86);color:#F6F1E2;
+  font:600 2cqh/1.3 'Figtree',system-ui,sans-serif;padding:1.2cqh 2.6cqw;border-radius:99px;white-space:nowrap;opacity:0;transition:opacity .6s;pointer-events:none}
+#fsHint.on{opacity:1}
 </style>
 </head>
 <body>
@@ -113,11 +147,11 @@ body{background:#0A1A10;color:var(--cream);font-family:'Figtree',system-ui,sans-
         <div class="sub">Monteverde, Costa Rica · made for the cloud forest</div>
       </div>
     </header>
-    <main id="board"></main>
+    <main id="board"><div id="pages"></div></main>
     <footer>
       <span>Pura vida</span>
       <span class="mid" id="tagline">coffee + pastry save ₡500 · sandwich + coffee save ₡500</span>
-      <span id="clock"></span>
+      <span><span id="pageNo"></span> <span id="clock"></span></span>
     </footer>
   </section>
 
@@ -131,6 +165,7 @@ body{background:#0A1A10;color:var(--cream);font-family:'Figtree',system-ui,sans-
     <img class="qz" src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5f81fe73-ded5-4ef6-84ff-47c01b39abcd.png" alt="">
     <img class="sprig-b" src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a7a774e2-b2ff-49db-bb82-9621dba3a00c.png" alt="">
   </section>
+  <div id="fsHint">Press OK on the remote for full screen</div>
 </div>
 <div class="err" id="err">The menu board lost its connection.<br>It will keep trying by itself.</div>
 
@@ -141,8 +176,11 @@ var SKIP_CATS = {'Extras & Combos': 1};
 var LEAF = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>';
 var CANOPY = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cdf000bc-33ff-4d98-b457-c1726e4e4512.jpg';
 
-var settings = {mode:'cycle', rotation:'auto', menu_seconds:25, slide_seconds:8,
+var settings = {mode:'cycle', rotation:'auto', menu_seconds:25, slide_seconds:8, theme:'auto',
   tagline:'coffee + pastry save ₡500 · sandwich + coffee save ₡500'};
+/* tv.html?theme=day|night|auto and ?rotation=portrait_right|portrait_left|landscape override the saved settings on this TV */
+var URLP = {};
+location.search.replace(/^\?/, '').split('&').forEach(function(kv){ var p = kv.split('='); if (p[0]) URLP[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); });
 var slides = [];       /* featured items for the promo reel */
 var groupSlides = [];  /* combined slides: several items in one picture */
 var slideIx = 0;
@@ -153,21 +191,45 @@ var phaseTimer = null;
 function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
 function hdrs(){ return {apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY}; }
 
-/* ---------- orientation & rotation ---------- */
+/* ---------- orientation & rotation ----------
+   Google TV cannot turn its picture, so a vertical TV gets the page turned here:
+   portrait_right = picture turned right (clockwise), for a TV whose top edge is now on the LEFT;
+   portrait_left  = picture turned left, for a TV whose top edge is now on the RIGHT.
+   Sizes come from the real window in pixels: on a TV browser, 100vh/100vw can include its own bar. */
 var lastCats = null;
+var lastSize = '';
 function applyOrientation(){
   var stage = document.getElementById('stage');
-  stage.classList.remove('rotl','rotr');
+  var W = window.innerWidth || document.documentElement.clientWidth;
+  var H = window.innerHeight || document.documentElement.clientHeight;
+  var rot = URLP.rotation || settings.rotation;
   var portrait;
-  if (settings.rotation === 'portrait_left'){ stage.classList.add('rotl'); portrait = true; }
-  else if (settings.rotation === 'portrait_right'){ stage.classList.add('rotr'); portrait = true; }
-  else if (settings.rotation === 'landscape'){ portrait = false; }
-  else { portrait = innerHeight > innerWidth; } /* auto */
-  var changed = stage.classList.contains('portrait') !== portrait;
+  stage.classList.toggle('rotl', rot === 'portrait_left');
+  stage.classList.toggle('rotr', rot === 'portrait_right');
+  if (rot === 'portrait_left' || rot === 'portrait_right'){
+    stage.style.width = H + 'px'; stage.style.height = W + 'px';
+    stage.style.transform = rot === 'portrait_right' ? 'translate(' + W + 'px,0) rotate(90deg)' : 'translate(0,' + H + 'px) rotate(-90deg)';
+    portrait = true;
+  } else {
+    stage.style.width = W + 'px'; stage.style.height = H + 'px'; stage.style.transform = '';
+    portrait = rot === 'landscape' ? false : H > W;
+  }
   stage.classList.toggle('portrait', portrait);
-  if (changed && lastCats) renderBoard(lastCats);
+  var size = rot + ' ' + W + 'x' + H;
+  if (size !== lastSize){ lastSize = size; if (lastCats) layoutBoard(); }
 }
 addEventListener('resize', applyOrientation);
+
+/* ---------- look: dark, or bright for daylight behind a window ---------- */
+function applyTheme(){
+  var t = URLP.theme || settings.theme || 'auto';
+  var day;
+  if (t === 'day') day = true;
+  else if (t === 'night') day = false;
+  else { var h = new Date().getHours(); day = h >= 6 && h < 18; }   /* auto: bright from 6:00 to 18:00 */
+  var stage = document.getElementById('stage');
+  if (stage.classList.contains('day') !== day){ stage.classList.toggle('day', day); if (lastCats) layoutBoard(); }
+}
 
 /* ---------- settings ---------- */
 async function loadSettings(){
@@ -182,8 +244,9 @@ async function loadSettings(){
     if (s.menu_seconds > 4) settings.menu_seconds = s.menu_seconds;
     if (s.slide_seconds > 2) settings.slide_seconds = s.slide_seconds;
     if (s.tagline !== null && s.tagline !== undefined) settings.tagline = s.tagline;
+    if (s.theme) settings.theme = s.theme;
     document.getElementById('tagline').textContent = settings.tagline;
-    applyOrientation();
+    applyOrientation(); applyTheme();
   } catch(e){}
 }
 
@@ -220,21 +283,12 @@ async function loadMenu(){
 }
 
 function renderBoard(cats){
-  var board = document.getElementById('board');
-  board.textContent = '';
-  var nCols = document.getElementById('stage').classList.contains('portrait') ? 2 : 3;
-  var cols = [], weights = [];
-  for (var i=0;i<nCols;i++){ cols.push([]); weights.push(0); }
-  cats.forEach(function(cat){
-    var n = (cat.menu_items || []).filter(function(i){ return i.available; }).length;
-    if (!n) return;
-    var t = weights.indexOf(Math.min.apply(null, weights));
-    cols[t].push(cat); weights[t] += n + 2;
-  });
-  cols.forEach(function(colCats){
-    var wrap = document.createElement('div');
-    colCats.forEach(function(cat){
-      var sec = document.createElement('section'); sec.className = 'cat';
+  var wrap = document.getElementById('pages');
+  wrap.textContent = '';
+    cats.forEach(function(cat){
+      var avail = (cat.menu_items || []).filter(function(it){ return it.available; });
+      if (!avail.length) return;
+      var sec = document.createElement('section'); sec.className = 'cat' + (avail.length <= 6 ? ' keep' : '');
       var h = document.createElement('h2');
       h.innerHTML = LEAF;
       h.appendChild(document.createTextNode(cat.name));
@@ -260,8 +314,57 @@ function renderBoard(cats){
         });
       wrap.appendChild(sec);
     });
-    board.appendChild(wrap);
+  layoutBoard();
+}
+
+/* ---------- fit the menu: the biggest readable text, in as few pages as possible ----------
+   s = 1 is the size the board was designed with. Never smaller than that (people read it through the window);
+   bigger when the menu is short. When it cannot fit on one screen, it is split into pages shown in turn. */
+var pageIx = 0, pageCount = 1;
+var S_MIN = 1, S_MAX = 1.6;
+/* columns that overflow the board continue to the right, one page = one board width + one gap;
+   a last page holding a single column still counts, so round up */
+function pagesAt(board, wrap, s, cols){
+  board.style.setProperty('--s', s); board.style.setProperty('--cols', cols);
+  var w = board.clientWidth, gap = parseFloat(getComputedStyle(wrap).columnGap) || 0;
+  return Math.max(1, Math.ceil((wrap.scrollWidth + gap) / (w + gap) - 0.02));
+}
+function layoutBoard(){
+  var board = document.getElementById('board'), wrap = document.getElementById('pages');
+  if (!wrap.children.length || !board.clientHeight) return;
+  var portrait = document.getElementById('stage').classList.contains('portrait');
+  var options = portrait ? [2, 1] : [3, 2];
+  var best = null;
+  options.forEach(function(cols){
+    /* for this column count: the fewest pages at the minimum size, then the biggest size that keeps that page count */
+    var n = pagesAt(board, wrap, S_MIN, cols);
+    var lo = S_MIN, hi = S_MAX;
+    if (pagesAt(board, wrap, hi, cols) <= n) lo = hi;
+    else for (var k = 0; k < 7; k++){ var mid = (lo + hi) / 2; if (pagesAt(board, wrap, mid, cols) <= n) lo = mid; else hi = mid; }
+    var cand = {cols: cols, pages: n, s: Math.floor(lo * 100) / 100};
+    if (!best || cand.pages < best.pages || (cand.pages === best.pages && cand.s > best.s)) best = cand;
   });
+  board.style.setProperty('--cols', best.cols);
+  board.style.setProperty('--s', best.s);
+  pageCount = pagesAt(board, wrap, best.s, best.cols);
+  if (pageIx >= pageCount) pageIx = 0;
+  showPage(pageIx, true);
+}
+var flipTimer = null;
+function showPage(i, now){
+  var board = document.getElementById('board'), wrap = document.getElementById('pages');
+  var same = i === pageIx;
+  pageIx = i;
+  var go = function(){
+    var gap = parseFloat(getComputedStyle(wrap).columnGap) || 0;
+    wrap.style.transform = pageIx ? 'translateX(' + (-pageIx * (board.clientWidth + gap)) + 'px)' : '';
+    document.getElementById('pageNo').textContent = pageCount > 1 ? (pageIx + 1) + '/' + pageCount + ' ·' : '';
+    board.classList.remove('flip');
+  };
+  clearTimeout(flipTimer);
+  if (now || same){ go(); return; }
+  board.classList.add('flip');          /* fade out, turn the page, fade in */
+  flipTimer = setTimeout(go, 450);
 }
 
 /* ---------- promo slides ---------- */
@@ -364,53 +467,77 @@ function setView(which){
   document.getElementById('promoView').classList.toggle('on', which === 'promo');
   phase = which;
 }
+function later(sec){ phaseTimer = setTimeout(step, sec * 1000); }
+function menuFromStart(){ setView('menu'); showPage(0, true); later(settings.menu_seconds); }
 function step(){
   clearTimeout(phaseTimer);
   var mode = settings.mode;
-  if (mode === 'menu' || !slides.length){
-    setView('menu');
-    phaseTimer = setTimeout(step, settings.menu_seconds * 1000);
+  if (mode === 'promo' && slides.length){
+    setView('promo'); showSlide(slideIx++); later(settings.slide_seconds);
     return;
   }
-  if (mode === 'promo'){
-    setView('promo');
-    showSlide(slideIx++);
-    phaseTimer = setTimeout(step, settings.slide_seconds * 1000);
-    return;
-  }
-  /* cycle: menu once, then every featured slide once, repeat */
   if (phase === 'menu'){
-    setView('promo');
-    showSlide(slideIx++);
-    phaseTimer = setTimeout(step, settings.slide_seconds * 1000);
-  } else if (slideIx % slides.length === 0){
-    setView('menu');
-    phaseTimer = setTimeout(step, settings.menu_seconds * 1000);
-  } else {
-    showSlide(slideIx++);
-    phaseTimer = setTimeout(step, settings.slide_seconds * 1000);
+    /* every page of the menu stays for "menu seconds" */
+    if (pageIx + 1 < pageCount){ showPage(pageIx + 1); later(settings.menu_seconds); return; }
+    if (mode === 'menu' || !slides.length){ showPage(0); later(settings.menu_seconds); return; }
+    /* cycle: the whole menu once, then every featured slide once, repeat */
+    setView('promo'); showSlide(slideIx++); later(settings.slide_seconds);
+    return;
   }
+  if (!slides.length || slideIx % slides.length === 0){ menuFromStart(); return; }
+  showSlide(slideIx++); later(settings.slide_seconds);
 }
 
 function tickClock(){
   var d = new Date();
   document.getElementById('clock').textContent =
     String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  applyTheme();
 }
+
+/* ---------- full screen and a screen that stays on ----------
+   Some TV browsers can hide their own bar: press OK (or click) once. The page asks the TV to keep the
+   screen awake where the browser allows it. */
+function isFull(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function goFull(){
+  if (isFull()) return;
+  var el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!f) return;
+  try { var p = f.call(el); if (p && p.catch) p.catch(function(){}); } catch (e) {}
+}
+addEventListener('keydown', function(e){
+  if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 23) goFull();   /* 23: OK on Android TV remotes */
+});
+addEventListener('click', goFull);
+var wakeLock = null;
+async function keepAwake(){
+  try { if (navigator.wakeLock && !wakeLock){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function(){ wakeLock = null; }); } } catch (e) { wakeLock = null; }
+}
+function fsHint(){
+  var can = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  if (!can || isFull()) return;
+  var h = document.getElementById('fsHint'); h.classList.add('on');
+  setTimeout(function(){ h.classList.remove('on'); }, 12000);
+}
+['fullscreenchange', 'webkitfullscreenchange'].forEach(function(ev){
+  document.addEventListener(ev, function(){ document.getElementById('fsHint').classList.remove('on'); setTimeout(applyOrientation, 300); });
+});
 
 async function refresh(){
   await loadSettings();
   await loadGroups();
   await loadMenu();
 }
-applyOrientation();
+applyOrientation(); applyTheme();
 tickClock(); setInterval(tickClock, 15000);
 refresh().then(function(){
-  setView('menu');
-  phaseTimer = setTimeout(step, settings.menu_seconds * 1000);
+  menuFromStart();
+  fsHint();
 });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ if (lastCats) layoutBoard(); });
 setInterval(refresh, 45000);
-document.addEventListener('visibilitychange', function(){ if (!document.hidden) refresh(); });
+keepAwake();
+document.addEventListener('visibilitychange', function(){ if (!document.hidden){ refresh(); keepAwake(); } });
 </script>
 <script src="lang.js"></script>
 </body>
