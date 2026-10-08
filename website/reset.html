@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>New password · Hanging Garden</title>
+<link rel="icon" type="image/png" href="assets/logo-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Figtree:wght@400;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<style>
+:root{--canvas:#F6F1E2;--panel:#FCF8EC;--ink:#26392C;--accent:#1E4B33;--accent-hover:#143726;--muted:#C9CFB6;--gold:#B98A35;--sec:#54634F;--ok:#4A7A4E;--bad:#A8402F}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0;font-size:1.5rem}
+.login{max-width:400px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em;width:100%;margin-top:1.2rem}
+button:hover{background:var(--accent-hover)}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.hint{font-size:.9rem;color:var(--sec);margin:.6rem 0 0}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.ok{color:var(--ok);font-weight:600}
+a.btn{display:inline-block;margin-top:1rem;background:var(--accent);color:#fff;text-decoration:none;border-radius:10px;padding:.7em 1.2em;font-weight:600}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="login">
+  <h1>Set a new password</h1>
+  <p class="hint">Hanging Garden Café</p>
+  <p class="hint" id="waiting">Checking the link…</p>
+  <form id="resetForm" hidden>
+    <label for="pw1">New password</label>
+    <input id="pw1" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="pw2">Type it again</label>
+    <input id="pw2" type="password" autocomplete="new-password" minlength="8" required>
+    <p class="hint" style="margin-top:.4rem">At least 8 characters. Use something you can remember, or save it in your phone's password manager.</p>
+    <button type="submit">Save the new password</button>
+    <p class="err" id="resetErr"></p>
+  </form>
+  <div id="done" hidden>
+    <p class="ok">Password changed. You can sign in now.</p>
+    <a class="btn" href="home.html">Go to Home</a>
+  </div>
+  <div id="expired" hidden>
+    <p class="err">This link has expired or was already used. Ask for a new one from the sign-in page.</p>
+    <a class="btn" href="home.html">Back to sign in</a>
+  </div>
+</div>
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+/* The email link signs this tab in for a few minutes; that session is all that is needed to set a new password. */
+var ready = false;
+function show(id){ ['waiting', 'resetForm', 'done', 'expired'].forEach(function(x){ document.getElementById(x).hidden = x !== id; }); }
+async function check(){
+  var s = await db.auth.getSession();
+  if (s.data && s.data.session){ ready = true; show('resetForm'); document.getElementById('pw1').focus(); }
+}
+db.auth.onAuthStateChange(function(ev, session){ if (session && !ready){ ready = true; show('resetForm'); } });
+check();
+setTimeout(function(){ if (!ready) check().then(function(){ if (!ready) show('expired'); }); }, 4000);
+document.getElementById('resetForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var a = document.getElementById('pw1').value, b = document.getElementById('pw2').value, err = document.getElementById('resetErr');
+  if (a.length < 8){ err.textContent = 'At least 8 characters.'; return; }
+  if (a !== b){ err.textContent = 'The two passwords do not match.'; return; }
+  var r = await db.auth.updateUser({password: a});
+  if (r.error){ err.textContent = /same/i.test(r.error.message || '') ? 'That is the same password as before. Pick a new one.' : 'Could not save the password. Ask for a new link and try again.'; return; }
+  show('done');
+});
+</script>
+<script src="lang.js"></script>
+</body>
+</html>

@@ -71,6 +71,8 @@ tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:
 .pagenav a:hover{color:var(--accent);border-color:var(--muted)}
 .pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
 @media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -85,6 +87,7 @@ tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:
     <input id="pw" type="password" autocomplete="current-password" required>
     <button type="submit">Sign in</button>
     <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
   </form>
   <form id="codeForm" hidden>
     <label for="codeIn">Code from your phone app</label>
@@ -277,13 +280,14 @@ var GATE_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs.
 var salesUntil = null, lockTimer = null;
 function fmtTime(d){ return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
 function setLocked(locked){
+  var owner = ACCOUNT === 'owner';
   document.getElementById('appView').classList.toggle('locked', locked);
   document.getElementById('gate').hidden = !locked;
   document.getElementById('csvBtn').hidden = locked;
-  document.getElementById('lockBtn').hidden = locked || ACCOUNT === null;
-  document.getElementById('lockInfo').hidden = locked || !salesUntil;
+  document.getElementById('lockBtn').hidden = locked || ACCOUNT === null || owner;
+  document.getElementById('lockInfo').hidden = locked || !salesUntil || owner;
   clearTimeout(lockTimer);
-  if (!locked && salesUntil){
+  if (!locked && salesUntil && !owner){
     document.getElementById('lockInfo').textContent = 'open until ' + fmtTime(salesUntil);
     lockTimer = setTimeout(checkGate, Math.max(1000, salesUntil - new Date() + 500));
   }
@@ -568,6 +572,23 @@ document.getElementById('csvBtn').addEventListener('click', function(){
 
 addEventListener('resize', function(){ if (lastOrders.length) renderDayChart(rangeStart()); });
 refreshAuth();
+</script>
+<script>
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one */
+(function(){
+  var b = document.getElementById('forgotBtn'); if (!b) return;
+  b.addEventListener('click', async function(){
+    var em = (document.getElementById('em').value || '').trim();
+    if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
+    var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
+    b.disabled = true;
+    var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
+    b.disabled = false;
+    document.getElementById('loginErr').textContent = r.error
+      ? 'Could not send the email. Check the address and try again.'
+      : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+  });
+})();
 </script>
 <script src="lang.js"></script>
 </body>

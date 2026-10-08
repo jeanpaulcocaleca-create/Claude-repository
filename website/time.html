@@ -111,6 +111,22 @@ header.top h1{font-size:1.4rem;margin-right:auto}
 .setup ol{margin:.8rem 0 0;padding-left:1.2rem}
 .setup li{margin:.4rem 0}
 .empty{color:var(--sec);text-align:center;padding:1.6rem 0}
+/* PIN keypad */
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.8rem}
+.pinpad button{min-height:58px;font-size:1.4rem;font-family:'Spline Sans Mono',monospace;background:#fff;color:var(--ink);border:1.5px solid var(--muted)}
+.pinpad button:hover{background:var(--canvas)}
+.pinpad button.del{font-size:1.1rem}
+.pinpad button.ok{background:var(--accent);color:#fff;border-color:var(--accent);font-family:'Figtree',system-ui,sans-serif;font-size:1.05rem}
+.pinpad button.ok:hover{background:var(--accent-hover)}
+/* start-from-zero card */
+.start{border:2px solid var(--gold);background:#FFF9EA}
+.start h2{font-size:1.15rem}
+.start ol{margin:.6rem 0 0;padding-left:1.2rem}
+.start li{margin:.35rem 0}
+.start button{margin-top:.9rem}
+.toast.big{font-size:1.15rem;padding:.9em 1.4em}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -125,6 +141,7 @@ header.top h1{font-size:1.4rem;margin-right:auto}
     <input id="pw" type="password" autocomplete="current-password" required>
     <button type="submit">Sign in</button>
     <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
   </form>
   <form id="codeForm" hidden>
     <label for="codeIn">Code from your phone app</label>
@@ -169,6 +186,17 @@ header.top h1{font-size:1.4rem;margin-right:auto}
   </div>
 
   <section id="clockView">
+    <div class="card start" id="startCard" hidden>
+      <h2>Start here: set up the team</h2>
+      <p class="hint" style="margin:.3rem 0 0">There is no manager yet. Three steps and the clock is ready:</p>
+      <ol>
+        <li>Add the first manager (GM) with a name and a PIN. No approval is needed for this one.</li>
+        <li>Add each team member with their own PIN, under Hours &amp; team.</li>
+        <li>To clock in, each person taps their name and types their PIN on the keypad.</li>
+      </ol>
+      <p class="hint" style="margin:.6rem 0 0">Forgot a PIN later? The owner login changes any PIN from Hours &amp; team, no other PIN needed.</p>
+      <button id="startAddBtn">Add the first manager</button>
+    </div>
     <p class="hint" style="margin:0 0 .9rem">Tap your name, type your PIN. Green means you're on the clock.</p>
     <div class="staffgrid" id="staffGrid"></div>
   </section>
@@ -207,10 +235,15 @@ header.top h1{font-size:1.4rem;margin-right:auto}
     <p class="hint" id="pinSub"></p>
     <form id="pinForm">
       <label for="pinInput">PIN</label>
-      <input id="pinInput" class="pinbig" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="pinInput" class="pinbig" type="password" inputmode="none" autocomplete="off" maxlength="8" aria-describedby="pinSub">
+      <div class="pinpad" id="pinPad" aria-label="Keypad">
+        <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+        <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+        <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+        <button type="button" class="del" data-k="del" aria-label="Delete the last digit">⌫</button><button type="button" data-k="0">0</button><button type="submit" class="ok" id="pinGo">OK</button>
+      </div>
       <p class="err" id="pinErr"></p>
       <div class="row">
-        <button type="submit" id="pinGo">Confirm</button>
         <button type="button" class="ghost" id="pinCancel">Cancel</button>
       </div>
     </form>
@@ -273,10 +306,13 @@ header.top h1{font-size:1.4rem;margin-right:auto}
       <input id="stName" required maxlength="60">
       <label for="stPin" id="stPinLabel">PIN (4–8 digits, they'll type it to clock in)</label>
       <input id="stPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      <label for="stPin2">Type the PIN again</label>
+      <input id="stPin2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      <p class="hint" style="margin:.3rem 0 0">Numbers only. Not 1234, 0000 or a birthday everyone knows.</p>
       <label for="stRole">Role</label>
       <select id="stRole">
         <option value="staff">Team member (clock in and out)</option>
-        <option value="manager">Manager (can approve changes with their PIN)</option>
+        <option value="manager">Manager / GM (approves changes with their PIN)</option>
       </select>
       <div class="checkline" id="stActiveLine">
         <input id="stActive" type="checkbox" checked>
@@ -294,6 +330,7 @@ header.top h1{font-size:1.4rem;margin-right:auto}
         <input id="stMgrPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
       </div>
       <p class="hint" id="stBootstrap" hidden style="margin-top:.8rem">First setup: this person becomes the manager and no approval is needed this one time.</p>
+      <p class="hint" id="stOwnerNote" hidden style="margin-top:.8rem">Owner login: saved directly and written to the approvals log.</p>
       <p class="err" id="staffErr"></p>
       <div class="row">
         <button type="submit">Save</button>
@@ -363,10 +400,10 @@ function dur(ms){
   var m = Math.round(ms/60000), h = Math.floor(m/60);
   return h > 0 ? h + ' h ' + p2(m%60) + ' m' : (m%60) + ' min';
 }
-function toast(msg){
+function toast(msg, big){
   var t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(function(){t.classList.remove('show')},2600);
+  t.textContent = msg; t.classList.add('show'); t.classList.toggle('big', !!big);
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){t.classList.remove('show')}, big ? 4000 : 2600);
 }
 function isMissingTables(err){
   return err && /relation .* does not exist|schema cache|could not find the function/i.test(err.message || '');
@@ -440,8 +477,20 @@ var ERR = {
   bad_pin_format: 'The PIN must be 4 to 8 digits, numbers only.',
   last_manager: 'This is the only active manager. Make someone else a manager first.',
   not_found: 'That record no longer exists. Reload the page.',
-  already_voided: 'That order was already voided.'
+  already_voided: 'That order was already voided.',
+  weak_pin: 'That PIN is too easy to guess (like 1234 or 0000). Pick another.',
+  missing_staff: 'Pick the person.',
+  no_account: 'This login is not connected to the café yet.'
 };
+/* Approval blocks are hidden for the owner login (supabase/access.sql lets it act directly).
+   If the database still asks for a manager PIN, the block reappears with an explanation. */
+var needApproval = false;
+var NEED_APPROVAL_MSG = 'Approve with a manager PIN, or run supabase/access.sql once so the owner login does not need one.';
+function approvalNeeded(r){
+  var code = r && r.data && r.data.error;
+  return !r.error && (code === 'unknown_staff' || code === 'not_manager' || code === 'bad_pin');
+}
+function toggleApprove(box, show){ box.hidden = !show; }
 function errMsg(r){
   if (r.error){
     if (isMissingTables(r.error)) return 'The manager approval setup has not been run in Supabase yet.';
@@ -508,6 +557,7 @@ function workedTodayMs(staffId){
 function renderClock(){
   var g = document.getElementById('staffGrid');
   g.textContent = '';
+  document.getElementById('startCard').hidden = isCafeLogin() || managers().length > 0;
   var active = staffList.filter(function(s){ return s.active; });
   if (!active.length){
     g.innerHTML = '<p class="empty" style="grid-column:1/-1">No one on the team yet.<br>Go to <strong>Hours &amp; team</strong> and tap <strong>+ Add person</strong>.</p>';
@@ -559,6 +609,14 @@ function openPin(st){
   document.getElementById('pinInput').focus();
 }
 document.getElementById('pinCancel').addEventListener('click', function(){ document.getElementById('pinModal').hidden = true; });
+document.getElementById('pinPad').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-k]'); if (!b) return;
+  var inp = document.getElementById('pinInput');
+  if (b.dataset.k === 'del') inp.value = inp.value.slice(0, -1);
+  else if (inp.value.length < 8) inp.value += b.dataset.k;
+  document.getElementById('pinErr').textContent = '';
+});
+document.getElementById('startAddBtn').addEventListener('click', function(){ openStaffEditor(null); });
 document.getElementById('pinForm').addEventListener('submit', async function(e){
   e.preventDefault();
   if (!pinTarget) return;
@@ -577,9 +635,9 @@ document.getElementById('pinForm').addEventListener('submit', async function(e){
   document.getElementById('pinModal').hidden = true;
   if (r.data.action === 'out'){
     var ms = new Date(r.data.clock_out).getTime() - new Date(r.data.clock_in).getTime();
-    toast(pinTarget.name + ' clocked out · ' + dur(ms) + ' this shift');
+    toast(pinTarget.name + ' clocked out · ' + dur(ms) + ' this shift', true);
   } else {
-    toast(pinTarget.name + ' clocked in at ' + fmtTime(new Date()));
+    toast(pinTarget.name + ' clocked in at ' + fmtTime(new Date()), true);
   }
   loadClock();
 });
@@ -764,10 +822,13 @@ function openShiftEditor(entry, staffId){
   document.getElementById('shReason').value = '';
   document.getElementById('shPin').value = '';
   fillManagers(document.getElementById('shMgr'));
+  toggleApprove(document.querySelector('#shiftModal .approve'), isCafeLogin() || needApproval);
   document.getElementById('shiftModal').hidden = false;
 }
 function approval(selId, pinId){
-  return {p_manager_id: document.getElementById(selId).value || null,
+  var sel = document.getElementById(selId);
+  if (sel.closest('.approve').hidden) return {p_manager_id: null, p_manager_pin: null};
+  return {p_manager_id: sel.value || null,
           p_manager_pin: document.getElementById(pinId).value.trim()};
 }
 document.getElementById('shCancel').addEventListener('click', function(){ document.getElementById('shiftModal').hidden = true; });
@@ -788,6 +849,8 @@ document.getElementById('shiftForm').addEventListener('submit', async function(e
     p_reason: document.getElementById('shReason').value.trim()
   }));
   if (r.error || !r.data || !r.data.ok){
+    var box = document.querySelector('#shiftModal .approve');
+    if (box.hidden && approvalNeeded(r)){ needApproval = true; toggleApprove(box, true); document.getElementById('shiftErr').textContent = NEED_APPROVAL_MSG; return; }
     document.getElementById('shiftErr').textContent = errMsg(r);
     document.getElementById('shPin').value = '';
     return;
@@ -804,6 +867,8 @@ document.getElementById('shDelete').addEventListener('click', async function(){
     p_reason: document.getElementById('shReason').value.trim()
   }));
   if (r.error || !r.data || !r.data.ok){
+    var box2 = document.querySelector('#shiftModal .approve');
+    if (box2.hidden && approvalNeeded(r)){ needApproval = true; toggleApprove(box2, true); document.getElementById('shiftErr').textContent = NEED_APPROVAL_MSG; return; }
     document.getElementById('shiftErr').textContent = errMsg(r);
     document.getElementById('shPin').value = '';
     return;
@@ -832,9 +897,12 @@ function renderTeam(){
       if (st.can_see_sales){ var sp = document.createElement('span'); sp.className = 'pill'; sp.textContent = 'sales'; row.appendChild(sp); }
     }
     if (!isCafeLogin()){
+      var rp = document.createElement('button'); rp.className = 'ghost small'; rp.textContent = 'Reset PIN';
+      rp.addEventListener('click', function(){ openStaffEditor(st, true); });
       var ed = document.createElement('button'); ed.className = 'ghost small'; ed.textContent = 'Edit';
+      ed.style.marginLeft = '.4rem';
       ed.addEventListener('click', function(){ openStaffEditor(st); });
-      row.appendChild(ed);
+      row.appendChild(rp); row.appendChild(ed);
     }
     root.appendChild(row);
   });
@@ -845,27 +913,30 @@ function renderTeam(){
   tn.hidden = !isCafeLogin();
 }
 var staffTarget = null;
-function openStaffEditor(st){
+function openStaffEditor(st, pinOnly){
   staffTarget = st;
-  document.getElementById('staffTitle').textContent = st ? 'Edit · ' + st.name : 'Add person';
+  document.getElementById('staffTitle').textContent = st ? (pinOnly ? 'New PIN · ' : 'Edit · ') + st.name : 'Add person';
   document.getElementById('stName').value = st ? st.name : '';
   document.getElementById('stPin').value = '';
+  document.getElementById('stPin2').value = '';
   document.getElementById('stPinLabel').textContent = st
-    ? 'New PIN (leave empty to keep the current one)' : 'PIN (4–8 digits, they\'ll type it to clock in)';
+    ? (pinOnly ? 'New PIN (4–8 digits)' : 'New PIN (leave empty to keep the current one)') : 'PIN (4–8 digits, they\'ll type it to clock in)';
   document.getElementById('stActive').checked = st ? st.active : true;
   var bootstrap = managers().length === 0;
   var roleSel = document.getElementById('stRole');
   roleSel.value = bootstrap ? 'manager' : ((st && st.role) || 'staff');
   roleSel.disabled = bootstrap;
-  document.getElementById('stApprove').hidden = bootstrap;
+  /* the owner login saves directly; the manager approval block only shows when the database insists */
+  document.getElementById('stApprove').hidden = bootstrap || !needApproval;
   document.getElementById('stBootstrap').hidden = !bootstrap;
+  document.getElementById('stOwnerNote').hidden = bootstrap || needApproval;
   document.getElementById('stSales').checked = !!(st && st.can_see_sales);
   syncSalesLine();
   document.getElementById('stMgrPin').value = '';
   fillManagers(document.getElementById('stMgr'));
   document.getElementById('staffErr').textContent = '';
   document.getElementById('staffModal').hidden = false;
-  document.getElementById('stName').focus();
+  (pinOnly ? document.getElementById('stPin') : document.getElementById('stName')).focus();
 }
 function syncSalesLine(){
   var mgr = document.getElementById('stRole').value === 'manager';
@@ -890,6 +961,11 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     document.getElementById('staffErr').textContent = 'A new person needs a PIN.';
     return;
   }
+  if (pin && pin !== document.getElementById('stPin2').value.trim()){
+    document.getElementById('staffErr').textContent = 'The two PINs do not match.';
+    document.getElementById('stPin2').focus();
+    return;
+  }
   var bootstrap = managers().length === 0;
   var a = bootstrap ? {p_manager_id: null, p_manager_pin: null} : approval('stMgr', 'stMgrPin');
   var r = await db.rpc('manager_save_staff', Object.assign(a, {
@@ -900,6 +976,8 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     p_role: document.getElementById('stRole').value
   }));
   if (r.error || !r.data || !r.data.ok){
+    var sbox = document.getElementById('stApprove');
+    if (sbox.hidden && !bootstrap && approvalNeeded(r)){ needApproval = true; sbox.hidden = false; document.getElementById('stOwnerNote').hidden = true; document.getElementById('staffErr').textContent = NEED_APPROVAL_MSG; return; }
     document.getElementById('staffErr').textContent = errMsg(r);
     document.getElementById('stMgrPin').value = '';
     return;
@@ -948,6 +1026,23 @@ document.addEventListener('visibilitychange', function(){
 });
 
 refreshAuth();
+</script>
+<script>
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one */
+(function(){
+  var b = document.getElementById('forgotBtn'); if (!b) return;
+  b.addEventListener('click', async function(){
+    var em = (document.getElementById('em').value || '').trim();
+    if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
+    var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
+    b.disabled = true;
+    var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
+    b.disabled = false;
+    document.getElementById('loginErr').textContent = r.error
+      ? 'Could not send the email. Check the address and try again.'
+      : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+  });
+})();
 </script>
 <script src="lang.js"></script>
 </body>

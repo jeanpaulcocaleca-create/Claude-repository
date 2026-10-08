@@ -99,6 +99,8 @@ td .sub{display:block;font-size:.78rem;color:var(--sec)}
 .mono-small{font-family:'Spline Sans Mono',monospace;font-size:.82rem}
 @media (max-width:720px){.modal .row{grid-template-columns:1fr}.recipe-row{grid-template-columns:1fr 80px 50px auto}}
 @media print{.pagenav,.tabs,header.top button,.tools,.acts,.hg-lang{display:none !important}}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -113,6 +115,7 @@ td .sub{display:block;font-size:.78rem;color:var(--sec)}
     <input id="pw" type="password" autocomplete="current-password" required>
     <button type="submit">Sign in</button>
     <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
   </form>
   <form id="codeForm" hidden>
     <label for="codeIn">Code from your phone app</label>
@@ -1067,6 +1070,23 @@ $('csvMonthBtn').addEventListener('click', function(){
 document.querySelectorAll('.modalbg').forEach(function(m){ m.addEventListener('click', function(e){ if (e.target === m) m.hidden = true; }); });
 
 refreshAuth();
+</script>
+<script>
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one */
+(function(){
+  var b = document.getElementById('forgotBtn'); if (!b) return;
+  b.addEventListener('click', async function(){
+    var em = (document.getElementById('em').value || '').trim();
+    if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
+    var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
+    b.disabled = true;
+    var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
+    b.disabled = false;
+    document.getElementById('loginErr').textContent = r.error
+      ? 'Could not send the email. Check the address and try again.'
+      : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+  });
+})();
 </script>
 <script src="lang.js"></script>
 </body>

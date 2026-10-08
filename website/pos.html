@@ -163,6 +163,8 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
   #receipt{display:block;break-after:avoid;page-break-after:avoid}
   #receipt>*{break-inside:avoid;page-break-inside:avoid}
 }
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -176,6 +178,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
     <input id="pw" type="password" autocomplete="current-password" required>
     <button type="submit" id="loginBtn">Sign in</button>
     <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
   </form>
 </div>
 
@@ -1062,6 +1065,23 @@ function whatsapp(o, kind){
 }
 
 refreshAuth();
+</script>
+<script>
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one */
+(function(){
+  var b = document.getElementById('forgotBtn'); if (!b) return;
+  b.addEventListener('click', async function(){
+    var em = (document.getElementById('em').value || '').trim();
+    if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
+    var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
+    b.disabled = true;
+    var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
+    b.disabled = false;
+    document.getElementById('loginErr').textContent = r.error
+      ? 'Could not send the email. Check the address and try again.'
+      : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+  });
+})();
 </script>
 <script src="lang.js"></script>
 </body>
