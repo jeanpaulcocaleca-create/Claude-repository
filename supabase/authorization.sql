@@ -1,5 +1,7 @@
 -- Canopy OS · The Hanging Garden Café
 -- Manager authorization: run ONCE in Supabase (SQL Editor -> New query -> paste -> Run).
+-- NOTE: supabase/manager-mode.sql replaces some functions of this script (owner areas behind a PIN).
+--       If you ever run this script again, run manager-mode.sql again right after it.
 -- Safe to re-run. Run supabase/timeclock.sql first if you have not already.
 --
 -- After this script:

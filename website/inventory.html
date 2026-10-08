@@ -666,7 +666,8 @@ function renderToday(){
     d.appendChild(left); d.appendChild(acts); list.appendChild(d);
   });
   if (FOOD && FOOD.ok !== false){
-    $('fcRevenue').textContent = fmt(FOOD.revenue); $('fcUsage').textContent = fmt(FOOD.usage_cost); $('fcWaste').textContent = fmt(FOOD.waste_cost);
+    /* the sales figure only comes with sales access (manager-mode.sql) */
+    $('fcRevenue').textContent = FOOD.revenue == null ? '–' : fmt(FOOD.revenue); $('fcUsage').textContent = fmt(FOOD.usage_cost); $('fcWaste').textContent = fmt(FOOD.waste_cost);
     $('fcPct').textContent = FOOD.revenue > 0 ? num(100 * FOOD.usage_cost / FOOD.revenue, 1) + '% of sales' : '';
     $('fcWastePct').textContent = FOOD.usage_cost > 0 ? num(100 * FOOD.waste_cost / FOOD.usage_cost, 1) + '% of what was used' : '';
   }

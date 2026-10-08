@@ -215,7 +215,7 @@ create or replace function public.manager_save_staff(p_manager_id uuid, p_manage
     p_id uuid, p_name text, p_pin text, p_active boolean, p_role text)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare v record; u record; lvl text; bootstrap boolean; owners_exist boolean; nid uuid; role_final text;
-        old public.staff; managers_left int; msid uuid; msname text;
+        old public.staff; managers_left int; msid uuid; msname text; strip_sales boolean;
 begin
   lvl := public.access_level();
   bootstrap := not exists (select 1 from public.staff where active and role in ('manager', 'owner'));
@@ -249,6 +249,16 @@ begin
      and not (lvl = 'owner' or bootstrap or (not owners_exist and public.account_kind() = 'owner')) then
     return jsonb_build_object('ok', false, 'error', 'owner_role_only');
   end if;
+  -- Another manager's PIN, role or active state: only an owner. Otherwise a GM could set a colleague's PIN
+  -- and then open sales or approve voids and discounts in that colleague's name. Before the team has an
+  -- owner, managers may still do it, but a PIN set by someone else switches "may open sales" off.
+  strip_sales := false;
+  if old.id is not null and old.role = 'manager' and old.id is distinct from msid and lvl is distinct from 'owner'
+     and not bootstrap
+     and ((p_pin is not null and p_pin <> '') or role_final <> old.role or coalesce(p_active, old.active) <> old.active) then
+    if owners_exist then return jsonb_build_object('ok', false, 'error', 'manager_needs_owner'); end if;
+    strip_sales := p_pin is not null and p_pin <> '';
+  end if;
 
   if p_id is null then
     if p_pin is null or p_pin = '' then return jsonb_build_object('ok', false, 'error', 'missing_pin'); end if;
@@ -268,7 +278,7 @@ begin
       locked_until = case when p_pin is not null and p_pin <> '' then null else locked_until end,
       active = coalesce(p_active, active),
       role = role_final,
-      can_see_sales = case when role_final = 'manager' then can_see_sales else false end
+      can_see_sales = case when role_final = 'manager' and not strip_sales then can_see_sales else false end
       where id = p_id;
     nid := p_id;
   end if;
@@ -379,6 +389,55 @@ begin
     where t.clock_in >= p_from and t.clock_in < p_to
       and (is_mgr or t.staff_id = v.sid)
     order by t.clock_in;
+end $$;
+
+-- Hours for one person with their own PIN (the time clock, café login). hours_report above is kept for old
+-- pages, but it is declared stable, so the API runs it read-only and the PIN check cannot record a try.
+-- This one returns the answer as data: a wrong PIN is counted (5 wrong = 10 minutes locked) and never raises.
+create or replace function public.hours_for(p_staff_id uuid, p_pin text, p_from timestamptz, p_to timestamptz)
+returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
+declare v record; is_mgr boolean; rows jsonb;
+begin
+  if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
+  select * into v from public._verify_pin(p_staff_id, p_pin, false);
+  if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
+  select role in ('manager', 'owner') into is_mgr from public.staff where id = v.sid;
+  select coalesce(jsonb_agg(to_jsonb(t) order by t.clock_in), '[]'::jsonb) into rows
+    from public.time_entries t
+    where t.clock_in >= p_from and t.clock_in < p_to and (is_mgr or t.staff_id = v.sid);
+  return jsonb_build_object('ok', true, 'entries', rows);
+end $$;
+revoke all on function public.hours_for(uuid, text, timestamptz, timestamptz) from public, anon;
+grant execute on function public.hours_for(uuid, text, timestamptz, timestamptz) to authenticated;
+
+-- Sales numbers stay behind the sales permission, also where other owner areas show them:
+--   * register closings: today and any day still open for the café; older days with sales access
+--   * the approvals log: register closings carry the day's totals, so they need sales access too
+--   * inventory food cost: the sales figure only with sales access
+drop policy if exists "register read" on public.register_days;
+create policy "register read" on public.register_days for select to authenticated
+  using ((select public.is_cafe()) and (business_date = public.cr_today() or closed_at is null
+                                        or (select public.sales_open())));
+drop policy if exists "audit read" on public.audit_log;
+create policy "audit read" on public.audit_log for select to authenticated
+  using ((select public.is_owner()) and (action not in ('register_close', 'register_reclose') or (select public.sales_open())));
+create or replace function public.inventory_food_cost(p_days int default 30)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.inventory_open() then return jsonb_build_object('ok', false); end if;
+  return jsonb_build_object(
+    'ok', true,
+    'usage_cost', coalesce((select round(sum(-m.qty * i.cost_per_pack / i.pack_qty))
+                              from public.stock_moves m join public.stock_items i on i.id = m.item_id
+                             where m.kind in ('sale', 'void', 'waste') and m.at >= now() - make_interval(days => p_days)), 0),
+    'waste_cost', coalesce((select round(sum(-m.qty * i.cost_per_pack / i.pack_qty))
+                              from public.stock_moves m join public.stock_items i on i.id = m.item_id
+                             where m.kind = 'waste' and m.at >= now() - make_interval(days => p_days)), 0),
+    'revenue', case when public.sales_open() then
+                 coalesce((select sum(total_crc) from public.orders
+                            where created_at >= now() - make_interval(days => p_days) and voided_at is null
+                              and coalesce(paid, true) and coalesce(status, 'done') <> 'cancelled'), 0) end,
+    'stock_value', coalesce((select round(sum(on_hand * cost_per_pack / pack_qty)) from public.stock_items where active), 0));
 end $$;
 
 -- 7) Menu photos: the storage service may not pass the device token, so it accepts an open unlock on

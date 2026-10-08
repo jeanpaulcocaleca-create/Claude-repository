@@ -1,4 +1,6 @@
 -- ============================================================================
+-- NOTE: supabase/manager-mode.sql replaces some functions of this script (owner areas behind a PIN).
+--       If you ever run this script again, run manager-mode.sql again right after it.
 --  The Hanging Garden Café · Inventory
 --  Run once in Supabase (SQL Editor → New query → paste → Run). Safe to re-run.
 --  Needs timeclock.sql, authorization.sql and accounts.sql to be in place.

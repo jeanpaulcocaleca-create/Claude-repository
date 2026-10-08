@@ -7,6 +7,8 @@
 --     database, written to the approvals log, and can be used for one order only.
 --   * Percent (1-100 %) or a fixed amount in colones. The order keeps the subtotal, the discount, who
 --     approved it and why; the total is what the customer paid.
+--   * An approval covers at most the amount the manager saw (items added later do not grow it) and is
+--     good for 30 minutes.
 -- Stations
 --   * Every order records which device took it (front register, iPad...).
 --   * An order taken on the iPad can be sent to the register unpaid: it shows on every station, the front
@@ -37,6 +39,8 @@ create table if not exists public.discount_approvals (
   order_id uuid,
   used_at timestamptz
 );
+alter table public.discount_approvals add column if not exists subtotal_crc int;   -- the order the manager saw
+alter table public.discount_approvals add column if not exists amount_crc int;     -- the discount the manager saw
 alter table public.discount_approvals enable row level security;
 revoke all on public.discount_approvals from anon, authenticated;
 grant select on public.discount_approvals to authenticated;
@@ -59,14 +63,14 @@ begin
   select * into v from public._verify_pin(p_staff_id, p_pin, true);
   if v.err is not null then return jsonb_build_object('ok', false, 'error', v.err); end if;
   amt := case when p_kind = 'percent' then round(p_subtotal * p_value / 100.0)::int else p_value end;
-  insert into public.discount_approvals (approved_by, approved_name, kind, value, reason, station)
-    values (v.sid, v.sname, p_kind, p_value, why, nullif(left(trim(coalesce(p_station, '')), 40), ''))
+  insert into public.discount_approvals (approved_by, approved_name, kind, value, reason, station, subtotal_crc, amount_crc)
+    values (v.sid, v.sname, p_kind, p_value, why, nullif(left(trim(coalesce(p_station, '')), 40), ''), p_subtotal, amt)
     returning * into a;
   insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
     values ('discount_approved', v.sid, v.sname, a.id::text, why,
             jsonb_build_object('kind', p_kind, 'value', p_value, 'subtotal_crc', p_subtotal, 'discount_crc', amt,
                                'station', a.station));
-  return jsonb_build_object('ok', true, 'id', a.id, 'amount', amt, 'name', v.sname, 'reason', why);
+  return jsonb_build_object('ok', true, 'id', a.id, 'amount', amt, 'name', v.sname, 'reason', why, 'at', a.created_at);
 end $$;
 revoke all on function public.approve_discount(uuid, text, text, int, int, text, text) from public, anon;
 grant execute on function public.approve_discount(uuid, text, text, int, int, text, text) to authenticated;
@@ -76,7 +80,11 @@ create or replace function public._order_discount_check()
 returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare a public.discount_approvals; allowed int;
 begin
-  if coalesce(new.discount_crc, 0) <= 0 then
+  if coalesce(new.discount_crc, 0) < 0 then raise exception 'discount_not_approved' using errcode = 'P0001'; end if;
+  if coalesce(new.discount_crc, 0) = 0 then
+    -- no discount: a subtotal, when sent, must be the total
+    if new.subtotal_crc is not null and new.total_crc <> new.subtotal_crc then
+      raise exception 'discount_not_approved' using errcode = 'P0001'; end if;
     new.discount_crc := 0; new.discount_id := null; new.discount_reason := null; new.discount_by := null;
     return new;
   end if;
@@ -84,11 +92,18 @@ begin
   select * into a from public.discount_approvals where id = new.discount_id for update;
   if a.id is null then raise exception 'discount_not_approved' using errcode = 'P0001'; end if;
   if a.order_id is not null and a.order_id <> new.id then raise exception 'discount_used' using errcode = '23505'; end if;
+  -- the sale must be rung within 30 minutes of the approval (the order's own time, so an offline sale still counts)
+  if new.created_at > a.created_at + interval '30 minutes' or new.created_at < a.created_at - interval '10 minutes' then
+    raise exception 'discount_expired' using errcode = 'P0001'; end if;
   if new.subtotal_crc is null or new.subtotal_crc <= 0 then raise exception 'discount_no_subtotal' using errcode = 'P0001'; end if;
+  -- never more than the manager saw: a percentage follows the order down, not up
   allowed := case when a.kind = 'percent' then round(new.subtotal_crc * a.value / 100.0)::int
                   else least(a.value, new.subtotal_crc) end;
-  if new.discount_crc > allowed + 1 then raise exception 'discount_too_big' using errcode = 'P0001'; end if;
-  if new.total_crc <> new.subtotal_crc - new.discount_crc then raise exception 'discount_total' using errcode = 'P0001'; end if;
+  if a.amount_crc is not null then allowed := least(allowed, a.amount_crc); end if;
+  if new.discount_crc > allowed + (case when a.kind = 'percent' then 1 else 0 end)
+     or new.discount_crc > new.subtotal_crc then raise exception 'discount_too_big' using errcode = 'P0001'; end if;
+  if new.total_crc <> new.subtotal_crc - new.discount_crc or new.total_crc < 0 then
+    raise exception 'discount_total' using errcode = 'P0001'; end if;
   new.discount_reason := a.reason;
   new.discount_by := a.approved_name;
   update public.discount_approvals set used_at = now(), order_id = new.id where id = a.id;
@@ -111,6 +126,22 @@ drop trigger if exists order_discount_frozen on public.orders;
 create trigger order_discount_frozen before update on public.orders
   for each row execute function public._order_discount_frozen();
 
+-- The till may move an order forward (accepted, ready, delivered) but never cancel it or reopen a delivered one
+-- by itself: cancelling goes through cancel_unpaid_order / cancel_room_order (logged), a paid order through a
+-- manager's void. Those functions run as the database owner, so this check only stops direct edits.
+create or replace function public._order_status_guard()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if current_user in ('authenticated', 'anon') and new.status is distinct from old.status then
+    if new.status = 'cancelled' then raise exception 'use_cancel' using errcode = 'P0001'; end if;
+    if old.status in ('done', 'cancelled') then raise exception 'order_closed' using errcode = 'P0001'; end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists order_status_guard on public.orders;
+create trigger order_status_guard before update on public.orders
+  for each row execute function public._order_status_guard();
+
 -- 4) Orders sent to the register unpaid: charge them at any station, or cancel before payment --------
 create or replace function public.finish_order(p_order_id uuid, p_payment_method text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -128,6 +159,11 @@ begin
                              guest_phone = null where id = p_order_id;
   else
     update public.orders set paid = true, payment_method = p_payment_method where id = p_order_id;
+  end if;
+  -- left unpaid past closing and charged on a later day: it belongs to the day the money came in, so that
+  -- day's register closing and sales include it (the closing of the day it was taken did not)
+  if (o.created_at at time zone 'America/Costa_Rica')::date < (now() at time zone 'America/Costa_Rica')::date then
+    update public.orders set created_at = now() where id = p_order_id;
   end if;
   return jsonb_build_object('ok', true);
 end $$;

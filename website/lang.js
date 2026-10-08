@@ -551,6 +551,11 @@
     '{n} orders are not paid yet ({x}). Charge them or cancel them before closing: unpaid orders are not counted.':
       '{n} pedidos todavía no están pagados ({x}). Cóbrelos o cancélelos antes de cerrar: los pedidos sin pagar no se cuentan.',
     'Discounts given': 'Descuentos dados',
+    "Only an owner can change another manager's PIN, role or status.": 'Solo un dueño puede cambiar el PIN, el puesto o el estado de otro encargado.',
+    'The discount approval is more than {n} minutes old. Ask for it again.': 'La aprobación del descuento tiene más de {n} minutos. Pídala de nuevo.',
+    'Sending to the register needs the internet. Charge it here or try again.': 'Enviar a la caja necesita internet. Cóbrelo aquí o intente de nuevo.',
+    'Already done on another device.': 'Ya se hizo en otro dispositivo.',
+    'not verified': 'sin verificar',
     /* TV board */
     "Vertical · the TV's top edge is on the left": 'Vertical · el borde de arriba del televisor quedó a la izquierda',
     "Vertical · the TV's top edge is on the right": 'Vertical · el borde de arriba del televisor quedó a la derecha',

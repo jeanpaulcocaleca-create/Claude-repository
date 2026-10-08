@@ -73,6 +73,7 @@
     '.hga-pill{position:fixed;left:.7rem;bottom:.7rem;z-index:2147481000;display:flex;align-items:center;gap:.5rem;background:var(--ink,#26392C);color:#FCF8EC;border-radius:99px;padding:.35rem .4rem .35rem .9rem;font:600 .78rem/1.2 Figtree,system-ui,sans-serif;box-shadow:0 6px 20px rgba(8,20,13,.25)}' +
     '.hga-pill button{all:unset;cursor:pointer;background:#FCF8EC;color:var(--ink,#26392C);border-radius:99px;padding:.35em .8em;font-weight:700}' +
     '.hga-pill button:focus-visible{outline:2px solid var(--gold,#B98A35);outline-offset:2px}' +
+    '.hga-pill.inline{position:static;box-shadow:none;padding:.2rem .25rem .2rem .7rem;font-size:.72rem}' +
     'a.hga-locked::after{content:" \\1F512";font-size:.85em}' +
     '@media print{.hga-pill,.hga-wrap{display:none !important}}';
   function css() {
@@ -150,26 +151,34 @@
     });
   }
 
-  /* "Owner areas open · Ana · until 10:32 · Lock", bottom left, while a PIN unlock is active */
-  function pill(db) {
+  /* "Owner areas open · Ana · until 10:32 · Lock", bottom left, while a PIN unlock is active.
+     opts.host: put it inside that element instead (the POS top bar, so it never covers the order buttons).
+     opts.soft: never reload the page (the POS keeps the open order); the links just lock again. */
+  var pillOpts = {};
+  function pill(db, opts) {
     css();
+    pillOpts = opts || pillOpts || {};
     if (pillEl) { pillEl.remove(); pillEl = null; }
     clearTimeout(pillTimer);
     if (!state || state.via !== 'pin' || !state.until) return;
-    pillEl = document.createElement('div'); pillEl.className = 'hga-pill';
+    pillEl = document.createElement('div'); pillEl.className = 'hga-pill' + (pillOpts.host ? ' inline' : '');
     var t = document.createElement('span');
     t.textContent = 'Owner areas open · ' + (state.name || '') + ' · until ' + hhmm(state.until);
     var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Lock';
     b.addEventListener('click', function () { lock(db); });
     pillEl.appendChild(t); pillEl.appendChild(b);
-    document.body.appendChild(pillEl);
+    (pillOpts.host || document.body).appendChild(pillEl);
     var ms = new Date(state.until) - new Date();
-    if (ms > 0 && ms < 2147483000) pillTimer = setTimeout(function () { clear(); location.reload(); }, ms + 500);
+    if (ms > 0 && ms < 2147483000) pillTimer = setTimeout(function () {
+      clear();
+      if (pillOpts.soft) { load(db).then(function () { pill(db); }); } else location.reload();
+    }, ms + 500);
   }
 
   async function lock(db) {
     try { await db.rpc('access_lock'); } catch (e) {}
-    clear(); location.reload();
+    clear();
+    if (pillOpts.soft) { await load(db); pill(db); } else location.reload();
   }
 
   window.HG_ACCESS = {

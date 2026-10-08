@@ -1,5 +1,7 @@
 -- Hanging Garden Café · access and PINs
 -- Run ONCE in Supabase: SQL Editor -> New query -> paste -> Run. Safe to run again.
+-- NOTE: supabase/manager-mode.sql replaces some functions of this script (owner areas behind a PIN).
+--       If you ever run this script again, run manager-mode.sql again right after it.
 -- Run supabase/authorization.sql and supabase/accounts.sql first (already done on this project).
 --
 -- What changes

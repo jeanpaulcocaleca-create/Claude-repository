@@ -483,6 +483,7 @@ var ERR = {
   last_manager: 'This is the only active manager. Make someone else a manager first.',
   not_found: 'That record no longer exists. Reload the page.',
   owner_role_only: 'Only an owner can add or change an owner.',
+  manager_needs_owner: "Only an owner can change another manager's PIN, role or status.",
   already_voided: 'That order was already voided.',
   weak_pin: 'That PIN is too easy to guess (like 1234 or 0000). Pick another.',
   missing_staff: 'Pick the person.',
@@ -686,8 +687,17 @@ async function loadHours(){
   var r;
   if (!canManage()){
     if (!hoursAuth || hoursAuth.until < Date.now()){ hoursEntries = []; renderHours(); renderTeam(); openHoursPin(''); return; }
-    r = await db.rpc('hours_report', {p_staff_id: hoursAuth.id, p_pin: hoursAuth.pin,
-                                      p_from: w.start.toISOString(), p_to: w.end.toISOString()});
+    var hargs = {p_staff_id: hoursAuth.id, p_pin: hoursAuth.pin, p_from: w.start.toISOString(), p_to: w.end.toISOString()};
+    /* hours_for counts a wrong PIN (lockout after 5) and answers as data; hours_report is for before the SQL update */
+    r = await db.rpc('hours_for', hargs);
+    if (r.error && /hours_for|schema cache|could not find/i.test(r.error.message || '')) r = await db.rpc('hours_report', hargs);
+    else if (!r.error){
+      if (!r.data || !r.data.ok){
+        hoursAuth = null; hoursEntries = []; renderHours(); renderTeam();
+        openHoursPin(ERR[r.data && r.data.error] || 'That PIN is not right.'); return;
+      }
+      r = {data: r.data.entries || [], error: null};
+    }
     if (r.error && /pin:/.test(r.error.message || '')){
       var code = (r.error.message.match(/pin:(\w+)/) || [])[1];
       hoursAuth = null; hoursEntries = []; renderHours(); renderTeam();
