@@ -114,6 +114,14 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 .dayrow{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px dotted var(--muted);font-size:.95rem}
 .dayrow.big{font-weight:700;font-size:1.1rem;border-bottom:none;padding-top:.6rem}
 .modal .close{width:100%;margin-top:1rem}
+.regstate{font-size:.88rem;color:var(--sec);margin:0 0 .6rem}
+.regform{margin-top:.9rem;padding-top:.6rem;border-top:1px dotted var(--muted)}
+.regform h3{font-size:1rem;margin:0 0 .2rem}
+.regform label{display:block;font-size:.85rem;color:var(--sec);margin:.6rem 0 .2rem}
+.regform select,.regform input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%;box-sizing:border-box}
+.regform .diff{display:block;margin-top:.25rem;font-size:.85rem;min-height:1.1em}
+.regform button{width:100%;margin-top:.8rem}
+.regform .warn{font-size:.85rem;color:var(--bad);margin:.6rem 0 0}
 .counted{display:flex;gap:.6rem;align-items:center;margin-top:.8rem}
 .counted input{max-width:150px}
 .diff{font-weight:700}
@@ -132,7 +140,7 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 /* printed receipt — hidden on screen, the only thing visible on paper.
    The typography is defined outside @media print so the script can measure the receipt
    before printing and ask for a page exactly that long (see printReceipt). */
-#receipt{display:none;width:72mm;margin:0 auto;padding:1mm 0 6mm;color:#000;background:#fff;font-family:'Spline Sans Mono',monospace;line-height:1.3}
+#receipt{display:none;width:72mm;max-width:100%;margin:0 auto;padding:1mm 0 6mm;color:#000;background:#fff;font-family:'Spline Sans Mono',monospace;line-height:1.3}
 #receipt .rhead{font-weight:700;text-align:center;font-size:12pt;letter-spacing:.04em}
 #receipt .rsub{text-align:center;font-size:9pt;margin-top:2pt}
 #receipt .rrule{border-top:1px dashed #000;margin:6pt 0}
@@ -142,16 +150,17 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 #receipt .rfoot{text-align:center;margin-top:10pt;font-size:9pt}
 #receipt .rnum{text-align:center;font-size:22pt;font-weight:700;margin:6pt 0 2pt}
 #receipt .rnum small{display:block;font-size:8pt;font-weight:400;letter-spacing:.1em}
-#receipt.measuring{display:block;position:absolute;left:-9999px;top:0}
-.util .paper{flex:none;display:flex;align-items:center;gap:.3rem;font-size:.78rem;color:var(--sec,#54634F)}
-.util .paper select{font:inherit;font-size:.8rem;border:1.5px solid var(--muted);border-radius:10px;background:#fff;color:var(--ink);padding:.35em .4em;min-height:44px}
 @media print{
-  /* 80 mm roll, no margins; the script replaces the height with the measured receipt or the owner's paper setting */
-  @page{size:80mm 200mm;margin:0}
+  /* No page size here on purpose: the paper is whatever the printer driver declares, and a browser cannot
+     shorten or cut it (that is set once in the driver: a variable-length "Receipt" form or a short fixed form,
+     cut after page). A CSS page size would be centred on that form, feeding blank paper before the receipt.
+     margin:0 removes the browser's header/footer band and gives the receipt the full 72 mm. */
+  @page{margin:0}
   html,body{height:auto !important;min-height:0 !important;max-height:none !important;margin:0 !important;padding:0 !important;overflow:visible !important;background:#fff}
   body>*:not(#receipt){display:none !important}
   .app,.login,.modal,.toast,.hg-lang{display:none !important}
-  #receipt{display:block;position:static;left:auto;break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid}
+  #receipt{display:block;break-after:avoid;page-break-after:avoid}
+  #receipt>*{break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -206,15 +215,6 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
     <div class="util">
       <button class="ghost" id="clearBtn">Clear order</button>
       <button class="ghost" id="printBtn" disabled>Print receipt</button>
-      <label class="paper" title="Paper length your printer driver prints on. Fit receipt cuts right after the last line when the driver allows a custom size; otherwise pick the length chosen in the print dialog."><span>Paper</span>
-        <select id="paperSel" aria-label="Receipt paper length">
-          <option value="">Fit receipt</option>
-          <option value="150">150 mm</option>
-          <option value="210">210 mm</option>
-          <option value="297">297 mm</option>
-          <option value="custom">Custom…</option>
-        </select>
-      </label>
     </div>
   </div>
 </div>
@@ -222,8 +222,39 @@ input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2p
 <div class="modal" id="dayModal" hidden>
   <div class="box">
     <h2>Today at the counter</h2>
+    <p class="regstate" id="regState" hidden></p>
     <div id="dayBody"></div>
-    <div class="counted">
+    <!-- the register: opened in the morning with the cash float, closed in the evening against the card terminal and the drawer -->
+    <form class="regform" id="regOpenForm" hidden>
+      <h3>Open the register</h3>
+      <label for="roStaff">Who is opening</label>
+      <select id="roStaff"></select>
+      <label for="roPin">PIN</label>
+      <input id="roPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <label for="roFloat">Cash float received (₡)</label>
+      <input id="roFloat" type="number" min="0" step="500" inputmode="numeric" value="50000" required>
+      <p class="err" id="roErr"></p>
+      <button type="submit">Open the register</button>
+    </form>
+    <form class="regform" id="regCloseForm" hidden>
+      <h3>Close the register</h3>
+      <label for="rcTerminal">Card terminal total for today (₡)</label>
+      <input id="rcTerminal" type="number" min="0" inputmode="numeric" placeholder="₡" required>
+      <span class="diff mono" id="rcCardDiff"></span>
+      <label for="rcCash">Cash in the drawer, float included (₡)</label>
+      <input id="rcCash" type="number" min="0" inputmode="numeric" placeholder="₡" required>
+      <span class="diff mono" id="rcCashDiff"></span>
+      <label for="rcNotes">Notes (optional)</label>
+      <input id="rcNotes" maxlength="200" autocomplete="off" placeholder="e.g. ₡2 000 short, tip jar">
+      <label for="rcStaff">Who is closing</label>
+      <select id="rcStaff"></select>
+      <label for="rcPin">PIN</label>
+      <input id="rcPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <p class="warn" id="rcQueue" hidden></p>
+      <p class="err" id="rcErr"></p>
+      <button type="submit" id="rcSubmit">Close the register</button>
+    </form>
+    <div class="counted" id="countedBox" hidden>
       <label for="countedCash" style="font-size:.9rem;color:var(--sec)">Cash counted:</label>
       <input id="countedCash" type="number" min="0" inputmode="numeric" placeholder="₡">
       <span class="diff mono" id="cashDiff"></span>
@@ -315,7 +346,7 @@ async function refreshAuth(){
   var authed = !!(s.data && s.data.session);
   document.getElementById('loginView').hidden = authed;
   document.getElementById('appView').hidden = !authed;
-  if (authed){ whoami().then(trimNav); loadMenu(); loadQueue(); syncQueue(); loadSettings(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000); }
+  if (authed){ whoami().then(trimNav); loadMenu(); loadQueue(); syncQueue(); loadSettings(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000); loadRegister().then(nudgeRegister); }
 }
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
@@ -539,50 +570,13 @@ function recordSale(number){
 }
 
 /* ---------- receipt printing (works offline) ----------
-   The browser prints onto whatever paper the printer driver declares. Roll drivers often declare a
-   very long page (up to 3276 mm), so a receipt that leaves the page "full height" makes the printer
-   feed blank paper until the page ends. We ask for a page exactly as long as the receipt
-   ("Fit receipt"), or as long as the paper size the owner picked to match the driver. */
-var PAPER_KEY = 'hg-pos-paper';
-var paperSel = document.getElementById('paperSel');
-var pageStyle = document.createElement('style');
-document.head.appendChild(pageStyle);
-function paperSetting(){ return localStorage.getItem(PAPER_KEY) || ''; }
-function showPaper(){
-  var v = paperSetting();
-  var known = Array.prototype.some.call(paperSel.options, function(o){ return o.value === v; });
-  if (v && !known){
-    var o = paperSel.querySelector('option[value=custom]');
-    var extra = paperSel.querySelector('option[data-custom]');
-    if (!extra){ extra = document.createElement('option'); extra.setAttribute('data-custom', ''); paperSel.insertBefore(extra, o); }
-    extra.value = v; extra.textContent = v + ' mm';
-  }
-  paperSel.value = v;
-}
-paperSel.addEventListener('change', function(){
-  var v = paperSel.value;
-  if (v === 'custom'){
-    var ans = prompt('Paper length in mm, as listed in your printer driver (for example 210). Leave empty to fit the receipt.', paperSetting());
-    if (ans === null){ showPaper(); return; }
-    v = String(parseInt(ans, 10) || '');
-  }
-  if (v) localStorage.setItem(PAPER_KEY, v); else localStorage.removeItem(PAPER_KEY);
-  showPaper();
-});
-showPaper();
-function receiptHeightMm(){
-  var r = document.getElementById('receipt');
-  r.classList.add('measuring');
-  var h = r.getBoundingClientRect().height;
-  r.classList.remove('measuring');
-  return Math.max(40, Math.ceil(h / 96 * 25.4) + 6);   /* 6 mm of feed so the cutter clears the last line */
-}
+   The browser prints one page onto whatever paper form the printer driver declares; it cannot send the
+   printer a cut or a "stop feeding" command (the old POS did that with ESC/POS). So the page keeps itself
+   exactly as tall as the receipt (see @media print) and the paper length and the cut are set once in the
+   printer driver: a variable-length "Receipt" form or a short fixed form, cut after page. */
 function printReceipt(){
-  var go = function(){
-    var mm = parseInt(paperSetting(), 10) || receiptHeightMm();
-    pageStyle.textContent = '@media print{@page{size:80mm ' + mm + 'mm;margin:0}}';
-    window.print();
-  };
+  var go = function(){ window.print(); };
+  /* wait for the receipt font so the first print after opening the page is not set in a fallback font */
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(go, go); else go();
 }
 function esc(s){ var e = document.createElement('span'); e.textContent = s; return e.innerHTML; }
@@ -646,15 +640,151 @@ function updateChip(){
 }
 addEventListener('offline', updateChip);
 
-/* ---------- today / reconciliation ---------- */
+/* ---------- today / the register ----------
+   Morning: open the register with the cash float handed over (₡50 000 by default).
+   Evening: type the card terminal total and the cash in the drawer; the server adds up the day's
+   sales by payment method (supabase/register.sql) and keeps both sides with the differences. */
 document.getElementById('dayBtn').addEventListener('click', openDay);
 document.getElementById('dayClose').addEventListener('click', function(){ document.getElementById('dayModal').hidden = true; });
 var dayCash = 0;
+var dayBy = {};
+var REG = null;             /* today's register row, null until opened */
+var REG_SUPPORT = true;     /* false until supabase/register.sql has been run */
+var REG_ERR = {already_open: 'The register was already opened today.', already_closed: 'The register is already closed for today.',
+  not_open: 'Open the register first.', bad_amounts: 'Type both amounts.', bad_float: 'Type the float received.',
+  no_account: 'This login is not connected to the café yet.'};
+async function loadRegister(){
+  var r = await db.rpc('register_today');
+  if (r.error){ REG_SUPPORT = !/register_today|schema cache|could not find/i.test(r.error.message || ''); REG = null; return REG; }
+  REG_SUPPORT = true; REG = r.data || null; return REG;
+}
+function todayKey(){ var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function nudgeRegister(){
+  if (!REG_SUPPORT || REG) return;
+  try { if (localStorage.getItem('hg-pos-reg-nudge') === todayKey()) return; localStorage.setItem('hg-pos-reg-nudge', todayKey()); } catch (e) {}
+  if (document.getElementById('appView').hidden) return;
+  openDay();
+}
+var staffList = null;
+async function loadStaffList(){
+  var r = await db.from('staff').select('id,name').eq('active', true).order('name');
+  staffList = r.error ? [] : (r.data || []);
+  var remembered = ''; try { remembered = localStorage.getItem('hg-pos-reg-staff') || ''; } catch (e) {}
+  ['roStaff', 'rcStaff'].forEach(function(id){
+    var sel = document.getElementById(id); sel.textContent = '';
+    staffList.forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o); });
+    if (!staffList.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No team members yet'; sel.appendChild(o2); }
+    if (remembered && staffList.some(function(m){ return m.id === remembered; })) sel.value = remembered;
+  });
+}
+function hhmm(iso){ var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function signed(n){ return n === 0 ? 'exact' : (n > 0 ? '+' : '−') + fmt(Math.abs(n)) + ' ' + (n > 0 ? 'over' : 'short'); }
+function dayRow(body, label, value, cls){
+  var d = document.createElement('div'); d.className = 'dayrow' + (cls ? ' ' + cls : '');
+  var a = document.createElement('span'); a.textContent = label;
+  var b = document.createElement('span'); b.className = 'mono'; b.textContent = value;
+  d.appendChild(a); d.appendChild(b); body.appendChild(d);
+  return b;
+}
+function renderRegister(body){
+  var state = document.getElementById('regState');
+  var openF = document.getElementById('regOpenForm'), closeF = document.getElementById('regCloseForm');
+  var fallback = document.getElementById('countedBox');
+  state.hidden = true; openF.hidden = true; closeF.hidden = true; fallback.hidden = true;
+  if (!REG_SUPPORT){
+    fallback.hidden = false;
+    var note = document.createElement('p');
+    note.style.cssText = 'font-size:.85rem;color:var(--sec);margin:.6rem 0 0';
+    note.textContent = 'Compare the card total with the BAC terminal batch. Count the drawer and type it below.';
+    body.appendChild(note);
+    var setup = document.createElement('p');
+    setup.style.cssText = 'font-size:.8rem;color:var(--sec);margin:.4rem 0 0';
+    setup.textContent = 'Run supabase/register.sql in Supabase to open and close the register here.';
+    body.appendChild(setup);
+    document.getElementById('countedCash').value = '';
+    document.getElementById('cashDiff').textContent = '';
+    return;
+  }
+  state.hidden = false;
+  if (!REG){
+    state.textContent = 'The register has not been opened today.';
+    openF.hidden = false;
+    document.getElementById('roErr').textContent = '';
+    document.getElementById('roPin').value = '';
+    return;
+  }
+  var expected = REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
+  if (!REG.closed_at){
+    state.textContent = 'Opened at ' + hhmm(REG.opened_at) + ' by ' + REG.opened_by_name + ' · float ' + fmt(REG.float_crc);
+    dayRow(body, 'Expected in the drawer (float + cash)', fmt(expected));
+    closeF.hidden = false;
+    document.getElementById('rcErr').textContent = '';
+    document.getElementById('rcPin').value = '';
+    var q = document.getElementById('rcQueue');
+    q.hidden = !queue.length;
+    if (queue.length) q.textContent = queue.length + ' sales are waiting to sync. Connect to the internet before closing.';
+    document.getElementById('rcSubmit').disabled = !!queue.length;
+    liveDiffs();
+    return;
+  }
+  state.textContent = 'Closed at ' + hhmm(REG.closed_at) + ' by ' + REG.closed_by_name;
+  dayRow(body, 'Float', fmt(REG.float_crc));
+  dayRow(body, 'Cash sales', fmt((REG.sales_cash_crc || 0) + (REG.sales_cash_usd_crc || 0)));
+  dayRow(body, 'Expected cash', fmt(REG.expected_cash_crc));
+  dayRow(body, 'Cash counted', fmt(REG.cash_counted_crc));
+  dayRow(body, 'Cash difference', signed(REG.cash_diff_crc)).className = 'mono diff ' + (REG.cash_diff_crc === 0 ? 'ok' : 'bad');
+  dayRow(body, 'Card sales', fmt(REG.sales_card_crc));
+  dayRow(body, 'Card terminal', fmt(REG.terminal_crc));
+  dayRow(body, 'Card difference', signed(REG.card_diff_crc)).className = 'mono diff ' + (REG.card_diff_crc === 0 ? 'ok' : 'bad');
+  if (REG.sales_sinpe_crc) dayRow(body, 'SINPE (check the phone)', fmt(REG.sales_sinpe_crc));
+  if (REG.notes) dayRow(body, 'Notes', REG.notes);
+  var after = document.createElement('p');
+  after.style.cssText = 'font-size:.8rem;color:var(--sec);margin:.6rem 0 0';
+  after.textContent = 'Sales rung up after closing are not in this count.';
+  body.appendChild(after);
+}
+function liveDiffs(){
+  if (!REG || REG.closed_at) return;
+  var t = parseInt(document.getElementById('rcTerminal').value, 10);
+  var c = parseInt(document.getElementById('rcCash').value, 10);
+  var cd = document.getElementById('rcCardDiff'), cc = document.getElementById('rcCashDiff');
+  if (isNaN(t)) cd.textContent = ''; else { var dt = t - (dayBy.card || 0); cd.textContent = 'Card sales ' + fmt(dayBy.card || 0) + ' · ' + signed(dt); cd.className = 'diff mono ' + (dt === 0 ? 'ok' : 'bad'); }
+  var expected = REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
+  if (isNaN(c)) cc.textContent = ''; else { var dc = c - expected; cc.textContent = 'Expected ' + fmt(expected) + ' · ' + signed(dc); cc.className = 'diff mono ' + (dc === 0 ? 'ok' : 'bad'); }
+}
+document.getElementById('rcTerminal').addEventListener('input', liveDiffs);
+document.getElementById('rcCash').addEventListener('input', liveDiffs);
+document.getElementById('regOpenForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var err = document.getElementById('roErr'); err.textContent = '';
+  var staff = document.getElementById('roStaff').value;
+  var r = await db.rpc('register_open', {p_staff_id: staff || null, p_pin: document.getElementById('roPin').value,
+    p_float_crc: parseInt(document.getElementById('roFloat').value, 10)});
+  if (r.error){ err.textContent = 'Could not save. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){ err.textContent = ERR[r.data && r.data.error] || REG_ERR[r.data && r.data.error] || 'Could not save. Try again.'; return; }
+  try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
+  REG = r.data.register; toast('Register opened'); openDay();
+});
+document.getElementById('regCloseForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var err = document.getElementById('rcErr'); err.textContent = '';
+  if (queue.length){ err.textContent = queue.length + ' sales are waiting to sync. Connect to the internet before closing.'; return; }
+  var staff = document.getElementById('rcStaff').value;
+  var r = await db.rpc('register_close', {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value,
+    p_terminal_crc: parseInt(document.getElementById('rcTerminal').value, 10), p_cash_counted_crc: parseInt(document.getElementById('rcCash').value, 10),
+    p_notes: document.getElementById('rcNotes').value});
+  if (r.error){ err.textContent = 'Could not save. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){ err.textContent = ERR[r.data && r.data.error] || REG_ERR[r.data && r.data.error] || 'Could not save. Try again.'; return; }
+  try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
+  REG = r.data.register; toast('Register closed'); openDay();
+});
 async function openDay(){
   var start = new Date(); start.setHours(0,0,0,0);
   var body = document.getElementById('dayBody');
   body.innerHTML = '<p style="color:var(--sec)">Adding it up…</p>';
   document.getElementById('dayModal').hidden = false;
+  var regP = loadRegister();
+  if (!staffList) loadStaffList();
   var r = await db.from('orders').select('total_crc,payment_method,voided_at,paid').gte('created_at', start.toISOString());
   if (r.error && /paid/.test(r.error.message || '')){ /* kitchen SQL not run yet */
     r = await db.from('orders').select('total_crc,payment_method,voided_at').gte('created_at', start.toISOString());
@@ -690,12 +820,9 @@ async function openDay(){
   t.innerHTML = '<span>Total</span><span class="mono">' + fmt(total) + '</span>';
   body.appendChild(t);
   dayCash = by.cash_crc || 0;
-  var note = document.createElement('p');
-  note.style.cssText = 'font-size:.85rem;color:var(--sec);margin:.6rem 0 0';
-  note.textContent = 'Compare the card total with the BAC terminal batch. Count the drawer and type it below.';
-  body.appendChild(note);
-  document.getElementById('countedCash').value = '';
-  document.getElementById('cashDiff').textContent = '';
+  dayBy = by;
+  await regP;
+  renderRegister(body);
 }
 document.getElementById('countedCash').addEventListener('input', function(){
   var v = parseInt(this.value, 10);

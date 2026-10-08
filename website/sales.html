@@ -160,6 +160,17 @@ tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:
     <div id="payBars"></div>
   </div>
 
+  <div class="card" id="regCard" hidden>
+    <h2>Register closings</h2>
+    <p class="hint" style="margin:0 0 .6rem;font-size:.85rem;color:var(--sec)">Float handed over in the morning, cash and card terminal typed at closing, and the differences against what the POS recorded.</p>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Day</th><th>Opened by</th><th class="r">Float</th><th class="r">Cash sales</th><th class="r">Expected</th><th class="r">Counted</th><th class="r">Cash ±</th><th class="r">Card sales</th><th class="r">Terminal</th><th class="r">Card ±</th><th class="r">SINPE</th><th>Closed by</th></tr></thead>
+        <tbody id="regBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Best sellers</h2>
     <div id="topItems"></div>
@@ -363,7 +374,41 @@ async function load(){
   allOrders = (r.data || []).filter(function(o){ return o.paid !== false; });
   lastOrders = allOrders.filter(function(o){ return !o.voided_at; });
   renderKpis(); renderDayChart(start); renderPay(); renderTop(); renderTx();
+  loadRegisters(start);
 }
+/* register openings and closings in the period (supabase/register.sql) */
+async function loadRegisters(start){
+  var card = document.getElementById('regCard');
+  var r = await db.from('register_days').select('*').gte('business_date', dayKey(start)).order('business_date', {ascending: false}).limit(120);
+  if (r.error){ card.hidden = true; return; }
+  card.hidden = false;
+  var body = document.getElementById('regBody'); body.textContent = '';
+  var rows = r.data || [];
+  if (!rows.length){ body.innerHTML = '<tr><td colspan="12" class="empty">No closings in this period yet.</td></tr>'; return; }
+  var sgn = function(n){ return n === null || n === undefined ? '' : (n === 0 ? 'exact' : (n > 0 ? '+' : '−') + fmt(Math.abs(n))); };
+  rows.forEach(function(g){
+    var tr = document.createElement('tr');
+    var d = new Date(g.business_date + 'T12:00:00');
+    var cells = [
+      [d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}), 'mono'],
+      [(g.opened_by_name || '') + ' ' + hhmmOf(g.opened_at), ''],
+      [fmt(g.float_crc), 'r mono'],
+      [g.closed_at ? fmt((g.sales_cash_crc || 0) + (g.sales_cash_usd_crc || 0)) : '', 'r mono'],
+      [g.closed_at ? fmt(g.expected_cash_crc) : '', 'r mono'],
+      [g.closed_at ? fmt(g.cash_counted_crc) : '', 'r mono'],
+      [g.closed_at ? sgn(g.cash_diff_crc) : '', 'r mono ' + (g.cash_diff_crc ? 'bad' : 'ok')],
+      [g.closed_at ? fmt(g.sales_card_crc) : '', 'r mono'],
+      [g.closed_at ? fmt(g.terminal_crc) : '', 'r mono'],
+      [g.closed_at ? sgn(g.card_diff_crc) : '', 'r mono ' + (g.card_diff_crc ? 'bad' : 'ok')],
+      [g.closed_at ? fmt(g.sales_sinpe_crc || 0) : '', 'r mono'],
+      [g.closed_at ? (g.closed_by_name || '') + ' ' + hhmmOf(g.closed_at) : 'open', '']
+    ];
+    cells.forEach(function(c){ var td = document.createElement('td'); td.className = c[1]; td.textContent = c[0]; tr.appendChild(td); });
+    if (g.notes){ var n = document.createElement('span'); n.className = 'vreason'; n.style.color = 'var(--sec)'; n.textContent = g.notes; tr.lastChild.appendChild(n); }
+    body.appendChild(tr);
+  });
+}
+function hhmmOf(iso){ if (!iso) return ''; var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 var allOrders = [];
 
 function renderKpis(){
