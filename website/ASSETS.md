@@ -37,6 +37,7 @@ The domain is live over HTTPS. The `Publish website` workflow copies `website/` 
 (www redirects there). Pages link each other by file name.
 
 - Website: https://hanginggardencafe.com/
+- Password reset emails: Supabase > Authentication > URL Configuration must have Site URL https://hanginggardencafe.com and https://hanginggardencafe.com/reset.html in Redirect URLs (one-time).
 - Menu page: https://hanginggardencafe.com/menu.html (Spanish: /es/menu.html)
 - Our coffee: https://hanginggardencafe.com/coffee.html (Spanish: /es/cafe.html)
 - Guides: /best-coffee-monteverde.html, /breakfast-monteverde.html, /rainy-day-monteverde.html (Spanish twins under /es/). All built from tools/pages/content.js with `node tools/pages/build.js`.

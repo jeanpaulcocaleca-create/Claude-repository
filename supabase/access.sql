@@ -11,8 +11,17 @@
 --     The café login (the tablet) still needs a manager PIN for 15 minutes of access.
 --   * One rescue line for a lost phone (2FA) code, runnable only from this SQL editor:
 --       select public.owner_reset_phone_code('owner@email');
+--     A lost phone must be reset this way BEFORE a password reset: Supabase refuses to change the
+--     password of a login with a phone code until the code has been typed.
+--   * "Forgot your password?" on the sign-in screens emails a link to reset.html. For that link to land
+--     on the café site, set once in the dashboard: Authentication > URL Configuration > Site URL
+--     https://hanginggardencafe.com, and add https://hanginggardencafe.com/reset.html to Redirect URLs.
 
 create extension if not exists pgcrypto;
+
+-- The PIN check must see pgcrypto, which Supabase keeps in the "extensions" schema. Without this line
+-- clocking in fails with "function crypt(text, text) does not exist".
+alter function public._verify_pin(uuid, text, boolean) set search_path = public, extensions;
 
 -- 0) Helpers ------------------------------------------------------------------
 -- Which owner login acted, for the approvals log ("owner login · name@email").

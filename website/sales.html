@@ -75,6 +75,7 @@ tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:
 @media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.err.ok{color:var(--ok,#4A7A4E)}
 </style>
 </head>
 <body>
@@ -282,7 +283,7 @@ var GATE_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs.
 var salesUntil = null, lockTimer = null;
 function fmtTime(d){ return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
 function setLocked(locked){
-  var owner = ACCOUNT === 'owner';
+  var owner = ACCOUNT === 'owner' && !!salesUntil && (salesUntil - Date.now()) > 365 * 864e5;   /* access.sql ran: reports always open */
   document.getElementById('appView').classList.toggle('locked', locked);
   document.getElementById('gate').hidden = !locked;
   document.getElementById('csvBtn').hidden = locked;
@@ -576,20 +577,26 @@ addEventListener('resize', function(){ if (lastOrders.length) renderDayChart(ran
 refreshAuth();
 </script>
 <script>
-/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one */
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one.
+   Needs, once, in Supabase > Authentication > URL Configuration: Site URL https://hanginggardencafe.com and
+   https://hanginggardencafe.com/reset.html in Redirect URLs. */
 (function(){
   var b = document.getElementById('forgotBtn'); if (!b) return;
+  var msg = document.getElementById('loginErr');
   b.addEventListener('click', async function(){
     var em = (document.getElementById('em').value || '').trim();
     if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
     var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
     b.disabled = true;
     var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
-    b.disabled = false;
-    document.getElementById('loginErr').textContent = r.error
-      ? 'Could not send the email. Check the address and try again.'
+    var limited = !!(r.error && (r.error.status === 429 || r.error.code === 'over_email_send_rate_limit' || /after \d+ seconds|security purposes/i.test(r.error.message || '')));
+    msg.classList.toggle('ok', !r.error);
+    msg.textContent = limited ? 'A link was already sent. Wait a minute and check the spam folder.'
+      : r.error ? 'Could not send the email. Check the address and try again.'
       : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+    setTimeout(function(){ b.disabled = false; }, (r.error && !limited) ? 0 : 60000);
   });
+  document.getElementById('loginForm').addEventListener('submit', function(){ msg.classList.remove('ok'); }, true);
 })();
 </script>
 <script src="lang.js"></script>
