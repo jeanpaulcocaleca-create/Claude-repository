@@ -127,6 +127,17 @@ button.chip:hover{background:var(--canvas)}
 .qrow .qe small{display:block;opacity:.75}
 .qbox .row{display:flex;gap:.6rem;margin-top:.9rem}
 .qbox .row button{flex:1}
+.qbox .qres{font-size:.85rem;color:var(--sec);margin:.5rem 0 0}
+.qrow.tap{cursor:pointer} .qrow.tap:hover{background:#FFFBEF}
+.qrow .qgo{display:block;margin-top:.3rem;font-size:.8rem;font-weight:700;color:var(--accent)}
+/* an open order still only on this device: its own window */
+.locwhy{border:1.5px solid var(--gold);background:#FFF8E6;border-radius:10px;padding:.55rem .7rem;font-size:.88rem;margin:.5rem 0 .6rem}
+.locwhy b{display:block;color:#7A5600}
+.locwhy .qe{color:var(--bad);margin-top:.25rem}
+.locwhy small{display:block;opacity:.75;margin-top:.15rem;overflow-wrap:anywhere}
+.locwhy .qres{color:var(--sec);margin-top:.25rem}
+.locwhy.ok{border-color:var(--ok);background:#EEF7EE}
+.locwhy.ok b{color:var(--ok)}
 
 .ticket{background:var(--panel);border-left:1px solid var(--muted);display:flex;flex-direction:column;min-height:0}
 .ticket h2{font-size:1.05rem;padding:0.9rem 1rem .5rem;display:flex;justify-content:space-between;align-items:baseline;gap:.6rem}
@@ -509,6 +520,38 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <button type="button" id="queueRetry">Try again now</button>
       <button type="button" class="ghost" id="queueClose">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- an open order this device has not saved in the system yet: add items and charge it here; both go to the
+     system by themselves right after the order (tab_add_items, tab_pay), so nothing is typed twice -->
+<div class="modal" id="locModal" hidden>
+  <div class="box tabbox" role="dialog" aria-labelledby="locTitle">
+    <div class="tabhead"><h2 id="locTitle"></h2></div>
+    <p class="hint tabmeta" id="locMeta"></p>
+    <div class="locwhy" id="locWhy"></div>
+    <div id="locLines"></div>
+    <div class="totals" id="locTotals"></div>
+    <div id="locPayArea">
+      <div class="tabdue"><span>To pay now (closes the bill)</span><span class="mono" id="locDue"></span></div>
+      <div class="payrow" id="locPayRow">
+        <button type="button" data-lpay="cash_crc" style="--pc:#2F6B3A">Cash ₡</button>
+        <button type="button" data-lpay="cash_usd" style="--pc:#2F6B3A" class="alt">Cash $</button>
+        <button type="button" data-lpay="card" style="--pc:#285F8A">Card</button>
+        <button type="button" data-lpay="sinpe" style="--pc:#6B3FA0">SINPE</button>
+        <button type="button" data-lpay="other" style="--pc:#54634F" class="alt">Other</button>
+      </div>
+      <p class="hint" style="margin:.4rem 0 0">Discount, splitting the bill and taking an item off work once the order is in the system.</p>
+    </div>
+    <p class="paidall" id="locPaid" hidden></p>
+    <p class="err" id="locErr" role="alert"></p>
+    <div class="util">
+      <button type="button" class="ghost" id="locAdd">Add items</button>
+      <button type="button" class="ghost" id="locRetry">Try again now</button>
+      <button type="button" class="ghost" id="locBill">Print the bill</button>
+      <button type="button" class="ghost" id="locReceipt" disabled>Print receipt</button>
+    </div>
+    <button class="close" id="locClose">Close</button>
   </div>
 </div>
 
@@ -1143,6 +1186,51 @@ function qKind(e, status){
   if (status >= 500 || status === 408 || status === 429 || /^PGRST00/.test(c) || c === '57014' || /^08/.test(c)) return 'server';
   return 'refused';
 }
+/* An open order still on this device can get more items and be charged here (its window, openLocal). Those
+   steps never change the sale as rung: they wait on it (o.adds, o.charge) and go to the system right after it,
+   through the same functions as a bill in the system (tab_add_items, tab_pay). Each carries its own id, so a
+   step sent twice (a lost reply, a second tab) counts once, and the sale leaves this device only when all are in. */
+function qFind(id){ return queue.find(function(q){ return q && q.id === id; }) || null; }
+function qAdded(o){
+  return (o.adds || []).reduce(function(s, a){ return s + a.items.reduce(function(t, i){ return t + i.price * i.qty; }, 0); }, 0);
+}
+function qTotal(o){ return (o.total_crc || 0) + qAdded(o); }
+function qLines(o){
+  var out = (o.items || []).map(function(it){ return {name: it.item_name, price: it.price_crc, qty: it.qty}; });
+  (o.adds || []).forEach(function(a){ a.items.forEach(function(i){ out.push({name: i.name, price: i.price, qty: i.qty, added: a.at}); }); });
+  return out;
+}
+function qOpen(o){ return o.paid === false && !o.charge; }
+function qPending(o){ return !!o.charge || (o.adds || []).some(function(a){ return !a.sent; }); }
+async function qSteps(o){
+  var r, code;
+  for (var i = 0; o.adds && i < o.adds.length; i++){   /* one added while this runs is sent too */
+    var a = o.adds[i]; if (a.sent) continue;
+    r = await db.rpc('tab_add_items', {p_order_id: o.id, p_add_id: a.key,
+                                       p_items: a.items.map(function(x){ return {menu_item_id: x.menu_item_id, qty: x.qty}; })});
+    if (r.error) return {error: r.error, status: r.status};
+    if (!r.data || !r.data.ok){
+      code = (r.data && r.data.error) || 'add';
+      return {error: {code: code === 'no_account' ? '42501' : 'add_' + code, message: 'Could not add the items · ' + (TAB_ERR[code] || code)}, status: 200};
+    }
+    a.sent = true; saveQueue();
+  }
+  if (o.charge){
+    var c = o.charge;
+    r = await db.rpc('tab_pay', {p_order_id: o.id, p_method: c.method, p_lines: null, p_amount: null,
+                                 p_station: o.station || stationName() || null, p_expect: null});
+    if (r.error && tabMissing(r.error)) r = await db.rpc('finish_order', {p_order_id: o.id, p_payment_method: c.method});   /* pos-tabs SQL not run */
+    if (r.error) return {error: r.error, status: r.status};
+    /* already paid: this same payment went through before and its reply was lost */
+    if (!r.data || !(r.data.ok || r.data.error === 'already_paid')){
+      code = (r.data && r.data.error) || 'pay';
+      return {error: {code: code === 'no_account' ? '42501' : 'pay_' + code, message: 'Could not record the payment · ' + (TAB_ERR[code] || code)}, status: 200};
+    }
+    if (o.charge === c) delete o.charge;
+    saveQueue();
+  }
+  return null;
+}
 async function uploadOne(o){
   if (!o.id){   /* a sale saved by an older version of this page */
     o.id = uuid(); (o.items || []).forEach(function(it){ if (!it.id) it.id = uuid(); }); saveQueue();
@@ -1172,9 +1260,20 @@ async function uploadOne(o){
   var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
   var r2 = await db.from('order_items').insert(items);
   if (r2.error && !isDup(r2.error)) return {error: r2.error, status: r2.status};
+  var st = await qSteps(o);   /* items added and the payment taken here since, if any */
+  if (st) return st;
   return {ok: true};
 }
 var qRound = null, qAgain = false;
+/* a request that never answers (a hung connection) would hold every later sale and "Try again now" forever:
+   after 15 s the round stops and says the system is not answering. Sending the sale again later is safe, it
+   counts once (ids made here, steps with their own ids). */
+function qLimit(p){
+  var t;
+  return Promise.race([p, new Promise(function(_, no){
+    t = setTimeout(function(){ no({code: 'timeout', status: 408, message: 'No answer from the system in 15 s'}); }, 15000);
+  })]).finally(function(){ clearTimeout(t); });
+}
 function syncQueue(){
   if (qRound){ qAgain = true; updateChip(); return qRound; }   /* a sale rung meanwhile goes right after this round */
   if (!queue.length){ updateChip(); return Promise.resolve(); }
@@ -1188,9 +1287,11 @@ function syncQueue(){
         for (var i = 0; i < list.length; i++){
           var o = list[i], res;
           if (qGone[o.id]) continue;
-          try { res = await uploadOne(o); } catch (e){ res = {error: e, status: 0}; }
+          try { res = await qLimit(uploadOne(o)); } catch (e){ res = {error: e, status: e && e.status || 0}; }
           /* by id: a renewed sign-in reloads the queue from this device's storage meanwhile (refreshAuth) */
           if (res.ok){
+            var now = qFind(o.id);
+            if (now && now !== o && qPending(now)){ delete now.err; saveQueue(); qAgain = true; continue; }   /* its steps go next */
             qGone[o.id] = true; queue = queue.filter(function(q){ return q !== o && q.id !== o.id; }); saved++; saveQueue(); continue;
           }
           var kind = qKind(res.error, res.status);
@@ -1206,6 +1307,7 @@ function syncQueue(){
     } finally { syncing = false; qRound = null; updateChip(); }
     if (saved) pollLive();
     if (!document.getElementById('queueModal').hidden) renderQueue();
+    if (loc) locAfterRound();
   })();
   return qRound;
 }
@@ -1230,8 +1332,10 @@ var QMSG = {offline: 'No internet on this device. It saves by itself when the in
   account: 'This login is not connected to the café in the system. The owner must connect it in Supabase.',
   server: 'The system is not answering right now. It saves by itself when it is back: do not ring the sale again.',
   refused: 'The system refused this sale.'};
+var qTried = null;   /* the last "Try again now": when, and how it went */
 function openQueue(){
   document.getElementById('queueErr').textContent = '';
+  qTried = null;
   renderQueue();
   document.getElementById('queueModal').hidden = false;
   syncQueue();
@@ -1249,12 +1353,21 @@ function renderQueue(){
     var t = document.createElement('div'); t.className = 'qt';
     var a = document.createElement('span');
     a.textContent = hhmm(o.created_at) + ' · ' + (o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number')) + ' · ' +
-      (o.paid === false ? 'Pay later' : (PAY_NAMES[o.payment_method] || o.payment_method));
-    var b = document.createElement('span'); b.className = 'mono'; b.textContent = fmt(o.total_crc);
+      (o.charge ? 'Paid' + ' · ' + (PAY_NAMES[o.charge.method] || o.charge.method)
+                : o.paid === false ? 'Pay later' : (PAY_NAMES[o.payment_method] || o.payment_method));
+    var b = document.createElement('span'); b.className = 'mono'; b.textContent = fmt(qTotal(o));
     t.appendChild(a); t.appendChild(b); row.appendChild(t);
     var i = document.createElement('div'); i.className = 'qi';
-    i.textContent = (o.items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ');
+    i.textContent = qLines(o).map(function(it){ return it.qty + '× ' + it.name; }).join(', ');
     row.appendChild(i);
+    /* a bill not paid yet opens on its own: add items, charge it */
+    if (qOpen(o)){
+      row.classList.add('tap'); row.setAttribute('role', 'button'); row.tabIndex = 0;
+      var go = document.createElement('span'); go.className = 'qgo'; go.textContent = 'Open this order ›'; row.appendChild(go);
+      var open = function(){ document.getElementById('queueModal').hidden = true; openLocal(o.id); };
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); } });
+    }
     if (o.err){
       var e = document.createElement('div'); e.className = 'qe'; e.textContent = QMSG[o.err.kind] || QMSG.refused;
       var sm = document.createElement('small'); sm.setAttribute('data-no-translate', '');
@@ -1263,6 +1376,19 @@ function renderQueue(){
     }
     list.appendChild(row);
   });
+  if (qTried){
+    var res = document.createElement('p'); res.className = 'qres';
+    res.textContent = qTriedText();
+    list.appendChild(res);
+  }
+}
+function qTriedText(){
+  if (!qTried) return '';
+  if (qTried.busy) return 'Trying now…';
+  var left = queue.length;
+  return 'Tried at ' + hhmm(new Date(qTried.at).toISOString()) + ' · ' +
+    (qTried.saved ? (qTried.saved === 1 ? '1 saved' : qTried.saved + ' saved') + ' · ' : '') +
+    (left ? (left === 1 ? '1 still not saved' : left + ' still not saved') : 'everything is saved');
 }
 document.getElementById('netChip').addEventListener('click', openQueue);
 document.getElementById('netChip').addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openQueue(); } });
@@ -1270,11 +1396,18 @@ document.getElementById('queueClose').addEventListener('click', function(){ docu
 document.getElementById('queueRetry').addEventListener('click', async function(){
   if (!navigator.onLine){ document.getElementById('queueErr').textContent = QMSG.offline; return; }
   var b = this; b.disabled = true;
+  document.getElementById('queueErr').textContent = '';
+  qTried = {busy: true}; renderQueue();
+  var before = queue.length;
   try {
     if (qRound) await qRound;   /* the round already running finishes first, with its reasons */
     queue.forEach(function(o){ delete o.err; }); saveQueue();
     await syncQueue();
-  } finally { b.disabled = false; renderQueue(); }
+  } finally {
+    b.disabled = false;
+    qTried = {at: Date.now(), saved: Math.max(0, before - queue.length)};
+    renderQueue();
+  }
 });
 addEventListener('offline', updateChip);
 
@@ -1506,8 +1639,8 @@ async function openDay(){
   var rows = all.filter(function(o){ return !o.voided_at && o.paid !== false; });
   var owing = all.filter(function(o){ return !o.voided_at && o.paid === false && o.status !== 'cancelled'; });
   queue.forEach(function(o){
-    if (o.paid === false){ owing.push({total_crc: o.total_crc}); return; }   /* sent to the register, not paid yet */
-    rows.push({total_crc:o.total_crc, payment_method:o.payment_method});
+    if (qOpen(o)){ owing.push({total_crc: qTotal(o)}); return; }   /* sent to the register, not paid yet */
+    rows.push({total_crc: qTotal(o), payment_method: o.charge ? o.charge.method : o.payment_method});
   });
   dayUnpaid = {n: owing.length, sum: owing.reduce(function(s,o){ return s + o.total_crc; }, 0)};
   var by = {}; var total = 0;
@@ -1868,11 +2001,11 @@ var openSig = null;
 function renderOpen(){
   var bar = document.getElementById('openBar'); if (!bar) return;
   var bills = (liveOrders || []).filter(due);
-  var local = (queue || []).filter(function(o){ return o.paid === false && !bills.some(function(b){ return b.id === o.id; }); });
+  var local = (queue || []).filter(function(o){ return qOpen(o) && !bills.some(function(b){ return b.id === o.id; }); });
   /* the list is drawn again only when something on it changed, and keeps where it was slid to */
   var sig = JSON.stringify([stationName(), TABS_READY, adding ? adding.id : null, liveOk,
     bills.map(function(o){ return [o.id, o.status, o.total_crc, o.parts_crc, o.guest_name, o.pickup_number, o.station, o.notes, orderItems(o)]; }),
-    local.map(function(o){ return [o.id, o.total_crc, !!o.err]; })]);
+    local.map(function(o){ return [o.id, qTotal(o), qLines(o).length, !!o.err]; })]);
   if (sig === openSig && !bar.hidden) return;
   openSig = sig;
   var was = bar.querySelector('.olist'), left = was ? was.scrollLeft : 0;
@@ -1880,7 +2013,7 @@ function renderOpen(){
   var head = document.createElement('div'); head.className = 'ohead';
   var h = document.createElement('h3'); h.textContent = 'Open orders'; head.appendChild(h);
   var n = bills.length + local.length;
-  var sum = bills.reduce(function(s, o){ return s + (o.total_crc || 0); }, 0) + local.reduce(function(s, o){ return s + (o.total_crc || 0); }, 0);
+  var sum = bills.reduce(function(s, o){ return s + (o.total_crc || 0); }, 0) + local.reduce(function(s, o){ return s + qTotal(o); }, 0);
   var cnt = document.createElement('span'); cnt.className = 'mono';
   cnt.textContent = n ? (n === 1 ? '1 order' : n + ' orders') + ' · ' + fmt(sum) + ' to collect' : '';
   head.appendChild(cnt);
@@ -1927,10 +2060,12 @@ function renderOpen(){
          (nm ? nm + ' · ' : '') + orderItems(o) + (o.notes ? ' · ' + o.notes : ''), o.total_crc, o.parts_crc > 0 ? o.parts_crc : 0,
          TABS_READY ? '›' : 'Charge', function(){ if (TABS_READY) openTab(o.id); else openPay(o); }, other);
   });
+  /* still only on this device: it opens on its own, to add items or charge it */
   local.forEach(function(o){
-    card('saving', o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number'), o.err ? 'Not saved yet' : 'Saving…', hhmm(o.created_at),
-         (o.pickup_number && o.guest_name ? o.guest_name + ' · ' : '') + (o.items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', '),
-         o.total_crc, 0, o.err ? 'See why' : '', openQueue);
+    card('saving', o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number'),
+         adding && adding.id === o.id ? 'Adding items' : (o.err ? 'Not saved yet' : 'Saving…'), hhmm(o.created_at),
+         (o.pickup_number && o.guest_name ? o.guest_name + ' · ' : '') + qLines(o).map(function(it){ return it.qty + '× ' + it.name; }).join(', '),
+         qTotal(o), 0, '›', function(){ openLocal(o.id); });
   });
   bar.appendChild(list);
   if (left) list.scrollLeft = left;
@@ -2473,12 +2608,14 @@ function stopAdding(reopen){
   adding = null;
   ticket = a.stash.ticket; tDisc = a.stash.tDisc; document.getElementById('forWho').value = a.stash.who;
   showAdding(); renderTicket();
-  if (reopen) openTab(a.id);
+  /* an order still on this device opens on its own window; one that reached the system meanwhile, as its bill */
+  if (reopen){ if (a.local && qFind(a.id)) openLocal(a.id); else openTab(a.id); }
 }
 document.getElementById('addCancel').addEventListener('click', function(){ stopAdding(true); });
 document.getElementById('addGo').addEventListener('click', async function(){
   if (!adding) return;
   if (!ticket.length){ toast('Tap items to add them.'); return; }
+  if (adding.local && qFind(adding.id)){ localAddGo(); return; }   /* still on this device: no internet needed */
   if (!navigator.onLine){ toast('Adding to a bill needs the internet. Try again in a moment.'); return; }
   var go = this; go.disabled = true;
   var r = await db.rpc('tab_add_items', {p_order_id: adding.id, p_add_id: adding.key, p_items: ticket.map(function(l){ return {menu_item_id: l.id, qty: l.qty}; })});
@@ -2507,6 +2644,191 @@ document.getElementById('addGo').addEventListener('click', async function(){
   toast('Added to ' + who + ' · ' + fmt(r.data.added) + (r.data.kitchen ? ' · sent to the kitchen' : ''));
   stopAdding(true);
   pollLive();
+});
+
+/* ---------- an open order still only on this device ----------
+   It opens like a bill: what was ordered, what it comes to, and why it is not in the system yet. Items added
+   and the payment wait on the sale (qSteps) and go to the system right after it, so nobody rings it twice.
+   As soon as it is in the system this window turns into its bill, with everything (discount, split, take off). */
+var loc = null;   /* {id, tried} the order on screen */
+function locLabel(o){ return o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number'); }
+function openLocal(id){
+  if (!qFind(id)){ if (TABS_READY) openTab(id); return; }   /* it reached the system meanwhile */
+  loc = {id: id, tried: null};
+  document.getElementById('locErr').textContent = '';
+  document.getElementById('locReceipt').disabled = !(lastOrder && lastOrder.locId === id);
+  renderLocal();
+  document.getElementById('locModal').hidden = false;
+  if (navigator.onLine) syncQueue();   /* a try right away: if it goes through, this becomes its bill */
+}
+function renderLocal(){
+  var o = loc && qFind(loc.id); if (!o) return;
+  var charged = !!o.charge, total = qTotal(o);
+  document.getElementById('locTitle').textContent = locLabel(o);
+  var meta = [];
+  if (o.pickup_number && o.guest_name) meta.push(o.guest_name);
+  if (o.station) meta.push(o.station);
+  meta.push('Opened ' + dayTime(o.created_at));
+  var st = tabStatus(o); if (st && !charged) meta.push(st);
+  if (charged) meta.push('Paid');
+  document.getElementById('locMeta').textContent = meta.join(' · ');
+
+  var why = document.getElementById('locWhy'); why.textContent = '';
+  var h = document.createElement('b');
+  h.textContent = charged ? 'Paid here · not in the system yet' : 'Only on this device · not in the system yet';
+  why.appendChild(h);
+  var p = document.createElement('div');
+  p.textContent = 'Items added and the payment taken here go to the system by themselves, right after the order. Do not ring it again.';
+  why.appendChild(p);
+  if (o.err){
+    var e = document.createElement('div'); e.className = 'qe'; e.textContent = QMSG[o.err.kind] || QMSG.refused;
+    var sm = document.createElement('small'); sm.setAttribute('data-no-translate', '');
+    sm.textContent = '(' + [o.err.code, o.err.msg].filter(Boolean).join(' · ') + ')';
+    e.appendChild(sm); why.appendChild(e);
+  }
+  if (loc.tried){
+    var r = document.createElement('div'); r.className = 'qres';
+    r.textContent = loc.tried.busy ? 'Trying now…' : 'Tried at ' + hhmm(new Date(loc.tried.at).toISOString()) + ' · still not saved';
+    why.appendChild(r);
+  }
+
+  var box = document.getElementById('locLines'); box.textContent = '';
+  qLines(o).forEach(function(it){
+    var row = document.createElement('div'); row.className = 'tline';
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.qty + '× ' + it.name; row.appendChild(nm);
+    var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(it.price * it.qty); row.appendChild(amt);
+    row.appendChild(document.createElement('span'));
+    if (it.added){
+      var tg = document.createElement('div'); tg.className = 'tags';
+      var sp = document.createElement('span'); sp.textContent = 'Added ' + hhmm(it.added); tg.appendChild(sp);
+      row.appendChild(tg);
+    }
+    box.appendChild(row);
+  });
+
+  var tot = document.getElementById('locTotals'); tot.textContent = '';
+  var trow = function(label, value, cls){
+    var d = document.createElement('div'); d.className = 'trow' + (cls ? ' ' + cls : '');
+    var a = document.createElement('span'); a.textContent = label; var b = document.createElement('span'); b.className = 'mono'; b.textContent = value;
+    d.appendChild(a); d.appendChild(b); tot.appendChild(d);
+  };
+  if (o.discount_crc > 0 && o.subtotal_crc != null){
+    trow('Items', fmt(o.subtotal_crc + qAdded(o)));
+    trow('Discount ' + fmt(o.discount_crc), '−' + fmt(o.discount_crc));
+  }
+  if (charged) trow('Paid · ' + (PAY_NAMES[o.charge.method] || o.charge.method), fmt(total), 'big');
+  else trow('Still to pay', fmt(total), 'big');
+
+  document.getElementById('locPayArea').hidden = charged;
+  document.getElementById('locDue').textContent = fmt(total);
+  document.querySelectorAll('#locPayRow [data-lpay]').forEach(function(b){ b.disabled = total < 0; });
+  document.getElementById('locPaid').hidden = !charged;
+  document.getElementById('locPaid').textContent = charged ? 'Paid in full' : '';
+  document.getElementById('locAdd').disabled = charged;
+}
+/* after a round of saving: still here, or in the system now (then its bill opens, with everything) */
+function locAfterRound(){
+  if (!loc || document.getElementById('locModal').hidden) return;
+  if (qFind(loc.id)) renderLocal(); else locGone();
+}
+function locGone(){
+  var id = loc ? loc.id : null, paid = !!(lastOrder && lastOrder.locId === id);
+  document.getElementById('locModal').hidden = true; loc = null;
+  if (!id) return;
+  toast('It is in the system now.');
+  if (!paid && TABS_READY) openTab(id);
+}
+document.getElementById('locClose').addEventListener('click', function(){ document.getElementById('locModal').hidden = true; loc = null; });
+document.getElementById('locReceipt').addEventListener('click', function(){ document.getElementById('printBtn').click(); });
+document.getElementById('locRetry').addEventListener('click', async function(){
+  if (!loc) return;
+  var err = document.getElementById('locErr'); err.textContent = '';
+  if (!navigator.onLine){ err.textContent = QMSG.offline; return; }
+  var b = this, id = loc.id; b.disabled = true;
+  loc.tried = {busy: true}; renderLocal();
+  try {
+    if (qRound) await qRound;   /* the round already running finishes first */
+    var o = qFind(id); if (o){ delete o.err; saveQueue(); }
+    await syncQueue();
+  } finally {
+    b.disabled = false;
+    if (loc && loc.id === id){ loc.tried = {at: Date.now()}; locAfterRound(); }
+  }
+});
+/* charged here: the whole bill, one way of paying (split payments work once it is in the system) */
+document.querySelectorAll('#locPayRow [data-lpay]').forEach(function(b){
+  b.addEventListener('click', function(){
+    var o = loc && qFind(loc.id);
+    if (!o){ locGone(); return; }
+    if (o.charge) return;
+    if (adding && adding.id === o.id){ toast('Finish adding to ' + adding.label + ' first: tap Add to the bill or Cancel.'); return; }
+    var method = b.dataset.lpay, label = b.textContent.trim(), lines = qLines(o), total = qTotal(o);
+    var sub = lines.reduce(function(s, l){ return s + l.price * l.qty; }, 0);
+    o.charge = {method: method, at: new Date().toISOString()};
+    saveQueue();
+    lastOrder = {at: new Date(), items: lines.map(function(l){ return {name: l.name, price: l.price, qty: l.qty}; }),
+                 total: total, sub: sub, disc: Math.max(0, sub - total), discText: '', extra: [],
+                 label: label, method: method, number: o.pickup_number,
+                 note: 'CUENTA · BILL ' + (tabWho(o) || hhmm(o.created_at)), locId: o.id};
+    document.getElementById('printBtn').disabled = false;
+    document.getElementById('locReceipt').disabled = false;
+    toast('Bill paid · ' + fmt(total) + ' · ' + label + ' · ' + locLabel(o));
+    renderLocal(); renderOpen(); updateChip();
+    syncQueue();
+  });
+});
+document.getElementById('locAdd').addEventListener('click', function(){
+  var o = loc && qFind(loc.id), err = document.getElementById('locErr');
+  if (!o){ locGone(); return; }
+  err.textContent = '';
+  if (o.charge) return;
+  if (!TABS_READY){ err.textContent = TAB_SETUP; return; }   /* the items go in with tab_add_items */
+  if (adding && adding.id === o.id){ document.getElementById('locModal').hidden = true; loc = null; return; }
+  if (adding && ticket.length){ document.getElementById('locModal').hidden = true; loc = null; toast('Finish adding to ' + adding.label + ' first: tap Add to the bill or Cancel.'); return; }
+  if (adding) stopAdding(false);
+  adding = {id: o.id, label: tabWho(o) || locLabel(o), key: newId(), local: true,
+            stash: {ticket: ticket, tDisc: tDisc, who: document.getElementById('forWho').value}};
+  ticket = []; tDisc = null; document.getElementById('forWho').value = '';
+  document.getElementById('locModal').hidden = true; loc = null;
+  showAdding(); renderTicket();
+  document.querySelector('.ticket').classList.remove('collapsed');
+  toast('Tap the items to add to ' + adding.label);
+});
+/* "Add to the bill" for an order still on this device: kept with it, sent right after it */
+function localAddGo(){
+  var o = qFind(adding.id);
+  if (o.charge){
+    var tapped = ticket; stopAdding(false);
+    tapped.forEach(function(l){ var e = ticket.find(function(x){ return x.id === l.id; }); if (e) e.qty += l.qty; else ticket.push(l); });
+    renderTicket();
+    toast('That bill was already paid. · The items stay on the ticket to charge as a new sale.');
+    return;
+  }
+  if (ticket.length > 40 || ticket.some(function(l){ return l.qty > 50; })){ toast(TAB_ERR.too_many); return; }
+  var items = ticket.map(function(l){ return {menu_item_id: l.id, qty: l.qty, name: l.name, price: l.price}; });
+  var added = items.reduce(function(s, i){ return s + i.price * i.qty; }, 0);
+  o.adds = o.adds || [];
+  o.adds.push({key: adding.key, at: new Date().toISOString(), items: items});
+  saveQueue();
+  toast('Added to ' + adding.label + ' · ' + fmt(added) + ' · It goes to the system with the order.');
+  stopAdding(true);
+  syncQueue();
+}
+/* the bill on paper for an order still on this device (not a receipt) */
+document.getElementById('locBill').addEventListener('click', function(){
+  var o = loc && qFind(loc.id); if (!o){ locGone(); return; }
+  var d = new Date(), total = qTotal(o), lines = qLines(o);
+  var when = d.toLocaleDateString('en-GB') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  var html = '<div class="rhead">HANGING GARDEN CAFÉ</div><div class="rsub">Monteverde · Costa Rica</div>' +
+    '<div class="rsub">' + when + '</div><div class="rsub">CUENTA · BILL ' + esc(tabWho(o) || hhmm(o.created_at)) + '</div><div class="rrule"></div>';
+  lines.forEach(function(it){ html += '<div class="rrow"><span>' + esc(it.qty + '× ' + it.name) + '</span><span>' + rfmt(it.price * it.qty) + '</span></div>'; });
+  var sub = lines.reduce(function(s, l){ return s + l.price * l.qty; }, 0);
+  html += '<div class="rrule"></div><div class="rrow"><span>Subtotal</span><span>' + rfmt(sub) + '</span></div>';
+  if (sub > total) html += '<div class="rrow"><span>Descuento · Discount</span><span>−' + rfmt(sub - total) + '</span></div>';
+  html += '<div class="rtot"><span>' + (o.charge ? 'PAGADO · PAID' : 'POR PAGAR · DUE') + '</span><span>' + rfmt(o.charge ? 0 : total) + '</span></div>' +
+    '<div class="rfoot">No es comprobante de pago · Not a receipt</div>';
+  document.getElementById('receipt').innerHTML = html;
+  printReceipt();
 });
 
 /* the bill on paper, to show the table what they owe (not a receipt) */

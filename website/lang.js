@@ -674,6 +674,17 @@
     'Adding items': 'Añadiendo productos', 'Not saved yet': 'Sin guardar todavía', 'See why': 'Ver por qué',
     'Sales saved on this device': 'Ventas guardadas en este dispositivo', 'Saved on this device': 'Guardado en este dispositivo',
     'Try again now': 'Intentar de nuevo ahora', '{n} not saved yet': '{n} sin guardar todavía', 'saving {n}': 'guardando {n}',
+    /* an open order still only on this device (pos.html, its own window) */
+    'Open this order ›': 'Abrir esta orden ›', 'Trying now': 'Intentando ahora', 'Tried at {t}': 'Intentado a las {t}',
+    'Tried at {t} · still not saved': 'Intentado a las {t} · sigue sin guardar',   /* before the shorter ones below */
+    '1 saved': '1 guardada', '{n} saved': '{n} guardadas', '1 still not saved': '1 sigue sin guardar', '{n} still not saved': '{n} siguen sin guardar',
+    'everything is saved': 'todo está guardado', 'still not saved': 'sigue sin guardar',
+    'Only on this device': 'Solo en este dispositivo', 'Paid here': 'Pagada aquí', 'not in the system yet': 'todavía no está en el sistema',
+    'Items added and the payment taken here go to the system by themselves, right after the order. Do not ring it again.':
+      'Los productos añadidos y el pago cobrado aquí suben al sistema solos, justo después de la orden. No la vuelva a marcar.',
+    'Discount, splitting the bill and taking an item off work once the order is in the system.':
+      'El descuento, dividir la cuenta y quitar un producto funcionan cuando la orden ya esté en el sistema.',
+    'It is in the system now.': 'Ya está en el sistema.', 'It goes to the system with the order.': 'Sube al sistema con la orden.',
     'No internet on this device. It saves by itself when the internet is back.': 'Este dispositivo no tiene internet. Se guarda solo cuando vuelva el internet.',
     'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.': 'Hay que renovar el ingreso. Si no se guarda en un minuto, toque Cerrar sesión y vuelva a ingresar.',
     'This login is not connected to the café in the system. The owner must connect it in Supabase.': 'Este ingreso no está conectado al café en el sistema. El dueño tiene que conectarlo en Supabase.',
