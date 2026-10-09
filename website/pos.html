@@ -1163,7 +1163,8 @@ function qMerge(){
     /* the same sale held by another tab of the till: keep the items added and the payment taken in either */
     (s.adds || []).forEach(function(a){
       var m = (o.adds || []).find(function(x){ return x.key === a.key; });
-      if (!m) (o.adds = o.adds || []).push(a); else if (a.sent) m.sent = true;
+      if (!m) (o.adds = o.adds || []).push(a);
+      else { if (a.sent) m.sent = true; if (a.lost && !m.lost) m.lost = a.lost; }   /* an item the bill would not take, in either tab */
     });
     if (s.charge && !o.charge) o.charge = s.charge;
     else if (s.charge && o.charge && (s.charge.calls || 0) > (o.charge.calls || 0)) o.charge.calls = s.charge.calls;
@@ -1228,9 +1229,9 @@ function qLines(o){
 }
 function qOpen(o){ return o.paid === false && !o.charge; }
 function qPending(o){ return (!!o.charge && !o.charged) || (o.adds || []).some(function(a){ return !a.sent; }); }
-/* while this device still has items or a payment to send for an order the system already has, it shows its own
-   copy: the system's copy (without them) is not offered here to charge, change or cancel */
-function qHeld(id){ var q = qFind(id); return !!(q && qPending(q)); }
+/* while this device still has anything of a sale to send (its lines, items added or a payment taken here), it shows
+   its own copy: the system's copy (perhaps without them) is not offered here to charge, change or cancel */
+function qHeld(id){ return !!qFind(id); }
 /* the system answered: whatever was sent was not saved (an error from the database, not a lost reply) */
 function qSure(r){ return !!r.error && r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429 && !isDup(r.error); }
 function qNone(o){ return o.none === true; }
@@ -1378,7 +1379,7 @@ async function uploadOne(o){
     var ex = await db.from('order_items').select('item_name,qty,price_crc,added_at').eq('order_id', o.id);
     if (!ex.error){
       var seen = ex.data || [], own = seen.filter(function(x){ return !x.added_at || Date.parse(x.added_at) <= Date.parse(o.created_at) + 1000; });
-      var miss = o.items.filter(function(it){
+      var miss = items.filter(function(it){   /* everything this sale sent: its lines and the items added here with it */
         var j = own.findIndex(function(x){ return x.item_name === it.item_name && x.qty === it.qty && x.price_crc === it.price_crc; });
         if (j > -1){ own.splice(j, 1); return false; }
         return true;
@@ -1535,6 +1536,7 @@ function qTriedText(){
 document.getElementById('netChip').addEventListener('click', openQueue);
 document.getElementById('noteOk').addEventListener('click', function(){
   try { localStorage.removeItem(NOTE_KEY); } catch (e){}
+  document.getElementById('noteList').textContent = '';
   document.getElementById('noteModal').hidden = true;
 });
 showNotes();
