@@ -45,7 +45,7 @@
       '.hgl-clock{position:fixed;right:.7rem;bottom:.7rem;z-index:2147481500;max-width:340px;display:flex;gap:.6rem;align-items:flex-start;pointer-events:none;' +
       'background:#FFF4D6;color:#5A3E00;border:1.5px solid #E2B550;border-radius:12px;padding:.6rem .7rem .6rem .9rem;' +
       'font:600 .85rem/1.35 Figtree,system-ui,sans-serif;box-shadow:0 6px 20px rgba(8,20,13,.2)}' +
-      '.hgl-clock button{all:unset;cursor:pointer;font-size:1.2rem;line-height:1;padding:.2rem .45rem;pointer-events:auto}' +
+      '.hgl-clock button{all:unset;cursor:pointer;font-size:1.3rem;line-height:1;padding:.45rem .6rem;margin:-.45rem -.5rem -.45rem 0;pointer-events:auto}' +
       '@media print{.hgl-clock{display:none !important}}';
     document.head.appendChild(s);
   }
@@ -127,8 +127,26 @@
   function claims(t) {
     try { var p = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); while (p.length % 4) p += '='; return JSON.parse(atob(p)); } catch (e) { return null; }
   }
+  /* a clock that was ahead and has been set right since (as the notice asks): the stored expiry is hours late, so the
+     library would keep a token the server already refuses. It renews now, and the new token measures the clock again.
+     (Device time going back before the moment the clock was measured can only mean the clock was set back.) */
+  function recheck() {
+    var v = null; try { v = JSON.parse(localStorage.getItem(SKEW) || 'null'); } catch (e) {}
+    if (!v || v.s <= 60 || Date.now() > v.at - 60000) return;
+    try { localStorage.removeItem(SKEW); } catch (e) {}
+    var keys = Object.keys(mem);
+    if (ls) { try { for (var i = 0; i < ls.length; i++) keys.push(ls.key(i)); } catch (e) {} }
+    keys.forEach(function (k) {
+      if (!/-auth-token$/.test(k)) return;
+      try {
+        var s = JSON.parse(rawGet(k) || 'null');
+        if (s && s.expires_at) { s.expires_at = Math.floor(Date.now() / 1000) - 1; rawSet(k, JSON.stringify(s)); }
+      } catch (e) {}
+    });
+    clockNote();
+  }
   var storage = {
-    getItem: rawGet,
+    getItem: function (k) { recheck(); return rawGet(k); },
     removeItem: rawDel,
     setItem: function (k, v) {
       try {
@@ -251,7 +269,7 @@
     if (em && document.getElementById('loginForm')) { plain(em); em.setAttribute('inputmode', 'email'); }
     if (document.getElementById('loginForm')) addShow(document.getElementById('pw'));
     var le = document.getElementById('loginErr'); if (le) le.setAttribute('role', 'alert');
-    clockNote();
+    recheck(); clockNote();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup); else setup();
   window.HG_LOGIN = { signIn: signIn, addShow: addShow, why: why, options: options, storage: storage };

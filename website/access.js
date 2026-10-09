@@ -16,10 +16,13 @@
     try { var v = JSON.parse(localStorage.getItem('hg-clock-skew') || 'null'); return v && typeof v.s === 'number' ? v.s * 1000 : 0; } catch (e) { return 0; }
   }
   function leftMs(until) { return new Date(until).getTime() + skewMs() - Date.now(); }
+  /* the database always opens for 15 minutes: counted on this device from the moment it said yes (localUntil);
+     an unlock saved by an older version of this file falls back to the server's time and the measured difference */
+  function left(v) { return v.localUntil ? v.localUntil - Date.now() : leftMs(v.until); }
   function read() {
     try {
       var v = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (v && v.token && v.until && leftMs(v.until) > 0) return v;
+      if (v && v.token && v.until && left(v) > 0) return v;
     } catch (e) {}
     return null;
   }
@@ -99,7 +102,7 @@
     if (r.error || !r.data || !r.data.ok) {
       return { ok: false, message: r.error ? 'Could not check the PIN. Check the connection.' : (ERR[r.data.error] || 'Could not open. Try again.') };
     }
-    save({ token: r.data.token, until: r.data.until, name: r.data.name, role: r.data.role });
+    save({ token: r.data.token, until: r.data.until, localUntil: Date.now() + 15 * 60000 - 5000, name: r.data.name, role: r.data.role });
     try { localStorage.setItem(WHO, staffId); } catch (e) {}
     var st = await load(db);
     if (!st || !st.level) {
@@ -169,12 +172,14 @@
     if (!state || state.via !== 'pin' || !state.until) return;
     pillEl = document.createElement('div'); pillEl.className = 'hga-pill' + (pillOpts.host ? ' inline' : '');
     var t = document.createElement('span');
-    t.textContent = 'Owner areas open · ' + (state.name || '') + ' · until ' + hhmm(new Date(new Date(state.until).getTime() + skewMs()));
+    var cur = read();
+    var end = cur && cur.localUntil ? cur.localUntil : new Date(state.until).getTime() + skewMs();   /* in this device's time */
+    t.textContent = 'Owner areas open · ' + (state.name || '') + ' · until ' + hhmm(new Date(end));
     var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Lock';
     b.addEventListener('click', function () { lock(db); });
     pillEl.appendChild(t); pillEl.appendChild(b);
     (pillOpts.host || document.body).appendChild(pillEl);
-    var ms = leftMs(state.until);
+    var ms = end - Date.now();
     if (ms > 0 && ms < 2147483000) pillTimer = setTimeout(function () {
       clear();
       if (pillOpts.soft) { load(db).then(function () { pill(db); }); } else location.reload();
