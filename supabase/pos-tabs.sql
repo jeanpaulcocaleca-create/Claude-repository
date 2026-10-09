@@ -24,6 +24,7 @@ create extension if not exists pgcrypto;
 alter table public.orders add column if not exists part_of uuid references public.orders(id) on delete set null;
 alter table public.orders add column if not exists parts_crc int not null default 0;     -- paid so far in parts
 alter table public.orders add column if not exists kitchen_round int not null default 1; -- items added later
+alter table public.orders add column if not exists kitchen_rev int not null default 0;   -- kitchen items added, any round
 alter table public.order_items add column if not exists round int not null default 1;
 alter table public.order_items add column if not exists paid_qty int not null default 0;
 alter table public.order_items add column if not exists added_at timestamptz not null default now();
@@ -48,7 +49,7 @@ create or replace function public._order_tab_defaults()
 returns trigger language plpgsql set search_path = public as $$
 begin
   if current_user in ('authenticated', 'anon') then
-    new.part_of := null; new.parts_crc := 0; new.kitchen_round := 1;
+    new.part_of := null; new.parts_crc := 0; new.kitchen_round := 1; new.kitchen_rev := 0;
   end if;
   return new;
 end $$;
@@ -69,8 +70,9 @@ create trigger order_item_tab_defaults before insert on public.order_items
   for each row execute function public._order_item_tab_defaults();
 
 -- the discount stays frozen for the till; adding or taking off items keeps the bill's subtotal right
+-- (runs as the caller, so the functions below may change it and a direct edit from the till may not)
 create or replace function public._order_discount_frozen()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
   if current_user in ('authenticated', 'anon') and (
        new.discount_crc is distinct from old.discount_crc or new.discount_id is distinct from old.discount_id
@@ -80,11 +82,24 @@ begin
   return new;
 end $$;
 
+-- a delivered order stays delivered for the till: it decides when a manager's PIN is needed
+create or replace function public._order_done_kept()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if current_user in ('authenticated', 'anon') and old.done_at is not null and new.done_at is null then
+    raise exception 'order_closed' using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+drop trigger if exists order_done_kept on public.orders;
+create trigger order_done_kept before update on public.orders
+  for each row execute function public._order_done_kept();
+
 create or replace function public._tab_label(o public.orders)
 returns text language sql stable as $$
   select case when o.pickup_number is not null then '#' || o.pickup_number
               when coalesce(o.guest_name, '') <> '' then o.guest_name
-              else 'order ' || to_char(o.created_at at time zone 'America/Costa_Rica', 'HH24:MI') end;
+              else to_char(o.created_at at time zone 'America/Costa_Rica', 'HH24:MI') end;
 $$;
 
 -- what each item really costs on this bill: its price less the bill's discount, in proportion
@@ -125,12 +140,21 @@ begin
   rnd := o.kitchen_round;
   if kitchen and o.status not in ('new', 'preparing') then
     rnd := o.kitchen_round + 1;
+    -- its number stand may be with another guest by now: then the bill goes by its name or table
     update public.orders set kitchen_round = rnd, status = 'preparing', needs_kitchen = true,
-                             accepted_at = now(), ready_at = null
+                             accepted_at = now(), ready_at = null,
+                             pickup_number = case when o.pickup_number is not null and exists (
+                                 select 1 from public.orders x
+                                  where x.id <> o.id and x.pickup_number = o.pickup_number
+                                    and x.part_of is null and x.voided_at is null
+                                    and x.status in ('new', 'preparing', 'ready'))
+                               then null else pickup_number end
       where id = o.id;
   elsif kitchen and not coalesce(o.needs_kitchen, false) then
     update public.orders set needs_kitchen = true where id = o.id;
   end if;
+  -- the kitchen screen notices anything added, also while it is still making the rest
+  if kitchen then update public.orders set kitchen_rev = kitchen_rev + 1 where id = o.id; end if;
   for it in select * from jsonb_array_elements(p_items) loop
     n := (it->>'qty')::int;
     select m.name, m.price_crc into mi from public.menu_items m where m.id = (it->>'menu_item_id')::uuid;
@@ -152,7 +176,7 @@ create or replace function public.tab_remove_item(p_item_id uuid, p_qty int, p_r
                                                   p_staff_id uuid default null, p_pin text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare o public.orders; li record; v record; open_value int; open_left int; val int; cut int; mid uuid; why text;
-        who text; by_id uuid; last_method text;
+        who text; by_id uuid; last_method text; a public.discount_approvals; allowed int; d_keep int; closes boolean; slack int;
 begin
   if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
   select order_id into li from public.order_items where id = p_item_id;
@@ -162,6 +186,8 @@ begin
   if o.voided_at is not null or o.status = 'cancelled' then return jsonb_build_object('ok', false, 'error', 'cancelled'); end if;
   if o.paid then return jsonb_build_object('ok', false, 'error', 'already_paid'); end if;
   select * into li from public.order_items where id = p_item_id for update;
+  -- another device took it off meanwhile
+  if li.id is null or li.order_id is distinct from o.id then return jsonb_build_object('ok', false, 'error', 'changed'); end if;
   if p_qty is null or p_qty < 1 or p_qty > li.qty - li.paid_qty then return jsonb_build_object('ok', false, 'error', 'changed'); end if;
   why := left(trim(coalesce(p_reason, '')), 120);
   who := coalesce(nullif(left(trim(coalesce(p_station, '')), 40), ''), o.station, 'POS');
@@ -177,8 +203,32 @@ begin
   val := li.price_crc * p_qty;
   open_left := open_value - val;
   if open_left <= 0 and coalesce(o.parts_crc, 0) = 0 then return jsonb_build_object('ok', false, 'error', 'use_cancel'); end if;
-  -- the bill goes down by what the item cost on it (its price less the bill's discount)
-  cut := case when open_left <= 0 then o.total_crc else least(o.total_crc, greatest(0, public._tab_net(o, val))) end;
+  -- the bill goes down by what the item cost on it. The discount follows the manager's approval, as at the
+  -- sale: a percentage follows the bill down, an amount stays (so adding and taking off the same item changes nothing)
+  cut := null;
+  if coalesce(o.discount_crc, 0) > 0 and o.subtotal_crc is not null and o.discount_id is not null then
+    select * into a from public.discount_approvals where id = o.discount_id;
+    if a.id is not null then
+      allowed := case when a.kind = 'percent' then round((o.subtotal_crc - val) * a.value / 100.0)::int
+                      else least(a.value, o.subtotal_crc - val) end;
+      if a.amount_crc is not null then allowed := least(allowed, a.amount_crc); end if;
+      d_keep := least(o.discount_crc, greatest(0, allowed));
+      cut := val - (o.discount_crc - d_keep);
+    end if;
+  end if;
+  -- no approval found, or the discount would make what stays free: its price less the discount, in proportion
+  if cut is null or (d_keep >= o.subtotal_crc - val and open_left > 0) then cut := greatest(0, public._tab_net(o, val)); end if;
+  -- each payment by item may round by a colón
+  select count(*) + 1 into slack from public.orders p
+   where p.part_of = o.id and p.voided_at is null and exists (select 1 from public.order_part_lines l where l.part_id = p.id);
+  -- the approved discount would mean giving money back: the item comes off at its share of the discount instead
+  if cut > o.total_crc + slack then cut := least(cut, greatest(0, public._tab_net(o, val))); end if;
+  -- money paid on account already covers this item: a manager voids that payment first (it goes back on the
+  -- bill), then the item comes off and the rest is charged again
+  if cut > o.total_crc + slack then return jsonb_build_object('ok', false, 'error', 'refund_first'); end if;
+  -- what was paid in parts covers everything that stays: the bill closes
+  closes := open_left <= 0 or (o.total_crc - cut <= 0 and coalesce(o.parts_crc, 0) > 0);
+  cut := case when closes then o.total_crc else least(cut, o.total_crc) end;
   if li.qty - p_qty = 0 then delete from public.order_items where id = li.id;
   else update public.order_items set qty = qty - p_qty where id = li.id; end if;
   update public.orders set
@@ -187,10 +237,19 @@ begin
       discount_crc = case when subtotal_crc is null then discount_crc
                           else greatest(0, (subtotal_crc - val) - (total_crc - cut) - parts_crc) end
     where id = o.id;
+  -- the only thing in a new kitchen round was taken off: nothing to make, the bill goes back to where it was
+  -- (the round number stays, so a late "Ready" on the old ticket cannot finish a newer round)
+  if o.kitchen_round > 1 and o.status <> 'done'
+     and not exists (select 1 from public.order_items where order_id = o.id and round = o.kitchen_round) then
+    update public.orders set status = case when done_at is not null then 'done' else 'ready' end,
+                             ready_at = coalesce(ready_at, now())
+      where id = o.id;
+  end if;
   -- nothing left to pay: what was paid in parts covered the rest
-  if open_left <= 0 then
+  if closes then
     select payment_method into last_method from public.orders
       where part_of = o.id and voided_at is null order by created_at desc limit 1;
+    update public.order_items set paid_qty = qty where order_id = o.id;
     update public.orders set paid = true, payment_method = coalesce(last_method, 'other'), total_crc = 0 where id = o.id;
   end if;
   -- the stock it used goes back (a returned sale, so a later void of the bill still balances)
@@ -208,7 +267,7 @@ begin
             jsonb_build_object('qty', p_qty, 'item', li.item_name, 'value_crc', val, 'bill_cut_crc', cut, 'reason', why,
                                'bill', public._tab_label(o), 'station', nullif(trim(coalesce(p_station, '')), ''),
                                'approved', by_id is not null));
-  return jsonb_build_object('ok', true, 'total', o.total_crc - cut, 'closed', open_left <= 0);
+  return jsonb_build_object('ok', true, 'total', o.total_crc - cut, 'closed', closes);
 end $$;
 
 -- 5) Pay a bill: all of it, some items, or an amount ---------------------------------------------------
@@ -222,7 +281,10 @@ returns table (item_id uuid, qty int) language sql immutable as $$
 $$;
 
 -- p_lines: [{"item_id": "...", "qty": 1}, ...] for the items one person pays; or p_amount; or neither = all.
-create or replace function public.tab_pay(p_order_id uuid, p_method text, p_lines jsonb, p_amount int, p_station text)
+-- p_expect: the bill's total the screen showed; when it changed on another device meanwhile nothing is charged.
+drop function if exists public.tab_pay(uuid, text, jsonb, int, text);
+create or replace function public.tab_pay(p_order_id uuid, p_method text, p_lines jsonb, p_amount int, p_station text,
+                                          p_expect int default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare o public.orders; open_value int; val int := 0; amt int; ln jsonb; li record; part uuid; what text := '';
 begin
@@ -233,7 +295,10 @@ begin
   if o.id is null or o.part_of is not null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   if o.voided_at is not null or o.status = 'cancelled' then return jsonb_build_object('ok', false, 'error', 'cancelled'); end if;
   if o.paid then return jsonb_build_object('ok', false, 'error', 'already_paid'); end if;
-  if o.total_crc <= 0 then return jsonb_build_object('ok', false, 'error', 'nothing_due'); end if;
+  if p_expect is not null and p_expect <> o.total_crc then return jsonb_build_object('ok', false, 'error', 'changed'); end if;
+  -- a bill at 0 (a courtesy) is closed as a whole
+  if o.total_crc <= 0 and (p_lines is not null or p_amount is not null) then
+    return jsonb_build_object('ok', false, 'error', 'nothing_due'); end if;
   select coalesce(sum((qty - paid_qty) * price_crc), 0)::int into open_value from public.order_items where order_id = o.id;
 
   if p_lines is not null and jsonb_typeof(p_lines) = 'array' and jsonb_array_length(p_lines) > 0 then
@@ -257,7 +322,7 @@ begin
   else
     amt := o.total_crc;
   end if;
-  if amt < 1 then return jsonb_build_object('ok', false, 'error', 'nothing_due'); end if;
+  if amt < 1 and o.total_crc > 0 then return jsonb_build_object('ok', false, 'error', 'nothing_due'); end if;
 
   if amt >= o.total_crc then
     -- the last payment closes the bill on the bill itself
@@ -368,10 +433,10 @@ create policy "orders read" on public.orders for select to authenticated
 
 -- 10) Who may call what ------------------------------------------------------------------------------------
 revoke all on function public.tab_add_items(uuid, jsonb), public.tab_remove_item(uuid, int, text, text, uuid, text),
-  public.tab_pay(uuid, text, jsonb, int, text), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid),
+  public.tab_pay(uuid, text, jsonb, int, text, int), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid),
   public._tab_label(public.orders), public._tab_pick(jsonb), public._tab_net(public.orders, int) from public, anon;
 grant execute on function public.tab_add_items(uuid, jsonb), public.tab_remove_item(uuid, int, text, text, uuid, text),
-  public.tab_pay(uuid, text, jsonb, int, text), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid)
+  public.tab_pay(uuid, text, jsonb, int, text, int), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid)
   to authenticated;
 
 notify pgrst, 'reload schema';

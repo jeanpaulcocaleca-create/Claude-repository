@@ -44,6 +44,7 @@ input{font:inherit;color:#26392C;background:#FCF8EC;border:1.5px solid var(--lin
 .tk .num.room{font-size:2rem;color:var(--leaf)}
 .tk .src{font-size:.9rem;color:var(--sec)}
 .tk .added{font-size:.85rem;font-weight:700;color:var(--card);background:var(--gold);border-radius:8px;padding:.25rem .6rem;align-self:flex-start}
+.tk li .nw{display:inline-block;margin-left:.45rem;font-size:.75rem;font-weight:700;color:var(--card);background:var(--gold);border-radius:6px;padding:.05rem .4rem;vertical-align:middle}
 .tk .wait{margin-left:auto;font-family:'Spline Sans Mono',monospace;font-size:1.1rem;color:var(--soft)}
 .tk.warn .wait{color:var(--warn)} .tk.late .wait{color:var(--bad)}
 .tk ul{list-style:none;margin:0;padding:0;font-size:1.25rem;line-height:1.3}
@@ -108,6 +109,7 @@ var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
 var known = null;        /* ids of tickets already on screen (null until first load) */
+var revs = {};           /* ticket id -> how many times kitchen items were added to it (supabase/pos-tabs.sql) */
 var soundOn = true;
 var pollTimer = null;
 var lastRows = [];
@@ -171,9 +173,9 @@ async function poll(){
     .in('status', ['preparing','ready']).eq('needs_kitchen', true).is('voided_at', null)
     .or('created_at.gte."' + start.toISOString() + '",accepted_at.gte."' + start.toISOString() + '"').order('created_at'); };
   var base = 'id,created_at,accepted_at,ready_at,status,pickup_number,source,notes,guest_name,needs_kitchen,voided_at,rooms(number)';
-  var cols = function(){ return base + (withRounds ? ',kitchen_round,order_items(item_name,qty,round)' : ',order_items(item_name,qty)') + (withStation ? ',station' : ''); };
+  var cols = function(){ return base + (withRounds ? ',kitchen_round,kitchen_rev,order_items(item_name,qty,round,added_at)' : ',order_items(item_name,qty)') + (withStation ? ',station' : ''); };
   var r = await q(cols());
-  if (r.error && withRounds && /round/.test(r.error.message || '')){ withRounds = false; roundsRetry = Date.now() + 60000; r = await q(cols()); }
+  if (r.error && withRounds && /round|kitchen_rev|added_at/.test(r.error.message || '')){ withRounds = false; roundsRetry = Date.now() + 60000; r = await q(cols()); }
   if (r.error && withStation && /station/.test(r.error.message || '')){ withStation = false; r = await q(cols()); }
   if (r.error){
     if (/needs_kitchen|status|schema cache|does not exist/i.test(r.error.message || '')){
@@ -203,8 +205,11 @@ function render(){
   var prep = lastRows.filter(function(o){ return o.status === 'preparing'; });
   var ready = lastRows.filter(function(o){ return o.status === 'ready'; });
   var ids = prep.map(function(o){ return o.id; });
-  if (known !== null && ids.some(function(id){ return known.indexOf(id) < 0; })) chime('new');
+  /* a new ticket, or something added to a ticket already on the screen */
+  var more = prep.some(function(o){ return o.kitchen_rev != null && revs[o.id] != null && o.kitchen_rev > revs[o.id]; });
+  if (known !== null && (more || ids.some(function(id){ return known.indexOf(id) < 0; }))) chime('new');
   known = ids;
+  revs = {}; prep.forEach(function(o){ if (o.kitchen_rev != null) revs[o.id] = o.kitchen_rev; });
 
   board.textContent = '';
   if (!prep.length){
@@ -226,12 +231,17 @@ function render(){
     /* something added later to a bill: only the new items, the rest was already made */
     var round = o.kitchen_round || 1;
     var items = (o.order_items || []).filter(function(it){ return round < 2 || it.round === round; });
+    /* added while this ticket was already being made: marked, so the cook sees the new line */
+    var first = Math.min.apply(null, items.map(function(it){ return it.added_at ? new Date(it.added_at).getTime() : Infinity; }));
+    var later = function(it){ return it.added_at && isFinite(first) && new Date(it.added_at).getTime() - first > 60000; };
     if (round > 1){ var ad = document.createElement('div'); ad.className = 'added'; ad.textContent = 'Added to the order · only these'; card.appendChild(ad); }
+    else if (items.some(later)){ var ad2 = document.createElement('div'); ad2.className = 'added'; ad2.textContent = 'Something was added · check the ticket'; card.appendChild(ad2); }
     var ul = document.createElement('ul');
     items.forEach(function(it){
       var li = document.createElement('li');
       var b = document.createElement('b'); b.textContent = it.qty + '×';
       li.appendChild(b); li.appendChild(document.createTextNode(it.item_name));
+      if (later(it)){ var nw = document.createElement('span'); nw.className = 'nw'; nw.textContent = 'New'; li.appendChild(nw); }
       ul.appendChild(li);
     });
     card.appendChild(ul);
@@ -256,6 +266,7 @@ async function markReady(o, btn){
   var u = db.from('orders').update({status: 'ready', ready_at: new Date().toISOString()}).eq('id', o.id);
   /* if something was added to the order since this screen last looked, it is not ready yet */
   if (withRounds && o.kitchen_round) u = u.eq('kitchen_round', o.kitchen_round).select('id');
+  if (withRounds && o.kitchen_round && o.kitchen_rev != null) u = u.eq('kitchen_rev', o.kitchen_rev);
   var r = await u;
   if (r.error){ btn.disabled = false; btn.textContent = 'Ready'; alert('Could not save. Check the connection and try again.'); return; }
   if (withRounds && o.kitchen_round && !(r.data || []).length){ alert('Something was just added to this order. Check the ticket.'); poll(); return; }
