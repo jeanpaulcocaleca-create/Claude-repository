@@ -1063,6 +1063,7 @@ function recordSale(number){
   var order = {
     local_id: 'o' + Date.now() + Math.random().toString(36).slice(2,7),
     id: uuid(),
+    none: true,   /* surely not in the system yet (see uploadOne) */
     created_at: new Date().toISOString(),
     total_crc: total,
     payment_method: pendingPay.method,
@@ -1165,6 +1166,7 @@ function qMerge(){
       if (!m) (o.adds = o.adds || []).push(a); else if (a.sent) m.sent = true;
     });
     if (s.charge && !o.charge) o.charge = s.charge;
+    else if (s.charge && o.charge && (s.charge.calls || 0) > (o.charge.calls || 0)) o.charge.calls = s.charge.calls;
     if (s.charged) o.charged = true;
     /* what was sent of it: the newer word wins (this tab's own older copy never undoes what it learned since) */
     if ((s.rev || 0) > (o.rev || 0)){ o.none = s.none; o.sentAs = s.sentAs; o.rev = s.rev; }
@@ -1230,7 +1232,10 @@ function qPending(o){ return (!!o.charge && !o.charged) || (o.adds || []).some(f
 function qHeld(id){ var q = qFind(id); return !!(q && qPending(q)); }
 /* the system answered: whatever was sent was not saved (an error from the database, not a lost reply) */
 function qSure(r){ return !!r.error && r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429 && !isDup(r.error); }
-function qNone(o){ return o.none === true || (o.none === undefined && !o.tries && !o.err); }
+function qNone(o){ return o.none === true; }
+/* the day in Costa Rica (UTC-6, no summer time) */
+function crDay(t){ return new Date(new Date(t).getTime() - 216e5).toISOString().slice(0, 10); }
+function qLostValue(o){ return (o.adds || []).reduce(function(s, a){ return a.lost ? s + a.items.reduce(function(t, i){ return t + i.price * i.qty; }, 0) : s; }, 0); }
 /* something a cashier must know about money or items taken on this device: kept until someone taps OK */
 var NOTE_KEY = 'hg-pos-notes';
 function qNotes(){ try { var n = JSON.parse(localStorage.getItem(NOTE_KEY) || '[]'); return Array.isArray(n) ? n : []; } catch (e){ return []; } }
@@ -1265,7 +1270,8 @@ async function qSteps(o){
         a.sent = true; a.lost = code; saveQueue();
         qNotice(['Not added to ' + qWho(o), TAB_ERR[code] || code,
                  a.items.map(function(x){ return x.qty + '× ' + x.name; }).join(', ') + ' · ' + fmt(a.items.reduce(function(t, x){ return t + x.price * x.qty; }, 0)),
-                 'Charge these as a new sale if the customer has them.']);
+                 o.charge ? 'Already paid here with the bill: ring these as a new sale with the same payment, without charging the customer again.'
+                          : 'Charge these as a new sale if the customer has them.']);
         continue;
       }
       return {error: {code: code === 'no_account' ? '42501' : 'add_' + code, message: 'Could not add the items · ' + (TAB_ERR[code] || code)}, status: 200};
@@ -1273,25 +1279,33 @@ async function qSteps(o){
     a.sent = true; saveQueue();
   }
   if (o.charge && !o.charged){
-    var c = o.charge, before = c.calls || 0;
-    c.calls = before + 1; saveQueue();   /* counted before sending: an "already paid" after a lost reply is this one */
+    var c = o.charge, taken = c.total != null ? c.total : qTotal(o) + qLostValue(o);
+    c.calls = (c.calls || 0) + 1; saveQueue();   /* counted before sending: an "already paid" after a lost reply is this one */
+    /* p_expect: the bill as it should be in the system (what was taken, less items it would not take); if another
+       device changed it meanwhile (items, a part paid), nothing is recorded and the cashier is told */
     r = await db.rpc('tab_pay', {p_order_id: o.id, p_method: c.method, p_lines: null, p_amount: null,
-                                 p_station: o.station || stationName() || null, p_expect: null});
+                                 p_station: o.station || stationName() || null, p_expect: taken - qLostValue(o)});
     if (r.error && tabMissing(r.error)) r = await db.rpc('finish_order', {p_order_id: o.id, p_payment_method: c.method});   /* pos-tabs SQL not run */
-    if (r.error) return {error: r.error, status: r.status};
+    if (r.error){
+      if (qSure(r)){ c.calls = Math.max(0, c.calls - 1); saveQueue(); }   /* surely not recorded: it did not count */
+      return {error: r.error, status: r.status};
+    }
     code = r.data && !r.data.ok ? r.data.error : '';
-    if (!r.data || (!r.data.ok && ['already_paid', 'nothing_due', 'cancelled', 'not_found'].indexOf(code) < 0)){
+    if (!r.data || (!r.data.ok && ['already_paid', 'nothing_due', 'cancelled', 'not_found', 'changed'].indexOf(code) < 0)){
       code = code || 'pay';
       return {error: {code: code === 'no_account' ? '42501' : 'pay_' + code, message: 'Could not record the payment · ' + (TAB_ERR[code] || code)}, status: 200};
     }
-    var what = fmt(qTotal(o)) + ' · ' + (PAY_NAMES[c.method] || c.method);
+    var what = fmt(taken) + ' · ' + (PAY_NAMES[c.method] || c.method);
     if (code === 'cancelled' || code === 'not_found'){
       qNotice(['Payment not recorded · ' + qWho(o), TAB_ERR[code] || code, 'Taken on this device · ' + what, 'Check the money: give it back if the customer paid.']);
+    } else if (code === 'changed'){
+      qNotice(['Payment not recorded · ' + qWho(o), 'The bill changed on another device.', 'Taken on this device · ' + what,
+               'Record what was taken on the bill in the system (pay by amount), then charge the rest.']);
     } else if (code === 'already_paid'){
       /* paid in the system before this payment reached it: by another device, or by this one before a lost reply */
       var sys = await db.from('orders').select('payment_method').eq('id', o.id).maybeSingle();
       var m = sys.data && sys.data.payment_method;
-      if (!before || (m && m !== c.method))
+      if ((c.calls || 0) <= 1 || (m && m !== c.method))
         qNotice(['Paid twice? · ' + qWho(o), 'It was already paid in the system' + (m ? ' · ' + (PAY_NAMES[m] || m) : ''),
                  'Taken on this device · ' + what, 'If the customer paid twice, give one payment back.']);
     }
@@ -1303,12 +1317,14 @@ async function uploadOne(o){
   if (!o.id){   /* a sale saved by an older version of this page */
     o.id = uuid(); (o.items || []).forEach(function(it){ if (!it.id) it.id = uuid(); }); saveQueue();
   }
+  if (!navigator.onLine) return {error: {message: 'offline'}, status: 0};   /* nothing leaves the device: nothing is decided */
+  var wasNone = qNone(o);   /* every try so far was surely refused, or none was made */
   /* Which version of the order goes up. While the system surely does not have it (it said no to every try so
      far), the items added and the payment taken here go in with it, so no copy without them is ever in the
      system. Once a version was sent and the answer is unknown (a lost reply), that same version is sent until
      it is in, and the rest goes after it as steps. */
   if (!o.sentAs){
-    var fold = qNone(o);
+    var fold = wasNone;
     o.sentAs = {adds: fold ? (o.adds || []).filter(function(a){ return !a.sent; }).map(function(a){ return a.key; }) : [],
                 charge: fold && o.charge && !o.charged ? o.charge.method : null};
   }
@@ -1316,7 +1332,11 @@ async function uploadOne(o){
   var ver = o.sentAs, inAdds = (o.adds || []).filter(function(a){ return ver.adds.indexOf(a.key) > -1; });
   var total = o.total_crc + inAdds.reduce(function(s, a){ return s + a.items.reduce(function(t, i){ return t + i.price * i.qty; }, 0); }, 0);
   var row = {id: o.id, created_at: o.created_at, total_crc: total, payment_method: ver.charge || o.payment_method};
-  if (o.status){ row.source = 'front'; row.status = o.status; row.needs_kitchen = !!o.needs_kitchen;
+  /* paid here on a later day: it counts on the day the money came in, as a bill paid in the system does (tab_pay) */
+  if (ver.charge && o.charge && crDay(o.charge.at) > crDay(o.created_at)) row.created_at = o.charge.at;
+  /* something for the kitchen added here goes to the kitchen with the order */
+  var kAdd = inAdds.some(function(a){ return a.items.some(function(i){ return i.kitchen || kitchenOf[i.menu_item_id]; }); });
+  if (o.status){ row.source = 'front'; row.status = kAdd && o.status !== 'new' ? 'preparing' : o.status; row.needs_kitchen = !!o.needs_kitchen || kAdd;
                  row.pickup_number = o.pickup_number || null; row.paid = ver.charge ? true : o.paid !== false;
                  if (o.guest_name) row.guest_name = o.guest_name; }
   var extra = {};                                    /* columns from supabase/pos-stations.sql */
@@ -1339,14 +1359,20 @@ async function uploadOne(o){
   }                                                  /* kitchen SQL not run yet (an unpaid order never drops its "not paid") */
   if (r.error && isDup(r.error)) had = true;
   if (r.error && !isDup(r.error)){
-    if (qSure(r)){ o.none = true; o.sentAs = null; o.rev = (o.rev || 0) + 1; saveQueue(); }   /* surely not saved: next time with all that is done here */
+    /* surely not saved, and no earlier try may have been: next time with all that is done here */
+    if (qSure(r) && wasNone){ o.none = true; o.sentAs = null; o.rev = (o.rev || 0) + 1; saveQueue(); }
     return {error: r.error, status: r.status};
   }
   var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
   inAdds.forEach(function(a){ a.items.forEach(function(i){ items.push({id: i.id, order_id: o.id, item_name: i.name, price_crc: i.price, qty: i.qty}); }); });
   var r2 = await db.from('order_items').insert(items);
-  /* lines already there under other ids (kept by an older version of this page): the sale is in */
-  if (r2.error && had && /order_has_lines/.test(r2.error.message || '')) r2 = {};
+  /* lines already there under other ids (kept by an older version of this page): the sale is in, if they are its own */
+  if (r2.error && had && /order_has_lines/.test(r2.error.message || '')){
+    var ex = await db.from('order_items').select('item_name,qty,price_crc').eq('order_id', o.id), left = (ex.data || []).slice();
+    if (!ex.error && o.items.every(function(it){
+          var j = left.findIndex(function(x){ return x.item_name === it.item_name && x.qty === it.qty && x.price_crc === it.price_crc; });
+          return j > -1 && !!left.splice(j, 1); })) r2 = {};
+  }
   if (r2.error && !isDup(r2.error)) return {error: r2.error, status: r2.status};
   inAdds.forEach(function(a){ a.sent = true; });
   if (ver.charge) o.charged = true;
@@ -2872,7 +2898,7 @@ document.querySelectorAll('#locPayRow [data-lpay]').forEach(function(b){
     if (adding && adding.id === o.id){ toast('Finish adding to ' + adding.label + ' first: tap Add to the bill or Cancel.'); return; }
     var method = b.dataset.lpay, label = b.textContent.trim(), lines = qLines(o), total = qTotal(o);
     var sub = lines.reduce(function(s, l){ return s + l.price * l.qty; }, 0);
-    o.charge = {method: method, at: new Date().toISOString()};
+    o.charge = {method: method, at: new Date().toISOString(), total: total};
     saveQueue();
     lastOrder = {at: new Date(), items: lines.map(function(l){ return {name: l.name, price: l.price, qty: l.qty}; }),
                  total: total, sub: sub, disc: Math.max(0, sub - total), discText: '', extra: [],
@@ -2914,7 +2940,7 @@ function localAddGo(){
     return;
   }
   if (ticket.length > 40 || ticket.some(function(l){ return l.qty > 50; })){ toast(TAB_ERR.too_many); return; }
-  var items = ticket.map(function(l){ return {id: uuid(), menu_item_id: l.id, qty: l.qty, name: l.name, price: l.price}; });
+  var items = ticket.map(function(l){ return {id: uuid(), menu_item_id: l.id, qty: l.qty, name: l.name, price: l.price, kitchen: !!kitchenOf[l.id]}; });
   var added = items.reduce(function(s, i){ return s + i.price * i.qty; }, 0);
   if (qTotal(o) + added < 0){ toast(TAB_ERR.below_zero); return; }
   o.adds = o.adds || [];
