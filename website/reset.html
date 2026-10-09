@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Figtree:wght@400;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="login.js"></script>
 <style>
 :root{--canvas:#F6F1E2;--panel:#FCF8EC;--ink:#26392C;--accent:#1E4B33;--accent-hover:#143726;--muted:#C9CFB6;--gold:#B98A35;--sec:#54634F;--ok:#4A7A4E;--bad:#A8402F}
 *{box-sizing:border-box}
@@ -118,6 +119,8 @@ document.getElementById('resetForm').addEventListener('submit', async function(e
   e.preventDefault();
   var a = document.getElementById('pw1').value, b = document.getElementById('pw2').value, err = document.getElementById('resetErr');
   if (a.length < 8){ err.textContent = 'At least 8 characters.'; return; }
+  /* a space at the start or the end is invisible on a tablet and makes the next sign-in fail */
+  if (a !== a.replace(/^[\s\u200B-\u200D\uFEFF]+|[\s\u200B-\u200D\uFEFF]+$/g, '')){ err.textContent = 'The password cannot start or end with a space.'; return; }
   if (a !== b){ err.textContent = 'The two passwords do not match.'; return; }
   var r = await db.auth.updateUser({password: a});
   if (r.error){
@@ -133,6 +136,8 @@ document.getElementById('resetForm').addEventListener('submit', async function(e
   try { await db.auth.signOut({scope: 'local'}); } catch (e2) {}
   show('done');
 });
+/* Show, to read the new password on a tablet */
+if (window.HG_LOGIN){ HG_LOGIN.addShow(document.getElementById('pw1')); HG_LOGIN.addShow(document.getElementById('pw2')); }
 </script>
 <script src="lang.js"></script>
 </body>

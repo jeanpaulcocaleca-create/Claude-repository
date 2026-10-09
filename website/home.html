@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
+<script src="login.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -346,12 +347,8 @@ document.getElementById('outAllBtn').addEventListener('click', async function(){
 });
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var r = await db.auth.signInWithPassword({
-    email: document.getElementById('em').value.trim(),
-    password: document.getElementById('pw').value
-  });
-  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work. Check the email and password.'; return; }
-  refreshAuth();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
 });
 document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
@@ -382,12 +379,15 @@ async function loadStats(){
   loadInventoryAlerts();
   var start = new Date(); start.setHours(0,0,0,0);
   var rs = await Promise.all([
-    db.from('orders').select('total_crc,voided_at,paid').gte('created_at', start.toISOString()),
+    db.from('orders').select('total_crc,voided_at,paid,part_of').gte('created_at', start.toISOString()),
     db.from('menu_items').select('id,name').eq('available', false),
     db.from('time_entries').select('clock_in, staff(name)').is('clock_out', null)
   ]);
 
   var orders = rs[0];
+  if (orders.error && /part_of/.test(orders.error.message || '')){ /* pos-tabs SQL not run yet */
+    orders = await db.from('orders').select('total_crc,voided_at,paid').gte('created_at', start.toISOString());
+  }
   if (orders.error && /paid/.test(orders.error.message || '')){ /* kitchen SQL not run yet */
     orders = await db.from('orders').select('total_crc,voided_at').gte('created_at', start.toISOString());
   }
@@ -398,7 +398,7 @@ async function loadStats(){
     var rows = (orders.data || []).filter(function(o){ return !o.voided_at && o.paid !== false; });
     var total = rows.reduce(function(s,o){ return s + o.total_crc; }, 0);
     document.getElementById('kRev').textContent = fmt(total);
-    document.getElementById('kOrders').textContent = rows.length;
+    document.getElementById('kOrders').textContent = rows.filter(function(o){ return !o.part_of; }).length;   /* split payments are part of one bill */
   }
 
   var sold = rs[1];

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
+<script src="login.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -197,6 +198,53 @@ button.chip:hover{background:var(--canvas)}
   #receipt>*{break-inside:avoid;page-break-inside:avoid}
 }
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+/* open bills: an order left to pay later, items added later, payments split between people */
+.modal .box.tabbox{max-width:560px}
+.tabhead{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.tabhead h2{margin:0;font-family:'Spline Sans Mono',monospace;font-weight:700;font-size:1.3rem;overflow-wrap:anywhere}
+.tabhead button{min-height:34px;padding:.2em .7em;font-size:.8rem;margin-left:auto}
+.tabmeta{margin:.25rem 0 .5rem}
+.tline{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.15rem .6rem;align-items:center;padding:.45rem .3rem;border-bottom:1px dotted var(--muted);border-radius:8px}
+.tline .nm{font-weight:600;overflow-wrap:anywhere}
+.tline .amt{font-family:'Spline Sans Mono',monospace;font-size:.9rem;text-align:right;white-space:nowrap}
+.tline .rm{min-height:34px;min-width:34px;padding:0 .55em;background:transparent;color:var(--bad);border:1.5px solid var(--muted);font-size:.78rem}
+.tline .tags{grid-column:1/4;font-size:.75rem;color:var(--sec);display:flex;gap:.35rem;flex-wrap:wrap}
+.tline .tags span{background:var(--canvas);border-radius:99px;padding:.05em .55em}
+.tline .tags .paid{background:#EEF7EE;color:var(--ok);font-weight:700}
+.tline.done .nm,.tline.done .amt{opacity:.55;text-decoration:line-through}
+.tline .pick{grid-column:1/4;display:flex;gap:.4rem;align-items:center;justify-content:flex-end;font-size:.85rem;color:var(--sec)}
+.tline .pick button{min-height:38px;min-width:42px;padding:0;background:#fff;color:var(--accent);border:1.5px solid var(--muted);font-size:1.1rem}
+.tline .pick .mono{min-width:1.6em;text-align:center;font-weight:700;color:var(--ink)}
+.tline.picked{background:#FFF8E6}
+.tabbox .totals{padding:.6rem 0 .1rem;border-top:none}
+.tabbox .trow.part{font-size:.82rem}
+.tabbox .trow.part.void{text-decoration:line-through;opacity:.6}
+.splitbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.35rem;margin:.7rem 0 .45rem}
+.splitbar button{min-height:42px;padding:.3em .3em;font-size:.82rem;background:#fff;color:var(--accent);border:1.5px solid var(--muted);line-height:1.15}
+.splitbar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.splitbody{font-size:.88rem;color:var(--sec)}
+.splitbody .chips{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.35rem}
+.splitbody .chips button{min-height:42px;min-width:48px;background:#fff;color:var(--accent);border:1.5px solid var(--muted);font-family:'Spline Sans Mono',monospace}
+.splitbody .chips button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.splitbody input{max-width:200px;margin-top:.35rem}
+.tabdue{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;font-weight:700;font-size:1.15rem;margin:.7rem 0 .45rem}
+.tabbox .payrow{padding:0;grid-template-columns:repeat(5,minmax(0,1fr))}
+.tabbox .payrow button{min-height:52px;font-size:.85rem;padding:.3em .2em;border:2px solid var(--pc);background:var(--pc);color:#fff}
+.tabbox .payrow button.alt{background:#fff;color:var(--pc)}
+.tabbox .payrow button:disabled{opacity:.45;cursor:default}
+.tabbox .util{padding:.7rem 0 0;grid-template-columns:repeat(2,minmax(0,1fr))}
+.tabbox .paidall{text-align:center;color:var(--ok);font-weight:700;margin:.7rem 0 .2rem}
+.tabbox .util button:disabled{opacity:.45;cursor:default}
+.addbar{margin:0 1rem .5rem;padding:.45rem .7rem;border-radius:12px;background:#FFF8E6;border:1.5px solid var(--gold);font-size:.9rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.addbar b{font-family:'Spline Sans Mono',monospace}
+.addbar button{margin-left:auto;min-height:36px;padding:.2em .8em;font-size:.82rem}
+.addgo{margin:0 1rem 1rem;min-height:56px;font-size:1rem}
+.lv .d.open{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.orow .obtns{grid-column:3;grid-row:2;display:flex;gap:.35rem;justify-content:flex-end}
+.orow .obtns button.open{color:var(--accent)}
+.numwho{margin:.2rem 0 .6rem}
+.numwho label{display:block;font-size:.85rem;color:var(--sec);margin-bottom:.25rem}
+@media(max-width:480px){ .tabbox .payrow{grid-template-columns:repeat(3,minmax(0,1fr))} .splitbar{grid-template-columns:repeat(2,minmax(0,1fr))} }
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
 </style>
@@ -239,6 +287,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   </div>
   <div class="ticket">
     <h2 id="ticketHead">Order <span class="sum" id="ticketSum"></span></h2>
+    <div class="addbar" id="addBar" hidden><span>Adding to the bill <b id="addWho"></b></span><button type="button" class="ghost" id="addCancel">Cancel</button></div>
     <div class="forwho"><input id="forWho" maxlength="40" autocomplete="off" placeholder="Name or table (optional)" aria-label="Name or table"></div>
     <div class="lines" id="lines"><p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p></div>
     <div class="totals">
@@ -247,7 +296,8 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <div class="trow"><span>Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
       <div class="trow big"><span>Total</span><span class="mono" id="totalAmt">₡0</span></div>
     </div>
-    <div class="payrow">
+    <button type="button" class="addgo" id="addGo" hidden>Add to the bill</button>
+    <div class="payrow" id="payRow">
       <button data-pay="cash_crc" style="--pc:#2F6B3A">Cash ₡</button>
       <button data-pay="cash_usd" style="--pc:#2F6B3A" class="alt">Cash $</button>
       <button data-pay="card" style="--pc:#285F8A">Card</button>
@@ -336,6 +386,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   <div class="box">
     <h2>Which number stand?</h2>
     <p class="hint" style="margin:0 0 .4rem">Tap the number you are handing to the customer. Greyed numbers are in use.</p>
+    <div class="numwho" id="numWhoRow" hidden><label for="numWho">Name or table, to find the bill later</label><input id="numWho" maxlength="40" autocomplete="off" placeholder="e.g. Ana, table 3"></div>
     <div class="numgrid" id="numGrid"></div>
     <div style="display:flex;gap:.6rem">
       <button class="ghost" id="numNone" style="flex:1">No number</button>
@@ -356,6 +407,56 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <button data-rpay="other">Other</button>
     </div>
     <button class="close ghost" id="payCancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal" id="tabModal" hidden>
+  <div class="box tabbox" role="dialog" aria-labelledby="tabTitle">
+    <div class="tabhead"><h2 id="tabTitle"></h2><button type="button" class="ghost" id="tabRename">Name or table</button></div>
+    <p class="hint tabmeta" id="tabMeta"></p>
+    <div id="tabLines"></div>
+    <div class="totals" id="tabTotals"></div>
+    <div id="tabPayArea">
+      <div class="splitbar" id="tabSplit">
+        <button type="button" data-mode="all" class="on">Whole bill</button>
+        <button type="button" data-mode="items">By item</button>
+        <button type="button" data-mode="equal">Equal parts</button>
+        <button type="button" data-mode="amount">An amount</button>
+      </div>
+      <div class="splitbody" id="splitBody"></div>
+      <div class="tabdue"><span id="tabDueLbl">To pay now</span><span class="mono" id="tabDue"></span></div>
+      <div class="payrow" id="tabPayRow">
+        <button type="button" data-tpay="cash_crc" style="--pc:#2F6B3A">Cash ₡</button>
+        <button type="button" data-tpay="cash_usd" style="--pc:#2F6B3A" class="alt">Cash $</button>
+        <button type="button" data-tpay="card" style="--pc:#285F8A">Card</button>
+        <button type="button" data-tpay="sinpe" style="--pc:#6B3FA0">SINPE</button>
+        <button type="button" data-tpay="other" style="--pc:#54634F" class="alt">Other</button>
+      </div>
+    </div>
+    <p class="paidall" id="tabPaidAll" hidden>Paid in full</p>
+    <p class="err" id="tabErr" role="alert"></p>
+    <div class="voidbox" id="tabRmBox" hidden>
+      <strong id="tabRmWhich"></strong>
+      <p class="hint" style="margin:.3rem 0 0">This bill was already delivered, so a manager approves taking an item off.</p>
+      <label for="tabRmWhy">Reason</label>
+      <input id="tabRmWhy" maxlength="120" placeholder="e.g. the guest changed their mind" autocomplete="off">
+      <label for="tabRmMgr">Approved by</label>
+      <select id="tabRmMgr"></select>
+      <label for="tabRmPin">PIN</label>
+      <input id="tabRmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <p class="err" id="tabRmErr"></p>
+      <div class="row">
+        <button type="button" id="tabRmGo">Take it off</button>
+        <button type="button" class="ghost" id="tabRmCancel">Cancel</button>
+      </div>
+    </div>
+    <div class="util">
+      <button type="button" class="ghost" id="tabAdd">Add items</button>
+      <button type="button" class="ghost" id="tabBill">Print the bill</button>
+      <button type="button" class="ghost" id="tabReceipt" disabled>Print receipt</button>
+      <button type="button" class="ghost" id="tabCancel">Cancel order</button>
+    </div>
+    <button class="close" id="tabClose">Close</button>
   </div>
 </div>
 
@@ -445,12 +546,8 @@ async function refreshAuth(){
 }
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var r = await db.auth.signInWithPassword({
-    email: document.getElementById('em').value.trim(),
-    password: document.getElementById('pw').value
-  });
-  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
-  refreshAuth();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
 });
 document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
@@ -605,6 +702,7 @@ function renderTicket(){
   document.getElementById('totalAmt').textContent = fmt(total);
   document.getElementById('ivaAmt').textContent = fmt(Math.round(total - total/1.13));
   document.getElementById('ticketSum').textContent = n ? n + (n === 1 ? ' item · ' : ' items · ') + fmt(total) : '';
+  if (adding) document.getElementById('addGo').textContent = n ? 'Add to the bill · ' + fmt(total) : 'Add to the bill';
 }
 document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; tDisc = null; document.getElementById('forWho').value = ''; renderTicket(); });
 function subtotal(){ return ticket.reduce(function(s,l){ return s + l.price*l.qty; }, 0); }
@@ -806,6 +904,10 @@ function usedNumbers(){
 }
 function openNumbers(){
   var grid = document.getElementById('numGrid'); grid.textContent = '';
+  /* an order paid later is found again by its number, or by a name or table */
+  var later = !!(pendingPay && pendingPay.method === 'pending');
+  document.getElementById('numWhoRow').hidden = !later;
+  document.getElementById('numWho').value = later ? document.getElementById('forWho').value.trim() : '';
   var used = usedNumbers(), out = settings.numbers_out || [];
   for (var n = 1; n <= (settings.pickup_numbers || 12); n++){
     if (out.indexOf(n) > -1) continue;
@@ -824,7 +926,7 @@ function recordSale(number){
   var sub = subtotal(), disc = discOf(sub), total = sub - disc;
   var unpaid = pendingPay.method === 'pending';    /* sent to the register, or to pay later */
   var needsKitchen = ticket.some(function(l){ return kitchenOf[l.id]; });
-  var who = document.getElementById('forWho').value.trim().slice(0, 40);
+  var who = ((unpaid && document.getElementById('numWho').value.trim()) || document.getElementById('forWho').value.trim()).slice(0, 40);
   var order = {
     local_id: 'o' + Date.now() + Math.random().toString(36).slice(2,7),
     id: uuid(),
@@ -850,7 +952,7 @@ function recordSale(number){
     document.getElementById('printBtn').disabled = false;
   }
   queue.push(order); saveQueue();
-  ticket = []; tDisc = null; document.getElementById('forWho').value = ''; renderTicket();
+  ticket = []; tDisc = null; document.getElementById('forWho').value = ''; document.getElementById('numWho').value = ''; renderTicket();
   toast((unpaid ? pendingPay.label + ' · ' + fmt(total) : 'Recorded ' + fmt(total) + ' · ' + pendingPay.label) + (number ? ' · number ' + number : ''));
   pendingPay = null;
   syncQueue();
@@ -879,15 +981,19 @@ document.getElementById('printBtn').addEventListener('click', function(){
     '<div class="rhead">HANGING GARDEN CAFÉ</div>' +
     '<div class="rsub">Monteverde · Costa Rica</div>' +
     '<div class="rsub">' + when + '</div>' +
+    (lastOrder.note ? '<div class="rsub">' + esc(lastOrder.note) + '</div>' : '') +
     (lastOrder.number ? '<div class="rnum"><small>YOUR NUMBER · SU NÚMERO</small>' + lastOrder.number + '</div>' : '') +
     '<div class="rrule"></div>';
   lastOrder.items.forEach(function(l){
     html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + rfmt(l.price * l.qty) + '</span></div>';
   });
   html += '<div class="rrule"></div>';
-  if (lastOrder.disc > 0){
-    html += '<div class="rrow"><span>Subtotal</span><span>' + rfmt(lastOrder.sub) + '</span></div>' +
-      '<div class="rrow"><span>' + esc('Descuento · Discount' + (lastOrder.discText ? ' ' + lastOrder.discText : '')).replace(/\u202f|\u00a0/g, ' ') + '</span><span>−' + rfmt(lastOrder.disc) + '</span></div>';
+  var extra = lastOrder.extra || [];
+  if (lastOrder.disc > 0 || extra.length){
+    html += '<div class="rrow"><span>Subtotal</span><span>' + rfmt(lastOrder.sub) + '</span></div>';
+    if (lastOrder.disc > 0)
+      html += '<div class="rrow"><span>' + esc('Descuento · Discount' + (lastOrder.discText ? ' ' + lastOrder.discText : '')).replace(/\u202f|\u00a0/g, ' ') + '</span><span>−' + rfmt(lastOrder.disc) + '</span></div>';
+    extra.forEach(function(x){ html += '<div class="rrow"><span>' + esc(x.label) + '</span><span>−' + rfmt(x.amount) + '</span></div>'; });
   }
   html +=
     '<div class="rtot"><span>TOTAL</span><span>' + rfmt(lastOrder.total) + '</span></div>' +
@@ -1171,7 +1277,10 @@ async function openDay(){
   document.getElementById('dayModal').hidden = false;
   var regP = loadRegister();
   if (!staffList) loadStaffList();
-  var r = await db.from('orders').select('total_crc,payment_method,voided_at,paid,status').gte('created_at', start.toISOString());
+  var r = await db.from('orders').select('total_crc,payment_method,voided_at,paid,status,part_of').gte('created_at', start.toISOString());
+  if (r.error && /part_of/.test(r.error.message || '')){ /* pos-tabs SQL not run yet */
+    r = await db.from('orders').select('total_crc,payment_method,voided_at,paid,status').gte('created_at', start.toISOString());
+  }
   if (r.error && /paid|status/.test(r.error.message || '')){ /* kitchen SQL not run yet */
     r = await db.from('orders').select('total_crc,payment_method,voided_at').gte('created_at', start.toISOString());
   }
@@ -1193,7 +1302,7 @@ async function openDay(){
   var labels = {cash_crc:'Cash ₡', cash_usd:'Cash $', card:'Card', sinpe:'SINPE', other:'Other'};
   body.textContent = '';
   var count = document.createElement('div'); count.className='dayrow';
-  count.innerHTML = '<span>Orders</span><span class="mono">' + rows.length + '</span>';
+  count.innerHTML = '<span>Orders</span><span class="mono">' + rows.filter(function(o){ return !o.part_of; }).length + '</span>';
   body.appendChild(count);
   Object.keys(labels).forEach(function(k){
     if (!by[k]) return;
@@ -1240,7 +1349,7 @@ var managersList = null;
 async function loadManagers(){
   var r = await db.from('staff').select('id,name').eq('active', true).in('role', ['manager', 'owner']).order('name');
   managersList = r.error ? null : (r.data || []);
-  ['vMgr', 'discMgr'].forEach(function(id){
+  ['vMgr', 'discMgr', 'tabRmMgr'].forEach(function(id){
     var sel = document.getElementById(id), keep = sel.value;
     sel.textContent = '';
     (managersList || []).forEach(function(m){
@@ -1262,9 +1371,12 @@ async function openOrders(){
   document.getElementById('ordersModal').hidden = false;
   loadManagers();
   var start = new Date(); start.setHours(0,0,0,0);
-  var r = await db.from('orders')
-    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,status,pickup_number,source,paid,guest_name,station,discount_crc,discount_reason,discount_by,notes,rooms(number),order_items(item_name,qty)')
+  var ocols = 'id,created_at,total_crc,payment_method,voided_at,void_reason,status,pickup_number,source,paid,guest_name,station,discount_crc,discount_reason,discount_by,notes,rooms(number),order_items(item_name,qty)';
+  var r = await db.from('orders').select(ocols + ',part_of,parts_crc,done_at')
     .gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  if (r.error && /part_of|parts_crc|done_at/.test(r.error.message || '')){ /* pos-tabs SQL not run yet */
+    r = await db.from('orders').select(ocols).gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(200);
+  }
   if (r.error && /station|discount/.test(r.error.message || '')){ /* pos-stations SQL not run yet */
     r = await db.from('orders')
       .select('id,created_at,total_crc,payment_method,voided_at,void_reason,status,pickup_number,source,paid,rooms(number),order_items(item_name,qty)')
@@ -1317,15 +1429,20 @@ async function openOrders(){
     }
     var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(o.total_crc);
     var items = document.createElement('span'); items.className = 'items';
-    items.textContent = (o.order_items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ') || '(no line items)';
+    items.textContent = (o.order_items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ') ||
+      (o.part_of && o.notes ? o.notes : '(no line items)');
     row.appendChild(when); row.appendChild(head); row.appendChild(amt); row.appendChild(items);
     if (o.discount_crc > 0){
       var dt = document.createElement('span'); dt.className = 'dtag';
       dt.textContent = 'Discount ' + fmt(o.discount_crc) + ' · ' + (o.discount_reason || '') + (o.discount_by ? ' · approved by ' + o.discount_by : '');
       row.appendChild(dt);
     }
-    if (o.source !== 'room' && o.notes){
+    if (o.source !== 'room' && o.notes && !o.part_of){
       var nt = document.createElement('span'); nt.className = 'dtag'; nt.textContent = o.notes; row.appendChild(nt);
+    }
+    if (o.parts_crc > 0){
+      var pt = document.createElement('span'); pt.className = 'dtag'; pt.textContent = 'Paid in parts ' + fmt(o.parts_crc) + (o.paid ? '' : ' · still to pay ' + fmt(o.total_crc));
+      row.appendChild(pt);
     }
     if (cancelled && !o.voided_at){
       var ct = document.createElement('span'); ct.className = 'vtag';
@@ -1336,6 +1453,12 @@ async function openOrders(){
       vt.textContent = 'Voided · ' + (o.void_reason || '');
       row.appendChild(vt);
     } else if (voidReady){
+      var obtns = document.createElement('span'); obtns.className = 'obtns';
+      if (TABS_READY && o.paid === false && !o.part_of && o.source !== 'room'){
+        var ob = document.createElement('button'); ob.className = 'open'; ob.textContent = 'Open bill';
+        ob.addEventListener('click', function(){ document.getElementById('ordersModal').hidden = true; openTab(o.id); });
+        obtns.appendChild(ob);
+      }
       var b = document.createElement('button'); b.textContent = 'Void';
       b.addEventListener('click', function(){
         voidTarget = o;
@@ -1345,7 +1468,8 @@ async function openOrders(){
         document.getElementById('voidBox').hidden = false;
         document.getElementById('vReason').focus();
       });
-      row.appendChild(b);
+      obtns.appendChild(b);
+      row.appendChild(obtns);
     }
     body.appendChild(row);
   });
@@ -1390,18 +1514,27 @@ function chime(kind){
   }catch(e){}
 }
 var LIVE_FULL = true;     /* false until supabase/pos-stations.sql has been run */
+var TABS_READY = true;    /* false until supabase/pos-tabs.sql has been run (open bills, split payments) */
+var liveRetry = 0;        /* the till stays open all day: after an SQL step is run, try the full view again */
 var seenAll = null;
 async function pollLive(){
   if (!navigator.onLine) return;
+  if ((!LIVE_FULL || !TABS_READY) && Date.now() > liveRetry){ LIVE_FULL = true; TABS_READY = true; }
   var start = new Date(); start.setHours(0,0,0,0);
   var r = null;
   if (LIVE_FULL){
-    /* open orders, plus orders delivered but not paid yet, from every device */
-    r = await db.from('orders')
-      .select('id,created_at,status,source,pickup_number,needs_kitchen,total_crc,subtotal_crc,discount_crc,paid,station,guest_name,guest_phone,guest_lang,notes,rooms(number),order_items(item_name,qty,price_crc)')
-      .or('status.in.(new,preparing,ready),and(paid.is.false,status.neq.cancelled)').is('voided_at', null)
-      .gte('created_at', start.toISOString()).order('created_at');
-    if (r.error && /station|subtotal|discount|price_crc/.test(r.error.message || '')) LIVE_FULL = false;
+    /* open orders, plus orders delivered but not paid yet, from every device; a bill left open past
+       midnight stays up for 3 days until it is charged (supabase/pos-tabs.sql lets the till read it) */
+    var cols = 'id,created_at,status,source,pickup_number,needs_kitchen,total_crc,subtotal_crc,discount_crc,paid,station,guest_name,guest_phone,guest_lang,notes,rooms(number),order_items(item_name,qty,price_crc)';
+    var old = new Date(start.getTime() - 3 * 86400000);
+    var live = function(c, since){ return db.from('orders').select(c).is('voided_at', null).order('created_at')
+      .or('and(created_at.gte."' + start.toISOString() + '",status.in.(new,preparing,ready)),and(paid.is.false,status.neq.cancelled,created_at.gte."' + since.toISOString() + '")'); };
+    if (TABS_READY){
+      r = await live(cols + ',parts_crc,done_at,kitchen_round', old);
+      if (r.error && /parts_crc|kitchen_round|done_at/.test(r.error.message || '')){ TABS_READY = false; liveRetry = Date.now() + 60000; }
+    }
+    if (!TABS_READY) r = await live(cols, start);
+    if (r.error && /station|subtotal|discount|price_crc/.test(r.error.message || '')){ LIVE_FULL = false; liveRetry = Date.now() + 60000; }
   }
   if (!LIVE_FULL){
     r = await db.from('orders')
@@ -1440,13 +1573,16 @@ function renderLive(){
     }
     if (owes){
       var pd = document.createElement('span'); pd.className = 'stag due';
-      pd.textContent = (o.status === 'done' ? 'Delivered · ' : '') + 'Not paid · ' + fmt(o.total_crc); chip.appendChild(pd);
+      pd.textContent = (o.status === 'done' ? 'Delivered · ' : '') + 'Not paid · ' + fmt(o.total_crc) +
+        (o.parts_crc > 0 ? ' · Paid ' + fmt(o.parts_crc) : ''); chip.appendChild(pd);
     }
     var d = document.createElement('span'); d.className = 'd';
     var nm = o.guest_name && (o.source === 'room' || o.pickup_number) ? o.guest_name + ' · ' : '';
     d.textContent = nm + orderItems(o) + (o.notes ? ' · ' + o.notes : '');
     d.title = d.textContent; chip.appendChild(d);
-    if (owes) chip.appendChild(btn('Charge', function(){ openPay(o); }));
+    /* an order left to pay later opens as a bill: what is owed, add items, take one off, split the payment */
+    if (owes && TABS_READY){ d.classList.add('open'); d.addEventListener('click', function(){ openTab(o.id); }); }
+    if (owes) chip.appendChild(TABS_READY ? btn('Open bill', function(){ openTab(o.id); }) : btn('Charge', function(){ openPay(o); }));
     if (o.status === 'new'){
       chip.appendChild(btn('Accept', function(){ setStatus(o, 'preparing'); }));
       chip.appendChild(btn('No show', function(){ if (confirm('Cancel this room order? (guest never came)')) cancelRoom(o); }, 'ghost'));
@@ -1456,7 +1592,7 @@ function renderLive(){
       if (o.source === 'room') chip.appendChild(btn('Paid & picked up', function(){ openPay(o); }));
       else chip.appendChild(btn('Delivered', function(){ setStatus(o, 'done'); }, owes ? 'ghost' : ''));
     }
-    if (owes && o.status !== 'done') chip.appendChild(btn('Cancel', function(){ cancelUnpaid(o); }, 'ghost'));
+    if (owes && o.status !== 'done' && !o.done_at && !(o.parts_crc > 0)) chip.appendChild(btn('Cancel', function(){ cancelUnpaid(o); }, 'ghost'));
     if (o.source === 'room' && o.guest_phone && o.status !== 'new'){
       chip.appendChild(btn('WhatsApp', function(){ whatsapp(o, o.status === 'ready' ? 'ready' : 'preparing'); }, 'wa'));
     }
@@ -1482,9 +1618,11 @@ async function cancelUnpaid(o){
     var code = r.data && r.data.error;
     toast(code === 'already_paid' ? 'It was already paid. A manager can void it from Orders.'
       : code === 'delivered' ? 'It was already delivered. Charge it, or a manager voids it from Orders.'
+      : code === 'has_parts' ? 'Part of this bill was paid. Take items off one by one instead.'
       : 'Could not cancel. Try again.');
     pollLive(); return;
   }
+  if (tab && tab.o.id === o.id){ tab = null; document.getElementById('tabModal').hidden = true; }
   toast('Order cancelled'); pollLive();
 }
 async function cancelRoom(o){
@@ -1530,6 +1668,372 @@ document.querySelectorAll('[data-rpay]').forEach(function(b){
     payTarget = null; pollLive();
   });
 });
+/* ---------- open bills: what is owed, items added later, an item taken off, the payment split ----------
+   supabase/pos-tabs.sql. Each payment for part of a bill is a sale of its own, with its own payment method,
+   and is taken off the bill; the last payment closes the bill. Splitting by item: each person pays their
+   items less the bill's discount, and whoever pays the last items pays what is left. */
+var tab = null;            /* the bill in the window: {o, items, parts} */
+var tabMode = 'all';       /* all | items | equal | amount */
+var tabPick = {};          /* order item id -> how many this person pays */
+var tabEqual = {};         /* bill id -> {n, left}: equal parts still to pay */
+var tabRm = null;          /* the item waiting for a manager's PIN */
+var tabBusy = false;
+var TAB_ERR = {not_found: 'That order is no longer open.', cancelled: 'That order was cancelled.',
+  already_paid: 'That bill was already paid.', changed: 'The bill changed on another device. Check it and try again.',
+  nothing_due: 'Nothing left to pay on this bill.', bad_amount: 'Type an amount no bigger than what is owed.',
+  bad_method: 'Pick how they paid.', empty: 'Tap items to add them.', bad_item: 'Something on the order is not on the menu any more.',
+  unknown_item: 'Something on the order is not on the menu any more.', too_many: 'Add fewer items at a time.',
+  use_cancel: 'That is the last thing on the bill. Cancel the order instead.',
+  needs_pin: 'This bill was already delivered. A manager approves taking an item off.', missing_reason: 'Write the reason.',
+  bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager: 'Only an owner, GM or manager can approve this.', inactive: 'That person is not active on the team.',
+  unknown_staff: 'Pick who is approving.', no_account: 'This login is not connected to the café yet.'};
+var TAB_SETUP = 'Open bills switch on once supabase/pos-tabs.sql is run in Supabase.';
+var PAY_NAMES = {cash_crc: 'Cash ₡', cash_usd: 'Cash $', card: 'Card', sinpe: 'SINPE', other: 'Other'};
+function tabMissing(err){ return /tab_|parts_crc|kitchen_round|paid_qty|added_at|part_of|schema cache|could not find/i.test((err && err.message) || ''); }
+function tabOpenable(o){ return !o.paid && !o.voided_at && o.status !== 'cancelled'; }
+function tabWho(o){ return o.pickup_number ? '#' + o.pickup_number + (o.guest_name ? ' · ' + o.guest_name : '') : (o.guest_name || ''); }
+async function loadTab(id){
+  var r = await db.from('orders')
+    .select('id,created_at,status,source,pickup_number,total_crc,subtotal_crc,discount_crc,discount_reason,paid,payment_method,station,guest_name,notes,voided_at,done_at,needs_kitchen,parts_crc,kitchen_round,rooms(number),order_items(id,item_name,qty,price_crc,round,paid_qty,added_at)')
+    .eq('id', id).maybeSingle();
+  if (r.error){
+    if (tabMissing(r.error)){ TABS_READY = false; liveRetry = Date.now() + 60000; renderLive(); toast(TAB_SETUP); }
+    else toast('Could not open the bill. Check the connection.');
+    return null;
+  }
+  if (!r.data){ toast('That order is no longer open.'); return null; }
+  var p = await db.from('orders').select('id,created_at,total_crc,payment_method,station,voided_at').eq('part_of', id).order('created_at');
+  var items = (r.data.order_items || []).slice().sort(function(a, b){
+    return (a.round - b.round) || (new Date(a.added_at) - new Date(b.added_at)) || a.item_name.localeCompare(b.item_name); });
+  if (!tab || tab.o.id !== id){ tabMode = 'all'; tabPick = {}; }
+  tab = {o: r.data, items: items, parts: p.error ? [] : (p.data || [])};
+  /* a pick for an item someone else just paid is dropped */
+  items.forEach(function(it){ if ((tabPick[it.id] || 0) > it.qty - it.paid_qty) tabPick[it.id] = it.qty - it.paid_qty; });
+  return tab;
+}
+async function openTab(id){
+  if (!navigator.onLine){ toast('Opening a bill needs the internet.'); return; }
+  document.getElementById('tabErr').textContent = '';
+  document.getElementById('tabRmBox').hidden = true; tabRm = null;
+  document.getElementById('tabReceipt').disabled = true;
+  if (!(await loadTab(id))) return;
+  renderTab();
+  document.getElementById('tabModal').hidden = false;
+}
+async function reloadTab(){ if (tab && (await loadTab(tab.o.id))) renderTab(); }
+function tabOpenValue(){ return tab.items.reduce(function(s, it){ return s + (it.qty - it.paid_qty) * it.price_crc; }, 0); }
+function tabItemsValue(){ return tab.items.reduce(function(s, it){ return s + it.qty * it.price_crc; }, 0); }
+/* an item's price less the bill's discount (same rule as the database) */
+function tabNet(v){
+  var o = tab.o;
+  if (o.subtotal_crc == null || o.subtotal_crc <= 0 || !(o.discount_crc > 0)) return v;
+  return Math.round(v * (o.subtotal_crc - o.discount_crc) / o.subtotal_crc);
+}
+function tabPicked(){ return tab.items.reduce(function(s, it){ return s + (tabPick[it.id] || 0) * it.price_crc; }, 0); }
+function tabDue(){
+  var o = tab.o, T = o.total_crc;
+  if (!tabOpenable(o) || T <= 0) return 0;
+  if (tabMode === 'items'){ var v = tabPicked(); if (!v) return 0; return v >= tabOpenValue() ? T : Math.min(T, tabNet(v)); }
+  if (tabMode === 'equal'){ var e = tabEqual[o.id]; if (!e) return 0; return e.left > 1 ? Math.min(T, Math.round(T / e.left)) : T; }
+  if (tabMode === 'amount'){ var a = parseInt(document.getElementById('tabAmt') ? document.getElementById('tabAmt').value : '', 10); return a > 0 && a <= T ? a : 0; }
+  return T;
+}
+function tabStatus(o){
+  if (o.status === 'new') return 'New';
+  if (o.status === 'preparing') return o.needs_kitchen ? 'In the kitchen' : 'Preparing';
+  if (o.status === 'ready') return 'Ready';
+  if (o.status === 'done') return 'Delivered';
+  return '';
+}
+function renderTab(){
+  var o = tab.o, open = tabOpenable(o);
+  document.getElementById('tabTitle').textContent = orderLabel(o);
+  document.getElementById('tabRename').hidden = !open;
+  var meta = [];
+  if (o.pickup_number && o.guest_name) meta.push(o.guest_name);
+  if (o.station) meta.push(o.station);
+  meta.push('Opened ' + hhmm(o.created_at));
+  var st = tabStatus(o); if (st) meta.push(st);
+  if (o.paid) meta.push('Paid');
+  document.getElementById('tabMeta').textContent = meta.join(' · ');
+
+  var box = document.getElementById('tabLines'); box.textContent = '';
+  if (!tab.items.length){ var e = document.createElement('p'); e.className = 'hint'; e.textContent = 'No items on this bill.'; box.appendChild(e); }
+  tab.items.forEach(function(it){
+    var openQty = it.qty - it.paid_qty;
+    var row = document.createElement('div'); row.className = 'tline' + (openQty <= 0 ? ' done' : '') + ((tabPick[it.id] || 0) > 0 ? ' picked' : '');
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = it.qty + '× ' + it.item_name; row.appendChild(nm);
+    var amt = document.createElement('span'); amt.className = 'amt'; amt.textContent = fmt(it.price_crc * it.qty); row.appendChild(amt);
+    if (open && openQty > 0){
+      var rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm'; rm.textContent = 'Take off';
+      rm.setAttribute('aria-label', 'Take one ' + it.item_name + ' off the bill');
+      rm.addEventListener('click', function(){ takeOff(it); });
+      row.appendChild(rm);
+    } else row.appendChild(document.createElement('span'));
+    var tags = [];
+    if (it.round > 1 || (it.added_at && new Date(it.added_at) - new Date(o.created_at) > 120000)) tags.push({t: 'Added ' + hhmm(it.added_at)});
+    if (it.paid_qty > 0) tags.push({t: openQty > 0 ? it.paid_qty + ' paid' : 'Paid', c: 'paid'});
+    if (tags.length){
+      var tg = document.createElement('div'); tg.className = 'tags';
+      tags.forEach(function(x){ var sp = document.createElement('span'); sp.textContent = x.t; if (x.c) sp.className = x.c; tg.appendChild(sp); });
+      row.appendChild(tg);
+    }
+    if (open && tabMode === 'items' && openQty > 0){
+      var pk = document.createElement('div'); pk.className = 'pick';
+      var lbl = document.createElement('span'); lbl.textContent = 'This person pays';
+      var minus = document.createElement('button'); minus.type = 'button'; minus.textContent = '−'; minus.setAttribute('aria-label', 'One less ' + it.item_name);
+      var n = document.createElement('span'); n.className = 'mono'; n.textContent = tabPick[it.id] || 0;
+      var plus = document.createElement('button'); plus.type = 'button'; plus.textContent = '+'; plus.setAttribute('aria-label', 'One more ' + it.item_name);
+      minus.addEventListener('click', function(){ tabPick[it.id] = Math.max(0, (tabPick[it.id] || 0) - 1); renderTab(); });
+      plus.addEventListener('click', function(){ tabPick[it.id] = Math.min(openQty, (tabPick[it.id] || 0) + 1); renderTab(); });
+      pk.appendChild(lbl); pk.appendChild(minus); pk.appendChild(n); pk.appendChild(plus);
+      row.appendChild(pk);
+    }
+    box.appendChild(row);
+  });
+
+  var tot = document.getElementById('tabTotals'); tot.textContent = '';
+  var trow = function(label, value, cls){
+    var d = document.createElement('div'); d.className = 'trow' + (cls ? ' ' + cls : '');
+    var a = document.createElement('span'); a.textContent = label; var b = document.createElement('span'); b.className = 'mono'; b.textContent = value;
+    d.appendChild(a); d.appendChild(b); tot.appendChild(d);
+  };
+  var parts = tab.parts.filter(function(p){ return !p.voided_at; });
+  if ((o.discount_crc > 0 && o.subtotal_crc != null) || tab.parts.length) trow('Items', fmt(tabItemsValue()));
+  if (o.discount_crc > 0 && o.subtotal_crc != null) trow('Discount' + (o.discount_reason ? ' · ' + o.discount_reason : ''), '−' + fmt(o.discount_crc));
+  tab.parts.forEach(function(p){
+    trow('Paid ' + hhmm(p.created_at) + ' · ' + (PAY_NAMES[p.payment_method] || p.payment_method) + (p.voided_at ? ' · voided' : ''),
+         (p.voided_at ? '' : '−') + fmt(p.total_crc), 'part' + (p.voided_at ? ' void' : ''));
+  });
+  if (o.paid) trow('Last payment · ' + (PAY_NAMES[o.payment_method] || o.payment_method), fmt(o.total_crc), 'big');
+  else trow('Still to pay', fmt(o.total_crc), 'big');
+
+  document.getElementById('tabPayArea').hidden = !open;
+  document.getElementById('tabPaidAll').hidden = !o.paid;
+  document.getElementById('tabAdd').hidden = !open;
+  document.getElementById('tabCancel').hidden = !(open && o.status !== 'done' && !o.done_at && !parts.length);
+  document.querySelectorAll('#tabSplit [data-mode]').forEach(function(b){ b.classList.toggle('on', b.dataset.mode === tabMode); });
+  if (open) renderSplit();
+}
+function renderSplit(){
+  var o = tab.o, body = document.getElementById('splitBody'); body.textContent = '';
+  if (tabMode === 'items'){
+    var v = tabPicked();
+    body.textContent = v ? 'Their items: ' + fmt(v) + (tabNet(v) !== v && v < tabOpenValue() ? ' · less the discount' : '')
+                         : 'Tap + on what this person pays. Each person pays in turn.';
+  } else if (tabMode === 'equal'){
+    var e = tabEqual[o.id];
+    var p = document.createElement('div'); p.textContent = e ? (e.left > 1 ? e.left + ' people still to pay, the same part each.' : 'The last person pays what is left.') : 'How many people pay?';
+    body.appendChild(p);
+    var chips = document.createElement('div'); chips.className = 'chips';
+    [2, 3, 4, 5, 6, 7, 8].forEach(function(n){
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = n; if (e && e.n === n) b.classList.add('on');
+      b.addEventListener('click', function(){ tabEqual[o.id] = {n: n, left: n}; renderTab(); });
+      chips.appendChild(b);
+    });
+    body.appendChild(chips);
+  } else if (tabMode === 'amount'){
+    var l = document.createElement('label'); l.setAttribute('for', 'tabAmt'); l.textContent = 'Amount this person pays (₡)';
+    var inp = document.createElement('input'); inp.id = 'tabAmt'; inp.type = 'number'; inp.min = '1'; inp.step = '1'; inp.inputMode = 'numeric'; inp.placeholder = '₡';
+    inp.addEventListener('input', showDue);
+    body.appendChild(l); body.appendChild(inp);
+  } else body.textContent = 'One payment for everything still owed.';
+  showDue();
+}
+function showDue(){
+  var due = tabDue(), o = tab.o;
+  document.getElementById('tabDueLbl').textContent = due >= o.total_crc && due > 0 ? 'To pay now (closes the bill)' : 'To pay now';
+  document.getElementById('tabDue').textContent = fmt(due);
+  document.querySelectorAll('#tabPayRow [data-tpay]').forEach(function(b){ b.disabled = !due || tabBusy; });
+  var a = document.getElementById('tabAmt'), err = document.getElementById('tabErr');
+  if (a && tabMode === 'amount') err.textContent = parseInt(a.value, 10) > o.total_crc ? 'That is more than what is owed (' + fmt(o.total_crc) + ').' : '';
+}
+document.querySelectorAll('#tabSplit [data-mode]').forEach(function(b){
+  b.addEventListener('click', function(){ tabMode = b.dataset.mode; document.getElementById('tabErr').textContent = ''; renderTab(); });
+});
+document.querySelectorAll('#tabPayRow [data-tpay]').forEach(function(b){ b.addEventListener('click', function(){ tabPay(b); }); });
+async function tabPay(b){
+  if (!tab || tabBusy) return;
+  var o = tab.o, due = tabDue(), err = document.getElementById('tabErr'); err.textContent = '';
+  if (!navigator.onLine){ err.textContent = 'Charging a bill needs the internet. Try again in a moment.'; return; }
+  if (due <= 0) return;
+  var method = b.dataset.tpay, label = b.textContent.trim();
+  var args = {p_order_id: o.id, p_method: method, p_lines: null, p_amount: null, p_station: stationName() || null};
+  var picked = [];
+  if (tabMode === 'items'){
+    args.p_lines = [];
+    tab.items.forEach(function(it){ var q = tabPick[it.id] || 0; if (q > 0){ args.p_lines.push({item_id: it.id, qty: q}); picked.push({name: it.item_name, price: it.price_crc, qty: q}); } });
+  } else if (tabMode !== 'all') args.p_amount = due;
+  /* what is still open now, for the receipt of the payment that closes the bill */
+  var openNow = tab.items.filter(function(it){ return it.qty > it.paid_qty; })
+    .map(function(it){ return {name: it.item_name, price: it.price_crc, qty: it.qty - it.paid_qty}; });
+  var openVal = tabOpenValue(), eq = tabEqual[o.id];
+  tabBusy = true; showDue();
+  var r = await db.rpc('tab_pay', args);
+  tabBusy = false;
+  if (r.error){ err.textContent = tabMissing(r.error) ? TAB_SETUP : 'Could not record the payment. Check the connection and try again.'; showDue(); return; }
+  if (!r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    err.textContent = TAB_ERR[code] || 'Could not record the payment. Try again.';
+    if (['changed', 'already_paid', 'cancelled', 'not_found', 'nothing_due'].indexOf(code) > -1) await reloadTab();
+    else showDue();
+    return;
+  }
+  var amt = r.data.amount, closed = !!r.data.closed;
+  var rec = {at: new Date(), method: method, label: label, number: o.pickup_number, total: amt, disc: 0, discText: '', extra: [],
+             note: (closed ? 'CUENTA · BILL ' : 'PAGO PARCIAL · PART PAYMENT · ') + (tabWho(o) || hhmm(o.created_at))};
+  if (closed){
+    rec.items = openNow; rec.sub = openVal;
+    var net = tabNet(openVal);
+    if (openVal - net > 0) rec.disc = openVal - net;
+    if (net - amt > 0) rec.extra.push({label: 'Pagado antes · Paid before', amount: net - amt});
+  } else if (picked.length){
+    rec.items = picked; rec.sub = picked.reduce(function(s, x){ return s + x.price * x.qty; }, 0);
+    if (rec.sub - amt > 0) rec.disc = rec.sub - amt;
+  } else {
+    rec.items = [{name: tabMode === 'equal' && eq ? 'Parte ' + (eq.n - eq.left + 1) + ' de ' + eq.n + ' · Part ' + (eq.n - eq.left + 1) + ' of ' + eq.n
+                                                  : 'Pago a la cuenta · Payment on the bill', price: amt, qty: 1}];
+    rec.sub = amt;
+  }
+  lastOrder = rec;
+  document.getElementById('printBtn').disabled = false;
+  document.getElementById('tabReceipt').disabled = false;
+  if (tabMode === 'equal' && eq){ eq.left--; if (eq.left < 1 || closed) delete tabEqual[o.id]; }
+  tabPick = {};
+  if (closed) delete tabEqual[o.id];
+  toast((closed ? 'Bill paid · ' : 'Part paid · ') + fmt(amt) + ' · ' + label + ' · ' + orderLabel(o));
+  await reloadTab();
+  pollLive();
+}
+document.getElementById('tabReceipt').addEventListener('click', function(){ document.getElementById('printBtn').click(); });
+document.getElementById('tabClose').addEventListener('click', function(){
+  document.getElementById('tabModal').hidden = true; document.getElementById('tabRmBox').hidden = true; tabRm = null;
+});
+document.getElementById('tabCancel').addEventListener('click', function(){ if (tab) cancelUnpaid(tab.o); });
+document.getElementById('tabRename').addEventListener('click', async function(){
+  if (!tab) return;
+  var v = prompt('Name or table for this bill:', tab.o.guest_name || '');
+  if (v === null) return;
+  var r = await db.rpc('tab_rename', {p_order_id: tab.o.id, p_name: v.trim()});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error ? (tabMissing(r.error) ? TAB_SETUP : 'Could not save. Check the connection.') : (TAB_ERR[r.data && r.data.error] || 'Could not save.')); return; }
+  await reloadTab(); pollLive();
+});
+
+/* take one off: the till alone before the bill was delivered (or within 10 minutes of adding it); after that a manager */
+async function takeOff(it){
+  if (!tab) return;
+  if (!confirm('Take 1× ' + it.item_name + ' off the bill?')) return;
+  await doTakeOff(it, null, null, '');
+}
+async function doTakeOff(it, staff, pin, why){
+  var errEl = document.getElementById(staff ? 'tabRmErr' : 'tabErr'); errEl.textContent = '';
+  if (!navigator.onLine){ errEl.textContent = 'This needs the internet. Try again in a moment.'; return; }
+  var r = await db.rpc('tab_remove_item', {p_item_id: it.id, p_qty: 1, p_reason: why || null, p_station: stationName() || null,
+                                            p_staff_id: staff, p_pin: pin});
+  document.getElementById('tabRmPin').value = '';
+  if (r.error){ errEl.textContent = tabMissing(r.error) ? TAB_SETUP : 'Could not save. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    if (code === 'needs_pin'){
+      tabRm = it;
+      document.getElementById('tabRmWhich').textContent = 'Take 1× ' + it.item_name + ' off the bill';
+      document.getElementById('tabRmWhy').value = ''; document.getElementById('tabRmErr').textContent = '';
+      loadManagers();
+      document.getElementById('tabRmBox').hidden = false;
+      document.getElementById('tabRmWhy').focus();
+      return;
+    }
+    errEl.textContent = TAB_ERR[code] || 'Could not take it off. Try again.';
+    if (['changed', 'already_paid', 'cancelled', 'not_found'].indexOf(code) > -1) await reloadTab();
+    return;
+  }
+  tabRm = null; document.getElementById('tabRmBox').hidden = true;
+  toast((r.data.closed ? 'Taken off · the bill is settled · ' : 'Taken off · ') + it.item_name);
+  await reloadTab(); pollLive();
+}
+document.getElementById('tabRmGo').addEventListener('click', function(){
+  if (!tabRm) return;
+  var why = document.getElementById('tabRmWhy').value.trim(), mgr = document.getElementById('tabRmMgr').value, pin = document.getElementById('tabRmPin').value.trim();
+  var err = document.getElementById('tabRmErr');
+  if (!why){ err.textContent = 'Write the reason.'; document.getElementById('tabRmWhy').focus(); return; }
+  if (!mgr){ err.textContent = 'Pick who is approving.'; return; }
+  if (!pin){ err.textContent = 'Type the PIN.'; document.getElementById('tabRmPin').focus(); return; }
+  doTakeOff(tabRm, mgr, pin, why);
+});
+document.getElementById('tabRmCancel').addEventListener('click', function(){ tabRm = null; document.getElementById('tabRmBox').hidden = true; });
+
+/* add items: the order panel takes them for the bill; whatever was being rung up waits and comes back after */
+var adding = null;   /* {id, label, stash} */
+document.getElementById('tabAdd').addEventListener('click', function(){
+  if (!tab) return;
+  if (adding) stopAdding(false);   /* already adding to another bill: the order being rung up comes back first */
+  var o = tab.o;
+  adding = {id: o.id, label: tabWho(o) || orderLabel(o),
+            stash: {ticket: ticket, tDisc: tDisc, who: document.getElementById('forWho').value}};
+  ticket = []; tDisc = null; document.getElementById('forWho').value = '';
+  document.getElementById('tabModal').hidden = true;
+  showAdding(); renderTicket();
+  document.querySelector('.ticket').classList.remove('collapsed');
+  toast('Tap the items to add to ' + adding.label);
+});
+function showAdding(){
+  var on = !!adding;
+  document.getElementById('addBar').hidden = !on;
+  document.getElementById('addWho').textContent = on ? adding.label : '';
+  document.getElementById('addGo').hidden = !on;
+  document.getElementById('payRow').hidden = on;
+  document.querySelector('.forwho').hidden = on;
+  ['discBtn', 'sendBtn', 'printBtn'].forEach(function(id){ document.getElementById(id).hidden = on; });
+}
+function stopAdding(reopen){
+  var a = adding; if (!a) return;
+  adding = null;
+  ticket = a.stash.ticket; tDisc = a.stash.tDisc; document.getElementById('forWho').value = a.stash.who;
+  showAdding(); renderTicket();
+  if (reopen) openTab(a.id);
+}
+document.getElementById('addCancel').addEventListener('click', function(){ stopAdding(true); });
+document.getElementById('addGo').addEventListener('click', async function(){
+  if (!adding) return;
+  if (!ticket.length){ toast('Tap items to add them.'); return; }
+  if (!navigator.onLine){ toast('Adding to a bill needs the internet. Try again in a moment.'); return; }
+  var go = this; go.disabled = true;
+  var r = await db.rpc('tab_add_items', {p_order_id: adding.id, p_items: ticket.map(function(l){ return {menu_item_id: l.id, qty: l.qty}; })});
+  go.disabled = false;
+  if (r.error){ toast(tabMissing(r.error) ? TAB_SETUP : 'Could not add. Check the connection and try again.'); return; }
+  if (!r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    toast(TAB_ERR[code] || 'Could not add. Try again.');
+    if (['already_paid', 'cancelled', 'not_found'].indexOf(code) > -1) stopAdding(false);
+    return;
+  }
+  var who = adding.label;
+  toast('Added to ' + who + ' · ' + fmt(r.data.added) + (r.data.kitchen ? ' · sent to the kitchen' : ''));
+  stopAdding(true);
+  pollLive();
+});
+
+/* the bill on paper, to show the table what they owe (not a receipt) */
+document.getElementById('tabBill').addEventListener('click', function(){
+  if (!tab) return;
+  var o = tab.o, d = new Date();
+  var when = d.toLocaleDateString('en-GB') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  var html = '<div class="rhead">HANGING GARDEN CAFÉ</div><div class="rsub">Monteverde · Costa Rica</div>' +
+    '<div class="rsub">' + when + '</div><div class="rsub">CUENTA · BILL ' + esc(tabWho(o) || hhmm(o.created_at)) + '</div><div class="rrule"></div>';
+  tab.items.forEach(function(it){ html += '<div class="rrow"><span>' + esc(it.qty + '× ' + it.item_name) + '</span><span>' + rfmt(it.price_crc * it.qty) + '</span></div>'; });
+  html += '<div class="rrule"></div><div class="rrow"><span>Subtotal</span><span>' + rfmt(tabItemsValue()) + '</span></div>';
+  if (o.discount_crc > 0 && o.subtotal_crc != null) html += '<div class="rrow"><span>Descuento · Discount</span><span>−' + rfmt(o.discount_crc) + '</span></div>';
+  tab.parts.forEach(function(p){
+    if (p.voided_at) return;
+    html += '<div class="rrow"><span>' + esc('Pagado · Paid ' + (PAY_RECEIPT[p.payment_method] || p.payment_method)) + '</span><span>−' + rfmt(p.total_crc) + '</span></div>';
+  });
+  html += '<div class="rtot"><span>' + (o.paid ? 'PAGADO · PAID' : 'POR PAGAR · DUE') + '</span><span>' + rfmt(o.paid ? 0 : o.total_crc) + '</span></div>' +
+    '<div class="rfoot">No es comprobante de pago · Not a receipt</div>';
+  document.getElementById('receipt').innerHTML = html;
+  printReceipt();
+});
+
 /* WhatsApp draft: opens a chat with the guest's number, message pre-written, one tap to send. Free, no account needed. */
 var WA = {
   en: {preparing: 'Hi {name}, this is Hanging Garden Café. Your order for room {room} is being prepared. We will message you when it is ready.',

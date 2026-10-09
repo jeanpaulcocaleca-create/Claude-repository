@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
+<script src="login.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
 :root{
@@ -369,15 +370,8 @@ function showCafeView(){
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var btn = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = 'Signing in…';
-  var r = await db.auth.signInWithPassword({
-    email: document.getElementById('em').value.trim(),
-    password: document.getElementById('pw').value
-  });
-  btn.disabled = false; btn.textContent = 'Sign in';
-  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work. Check the email and password.'; return; }
-  refreshAuth();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
 });
 document.getElementById('signOut').addEventListener('click', async function(){
   await db.auth.signOut(); refreshAuth();

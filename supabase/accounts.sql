@@ -2,6 +2,7 @@
 -- Owner and café accounts: run ONCE in Supabase (SQL Editor -> New query -> paste -> Run).
 -- NOTE: supabase/manager-mode.sql replaces some functions of this script (owner areas behind a PIN).
 --       If you ever run this script again, run manager-mode.sql again right after it.
+-- NOTE: supabase/pos-tabs.sql replaces the "orders read" rule (a bill left open past midnight). Run it again after this one too.
 -- Safe to re-run. Run supabase/authorization.sql and supabase/kitchen-rooms.sql first.
 --
 -- What this does

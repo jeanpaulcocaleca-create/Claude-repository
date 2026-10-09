@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
+<script src="login.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -521,9 +522,8 @@ function showCafeView(){
 }
 $('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var r = await db.auth.signInWithPassword({email: $('em').value.trim(), password: $('pw').value});
-  if (r.error){ $('loginErr').textContent = 'That login did not work.'; return; }
-  refreshAuth();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
 });
 $('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });

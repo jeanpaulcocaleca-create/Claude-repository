@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
+<script src="login.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -444,12 +445,8 @@ document.getElementById('codeForm').addEventListener('submit', async function(e)
 
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var r = await db.auth.signInWithPassword({
-    email: document.getElementById('em').value.trim(),
-    password: document.getElementById('pw').value
-  });
-  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
-  refreshAuth();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
 });
 document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
@@ -751,7 +748,8 @@ var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_d
                     staff_save:'Team updated', order_void:'Order voided', menu_change:'Menu changed',
                     sales_view:'Sales opened', sales_access:'Sales access changed', access_open:'Owner areas opened',
                     discount_approved:'Discount approved', register_open:'Register opened', register_close:'Register closed',
-                    register_reclose:'Register closed again', inventory_view:'Inventory opened', unpaid_cancelled:'Unpaid order cancelled'};
+                    register_reclose:'Register closed again', inventory_view:'Inventory opened', unpaid_cancelled:'Unpaid order cancelled',
+                    tab_item_removed:'Item taken off a bill'};
 async function loadLog(){
   var root = document.getElementById('logBody');
   var r = await db.from('audit_log').select('at,action,manager_name,summary,details')
@@ -774,6 +772,11 @@ async function loadLog(){
     if (e.action === 'unpaid_cancelled'){
       /* no approval needed (nothing was charged): show the amount and the device */
       what.appendChild(document.createTextNode(' · ' + fmtMoney((e.details && e.details.total_crc) || 0) + ' · ' + (e.manager_name || '')));
+    } else if (e.action === 'tab_item_removed'){
+      /* taken off a bill not paid yet: by the device before it was delivered, by a manager after */
+      var dv = e.details || {};
+      what.appendChild(document.createTextNode(' · ' + fmtMoney(dv.bill_cut_crc != null ? dv.bill_cut_crc : dv.value_crc) +
+        (dv.approved ? ' · approved by ' + (e.manager_name || '?') : ' · ' + (e.manager_name || ''))));
     } else what.appendChild(document.createTextNode(who + ' · approved by ' + (e.manager_name || '?')));
     var why = document.createElement('div'); why.className = 'why'; why.textContent = e.summary || '';
     what.appendChild(why);

@@ -1,6 +1,8 @@
 -- Hanging Garden Café · POS: discounts approved by a manager, and connected stations (front register + iPad)
 -- Run ONCE in Supabase: SQL Editor -> New query -> paste -> Run. Safe to run again.
 -- Run after supabase/manager-mode.sql.
+-- NOTE: supabase/pos-tabs.sql replaces cancel_unpaid_order and the discount freeze of this script.
+--       If you ever run this script again, run pos-tabs.sql again right after it.
 --
 -- Discounts
 --   * A discount needs the PIN of a manager, GM or owner and a reason. The approval is checked in the

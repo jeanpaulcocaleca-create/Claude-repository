@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
+<script src="login.js"></script>
 <style>
 :root{
   --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
@@ -345,12 +346,8 @@ document.getElementById('gateForm').addEventListener('submit', async function(e)
 document.getElementById('lockBtn').addEventListener('click', async function(){ await db.rpc('sales_lock'); checkGate(); });
 document.getElementById('loginForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var r = await db.auth.signInWithPassword({
-    email: document.getElementById('em').value.trim(),
-    password: document.getElementById('pw').value
-  });
-  if (r.error){ document.getElementById('loginErr').textContent = 'That login did not work.'; return; }
-  refreshAuth();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
 });
 document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
@@ -375,11 +372,15 @@ function rangeStart(){
 /* ---- load & render ---- */
 async function load(){
   var start = rangeStart();
-  var r = await db.from('orders')
-    .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,station,guest_name,subtotal_crc,discount_crc,discount_reason,discount_by,order_items(item_name,qty,price_crc)')
+  var scols = 'id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,station,guest_name,subtotal_crc,discount_crc,discount_reason,discount_by,order_items(item_name,qty,price_crc)';
+  /* a bill split between people: each payment is its own sale, part of the bill (supabase/pos-tabs.sql) */
+  var r = await db.from('orders').select(scols + ',part_of,parts_crc,notes')
     .gte('created_at', start.toISOString())
     .order('created_at', {ascending:false})
     .limit(1000);
+  if (r.error && /part_of|parts_crc/.test(r.error.message || '')){ /* pos-tabs SQL not run yet */
+    r = await db.from('orders').select(scols).gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(1000);
+  }
   if (r.error && /station|subtotal|discount/.test(r.error.message || '')){ /* pos-stations SQL not run yet */
     r = await db.from('orders')
       .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,order_items(item_name,qty,price_crc)')
@@ -445,9 +446,11 @@ var allOrders = [];
 
 function renderKpis(){
   var total = lastOrders.reduce(function(s,o){return s+o.total_crc},0);
+  /* the payments split from a bill are money, not orders of their own */
+  var nOrders = lastOrders.filter(function(o){ return !o.part_of; }).length;
   document.getElementById('kRev').textContent = fmt(total);
-  document.getElementById('kOrders').textContent = lastOrders.length;
-  document.getElementById('kAvg').textContent = lastOrders.length ? fmt(Math.round(total/lastOrders.length)) : '₡0';
+  document.getElementById('kOrders').textContent = nOrders;
+  document.getElementById('kAvg').textContent = nOrders ? fmt(Math.round(total/nOrders)) : '₡0';
   var voided = allOrders.filter(function(o){ return o.voided_at; });
   document.getElementById('kVoid').textContent = voided.length
     ? voided.length + ' · ' + fmt(voided.reduce(function(s,o){return s+o.total_crc},0)) : '0';
@@ -564,7 +567,12 @@ function renderTx(){
     var t1 = document.createElement('td'); t1.className='mono';
     t1.textContent = when.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ' ' +
       String(when.getHours()).padStart(2,'0') + ':' + String(when.getMinutes()).padStart(2,'0');
-    var t2 = document.createElement('td'); t2.textContent = items || '(no line items)';
+    var t2 = document.createElement('td'); t2.textContent = items || (o.part_of && o.notes ? o.notes : '(no line items)');
+    if (o.parts_crc > 0){
+      var pp = document.createElement('span'); pp.className = 'vreason dreason';
+      pp.textContent = 'Paid in parts ' + fmt(o.parts_crc) + ' · this is the last payment';
+      t2.appendChild(pp);
+    }
     if (o.voided_at){
       t2.className = 'strike';
       var vr = document.createElement('span'); vr.className = 'vreason';
@@ -591,7 +599,7 @@ document.getElementById('csvBtn').addEventListener('click', function(){
   var lines = ['date,time,items,payment_method,total_crc,status,void_reason,subtotal_crc,discount_crc,discount_reason,discount_by,station'];
   allOrders.forEach(function(o){
     var d = new Date(o.created_at);
-    var items = (o.order_items||[]).map(function(it){return it.qty + 'x ' + it.item_name}).join('; ');
+    var items = (o.order_items||[]).map(function(it){return it.qty + 'x ' + it.item_name}).join('; ') || (o.part_of && o.notes ? o.notes : '');
     lines.push([
       d.toISOString().slice(0,10),
       String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'),
