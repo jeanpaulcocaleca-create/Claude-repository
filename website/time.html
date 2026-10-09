@@ -749,7 +749,7 @@ var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_d
                     sales_view:'Sales opened', sales_access:'Sales access changed', access_open:'Owner areas opened',
                     discount_approved:'Discount approved', register_open:'Register opened', register_close:'Register closed',
                     register_reclose:'Register closed again', inventory_view:'Inventory opened', unpaid_cancelled:'Unpaid order cancelled',
-                    tab_item_removed:'Item taken off a bill'};
+                    tab_item_removed:'Item taken off a bill', payment_given_back:'Payment given back'};
 async function loadLog(){
   var root = document.getElementById('logBody');
   var r = await db.from('audit_log').select('at,action,manager_name,summary,details')
@@ -769,6 +769,7 @@ async function loadLog(){
       who = ' · ' + fmtMoney(e.details.total_crc) + (e.details.items ? ' · ' + e.details.items : '');
     }
     if (e.action === 'discount_approved' && e.details && e.details.discount_crc != null) who = ' · ' + fmtMoney(e.details.discount_crc);
+    if (e.action === 'payment_given_back' && e.details) who = ' · ' + fmtMoney(e.details.total_crc);
     if (e.action === 'unpaid_cancelled'){
       /* no approval needed (nothing was charged): show the amount and the device */
       what.appendChild(document.createTextNode(' · ' + fmtMoney((e.details && e.details.total_crc) || 0) + ' · ' + (e.manager_name || '')));

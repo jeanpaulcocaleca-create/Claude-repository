@@ -174,9 +174,10 @@ async function poll(){
     .or('created_at.gte."' + start.toISOString() + '",accepted_at.gte."' + start.toISOString() + '"').order('created_at'); };
   var base = 'id,created_at,accepted_at,ready_at,status,pickup_number,source,notes,guest_name,needs_kitchen,voided_at,rooms(number)';
   var cols = function(){ return base + (withRounds ? ',kitchen_round,kitchen_rev,order_items(item_name,qty,round,added_at)' : ',order_items(item_name,qty)') + (withStation ? ',station' : ''); };
-  var r = await q(cols());
-  if (r.error && withRounds && /round|kitchen_rev|added_at/.test(r.error.message || '')){ withRounds = false; roundsRetry = Date.now() + 60000; r = await q(cols()); }
-  if (r.error && withStation && /station/.test(r.error.message || '')){ withStation = false; r = await q(cols()); }
+  var c = cols(), r = await q(c);
+  /* decide from the columns this request asked for: another poll running at the same time may have changed the flags */
+  if (r.error && /kitchen_round/.test(c) && /round|kitchen_rev|added_at/.test(r.error.message || '')){ withRounds = false; roundsRetry = Date.now() + 60000; r = await q(c = cols()); }
+  if (r.error && /station/.test(c) && /station/.test(r.error.message || '')){ withStation = false; r = await q(c = cols()); }
   if (r.error){
     if (/needs_kitchen|status|schema cache|does not exist/i.test(r.error.message || '')){
       document.getElementById('appView').hidden = true;
@@ -184,6 +185,9 @@ async function poll(){
     }
     return;
   }
+  /* a setup message shown by mistake goes away as soon as a poll works (never over the sign-in screen) */
+  document.getElementById('setupView').hidden = true;
+  document.getElementById('appView').hidden = !document.getElementById('loginView').hidden;
   lastRows = r.data || [];
   render();
 }
@@ -231,9 +235,10 @@ function render(){
     /* something added later to a bill: only the new items, the rest was already made */
     var round = o.kitchen_round || 1;
     var items = (o.order_items || []).filter(function(it){ return round < 2 || it.round === round; });
-    /* added while this ticket was already being made: marked, so the cook sees the new line */
+    /* added while this ticket was already being made: marked, so the cook sees the new line (the lines rung
+       together share one time, set by the database; anything added later has its own) */
     var first = Math.min.apply(null, items.map(function(it){ return it.added_at ? new Date(it.added_at).getTime() : Infinity; }));
-    var later = function(it){ return it.added_at && isFinite(first) && new Date(it.added_at).getTime() - first > 60000; };
+    var later = function(it){ return it.added_at && isFinite(first) && new Date(it.added_at).getTime() - first > 1000; };
     if (round > 1){ var ad = document.createElement('div'); ad.className = 'added'; ad.textContent = 'Added to the order · only these'; card.appendChild(ad); }
     else if (items.some(later)){ var ad2 = document.createElement('div'); ad2.className = 'added'; ad2.textContent = 'Something was added · check the ticket'; card.appendChild(ad2); }
     var ul = document.createElement('ul');
