@@ -1167,6 +1167,7 @@ function qMerge(){
     });
     if (s.charge && !o.charge) o.charge = s.charge;
     else if (s.charge && o.charge && (s.charge.calls || 0) > (o.charge.calls || 0)) o.charge.calls = s.charge.calls;
+    if (s.charge && o.charge && (s.charge.refused || 0) > (o.charge.refused || 0)) o.charge.refused = s.charge.refused;
     if (s.charged) o.charged = true;
     /* what was sent of it: the newer word wins (this tab's own older copy never undoes what it learned since) */
     if ((s.rev || 0) > (o.rev || 0)){ o.none = s.none; o.sentAs = s.sentAs; o.rev = s.rev; }
@@ -1270,7 +1271,8 @@ async function qSteps(o){
         a.sent = true; a.lost = code; saveQueue();
         qNotice(['Not added to ' + qWho(o), TAB_ERR[code] || code,
                  a.items.map(function(x){ return x.qty + '× ' + x.name; }).join(', ') + ' · ' + fmt(a.items.reduce(function(t, x){ return t + x.price * x.qty; }, 0)),
-                 o.charge ? 'Already paid here with the bill: ring these as a new sale with the same payment, without charging the customer again.'
+                 o.charge && ['already_paid', 'cancelled', 'not_found'].indexOf(code) < 0
+                   ? 'Already paid here with the bill: ring these as a new sale with the same payment, without charging the customer again.'
                           : 'Charge these as a new sale if the customer has them.']);
         continue;
       }
@@ -1280,14 +1282,15 @@ async function qSteps(o){
   }
   if (o.charge && !o.charged){
     var c = o.charge, taken = c.total != null ? c.total : qTotal(o) + qLostValue(o);
+    var lostAfter = qLostValue(o) - (c.lost || 0);   /* items the bill would not take after this payment was taken */
     c.calls = (c.calls || 0) + 1; saveQueue();   /* counted before sending: an "already paid" after a lost reply is this one */
     /* p_expect: the bill as it should be in the system (what was taken, less items it would not take); if another
        device changed it meanwhile (items, a part paid), nothing is recorded and the cashier is told */
     r = await db.rpc('tab_pay', {p_order_id: o.id, p_method: c.method, p_lines: null, p_amount: null,
-                                 p_station: o.station || stationName() || null, p_expect: taken - qLostValue(o)});
+                                 p_station: o.station || stationName() || null, p_expect: taken - lostAfter});
     if (r.error && tabMissing(r.error)) r = await db.rpc('finish_order', {p_order_id: o.id, p_payment_method: c.method});   /* pos-tabs SQL not run */
     if (r.error){
-      if (qSure(r)){ c.calls = Math.max(0, c.calls - 1); saveQueue(); }   /* surely not recorded: it did not count */
+      if (qSure(r)){ c.refused = (c.refused || 0) + 1; saveQueue(); }   /* surely not recorded: it does not count */
       return {error: r.error, status: r.status};
     }
     code = r.data && !r.data.ok ? r.data.error : '';
@@ -1299,13 +1302,14 @@ async function qSteps(o){
     if (code === 'cancelled' || code === 'not_found'){
       qNotice(['Payment not recorded · ' + qWho(o), TAB_ERR[code] || code, 'Taken on this device · ' + what, 'Check the money: give it back if the customer paid.']);
     } else if (code === 'changed'){
-      qNotice(['Payment not recorded · ' + qWho(o), 'The bill changed on another device.', 'Taken on this device · ' + what,
+      qNotice(['Payment not recorded · ' + qWho(o), 'The bill changed on another device.',
+               'Taken on this device · ' + fmt(taken - lostAfter) + ' · ' + (PAY_NAMES[c.method] || c.method),
                'Record what was taken on the bill in the system (pay by amount), then charge the rest.']);
     } else if (code === 'already_paid'){
       /* paid in the system before this payment reached it: by another device, or by this one before a lost reply */
       var sys = await db.from('orders').select('payment_method').eq('id', o.id).maybeSingle();
       var m = sys.data && sys.data.payment_method;
-      if ((c.calls || 0) <= 1 || (m && m !== c.method))
+      if ((c.calls || 0) - (c.refused || 0) <= 1 || (m && m !== c.method))
         qNotice(['Paid twice? · ' + qWho(o), 'It was already paid in the system' + (m ? ' · ' + (PAY_NAMES[m] || m) : ''),
                  'Taken on this device · ' + what, 'If the customer paid twice, give one payment back.']);
     }
@@ -1325,18 +1329,19 @@ async function uploadOne(o){
      it is in, and the rest goes after it as steps. */
   if (!o.sentAs){
     var fold = wasNone;
-    o.sentAs = {adds: fold ? (o.adds || []).filter(function(a){ return !a.sent; }).map(function(a){ return a.key; }) : [],
-                charge: fold && o.charge && !o.charged ? o.charge.method : null};
+    var day = crDay(o.created_at);
+    o.sentAs = {adds: fold ? (o.adds || []).filter(function(a){ return !a.sent && crDay(a.at) === day; }).map(function(a){ return a.key; }) : [],
+                charge: fold && o.charge && !o.charged && crDay(o.charge.at) === day ? o.charge.method : null};
   }
   o.none = false; o.rev = (o.rev || 0) + 1; saveQueue();   /* from now on it may be in the system */
   var ver = o.sentAs, inAdds = (o.adds || []).filter(function(a){ return ver.adds.indexOf(a.key) > -1; });
   var total = o.total_crc + inAdds.reduce(function(s, a){ return s + a.items.reduce(function(t, i){ return t + i.price * i.qty; }, 0); }, 0);
   var row = {id: o.id, created_at: o.created_at, total_crc: total, payment_method: ver.charge || o.payment_method};
-  /* paid here on a later day: it counts on the day the money came in, as a bill paid in the system does (tab_pay) */
-  if (ver.charge && o.charge && crDay(o.charge.at) > crDay(o.created_at)) row.created_at = o.charge.at;
-  /* something for the kitchen added here goes to the kitchen with the order */
-  var kAdd = inAdds.some(function(a){ return a.items.some(function(i){ return i.kitchen || kitchenOf[i.menu_item_id]; }); });
+  /* something for the kitchen added here goes to the kitchen with the order, its timer from when it was added
+     (as tab_add_items does), unless the order was already being made */
+  var kAdds = inAdds.filter(function(a){ return a.items.some(function(i){ return i.kitchen || kitchenOf[i.menu_item_id]; }); }), kAdd = kAdds.length > 0;
   if (o.status){ row.source = 'front'; row.status = kAdd && o.status !== 'new' ? 'preparing' : o.status; row.needs_kitchen = !!o.needs_kitchen || kAdd;
+                 if (kAdd && o.status !== 'new' && o.status !== 'preparing') row.accepted_at = kAdds[0].at;
                  row.pickup_number = o.pickup_number || null; row.paid = ver.charge ? true : o.paid !== false;
                  if (o.guest_name) row.guest_name = o.guest_name; }
   var extra = {};                                    /* columns from supabase/pos-stations.sql */
@@ -1366,12 +1371,24 @@ async function uploadOne(o){
   var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
   inAdds.forEach(function(a){ a.items.forEach(function(i){ items.push({id: i.id, order_id: o.id, item_name: i.name, price_crc: i.price, qty: i.qty}); }); });
   var r2 = await db.from('order_items').insert(items);
-  /* lines already there under other ids (kept by an older version of this page): the sale is in, if they are its own */
+  /* the bill in the system already has lines (kept under other ids by an older version of this page, or added on
+     another device while this sale's own lines had not gone in): its own can no longer go in, but the order is in with
+     its total. Lines of its own are those as old as the order; any that are missing are named to the cashier. */
   if (r2.error && had && /order_has_lines/.test(r2.error.message || '')){
-    var ex = await db.from('order_items').select('item_name,qty,price_crc').eq('order_id', o.id), left = (ex.data || []).slice();
-    if (!ex.error && o.items.every(function(it){
-          var j = left.findIndex(function(x){ return x.item_name === it.item_name && x.qty === it.qty && x.price_crc === it.price_crc; });
-          return j > -1 && !!left.splice(j, 1); })) r2 = {};
+    var ex = await db.from('order_items').select('item_name,qty,price_crc,added_at').eq('order_id', o.id);
+    if (!ex.error){
+      var seen = ex.data || [], own = seen.filter(function(x){ return !x.added_at || Date.parse(x.added_at) <= Date.parse(o.created_at) + 1000; });
+      var miss = o.items.filter(function(it){
+        var j = own.findIndex(function(x){ return x.item_name === it.item_name && x.qty === it.qty && x.price_crc === it.price_crc; });
+        if (j > -1){ own.splice(j, 1); return false; }
+        return true;
+      });
+      /* none seen at all: the bill is not readable from here (paid on an earlier day); its lines are there */
+      if (seen.length && miss.length)
+        qNotice(['Not on the list of ' + qWho(o), miss.map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ') + ' · ' +
+                 fmt(miss.reduce(function(t, it){ return t + it.price_crc * it.qty; }, 0)), 'The bill’s total counts them. Tell the manager.']);
+      r2 = {};
+    }
   }
   if (r2.error && !isDup(r2.error)) return {error: r2.error, status: r2.status};
   inAdds.forEach(function(a){ a.sent = true; });
@@ -2898,7 +2915,7 @@ document.querySelectorAll('#locPayRow [data-lpay]').forEach(function(b){
     if (adding && adding.id === o.id){ toast('Finish adding to ' + adding.label + ' first: tap Add to the bill or Cancel.'); return; }
     var method = b.dataset.lpay, label = b.textContent.trim(), lines = qLines(o), total = qTotal(o);
     var sub = lines.reduce(function(s, l){ return s + l.price * l.qty; }, 0);
-    o.charge = {method: method, at: new Date().toISOString(), total: total};
+    o.charge = {method: method, at: new Date().toISOString(), total: total, lost: qLostValue(o)};
     saveQueue();
     lastOrder = {at: new Date(), items: lines.map(function(l){ return {name: l.name, price: l.price, qty: l.qty}; }),
                  total: total, sub: sub, disc: Math.max(0, sub - total), discText: '', extra: [],

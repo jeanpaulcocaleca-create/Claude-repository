@@ -690,6 +690,8 @@
     'Already paid here with the bill: ring these as a new sale with the same payment, without charging the customer again.':
       'Ya se cobraron aquí con la cuenta: regístrelos como una venta nueva con el mismo pago, sin cobrarle otra vez al cliente.',
     'The bill changed on another device.': 'La cuenta cambió en otro dispositivo.',
+    'Not on the list of No number': 'No está en la lista de Sin número', 'Not on the list of {x}': 'No está en la lista de {x}',
+    'The bill’s total counts them. Tell the manager.': 'El total de la cuenta los incluye. Avise al encargado.',
     'Record what was taken on the bill in the system (pay by amount), then charge the rest.': 'Registre lo cobrado en la cuenta en el sistema (pago por monto) y luego cobre el resto.',
     'Charge these as a new sale if the customer has them.': 'Cóbrelos como una venta nueva si el cliente los tiene.',
     'Payment not recorded': 'Pago no registrado', 'Taken on this device': 'Cobrado en este dispositivo',
