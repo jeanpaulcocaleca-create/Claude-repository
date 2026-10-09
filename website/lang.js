@@ -274,7 +274,7 @@
     'No connection and no saved menu yet. Connect once and it will work offline after that.': 'Sin conexión y sin menú guardado todavía. Conéctese una vez y después funcionará sin conexión.',
     'your best sellers, updated from Sales · set Always or Never per item in the Menu Manager': 'sus productos más vendidos, según Ventas · marque Siempre o Nunca por producto en el Gestor del menú',
     'One less': 'Uno menos', 'One more': 'Uno más', '{n} item ·': '{n} producto ·', '{n} items ·': '{n} productos ·',
-    'The order is empty.': 'El pedido está vacío.', '· number {n}': '· número {n}', 'Paid by {x}': 'Pagado con {x}', 'offline · {x}': 'sin conexión · {x}',
+    'The order is empty.': 'El pedido está vacío.', '· number {n}': '· número {n}', 'Paid by {x}': 'Pagado con {x}', 'offline · {n} on this device': 'sin conexión · {n} en este dispositivo',
     /* the register: open with the float, close against the card terminal and the drawer */
     'Open the register': 'Abrir caja', 'Close the register': 'Cerrar caja', 'Who is opening': 'Quién abre', 'Who is closing': 'Quién cierra',
     'Cash float received (₡)': 'Fondo de caja recibido (₡)', 'Card terminal total for today (₡)': 'Total del datáfono de hoy (₡)',
@@ -540,8 +540,8 @@
     'Recorded {x}': 'Registrado {x}', 'number {n}': 'número {n}',
     /* POS: devices (front register, iPad) */
     'This device': 'Este dispositivo', 'Which device is this?': '¿Qué dispositivo es este?',
-    'Every order keeps the name of the device that took it. Orders still to deliver or to charge show at the top of every device.':
-      'Cada pedido guarda el nombre del dispositivo que lo tomó. Los pedidos por entregar o por cobrar aparecen arriba en todos los dispositivos.',
+    'Every order keeps the name of the device that took it. Every device shows the orders still to deliver at the top, and the orders still to charge under the menu.':
+      'Cada pedido guarda el nombre del dispositivo que lo tomó. Todos los dispositivos muestran arriba los pedidos por entregar, y debajo del menú las órdenes por cobrar.',
     'Main register': 'Caja principal', 'The front counter, with the cash drawer. Charges the orders sent from other devices.':
       'El mostrador del frente, con la gaveta del efectivo. Cobra los pedidos enviados desde otros dispositivos.',
     'Second device': 'Segundo dispositivo', 'The iPad or a phone. Takes orders and sends them to the register, or charges them here.':
@@ -634,6 +634,32 @@
     'Some of these were already added to {x}. Check the bill and add what is missing.': 'Parte de esto ya se había añadido a {x}. Revise la cuenta y añada lo que falte.',
     'That is the last thing on the bill. A manager voids it from Orders.': 'Es lo último de la cuenta. Un encargado lo anula desde Pedidos.',
     'That bill is closed.': 'Esa cuenta está cerrada.', 'The items stay on the ticket to charge as a new sale.': 'Los productos quedan en el pedido para cobrarlos como una venta nueva.',
+    /* POS: open orders under the menu, sales kept on this device, a discount on a bill */
+    'Open orders': 'Órdenes abiertas', '1 order · {x} to collect': '1 orden · {x} por cobrar', '{n} orders · {x} to collect': '{n} órdenes · {x} por cobrar',
+    'Tap one to add items, give a discount or charge it.': 'Toque una para añadir productos, dar un descuento o cobrarla.',
+    'None right now. An order charged later stays here until it is paid.': 'Ninguna por ahora. Una orden para cobrar después queda aquí hasta que se pague.',
+    'Adding items': 'Añadiendo productos', 'Not saved yet': 'Sin guardar todavía', 'See why': 'Ver por qué',
+    'Sales saved on this device': 'Ventas guardadas en este dispositivo', 'Saved on this device': 'Guardado en este dispositivo',
+    'Try again now': 'Intentar de nuevo ahora', '{n} not saved yet': '{n} sin guardar todavía', 'saving {n}': 'guardando {n}',
+    'No internet on this device. It saves by itself when the internet is back.': 'Este dispositivo no tiene internet. Se guarda solo cuando vuelva el internet.',
+    'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.': 'Hay que renovar el ingreso. Si no se guarda en un minuto, toque Cerrar sesión y vuelva a ingresar.',
+    'This login is not connected to the café in the system. The owner must connect it in Supabase.': 'Este ingreso no está conectado al café en el sistema. El dueño tiene que conectarlo en Supabase.',
+    'The system refused this sale.': 'El sistema rechazó esta venta.',
+    'Everything taken on this device is saved in the system.': 'Todo lo que se tomó en este dispositivo está guardado en el sistema.',
+    'These sales are kept on this device until they reach the system, and they go by themselves. The other devices, the register and the open orders see them once they are saved. Nothing is lost: do not clear this browser’s data.':
+      'Estas ventas se guardan en este dispositivo hasta que lleguen al sistema, y se envían solas. Los otros dispositivos, la caja y las órdenes abiertas las ven cuando ya están guardadas. No se pierde nada: no borre los datos de este navegador.',
+    'Discount on the bill': 'Descuento en la cuenta', 'Still to pay {x}': 'Por pagar {x}',
+    'On the items of this bill not paid yet ({x}). It needs a reason and the PIN of an owner, GM or manager.':
+      'Sobre los productos de esta cuenta que aún no se pagan ({x}). Necesita un motivo y el PIN de un dueño, GM o encargado.',
+    'The discount is bigger than what is still to pay.': 'El descuento es mayor que lo que falta por pagar.',
+    'That approval was not found. Ask for the discount again.': 'No se encontró esa aprobación. Pida el descuento de nuevo.',
+    'That approval was already used on another order. Ask for the discount again.': 'Esa aprobación ya se usó en otro pedido. Pida el descuento de nuevo.',
+    'A discount on a bill switches on once the new part of supabase/pos-tabs.sql is run in Supabase.': 'El descuento en una cuenta se activa cuando se ejecute la parte nueva de supabase/pos-tabs.sql en Supabase.',
+    'Could not save the discount. Check the connection and try again.': 'No se pudo guardar el descuento. Revise la conexión e intente de nuevo.',
+    'Could not save the discount. Try again.': 'No se pudo guardar el descuento. Intente de nuevo.',
+    'Take the discount off this bill?': '¿Quitar el descuento de esta cuenta?', 'Discount taken off what is still to pay': 'Descuento quitado de lo que falta por pagar',
+    'Discount taken off a bill': 'Descuento quitado de una cuenta',
+    '{n} sales are not saved yet. Tap the red sign at the top to see why, before closing.': '{n} ventas no se han guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
     /* faq:start */
     "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
     "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",

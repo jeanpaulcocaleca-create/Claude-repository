@@ -471,6 +471,52 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- 6b) A discount on a bill already taken: approved with the PIN of an owner, GM or manager (approve_discount,
+--     made for what is still to pay on the bill), like at the sale. p_discount_id null takes the discount off.
+--     Items paid by item keep the discount they already got.
+create or replace function public.tab_set_discount(p_order_id uuid, p_discount_id uuid, p_expect int default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o public.orders; a public.discount_approvals; s int; paid_value int; open_value int; used int; d int; t int;
+begin
+  if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
+  select * into o from public.orders where id = p_order_id for update;
+  if o.id is null or o.part_of is not null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
+  if o.voided_at is not null or o.status = 'cancelled' then return jsonb_build_object('ok', false, 'error', 'cancelled'); end if;
+  if o.paid then return jsonb_build_object('ok', false, 'error', 'already_paid'); end if;
+  if p_expect is not null and p_expect <> o.total_crc then return jsonb_build_object('ok', false, 'error', 'changed'); end if;
+  select coalesce(sum(qty * price_crc), 0)::int, coalesce(sum(paid_qty * price_crc), 0)::int
+    into s, paid_value from public.order_items where order_id = o.id;
+  open_value := s - paid_value;
+  used := greatest(0, paid_value - o.parts_items_crc);
+  if p_discount_id is null then
+    d := case when o.subtotal_crc is null then 0 else used end;
+    t := s - d - o.parts_crc;
+    if t < 0 then return jsonb_build_object('ok', false, 'error', 'refund_first'); end if;
+    update public.orders set subtotal_crc = case when d > 0 then s else null end, discount_crc = d, discount_id = null,
+                             discount_reason = case when d > 0 then discount_reason else null end,
+                             discount_by = case when d > 0 then discount_by else null end, total_crc = t
+      where id = o.id;
+    insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
+      values ('tab_discount_removed', null, coalesce(o.station, 'POS'), o.id::text, public._tab_label(o),
+              jsonb_build_object('discount_crc', coalesce(o.discount_crc, 0), 'total_crc', t, 'bill', public._tab_label(o)));
+    return jsonb_build_object('ok', true, 'total', t, 'discount', d);
+  end if;
+  select * into a from public.discount_approvals where id = p_discount_id for update;
+  if a.id is null then return jsonb_build_object('ok', false, 'error', 'discount_not_approved'); end if;
+  if a.order_id is not null and a.order_id <> o.id then return jsonb_build_object('ok', false, 'error', 'discount_used'); end if;
+  if now() > a.created_at + interval '30 minutes' then return jsonb_build_object('ok', false, 'error', 'discount_expired'); end if;
+  -- the discount the approval allows for this bill now (see _tab_discount)
+  o.subtotal_crc := s; o.discount_id := a.id; o.discount_crc := 0;
+  d := public._tab_discount(o, s, used, open_value);
+  t := s - d - o.parts_crc;
+  if t < 0 then return jsonb_build_object('ok', false, 'error', 'refund_first'); end if;
+  update public.orders set subtotal_crc = s, discount_crc = d, discount_id = a.id, discount_reason = a.reason,
+                           discount_by = a.approved_name, total_crc = t
+    where id = o.id;
+  update public.discount_approvals set used_at = now(), order_id = o.id where id = a.id;
+  return jsonb_build_object('ok', true, 'total', t, 'discount', d);
+end $$;
+
 -- 7) A bill already partly paid cannot be cancelled whole: take items off one by one instead ------------
 create or replace function public.cancel_unpaid_order(p_order_id uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -595,11 +641,11 @@ create policy "orders read" on public.orders for select to authenticated
 
 -- 10) Who may call what ------------------------------------------------------------------------------------
 revoke all on function public.tab_add_items(uuid, jsonb, uuid), public.tab_remove_item(uuid, int, text, text, uuid, text, int),
-  public.tab_give_back(uuid, text, uuid, text, text),
+  public.tab_give_back(uuid, text, uuid, text, text), public.tab_set_discount(uuid, uuid, int),
   public.tab_pay(uuid, text, jsonb, int, text, int), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid),
   public._tab_label(public.orders), public._tab_pick(jsonb), public._tab_discount(public.orders, int, int, int) from public, anon;
 grant execute on function public.tab_add_items(uuid, jsonb, uuid), public.tab_remove_item(uuid, int, text, text, uuid, text, int),
-  public.tab_give_back(uuid, text, uuid, text, text),
+  public.tab_give_back(uuid, text, uuid, text, text), public.tab_set_discount(uuid, uuid, int),
   public.tab_pay(uuid, text, jsonb, int, text, int), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid)
   to authenticated;
 

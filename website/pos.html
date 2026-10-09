@@ -91,6 +91,40 @@ button.chip:hover{background:var(--canvas)}
 .pbtn .nm{font-weight:700;line-height:1.2}
 .pbtn .p{font-family:'Spline Sans Mono',monospace;font-size:.88rem;color:var(--cc);font-weight:600}
 .pbtn .tag{font-size:.68rem;font-weight:700;color:var(--cc);letter-spacing:.06em;text-transform:uppercase}
+/* open orders: taken but not paid yet, under the menu on every device; one row that slides sideways, so the menu keeps its room */
+#netChip{cursor:pointer}
+.openbar{flex:none;border-top:2px solid var(--muted);background:var(--panel);padding:.45rem 1rem .55rem}
+.openbar .ohead{display:flex;align-items:baseline;gap:.2rem .7rem;flex-wrap:wrap;margin-bottom:.35rem}
+.openbar .ohead h3{font-family:'Playfair Display',Georgia,serif;font-weight:400;font-size:1.1rem;margin:0}
+.openbar .ohead .mono{font-size:.88rem;font-weight:700;color:var(--bad)}
+.openbar .ohead .hint{font-size:.8rem}
+.openbar .olist{display:flex;gap:.5rem;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:.1rem .1rem .3rem}
+.ocard{all:unset;box-sizing:border-box;cursor:pointer;flex:0 0 auto;width:220px;min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:.15rem;padding:.45rem .65rem;border-radius:12px;
+  background:#fff;border:1.5px solid var(--muted);border-left:6px solid var(--bad);color:var(--ink);box-shadow:0 1px 3px rgba(30,75,51,.08)}
+.ocard:hover{filter:brightness(.98)} .ocard:active{transform:scale(.98)}
+.ocard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ocard.saving{border-left-color:var(--gold);background:#FFFBEF}
+.ocard .ot,.ocard .om{display:flex;align-items:baseline;gap:.4rem;min-width:0}
+.ocard .on{font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ocard .ow{margin-left:auto;flex:none;font-size:.72rem;color:var(--sec)}
+.ocard .os{flex:none;font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sec);background:var(--canvas);border-radius:99px;padding:.1em .5em}
+.ocard.saving .os{color:#7A5600;background:#FFF0C7}
+.ocard .oi{font-size:.8rem;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ocard .oa{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;font-size:.82rem}
+.ocard .oa b{font-family:'Spline Sans Mono',monospace;font-size:.95rem;color:var(--bad)}
+.ocard .oa .go{font-weight:700;color:var(--accent);white-space:nowrap}
+.ocard .oa .go.arrow{font-size:1.15rem;line-height:1}
+.ocard .op{margin-left:.4rem;font-size:.72rem;color:var(--ok);font-weight:700}
+@media(max-width:860px){ .openbar{padding:.4rem .8rem .5rem} .ocard{width:200px} }
+/* sales saved on this device, waiting to reach the system */
+.modal .box.qbox{max-width:520px}
+.qrow{border:1.5px solid var(--muted);border-left:5px solid var(--gold);border-radius:10px;padding:.5rem .7rem;margin:.45rem 0;font-size:.88rem}
+.qrow .qt{display:flex;justify-content:space-between;gap:.5rem;font-weight:700}
+.qrow .qi{color:var(--sec);font-size:.82rem;margin-top:.15rem}
+.qrow .qe{color:var(--bad);font-size:.82rem;margin-top:.3rem}
+.qrow .qe small{display:block;opacity:.75}
+.qbox .row{display:flex;gap:.6rem;margin-top:.9rem}
+.qbox .row button{flex:1}
 
 .ticket{background:var(--panel);border-left:1px solid var(--muted);display:flex;flex-direction:column;min-height:0}
 .ticket h2{font-size:1.05rem;padding:0.9rem 1rem .5rem;display:flex;justify-content:space-between;align-items:baseline;gap:.6rem}
@@ -273,7 +307,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <a class="navlink" href="admin.html" data-owner>Menu</a>
       <a class="navlink" href="time.html">Time</a>
       <button class="chip" id="stationBtn" title="This device">This device</button>
-      <span class="chip on" id="netChip">online</span>
+      <span class="chip on" id="netChip" role="button" tabindex="0" title="Sales saved on this device">online</span>
       <button class="ghost" id="ordersBtn">Orders</button>
       <button class="ghost" id="dayBtn">Today</button>
       <button class="ghost" id="outBtn">Sign out</button>
@@ -284,6 +318,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <div class="gridhead"><h2 id="gridTitle"></h2><span class="hint" id="gridHint"></span></div>
       <div class="grid" id="menuGrid"><p style="color:var(--sec)">Loading the menu…</p></div>
     </div>
+    <section class="openbar" id="openBar" aria-label="Open orders" hidden></section>
   </div>
   <div class="ticket">
     <h2 id="ticketHead">Order <span class="sum" id="ticketSum"></span></h2>
@@ -452,6 +487,8 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     </div>
     <div class="util">
       <button type="button" class="ghost" id="tabAdd">Add items</button>
+      <button type="button" class="ghost" id="tabDisc">Discount</button>
+      <button type="button" class="ghost" id="tabDiscX" hidden>Remove the discount</button>
       <button type="button" class="ghost" id="tabBill">Print the bill</button>
       <button type="button" class="ghost" id="tabReceipt" disabled>Print receipt</button>
       <button type="button" class="ghost" id="tabCancel">Cancel order</button>
@@ -460,10 +497,23 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   </div>
 </div>
 
+<div class="modal" id="queueModal" hidden>
+  <div class="box qbox" role="dialog" aria-labelledby="queueTitle">
+    <h2 id="queueTitle">Saved on this device</h2>
+    <p class="hint" id="queueLead"></p>
+    <div id="queueList"></div>
+    <p class="err" id="queueErr" role="alert"></p>
+    <div class="row">
+      <button type="button" id="queueRetry">Try again now</button>
+      <button type="button" class="ghost" id="queueClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="discModal" hidden>
   <form class="box dform" id="discForm" autocomplete="off" novalidate>
-    <h2>Discount</h2>
-    <p class="hint" style="margin:0">A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.</p>
+    <h2 id="discTitle">Discount</h2>
+    <p class="hint" style="margin:0" id="discLead">A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.</p>
     <label>How much</label>
     <div class="dchips" id="discPct">
       <button type="button" data-pct="10">10%</button><button type="button" data-pct="15">15%</button><button type="button" data-pct="20">20%</button>
@@ -497,7 +547,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <div class="modal" id="stationModal" hidden>
   <form class="box" id="stationForm" autocomplete="off">
     <h2>Which device is this?</h2>
-    <p class="hint" style="margin:0 0 .4rem">Every order keeps the name of the device that took it. Orders still to deliver or to charge show at the top of every device.</p>
+    <p class="hint" style="margin:0 0 .4rem">Every order keeps the name of the device that took it. Every device shows the orders still to deliver at the top, and the orders still to charge under the menu.</p>
     <label class="opt"><input type="radio" name="stMain" value="1" checked><span><strong>Main register</strong><small>The front counter, with the cash drawer. Charges the orders sent from other devices.</small></span></label>
     <label class="opt"><input type="radio" name="stMain" value="0"><span><strong>Second device</strong><small>The iPad or a phone. Takes orders and sends them to the register, or charges them here.</small></span></label>
     <label for="stName" class="hint" style="display:block;margin:.8rem 0 .25rem">Name of this device</label>
@@ -742,22 +792,39 @@ function discChoice(){
   return v > 0 ? {kind: 'amount', value: v} : null;
 }
 function discPreview(){
-  var c = discChoice(), sub = subtotal(), el = document.getElementById('discPrev');
+  var c = discChoice(), el = document.getElementById('discPrev');
   if (!c){ el.textContent = ''; return; }
+  if (discMode === 'bill'){
+    if (!tab) return;
+    var b = billDisc(c);   /* the discount on what is still to pay (items already paid keep theirs), and what is left after it */
+    el.textContent = 'Discount ' + fmt(b.d - tabDiscUsed()) + ' · Still to pay ' + fmt(Math.max(0, b.t));
+    return;
+  }
+  var sub = subtotal();
   var d = c.kind === 'percent' ? Math.round(sub * c.value / 100) : Math.min(c.value, sub);
   el.textContent = 'Discount ' + fmt(d) + ' · New total ' + fmt(sub - d);
 }
-function openDiscount(){
-  if (!ticket.length){ toast('The order is empty.'); return; }
-  if (!navigator.onLine){ toast('A discount needs the internet to check the PIN.'); return; }
+/* the same window gives a discount on the order being rung up ('ticket') or on a bill already taken ('bill') */
+var discMode = 'ticket', discBill = null;
+function discReset(mode){
+  discMode = mode;
   discPick = null;
   document.querySelectorAll('[data-pct]').forEach(function(b){ b.classList.remove('on'); });
   ['discAmtIn', 'discNote', 'discPin'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('discWhy').value = '';
   document.getElementById('discErr').textContent = '';
+  document.getElementById('discTitle').textContent = mode === 'bill' ? 'Discount on the bill · ' + orderLabel(tab.o) : 'Discount';
+  document.getElementById('discLead').textContent = mode === 'bill'
+    ? 'On the items of this bill not paid yet (' + fmt(tabOpenValue()) + '). It needs a reason and the PIN of an owner, GM or manager.'
+    : 'A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.';
   discPreview();
   loadManagers();
   document.getElementById('discModal').hidden = false;
+}
+function openDiscount(){
+  if (!ticket.length){ toast('The order is empty.'); return; }
+  if (!navigator.onLine){ toast('A discount needs the internet to check the PIN.'); return; }
+  discReset('ticket');
 }
 document.getElementById('discBtn').addEventListener('click', openDiscount);
 document.getElementById('discCancel').addEventListener('click', function(){ document.getElementById('discModal').hidden = true; });
@@ -778,12 +845,15 @@ document.getElementById('discAmtIn').addEventListener('input', function(){
 document.getElementById('discForm').addEventListener('submit', async function(e){
   e.preventDefault();
   var err = document.getElementById('discErr'); err.textContent = '';
-  var sub = subtotal(), c = discChoice();
+  var bill = discMode === 'bill';
+  if (bill && !(tab && tab.o.id === discBill && tabOpenable(tab.o))){ err.textContent = 'That order is no longer open.'; return; }
+  var sub = bill ? tabOpenValue() : subtotal(), c = discChoice();
   var why = document.getElementById('discWhy').value, note = document.getElementById('discNote').value.trim();
   var mgr = document.getElementById('discMgr').value, pin = document.getElementById('discPin').value.trim();
-  if (!sub){ err.textContent = 'The order is empty.'; return; }
+  if (!sub){ err.textContent = bill ? 'Nothing left to pay on this bill.' : 'The order is empty.'; return; }
   if (!c){ err.textContent = 'Pick a percentage or type an amount.'; return; }
-  if (c.kind === 'amount' && c.value > sub){ err.textContent = 'The discount is bigger than the order.'; return; }
+  if (c.kind === 'amount' && c.value > sub){ err.textContent = bill ? 'The discount is bigger than what is still to pay.' : 'The discount is bigger than the order.'; return; }
+  if (bill && billDisc(c).t < 0){ err.textContent = TAB_ERR.refund_first; return; }
   if (!why){ err.textContent = 'Pick the reason for the discount.'; return; }
   if (why === 'Other' && !note){ err.textContent = 'Write the reason in Details.'; document.getElementById('discNote').focus(); return; }
   if (!mgr){ err.textContent = 'Pick who is approving the discount.'; return; }
@@ -800,6 +870,7 @@ document.getElementById('discForm').addEventListener('submit', async function(e)
     return;
   }
   if (!r.data || !r.data.ok){ err.textContent = DISC_ERR[r.data && r.data.error] || 'Could not approve. Try again.'; return; }
+  if (bill){ await applyBillDisc(r.data, err); return; }
   if (!ticket.length){ document.getElementById('discModal').hidden = true; return; }
   tDisc = {id: r.data.id, kind: c.kind, value: c.value, amount: (r.data.amount != null ? r.data.amount : null),
            reason: r.data.reason || reason, by: r.data.name || '', at: Date.now()};
@@ -809,7 +880,7 @@ document.getElementById('discForm').addEventListener('submit', async function(e)
 });
 
 /* ---------- this device: the main register (front counter, cash drawer) or a second device (iPad) ----------
-   Orders keep the device name. Orders still to deliver or to charge show at the top of every device,
+   Orders keep the device name. Orders still to deliver show at the top of every device and orders still to charge under the menu,
    so the front can charge and hand over what the iPad took. */
 var STATION_KEY = 'hg-pos-station';
 var STATION = readStation();
@@ -1024,54 +1095,133 @@ function missingCol(err, names){
   var m = (err && err.message) || '';
   return !!err && (err.code === 'PGRST204' || err.code === '42703' || /column/i.test(m)) && names.test(m);
 }
+/* why a sale could not be saved: 'offline', 'auth' (sign-in), 'account' (login not connected to the café) stop every
+   sale, so the queue waits and tries again; anything else ('refused') is about that sale only, and the others go on */
+function qKind(e, status){
+  var m = String((e && (e.message || e)) || ''), c = String((e && e.code) || '');
+  if (!navigator.onLine || (!c && /failed to fetch|networkerror|load failed|network|timed? ?out/i.test(m))) return 'offline';
+  if (status === 401 || /^PGRST30/.test(c) || /jwt/i.test(m)) return 'auth';
+  if (c === '42501' || /row-level security|permission denied/i.test(m)) return 'account';
+  return 'refused';
+}
+async function uploadOne(o){
+  if (!o.id){   /* a sale saved by an older version of this page */
+    o.id = uuid(); (o.items || []).forEach(function(it){ if (!it.id) it.id = uuid(); }); saveQueue();
+  }
+  var row = {id: o.id, created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method};
+  if (o.status){ row.source = 'front'; row.status = o.status; row.needs_kitchen = !!o.needs_kitchen;
+                 row.pickup_number = o.pickup_number || null; row.paid = o.paid !== false;
+                 if (o.guest_name) row.guest_name = o.guest_name; }
+  var extra = {};                                    /* columns from supabase/pos-stations.sql */
+  if (o.station) extra.station = o.station;
+  if (o.discount_crc > 0){ extra.subtotal_crc = o.subtotal_crc; extra.discount_crc = o.discount_crc; extra.discount_id = o.discount_id; }
+  var r = await db.from('orders').insert(Object.assign({}, row, extra));
+  if (r.error && o.discount_crc > 0 && /discount_(not_approved|too_big|total|no_subtotal|used|expired)|orders_discount_once/.test(r.error.message || '')){
+    /* the database no longer accepts the approval (late upload, clock off): keep the money as charged and
+       say so on the order, where Orders shows it */
+    row.notes = String(o.discount_note || 'Discount').slice(0, 180) + ' · not verified';
+    r = await db.from('orders').insert(Object.assign({}, row, o.station ? {station: o.station} : {}));
+  }
+  if (r.error && o.station && !(o.discount_crc > 0) && missingCol(r.error, /station|subtotal|discount/)){
+    r = await db.from('orders').insert(row);         /* pos-stations SQL not run yet */
+  }
+  if (r.error && o.status && o.paid !== false && !(o.discount_crc > 0)
+      && missingCol(r.error, /status|needs_kitchen|pickup_number|paid|source|guest_name/)){
+    r = await db.from('orders').insert({id: o.id, created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method});
+  }                                                  /* kitchen SQL not run yet (an unpaid order never drops its "not paid") */
+  if (r.error && !isDup(r.error)) return {error: r.error, status: r.status};   /* a duplicate: it was saved before, finish its items */
+  var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
+  var r2 = await db.from('order_items').insert(items);
+  if (r2.error && !isDup(r2.error)) return {error: r2.error, status: r2.status};
+  return {ok: true};
+}
 async function syncQueue(){
   if (syncing || !queue.length){ updateChip(); return; }
   syncing = true;
-  while (queue.length){
-    var o = queue[0];
-    try{
-      if (!o.id){   /* a sale saved by an older version of this page */
-        o.id = uuid(); (o.items || []).forEach(function(it){ if (!it.id) it.id = uuid(); }); saveQueue();
+  var saved = 0;
+  try {
+    var list = queue.slice();
+    for (var i = 0; i < list.length; i++){
+      var o = list[i], res;
+      try { res = await uploadOne(o); } catch (e){ res = {error: e, status: 0}; }
+      /* by id: a renewed sign-in reloads the queue from this device's storage meanwhile (refreshAuth) */
+      if (res.ok){
+        queue = queue.filter(function(q){ return q !== o && q.id !== o.id; }); saved++; saveQueue(); continue;
       }
-      var row = {id: o.id, created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method};
-      if (o.status){ row.source = 'front'; row.status = o.status; row.needs_kitchen = !!o.needs_kitchen;
-                     row.pickup_number = o.pickup_number || null; row.paid = o.paid !== false;
-                     if (o.guest_name) row.guest_name = o.guest_name; }
-      var extra = {};                                    /* columns from supabase/pos-stations.sql */
-      if (o.station) extra.station = o.station;
-      if (o.discount_crc > 0){ extra.subtotal_crc = o.subtotal_crc; extra.discount_crc = o.discount_crc; extra.discount_id = o.discount_id; }
-      var r = await db.from('orders').insert(Object.assign({}, row, extra));
-      if (r.error && o.discount_crc > 0 && /discount_(not_approved|too_big|total|no_subtotal|used|expired)/.test(r.error.message || '')){
-        /* the database no longer accepts the approval (late upload, clock off): keep the money as charged and
-           say so on the order, where Orders shows it */
-        row.notes = String(o.discount_note || 'Discount').slice(0, 180) + ' · not verified';
-        r = await db.from('orders').insert(Object.assign({}, row, o.station ? {station: o.station} : {}));
-      }
-      if (r.error && o.station && !(o.discount_crc > 0) && missingCol(r.error, /station|subtotal|discount/)){
-        r = await db.from('orders').insert(row);         /* pos-stations SQL not run yet */
-      }
-      if (r.error && o.status && o.paid !== false && !(o.discount_crc > 0)
-          && missingCol(r.error, /status|needs_kitchen|pickup_number|paid|source|guest_name/)){
-        r = await db.from('orders').insert({id: o.id, created_at: o.created_at, total_crc: o.total_crc, payment_method: o.payment_method});
-      }                                                  /* kitchen SQL not run yet (an unpaid order never drops its "not paid") */
-      if (r.error && !isDup(r.error)) throw r.error;     /* a duplicate: it was saved before, finish its items */
-      var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
-      var r2 = await db.from('order_items').insert(items);
-      if (r2.error && !isDup(r2.error)) throw r2.error;
-      queue.shift(); saveQueue();
-    }catch(e){ break; }
-  }
-  syncing = false; updateChip();
+      var kind = qKind(res.error, res.status);
+      var cur = queue.find(function(q){ return q === o || q.id === o.id; }) || o;
+      cur.err = {kind: kind, code: String((res.error && res.error.code) || res.status || ''),
+                 msg: String((res.error && (res.error.message || res.error)) || '').slice(0, 160), at: Date.now()};
+      cur.tries = (cur.tries || 0) + 1;
+      saveQueue();
+      if (kind !== 'refused') break;                 /* every sale would fail the same way: wait and try again */
+    }
+  } finally { syncing = false; updateChip(); }
+  if (saved) pollLive();
+  if (!document.getElementById('queueModal').hidden) renderQueue();
 }
 setInterval(syncQueue, 20000);
 addEventListener('online', syncQueue);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) syncQueue(); });
 function updateChip(){
   if (typeof regQueueState === 'function') regQueueState();
   var c = document.getElementById('netChip');
-  if (!navigator.onLine){ c.textContent = 'offline · ' + queue.length + ' saved'; c.className = 'chip off'; }
-  else if (queue.length){ c.textContent = 'syncing ' + queue.length + '…'; c.className = 'chip pend'; }
+  var stuck = queue.some(function(o){ return o.err; });
+  if (!navigator.onLine){ c.textContent = queue.length ? 'offline · ' + queue.length + ' on this device' : 'offline'; c.className = 'chip off'; }
+  else if (queue.length && stuck){ c.textContent = queue.length + ' not saved yet'; c.className = 'chip off'; }
+  else if (queue.length){ c.textContent = 'saving ' + queue.length + '…'; c.className = 'chip pend'; }
   else { c.textContent = 'online'; c.className = 'chip on'; }
+  if (typeof renderOpen === 'function') renderOpen();
 }
+
+/* the sales still on this device: what they are and why they are not in the system yet */
+var QMSG = {offline: 'No internet on this device. It saves by itself when the internet is back.',
+  auth: 'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.',
+  account: 'This login is not connected to the café in the system. The owner must connect it in Supabase.',
+  refused: 'The system refused this sale.'};
+function openQueue(){
+  document.getElementById('queueErr').textContent = '';
+  renderQueue();
+  document.getElementById('queueModal').hidden = false;
+  syncQueue();
+}
+function renderQueue(){
+  var lead = document.getElementById('queueLead'), list = document.getElementById('queueList');
+  list.textContent = '';
+  if (!queue.length){ lead.textContent = 'Everything taken on this device is saved in the system.'; return; }
+  lead.textContent = 'These sales are kept on this device until they reach the system, and they go by themselves. ' +
+    'The other devices, the register and the open orders see them once they are saved. Nothing is lost: do not clear this browser’s data.';
+  queue.forEach(function(o){
+    var row = document.createElement('div'); row.className = 'qrow';
+    var t = document.createElement('div'); t.className = 'qt';
+    var a = document.createElement('span');
+    a.textContent = hhmm(o.created_at) + ' · ' + (o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number')) + ' · ' +
+      (o.paid === false ? 'Pay later' : (PAY_NAMES[o.payment_method] || o.payment_method));
+    var b = document.createElement('span'); b.className = 'mono'; b.textContent = fmt(o.total_crc);
+    t.appendChild(a); t.appendChild(b); row.appendChild(t);
+    var i = document.createElement('div'); i.className = 'qi';
+    i.textContent = (o.items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', ');
+    row.appendChild(i);
+    if (o.err){
+      var e = document.createElement('div'); e.className = 'qe'; e.textContent = QMSG[o.err.kind] || QMSG.refused;
+      var sm = document.createElement('small'); sm.setAttribute('data-no-translate', '');
+      sm.textContent = '(' + [o.err.code, o.err.msg].filter(Boolean).join(' · ') + ')';
+      e.appendChild(sm); row.appendChild(e);
+    }
+    list.appendChild(row);
+  });
+}
+document.getElementById('netChip').addEventListener('click', openQueue);
+document.getElementById('netChip').addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openQueue(); } });
+document.getElementById('queueClose').addEventListener('click', function(){ document.getElementById('queueModal').hidden = true; });
+document.getElementById('queueRetry').addEventListener('click', async function(){
+  if (!navigator.onLine){ document.getElementById('queueErr').textContent = QMSG.offline; return; }
+  var b = this; b.disabled = true;
+  queue.forEach(function(o){ delete o.err; }); saveQueue();
+  await syncQueue();
+  b.disabled = false;
+  renderQueue();
+});
 addEventListener('offline', updateChip);
 
 /* ---------- today / the register ----------
@@ -1129,6 +1279,12 @@ async function loadStaffList(){
   });
 }
 /* the close button waits for offline sales to sync; re-checked every time the queue changes */
+/* why the register cannot close yet: sales still on this device */
+function queueMsg(){
+  return queue.some(function(o){ return o.err && o.err.kind !== 'offline'; })
+    ? queue.length + ' sales are not saved yet. Tap the red sign at the top to see why, before closing.'
+    : queue.length + ' sales are waiting to sync. Connect to the internet before closing.';
+}
 function regQueueState(){
   if (document.getElementById('dayModal').hidden || document.getElementById('regCloseForm').hidden) return;
   var u = document.getElementById('rcUnpaid');
@@ -1138,7 +1294,7 @@ function regQueueState(){
     : dayUnpaid.n + ' orders are not paid yet (' + fmt(dayUnpaid.sum) + '). Charge them or cancel them before closing: unpaid orders are not counted.';
   var q = document.getElementById('rcQueue');
   q.hidden = !queue.length;
-  if (queue.length) q.textContent = queue.length + ' sales are waiting to sync. Connect to the internet before closing.';
+  if (queue.length) q.textContent = queueMsg();
   document.getElementById('rcSubmit').disabled = !!queue.length;
 }
 function hideRegisterBlocks(){
@@ -1248,7 +1404,7 @@ document.getElementById('regOpenForm').addEventListener('submit', async function
 document.getElementById('regCloseForm').addEventListener('submit', async function(e){
   e.preventDefault();
   var err = document.getElementById('rcErr'); err.textContent = '';
-  if (queue.length){ err.textContent = queue.length + ' sales are waiting to sync. Connect to the internet before closing.'; return; }
+  if (queue.length){ err.textContent = queueMsg(); return; }
   var staff = document.getElementById('rcStaff').value;
   var r = await db.rpc('register_close', {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value,
     p_terminal_crc: parseInt(document.getElementById('rcTerminal').value, 10), p_cash_counted_crc: parseInt(document.getElementById('rcCash').value, 10),
@@ -1609,6 +1765,7 @@ function renderLive(){
   var bar = document.getElementById('liveBar'); bar.textContent = '';
   liveOrders.forEach(function(o){
     var owes = due(o);
+    if (owes && o.status === 'done') return;   /* delivered, only the payment is left: it is in Open orders, under the menu */
     var chip = document.createElement('div'); chip.className = 'lv ' + o.status + (owes ? ' due' : '');
     var n = document.createElement('span'); n.className = 'n'; n.textContent = orderLabel(o); chip.appendChild(n);
     if (o.source !== 'room' && o.station && o.station !== stationName()){
@@ -1641,6 +1798,74 @@ function renderLive(){
     }
     bar.appendChild(chip);
   });
+  renderOpen();
+}
+/* ---------- open orders: taken and not paid yet (pay later, sent to the register), under the menu ----------
+   Every device sees them until they are paid. Tap one to open its bill: add items, give a discount, take one
+   off, charge it (all or in parts); the last payment closes it. An order this device has not saved in the
+   system yet shows here too, so it never looks lost. */
+var openSig = null;
+function renderOpen(){
+  var bar = document.getElementById('openBar'); if (!bar) return;
+  var bills = (liveOrders || []).filter(due);
+  var local = (queue || []).filter(function(o){ return o.paid === false && !bills.some(function(b){ return b.id === o.id; }); });
+  /* the list is drawn again only when something on it changed, and keeps where it was slid to */
+  var sig = JSON.stringify([stationName(), TABS_READY, adding ? adding.id : null,
+    bills.map(function(o){ return [o.id, o.status, o.total_crc, o.parts_crc, o.guest_name, o.pickup_number, o.station, o.notes, orderItems(o)]; }),
+    local.map(function(o){ return [o.id, o.total_crc, !!o.err]; })]);
+  if (sig === openSig && !bar.hidden) return;
+  openSig = sig;
+  var was = bar.querySelector('.olist'), left = was ? was.scrollLeft : 0;
+  bar.textContent = '';
+  var head = document.createElement('div'); head.className = 'ohead';
+  var h = document.createElement('h3'); h.textContent = 'Open orders'; head.appendChild(h);
+  var n = bills.length + local.length;
+  var sum = bills.reduce(function(s, o){ return s + (o.total_crc || 0); }, 0) + local.reduce(function(s, o){ return s + (o.total_crc || 0); }, 0);
+  var cnt = document.createElement('span'); cnt.className = 'mono';
+  cnt.textContent = n ? (n === 1 ? '1 order' : n + ' orders') + ' · ' + fmt(sum) + ' to collect' : '';
+  head.appendChild(cnt);
+  var hint = document.createElement('span'); hint.className = 'hint';
+  hint.textContent = n ? 'Tap one to add items, give a discount or charge it.' : 'None right now. An order charged later stays here until it is paid.';
+  head.appendChild(hint);
+  bar.appendChild(head);
+  bar.hidden = false;
+  if (!n) return;
+  var list = document.createElement('div'); list.className = 'olist';
+  var card = function(cls, label, pill, when, items, amount, paid, go, fn){
+    var c = document.createElement('button'); c.type = 'button'; c.className = 'ocard' + (cls ? ' ' + cls : '');
+    var t = document.createElement('span'); t.className = 'ot';
+    var a = document.createElement('span'); a.className = 'on'; a.textContent = label; t.appendChild(a);
+    if (when){ var w = document.createElement('span'); w.className = 'ow mono'; w.textContent = when; t.appendChild(w); }
+    c.appendChild(t);
+    var mid = document.createElement('span'); mid.className = 'om';
+    if (pill){ var p = document.createElement('span'); p.className = 'os'; p.textContent = pill; mid.appendChild(p); }
+    var i = document.createElement('span'); i.className = 'oi'; i.textContent = items; i.title = items; mid.appendChild(i);
+    c.appendChild(mid);
+    var f = document.createElement('span'); f.className = 'oa';
+    var m = document.createElement('span');
+    var b = document.createElement('b'); b.textContent = fmt(amount); m.appendChild(b);
+    if (paid){ var pd = document.createElement('span'); pd.className = 'op'; pd.textContent = 'Paid ' + fmt(paid); m.appendChild(pd); }
+    f.appendChild(m);
+    if (go){ var g = document.createElement('span'); g.className = 'go' + (go === '›' ? ' arrow' : ''); g.textContent = go; if (go === '›') g.setAttribute('aria-hidden', 'true'); f.appendChild(g); }
+    c.appendChild(f);
+    c.addEventListener('click', fn);
+    list.appendChild(c);
+  };
+  bills.forEach(function(o){
+    var other = o.station && o.station !== stationName() ? o.station : '';
+    var nm = o.pickup_number && o.guest_name ? o.guest_name : '';
+    var pill = adding && adding.id === o.id ? 'Adding items' : tabStatus(o);
+    card('', orderLabel(o), pill, [other, dayTime(o.created_at)].filter(Boolean).join(' · '),
+         (nm ? nm + ' · ' : '') + orderItems(o) + (o.notes ? ' · ' + o.notes : ''), o.total_crc, o.parts_crc > 0 ? o.parts_crc : 0,
+         TABS_READY ? '›' : 'Charge', function(){ if (TABS_READY) openTab(o.id); else openPay(o); });
+  });
+  local.forEach(function(o){
+    card('saving', o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number'), o.err ? 'Not saved yet' : 'Saving…', hhmm(o.created_at),
+         (o.pickup_number && o.guest_name ? o.guest_name + ' · ' : '') + (o.items || []).map(function(it){ return it.qty + '× ' + it.item_name; }).join(', '),
+         o.total_crc, 0, o.err ? 'See why' : '', openQueue);
+  });
+  bar.appendChild(list);
+  if (left) list.scrollLeft = left;
 }
 function btn(label, fn, cls){ var b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); return b; }
 async function setStatus(o, st){
@@ -1736,8 +1961,12 @@ var TAB_ERR = {not_found: 'That order is no longer open.', cancelled: 'That orde
   needs_pin: 'This bill was already delivered. A manager approves taking an item off.', missing_reason: 'Write the reason.',
   bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
   not_manager: 'Only an owner, GM or manager can approve this.', inactive: 'That person is not active on the team.',
-  unknown_staff: 'Pick who is approving.', no_account: 'This login is not connected to the café yet.'};
+  unknown_staff: 'Pick who is approving.', no_account: 'This login is not connected to the café yet.',
+  discount_not_approved: 'That approval was not found. Ask for the discount again.',
+  discount_used: 'That approval was already used on another order. Ask for the discount again.',
+  discount_expired: 'The discount approval is more than 30 minutes old. Ask for it again.'};
 var TAB_SETUP = 'Open bills switch on once supabase/pos-tabs.sql is run in Supabase.';
+var TAB_DISC_SETUP = 'A discount on a bill switches on once the new part of supabase/pos-tabs.sql is run in Supabase.';
 var PAY_NAMES = {cash_crc: 'Cash ₡', cash_usd: 'Cash $', card: 'Card', sinpe: 'SINPE', other: 'Other'};
 function tabMissing(err){ return /tab_|parts_crc|parts_items_crc|kitchen_round|paid_qty|added_at|part_of|schema cache|could not find/i.test((err && err.message) || ''); }
 function tabOpenable(o){ return !o.paid && !o.voided_at && o.status !== 'cancelled'; }
@@ -1891,6 +2120,9 @@ function renderTab(){
   document.getElementById('tabPayArea').hidden = !open;
   document.getElementById('tabPaidAll').hidden = !o.paid;
   document.getElementById('tabAdd').hidden = !open;
+  var hasDisc = open && tabDiscOpen() > 0;
+  document.getElementById('tabDisc').hidden = !open || hasDisc || tabOpenValue() <= 0;
+  document.getElementById('tabDiscX').hidden = !hasDisc;
   document.getElementById('tabCancel').hidden = !(open && o.status !== 'done' && !o.done_at && !parts.length);
   document.querySelectorAll('#tabSplit [data-mode]').forEach(function(b){ b.classList.toggle('on', b.dataset.mode === tabMode); });
   if (open) renderSplit();
@@ -2001,6 +2233,80 @@ document.getElementById('tabRename').addEventListener('click', async function(){
   await reloadTab(); pollLive();
 });
 
+/* a discount on the bill: approved like at the sale (a reason and a manager's PIN), for what is still to pay */
+var TAB_DISC_OK = false;   /* tab_set_discount is in the database (checked once, before anyone types a PIN) */
+/* the discount given to items already paid by item: it stays with them */
+function tabDiscUsed(){ return Math.max(0, tabItemsValue() - tabOpenValue() - (tab.o.parts_items_crc || 0)); }
+/* the discount on what is still to pay; 0 when there is none */
+function tabDiscOpen(){ var o = tab.o; return o.subtotal_crc != null ? Math.max(0, (o.discount_crc || 0) - tabDiscUsed()) : 0; }
+/* what a new approval gives this bill: the same rule as the database (tab_set_discount, _tab_discount).
+   The approval is made for what is still to pay; the bill's whole discount never drops below what paid items got */
+function billDisc(c){
+  var o = tab.o, S = tabItemsValue(), open = tabOpenValue(), used = tabDiscUsed();
+  var cap = c.kind === 'percent' ? Math.round(open * c.value / 100) : c.value;
+  var rule = c.kind === 'percent' ? Math.round(S * c.value / 100) : Math.min(c.value, S);
+  var d = Math.max(0, used, Math.min(Math.min(rule, cap), used + open));
+  return {d: d, t: S - d - (o.parts_crc || 0)};
+}
+async function openBillDiscount(){
+  if (!tab || !tabOpenable(tab.o)) return;
+  document.getElementById('tabErr').textContent = '';
+  if (!navigator.onLine){ toast('A discount needs the internet to check the PIN.'); return; }
+  if (tabOpenValue() <= 0){ toast('Nothing left to pay on this bill.'); return; }
+  if (!TAB_DISC_OK){
+    var id = tab.o.id;
+    var p = await db.rpc('tab_set_discount', {p_order_id: null, p_discount_id: null});   /* changes nothing: only says if it is there */
+    if (p.error){ toast(tabMissing(p.error) ? TAB_DISC_SETUP : 'Could not save. Check the connection and try again.'); return; }
+    TAB_DISC_OK = true;
+    if (!tab || tab.o.id !== id || document.getElementById('tabModal').hidden) return;
+  }
+  discBill = tab.o.id;
+  discReset('bill');
+}
+document.getElementById('tabDisc').addEventListener('click', openBillDiscount);
+async function applyBillDisc(ap, err){
+  if (!tab || tab.o.id !== discBill){ err.textContent = TAB_ERR.not_found; return; }
+  var go = document.getElementById('discGo');
+  var set = function(){ return db.rpc('tab_set_discount', {p_order_id: tab.o.id, p_discount_id: ap.id, p_expect: tab.o.total_crc}); };
+  go.disabled = true;
+  var r;
+  try {
+    r = await set();
+    /* the bill changed on another device meanwhile (an item added, a part paid): the approval still sets the
+       limit, so it goes on the bill as it is now */
+    if (!r.error && r.data && !r.data.ok && r.data.error === 'changed' && (await loadTab(discBill)) && tab && tab.o.id === discBill) r = await set();
+  } finally { go.disabled = false; }
+  if (r.error){ err.textContent = tabMissing(r.error) ? TAB_DISC_SETUP : 'Could not save the discount. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    err.textContent = TAB_ERR[code] || 'Could not save the discount. Try again.';
+    if (['already_paid', 'cancelled', 'not_found', 'changed'].indexOf(code) > -1) await reloadTab();
+    return;
+  }
+  document.getElementById('discModal').hidden = true;
+  toast('Discount on the bill · Still to pay ' + fmt(r.data.total) + ' · approved by ' + (ap.name || ''));
+  await reloadTab(); pollLive();
+}
+document.getElementById('tabDiscX').addEventListener('click', async function(){
+  if (!tab || tabBusy) return;
+  var err = document.getElementById('tabErr'); err.textContent = '';
+  if (!confirm('Take the discount off this bill?')) return;
+  if (!navigator.onLine){ err.textContent = 'This needs the internet. Try again in a moment.'; return; }
+  var b = this; b.disabled = true;
+  var r;
+  try { r = await db.rpc('tab_set_discount', {p_order_id: tab.o.id, p_discount_id: null, p_expect: tab.o.total_crc}); }
+  finally { b.disabled = false; }
+  if (r.error){ err.textContent = tabMissing(r.error) ? TAB_DISC_SETUP : 'Could not save. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    err.textContent = TAB_ERR[code] || 'Could not save. Try again.';
+    if (['changed', 'already_paid', 'cancelled', 'not_found'].indexOf(code) > -1){ await reloadTab(); err.textContent = TAB_ERR[code]; }
+    return;
+  }
+  toast(r.data.discount > 0 ? 'Discount taken off what is still to pay' : 'Discount removed');
+  await reloadTab(); pollLive();
+});
+
 /* take one off: the till alone before the bill was delivered (or within 10 minutes of adding it); after that a manager */
 var rmBusy = false;
 async function takeOff(it){
@@ -2084,6 +2390,7 @@ function showAdding(){
   document.getElementById('payRow').hidden = on;
   document.querySelector('.forwho').hidden = on;
   ['discBtn', 'sendBtn', 'printBtn'].forEach(function(id){ document.getElementById(id).hidden = on; });
+  renderOpen();
 }
 function stopAdding(reopen){
   var a = adding; if (!a) return;
