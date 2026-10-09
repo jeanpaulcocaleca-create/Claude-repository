@@ -315,6 +315,9 @@ function renderBoard(cats){
       wrap.appendChild(sec);
     });
   layoutBoard();
+  /* in Spanish, lang.js swaps the text on the next frame and it is longer: measure again once it is there,
+     or the last section can fall past the last page and never show (two frames: the first one runs before lang.js's) */
+  requestAnimationFrame(function(){ requestAnimationFrame(layoutBoard); });
 }
 
 /* ---------- fit the menu: the biggest readable text, in as few pages as possible ----------
