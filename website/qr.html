@@ -156,7 +156,8 @@ header.top .back{font-size:.9rem;text-decoration:none;font-weight:600}
   /* the preview shows the whole sheet, scaled to the screen */
   function fit(){
     var box = document.getElementById('previewBox'), sc = document.getElementById('scaler');
-    var w = sheet.offsetWidth, h = sheet.offsetHeight, s = Math.min(1, box.parentNode.clientWidth / w);
+    var p = box.parentNode, cs = getComputedStyle(p), room = p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var w = sheet.offsetWidth, h = sheet.offsetHeight, s = Math.min(1, room / w);
     sc.style.transform = 'scale(' + s + ')';
     box.style.width = Math.round(w * s) + 'px'; box.style.height = Math.round(h * s) + 'px';
   }

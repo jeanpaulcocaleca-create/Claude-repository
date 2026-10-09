@@ -138,6 +138,10 @@
     'Sandwich + coffee ·': 'Sándwich + café ·', 'Extras & Combos': 'Extras y combos',
     'Cappuccino Small': 'Capuchino pequeño', 'Cappuccino Large': 'Capuchino grande', 'Cappuchino Large': 'Capuchino grande',
     'Triple Chocolate Croissant': 'Croissant de triple chocolate',
+    'Adventure Box · Ham & Cheese or Monteverde': 'Adventure Box · Jamón y queso o Monteverde',
+    'Adventure Box · Mano de Piedra or Chicken Pesto': 'Adventure Box · Mano de Piedra o Pollo al pesto',
+    'Sandwich + fresh fruit + sweet treat + bottled water + napkin. Pre-order by 8 pm, pickup from 6:30 am.':
+      'Sándwich + fruta fresca + algo dulce + agua embotellada + servilleta. Pídala antes de las 8 pm y recójala desde las 6:30 am.',
     '\u0000menu-end': '',
     /* the menu at the tables (m.html, opened by the QR code) */
     'Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars, cards and SINPE Móvil at the counter.':

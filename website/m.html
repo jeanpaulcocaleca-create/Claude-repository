@@ -74,15 +74,15 @@ nav.chips a[aria-current="true"]{background:var(--accent);border-color:var(--acc
   border-top:4px solid var(--accent);box-shadow:0 1px 4px rgba(30,75,51,.1);display:flex;flex-direction:column}
 .fcard:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .fcard img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#EDE6D2}
-.fcard .ft{padding:.55rem .75rem .7rem;display:flex;justify-content:space-between;gap:.5rem;align-items:baseline}
-.fcard .fn{font-weight:700;line-height:1.25}
+.fcard .ft{padding:.55rem .75rem .7rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.1rem .5rem;align-items:baseline}
+.fcard .fn{font-weight:700;line-height:1.25;min-width:0;overflow-wrap:break-word}
 .fcard .fp{font-family:'Spline Sans Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* a section of the menu */
 .cat{padding:1.2rem 0 .2rem}
-.it{display:grid;grid-template-columns:1fr auto;gap:.15rem .8rem;align-items:start;padding:.85rem 0;border-bottom:1px dotted var(--accent-muted)}
+.it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15rem .8rem;align-items:start;padding:.85rem 0;border-bottom:1px dotted var(--accent-muted)}
 .it:last-child{border-bottom:none}
-.it.has-ph{grid-template-columns:72px 1fr auto}
+.it.has-ph{grid-template-columns:72px minmax(0,1fr) auto}
 .it .ph{all:unset;cursor:zoom-in;grid-row:1 / span 2;width:72px;height:72px;border-radius:12px;overflow:hidden;border:1px solid var(--accent-muted);background:#EDE6D2}
 .it .ph:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .it .ph img{width:100%;height:100%;object-fit:cover;display:block}
@@ -91,6 +91,17 @@ nav.chips a[aria-current="true"]{background:var(--accent);border-color:var(--acc
 .it .ds{grid-column:1 / -1;font-size:.94rem;line-height:1.42;color:var(--sec)}
 .it.has-ph .ds{grid-column:2 / -1}
 .it.star .nm::after{content:"\2605";color:var(--gold);margin-left:.35rem;font-size:.85em}
+.it .nm,.it .ds{overflow-wrap:break-word}
+@media (max-width:300px){.it.has-ph{grid-template-columns:56px minmax(0,1fr) auto}.it .ph{width:56px;height:56px}}
+/* very big text on a small phone: the price goes under the name, long headings wrap */
+@media (max-width:220px){.it.has-ph{grid-template-columns:48px minmax(0,1fr)}.it .ph{width:48px;height:48px}.it.has-ph .pr{grid-column:2}
+  .fav h2,.cat h2{overflow-wrap:anywhere;letter-spacing:.04em}}
+
+/* the combo saving, while the till has its combo line */
+.combo{margin:1.2rem 0 .2rem;background:var(--accent);color:#F6F1E2;border-radius:16px;padding:.9rem 1.1rem;display:flex;flex-wrap:wrap;gap:.2rem 1.4rem;align-items:baseline;justify-content:center;text-align:center}
+.combo b{width:100%;font-family:'Playfair Display',Georgia,serif;font-size:1.02rem;letter-spacing:.08em;text-transform:uppercase}
+.combo span{font-size:.95rem;color:#E4E9D4}
+.combo .save{color:#E8C989;font-weight:600}
 
 footer{text-align:center;color:var(--sec);font-size:.92rem;padding:1.6rem 0 calc(2rem + env(safe-area-inset-bottom));border-top:1px solid var(--accent-muted);margin-top:1.2rem}
 footer p{margin:.35rem 0}
@@ -172,6 +183,7 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
 
   var $ = function(id){ return document.getElementById(id); };
   var menu = null;        /* [{name, items:[{id,name,description,price_crc,photo_url,featured,name_es,description_es}]}] */
+  var combo = 0;          /* the combo saving in colones, from the till's combo line in Extras & Combos (0: no combo) */
   var shown = '';         /* what is on screen (menu + language), so a check that finds nothing new changes nothing */
   var withEs = true, withFeat = true;   /* optional columns: Spanish text (menu-spanish.sql) and the TV star */
   var loading = false, lastTry = 0, liveAt = 0, lbItem = null;
@@ -201,10 +213,22 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
         return {name: c.name, sort: c.sort, items: items};
       }).filter(function(c){ return c.items.length; });
   }
+  /* the till's "Combo discount" line (a negative price, hidden with the till helpers) says how much a combo saves */
+  function comboOf(cats){
+    var off = 0;
+    (Array.isArray(cats) ? cats : []).forEach(function(c){
+      if (!c || !SKIP[c.name]) return;
+      (c.menu_items || []).forEach(function(i){
+        var p = Number(i && i.price_crc);
+        if (i && i.available && /combo/i.test(i.name || '') && isFinite(p) && p < 0) off = Math.max(off, -p);
+      });
+    });
+    return off;
+  }
 
-  function save(m){ try { localStorage.setItem(CACHE, JSON.stringify({at: Date.now(), menu: m})); } catch (e) {} }
+  function save(m, off){ try { localStorage.setItem(CACHE, JSON.stringify({at: Date.now(), menu: m, combo: off})); } catch (e) {} }
   function saved(){
-    try { var v = JSON.parse(localStorage.getItem(CACHE) || 'null'); return v && Array.isArray(v.menu) && v.menu.length ? v.menu : null; }
+    try { var v = JSON.parse(localStorage.getItem(CACHE) || 'null'); return v && Array.isArray(v.menu) && v.menu.length ? v : null; }
     catch (e) { return null; }
   }
 
@@ -215,24 +239,44 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     return im;
   }
 
+  /* the guest's place: the first dish, heading or row just below the bars, and where it sat on the screen.
+     After a change above it (a dish sold out, a new favourite) the same thing is put back in the same spot. */
+  function find(root, k){
+    var els = root.querySelectorAll('[data-k]');
+    for (var n = 0; n < els.length; n++) if (els[n].dataset.k === k) return els[n];
+    return null;
+  }
+  function place(root){
+    if (window.scrollY <= 0) return null;
+    var line = $('chips').getBoundingClientRect().bottom, els = root.querySelectorAll('[data-k]');
+    for (var n = 0; n < els.length; n++){
+      var r = els[n].getBoundingClientRect();
+      if (r.bottom > line){
+        var h = els[n].dataset.s ? find(root, els[n].dataset.s) : null;
+        return {k: els[n].dataset.k, top: r.top, s: els[n].dataset.s || '', sTop: h ? h.getBoundingClientRect().top : 0};
+      }
+    }
+    return null;
+  }
+
   function render(){
-    var key = JSON.stringify([lang(), menu]);
+    var key = JSON.stringify([lang(), menu, combo]);
     if (key === shown) return;
     shown = key;
-    var y = window.scrollY, root = $('menu'), chips = $('chips');
+    var y = window.scrollY, root = $('menu'), chips = $('chips'), at = place(root);
     root.textContent = ''; chips.textContent = '';
     if (!menu || !menu.length) return;
 
     var favs = [];
     menu.forEach(function(c){ c.items.forEach(function(i){ if (i.featured && i.photo_url) favs.push(i); }); });
     if (favs.length){
-      var fs = document.createElement('section'); fs.className = 'fav'; fs.setAttribute('aria-labelledby', 'favH');
+      var fs = document.createElement('section'); fs.className = 'fav'; fs.setAttribute('aria-labelledby', 'favH'); fs.dataset.k = 'fav';
       var fh = document.createElement('h2'); fh.id = 'favH'; fh.innerHTML = STAR;
       fh.appendChild(document.createTextNode(lang() === 'es' ? 'Nuestros favoritos' : 'Our favorites'));
       fs.appendChild(fh);
       var row = document.createElement('div'); row.className = 'favrow';
       favs.slice(0, 12).forEach(function(i){
-        var b = document.createElement('button'); b.type = 'button'; b.className = 'fcard';
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'fcard'; b.dataset.k = 'f:' + i.id;
         b.appendChild(photo(i.photo_url));
         var ft = document.createElement('span'); ft.className = 'ft';
         var n = document.createElement('span'); n.className = 'fn'; n.textContent = tx(i.name, i.name_es);
@@ -245,17 +289,30 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
       root.appendChild(fs);
     }
 
+    if (combo > 0){
+      var es = lang() === 'es', cb = document.createElement('aside'); cb.className = 'combo'; cb.dataset.k = 'combo';
+      var cbT = document.createElement('b'); cbT.textContent = es ? 'Hágalo combo' : 'Make it a combo';
+      cb.appendChild(cbT);
+      (es ? ['Café + repostería', 'Sándwich + café'] : ['Coffee + pastry', 'Sandwich + coffee']).forEach(function(t){
+        var s = document.createElement('span'); s.textContent = t + ' · ';
+        var v = document.createElement('span'); v.className = 'save'; v.textContent = (es ? 'ahorre ' : 'save ') + price(combo);
+        s.appendChild(v); cb.appendChild(s);
+      });
+      root.appendChild(cb);
+    }
+
     menu.forEach(function(c, ci){
       var id = slug(c.name, ci);
       var sec = document.createElement('section'); sec.className = 'cat'; sec.id = id; sec.setAttribute('aria-labelledby', id + '-h');
-      var h = document.createElement('h2'); h.id = id + '-h'; h.innerHTML = LEAF;
+      var h = document.createElement('h2'); h.id = id + '-h'; h.innerHTML = LEAF; h.dataset.k = 'h:' + c.name;
       h.appendChild(document.createTextNode(tx(c.name)));
       sec.appendChild(h);
       c.items.forEach(function(i){
         var row = document.createElement('div'); row.className = 'it' + (i.photo_url ? ' has-ph' : '') + (i.featured ? ' star' : '');
+        row.dataset.k = 'i:' + i.id; row.dataset.s = 'h:' + c.name;
         if (i.photo_url){
           var ph = document.createElement('button'); ph.type = 'button'; ph.className = 'ph';
-          ph.setAttribute('aria-label', lang() === 'es' ? 'Ver la foto' : 'See the photo');
+          ph.setAttribute('aria-label', (lang() === 'es' ? 'Ver la foto: ' : 'See the photo: ') + tx(i.name, i.name_es));
           ph.appendChild(photo(i.photo_url));
           ph.addEventListener('click', function(){ openPhoto(i); });
           row.appendChild(ph);
@@ -281,6 +338,11 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     });
 
     window.scrollTo(0, y);
+    if (at){
+      var back = find(root, at.k), was = at.top;
+      if (!back && at.s){ back = find(root, at.s); was = at.sTop; }
+      if (back) window.scrollBy(0, back.getBoundingClientRect().top - was);
+    }
     watchSections();
     if (lbItem) refreshPhoto();
   }
@@ -313,8 +375,14 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     document.querySelectorAll('#menu .cat').forEach(function(s){ io.observe(s); });
   }
 
-  /* a photo, large, with the name and the price */
+  /* a photo, large, with the name and the price. It takes a step in the history, so the phone's Back button
+     closes the photo instead of leaving the menu; focus goes back to the dish when it closes. */
+  var opener = null;
   function openPhoto(i){
+    if ($('lb').hidden){
+      opener = document.activeElement;
+      try { history.pushState({hgPhoto: 1}, ''); } catch (e) {}
+    }
     lbItem = i.id;
     fillPhoto(i);
     $('lb').hidden = false;
@@ -332,10 +400,28 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     (menu || []).forEach(function(c){ c.items.forEach(function(i){ if (i.id === lbItem && i.photo_url) found = i; }); });
     if (found) fillPhoto(found); else closePhoto();
   }
-  function closePhoto(){ lbItem = null; $('lb').hidden = true; $('lbImg').removeAttribute('src'); }
+  function closePhoto(){
+    if ($('lb').hidden) return;
+    lbItem = null; $('lb').hidden = true; $('lbImg').removeAttribute('src');
+    try { if (history.state && history.state.hgPhoto) history.back(); } catch (e) {}
+    /* after a live update the button that opened the photo is gone: its new copy for the same dish takes the focus */
+    var to = opener && document.contains(opener) ? opener : null;
+    if (!to && opener && opener.closest){
+      var row = opener.closest('[data-k]'), k = row ? row.dataset.k : '';
+      if (k) to = find($('menu'), k);
+      if (to) to = to.querySelector('button') || to;
+    }
+    opener = null;
+    if (to && to.focus) try { to.focus({preventScroll: true}); } catch (e) {}
+  }
   $('lbClose').addEventListener('click', closePhoto);
   $('lb').addEventListener('click', function(e){ if (e.target === $('lb')) closePhoto(); });
-  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !$('lb').hidden) closePhoto(); });
+  window.addEventListener('popstate', function(){ if (!$('lb').hidden) closePhoto(); });
+  document.addEventListener('keydown', function(e){
+    if ($('lb').hidden) return;
+    if (e.key === 'Escape') closePhoto();
+    else if (e.key === 'Tab'){ e.preventDefault(); $('lbClose').focus(); }   /* Close is the only control in the photo */
+  });
 
   /* read the menu; optional columns that the database does not have yet are left out */
   async function fetchMenu(){
@@ -361,9 +447,9 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     if (loading) return;
     loading = true; lastTry = Date.now();
     try {
-      var m = clean(await fetchMenu());
+      var raw = await fetchMenu(), m = clean(raw);
       if (!m.length) throw new Error('empty menu');
-      menu = m; save(m); liveAt = Date.now();
+      menu = m; combo = comboOf(raw); save(m, combo); liveAt = Date.now();
       $('offlineNote').hidden = true; $('failed').hidden = true; $('status').hidden = true;
       render();
     } catch (e) {
@@ -375,7 +461,7 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
 
   /* first paint from the phone's copy, then the live menu replaces it */
   var keep = saved();
-  if (keep){ menu = keep; $('status').hidden = true; render(); }
+  if (keep){ menu = keep.menu; combo = Number(keep.combo) > 0 ? Number(keep.combo) : 0; $('status').hidden = true; render(); }
   refresh();
   setInterval(function(){ if (!document.hidden) refresh(); }, EVERY);
   document.addEventListener('visibilitychange', function(){ if (!document.hidden && Date.now() - lastTry > 15000) refresh(); });
