@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The menu · Hanging Garden Café</title>
+<meta name="description" content="Today's menu at Hanging Garden Café, Monteverde: specialty coffee, sandwiches, pastries and smoothies, with prices in colones.">
+<!-- the table QR code opens this page (https://hanginggardencafe.com/m); the indexed menu is menu.html -->
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#F6F1E2">
+<meta name="color-scheme" content="light">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Hanging Garden Café">
+<meta property="og:title" content="The menu · Hanging Garden Café">
+<meta property="og:description" content="Today's menu at Hanging Garden Café, Monteverde, with prices in colones.">
+<meta property="og:url" content="https://hanginggardencafe.com/m">
+<meta property="og:image" content="https://hanginggardencafe.com/assets/gal-1.jpg">
+<link rel="icon" type="image/png" href="assets/logo-512.png">
+<link rel="apple-touch-icon" href="assets/logo-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://nbvczarfweanoxvdqplk.supabase.co" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400;600&family=Dancing+Script:wght@600&display=swap">
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33; --accent-muted:#C9CFB6;
+  --sec:#54634F; --gold:#B98A35; --gold-text:#7A4A00; --head:52px; --chips:52px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--head) + var(--chips) + 10px)}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:17px;line-height:1.5}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+
+/* the bar at the top: logo, name, EN | ES (lang.js puts the switch in header.top) */
+header.top{position:sticky;top:0;z-index:20;height:calc(var(--head) + env(safe-area-inset-top));padding:env(safe-area-inset-top) max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left));
+  display:flex;align-items:center;gap:.7rem;background:var(--canvas);border-bottom:1px solid var(--accent-muted)}
+.brand{display:flex;align-items:center;gap:.6rem;text-decoration:none;color:var(--ink);min-width:0}
+.brand img{width:38px;height:38px;border-radius:50%;flex:none;background:var(--panel)}
+.brand b{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:clamp(.84rem, 3.7vw, 1.02rem);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* the sections, one swipe away */
+nav.chips{position:sticky;top:calc(var(--head) + env(safe-area-inset-top));z-index:19;height:var(--chips);display:flex;align-items:center;gap:.45rem;overflow-x:auto;
+  padding:0 max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left));background:var(--canvas);border-bottom:1px solid var(--accent-muted);
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+nav.chips::-webkit-scrollbar{display:none}
+nav.chips:empty{display:none}
+nav.chips a{flex:none;display:inline-flex;align-items:center;min-height:38px;padding:0 1rem;border-radius:99px;border:1.5px solid var(--accent-muted);
+  color:var(--accent);background:var(--panel);font-weight:600;font-size:.94rem;text-decoration:none;white-space:nowrap}
+nav.chips a[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+.wrap{max-width:680px;margin:0 auto;padding:0 max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left))}
+.intro{padding:1.3rem 0 .4rem;text-align:center}
+.intro .mono{font-family:'Spline Sans Mono',monospace;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--sec)}
+.intro h1{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:2.1rem;line-height:1.1;margin:.25rem 0 0;color:var(--accent)}
+.intro .script{font-family:'Dancing Script',cursive;font-weight:600;font-size:1.35rem;color:var(--gold-text);margin:.1rem 0 .5rem}
+.intro .lede{font-size:.95rem;color:var(--sec);margin:0 auto;max-width:34rem}
+
+.status{text-align:center;color:var(--sec);font-size:.95rem;padding:1.4rem 0}
+.status button{font:inherit;font-weight:600;margin-top:.8rem;min-height:44px;padding:.5em 1.2em;border-radius:12px;border:none;background:var(--accent);color:#fff;cursor:pointer}
+.note{font-size:.85rem;color:var(--gold-text);background:#FFF4D6;border:1px solid #E2C27A;border-radius:12px;padding:.55rem .8rem;margin:.6rem 0 0;text-align:center}
+
+/* our favorites: the items starred in the Menu Manager */
+.fav{margin:1.1rem 0 .3rem}
+.fav h2,.cat h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:1.08rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);
+  display:flex;align-items:center;gap:.5rem;margin:0 0 .5rem}
+.fav h2 svg,.cat h2 svg{width:17px;height:17px;flex:none;color:var(--accent)}
+.cat h2::after{content:"";flex:1;height:1px;background:var(--accent-muted)}
+.favrow{display:flex;gap:.7rem;overflow-x:auto;scroll-snap-type:x mandatory;padding:.2rem 0 .6rem;scrollbar-width:none}
+.favrow::-webkit-scrollbar{display:none}
+.fcard{all:unset;box-sizing:border-box;cursor:pointer;flex:0 0 68%;max-width:250px;scroll-snap-align:start;background:var(--panel);border-radius:16px;overflow:hidden;
+  border-top:4px solid var(--accent);box-shadow:0 1px 4px rgba(30,75,51,.1);display:flex;flex-direction:column}
+.fcard:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.fcard img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#EDE6D2}
+.fcard .ft{padding:.55rem .75rem .7rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.1rem .5rem;align-items:baseline}
+.fcard .fn{font-weight:700;line-height:1.25;min-width:0;overflow-wrap:break-word}
+.fcard .fp{font-family:'Spline Sans Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* a section of the menu */
+.cat{padding:1.2rem 0 .2rem}
+.it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15rem .8rem;align-items:start;padding:.85rem 0;border-bottom:1px dotted var(--accent-muted)}
+.it:last-child{border-bottom:none}
+.it.has-ph{grid-template-columns:72px minmax(0,1fr) auto}
+.it .ph{all:unset;cursor:zoom-in;grid-row:1 / span 2;width:72px;height:72px;border-radius:12px;overflow:hidden;border:1px solid var(--accent-muted);background:#EDE6D2}
+.it .ph:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.it .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.it .nm{font-weight:700;line-height:1.3;padding-top:.05rem}
+.it .pr{font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:1rem;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums;padding-top:.1rem}
+.it .ds{grid-column:1 / -1;font-size:.94rem;line-height:1.42;color:var(--sec)}
+.it.has-ph .ds{grid-column:2 / -1}
+.it.star .nm::after{content:"\2605";color:var(--gold);margin-left:.35rem;font-size:.85em}
+.it .nm,.it .ds{overflow-wrap:break-word}
+@media (max-width:300px){.it.has-ph{grid-template-columns:56px minmax(0,1fr) auto}.it .ph{width:56px;height:56px}}
+/* very big text on a small phone: the price goes under the name, long headings wrap */
+@media (max-width:280px){.it.has-ph{grid-template-columns:48px minmax(0,1fr)}.it .ph{width:48px;height:48px}.it.has-ph .pr{grid-column:2}
+  .fav h2,.cat h2{overflow-wrap:anywhere;letter-spacing:.04em}}
+
+/* the combo saving, while the till has its combo line */
+.combo{margin:1.2rem 0 .2rem;background:var(--accent);color:#F6F1E2;border-radius:16px;padding:.9rem 1.1rem;display:flex;flex-wrap:wrap;gap:.2rem 1.4rem;align-items:baseline;justify-content:center;text-align:center}
+.combo b{width:100%;font-family:'Playfair Display',Georgia,serif;font-size:1.02rem;letter-spacing:.08em;text-transform:uppercase}
+.combo span{font-size:.95rem;color:#E4E9D4}
+.combo .save{color:#E8C989;font-weight:600}
+
+footer{text-align:center;color:var(--sec);font-size:.92rem;padding:1.6rem 0 calc(2rem + env(safe-area-inset-bottom));border-top:1px solid var(--accent-muted);margin-top:1.2rem}
+footer p{margin:.35rem 0}
+footer .wa{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.4em 1.2em;margin:.5rem 0;border-radius:99px;background:#1F8F86;color:#fff;font-weight:600;text-decoration:none}
+footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gold-text)}
+
+/* a photo, large */
+.lb{position:fixed;inset:0;z-index:50;background:rgba(15,38,24,.82);display:flex;align-items:center;justify-content:center;padding:max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))}
+.lb .box{background:var(--panel);border-radius:18px;overflow:hidden;width:100%;max-width:520px;max-height:100%;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+.lb img{width:100%;max-height:62vh;object-fit:cover;display:block;background:#EDE6D2}
+.lb .bt{padding:.9rem 1rem 1rem;overflow:auto}
+.lb .bh{display:flex;justify-content:space-between;gap:.8rem;align-items:baseline}
+.lb .bn{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:1.3rem;line-height:1.2}
+.lb .bp{font-family:'Spline Sans Mono',monospace;font-weight:600;color:var(--accent);white-space:nowrap}
+.lb .bd{color:var(--sec);margin:.4rem 0 0}
+.lb .close{font:inherit;font-weight:600;margin-top:.9rem;width:100%;min-height:46px;border-radius:12px;border:none;background:var(--accent);color:#fff;cursor:pointer}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto !important;transition:none !important;animation:none !important}}
+@media print{header.top,nav.chips,.lb,footer .wa{display:none !important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html"><img src="assets/logo-512.png" alt="" width="38" height="38"><b>Hanging Garden Café</b></a>
+</header>
+<nav class="chips" id="chips" aria-label="Sections" data-no-translate></nav>
+
+<div class="wrap">
+  <section class="intro">
+    <div class="mono">Specialty coffee · Fresh food</div>
+    <h1>The menu</h1>
+    <p class="script">made for the cloud forest</p>
+    <p class="lede">Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars, cards and SINPE Móvil at the counter.</p>
+    <p class="note" id="offlineNote" hidden>This is the last menu saved on this phone. It updates by itself when the connection is back.</p>
+  </section>
+
+  <div class="status" id="status" role="status">Loading the menu…</div>
+  <div class="status" id="failed" hidden>
+    <div>Could not load the menu. Check your connection.</div>
+    <button type="button" id="retry">Try again</button>
+  </div>
+
+  <!-- dish names and descriptions come from the Menu Manager and are translated here, by exact entries only -->
+  <main id="menu" data-no-translate></main>
+
+  <footer>
+    <p>Allergies? Ask our team before you order.</p>
+    <p>Every day 6:00 – 19:00</p>
+    <a class="wa" href="https://wa.me/50664006601" target="_blank" rel="noopener">Message us on WhatsApp</a>
+    <p class="pv">Pura vida</p>
+  </footer>
+</div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-labelledby="lbName" hidden>
+  <div class="box">
+    <img id="lbImg" alt="">
+    <div class="bt">
+      <div class="bh" data-no-translate><span class="bn" id="lbName"></span><span class="bp" id="lbPrice"></span></div>
+      <p class="bd" id="lbDesc" data-no-translate></p>
+      <button type="button" class="close" id="lbClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="lang.js"></script>
+<script>
+/* The menu at the tables: the QR code opens https://hanginggardencafe.com/m. It reads the menu the Menu Manager
+   edits (Supabase, public read), so a price, a new item, a photo or "sold out" shows here without printing anything:
+   on opening, every minute while it is open, and whenever the guest comes back to it. The last menu is kept on the
+   phone, so a weak signal still shows something. */
+(function(){
+  'use strict';
+  var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+  var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+  var CACHE = 'hg-menu-m';
+  var EVERY = 60000;                          /* look for changes once a minute while the page is open */
+  var SKIP = {'Extras & Combos': 1};          /* till helpers and the combo discount line, as on the TV board */
+  var LEAF = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>';
+  var STAR = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.1l-5.7 3.2 1.2-6.4-4.7-4.4 6.4-.8z"/></svg>';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var menu = null;        /* [{name, items:[{id,name,description,price_crc,photo_url,featured,name_es,description_es}]}] */
+  var combo = 0;          /* the combo saving in colones, from the till's combo line in Extras & Combos (0: no combo) */
+  var shown = '';         /* what is on screen (menu + language), so a check that finds nothing new changes nothing */
+  var withEs = true, withFeat = true;   /* optional columns: Spanish text (menu-spanish.sql) and the TV star */
+  var loading = false, lastTry = 0, liveAt = 0, lbItem = null;
+
+  function lang(){ return window.HG_LANG === 'es' ? 'es' : 'en'; }
+  /* Spanish typed in the Menu Manager first, then an exact dictionary entry, else the text as typed */
+  function tx(en, es){
+    if (lang() !== 'es') return en || '';
+    if (es && String(es).trim()) return String(es).trim();
+    var t = window.HG_EXACT ? window.HG_EXACT(en) : null;
+    return t || en || '';
+  }
+  function price(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+  function slug(s, i){ return 'c' + i + '-' + String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+  /* what guests see: available items with a price, sections with something in them, in the Menu Manager's order */
+  function clean(cats){
+    return (Array.isArray(cats) ? cats : []).filter(function(c){ return c && c.name && !SKIP[c.name]; })
+      .map(function(c){
+        var items = (c.menu_items || []).filter(function(i){
+          return i && i.available && i.name && isFinite(Number(i.price_crc)) && Number(i.price_crc) >= 0;
+        }).sort(function(a, b){ return (a.sort - b.sort) || String(a.name).localeCompare(String(b.name)); })
+          .map(function(i){
+            return {id: i.id, name: i.name, description: i.description || '', price_crc: Number(i.price_crc), photo_url: i.photo_url || '',
+                    featured: !!i.featured, name_es: i.name_es || '', description_es: i.description_es || ''};
+          });
+        return {name: c.name, sort: c.sort, items: items};
+      }).filter(function(c){ return c.items.length; });
+  }
+  /* the till's "Combo discount" line (a negative price, hidden with the till helpers) says how much a combo saves */
+  function comboOf(cats){
+    var off = 0;
+    (Array.isArray(cats) ? cats : []).forEach(function(c){
+      if (!c || !SKIP[c.name]) return;
+      (c.menu_items || []).forEach(function(i){
+        var p = Number(i && i.price_crc);
+        if (i && i.available && /combo/i.test(i.name || '') && isFinite(p) && p < 0) off = Math.max(off, -p);
+      });
+    });
+    return off;
+  }
+
+  function save(m, off){ try { localStorage.setItem(CACHE, JSON.stringify({at: Date.now(), menu: m, combo: off})); } catch (e) {} }
+  function saved(){
+    try { var v = JSON.parse(localStorage.getItem(CACHE) || 'null'); return v && Array.isArray(v.menu) && v.menu.length ? v : null; }
+    catch (e) { return null; }
+  }
+
+  function photo(url, cls){
+    var im = document.createElement('img'); im.src = url; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+    if (cls) im.className = cls;
+    im.addEventListener('error', function(){ var b = im.closest('.ph'); if (b){ b.parentNode.classList.remove('has-ph'); b.remove(); } else im.style.visibility = 'hidden'; });
+    return im;
+  }
+
+  /* the guest's place: the first dish, heading or row just below the bars, and where it sat on the screen.
+     After a change above it (a dish sold out, a new favourite) the same thing is put back in the same spot. */
+  function find(root, k){
+    var els = root.querySelectorAll('[data-k]');
+    for (var n = 0; n < els.length; n++) if (els[n].dataset.k === k) return els[n];
+    return null;
+  }
+  function place(root){
+    if (window.scrollY <= 0) return null;
+    var line = $('chips').getBoundingClientRect().bottom, els = root.querySelectorAll('[data-k]');
+    for (var n = 0; n < els.length; n++){
+      var r = els[n].getBoundingClientRect();
+      if (r.bottom > line + 16){   /* not the sliver of the section above, left under the bars by a chip tap */
+        var h = els[n].dataset.s ? find(root, els[n].dataset.s) : null;
+        return {k: els[n].dataset.k, top: r.top, s: els[n].dataset.s || '', sTop: h ? h.getBoundingClientRect().top : 0};
+      }
+    }
+    return null;
+  }
+
+  function render(){
+    var key = JSON.stringify([lang(), menu, combo]);
+    if (key === shown) return;
+    shown = key;
+    var y = window.scrollY, root = $('menu'), chips = $('chips'), at = place(root);
+    var oldRow = root.querySelector('.favrow'), favX = oldRow ? oldRow.scrollLeft : 0;   /* the favourites row keeps where it was slid to */
+    root.textContent = ''; chips.textContent = '';
+    if (!menu || !menu.length) return;
+
+    var favs = [];
+    menu.forEach(function(c){ c.items.forEach(function(i){ if (i.featured && i.photo_url) favs.push(i); }); });
+    if (favs.length){
+      var fs = document.createElement('section'); fs.className = 'fav'; fs.setAttribute('aria-labelledby', 'favH'); fs.dataset.k = 'fav';
+      var fh = document.createElement('h2'); fh.id = 'favH'; fh.innerHTML = STAR;
+      fh.appendChild(document.createTextNode(lang() === 'es' ? 'Nuestros favoritos' : 'Our favorites'));
+      fs.appendChild(fh);
+      var row = document.createElement('div'); row.className = 'favrow';
+      favs.slice(0, 12).forEach(function(i){
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'fcard'; b.dataset.k = 'f:' + i.id;
+        b.appendChild(photo(i.photo_url));
+        var ft = document.createElement('span'); ft.className = 'ft';
+        var n = document.createElement('span'); n.className = 'fn'; n.textContent = tx(i.name, i.name_es);
+        var p = document.createElement('span'); p.className = 'fp'; p.textContent = price(i.price_crc);
+        ft.appendChild(n); ft.appendChild(p); b.appendChild(ft);
+        b.addEventListener('click', function(){ openPhoto(i); });
+        row.appendChild(b);
+      });
+      fs.appendChild(row);
+      root.appendChild(fs);
+      row.scrollLeft = favX;
+    }
+
+    if (combo > 0){
+      var es = lang() === 'es', cb = document.createElement('aside'); cb.className = 'combo'; cb.dataset.k = 'combo';
+      var cbT = document.createElement('b'); cbT.textContent = es ? 'Hágalo combo' : 'Make it a combo';
+      cb.appendChild(cbT);
+      (es ? ['Café + repostería', 'Sándwich + café'] : ['Coffee + pastry', 'Sandwich + coffee']).forEach(function(t){
+        var s = document.createElement('span'); s.textContent = t + ' · ';
+        var v = document.createElement('span'); v.className = 'save'; v.textContent = (es ? 'ahorre ' : 'save ') + price(combo);
+        s.appendChild(v); cb.appendChild(s);
+      });
+      root.appendChild(cb);
+    }
+
+    menu.forEach(function(c, ci){
+      var id = slug(c.name, ci);
+      var sec = document.createElement('section'); sec.className = 'cat'; sec.id = id; sec.setAttribute('aria-labelledby', id + '-h');
+      var h = document.createElement('h2'); h.id = id + '-h'; h.innerHTML = LEAF; h.dataset.k = 'h:' + c.name;
+      h.appendChild(document.createTextNode(tx(c.name)));
+      sec.appendChild(h);
+      c.items.forEach(function(i){
+        var row = document.createElement('div'); row.className = 'it' + (i.photo_url ? ' has-ph' : '') + (i.featured ? ' star' : '');
+        row.dataset.k = 'i:' + i.id; row.dataset.s = 'h:' + c.name;
+        if (i.photo_url){
+          var ph = document.createElement('button'); ph.type = 'button'; ph.className = 'ph';
+          ph.setAttribute('aria-label', (lang() === 'es' ? 'Ver la foto: ' : 'See the photo: ') + tx(i.name, i.name_es));
+          ph.appendChild(photo(i.photo_url));
+          ph.addEventListener('click', function(){ openPhoto(i); });
+          row.appendChild(ph);
+        }
+        var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = tx(i.name, i.name_es);
+        var pr = document.createElement('div'); pr.className = 'pr'; pr.textContent = price(i.price_crc);
+        row.appendChild(nm); row.appendChild(pr);
+        var d = tx(i.description, i.description_es);
+        if (d){ var ds = document.createElement('div'); ds.className = 'ds'; ds.textContent = d; row.appendChild(ds); }
+        sec.appendChild(row);
+      });
+      root.appendChild(sec);
+
+      var a = document.createElement('a'); a.href = '#' + id; a.textContent = tx(c.name); a.dataset.for = id;
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var t = $(id); if (!t) return;
+        t.scrollIntoView({block: 'start'});
+        mark(id);
+        try { history.replaceState(null, '', '#' + id); } catch (e2) {}
+      });
+      chips.appendChild(a);
+    });
+
+    window.scrollTo(0, y);
+    if (at){
+      var back = find(root, at.k), was = at.top;
+      if (!back && at.s){ back = find(root, at.s); was = at.sTop; }
+      if (back) window.scrollBy(0, back.getBoundingClientRect().top - was);
+    }
+    watchSections();
+    if (lbItem) refreshPhoto();
+  }
+
+  /* the chip of the section on screen is lit, and kept in view in the chip bar */
+  var io = null, current = '';
+  function mark(id){
+    if (id === current) return;
+    current = id;
+    document.querySelectorAll('#chips a').forEach(function(a){
+      var on = a.dataset.for === id;
+      a.setAttribute('aria-current', on ? 'true' : 'false');
+      if (on){ var bar = $('chips'); bar.scrollLeft = Math.max(0, a.offsetLeft - 16); }
+    });
+  }
+  function watchSections(){
+    if (io) io.disconnect();
+    current = '';
+    if (!('IntersectionObserver' in window)) return;
+    var top = $('chips').getBoundingClientRect().bottom + 4;
+    io = new IntersectionObserver(function(entries){
+      var best = null;
+      document.querySelectorAll('#menu .cat').forEach(function(s){
+        var r = s.getBoundingClientRect();
+        if (r.top <= top + 40 && r.bottom > top + 40) best = s.id;
+      });
+      if (!best){ var first = document.querySelector('#menu .cat'); if (first && first.getBoundingClientRect().top > top) best = first.id; }
+      if (best) mark(best);
+    }, {rootMargin: '-' + Math.round(top) + 'px 0px -55% 0px', threshold: [0, .01, .5, 1]});
+    document.querySelectorAll('#menu .cat').forEach(function(s){ io.observe(s); });
+  }
+
+  /* a photo, large, with the name and the price. It takes a step in the history, so the phone's Back button
+     closes the photo instead of leaving the menu; focus goes back to the dish when it closes. */
+  var opener = null;
+  function openPhoto(i){
+    if ($('lb').hidden){
+      opener = document.activeElement;
+      /* the entry under the photo does not restore its old scroll on Back (it would jump to a #section a chip
+         left in the address, or undo a live update's "keep the guest's place"); the photo entry itself does */
+      try { history.scrollRestoration = 'manual'; history.pushState({hgPhoto: 1}, ''); history.scrollRestoration = 'auto'; } catch (e) {}
+    }
+    lbItem = i.id;
+    fillPhoto(i);
+    $('lb').hidden = false;
+    $('lbClose').focus();
+  }
+  function fillPhoto(i){
+    $('lbImg').src = i.photo_url;
+    $('lbName').textContent = tx(i.name, i.name_es);
+    $('lbPrice').textContent = price(i.price_crc);
+    var d = tx(i.description, i.description_es);
+    $('lbDesc').textContent = d; $('lbDesc').hidden = !d;
+  }
+  function refreshPhoto(){
+    var found = null;
+    (menu || []).forEach(function(c){ c.items.forEach(function(i){ if (i.id === lbItem && i.photo_url) found = i; }); });
+    if (found) fillPhoto(found); else closePhoto();
+  }
+  function closePhoto(){
+    if ($('lb').hidden) return;
+    lbItem = null; $('lb').hidden = true; $('lbImg').removeAttribute('src');
+    try { if (history.state && history.state.hgPhoto) history.back(); } catch (e) {}
+    /* after a live update the button that opened the photo is gone: its new copy for the same dish takes the focus */
+    var to = opener && document.contains(opener) ? opener : null;
+    if (!to && opener && opener.closest){
+      var row = opener.closest('[data-k]'), k = row ? row.dataset.k : '';
+      if (k) to = find($('menu'), k);
+      if (to) to = to.querySelector('button') || to;
+    }
+    opener = null;
+    if (to && to.focus) try { to.focus({preventScroll: true}); } catch (e) {}
+  }
+  $('lbClose').addEventListener('click', closePhoto);
+  $('lb').addEventListener('click', function(e){ if (e.target === $('lb')) closePhoto(); });
+  window.addEventListener('popstate', function(){
+    setTimeout(function(){ try { history.scrollRestoration = 'auto'; } catch (e) {} }, 0);
+    if (!$('lb').hidden) closePhoto();
+  });
+  document.addEventListener('keydown', function(e){
+    if ($('lb').hidden) return;
+    if (e.key === 'Escape') closePhoto();
+    else if (e.key === 'Tab'){ e.preventDefault(); $('lbClose').focus(); }   /* Close is the only control in the photo */
+  });
+
+  /* read the menu; optional columns that the database does not have yet are left out */
+  async function fetchMenu(){
+    for (var tries = 0; tries < 3; tries++){
+      var sel = 'name,sort,menu_items(id,name,description,price_crc,photo_url,available,sort' + (withFeat ? ',featured' : '') + (withEs ? ',name_es,description_es' : '') + ')';
+      var ctl = window.AbortController ? new AbortController() : null;
+      var timer = ctl ? setTimeout(function(){ ctl.abort(); }, 15000) : null;
+      var res;
+      try {
+        res = await fetch(SUPA_URL + '/rest/v1/menu_categories?select=' + encodeURIComponent(sel) + '&order=sort',
+          {headers: {apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY}, cache: 'no-store', signal: ctl ? ctl.signal : undefined});
+      } finally { if (timer) clearTimeout(timer); }
+      if (res.ok) return res.json();
+      var body = ''; try { body = await res.text(); } catch (e) {}
+      if (res.status === 400 && withEs && /name_es|description_es/.test(body)){ withEs = false; continue; }
+      if (res.status === 400 && withFeat && /featured/.test(body)){ withFeat = false; continue; }
+      throw new Error('menu ' + res.status);
+    }
+    throw new Error('menu columns');
+  }
+
+  async function refresh(){
+    if (loading) return;
+    loading = true; lastTry = Date.now();
+    try {
+      var raw = await fetchMenu(), m = clean(raw);
+      if (!m.length) throw new Error('empty menu');
+      menu = m; combo = comboOf(raw); save(m, combo); liveAt = Date.now();
+      $('offlineNote').hidden = true; $('failed').hidden = true; $('status').hidden = true;
+      render();
+    } catch (e) {
+      /* one missed check says nothing; a menu from the phone's copy, or none for 5 minutes, says it may be old */
+      if (menu){ if (!liveAt || Date.now() - liveAt > 5 * 60000) $('offlineNote').hidden = false; }
+      else { $('status').hidden = true; $('failed').hidden = false; }
+    } finally { loading = false; }
+  }
+
+  /* first paint from the phone's copy, then the live menu replaces it */
+  var keep = saved();
+  if (keep){ menu = keep.menu; combo = Number(keep.combo) > 0 ? Number(keep.combo) : 0; $('status').hidden = true; render(); }
+  refresh();
+  setInterval(function(){ if (!document.hidden) refresh(); }, EVERY);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden && Date.now() - lastTry > 15000) refresh(); });
+  window.addEventListener('online', refresh);
+  window.addEventListener('pageshow', function(e){ if (e.persisted) refresh(); });
+  $('retry').addEventListener('click', function(){ $('failed').hidden = true; $('status').hidden = false; refresh(); });
+  document.addEventListener('hg-lang', function(){ render(); });
+  window.addEventListener('resize', function(){ if (menu) watchSections(); });
+})();
+</script>
+</body>
+</html>

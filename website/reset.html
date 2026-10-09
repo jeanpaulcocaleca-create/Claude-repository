@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>New password · Hanging Garden</title>
+<link rel="icon" type="image/png" href="assets/logo-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Figtree:wght@400;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="login.js"></script>
+<style>
+:root{--canvas:#F6F1E2;--panel:#FCF8EC;--ink:#26392C;--accent:#1E4B33;--accent-hover:#143726;--muted:#C9CFB6;--gold:#B98A35;--sec:#54634F;--ok:#4A7A4E;--bad:#A8402F}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0;font-size:1.5rem}
+.login{max-width:400px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em;width:100%;margin-top:1.2rem}
+button:hover{background:var(--accent-hover)}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.hint{font-size:.9rem;color:var(--sec);margin:.6rem 0 0}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.ok{color:var(--ok);font-weight:600}
+a.btn{display:inline-block;margin-top:1rem;background:var(--accent);color:#fff;text-decoration:none;border-radius:10px;padding:.7em 1.2em;font-weight:600}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="login">
+  <h1>Set a new password</h1>
+  <p class="hint">Hanging Garden Café</p>
+  <p class="hint" id="waiting">Checking the link…</p>
+
+  <!-- the owner login usually has a phone code: a recovery link alone may not change the password -->
+  <form id="codeForm" hidden>
+    <p class="hint">Your login has a phone code. Type it to continue.</p>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+    <p class="hint">If you no longer have the phone, the owner must first remove the phone code in Supabase (owner_reset_phone_code).</p>
+  </form>
+
+  <form id="resetForm" hidden>
+    <label for="pw1">New password</label>
+    <input id="pw1" type="password" autocomplete="new-password" minlength="8" required>
+    <label for="pw2">Type it again</label>
+    <input id="pw2" type="password" autocomplete="new-password" minlength="8" required>
+    <p class="hint" style="margin-top:.4rem">At least 8 characters. Use something you can remember, or save it in your phone's password manager.</p>
+    <button type="submit">Save the new password</button>
+    <p class="err" id="resetErr"></p>
+  </form>
+
+  <div id="done" hidden>
+    <p class="ok">Password changed. You can sign in now.</p>
+    <a class="btn" href="home.html">Go to Home</a>
+  </div>
+  <div id="expired" hidden>
+    <p class="err">This link has expired or was already used. Ask for a new one from the sign-in page.</p>
+    <a class="btn" href="home.html">Back to sign in</a>
+  </div>
+  <div id="nolink" hidden>
+    <p class="err">Open this page from the link in the email. If the link opened a different address, the Supabase Site URL must be set to hanginggardencafe.com.</p>
+    <a class="btn" href="home.html">Back to sign in</a>
+  </div>
+  <div id="offline" hidden>
+    <p class="err">Could not reach the server. Check your connection and reload this page.</p>
+    <button type="button" onclick="location.reload()">Reload</button>
+  </div>
+</div>
+<script>
+var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+/* its own session: opening the link on the café tablet never replaces (or signs out) the till's session */
+var RESET_AUTH = {auth: {storageKey: 'sb-hg-reset-auth'}};
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(RESET_AUTH) : RESET_AUTH);
+/* The email link signs this tab in for a few minutes. With a phone code enrolled, the password can only
+   change after the code is typed (Supabase requires it). Afterwards the tab is signed out again. */
+var ready = false;
+var qs = location.hash + ' ' + location.search;
+var hadToken = /access_token=|code=/.test(qs);
+var linkError = /error=|error_code=|error_description=/.test(qs);
+var VIEWS = ['waiting', 'codeForm', 'resetForm', 'done', 'expired', 'nolink', 'offline'];
+function show(id){ VIEWS.forEach(function(x){ document.getElementById(x).hidden = x !== id; }); }
+async function needCode(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function afterSession(){
+  if (await needCode()){ show('codeForm'); document.getElementById('codeIn').focus(); return; }
+  show('resetForm'); document.getElementById('pw1').focus();
+}
+async function check(){
+  var s = await db.auth.getSession();
+  if (s.data && s.data.session && !ready){ ready = true; afterSession(); }
+}
+if (linkError) show('expired');
+else {
+  db.auth.onAuthStateChange(function(ev, session){ if (session && !ready){ ready = true; afterSession(); } });
+  check();
+  setTimeout(function(){
+    if (ready) return;
+    check().then(function(){ if (!ready) show(hadToken ? 'offline' : 'nolink'); });
+  }, 4000);
+}
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var err = document.getElementById('codeErr'); err.textContent = '';
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  var r = totp ? await db.auth.mfa.challengeAndVerify({factorId: totp.id, code: document.getElementById('codeIn').value.trim()}) : {error: {message: 'no factor'}};
+  if (r.error){ err.textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  afterSession();
+});
+document.getElementById('resetForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var a = document.getElementById('pw1').value, b = document.getElementById('pw2').value, err = document.getElementById('resetErr');
+  if (a.length < 8){ err.textContent = 'At least 8 characters.'; return; }
+  /* a space at the start or the end is invisible on a tablet and makes the next sign-in fail */
+  if (a !== a.replace(/^[\s\u200B-\u200D\uFEFF]+|[\s\u200B-\u200D\uFEFF]+$/g, '')){ err.textContent = 'The password cannot start or end with a space.'; return; }
+  if (a !== b){ err.textContent = 'The two passwords do not match.'; return; }
+  var r = await db.auth.updateUser({password: a});
+  if (r.error){
+    var c = String(r.error.code || '').toLowerCase(), m = r.error.message || '', n = r.error.name || '';
+    if (c === 'insufficient_aal' || /aal2/i.test(m)){ show('codeForm'); document.getElementById('codeErr').textContent = 'Type the code from your phone app first.'; document.getElementById('codeIn').focus(); return; }
+    if (c === 'same_password' || /same password|different from the old/i.test(m)) err.textContent = 'That is the same password as before. Pick a new one.';
+    else if (c === 'weak_password' || /weak|easy to guess/i.test(m)) err.textContent = 'That password is too easy to guess. Use at least 8 characters and mix letters and numbers.';
+    else if (c === 'validation_failed' || /72 characters/i.test(m)) err.textContent = 'That password is too long. Use 72 characters or fewer.';
+    else if (n === 'AuthSessionMissingError' || c === 'session_expired' || c === 'session_not_found' || /session/i.test(m)) show('expired');
+    else err.textContent = 'Could not save the password. Ask for a new link and try again.';
+    return;
+  }
+  try { await db.auth.signOut({scope: 'local'}); } catch (e2) {}
+  show('done');
+});
+/* Show, to read the new password on a tablet */
+if (window.HG_LOGIN){ HG_LOGIN.addShow(document.getElementById('pw1')); HG_LOGIN.addShow(document.getElementById('pw2')); }
+</script>
+<script src="lang.js"></script>
+</body>
+</html>
