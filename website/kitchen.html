@@ -128,7 +128,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
   if (res.ok) refreshAuth();
 });
-document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
 
 /* ---------- sound (no audio file needed) ---------- */

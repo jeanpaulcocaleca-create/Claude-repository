@@ -74,7 +74,9 @@ a.btn{display:inline-block;margin-top:1rem;background:var(--accent);color:#fff;t
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options() : undefined);
+/* its own session: opening the link on the café tablet never replaces (or signs out) the till's session */
+var RESET_AUTH = {auth: {storageKey: 'sb-hg-reset-auth'}};
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(RESET_AUTH) : RESET_AUTH);
 /* The email link signs this tab in for a few minutes. With a phone code enrolled, the password can only
    change after the code is typed (Supabase requires it). Afterwards the tab is signed out again. */
 var ready = false;

@@ -9,7 +9,9 @@
 --   * An item can be taken off a bill that is not paid yet, and it is written in the approvals log. Once the
 --     bill was delivered, it needs the PIN of a manager (same rule as cancelling), except for an item added
 --     in the last 10 minutes (a mistake fixed right away).
---   * A bill left open past midnight still shows the next day until it is paid.
+--   * A bill left open past midnight still shows the next days (up to 30) until it is paid.
+--   * A discount (reason and a manager's PIN) can also be given on a bill already taken, for what is still
+--     to pay, and taken off again.
 -- Split payments
 --   * A person pays only their items, an equal part, or an amount, each with their own payment method.
 --     Each payment is its own sale (so the register closing and the sales by method stay right) and is
@@ -35,6 +37,10 @@ alter table public.order_items add column if not exists round int not null defau
 alter table public.order_items add column if not exists paid_qty int not null default 0;
 alter table public.order_items add column if not exists added_at timestamptz not null default now();
 create index if not exists orders_part_of_idx on public.orders (part_of) where part_of is not null;
+-- a discount given on a bill later (tab_set_discount) covers only the items not paid yet: the list value of the
+-- items already paid by item then, and the discount they had got
+alter table public.discount_approvals add column if not exists base_crc int;
+alter table public.discount_approvals add column if not exists base_used_crc int;
 
 -- which items each partial payment covered
 create table if not exists public.order_part_lines (
@@ -111,6 +117,29 @@ drop trigger if exists order_item_tab_defaults on public.order_items;
 create trigger order_item_tab_defaults before insert on public.order_items
   for each row execute function public._order_item_tab_defaults();
 
+-- the till writes the lines of a sale once, all in one insert, with it; items added later go through
+-- tab_add_items. A line typed into a bill that already has lines (a price below zero to empty it) is refused.
+create or replace function public._order_other_lines(p_orders uuid[], p_ids uuid[])
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.order_items i where i.order_id = any(p_orders) and not (i.id = any(p_ids)));
+$$;
+revoke all on function public._order_other_lines(uuid[], uuid[]) from public, anon;
+grant execute on function public._order_other_lines(uuid[], uuid[]) to authenticated;
+create or replace function public._order_items_once()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if current_user in ('authenticated', 'anon') then
+    if exists (select 1 from new_lines where qty < 1) then raise exception 'bad_qty' using errcode = 'P0001'; end if;
+    if public._order_other_lines((select array_agg(distinct order_id) from new_lines), (select array_agg(id) from new_lines)) then
+      raise exception 'order_has_lines' using errcode = 'P0001';
+    end if;
+  end if;
+  return null;
+end $$;
+drop trigger if exists order_items_once on public.order_items;
+create trigger order_items_once after insert on public.order_items referencing new table as new_lines
+  for each statement execute function public._order_items_once();
+
 -- the discount stays frozen for the till; adding or taking off items keeps the bill's subtotal right
 -- (runs as the caller, so the functions below may change it and a direct edit from the till may not)
 create or replace function public._order_discount_frozen()
@@ -158,8 +187,11 @@ begin
   if a.id is null then
     d := least(coalesce(o.discount_crc, 0), greatest(0, p_sub));
   else
-    d := case when a.kind = 'percent' then round(greatest(0, p_sub) * a.value / 100.0)::int else least(a.value, greatest(0, p_sub)) end;
-    d := least(d, coalesce(a.amount_crc, o.discount_crc, 0));
+    -- an approval given on the bill later covers the items not paid yet then (base: the items paid by item
+    -- before, which keep the discount they had got)
+    p_sub := greatest(0, p_sub - coalesce(a.base_crc, 0));
+    d := case when a.kind = 'percent' then round(p_sub * a.value / 100.0)::int else least(a.value, p_sub) end;
+    d := least(d, coalesce(a.amount_crc, o.discount_crc, 0)) + coalesce(a.base_used_crc, 0);
   end if;
   return greatest(0, p_used, least(d, p_used + greatest(0, p_open)));
 end $$;
@@ -472,11 +504,14 @@ begin
 end $$;
 
 -- 6b) A discount on a bill already taken: approved with the PIN of an owner, GM or manager (approve_discount,
---     made for what is still to pay on the bill), like at the sale. p_discount_id null takes the discount off.
---     Items paid by item keep the discount they already got.
-create or replace function public.tab_set_discount(p_order_id uuid, p_discount_id uuid, p_expect int default null)
+--     made for the value of the items not paid yet), like at the sale. It covers the items not paid yet; items
+--     already paid by item keep the discount they got. p_discount_id null takes the discount off.
+drop function if exists public.tab_set_discount(uuid, uuid, int);
+create or replace function public.tab_set_discount(p_order_id uuid, p_discount_id uuid, p_expect int default null,
+                                                   p_station text default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare o public.orders; a public.discount_approvals; s int; paid_value int; open_value int; used int; d int; t int;
+        st text := nullif(left(trim(coalesce(p_station, '')), 40), '');
 begin
   if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
   select * into o from public.orders where id = p_order_id for update;
@@ -488,6 +523,8 @@ begin
     into s, paid_value from public.order_items where order_id = o.id;
   open_value := s - paid_value;
   used := greatest(0, paid_value - o.parts_items_crc);
+  -- the bill's value from its own books (a sale whose discount could not be verified keeps what it charged)
+  s := coalesce(o.subtotal_crc, o.total_crc + o.parts_crc);
   if p_discount_id is null then
     d := case when o.subtotal_crc is null then 0 else used end;
     t := s - d - o.parts_crc;
@@ -497,25 +534,50 @@ begin
                              discount_by = case when d > 0 then discount_by else null end, total_crc = t
       where id = o.id;
     insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
-      values ('tab_discount_removed', null, coalesce(o.station, 'POS'), o.id::text, public._tab_label(o),
-              jsonb_build_object('discount_crc', coalesce(o.discount_crc, 0), 'total_crc', t, 'bill', public._tab_label(o)));
+      values ('tab_discount_removed', null, coalesce(st, o.station, 'POS'), o.id::text, public._tab_label(o),
+              jsonb_build_object('discount_crc', coalesce(o.discount_crc, 0) - d, 'total_crc', t, 'bill', public._tab_label(o),
+                                 'reason', o.discount_reason, 'station', st));
     return jsonb_build_object('ok', true, 'total', t, 'discount', d);
   end if;
   select * into a from public.discount_approvals where id = p_discount_id for update;
   if a.id is null then return jsonb_build_object('ok', false, 'error', 'discount_not_approved'); end if;
   if a.order_id is not null and a.order_id <> o.id then return jsonb_build_object('ok', false, 'error', 'discount_used'); end if;
   if now() > a.created_at + interval '30 minutes' then return jsonb_build_object('ok', false, 'error', 'discount_expired'); end if;
-  -- the discount the approval allows for this bill now (see _tab_discount)
+  -- it covers the items not paid yet: those paid by item keep their value and the discount they got
+  update public.discount_approvals set base_crc = paid_value, base_used_crc = used where id = a.id;
   o.subtotal_crc := s; o.discount_id := a.id; o.discount_crc := 0;
   d := public._tab_discount(o, s, used, open_value);
   t := s - d - o.parts_crc;
-  if t < 0 then return jsonb_build_object('ok', false, 'error', 'refund_first'); end if;
+  if t < 0 then
+    update public.discount_approvals set base_crc = a.base_crc, base_used_crc = a.base_used_crc where id = a.id;
+    return jsonb_build_object('ok', false, 'error', 'refund_first');
+  end if;
   update public.orders set subtotal_crc = s, discount_crc = d, discount_id = a.id, discount_reason = a.reason,
                            discount_by = a.approved_name, total_crc = t
     where id = o.id;
   update public.discount_approvals set used_at = now(), order_id = o.id where id = a.id;
   return jsonb_build_object('ok', true, 'total', t, 'discount', d);
 end $$;
+
+-- a discount taken off (tab_set_discount) leaves only what items already paid by item got; when one of those
+-- payments is voided or given back, its items are to pay again in full
+create or replace function public._tab_removed_discount(p_bill uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare b public.orders; used int; t int;
+begin
+  select * into b from public.orders where id = p_bill;
+  if b.id is null or b.discount_id is not null or b.subtotal_crc is null or coalesce(b.paid, false) then return; end if;
+  select greatest(0, coalesce(sum(paid_qty * price_crc), 0)::int - b.parts_items_crc) into used from public.order_items where order_id = b.id;
+  used := least(used, coalesce(b.discount_crc, 0));
+  t := b.subtotal_crc - used - b.parts_crc;
+  if t < 0 or used = coalesce(b.discount_crc, 0) then return; end if;
+  update public.orders set discount_crc = used, total_crc = t,
+                           subtotal_crc = case when used > 0 then subtotal_crc end,
+                           discount_reason = case when used > 0 then discount_reason end,
+                           discount_by = case when used > 0 then discount_by end
+    where id = b.id;
+end $$;
+revoke all on function public._tab_removed_discount(uuid) from public, anon, authenticated;
 
 -- 7) A bill already partly paid cannot be cancelled whole: take items off one by one instead ------------
 create or replace function public.cancel_unpaid_order(p_order_id uuid)
@@ -575,6 +637,7 @@ begin
     update public.order_items i set paid_qty = greatest(0, i.paid_qty - l.qty)
       from public.order_part_lines l where l.part_id = p.id and l.item_id = i.id;
     delete from public.order_part_lines where part_id = p.id;
+    perform public._tab_removed_discount(b.id);
   end if;
   update public.orders set given_back_at = now() where id = p.id;
   insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
@@ -604,6 +667,7 @@ begin
         where id = m.id;
       update public.order_items i set paid_qty = greatest(0, i.paid_qty - l.qty)
         from public.order_part_lines l where l.part_id = new.id and l.item_id = i.id;
+      perform public._tab_removed_discount(m.id);
     end if;
   elsif coalesce(new.parts_crc, 0) > 0 and to_regclass('public.stock_moves') is not null then
     -- the void of the bill returns all its stock (inventory.sql); the items paid in parts were eaten
@@ -623,7 +687,7 @@ create trigger order_tab_voided after update of voided_at on public.orders
   for each row execute function public._order_tab_voided();
 drop function if exists public._order_part_voided();
 
--- 9) A bill left open past midnight can still be read (and charged) the next days, with the payments already
+-- 9) A bill left open past midnight can still be read (and charged) the next 30 days, with the payments already
 --    made on it (so a manager can void one from Orders) ----------------------------------------------------------
 -- is that bill still open? (runs as the owner, so the read rule below does not call itself)
 create or replace function public._tab_open(p_bill uuid)
@@ -635,17 +699,17 @@ grant execute on function public._tab_open(uuid) to authenticated;
 drop policy if exists "orders read" on public.orders;
 create policy "orders read" on public.orders for select to authenticated
   using ((select public.is_cafe()) and (created_at >= public.cr_today_start() or (select public.sales_open())
-         or (created_at >= public.cr_today_start() - interval '3 days'
+         or (created_at >= public.cr_today_start() - interval '30 days'
              and ((paid = false and voided_at is null and status <> 'cancelled')
                   or (part_of is not null and public._tab_open(part_of))))));
 
 -- 10) Who may call what ------------------------------------------------------------------------------------
 revoke all on function public.tab_add_items(uuid, jsonb, uuid), public.tab_remove_item(uuid, int, text, text, uuid, text, int),
-  public.tab_give_back(uuid, text, uuid, text, text), public.tab_set_discount(uuid, uuid, int),
+  public.tab_give_back(uuid, text, uuid, text, text), public.tab_set_discount(uuid, uuid, int, text),
   public.tab_pay(uuid, text, jsonb, int, text, int), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid),
   public._tab_label(public.orders), public._tab_pick(jsonb), public._tab_discount(public.orders, int, int, int) from public, anon;
 grant execute on function public.tab_add_items(uuid, jsonb, uuid), public.tab_remove_item(uuid, int, text, text, uuid, text, int),
-  public.tab_give_back(uuid, text, uuid, text, text), public.tab_set_discount(uuid, uuid, int),
+  public.tab_give_back(uuid, text, uuid, text, text), public.tab_set_discount(uuid, uuid, int, text),
   public.tab_pay(uuid, text, jsonb, int, text, int), public.tab_rename(uuid, text), public.cancel_unpaid_order(uuid)
   to authenticated;
 

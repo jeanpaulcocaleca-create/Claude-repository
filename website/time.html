@@ -381,7 +381,7 @@ var idleTimer = null;
 function armIdle(){
   clearTimeout(idleTimer);
   if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
-  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
 }
 ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
   document.addEventListener(ev, armIdle, {passive: true});
@@ -448,7 +448,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
   if (res.ok) refreshAuth();
 });
-document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
 
 /* ---------- tabs ---------- */
@@ -771,9 +771,9 @@ async function loadLog(){
     }
     if (e.action === 'discount_approved' && e.details && e.details.discount_crc != null) who = ' · ' + fmtMoney(e.details.discount_crc);
     if (e.action === 'payment_given_back' && e.details) who = ' · ' + fmtMoney(e.details.total_crc);
-    if (e.action === 'unpaid_cancelled'){
-      /* no approval needed (nothing was charged): show the amount and the device */
-      what.appendChild(document.createTextNode(' · ' + fmtMoney((e.details && e.details.total_crc) || 0) + ' · ' + (e.manager_name || '')));
+    if (e.action === 'unpaid_cancelled' || e.action === 'tab_discount_removed'){
+      /* no approval needed (nothing was charged, or the guest pays more): show the amount and the device */
+      what.appendChild(document.createTextNode(' · ' + fmtMoney((e.details && (e.action === 'tab_discount_removed' ? e.details.discount_crc : e.details.total_crc)) || 0) + ' · ' + (e.manager_name || '')));
     } else if (e.action === 'tab_item_removed'){
       /* taken off a bill not paid yet: by the device before it was delivered, by a manager after */
       var dv = e.details || {};

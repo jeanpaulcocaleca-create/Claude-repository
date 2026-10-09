@@ -101,14 +101,16 @@ button.chip:hover{background:var(--canvas)}
 .openbar .olist{display:flex;gap:.5rem;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:.1rem .1rem .3rem}
 .ocard{all:unset;box-sizing:border-box;cursor:pointer;flex:0 0 auto;width:220px;min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:.15rem;padding:.45rem .65rem;border-radius:12px;
   background:#fff;border:1.5px solid var(--muted);border-left:6px solid var(--bad);color:var(--ink);box-shadow:0 1px 3px rgba(30,75,51,.08)}
-.ocard:hover{filter:brightness(.98)} .ocard:active{transform:scale(.98)}
+.ocard:hover{background:#fff;filter:brightness(.98)} .ocard.saving:hover{background:#FFFBEF} .ocard:active{transform:scale(.98)}
 .ocard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ocard.saving{border-left-color:var(--gold);background:#FFFBEF}
 .ocard .ot,.ocard .om{display:flex;align-items:baseline;gap:.4rem;min-width:0}
-.ocard .on{font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ocard .on{flex:1 1 auto;font-weight:700;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:2.5em}
 .ocard .ow{margin-left:auto;flex:none;font-size:.72rem;color:var(--sec)}
 .ocard .os{flex:none;font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sec);background:var(--canvas);border-radius:99px;padding:.1em .5em}
 .ocard.saving .os{color:#7A5600;background:#FFF0C7}
+.ocard .os.st{flex:0 1 auto;min-width:0;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:none;letter-spacing:0;font-weight:600;background:#EEF2F7}
+.openbar .ohead .warn{color:var(--bad);font-weight:600}
 .ocard .oi{font-size:.8rem;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .ocard .oa{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;font-size:.82rem}
 .ocard .oa b{font-family:'Spline Sans Mono',monospace;font-size:.95rem;color:var(--bad)}
@@ -590,6 +592,8 @@ async function refreshAuth(){
   var authed = !!(s.data && s.data.session);
   document.getElementById('loginView').hidden = authed;
   document.getElementById('appView').hidden = !authed;
+  /* signed out (also by itself): no window stays over the sign-in box */
+  if (!authed){ document.querySelectorAll('.modal').forEach(function(m){ m.hidden = true; }); payTarget = null; pendingPay = null; }
   if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); syncQueue(); loadSettings(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
     loadRegister().then(function(){ if (STATION && STATION.main) nudgeRegister(); });
     if (!STATION) openStation(); }
@@ -599,7 +603,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
   if (res.ok) refreshAuth();
 });
-document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
 
 /* ---------- menu grid ---------- */
@@ -806,17 +810,21 @@ function discPreview(){
 }
 /* the same window gives a discount on the order being rung up ('ticket') or on a bill already taken ('bill') */
 var discMode = 'ticket', discBill = null;
+var discToken = 0;   /* a new window or Cancel: an approval still on its way is not used */
+function discLeadText(){
+  return discMode === 'bill'
+    ? 'On the items of this bill not paid yet (' + fmt(tabOpenValue()) + '). It needs a reason and the PIN of an owner, GM or manager.'
+    : 'A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.';
+}
 function discReset(mode){
-  discMode = mode;
+  discMode = mode; discToken++;
   discPick = null;
   document.querySelectorAll('[data-pct]').forEach(function(b){ b.classList.remove('on'); });
   ['discAmtIn', 'discNote', 'discPin'].forEach(function(id){ document.getElementById(id).value = ''; });
   document.getElementById('discWhy').value = '';
   document.getElementById('discErr').textContent = '';
   document.getElementById('discTitle').textContent = mode === 'bill' ? 'Discount on the bill · ' + orderLabel(tab.o) : 'Discount';
-  document.getElementById('discLead').textContent = mode === 'bill'
-    ? 'On the items of this bill not paid yet (' + fmt(tabOpenValue()) + '). It needs a reason and the PIN of an owner, GM or manager.'
-    : 'A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.';
+  document.getElementById('discLead').textContent = discLeadText();
   discPreview();
   loadManagers();
   document.getElementById('discModal').hidden = false;
@@ -827,7 +835,7 @@ function openDiscount(){
   discReset('ticket');
 }
 document.getElementById('discBtn').addEventListener('click', openDiscount);
-document.getElementById('discCancel').addEventListener('click', function(){ document.getElementById('discModal').hidden = true; });
+document.getElementById('discCancel').addEventListener('click', function(){ discToken++; document.getElementById('discModal').hidden = true; });
 document.getElementById('discX').addEventListener('click', function(){ tDisc = null; renderTicket(); toast('Discount removed'); });
 document.querySelectorAll('[data-pct]').forEach(function(b){
   b.addEventListener('click', function(){
@@ -859,10 +867,12 @@ document.getElementById('discForm').addEventListener('submit', async function(e)
   if (!mgr){ err.textContent = 'Pick who is approving the discount.'; return; }
   if (!pin){ err.textContent = 'Type the PIN.'; document.getElementById('discPin').focus(); return; }
   var reason = why + (note ? ' · ' + note : '');
+  var token = discToken, target = discBill;
   var go = document.getElementById('discGo'); go.disabled = true;
   var r = await db.rpc('approve_discount', {p_staff_id: mgr, p_pin: pin, p_kind: c.kind, p_value: c.value,
     p_subtotal: sub, p_reason: reason, p_station: stationName() || null});
   go.disabled = false; document.getElementById('discPin').value = '';
+  if (token !== discToken) return;   /* the window was closed or opened again meanwhile: nothing is applied */
   if (r.error){
     err.textContent = /approve_discount|schema cache|could not find/i.test(r.error.message || '')
       ? 'Discounts switch on once supabase/pos-stations.sql is run in Supabase.'
@@ -870,7 +880,7 @@ document.getElementById('discForm').addEventListener('submit', async function(e)
     return;
   }
   if (!r.data || !r.data.ok){ err.textContent = DISC_ERR[r.data && r.data.error] || 'Could not approve. Try again.'; return; }
-  if (bill){ await applyBillDisc(r.data, err); return; }
+  if (bill){ await applyBillDisc(r.data, err, target, token); return; }
   if (!ticket.length){ document.getElementById('discModal').hidden = true; return; }
   tDisc = {id: r.data.id, kind: c.kind, value: c.value, amount: (r.data.amount != null ? r.data.amount : null),
            reason: r.data.reason || reason, by: r.data.name || '', at: Date.now()};
@@ -1075,9 +1085,36 @@ document.getElementById('printBtn').addEventListener('click', function(){
   printReceipt();
 });
 
-/* ---------- offline queue ---------- */
-function loadQueue(){ try{ queue = JSON.parse(localStorage.getItem(QKEY) || '[]'); }catch(e){ queue = []; } updateChip(); }
-function saveQueue(){ localStorage.setItem(QKEY, JSON.stringify(queue)); updateChip(); }
+/* ---------- offline queue ----------
+   Every sale waits in this device's storage until it is in the system. Two tabs of the till on one device share
+   that storage: each adds what the other kept and drops only what it saved itself, so neither wipes a sale. */
+var qGone = {};           /* ids of sales this page saved in the system */
+var qStoreFail = false;   /* the storage of this device refused to keep the sales (full or blocked) */
+function qStored(){ try { var s = JSON.parse(localStorage.getItem(QKEY) || '[]'); return Array.isArray(s) ? s : []; } catch (e){ return []; } }
+/* a sale kept by an older version of this page gets its ids once, before any upload, so it is never sent twice */
+function qIds(list){
+  var n = 0;
+  list.forEach(function(o){
+    if (!o) return;
+    if (!o.id){ o.id = uuid(); n++; }
+    (o.items || []).forEach(function(it){ if (!it.id){ it.id = uuid(); n++; } });
+  });
+  return n;
+}
+function qMerge(){
+  qStored().forEach(function(s){ if (s && s.id && !qGone[s.id] && !queue.some(function(o){ return o.id === s.id; })) queue.push(s); });
+  queue = queue.filter(function(o){ return o && !qGone[o.id]; });
+}
+function loadQueue(){
+  var st = qStored();
+  if (qIds(st)){ try { localStorage.setItem(QKEY, JSON.stringify(st)); } catch (e){} }
+  qMerge(); updateChip();
+}
+function saveQueue(){
+  qIds(queue); qMerge();
+  try { localStorage.setItem(QKEY, JSON.stringify(queue)); qStoreFail = false; } catch (e){ qStoreFail = true; }
+  updateChip();
+}
 var syncing = false;
 /* Ids are made on this device, and the upload never reads the order back: the café login may only read
    today's orders, so a sale rung before midnight and uploaded after it could otherwise never get through,
@@ -1095,13 +1132,15 @@ function missingCol(err, names){
   var m = (err && err.message) || '';
   return !!err && (err.code === 'PGRST204' || err.code === '42703' || /column/i.test(m)) && names.test(m);
 }
-/* why a sale could not be saved: 'offline', 'auth' (sign-in), 'account' (login not connected to the café) stop every
-   sale, so the queue waits and tries again; anything else ('refused') is about that sale only, and the others go on */
+/* why a sale could not be saved: 'offline', 'auth' (sign-in), 'account' (login not connected to the café) and 'server'
+   (the system not answering) stop every sale, so the queue waits and tries again; anything else ('refused') is about
+   that sale only, and the others go on */
 function qKind(e, status){
   var m = String((e && (e.message || e)) || ''), c = String((e && e.code) || '');
-  if (!navigator.onLine || (!c && /failed to fetch|networkerror|load failed|network|timed? ?out/i.test(m))) return 'offline';
+  if (!navigator.onLine || (!status && !c && /failed to fetch|networkerror|load failed|network|timed? ?out|abort/i.test(m))) return 'offline';
   if (status === 401 || /^PGRST30/.test(c) || /jwt/i.test(m)) return 'auth';
   if (c === '42501' || /row-level security|permission denied/i.test(m)) return 'account';
+  if (status >= 500 || status === 408 || status === 429 || /^PGRST00/.test(c) || c === '57014' || /^08/.test(c)) return 'server';
   return 'refused';
 }
 async function uploadOne(o){
@@ -1135,30 +1174,40 @@ async function uploadOne(o){
   if (r2.error && !isDup(r2.error)) return {error: r2.error, status: r2.status};
   return {ok: true};
 }
-async function syncQueue(){
-  if (syncing || !queue.length){ updateChip(); return; }
-  syncing = true;
-  var saved = 0;
-  try {
-    var list = queue.slice();
-    for (var i = 0; i < list.length; i++){
-      var o = list[i], res;
-      try { res = await uploadOne(o); } catch (e){ res = {error: e, status: 0}; }
-      /* by id: a renewed sign-in reloads the queue from this device's storage meanwhile (refreshAuth) */
-      if (res.ok){
-        queue = queue.filter(function(q){ return q !== o && q.id !== o.id; }); saved++; saveQueue(); continue;
-      }
-      var kind = qKind(res.error, res.status);
-      var cur = queue.find(function(q){ return q === o || q.id === o.id; }) || o;
-      cur.err = {kind: kind, code: String((res.error && res.error.code) || res.status || ''),
-                 msg: String((res.error && (res.error.message || res.error)) || '').slice(0, 160), at: Date.now()};
-      cur.tries = (cur.tries || 0) + 1;
-      saveQueue();
-      if (kind !== 'refused') break;                 /* every sale would fail the same way: wait and try again */
-    }
-  } finally { syncing = false; updateChip(); }
-  if (saved) pollLive();
-  if (!document.getElementById('queueModal').hidden) renderQueue();
+var qRound = null, qAgain = false;
+function syncQueue(){
+  if (qRound){ qAgain = true; updateChip(); return qRound; }   /* a sale rung meanwhile goes right after this round */
+  if (!queue.length){ updateChip(); return Promise.resolve(); }
+  qRound = (async function(){
+    var saved = 0, stopped = false;
+    syncing = true;
+    try {
+      do {
+        qAgain = false;
+        var list = queue.slice();
+        for (var i = 0; i < list.length; i++){
+          var o = list[i], res;
+          if (qGone[o.id]) continue;
+          try { res = await uploadOne(o); } catch (e){ res = {error: e, status: 0}; }
+          /* by id: a renewed sign-in reloads the queue from this device's storage meanwhile (refreshAuth) */
+          if (res.ok){
+            qGone[o.id] = true; queue = queue.filter(function(q){ return q !== o && q.id !== o.id; }); saved++; saveQueue(); continue;
+          }
+          var kind = qKind(res.error, res.status);
+          var cur = queue.find(function(q){ return q === o || q.id === o.id; }) || o;
+          cur.err = {kind: kind, code: String((res.error && res.error.code) || res.status || ''),
+                     msg: String((res.error && (res.error.message || res.error)) || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160),
+                     at: Date.now()};
+          cur.tries = (cur.tries || 0) + 1;
+          saveQueue();
+          if (kind !== 'refused'){ stopped = true; break; }   /* every sale would fail the same way: wait and try again */
+        }
+      } while (qAgain && !stopped);
+    } finally { syncing = false; qRound = null; updateChip(); }
+    if (saved) pollLive();
+    if (!document.getElementById('queueModal').hidden) renderQueue();
+  })();
+  return qRound;
 }
 setInterval(syncQueue, 20000);
 addEventListener('online', syncQueue);
@@ -1167,7 +1216,8 @@ function updateChip(){
   if (typeof regQueueState === 'function') regQueueState();
   var c = document.getElementById('netChip');
   var stuck = queue.some(function(o){ return o.err; });
-  if (!navigator.onLine){ c.textContent = queue.length ? 'offline · ' + queue.length + ' on this device' : 'offline'; c.className = 'chip off'; }
+  if (qStoreFail){ c.textContent = 'not kept on this device'; c.className = 'chip off'; }
+  else if (!navigator.onLine){ c.textContent = queue.length ? 'offline · ' + queue.length + ' on this device' : 'offline'; c.className = 'chip off'; }
   else if (queue.length && stuck){ c.textContent = queue.length + ' not saved yet'; c.className = 'chip off'; }
   else if (queue.length){ c.textContent = 'saving ' + queue.length + '…'; c.className = 'chip pend'; }
   else { c.textContent = 'online'; c.className = 'chip on'; }
@@ -1178,6 +1228,7 @@ function updateChip(){
 var QMSG = {offline: 'No internet on this device. It saves by itself when the internet is back.',
   auth: 'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.',
   account: 'This login is not connected to the café in the system. The owner must connect it in Supabase.',
+  server: 'The system is not answering right now. It saves by itself when it is back: do not ring the sale again.',
   refused: 'The system refused this sale.'};
 function openQueue(){
   document.getElementById('queueErr').textContent = '';
@@ -1189,8 +1240,10 @@ function renderQueue(){
   var lead = document.getElementById('queueLead'), list = document.getElementById('queueList');
   list.textContent = '';
   if (!queue.length){ lead.textContent = 'Everything taken on this device is saved in the system.'; return; }
-  lead.textContent = 'These sales are kept on this device until they reach the system, and they go by themselves. ' +
-    'The other devices, the register and the open orders see them once they are saved. Nothing is lost: do not clear this browser’s data.';
+  lead.textContent = qStoreFail
+    ? 'This device’s storage is full or blocked, so these sales are only on this page. Do not close or reload it until they are saved.'
+    : 'These sales are kept on this device until they reach the system, and they go by themselves. ' +
+      'The other devices, the register and the open orders see them once they are saved. Nothing is lost: do not clear this browser’s data.';
   queue.forEach(function(o){
     var row = document.createElement('div'); row.className = 'qrow';
     var t = document.createElement('div'); t.className = 'qt';
@@ -1217,10 +1270,11 @@ document.getElementById('queueClose').addEventListener('click', function(){ docu
 document.getElementById('queueRetry').addEventListener('click', async function(){
   if (!navigator.onLine){ document.getElementById('queueErr').textContent = QMSG.offline; return; }
   var b = this; b.disabled = true;
-  queue.forEach(function(o){ delete o.err; }); saveQueue();
-  await syncQueue();
-  b.disabled = false;
-  renderQueue();
+  try {
+    if (qRound) await qRound;   /* the round already running finishes first, with its reasons */
+    queue.forEach(function(o){ delete o.err; }); saveQueue();
+    await syncQueue();
+  } finally { b.disabled = false; renderQueue(); }
 });
 addEventListener('offline', updateChip);
 
@@ -1281,9 +1335,12 @@ async function loadStaffList(){
 /* the close button waits for offline sales to sync; re-checked every time the queue changes */
 /* why the register cannot close yet: sales still on this device */
 function queueMsg(){
-  return queue.some(function(o){ return o.err && o.err.kind !== 'offline'; })
-    ? queue.length + ' sales are not saved yet. Tap the red sign at the top to see why, before closing.'
-    : queue.length + ' sales are waiting to sync. Connect to the internet before closing.';
+  var n = queue.length;
+  if (queue.some(function(o){ return o.err && o.err.kind !== 'offline'; }) || qStoreFail)
+    return n === 1 ? 'One sale is not saved yet. Tap the red sign at the top to see why, before closing.'
+                   : n + ' sales are not saved yet. Tap the red sign at the top to see why, before closing.';
+  return n === 1 ? 'One sale is waiting to sync. Connect to the internet before closing.'
+                 : n + ' sales are waiting to sync. Connect to the internet before closing.';
 }
 function regQueueState(){
   if (document.getElementById('dayModal').hidden || document.getElementById('regCloseForm').hidden) return;
@@ -1530,7 +1587,7 @@ async function openOrders(){
   var start = new Date(); start.setHours(0,0,0,0);
   var ocols = 'id,created_at,total_crc,payment_method,voided_at,void_reason,status,pickup_number,source,paid,guest_name,station,discount_crc,discount_reason,discount_by,notes,rooms(number),order_items(item_name,qty)';
   /* today's orders, and a bill left open from the last days with the payments made on it */
-  var old = new Date(start.getTime() - 3 * 86400000);
+  var old = new Date(start.getTime() - OPEN_DAYS * 86400000);
   var r = await db.from('orders').select(ocols + ',part_of,parts_crc,done_at,given_back_at')
     .or('created_at.gte."' + start.toISOString() + '",and(created_at.gte."' + old.toISOString() + '",paid.is.false),and(created_at.gte."' + old.toISOString() + '",part_of.not.is.null)')
     .order('created_at', {ascending:false}).limit(200);
@@ -1703,16 +1760,18 @@ var LIVE_FULL = true;     /* false until supabase/pos-stations.sql has been run 
 var TABS_READY = true;    /* false until supabase/pos-tabs.sql has been run (open bills, split payments) */
 var liveRetry = 0;        /* the till stays open all day: after an SQL step is run, try the full view again */
 var seenAll = null;
+var liveOk = null;        /* the last look at the orders worked (null before the first one) */
+var OPEN_DAYS = 30;       /* a bill not paid yet stays readable this many days (supabase/pos-tabs.sql, section 9) */
 async function pollLive(){
-  if (!navigator.onLine) return;
+  if (!navigator.onLine){ liveOk = false; renderOpen(); return; }
   if ((!LIVE_FULL || !TABS_READY) && Date.now() > liveRetry){ LIVE_FULL = true; TABS_READY = true; }
   var start = new Date(); start.setHours(0,0,0,0);
   var r = null;
   if (LIVE_FULL){
     /* open orders, plus orders delivered but not paid yet, from every device; a bill left open past
-       midnight stays up for 3 days until it is charged (supabase/pos-tabs.sql lets the till read it) */
+       midnight stays up for OPEN_DAYS until it is charged (supabase/pos-tabs.sql lets the till read it) */
     var cols = 'id,created_at,status,source,pickup_number,needs_kitchen,total_crc,subtotal_crc,discount_crc,paid,station,guest_name,guest_phone,guest_lang,notes,rooms(number),order_items(item_name,qty,price_crc)';
-    var old = new Date(start.getTime() - 3 * 86400000);
+    var old = new Date(start.getTime() - OPEN_DAYS * 86400000);
     var live = function(c, since){ return db.from('orders').select(c).is('voided_at', null).order('created_at')
       .or('and(created_at.gte."' + start.toISOString() + '",status.in.(new,preparing,ready)),and(paid.is.false,status.neq.cancelled,created_at.gte."' + since.toISOString() + '")'); };
     if (TABS_READY){
@@ -1728,7 +1787,8 @@ async function pollLive(){
       .in('status', ['new','preparing','ready']).is('voided_at', null)
       .gte('created_at', start.toISOString()).order('created_at');
   }
-  if (r.error) return;   /* before the kitchen SQL runs there is simply no live bar */
+  if (r.error){ liveOk = false; renderOpen(); return; }   /* before the kitchen SQL runs there is simply no live bar */
+  liveOk = true;
   liveOrders = r.data || [];
   var newIds = liveOrders.filter(function(o){ return o.status === 'new'; }).map(function(o){ return o.id; });
   var readyIds = liveOrders.filter(function(o){ return o.status === 'ready'; }).map(function(o){ return o.id; });
@@ -1810,7 +1870,7 @@ function renderOpen(){
   var bills = (liveOrders || []).filter(due);
   var local = (queue || []).filter(function(o){ return o.paid === false && !bills.some(function(b){ return b.id === o.id; }); });
   /* the list is drawn again only when something on it changed, and keeps where it was slid to */
-  var sig = JSON.stringify([stationName(), TABS_READY, adding ? adding.id : null,
+  var sig = JSON.stringify([stationName(), TABS_READY, adding ? adding.id : null, liveOk,
     bills.map(function(o){ return [o.id, o.status, o.total_crc, o.parts_crc, o.guest_name, o.pickup_number, o.station, o.notes, orderItems(o)]; }),
     local.map(function(o){ return [o.id, o.total_crc, !!o.err]; })]);
   if (sig === openSig && !bar.hidden) return;
@@ -1826,12 +1886,19 @@ function renderOpen(){
   head.appendChild(cnt);
   var hint = document.createElement('span'); hint.className = 'hint';
   hint.textContent = n ? 'Tap one to add items, give a discount or charge it.' : 'None right now. An order charged later stays here until it is paid.';
+  /* never "none" when the till could not ask: the list may be out of date */
+  if (liveOk == null && !n) hint.textContent = 'Loading…';
+  if (liveOk === false){
+    hint.className = 'hint warn';
+    hint.textContent = n ? 'Could not update the list. Check the internet, or sign out and sign in again.'
+                         : 'Could not load the open orders. Check the internet, or sign out and sign in again.';
+  }
   head.appendChild(hint);
   bar.appendChild(head);
   bar.hidden = false;
   if (!n) return;
   var list = document.createElement('div'); list.className = 'olist';
-  var card = function(cls, label, pill, when, items, amount, paid, go, fn){
+  var card = function(cls, label, pill, when, items, amount, paid, go, fn, tag){
     var c = document.createElement('button'); c.type = 'button'; c.className = 'ocard' + (cls ? ' ' + cls : '');
     var t = document.createElement('span'); t.className = 'ot';
     var a = document.createElement('span'); a.className = 'on'; a.textContent = label; t.appendChild(a);
@@ -1839,6 +1906,7 @@ function renderOpen(){
     c.appendChild(t);
     var mid = document.createElement('span'); mid.className = 'om';
     if (pill){ var p = document.createElement('span'); p.className = 'os'; p.textContent = pill; mid.appendChild(p); }
+    if (tag){ var tg = document.createElement('span'); tg.className = 'os st'; tg.textContent = tag; tg.title = tag; mid.appendChild(tg); }
     var i = document.createElement('span'); i.className = 'oi'; i.textContent = items; i.title = items; mid.appendChild(i);
     c.appendChild(mid);
     var f = document.createElement('span'); f.className = 'oa';
@@ -1855,9 +1923,9 @@ function renderOpen(){
     var other = o.station && o.station !== stationName() ? o.station : '';
     var nm = o.pickup_number && o.guest_name ? o.guest_name : '';
     var pill = adding && adding.id === o.id ? 'Adding items' : tabStatus(o);
-    card('', orderLabel(o), pill, [other, dayTime(o.created_at)].filter(Boolean).join(' · '),
+    card('', orderLabel(o), pill, dayTime(o.created_at),
          (nm ? nm + ' · ' : '') + orderItems(o) + (o.notes ? ' · ' + o.notes : ''), o.total_crc, o.parts_crc > 0 ? o.parts_crc : 0,
-         TABS_READY ? '›' : 'Charge', function(){ if (TABS_READY) openTab(o.id); else openPay(o); });
+         TABS_READY ? '›' : 'Charge', function(){ if (TABS_READY) openTab(o.id); else openPay(o); }, other);
   });
   local.forEach(function(o){
     card('saving', o.pickup_number ? '#' + o.pickup_number : (o.guest_name || 'No number'), o.err ? 'Not saved yet' : 'Saving…', hhmm(o.created_at),
@@ -2126,6 +2194,11 @@ function renderTab(){
   document.getElementById('tabCancel').hidden = !(open && o.status !== 'done' && !o.done_at && !parts.length);
   document.querySelectorAll('#tabSplit [data-mode]').forEach(function(b){ b.classList.toggle('on', b.dataset.mode === tabMode); });
   if (open) renderSplit();
+  /* the discount window over this bill shows it as it is now (changed on another device) */
+  if (!document.getElementById('discModal').hidden && discMode === 'bill' && discBill === o.id){
+    if (open){ document.getElementById('discLead').textContent = discLeadText(); discPreview(); }
+    else document.getElementById('discErr').textContent = 'That order is no longer open.';
+  }
 }
 function renderSplit(){
   var o = tab.o, body = document.getElementById('splitBody'); body.textContent = '';
@@ -2242,10 +2315,12 @@ function tabDiscOpen(){ var o = tab.o; return o.subtotal_crc != null ? Math.max(
 /* what a new approval gives this bill: the same rule as the database (tab_set_discount, _tab_discount).
    The approval is made for what is still to pay; the bill's whole discount never drops below what paid items got */
 function billDisc(c){
-  var o = tab.o, S = tabItemsValue(), open = tabOpenValue(), used = tabDiscUsed();
+  var o = tab.o, open = tabOpenValue(), paidV = tabItemsValue() - open, used = tabDiscUsed();
+  var S = o.subtotal_crc != null ? o.subtotal_crc : o.total_crc + (o.parts_crc || 0);   /* the bill's own books */
+  var cover = Math.max(0, S - paidV);                                                     /* what is not paid yet */
   var cap = c.kind === 'percent' ? Math.round(open * c.value / 100) : c.value;
-  var rule = c.kind === 'percent' ? Math.round(S * c.value / 100) : Math.min(c.value, S);
-  var d = Math.max(0, used, Math.min(Math.min(rule, cap), used + open));
+  var rule = c.kind === 'percent' ? Math.round(cover * c.value / 100) : Math.min(c.value, cover);
+  var d = Math.max(0, used, Math.min(Math.min(rule, cap) + used, used + open));
   return {d: d, t: S - d - (o.parts_crc || 0)};
 }
 async function openBillDiscount(){
@@ -2264,17 +2339,18 @@ async function openBillDiscount(){
   discReset('bill');
 }
 document.getElementById('tabDisc').addEventListener('click', openBillDiscount);
-async function applyBillDisc(ap, err){
-  if (!tab || tab.o.id !== discBill){ err.textContent = TAB_ERR.not_found; return; }
+async function applyBillDisc(ap, err, target, token){
+  if (token !== discToken || discMode !== 'bill') return;
+  if (!tab || tab.o.id !== target){ err.textContent = TAB_ERR.not_found; return; }
   var go = document.getElementById('discGo');
-  var set = function(){ return db.rpc('tab_set_discount', {p_order_id: tab.o.id, p_discount_id: ap.id, p_expect: tab.o.total_crc}); };
+  var set = function(){ return db.rpc('tab_set_discount', {p_order_id: target, p_discount_id: ap.id, p_expect: tab.o.total_crc, p_station: stationName() || null}); };
   go.disabled = true;
   var r;
   try {
     r = await set();
     /* the bill changed on another device meanwhile (an item added, a part paid): the approval still sets the
        limit, so it goes on the bill as it is now */
-    if (!r.error && r.data && !r.data.ok && r.data.error === 'changed' && (await loadTab(discBill)) && tab && tab.o.id === discBill) r = await set();
+    if (!r.error && r.data && !r.data.ok && r.data.error === 'changed' && (await loadTab(target)) && tab && tab.o.id === target) r = await set();
   } finally { go.disabled = false; }
   if (r.error){ err.textContent = tabMissing(r.error) ? TAB_DISC_SETUP : 'Could not save the discount. Check the connection and try again.'; return; }
   if (!r.data || !r.data.ok){
@@ -2294,7 +2370,7 @@ document.getElementById('tabDiscX').addEventListener('click', async function(){
   if (!navigator.onLine){ err.textContent = 'This needs the internet. Try again in a moment.'; return; }
   var b = this; b.disabled = true;
   var r;
-  try { r = await db.rpc('tab_set_discount', {p_order_id: tab.o.id, p_discount_id: null, p_expect: tab.o.total_crc}); }
+  try { r = await db.rpc('tab_set_discount', {p_order_id: tab.o.id, p_discount_id: null, p_expect: tab.o.total_crc, p_station: stationName() || null}); }
   finally { b.disabled = false; }
   if (r.error){ err.textContent = tabMissing(r.error) ? TAB_DISC_SETUP : 'Could not save. Check the connection and try again.'; return; }
   if (!r.data || !r.data.ok){

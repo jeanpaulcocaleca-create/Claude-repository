@@ -10,10 +10,16 @@
   var KEY = 'hg-unlock', WHO = 'hg-unlock-who';
   var state = null, pillTimer = null, pillEl = null;
 
+  /* the database's 15 minutes in this device's time: a tablet whose clock is off (login.js measures by how much,
+     in seconds, device minus server) would otherwise drop the unlock at once, or keep it too long */
+  function skewMs() {
+    try { var v = JSON.parse(localStorage.getItem('hg-clock-skew') || 'null'); return v && typeof v.s === 'number' ? v.s * 1000 : 0; } catch (e) { return 0; }
+  }
+  function leftMs(until) { return new Date(until).getTime() + skewMs() - Date.now(); }
   function read() {
     try {
       var v = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (v && v.token && v.until && new Date(v.until) > new Date()) return v;
+      if (v && v.token && v.until && leftMs(v.until) > 0) return v;
     } catch (e) {}
     return null;
   }
@@ -163,12 +169,12 @@
     if (!state || state.via !== 'pin' || !state.until) return;
     pillEl = document.createElement('div'); pillEl.className = 'hga-pill' + (pillOpts.host ? ' inline' : '');
     var t = document.createElement('span');
-    t.textContent = 'Owner areas open · ' + (state.name || '') + ' · until ' + hhmm(state.until);
+    t.textContent = 'Owner areas open · ' + (state.name || '') + ' · until ' + hhmm(new Date(new Date(state.until).getTime() + skewMs()));
     var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Lock';
     b.addEventListener('click', function () { lock(db); });
     pillEl.appendChild(t); pillEl.appendChild(b);
     (pillOpts.host || document.body).appendChild(pillEl);
-    var ms = new Date(state.until) - new Date();
+    var ms = leftMs(state.until);
     if (ms > 0 && ms < 2147483000) pillTimer = setTimeout(function () {
       clear();
       if (pillOpts.soft) { load(db).then(function () { pill(db); }); } else location.reload();

@@ -42,10 +42,10 @@
       'button.hgl-show{width:auto !important;flex:none !important;margin:0 !important;min-height:44px !important;padding:0 .9em !important;' +
       'background:transparent !important;color:inherit !important;border:1.5px solid rgba(120,120,110,.45) !important;border-radius:10px !important;font-weight:600 !important}' +
       'button.hgl-show:hover{background:rgba(0,0,0,.05) !important}' +
-      '.hgl-clock{position:fixed;right:.7rem;bottom:.7rem;z-index:2147481500;max-width:340px;display:flex;gap:.6rem;align-items:flex-start;' +
+      '.hgl-clock{position:fixed;right:.7rem;bottom:.7rem;z-index:2147481500;max-width:340px;display:flex;gap:.6rem;align-items:flex-start;pointer-events:none;' +
       'background:#FFF4D6;color:#5A3E00;border:1.5px solid #E2B550;border-radius:12px;padding:.6rem .7rem .6rem .9rem;' +
       'font:600 .85rem/1.35 Figtree,system-ui,sans-serif;box-shadow:0 6px 20px rgba(8,20,13,.2)}' +
-      '.hgl-clock button{all:unset;cursor:pointer;font-size:1.2rem;line-height:1;padding:0 .2rem}' +
+      '.hgl-clock button{all:unset;cursor:pointer;font-size:1.2rem;line-height:1;padding:.2rem .45rem;pointer-events:auto}' +
       '@media print{.hgl-clock{display:none !important}}';
     document.head.appendChild(s);
   }
@@ -113,8 +113,16 @@
      come from it too). */
   var SKEW = 'hg-clock-skew', mem = {};
   var ls = (function () { try { var k = '__hg_ls'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return localStorage; } catch (e) { return null; } })();
-  function rawGet(k) { if (ls) { try { return ls.getItem(k); } catch (e) {} } return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; }
-  function rawSet(k, v) { if (ls) { try { ls.setItem(k, v); return; } catch (e) {} } mem[k] = v; }
+  /* when this device's storage refuses a write (full), the value lives in memory and wins over the stale copy */
+  function rawGet(k) {
+    if (Object.prototype.hasOwnProperty.call(mem, k)) return mem[k];
+    if (ls) { try { return ls.getItem(k); } catch (e) {} }
+    return null;
+  }
+  function rawSet(k, v) {
+    if (ls) { try { ls.setItem(k, v); delete mem[k]; return; } catch (e) { try { ls.removeItem(k); } catch (e2) {} } }
+    mem[k] = v;
+  }
   function rawDel(k) { if (ls) { try { ls.removeItem(k); } catch (e) {} } delete mem[k]; }
   function claims(t) {
     try { var p = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'); while (p.length % 4) p += '='; return JSON.parse(atob(p)); } catch (e) { return null; }
@@ -149,18 +157,27 @@
     if (m === 60) { h++; m = 0; }
     return h ? h + ' h' + (m ? ' ' + m + ' min' : '') : m + ' min';
   }
+  var HIDE = 'hg-clock-hide', noteTimer = null;
   function clockNote() {
     var v = null; try { v = JSON.parse(localStorage.getItem(SKEW) || 'null'); } catch (e) {}
     var el = document.getElementById('hglClock');
     if (!v || Math.abs(v.s) <= 120 || Date.now() - v.at > 86400000) { if (el) el.remove(); return; }
+    var h = null; try { h = JSON.parse(localStorage.getItem(HIDE) || 'null'); } catch (e) {}
+    if (h && h.m === Math.round(v.s / 600) && Date.now() - h.at < 86400000) { if (el) el.remove(); return; }
     if (!document.body) return;
     if (!el) {
       css();
       el = document.createElement('div'); el.id = 'hglClock'; el.className = 'hgl-clock'; el.setAttribute('role', 'status');
       var t = document.createElement('span'); var x = document.createElement('button'); x.type = 'button'; x.textContent = '×';
-      x.setAttribute('aria-label', 'Close'); x.addEventListener('click', function () { el.remove(); });
+      x.setAttribute('aria-label', 'Close');
+      x.addEventListener('click', function () {
+        el.remove();
+        try { localStorage.setItem(HIDE, JSON.stringify({ m: Math.round(v.s / 600), at: Date.now() })); } catch (e) {}
+      });
       el.appendChild(t); el.appendChild(x); document.body.appendChild(el);
     }
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { var e = document.getElementById('hglClock'); if (e) e.remove(); }, 30000);
     el.firstChild.textContent = 'The clock of this device is off by ' + dur(v.s) + ' · Set the date and time to automatic in the device settings.';
   }
 
@@ -177,11 +194,23 @@
     }, 800);
   }
 
-  function expireStored(url) {
+  var expiredOnce = {};
+  function bearer(input, init) {
+    try {
+      var h = new Headers((init && init.headers) || (input && input.headers) || {});
+      return (h.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    } catch (e) { return ''; }
+  }
+  /* the token the database refused as expired is renewed on the next request (once: a token the server refuses for
+     another reason, or again, does not start a loop of renewals) */
+  function expireStored(url, used) {
     try {
       var key = 'sb-' + new URL(url).hostname.split('.')[0] + '-auth-token';   /* the library's storage key */
       var s = JSON.parse(rawGet(key) || 'null');
-      if (s && s.expires_at) { s.expires_at = Math.floor(Date.now() / 1000) - 1; rawSet(key, JSON.stringify(s)); }
+      if (s && s.expires_at && s.access_token && s.access_token === used && !expiredOnce[used]) {
+        expiredOnce[used] = 1;
+        s.expires_at = Math.floor(Date.now() / 1000) - 1; rawSet(key, JSON.stringify(s));
+      }
     } catch (e) {}
   }
 
@@ -193,19 +222,20 @@
     var inner = g.fetch || function (a, b) { return window.fetch(a, b); };
     g.fetch = function (input, init) {
       var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var used = bearer(input, init);
       var p = inner(input, init);
       /* the database says the token expired (the clock was changed since it was stored): renew it on the next request */
       if (/\/rest\/v1\//.test(url)) {
         p.then(function (res) {
           if (res.status !== 401) return;
           res.clone().json().then(function (b) {
-            if (b && (b.code === 'PGRST301' || /jwt expired/i.test(b.message || ''))) expireStored(url);
+            if (b && /jwt expired/i.test(b.message || '')) expireStored(url, used);
           }, function () {});
         }, function () {});
       }
       if (/\/auth\/v1\/token\?grant_type=refresh_token/.test(url)) {
         p.then(function (res) {
-          if (res.ok) return;
+          if (res.ok || res.status >= 500) return;
           res.clone().json().then(function (b) { noteEnded(((b && (b.error_code || b.code)) || 'error') + ' · ' + res.status); },
                                   function () { noteEnded(String(res.status)); });
         }, function () {});

@@ -468,7 +468,7 @@ var idleTimer = null;
 function armIdle(){
   clearTimeout(idleTimer);
   if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
-  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
 }
 ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
 
@@ -515,7 +515,7 @@ $('codeForm').addEventListener('submit', async function(e){
   if (r.error){ $('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; $('codeIn').value = ''; return; }
   $('codeIn').value = ''; refreshAuth();
 });
-$('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+$('cafeOut').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 function showCafeView(){
   $('cafeMsg').textContent = 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.';
   $('cafeView').hidden = false; $('appView').hidden = true;
@@ -525,7 +525,7 @@ $('loginForm').addEventListener('submit', async function(e){
   var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
   if (res.ok) refreshAuth();
 });
-$('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+$('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
 
 /* ---------- the PIN gate: open for 15 minutes after a manager PIN ---------- */

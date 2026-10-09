@@ -660,6 +660,13 @@
     'Take the discount off this bill?': '¿Quitar el descuento de esta cuenta?', 'Discount taken off what is still to pay': 'Descuento quitado de lo que falta por pagar',
     'Discount taken off a bill': 'Descuento quitado de una cuenta',
     '{n} sales are not saved yet. Tap the red sign at the top to see why, before closing.': '{n} ventas no se han guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
+    'One sale is not saved yet. Tap the red sign at the top to see why, before closing.': 'Una venta no se ha guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
+    'One sale is waiting to sync. Connect to the internet before closing.': 'Una venta espera sincronizarse. Conéctese a internet antes de cerrar.',
+    'not kept on this device': 'no guardado en este dispositivo',
+    'The system is not answering right now. It saves by itself when it is back: do not ring the sale again.': 'El sistema no responde en este momento. Se guarda solo cuando vuelva: no cobre la venta otra vez.',
+    'This device’s storage is full or blocked, so these sales are only on this page. Do not close or reload it until they are saved.': 'El almacenamiento de este dispositivo está lleno o bloqueado, así que estas ventas solo están en esta página. No la cierre ni la recargue hasta que se guarden.',
+    'Could not update the list. Check the internet, or sign out and sign in again.': 'No se pudo actualizar la lista. Revise el internet, o cierre sesión y vuelva a ingresar.',
+    'Could not load the open orders. Check the internet, or sign out and sign in again.': 'No se pudieron cargar las órdenes abiertas. Revise el internet, o cierre sesión y vuelva a ingresar.',
     /* faq:start */
     "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
     "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",

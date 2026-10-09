@@ -235,7 +235,7 @@ var idleTimer = null;
 function armIdle(){
   clearTimeout(idleTimer);
   if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
-  idleTimer = setTimeout(async function(){ await db.auth.signOut(); location.reload(); }, 30 * 60000);
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
 }
 ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
   document.addEventListener(ev, armIdle, {passive: true});
@@ -271,7 +271,7 @@ document.getElementById('codeForm').addEventListener('submit', async function(e)
   refreshAuth();
 });
 
-document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 function showCafeView(){
   document.getElementById('cafeMsg').textContent = ACCOUNT === 'none'
     ? 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.'
@@ -349,7 +349,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
   if (res.ok) refreshAuth();
 });
-document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut(); refreshAuth(); });
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
 db.auth.onAuthStateChange(function(){ refreshAuth(); });
 
 /* ---- range tabs ---- */
