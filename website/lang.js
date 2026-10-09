@@ -92,7 +92,8 @@
     '100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.':
       'Café 100% costarricense, de productores locales. Gracias por apoyar a nuestra comunidad y a nuestro bosque.',
 
-    /* website: menu */
+    /* website: menu (between the two markers: the only entries the menu at the tables uses for dish text) */
+    '\u0000menu-start': '',
     'Specialty coffee · Fresh food': 'Café de especialidad · Comida fresca', 'The menu': 'El menú',
     'made for the cloud forest': 'hecho para el bosque nuboso',
     'Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars at the counter.':
@@ -135,6 +136,34 @@
     'Ham & Cheese or Monteverde ₡6 500 · Mano de Piedra or Chicken Pesto ₡7 000': 'Jamón y queso o Monteverde ₡6 500 · Mano de Piedra o Pollo al pesto ₡7 000',
     'Make it a combo': 'Hágalo combo', 'Coffee + pastry ·': 'Café + repostería ·', 'save ₡500': 'ahorre ₡500',
     'Sandwich + coffee ·': 'Sándwich + café ·', 'Extras & Combos': 'Extras y combos',
+    'Cappuccino Small': 'Capuchino pequeño', 'Cappuccino Large': 'Capuchino grande', 'Cappuchino Large': 'Capuchino grande',
+    'Triple Chocolate Croissant': 'Croissant de triple chocolate',
+    '\u0000menu-end': '',
+    /* the menu at the tables (m.html, opened by the QR code) */
+    'Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars, cards and SINPE Móvil at the counter.':
+      'Servimos con orgullo café de El Trapiche Monteverde. Precios en colones; también recibimos dólares, tarjetas y SINPE Móvil en el mostrador.',
+    'This is the last menu saved on this phone. It updates by itself when the connection is back.':
+      'Este es el último menú guardado en este teléfono. Se actualiza solo cuando vuelva la conexión.',
+    'Try again': 'Intentar de nuevo', 'Allergies? Ask our team before you order.': '¿Alergias? Pregunte a nuestro equipo antes de pedir.',
+    'Every day 6:00 – 19:00': 'Todos los días 6:00 – 19:00', 'Sections': 'Secciones',
+    'The menu · Hanging Garden Café': 'El menú · Hanging Garden Café',
+    /* the menu QR code: print page (qr.html) and Menu Manager */
+    'Menu QR code': 'Código QR del menú', '← Menu Manager': '← Gestor del menú',
+    "Guests scan this code with the phone's camera and the menu opens": 'Los clientes escanean este código con la cámara del teléfono y se abre el menú',
+    'The menu behind it is read from the Menu Manager, so prices, new items, photos and sold-out items update by themselves within a minute. The code never changes: print it once.':
+      'El menú se lee del Gestor del menú, así que los precios, los productos nuevos, las fotos y los agotados se actualizan solos en menos de un minuto. El código nunca cambia: imprímalo una sola vez.',
+    'What to print': 'Qué imprimir', 'Table tent (fold in half)': 'Tarjeta de mesa (doblar a la mitad)', '4 cards per page': '4 tarjetas por hoja',
+    '12 stickers per page': '12 calcomanías por hoja', 'Download the QR code (PNG)': 'Descargar el código QR (PNG)', 'For a print shop (SVG, 4 cm)': 'Para una imprenta (SVG, 4 cm)',
+    'Print at actual size (100%, no "fit to page") on the paper picked above, on matte paper. Keep the white border around the code, print it dark on light, and test one with a phone before printing many.':
+      'Imprima a tamaño real (100 %, sin "ajustar a la página") en el papel elegido arriba, en papel mate. Deje el borde blanco alrededor del código, imprímalo oscuro sobre claro y pruebe uno con un teléfono antes de imprimir muchos.',
+    'Paper': 'Papel', 'Letter paper (Carta)': 'Papel carta', 'A4 paper': 'Papel A4',
+    'Menu at the tables (QR code)': 'Menú en las mesas (código QR)', 'QR code of the menu': 'Código QR del menú',
+    'Guests scan it to see this menu on their phone. Prices, new items, photos and sold-out items show there within a minute. The code never changes: print it once.':
+      'Los clientes lo escanean para ver este menú en su teléfono. Los precios, los productos nuevos, las fotos y los agotados aparecen ahí en menos de un minuto. El código nunca cambia: imprímalo una sola vez.',
+    'Open the menu': 'Abrir el menú', 'Print table cards': 'Imprimir tarjetas para las mesas',
+    'To give each item a Spanish name and description for the QR menu, run supabase/menu-spanish.sql once in Supabase.':
+      'Para darle a cada producto un nombre y una descripción en español en el menú QR, ejecute supabase/menu-spanish.sql una vez en Supabase.',
+    'Name in Spanish (optional, for the QR menu)': 'Nombre en español (opcional, para el menú QR)', 'Description in Spanish (optional)': 'Descripción en español (opcional)',
     "Today's Garden Special": 'Especial del jardín de hoy', "Ask what's blooming today.": 'Pregunte qué está floreciendo hoy.',
     'Sweet Favorites': 'Favoritos dulces', 'From the pastry case': 'De la vitrina de repostería',
     'coffee + pastry save ₡500 · sandwich + coffee save ₡500': 'café + repostería ahorre ₡500 · sándwich + café ahorre ₡500',
@@ -463,7 +492,7 @@
     'Use / day': 'Uso / día', 'Days left': 'Días restantes', 'Vendor': 'Proveedor', 'Value': 'Valor',
     'No items yet. Tap + Add item, or start with the coffee, milk and pastries you buy every week.': 'Todavía no hay productos. Toque + Agregar producto, o empiece con el café, la leche y la repostería que compra cada semana.',
     'Suggested order': 'Pedido sugerido', "based on the last 30 days of sales and each vendor's lead time": 'según los últimos 30 días de ventas y el plazo de entrega de cada proveedor',
-    'Open orders': 'Pedidos abiertos', '+ Blank order': '+ Pedido en blanco', 'Received orders': 'Pedidos recibidos', 'What each menu item uses': 'Lo que usa cada producto del menú',
+    '+ Blank order': '+ Pedido en blanco', 'Received orders': 'Pedidos recibidos', 'What each menu item uses': 'Lo que usa cada producto del menú',
     'Link same-name items': 'Enlazar por nombre', 'Pick a menu item, then list what goes out of stock each time it sells. A croissant you buy ready-made is simply 1 croissant. A latte is grams of coffee and millilitres of milk. Sales then take stock out by themselves.':
       'Elija un producto del menú y anote lo que sale de existencias cada vez que se vende. Un croissant que compra ya hecho es simplemente 1 croissant. Un latte son gramos de café y mililitros de leche. Las ventas descuentan las existencias solas.',
     'Recipe': 'Receta', '+ Ingredient': '+ Ingrediente', 'Save recipe': 'Guardar receta', 'Recipe saved': 'Receta guardada', 'Could not save the recipe. Try again.': 'No se pudo guardar la receta. Intente de nuevo.',
@@ -800,6 +829,17 @@
   try { lang = localStorage.getItem(KEY) || ''; } catch (e) {}
   if (lang !== 'en' && lang !== 'es') lang = /^es/i.test(navigator.language || '') ? 'es' : 'en';
   window.HG_LANG = lang;
+  /* exact dictionary entries only, for text typed in the Menu Manager (the QR menu, m.html): a dish name is
+     never put through the patterns or word-by-word rules, so 'Float' or 'Baked fresh today' stay as typed */
+  var MENU = {};
+  (function () {
+    var keys = Object.keys(D), a = keys.indexOf('\u0000menu-start'), b = keys.indexOf('\u0000menu-end');
+    for (var i = a + 1; a > -1 && i < b; i++) MENU[keys[i]] = 1;
+  })();
+  window.HG_EXACT = function (k) {
+    k = String(k == null ? '' : k).replace(/\s+/g, ' ').trim();
+    return k && MENU.hasOwnProperty(k) && D[k] ? D[k] : null;
+  };
 
   var ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
 

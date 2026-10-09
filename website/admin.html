@@ -103,6 +103,9 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
+.qrrow{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.qrrow img{width:116px;height:116px;flex:none;background:#fff;border:1px solid var(--muted);border-radius:8px;padding:4px}
+.qrrow .row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}
 </style>
 </head>
 <body>
@@ -155,6 +158,22 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <button class="ghost small" id="signOut">Sign out</button>
     </header>
     <p class="hint" style="margin:0 0 1rem">Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow, or combine several items into one slide below.</p>
+
+    <div class="card" id="qrCard">
+      <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">Menu at the tables (QR code)</h2>
+      <div class="qrrow">
+        <img src="assets/qr/menu-qr.svg" alt="QR code of the menu" width="116" height="116">
+        <div style="flex:1;min-width:220px">
+          <p class="hint" style="margin:0">Guests scan it to see this menu on their phone. Prices, new items, photos and sold-out items show there within a minute. The code never changes: print it once.</p>
+          <p class="hint" style="margin:.3rem 0 0;font-family:'Spline Sans Mono',monospace">hanginggardencafe.com/m</p>
+          <div class="row">
+            <a class="btnlink" href="m.html" target="_blank" rel="noopener">Open the menu</a>
+            <a class="btnlink" href="qr.html" target="_blank" rel="noopener">Print table cards</a>
+          </div>
+        </div>
+      </div>
+      <p class="hint" id="esNotReady" style="margin:.8rem 0 0" hidden>To give each item a Spanish name and description for the QR menu, run supabase/menu-spanish.sql once in Supabase.</p>
+    </div>
 
     <div class="card" id="tvCard">
       <h2 style="font-size:1.15rem;border-bottom:1px solid var(--muted);padding-bottom:.5rem;margin-bottom:.8rem">TV board</h2>
@@ -381,6 +400,7 @@ var tvReady = true;    /* false until the TV board SQL has been run */
 var groupsReady = false; /* true once the combined slides SQL has been run */
 var kitchenReady = false; /* true once the kitchen and rooms SQL has been run */
 var colorsReady = false;  /* true once the POS layout SQL has been run */
+var esReady = false;      /* true once supabase/menu-spanish.sql has been run: Spanish name and description per item */
 var PALETTE = ['#5A3A1E','#1B5F67','#7E3160','#8F4E12','#93392A','#9E4560','#1E4B33','#285F8A','#6B3FA0','#4A5A46','#7D5A1A','#2F6B3A'];
 var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3160','Sandwiches':'#8F4E12','Savory':'#93392A','Pastries & Cake':'#9E4560','Costa Rican Favorites':'#1E4B33','Adventure Box':'#285F8A','Extras & Combos':'#4A5A46'};
 function catColor(cat, i){ return cat.color || CAT_DEFAULT[cat.name] || PALETTE[i % PALETTE.length]; }
@@ -428,6 +448,16 @@ async function loadMenu(){
       if (it.available) allItems.push({id: it.id, name: it.name, photo_url: it.photo_url, cat: cat.name});
     });
   });
+  var es = await db.from('menu_items').select('id,name_es,description_es');
+  esReady = !es.error;
+  document.getElementById('esNotReady').hidden = esReady;
+  if (esReady){
+    var esById = {};
+    (es.data || []).forEach(function(x){ esById[x.id] = x; });
+    (r.data || []).forEach(function(cat){ (cat.menu_items || []).forEach(function(it){
+      var x = esById[it.id] || {}; it.name_es = x.name_es || ''; it.description_es = x.description_es || '';
+    }); });
+  }
   render(r.data);
   if (tvReady) loadTvSettings();
   loadGroups();
@@ -784,6 +814,10 @@ function openEditor(row, it){
     '<label>Name<input name="name" required></label>' +
     '<label>Price in colones (numbers only)<input name="price" type="number" min="0" step="50" required></label>' +
     '<label>Description (optional)<textarea name="desc" rows="2"></textarea></label>' +
+    (esReady ?
+      '<label>Name in Spanish (optional, for the QR menu)<input name="name_es" maxlength="80"></label>' +
+      '<label>Description in Spanish (optional)<textarea name="desc_es" rows="2"></textarea></label>'
+      : '') +
     (colorsReady ?
       '<div class="swatchrow"><label>Side color on the POS <input name="color" type="color"></label>' +
       '<label>Quick tab <select name="quick"><option value="auto">Automatic (top sellers)</option><option value="always">Always show</option><option value="never">Never show</option></select></label></div>'
@@ -792,6 +826,7 @@ function openEditor(row, it){
     '<button type="button" class="ghost" data-x>Cancel</button>' +
     '<button type="button" class="danger" data-del style="margin-left:auto">Delete item</button></div>';
   box.name.value = it.name; box.price.value = it.price_crc; box.desc.value = it.description || '';
+  if (esReady){ box.name_es.value = it.name_es || ''; box.desc_es.value = it.description_es || ''; }
   if (colorsReady){ box.color.value = it._color || '#5A3A1E'; box.quick.value = it.quick || 'auto'; }
   box.addEventListener('submit', async function(e){
     e.preventDefault();
@@ -802,6 +837,7 @@ function openEditor(row, it){
       updated_at: new Date().toISOString()
     };
     if (colorsReady){ patch.color = box.color.value; patch.quick = box.quick.value; }
+    if (esReady){ patch.name_es = box.name_es.value.trim() || null; patch.description_es = box.desc_es.value.trim() || null; }
     var r = await db.from('menu_items').update(patch).eq('id', it.id);
     if (r.error){ toast('Could not save. Try again.'); return; }
     toast('Saved'); loadMenu();
