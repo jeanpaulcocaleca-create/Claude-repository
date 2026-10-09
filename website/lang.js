@@ -677,7 +677,7 @@
     /* an open order still only on this device (pos.html, its own window) */
     'Open this order ›': 'Abrir esta orden ›', 'Trying now': 'Intentando ahora', 'Tried at {t}': 'Intentado a las {t}',
     'Tried at {t} · still not saved': 'Intentado a las {t} · sigue sin guardar',   /* before the shorter ones below */
-    '1 saved': '1 guardada', '{n} saved': '{n} guardadas', '1 still not saved': '1 sigue sin guardar', '{n} still not saved': '{n} siguen sin guardar',
+    '1 saved now': '1 guardada ahora', '{n} saved now': '{n} guardadas ahora',
     'everything is saved': 'todo está guardado', 'still not saved': 'sigue sin guardar',
     'Only on this device': 'Solo en este dispositivo', 'Paid here': 'Pagada aquí', 'not in the system yet': 'todavía no está en el sistema',
     'Items added and the payment taken here go to the system by themselves, right after the order. Do not ring it again.':
@@ -685,6 +685,13 @@
     'Discount, splitting the bill and taking an item off work once the order is in the system.':
       'El descuento, dividir la cuenta y quitar un producto funcionan cuando la orden ya esté en el sistema.',
     'It is in the system now.': 'Ya está en el sistema.', 'It goes to the system with the order.': 'Sube al sistema con la orden.',
+    'This order has a discount: add items once it is in the system.': 'Esta orden tiene descuento: añada productos cuando ya esté en el sistema.',
+    'Check this': 'Revise esto', 'OK, checked': 'Listo, revisado', 'Not added to {x}': 'No se añadió a {x}',
+    'Charge these as a new sale if the customer has them.': 'Cóbrelos como una venta nueva si el cliente los tiene.',
+    'Payment not recorded': 'Pago no registrado', 'Taken on this device': 'Cobrado en este dispositivo',
+    'Check the money: give it back if the customer paid.': 'Revise el dinero: devuélvalo si el cliente pagó.',
+    'Paid twice?': '¿Pagado dos veces?', 'It was already paid in the system': 'Ya estaba pagada en el sistema',
+    'If the customer paid twice, give one payment back.': 'Si el cliente pagó dos veces, devuelva uno de los pagos.',
     'No internet on this device. It saves by itself when the internet is back.': 'Este dispositivo no tiene internet. Se guarda solo cuando vuelva el internet.',
     'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.': 'Hay que renovar el ingreso. Si no se guarda en un minuto, toque Cerrar sesión y vuelva a ingresar.',
     'This login is not connected to the café in the system. The owner must connect it in Supabase.': 'Este ingreso no está conectado al café en el sistema. El dueño tiene que conectarlo en Supabase.',
