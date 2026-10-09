@@ -1,0 +1,1033 @@
+/* Hanging Garden Café · English / Español switch
+   One small script shared by every page. It adds a visible EN | ES control,
+   remembers the choice, and swaps the words on the page from the dictionary
+   below without touching how any page works. Text the dictionary does not
+   know (names, numbers, menu items typed later) stays exactly as it is. */
+(function () {
+  'use strict';
+  var KEY = 'hg_lang';
+
+  /* ---------- dictionary: English → Spanish ---------- */
+  var D = {
+    /* shared */
+    'Email': 'Correo electrónico', 'Password': 'Contraseña', 'Sign in': 'Ingresar', 'Sign out': 'Cerrar sesión',
+    'Cancel': 'Cancelar', 'Save': 'Guardar', 'Delete': 'Eliminar', 'Close': 'Cerrar', 'Confirm': 'Confirmar',
+    'Home': 'Inicio', 'Address': 'Dirección', 'Menu': 'Menú', 'POS': 'Caja', 'Sales': 'Ventas', 'Time clock': 'Reloj de marcas',
+    'TV board': 'Pantalla TV', 'Menu Manager': 'Gestor del menú', 'Kitchen screen': 'Pantalla de cocina',
+    'Kitchen': 'Cocina', 'Website': 'Sitio web', 'Loading…': 'Cargando…', 'Signing in…': 'Ingresando…',
+    'Manager': 'Encargado', 'PIN': 'PIN', 'Manager PIN': 'PIN del encargado', 'Approved by': 'Aprobado por',
+    'Reason': 'Motivo', 'Name': 'Nombre', 'Role': 'Puesto', 'Team': 'Equipo', 'Hours': 'Horas',
+    'Today': 'Hoy', 'This week': 'Esta semana', 'Last week': 'Semana pasada', 'This month': 'Este mes',
+    'Last 7 days': 'Últimos 7 días', 'Last 30 days': 'Últimos 30 días', 'Download CSV': 'Descargar CSV',
+    'That login did not work.': 'Ese ingreso no funcionó.',
+    'That login did not work. Check the email and password.': 'Ese ingreso no funcionó. Revise el correo y la contraseña.',
+    /* sign-in on a tablet (login.js): say why it failed */
+    'Show': 'Mostrar', 'Hide': 'Ocultar', 'Show password': 'Mostrar contraseña', 'Hide password': 'Ocultar contraseña',
+    'The email or the password is not right. Tap Show to check the password.': 'El correo o la contraseña no son correctos. Toque Mostrar para revisar la contraseña.',
+    'This login is not activated yet. The owner must confirm it in Supabase.': 'Este ingreso todavía no está activado. El dueño tiene que confirmarlo en Supabase.',
+    'Too many tries. Wait 5 minutes, then try again.': 'Demasiados intentos. Espere 5 minutos y vuelva a intentarlo.',
+    'This login is blocked. Ask the owner.': 'Este ingreso está bloqueado. Consulte con el dueño.',
+    'This device has no internet. Check the Wi-Fi and try again.': 'Este dispositivo no tiene internet. Revise el wifi e intente de nuevo.',
+    'Could not reach the sign-in server. Check the Wi-Fi, and the date and time of this device.': 'No se pudo conectar con el servidor de ingreso. Revise el wifi y la fecha y hora de este dispositivo.',
+    'The sign-in server is not answering. Wait a minute and try again.': 'El servidor de ingreso no responde. Espere un minuto e intente de nuevo.',
+    'Email sign-in is switched off in Supabase. Ask the owner.': 'El ingreso con correo está desactivado en Supabase. Consulte con el dueño.',
+    'Supabase asks for a captcha that this page does not have. The owner must switch it off.': 'Supabase pide un captcha que esta página no tiene. El dueño tiene que desactivarlo.',
+    'The password cannot start or end with a space.': 'La contraseña no puede empezar ni terminar con un espacio.',
+    'Could not save. Try again.': 'No se pudo guardar. Intente de nuevo.',
+    'Could not save. Check the connection.': 'No se pudo guardar. Revise la conexión.',
+    'Could not save. Check the connection and try again.': 'No se pudo guardar. Revise la conexión e intente de nuevo.',
+    'Could not save:': 'No se pudo guardar:',
+    'That PIN is not right.': 'Ese PIN no es correcto.',
+    'Too many wrong PINs. Wait 10 minutes and try again.': 'Demasiados PIN incorrectos. Espere 10 minutos e intente de nuevo.',
+    'That person is not a manager.': 'Esa persona no es encargada.',
+    'That person is not active on the team.': 'Esa persona no está activa en el equipo.',
+    'This login is not connected to the café yet.': 'Este ingreso todavía no está conectado al café.',
+    'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.':
+      'Este ingreso todavía no está conectado al café. Desde el ingreso del propietario, ejecute el script de cuentas en Supabase (vea las notas de instalación) y vuelva a ingresar.',
+    'This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.':
+      'Este es el ingreso del café. Abre la caja, el reloj de marcas y la pantalla de cocina. Esta página necesita el ingreso del propietario.',
+    'Open the POS': 'Abrir la caja', 'Code from your phone app': 'Código de la app de su teléfono', '6-digit code': 'Código de 6 dígitos',
+    'That code did not work. Codes change every 30 seconds, try the newest one.': 'Ese código no funcionó. Los códigos cambian cada 30 segundos; pruebe el más reciente.',
+    'Nothing to print yet.': 'Todavía no hay nada que imprimir.',
+
+    /* website: the film */
+    '1,400 metres above the sea.': 'A 1 400 metros sobre el mar.', 'Monteverde, Costa Rica': 'Monteverde, Costa Rica',
+    'Cool nights ripen the cherry slowly.': 'Las noches frías maduran el fruto despacio.',
+    'Picked by hand, only when it turns deep red.': 'Recolectado a mano, solo cuando está rojo intenso.',
+    'Locally roasted to perfection.': 'Tostado localmente a la perfección.',
+    'And here, ground fresh and poured with care, for you.': 'Y aquí, molido al momento y servido con cariño, para usted.',
+    'Monteverde, Costa Rica.': 'Monteverde, Costa Rica.', 'See the menu': 'Ver el menú', 'Skip': 'Saltar', 'Replay': 'Repetir', 'Play the film': 'Ver el video',
+    'A quetzal flies from the cloud forest down through the coffee plants to Hanging Garden Café': 'Un quetzal vuela desde el bosque nuboso, baja por los cafetales y llega a Hanging Garden Café',
+
+    /* website: nav + hero */
+    'Skip to content': 'Ir al contenido', 'Story': 'Historia', 'Gallery': 'Galería', 'Ask us': 'Pregúntenos',
+    'Plan your visit': 'Planee su visita', 'Café · Monteverde': 'Café · Monteverde',
+    'Follow the quetzal.': 'Siga al quetzal.', 'Through the coffee harvest.': 'Por la cosecha de café.',
+    'Home to the garden.': 'De vuelta al jardín.',
+    'Coffee, garden, and cloud. Monteverde, Costa Rica.': 'Café, jardín y nubes. Monteverde, Costa Rica.',
+    'Hanging Garden Café · Monteverde, Costa Rica': 'Hanging Garden Café · Monteverde, Costa Rica',
+
+    /* website: story */
+    'The story': 'La historia', 'A green mountain, a cup of peace': 'Una montaña verde, una taza de paz',
+    'Monteverde was not built for hurry. Every cup we pour carries a century of this mountain: farmers, pacifists, scientists, and a forest that drinks from the clouds.':
+      'Monteverde no se hizo para las prisas. Cada taza que servimos lleva un siglo de esta montaña: campesinos, pacifistas, científicos y un bosque que bebe de las nubes.',
+    'The first farms': 'Las primeras fincas',
+    'Costa Rican families settle the green mountain, planting coffee and raising dairy on slopes that touch the clouds.':
+      'Familias costarricenses se asientan en la montaña verde, sembrando café y criando ganado lechero en laderas que tocan las nubes.',
+    'A nation chooses peace': 'Un país elige la paz',
+    'Costa Rica abolishes its army. The country puts down its weapons for good.': 'Costa Rica abole su ejército. El país deja las armas para siempre.',
+    'The Quakers arrive': 'Llegan los cuáqueros',
+    'Forty four Quakers leave Alabama, choosing Costa Rica because it has no army. They buy land in the cloud forest and name it Monteverde, the green mountain.':
+      'Cuarenta y cuatro cuáqueros dejan Alabama y eligen Costa Rica porque no tiene ejército. Compran tierra en el bosque nuboso y la llaman Monteverde, la montaña verde.',
+    'The forest protected': 'El bosque protegido',
+    'The Monteverde Cloud Forest Reserve is founded. The community protects the watershed instead of clearing it, and the world comes to walk under its canopy.':
+      'Se funda la Reserva Biológica Bosque Nuboso Monteverde. La comunidad protege la cuenca en vez de talarla, y el mundo viene a caminar bajo su dosel.',
+    'Your cup': 'Su taza',
+    'Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.':
+      'Hanging Garden continúa la historia: café sin prisa, plantas colgantes y una mesa que lo espera entre las nubes.',
+    'Peace. Simplicity. Stewardship. Community.': 'Paz. Sencillez. Cuidado. Comunidad.',
+    'The jewel of the cloud forest, and our neighbor.': 'La joya del bosque nuboso, y nuestro vecino.',
+    'from Monteverde, for the adventure ahead': 'desde Monteverde, para la aventura que viene',
+    'Grown in the clouds': 'Cultivado entre las nubes',
+    '100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.':
+      'Café 100% costarricense, de productores locales. Gracias por apoyar a nuestra comunidad y a nuestro bosque.',
+
+    /* website: menu (between the two markers: the only entries the menu at the tables uses for dish text) */
+    '\u0000menu-start': '',
+    'Specialty coffee · Fresh food': 'Café de especialidad · Comida fresca', 'The menu': 'El menú',
+    'made for the cloud forest': 'hecho para el bosque nuboso',
+    'Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars at the counter.':
+      'Servimos con orgullo café de El Trapiche Monteverde. Precios en colones; también recibimos dólares en el mostrador.',
+    'Coffee': 'Café', 'Espresso': 'Espresso', 'Americano': 'Americano', 'Macchiato': 'Macchiato', 'Cappuccino': 'Capuchino',
+    'Latte': 'Latte', 'Flat White': 'Flat White', 'Mocha': 'Moca', 'Costa Rican chocolate': 'Chocolate costarricense',
+    'Café con Leche': 'Café con leche', 'Traditional chorreado coffee + warm milk': 'Café chorreado tradicional + leche caliente',
+    'Cloud Forest Latte': 'Latte del Bosque Nuboso',
+    'El Trapiche espresso · milk · Costa Rican honey · cinnamon · hot or iced': 'Espresso de El Trapiche · leche · miel costarricense · canela · caliente o frío',
+    'Iced Americano': 'Americano frío', 'Iced Latte': 'Latte frío', 'Iced Mocha': 'Moca frío',
+    'Other Drinks': 'Otras bebidas', 'Costa Rican Hot Chocolate': 'Chocolate caliente costarricense', 'Tea': 'Té',
+    'Sweet Cane Drink': 'Agua dulce', 'Sandwiches': 'Sándwiches', 'Ham & Cheese': 'Jamón y queso',
+    'Quality ham · local cheese · house sauce': 'Jamón de calidad · queso local · salsa de la casa',
+    'Mano de Piedra': 'Mano de Piedra',
+    'Traditional Costa Rican beef · frijoles molidos · local cheese · tomato · house sauce': 'Carne tradicional costarricense · frijoles molidos · queso local · tomate · salsa de la casa',
+    'Chicken Pesto': 'Pollo al pesto', 'Chicken breast · pesto · local cheese · tomato': 'Pechuga de pollo · pesto · queso local · tomate',
+    'Frijoles molidos · local cheese · tomato · house sauce · vegetarian, add ham +₡500': 'Frijoles molidos · queso local · tomate · salsa de la casa · vegetariano, con jamón +₡500',
+    'Savory': 'Salado', 'Chicken Empanada': 'Empanada de pollo', 'Beef Empanada': 'Empanada de carne',
+    'Ham & Cheese Croissant': 'Croissant de jamón y queso', 'Warm it up? Absolutely.': '¿Calentito? Por supuesto.',
+    'Pastries & Cake': 'Repostería y queques', 'Butter Croissant': 'Croissant de mantequilla', 'Chocolate Croissant': 'Croissant de chocolate',
+    'Banana Bread': 'Pan de banano', 'Carrot Cake': 'Queque de zanahoria', 'Costa Rican Favorites': 'Favoritos costarricenses',
+    'Tres Leches': 'Tres leches', 'Classic three-milk cake': 'El clásico queque de tres leches', 'Tamal Asado': 'Tamal asado',
+    'Traditional Costa Rican baked corn cake': 'Tradicional queque de maíz horneado', 'Smoothies': 'Batidos',
+    'Mango · pineapple · passion fruit (₡3 500 in milk)': 'Mango · piña · maracuyá (₡3 500 en leche)',
+    'Strawberry · blackberry · ice cream (only in milk)': 'Fresa · mora · helado (solo en leche)',
+    'Pineapple · coconut cream · ice cream (only in milk)': 'Piña · crema de coco · helado (solo en leche)',
+    'Watermelon · pineapple · orange juice (only in water)': 'Sandía · piña · jugo de naranja (solo en agua)',
+    'Pineapple · lemon · spearmint (only in water)': 'Piña · limón · hierbabuena (solo en agua)',
+    'Strawberry · watermelon · orange juice (only in water)': 'Fresa · sandía · jugo de naranja (solo en agua)',
+    'Strawberry · mango (₡2 800 in milk)': 'Fresa · mango (₡2 800 en leche)',
+    'Kiwi · strawberry (₡3 100 in milk)': 'Kiwi · fresa (₡3 100 en leche)',
+    'Strawberry · lemon (only in water)': 'Fresa · limón (solo en agua)',
+    'Melon · watermelon (₡2 500 in milk)': 'Melón · sandía (₡2 500 en leche)',
+    'Papaya · mango (₡2 800 in milk)': 'Papaya · mango (₡2 800 en leche)',
+    'House signature': 'Sello de la casa',
+    'El Trapiche espresso, milk, Costa Rican honey, and cinnamon. Hot or iced.': 'Espresso de El Trapiche, leche, miel costarricense y canela. Caliente o frío.',
+    'For the trail': 'Para el sendero', 'Adventure Box': 'Adventure Box',
+    'Your sandwich + fresh fruit + a sweet treat + bottled water + napkin. Order by 8 pm tonight, pick it up from 6:30 am.':
+      'Su sándwich + fruta fresca + algo dulce + agua embotellada + servilleta. Pídala antes de las 8 pm y recójala desde las 6:30 am.',
+    'Ham & Cheese or Monteverde ₡6 500 · Mano de Piedra or Chicken Pesto ₡7 000': 'Jamón y queso o Monteverde ₡6 500 · Mano de Piedra o Pollo al pesto ₡7 000',
+    'Make it a combo': 'Hágalo combo', 'Coffee + pastry ·': 'Café + repostería ·', 'save ₡500': 'ahorre ₡500',
+    'Sandwich + coffee ·': 'Sándwich + café ·', 'Extras & Combos': 'Extras y combos',
+    'Cappuccino Small': 'Capuchino pequeño', 'Cappuccino Large': 'Capuchino grande', 'Cappuchino Large': 'Capuchino grande',
+    'Triple Chocolate Croissant': 'Croissant de triple chocolate',
+    'Adventure Box · Ham & Cheese or Monteverde': 'Adventure Box · Jamón y queso o Monteverde',
+    'Adventure Box · Mano de Piedra or Chicken Pesto': 'Adventure Box · Mano de Piedra o Pollo al pesto',
+    'Sandwich + fresh fruit + sweet treat + bottled water + napkin. Pre-order by 8 pm, pickup from 6:30 am.':
+      'Sándwich + fruta fresca + algo dulce + agua embotellada + servilleta. Pídala antes de las 8 pm y recójala desde las 6:30 am.',
+    '\u0000menu-end': '',
+    /* the menu at the tables (m.html, opened by the QR code) */
+    'Proudly serving locally grown coffee from El Trapiche Monteverde. Prices in colones; we also take dollars, cards and SINPE Móvil at the counter.':
+      'Servimos con orgullo café de El Trapiche Monteverde. Precios en colones; también recibimos dólares, tarjetas y SINPE Móvil en el mostrador.',
+    'This is the last menu saved on this phone. It updates by itself when the connection is back.':
+      'Este es el último menú guardado en este teléfono. Se actualiza solo cuando vuelva la conexión.',
+    'Try again': 'Intentar de nuevo', 'Allergies? Ask our team before you order.': '¿Alergias? Pregunte a nuestro equipo antes de pedir.',
+    'Every day 6:00 – 19:00': 'Todos los días 6:00 – 19:00', 'Sections': 'Secciones',
+    'The menu · Hanging Garden Café': 'El menú · Hanging Garden Café',
+    /* the menu QR code: print page (qr.html) and Menu Manager */
+    'Menu QR code': 'Código QR del menú', '← Menu Manager': '← Gestor del menú',
+    "Guests scan this code with the phone's camera and the menu opens": 'Los clientes escanean este código con la cámara del teléfono y se abre el menú',
+    'The menu behind it is read from the Menu Manager, so prices, new items, photos and sold-out items update by themselves within a minute. The code never changes: print it once.':
+      'El menú se lee del Gestor del menú, así que los precios, los productos nuevos, las fotos y los agotados se actualizan solos en menos de un minuto. El código nunca cambia: imprímalo una sola vez.',
+    'What to print': 'Qué imprimir', 'Table tent (fold in half)': 'Tarjeta de mesa (doblar a la mitad)', '4 cards per page': '4 tarjetas por hoja',
+    '12 stickers per page': '12 calcomanías por hoja', 'Download the QR code (PNG)': 'Descargar el código QR (PNG)', 'For a print shop (SVG, 4 cm)': 'Para una imprenta (SVG, 4 cm)',
+    'Print at actual size (100%, no "fit to page") on the paper picked above, on matte paper. Keep the white border around the code, print it dark on light, and test one with a phone before printing many.':
+      'Imprima a tamaño real (100 %, sin "ajustar a la página") en el papel elegido arriba, en papel mate. Deje el borde blanco alrededor del código, imprímalo oscuro sobre claro y pruebe uno con un teléfono antes de imprimir muchos.',
+    'Paper': 'Papel', 'Letter paper (Carta)': 'Papel carta', 'A4 paper': 'Papel A4',
+    'Menu at the tables (QR code)': 'Menú en las mesas (código QR)', 'QR code of the menu': 'Código QR del menú',
+    'Guests scan it to see this menu on their phone. Prices, new items, photos and sold-out items show there within a minute. The code never changes: print it once.':
+      'Los clientes lo escanean para ver este menú en su teléfono. Los precios, los productos nuevos, las fotos y los agotados aparecen ahí en menos de un minuto. El código nunca cambia: imprímalo una sola vez.',
+    'Open the menu': 'Abrir el menú', 'Print table cards': 'Imprimir tarjetas para las mesas',
+    'To give each item a Spanish name and description for the QR menu, run supabase/menu-spanish.sql once in Supabase.':
+      'Para darle a cada producto un nombre y una descripción en español en el menú QR, ejecute supabase/menu-spanish.sql una vez en Supabase.',
+    'Name in Spanish (optional, for the QR menu)': 'Nombre en español (opcional, para el menú QR)', 'Description in Spanish (optional)': 'Descripción en español (opcional)',
+    "Today's Garden Special": 'Especial del jardín de hoy', "Ask what's blooming today.": 'Pregunte qué está floreciendo hoy.',
+    'Sweet Favorites': 'Favoritos dulces', 'From the pastry case': 'De la vitrina de repostería',
+    'coffee + pastry save ₡500 · sandwich + coffee save ₡500': 'café + repostería ahorre ₡500 · sándwich + café ahorre ₡500',
+
+    /* website: brew, gallery, visit, chat, footer */
+    'Try it yourself': 'Pruébelo usted', 'Hold to brew': 'Mantenga presionado para preparar',
+    'Press and hold the cup. Good coffee cannot be rushed.': 'Mantenga presionada la taza. El buen café no se apura.',
+    'Press and hold to fill the cup': 'Mantenga presionado para llenar la taza',
+    'Brewed. That patience is the whole secret.': 'Listo. Esa paciencia es todo el secreto.',
+    'A table between the clouds': 'Una mesa entre las nubes', 'Morning chorreado': 'Chorreado de la mañana',
+    'Baked this morning': 'Horneado esta mañana', 'Poured slow': 'Servido sin prisa', 'The hanging garden': 'El jardín colgante',
+    'These images are AI generated placeholders. Photos of the real garden are coming soon.': 'Estas imágenes son provisionales, generadas con IA. Pronto habrá fotos del jardín real.',
+    'Visit us': 'Visítenos',
+    'Find us in Monteverde, on the road through Santa Elena, Puntarenas, Costa Rica. Come before the forest walk or after the hanging bridges. The coffee waits either way.':
+      'Estamos en Monteverde, sobre el camino de Santa Elena, Puntarenas, Costa Rica. Venga antes de la caminata por el bosque o después de los puentes colgantes. El café espera igual.',
+    'Every day': 'Todos los días', 'Get directions': 'Cómo llegar', 'Message us on WhatsApp': 'Escríbanos por WhatsApp',
+    'Questions?': '¿Preguntas?', 'Ask the Garden Guide': 'Pregunte a la Guía del Jardín',
+    'Hours, prices, what to wear in the cloud forest, where the quetzals are: our little guide answers right here on the page, in English y en español.':
+      'Horario, precios, qué ponerse en el bosque nuboso, dónde están los quetzales: nuestra guía responde aquí mismo, en español y en inglés.',
+    'Ask a question': 'Hacer una pregunta', 'Garden Guide': 'Guía del Jardín', 'Hanging Garden · English y español': 'Hanging Garden · español e inglés',
+    'Ask the Garden Guide a question': 'Hacer una pregunta a la Guía del Jardín', 'Garden Guide chat': 'Chat de la Guía del Jardín',
+    'Close chat': 'Cerrar el chat', 'Your question': 'Su pregunta', 'Send': 'Enviar',
+    'What are your hours?': '¿Cuál es el horario?', 'How to find us': 'Cómo llegar', 'How do I get there?': '¿Cómo llego?',
+    'How can I contact you?': '¿Cómo los contacto?', 'What is the Adventure Box?': '¿Qué es la Adventure Box?',
+    'Weather': 'Clima', 'What is the weather like?': '¿Cómo está el clima?', 'Quetzals': 'Quetzales', 'Where can I see a quetzal?': '¿Dónde puedo ver un quetzal?',
+    '· Monteverde, Costa Rica': '· Monteverde, Costa Rica',
+    '100% Costa Rican coffee · Locally sourced · Proudly serving coffee from El Trapiche Monteverde': 'Café 100% costarricense · De productores locales · Servimos con orgullo café de El Trapiche Monteverde',
+    'Thank you for supporting our community and our forest. Pura vida.': 'Gracias por apoyar a nuestra comunidad y a nuestro bosque. Pura vida.',
+    'Gallery imagery is AI generated for now and will be replaced with photos of the real café. Website by Hanging Garden.':
+      'Las imágenes de la galería son generadas con IA por ahora y se cambiarán por fotos del café real. Sitio web de Hanging Garden.',
+    'A resplendent quetzal perched on a mossy branch in the Monteverde cloud forest': 'Un quetzal posado en una rama con musgo en el bosque nuboso de Monteverde',
+    'The Monteverde cloud forest': 'El bosque nuboso de Monteverde', 'Coffee served at the garden': 'Café servido en el jardín',
+    'Fresh pastries': 'Repostería fresca', 'Coffee pouring': 'Café sirviéndose', 'Garden seating among hanging plants': 'Mesas del jardín entre plantas colgantes',
+    'Map of Hanging Garden Café, Monteverde': 'Mapa de Hanging Garden Café, Monteverde',
+
+    /* owner home */
+    'Owner dashboard · Monteverde, Costa Rica': 'Panel del propietario · Monteverde, Costa Rica', 'Owner dashboard · Monteverde': 'Panel del propietario · Monteverde',
+    'Home · Hanging Garden': 'Inicio · Hanging Garden', 'Revenue today': 'Ingresos de hoy', 'Orders today': 'Pedidos de hoy',
+    'On the clock': 'En turno', 'Sold out': 'Agotado', 'Nobody in': 'Nadie en turno',
+    'Ring up sales at the counter — cash, card or SINPE, recorded instantly.': 'Cobre en el mostrador: efectivo, tarjeta o SINPE, registrado al instante.',
+    'What you sold today, this week, this month — best sellers and CSV for the accountant.': 'Lo vendido hoy, esta semana y este mes: los más vendidos y CSV para el contador.',
+    'Change prices, photos and items — updates the website and TV board in a minute.': 'Cambie precios, fotos y productos; el sitio web y la pantalla TV se actualizan en un minuto.',
+    "The team clocks in and out with a PIN; you see everyone's hours.": 'El equipo marca entrada y salida con un PIN; usted ve las horas de todos.',
+    'The live menu screen — open this on the TV in the café.': 'La pantalla del menú en vivo: ábrala en el televisor del café.',
+    'Tickets for the back — open this on the tablet or screen in the kitchen.': 'Las comandas para atrás: ábrala en la tableta o pantalla de la cocina.',
+    'What your guests see — the cinematic Monteverde story with the live menu.': 'Lo que ven sus clientes: la historia cinematográfica de Monteverde con el menú en vivo.',
+    'Owner login': 'Ingreso del propietario', 'Signed in as': 'Sesión iniciada como', 'Sign out everywhere': 'Cerrar sesión en todos lados',
+    'Phone code (2FA):': 'Código del teléfono (2FA):', 'Turn on': 'Activar', 'Turn off': 'Desactivar', 'Owner phone': 'Teléfono del propietario',
+    'Scan this with Google Authenticator, Microsoft Authenticator or 1Password on your phone, then type the 6-digit code it shows.':
+      'Escanee esto con Google Authenticator, Microsoft Authenticator o 1Password en su teléfono y escriba el código de 6 dígitos que muestra.',
+    'Or type this key by hand:': 'O escriba esta clave a mano:', 'QR code for the authenticator app': 'Código QR para la app de autenticación',
+    'Every sign-in with the owner login asks for the code from your phone. Without it, the session only gets café-level access.':
+      'Cada ingreso del propietario pide el código de su teléfono. Sin él, la sesión solo tiene acceso de nivel café.',
+    'Recommended: with a phone code, your password alone is not enough to reach sales, menu and team settings.':
+      'Recomendado: con un código del teléfono, la contraseña sola no basta para llegar a ventas, menú y equipo.',
+    'Turn the phone code off? Your password alone will open the owner login again.': '¿Desactivar el código del teléfono? La contraseña sola volverá a abrir el ingreso del propietario.',
+    'Could not turn it off. Sign out, sign in again with the code, then try once more.': 'No se pudo desactivar. Cierre sesión, vuelva a ingresar con el código e intente otra vez.',
+    'Could not start the phone code. In Supabase, check that Authentication > Multi-Factor > TOTP is switched on.': 'No se pudo iniciar el código del teléfono. En Supabase, revise que Authentication > Multi-Factor > TOTP esté activado.',
+    'That code did not match. Wait for the next code and try again.': 'Ese código no coincidió. Espere el siguiente e intente de nuevo.',
+    'Sign the owner login out on every device, including this one?': '¿Cerrar la sesión del propietario en todos los dispositivos, incluido este?',
+    'Run supabase/accounts.sql once to switch on the owner and café logins.': 'Ejecute supabase/accounts.sql una vez para activar los ingresos de propietario y café.',
+
+    /* menu manager */
+    'Menu Manager · Hanging Garden': 'Gestor del menú · Hanging Garden',
+    "Changes save instantly and show on the website and the TV board within a minute. Tap a photo square to change an item's picture. Star an item to feature it in the TV slideshow, or combine several items into one slide below.":
+      'Los cambios se guardan al instante y aparecen en el sitio web y la pantalla TV en un minuto. Toque el cuadro de foto para cambiar la imagen de un producto. Marque con estrella un producto para destacarlo en la presentación del TV, o combine varios en una sola diapositiva abajo.',
+    'Run the TV board SQL once in Supabase and these controls switch on.': 'Ejecute el SQL de la pantalla TV una vez en Supabase y estos controles se activan.',
+    'What the TV shows': 'Qué muestra el TV', 'Menu + product slideshow (recommended)': 'Menú + presentación de productos (recomendado)',
+    'Menu only': 'Solo el menú', 'Product slideshow only': 'Solo la presentación de productos', 'Screen direction': 'Orientación de la pantalla',
+    'Automatic (follows the screen)': 'Automática (según la pantalla)', 'Always horizontal': 'Siempre horizontal',
+    'Vertical · TV turned to the left': 'Vertical · TV girado a la izquierda', 'Vertical · TV turned to the right': 'Vertical · TV girado a la derecha',
+    'Menu stays for (seconds)': 'El menú se queda (segundos)', 'Each slide stays for (seconds)': 'Cada diapositiva se queda (segundos)',
+    'Message at the bottom of the menu': 'Mensaje al pie del menú', 'Save TV board settings': 'Guardar ajustes de la pantalla TV',
+    'Combined slides': 'Diapositivas combinadas',
+    'Pick 2 to 8 items and the TV shows them together in one picture, built from their photos. Nothing to upload.': 'Elija de 2 a 8 productos y el TV los muestra juntos en una sola imagen, armada con sus fotos. No hay que subir nada.',
+    'Run the combined slides SQL once in Supabase and this section switches on.': 'Ejecute el SQL de diapositivas combinadas una vez en Supabase y esta sección se activa.',
+    '+ New combined slide': '+ Nueva diapositiva combinada', 'Slide title': 'Título de la diapositiva',
+    'Small line above the title (optional)': 'Línea pequeña sobre el título (opcional)', 'Pick 2 to 8 items': 'Elija de 2 a 8 productos',
+    'Save slide': 'Guardar diapositiva', 'Kitchen, pickup numbers and rooms': 'Cocina, números de entrega y habitaciones',
+    'Run the kitchen and rooms SQL once in Supabase and this section switches on.': 'Ejecute el SQL de cocina y habitaciones una vez en Supabase y esta sección se activa.',
+    'Each category below has a "prepared in the kitchen" switch. Orders with kitchen items show on the Kitchen screen.': 'Cada categoría de abajo tiene un interruptor "se prepara en cocina". Los pedidos con productos de cocina aparecen en la pantalla de cocina.',
+    'Number stands you own (1 to…)': 'Números de mesa que tiene (del 1 al…)', 'Out of service (e.g. 4, 9)': 'Fuera de servicio (ej. 4, 9)',
+    'Guests can order from their rooms': 'Los huéspedes pueden pedir desde su habitación', 'Room ordering opens': 'Pedidos desde habitación abren',
+    'Save settings': 'Guardar ajustes', 'Room cards': 'Tarjetas de habitación',
+    'Each room has a private code inside its QR. If a card gets photographed or lost, tap New code and reprint that one card.': 'Cada habitación tiene un código privado dentro de su QR. Si una tarjeta se fotografía o se pierde, toque Nuevo código y reimprima solo esa tarjeta.',
+    'Print all room cards': 'Imprimir todas las tarjetas', 'New code': 'Nuevo código', 'No rooms yet.': 'Todavía no hay habitaciones.',
+    'Could not load the menu. Check your connection.': 'No se pudo cargar el menú. Revise su conexión.',
+    'Could not save the settings. Try again.': 'No se pudieron guardar los ajustes. Intente de nuevo.',
+    'Settings saved. The POS and room pages follow within a minute.': 'Ajustes guardados. La caja y las páginas de habitación se actualizan en un minuto.',
+    'Give room {n} a new code? The card in that room stops working until you reprint it.': '¿Dar un nuevo código a la habitación {n}? La tarjeta de esa habitación deja de funcionar hasta que la reimprima.',
+    'Could not change the code. Try again.': 'No se pudo cambiar el código. Intente de nuevo.',
+    'Room {n} has a new code. Reprint its card.': 'La habitación {n} tiene un nuevo código. Reimprima su tarjeta.',
+    'QR code for room {n}': 'Código QR de la habitación {n}', 'Room {n}': 'Habitación {n}',
+    'Scan to see the menu and order from your room.': 'Escanee para ver el menú y pedir desde su habitación.',
+    'Pay at the window when you pick up.': 'Pague en la ventanilla al recoger.',
+    'No combined slides yet.': 'Todavía no hay diapositivas combinadas.',
+    'Add a photo to a few items first, then they show up here.': 'Primero agregue foto a algunos productos y aparecerán aquí.',
+    'A combined slide holds up to 8 items.': 'Una diapositiva combinada admite hasta 8 productos.',
+    '{n} item picked · pick at least 2': '{n} producto elegido · elija al menos 2', '{n} items picked · pick at least 2': '{n} productos elegidos · elija al menos 2',
+    '{n} items picked': '{n} productos elegidos', '{n} item picked': '{n} producto elegido',
+    'Delete this combined slide?': '¿Eliminar esta diapositiva combinada?', 'Could not delete that slide. Try again.': 'No se pudo eliminar esa diapositiva. Intente de nuevo.',
+    'Combined slide deleted.': 'Diapositiva combinada eliminada.', 'Give the slide a title.': 'Póngale un título a la diapositiva.',
+    'Pick at least 2 items.': 'Elija al menos 2 productos.', 'Could not save that slide. Try again.': 'No se pudo guardar esa diapositiva. Intente de nuevo.',
+    'Combined slide saved. The TV follows within a minute.': 'Diapositiva combinada guardada. El TV se actualiza en un minuto.',
+    'Could not save the TV settings. Try again.': 'No se pudieron guardar los ajustes del TV. Intente de nuevo.',
+    'TV board updated. The screen follows within a minute.': 'Pantalla TV actualizada. La pantalla se actualiza en un minuto.',
+    'Prepared in the kitchen (shows on the Kitchen screen)': 'Se prepara en cocina (aparece en la pantalla de cocina)',
+    'Could not save the color. Try again.': 'No se pudo guardar el color. Intente de nuevo.',
+    '{cat} color saved. The POS follows on its next refresh.': 'Color de {cat} guardado. La caja lo toma al actualizarse.',
+    'Category color on the POS (tab and button tint)': 'Color de la categoría en la caja (pestaña y botones)',
+    '+ Add item to {cat}': '+ Agregar producto a {cat}', 'Change photo': 'Cambiar foto', 'Change photo for {item}': 'Cambiar la foto de {item}',
+    '★ On TV': '★ En TV', '☆ TV': '☆ TV', 'Feature this item in the TV slideshow': 'Destacar este producto en la presentación del TV',
+    '{item} removed from the TV slideshow': '{item} quitado de la presentación del TV', '{item} will star in the TV slideshow': '{item} saldrá en la presentación del TV',
+    'Price in colones (numbers only)': 'Precio en colones (solo números)', 'Price in colones (numbers only):': 'Precio en colones (solo números):',
+    'Description (optional)': 'Descripción (opcional)', 'Side color on the POS': 'Color lateral en la caja', 'Quick tab': 'Pestaña rápida',
+    'Automatic (top sellers)': 'Automática (los más vendidos)', 'Always show': 'Mostrar siempre', 'Never show': 'Nunca mostrar',
+    'Delete item': 'Eliminar producto', 'Delete "{item}" from the menu? This cannot be undone.': '¿Eliminar "{item}" del menú? Esto no se puede deshacer.',
+    'Could not delete. Try again.': 'No se pudo eliminar. Intente de nuevo.', 'Name of the new item in {cat}': 'Nombre del nuevo producto en {cat}',
+    'That price did not look like a number.': 'Ese precio no parece un número.', 'Could not add it. Try again.': 'No se pudo agregar. Intente de nuevo.',
+    'That photo is too big. Pick one under 8 MB.': 'Esa foto es muy grande. Elija una de menos de 8 MB.', 'Uploading photo…': 'Subiendo la foto…',
+    'Photo upload failed. Try again.': 'No se pudo subir la foto. Intente de nuevo.',
+    'Photo saved but the menu did not update. Try again.': 'La foto se guardó pero el menú no se actualizó. Intente de nuevo.',
+    'Photo updated': 'Foto actualizada',
+
+    /* POS */
+    'Hanging Garden POS': 'Caja Hanging Garden', 'POS · Hanging Garden': 'Caja · Hanging Garden',
+    'Time': 'Reloj', 'Orders': 'Pedidos', 'Loading the menu…': 'Cargando el menú…', 'Order': 'Pedido', 'Tap items to add them.': 'Toque los productos para agregarlos.',
+    'Includes IVA 13%': 'Incluye IVA 13%', 'Total': 'Total', 'Cash ₡': 'Efectivo ₡', 'Cash $': 'Efectivo $', 'Card': 'Tarjeta', 'SINPE': 'SINPE', 'Other': 'Otro',
+    'Clear order': 'Vaciar pedido', 'Print receipt': 'Imprimir recibo',
+    'Today at the counter': 'Hoy en el mostrador', 'Cash counted:': 'Efectivo contado:',
+    "Today's orders": 'Pedidos de hoy',
+    "Voiding an order needs a manager's PIN and a reason. The order stays on record, marked as voided, and the approval is logged.": 'Anular un pedido necesita el PIN de un encargado y un motivo. El pedido queda registrado como anulado y la aprobación se guarda en la bitácora.',
+    'Void this order': 'Anular este pedido', 'Which number stand?': '¿Qué número de mesa?',
+    'Tap the number you are handing to the customer. Greyed numbers are in use.': 'Toque el número que le entrega al cliente. Los números en gris están en uso.',
+    'No number': 'Sin número', 'Paid and picked up': 'Pagado y entregado', 'Paid & picked up': 'Pagado y entregado', 'Picked up': 'Entregado',
+    'e.g. rang up twice': 'ej. se cobró dos veces',
+    'No connection and no saved menu yet. Connect once and it will work offline after that.': 'Sin conexión y sin menú guardado todavía. Conéctese una vez y después funcionará sin conexión.',
+    'your best sellers, updated from Sales · set Always or Never per item in the Menu Manager': 'sus productos más vendidos, según Ventas · marque Siempre o Nunca por producto en el Gestor del menú',
+    'One less': 'Uno menos', 'One more': 'Uno más', '{n} item ·': '{n} producto ·', '{n} items ·': '{n} productos ·',
+    'The order is empty.': 'El pedido está vacío.', '· number {n}': '· número {n}', 'Paid by {x}': 'Pagado con {x}', 'offline · {n} on this device': 'sin conexión · {n} en este dispositivo',
+    /* the register: open with the float, close against the card terminal and the drawer */
+    'Open the register': 'Abrir caja', 'Close the register': 'Cerrar caja', 'Who is opening': 'Quién abre', 'Who is closing': 'Quién cierra',
+    'Cash float received (₡)': 'Fondo de caja recibido (₡)', 'Card terminal total for today (₡)': 'Total del datáfono de hoy (₡)',
+    'Cash in the drawer, float included (₡)': 'Efectivo en la caja, con el fondo incluido (₡)', 'Notes (optional)': 'Notas (opcional)',
+    'e.g. ₡2 000 short, tip jar': 'ej. faltan ₡2 000, propinas', 'No team members yet': 'Todavía no hay personal',
+    'The register has not been opened today.': 'La caja no se ha abierto hoy.',
+    'Opened at {t} by {n} · float {f}': 'Abierta a las {t} por {n} · fondo {f}', 'Closed at {t} by {n}': 'Cerrada a las {t} por {n}',
+    'Expected in the drawer (float + cash)': 'Debe haber en la caja (fondo + efectivo)', 'Float': 'Fondo', 'Cash sales': 'Ventas en efectivo',
+    'Expected cash': 'Efectivo esperado', 'Cash counted': 'Efectivo contado', 'Cash difference': 'Diferencia en efectivo',
+    'Card sales': 'Ventas con tarjeta', 'Card terminal': 'Datáfono', 'Card difference': 'Diferencia en tarjeta', 'SINPE (check the phone)': 'SINPE (revise el teléfono)',
+    'exact': 'exacto', '+{x} over': '+{x} sobra', '−{x} short': '−{x} falta', 'Card sales {a} ·': 'Ventas con tarjeta {a} ·', 'Expected {a} ·': 'Esperado {a} ·', 'Day': 'Día', 'still open': 'todavía abierta',
+    'Close again (late sale)': 'Cerrar de nuevo (venta tardía)', 'Register closed again': 'Caja cerrada de nuevo',
+    'The register of {d} is still open. Close it first.': 'La caja del {d} sigue abierta. Ciérrela primero.', 'Close the register of the previous day first.': 'Primero cierre la caja del día anterior.',
+    'The sales of that day are added up when you close it. Then open today.': 'Las ventas de ese día se suman al cerrarla. Después abra la de hoy.',
+    'Pick who is opening or closing. If the list is empty, add the team in the Time clock first.': 'Elija quién abre o cierra. Si la lista está vacía, agregue al equipo en el Reloj de marcas primero.',
+    'Could not check the register. Check the connection and try again.': 'No se pudo revisar la caja. Revise la conexión e intente de nuevo.',
+    'Could not load the team. Reopen Today to try again.': 'No se pudo cargar el equipo. Vuelva a abrir Hoy para intentar de nuevo.',
+    'Register opened': 'Caja abierta', 'Register closed': 'Caja cerrada',
+    '{n} sales are waiting to sync. Connect to the internet before closing.': '{n} ventas esperan sincronizarse. Conéctese a internet antes de cerrar.',
+    'Sales rung up after closing are not in this count.': 'Las ventas hechas después del cierre no están en este conteo.',
+    'The register was already opened today.': 'La caja ya se abrió hoy.', 'The register is already closed for today.': 'La caja ya está cerrada por hoy.',
+    'Open the register first.': 'Primero abra la caja.', 'Type both amounts.': 'Escriba los dos montos.', 'Type the float received.': 'Escriba el fondo recibido.',
+    'Run supabase/register.sql in Supabase to open and close the register here.': 'Ejecute supabase/register.sql en Supabase para abrir y cerrar la caja desde aquí.',
+    'Register closings': 'Cierres de caja', 'Opened by': 'Abrió', 'Closed by': 'Cerró', 'Expected': 'Esperado', 'Counted': 'Contado', 'Cash ±': 'Efectivo ±', 'Card ±': 'Tarjeta ±', 'Terminal': 'Datáfono',
+    'Float handed over in the morning, cash and card terminal typed at closing, and the differences against what the POS recorded.': 'Fondo entregado en la mañana, efectivo y datáfono escritos al cierre, y las diferencias contra lo que registró la caja.',
+    'No closings in this period yet.': 'Todavía no hay cierres en este periodo.',
+    'Adding it up…': 'Sumando…', 'Could not load today. Check the connection.': 'No se pudo cargar el día. Revise la conexión.',
+    'Voided (not counted)': 'Anulados (no cuentan)',
+    'Compare the card total with the BAC terminal batch. Count the drawer and type it below.': 'Compare el total de tarjeta con el cierre del datáfono BAC. Cuente la caja y escríbalo abajo.',
+    'Pick the manager who is approving this.': 'Elija al encargado que aprueba esto.', 'Write the reason for the void.': 'Escriba el motivo de la anulación.',
+    'That order no longer exists.': 'Ese pedido ya no existe.', 'That order was already voided.': 'Ese pedido ya estaba anulado.',
+    'No manager set up yet': 'Todavía no hay encargado', 'Could not load the orders. Check the connection.': 'No se pudieron cargar los pedidos. Revise la conexión.',
+    'Voiding switches on once the manager approval setup is run in Supabase.': 'Las anulaciones se activan cuando se ejecute la configuración de aprobaciones en Supabase.',
+    '{n} still saving from offline. They show here once synced.': '{n} todavía guardándose desde sin conexión. Aparecen aquí al sincronizar.',
+    'No orders yet today.': 'Todavía no hay pedidos hoy.', 'Voided · {x}': 'Anulado · {x}',
+    'Could not void. Check the connection and try again.': 'No se pudo anular. Revise la conexión e intente de nuevo.', 'Could not void. Try again.': 'No se pudo anular. Intente de nuevo.',
+    'Order voided · {x}': 'Pedido anulado · {x}', 'No show': 'No llegó', 'Cancel this room order? (guest never came)': '¿Cancelar este pedido de habitación? (el huésped nunca llegó)',
+    'In kitchen · Ready': 'En cocina · Listo', 'Could not cancel. Try again.': 'No se pudo cancelar. Intente de nuevo.', 'Room order cancelled': 'Pedido de habitación cancelado',
+    'Could not record the payment. Try again.': 'No se pudo registrar el pago. Intente de nuevo.',
+    'Ready': 'Listo', 'Room': 'Habitación', 'Cash': 'Efectivo',
+
+    /* sales */
+    'Sales · Hanging Garden': 'Ventas · Hanging Garden', 'Lock now': 'Bloquear ahora', 'Sales are locked': 'Las ventas están bloqueadas',
+    'Type a manager PIN to open the reports for 15 minutes. Every opening is written to the approvals log.': 'Escriba un PIN de encargado para abrir los reportes por 15 minutos. Cada apertura se anota en la bitácora de aprobaciones.',
+    'Open the sales reports': 'Abrir los reportes de ventas', 'Revenue': 'Ingresos', 'Average order': 'Pedido promedio', 'Revenue by day': 'Ingresos por día',
+    'How people paid': 'Cómo pagaron', 'Best sellers': 'Más vendidos', 'Transactions': 'Transacciones', 'When': 'Cuándo', 'Items': 'Productos',
+    'Revenue by day bar chart': 'Gráfico de barras de ingresos por día', 'Pick the manager.': 'Elija al encargado.',
+    'This manager may not open the sales reports. The owner can allow it in the Time clock, Team section.': 'Este encargado no puede abrir los reportes de ventas. El propietario puede permitirlo en el Reloj de marcas, sección Equipo.',
+    'Could not check the PIN. Check the connection.': 'No se pudo verificar el PIN. Revise la conexión.', 'Could not open the reports.': 'No se pudieron abrir los reportes.',
+    'Nothing in this period yet.': 'Todavía no hay nada en este periodo.', '{n} sold ·': '{n} vendidos ·',
+    'No sales in this period yet. Ring one up on the POS and refresh.': 'Todavía no hay ventas en este periodo. Cobre una en la caja y actualice.',
+
+    /* time clock */
+    /* access: start from zero, keypad, PIN confirmation, forgot password */
+    'Start here: set up the team': 'Empiece aquí: arme el equipo',
+    'There is no manager yet. Three steps and the clock is ready:': 'Todavía no hay encargado. Tres pasos y el reloj queda listo:',
+    'Add the first manager (GM) with a name and a PIN. No approval is needed for this one.': 'Agregue al primer encargado (GM) con nombre y PIN. Para este no se necesita aprobación.',
+    'Add each team member with their own PIN, under Hours & team.': 'Agregue a cada miembro del equipo con su propio PIN, en Horas y equipo.',
+    'To clock in, each person taps their name and types their PIN on the keypad.': 'Para marcar, cada persona toca su nombre y escribe su PIN en el teclado.',
+    'Forgot a PIN later? The owner login changes any PIN from Hours & team, no other PIN needed.': '¿Se olvida un PIN después? El ingreso del propietario cambia cualquier PIN desde Horas y equipo, sin pedir otro PIN.',
+    'Add the first manager': 'Agregar al primer encargado', 'Keypad': 'Teclado', 'Delete the last digit': 'Borrar el último dígito',
+    'Type the new PIN.': 'Escriba el PIN nuevo.', '{n} clocked in at {t}': '{n} marcó entrada a las {t}', '{n} clocked out · {t} this shift': '{n} marcó salida · {t} en este turno',
+    '{n} is now the manager': '{n} ahora es el encargado', '{n} saved': '{n} guardado',
+    'Type the PIN again': 'Escriba el PIN otra vez', 'Numbers only. Not 1234, 0000 or a birthday everyone knows.': 'Solo números. No 1234, 0000 ni un cumpleaños que todos conozcan.',
+    'Manager / GM (approves changes with their PIN)': 'Encargado / GM (aprueba cambios con su PIN)',
+    'Owner login: saved directly and written to the approvals log.': 'Ingreso del propietario: se guarda directo y queda en la bitácora de aprobaciones.',
+    'That PIN is too easy to guess (like 1234 or 0000). Pick another.': 'Ese PIN es muy fácil de adivinar (como 1234 o 0000). Elija otro.',
+    'Pick the person.': 'Elija a la persona.', 'The two PINs do not match.': 'Los dos PIN no coinciden.',
+    'Approve with a manager PIN, or run supabase/access.sql once so the owner login does not need one.': 'Apruebe con el PIN de un encargado, o ejecute supabase/access.sql una vez para que el ingreso del propietario no lo necesite.',
+    'Reset PIN': 'Nuevo PIN', 'New PIN · {n}': 'Nuevo PIN · {n}', 'New PIN (4–8 digits)': 'Nuevo PIN (4 a 8 dígitos)',
+    'Forgot your password?': '¿Olvidó su contraseña?', 'Email of the login:': 'Correo del ingreso:',
+    'If that email has a login, a link to set a new password is on its way. Check the spam folder too.': 'Si ese correo tiene un ingreso, ya va en camino un enlace para poner una contraseña nueva. Revise también el correo no deseado.',
+    'Could not send the email. Check the address and try again.': 'No se pudo enviar el correo. Revise la dirección e intente de nuevo.',
+    'Set a new password': 'Poner una contraseña nueva', 'New password · Hanging Garden': 'Contraseña nueva · Hanging Garden', 'Checking the link…': 'Revisando el enlace…',
+    'New password': 'Contraseña nueva', 'Type it again': 'Escríbala otra vez',
+    "At least 8 characters. Use something you can remember, or save it in your phone's password manager.": 'Al menos 8 caracteres. Use algo que recuerde, o guárdela en el gestor de contraseñas del teléfono.',
+    'Save the new password': 'Guardar la contraseña nueva', 'At least 8 characters.': 'Al menos 8 caracteres.', 'The two passwords do not match.': 'Las dos contraseñas no coinciden.',
+    'That is the same password as before. Pick a new one.': 'Es la misma contraseña de antes. Elija una nueva.',
+    'Could not save the password. Ask for a new link and try again.': 'No se pudo guardar la contraseña. Pida un enlace nuevo e intente otra vez.',
+    'Password changed. You can sign in now.': 'Contraseña cambiada. Ya puede ingresar.', 'Go to Home': 'Ir al inicio',
+    'This link has expired or was already used. Ask for a new one from the sign-in page.': 'Este enlace venció o ya se usó. Pida uno nuevo desde la página de ingreso.',
+    'Back to sign in': 'Volver al ingreso',
+    'A link was already sent. Wait a minute and check the spam folder.': 'Ya se envió un enlace. Espere un minuto y revise el correo no deseado.',
+    'Your login has a phone code. Type it to continue.': 'Su ingreso tiene código del teléfono. Escríbalo para continuar.',
+    'If you no longer have the phone, the owner must first remove the phone code in Supabase (owner_reset_phone_code).': 'Si ya no tiene el teléfono, el propietario debe quitar primero el código del teléfono en Supabase (owner_reset_phone_code).',
+    'Type the code from your phone app first.': 'Primero escriba el código de la app de su teléfono.',
+    'That password is too easy to guess. Use at least 8 characters and mix letters and numbers.': 'Esa contraseña es muy fácil de adivinar. Use al menos 8 caracteres y mezcle letras y números.',
+    'That password is too long. Use 72 characters or fewer.': 'Esa contraseña es muy larga. Use 72 caracteres o menos.',
+    'Open this page from the link in the email. If the link opened a different address, the Supabase Site URL must be set to hanginggardencafe.com.': 'Abra esta página desde el enlace del correo. Si el enlace abrió otra dirección, el Site URL de Supabase debe ser hanginggardencafe.com.',
+    'Could not reach the server. Check your connection and reload this page.': 'No se pudo conectar con el servidor. Revise su conexión y recargue esta página.', 'Reload': 'Recargar',
+    'Time clock · Hanging Garden': 'Reloj de marcas · Hanging Garden', 'One-time setup needed': 'Falta una configuración inicial',
+    'The time clock needs its tables and the manager-approval functions in Supabase. It takes about a minute:': 'El reloj de marcas necesita sus tablas y las funciones de aprobación en Supabase. Toma como un minuto:',
+    'Open your Supabase project →': 'Abra su proyecto de Supabase →', 'SQL Editor': 'SQL Editor', 'New query': 'New query', 'Paste and run': 'Pegue y ejecute',
+    ', then paste and run': ', luego pegue y ejecute', 'Come back here, reload, and make yourself the first manager under': 'Vuelva aquí, recargue y hágase el primer encargado en',
+    'Hours & team': 'Horas y equipo', 'Clock in · out': 'Entrada · salida',
+    "Tap your name, type your PIN. Green means you're on the clock.": 'Toque su nombre y escriba su PIN. Verde significa que está en turno.',
+    "Shifts count on the day they start. Weeks run Monday to Sunday. Any change to a shift needs a manager's PIN and is written to the approvals log.": 'Los turnos cuentan el día en que empiezan. Las semanas van de lunes a domingo. Cualquier cambio a un turno necesita el PIN de un encargado y se anota en la bitácora.',
+    'No manager yet. The first person you save becomes the manager (no approval needed this one time). Do this now.': 'Todavía no hay encargado. La primera persona que guarde será el encargado (sin aprobación esta única vez). Hágalo ahora.',
+    '+ Add person': '+ Agregar persona', 'Approvals log': 'Bitácora de aprobaciones',
+    'Every shift change, team change and voided order, with who approved it and why.': 'Cada cambio de turno, cambio de equipo y pedido anulado, con quién lo aprobó y por qué.',
+    'Every shift change, team change, voided order and discount, with who approved it and why.': 'Cada cambio de turno, cambio de equipo, pedido anulado y descuento, con quién lo aprobó y por qué.',
+    'Edit shift': 'Editar turno', 'Clock in': 'Entrada', 'Clock out (leave empty if still working)': 'Salida (déjelo vacío si sigue trabajando)',
+    'Reason for the change': 'Motivo del cambio', 'Manager approval': 'Aprobación del encargado', 'Who is looking?': '¿Quién consulta?',
+    'A manager PIN shows everyone\'s hours. Your own PIN shows only yours.': 'Un PIN de encargado muestra las horas de todos. Su propio PIN muestra solo las suyas.',
+    'Show hours': 'Ver horas', 'Add person': 'Agregar persona', "PIN (4–8 digits, they'll type it to clock in)": 'PIN (4 a 8 dígitos; lo escribirá para marcar)',
+    'Team member (clock in and out)': 'Miembro del equipo (marca entrada y salida)', 'Manager (can approve changes with their PIN)': 'Encargado (aprueba cambios con su PIN)',
+    'Currently works here (shows on the clock screen)': 'Trabaja aquí actualmente (aparece en la pantalla del reloj)',
+    'May open the sales reports with their PIN': 'Puede abrir los reportes de ventas con su PIN',
+    'First setup: this person becomes the manager and no approval is needed this one time.': 'Primera configuración: esta persona será el encargado y no se necesita aprobación esta única vez.',
+    'e.g. forgot to clock out': 'ej. olvidó marcar la salida', 'Only the owner login can change the team.': 'Solo el ingreso del propietario puede cambiar el equipo.',
+    'That person is not a manager. Ask a manager to approve this.': 'Esa persona no es encargada. Pida a un encargado que apruebe esto.',
+    'Pick who is approving this.': 'Elija quién aprueba esto.', 'Write the reason for the change.': 'Escriba el motivo del cambio.',
+    'Clock in time is required.': 'La hora de entrada es obligatoria.', 'Clock out must be after clock in.': 'La salida debe ser después de la entrada.',
+    'The name cannot be empty.': 'El nombre no puede estar vacío.', 'A new person needs a PIN.': 'Una persona nueva necesita un PIN.',
+    'The PIN must be 4 to 8 digits, numbers only.': 'El PIN debe tener de 4 a 8 dígitos, solo números.',
+    'This is the only active manager. Make someone else a manager first.': 'Es el único encargado activo. Primero haga encargado a alguien más.',
+    'That record no longer exists. Reload the page.': 'Ese registro ya no existe. Recargue la página.',
+    'The manager approval setup has not been run in Supabase yet.': 'La configuración de aprobaciones todavía no se ha ejecutado en Supabase.',
+    'No manager on the team yet': 'Todavía no hay encargado en el equipo', 'Could not load the team. Check the connection.': 'No se pudo cargar el equipo. Revise la conexión.',
+    'Former team member': 'Exmiembro del equipo', 'Could not load the clock. Check the connection.': 'No se pudo cargar el reloj. Revise la conexión.',
+    'No one on the team yet.': 'Todavía no hay nadie en el equipo.', 'Go to': 'Vaya a', 'and tap': 'y toque',
+    'In since {t}': 'En turno desde {t}', 'Forgot to clock out? Fix it in Hours.': '¿Olvidó marcar la salida? Corríjalo en Horas.',
+    'Type your PIN to clock OUT.': 'Escriba su PIN para marcar la SALIDA.', 'Type your PIN to clock IN.': 'Escriba su PIN para marcar la ENTRADA.',
+    'clocked out · {t}': 'salida marcada · {t}', 'Could not load the hours. Check the connection.': 'No se pudieron cargar las horas. Revise la conexión.',
+    'This week · from {d}': 'Esta semana · desde el {d}', 'Last week · from {d}': 'Semana pasada · desde el {d}', 'This month · from {d}': 'Este mes · desde el {d}',
+    'Shift changed': 'Turno cambiado', 'Shift added': 'Turno agregado', 'Shift deleted': 'Turno eliminado', 'Team updated': 'Equipo actualizado',
+    'Order voided': 'Pedido anulado', 'Menu changed': 'Menú cambiado', 'Sales opened': 'Ventas abiertas', 'Sales access changed': 'Acceso a ventas cambiado',
+    'The approvals log switches on once the manager approval setup is run.': 'La bitácora de aprobaciones se activa cuando se ejecute la configuración de aprobaciones.',
+    'Nothing approved yet.': 'Todavía no hay aprobaciones.', '· approved by {x}': '· aprobado por {x}',
+    'No team members yet — add people below.': 'Todavía no hay miembros del equipo; agregue personas abajo.', '+ Add shift': '+ Agregar turno',
+    'still in · {t}': 'todavía en turno · {t}', 'Edit shift · {x}': 'Editar turno · {x}', 'Add shift · {x}': 'Agregar turno · {x}',
+    'Shift saved and logged': 'Turno guardado y anotado', 'Delete this shift? A manager PIN and a reason are required, and it is logged.': '¿Eliminar este turno? Se necesita el PIN de un encargado y un motivo, y queda anotado.',
+    'Shift deleted and logged': 'Turno eliminado y anotado',
+    'Nobody yet. Add the team with the button below — each person picks a PIN to type when clocking in.': 'Todavía nadie. Agregue al equipo con el botón de abajo; cada persona elige un PIN para marcar.',
+    'Team changes are made from the owner login.': 'Los cambios de equipo se hacen desde el ingreso del propietario.',
+    'Edit · {x}': 'Editar · {x}', 'New PIN (leave empty to keep the current one)': 'Nuevo PIN (déjelo vacío para conservar el actual)',
+    'Saved, but the sales access did not change. Try again from the owner login.': 'Se guardó, pero el acceso a ventas no cambió. Intente de nuevo desde el ingreso del propietario.',
+    '{x} saved': '{x} guardado', '{x} is now the manager': '{x} ahora es el encargado', 'active': 'activo', 'inactive': 'inactivo', 'manager': 'encargado', 'sales': 'ventas',
+    'no shifts': 'sin turnos', 'Edit': 'Editar',
+
+    /* kitchen */
+    'Kitchen · Hanging Garden': 'Cocina · Hanging Garden', 'One step before the kitchen screen works': 'Falta un paso para que funcione la pantalla de cocina',
+    'Run': 'Ejecute', 'once in Supabase (SQL Editor → New query → paste → Run), then reload this page.': 'una vez en Supabase (SQL Editor → New query → pegar → Run) y recargue esta página.',
+    'Hanging Garden · tickets appear here as they come in': 'Hanging Garden · las comandas aparecen aquí al llegar',
+    'Sound: on': 'Sonido: activado', 'Sound: off': 'Sonido: apagado', 'Nothing to prepare right now.': 'Nada que preparar por ahora.',
+    'Ready, waiting for pickup': 'Listos, esperando entrega', 'Front counter': 'Mostrador', 'Start': 'Empezar', 'Done': 'Listo',
+
+    /* TV board */
+    'Menu Board · Hanging Garden': 'Pantalla del menú · Hanging Garden', 'Monteverde, Costa Rica · made for the cloud forest': 'Monteverde, Costa Rica · hecho para el bosque nuboso',
+    'Pura vida': 'Pura vida', 'The menu board lost its connection.': 'La pantalla del menú perdió la conexión.', 'It will keep trying by itself.': 'Seguirá intentando por su cuenta.',
+
+    /* small words and lines the pages build on the fly */
+    'everything is available': 'todo está disponible', 'on': 'activado', 'off': 'apagado',
+    'Your café, one tap away': 'Su café, a un toque', 'Hanging Garden Café emblem': 'Emblema de Hanging Garden Café',
+    'Good question, and I want to get it right. I saved it for the café team. Meanwhile, ask at the counter when you visit, or try one of the buttons below.':
+      'Buena pregunta, y quiero responderla bien. La guardé para el equipo del café. Mientras tanto, pregunte en el mostrador cuando nos visite, o pruebe uno de los botones de abajo.',
+    'and closes': 'y cierra', 'Open': 'Abrir', 'Available': 'Disponible', 'none': 'ninguno',
+    'Out': 'Fuera', '{t} today': '{t} hoy', '{n} shift': '{n} turno', '{n} shifts': '{n} turnos',
+    'online': 'en línea', 'offline': 'sin conexión', '{n} items': '{n} productos', '{n} item': '{n} producto',
+    'updated {x}': 'actualizó a {x}', 'added {x}': 'agregó a {x}', 'opened the sales reports': 'abrió los reportes de ventas',
+    'voided order {x}': 'anuló el pedido {x}', 'changed shift {x}': 'cambió el turno {x}', 'added shift {x}': 'agregó el turno {x}',
+    'deleted shift {x}': 'eliminó el turno {x}', 'sales access on for {x}': 'acceso a ventas activado para {x}', 'sales access off for {x}': 'acceso a ventas desactivado para {x}',
+
+    /* inventory */
+    'Inventory': 'Inventario', 'Inventory · Hanging Garden': 'Inventario · Hanging Garden', 'Inventory · Monteverde, Costa Rica': 'Inventario · Monteverde, Costa Rica',
+    'What you have, what you sell, what to order': 'Lo que tiene, lo que vende, lo que hay que pedir',
+    'One step before the inventory works': 'Falta un paso para que funcione el inventario',
+    'Inventory is locked': 'El inventario está bloqueado',
+    'Type a manager PIN to open the inventory for 15 minutes. Every opening is written to the approvals log.': 'Escriba un PIN de encargado para abrir el inventario por 15 minutos. Cada apertura se anota en la bitácora de aprobaciones.',
+    'Open the inventory': 'Abrir el inventario', 'Open inventory': 'Abrir inventario', 'Could not open the inventory.': 'No se pudo abrir el inventario.',
+    'Could not load the inventory. Check the connection.': 'No se pudo cargar el inventario. Revise la conexión.',
+    'The inventory is locked. Type a manager PIN again.': 'El inventario está bloqueado. Escriba de nuevo un PIN de encargado.',
+    'What is on the shelf, what each sale uses, and what to order before it runs out.': 'Lo que hay en el estante, lo que usa cada venta y lo que hay que pedir antes de que se acabe.',
+    'Stock': 'Existencias', 'Recipes': 'Recetas', 'Vendors': 'Proveedores', 'History': 'Historial', 'By month': 'Por mes',
+    'Items tracked': 'Productos controlados', 'Need attention': 'Requieren atención', 'Expiring soon': 'Por vencer', 'within 3 days': 'en 3 días',
+    'Stock value': 'Valor en existencias', 'at last purchase cost': 'al último costo de compra', 'Before it runs out': 'Antes de que se acabe',
+    'Build the order': 'Armar el pedido', 'Ingredients used': 'Ingredientes usados', 'Waste': 'Merma', 'all good': 'todo bien',
+    '{n} out · {m} low · {k} running out': '{n} agotados · {m} bajos · {k} por acabarse', '{n} vendors': '{n} proveedores',
+    '{p}% of sales': '{p}% de las ventas', '{p}% of what was used': '{p}% de lo usado', '{p}% of the price': '{p}% del precio',
+    'Ingredient cost follows the recipes: link each menu item to what it uses in the Recipes tab and this becomes your real food cost.': 'El costo de ingredientes sigue las recetas: enlace cada producto del menú con lo que usa en la pestaña Recetas y esto será su costo real de comida.',
+    'Nothing is running out. Enjoy the calm.': 'Nada se está acabando. Disfrute la calma.',
+    '{q} on hand': '{q} en existencia', '{q} on hand · about {n} days left': '{q} en existencia · unos {n} días', '{q} on hand · about {n} days left · {v}': '{q} en existencia · unos {n} días · {v}', '{q} on hand · {v}': '{q} en existencia · {v}',
+    'about {n} days left': 'unos {n} días', 'Out of stock': 'Agotado', 'Low': 'Bajo', 'Running out': 'Por acabarse', 'OK': 'Bien', 'Expiring': 'Por vencer', 'Expires {d}': 'Vence {d}',
+    '+ Add item': '+ Agregar producto', 'Add item': 'Agregar producto', 'Search…': 'Buscar…', 'All categories': 'Todas las categorías', 'Everything': 'Todo',
+    'Needs attention': 'Requiere atención', 'Inactive items': 'Productos inactivos', 'Item': 'Producto', 'On hand': 'En existencia', 'Par · reorder': 'Par · reorden',
+    'Use / day': 'Uso / día', 'Days left': 'Días restantes', 'Vendor': 'Proveedor', 'Value': 'Valor',
+    'No items yet. Tap + Add item, or start with the coffee, milk and pastries you buy every week.': 'Todavía no hay productos. Toque + Agregar producto, o empiece con el café, la leche y la repostería que compra cada semana.',
+    'Suggested order': 'Pedido sugerido', "based on the last 30 days of sales and each vendor's lead time": 'según los últimos 30 días de ventas y el plazo de entrega de cada proveedor',
+    '+ Blank order': '+ Pedido en blanco', 'Received orders': 'Pedidos recibidos', 'What each menu item uses': 'Lo que usa cada producto del menú',
+    'Link same-name items': 'Enlazar por nombre', 'Pick a menu item, then list what goes out of stock each time it sells. A croissant you buy ready-made is simply 1 croissant. A latte is grams of coffee and millilitres of milk. Sales then take stock out by themselves.':
+      'Elija un producto del menú y anote lo que sale de existencias cada vez que se vende. Un croissant que compra ya hecho es simplemente 1 croissant. Un latte son gramos de café y mililitros de leche. Las ventas descuentan las existencias solas.',
+    'Recipe': 'Receta', '+ Ingredient': '+ Ingrediente', 'Save recipe': 'Guardar receta', 'Recipe saved': 'Receta guardada', 'Could not save the recipe. Try again.': 'No se pudo guardar la receta. Intente de nuevo.',
+    'Could not link. Try again.': 'No se pudo enlazar. Intente de nuevo.', '{n} linked': '{n} enlazados', 'not linked': 'sin enlazar', '{n} ingredient': '{n} ingrediente', '{n} ingredients': '{n} ingredientes',
+    'Pick a stock item': 'Elija un producto de existencias', 'Remove': 'Quitar', 'Ingredients {c} per sale': 'Ingredientes {c} por venta', 'Ingredients {c} per sale · {p}% of the price': 'Ingredientes {c} por venta · {p}% del precio',
+    '+ Add vendor': '+ Agregar proveedor', 'Add vendor': 'Agregar proveedor', 'Contact': 'Contacto', 'Orders on': 'Pide los', 'Lead days': 'Días de entrega', 'Items': 'Productos',
+    'No vendors yet. Add the people you buy from, with their WhatsApp, and orders go out in one tap.': 'Todavía no hay proveedores. Agregue a quienes les compra, con su WhatsApp, y los pedidos salen con un toque.',
+    'Contact person': 'Persona de contacto', 'Phone': 'Teléfono', 'WhatsApp (with country code)': 'WhatsApp (con código de país)', 'Lead days (order to delivery)': 'Días de entrega (del pedido a la entrega)',
+    'Takes orders on': 'Recibe pedidos los', 'Active': 'Activo', 'Delete vendor': 'Eliminar proveedor', 'Vendor deleted': 'Proveedor eliminado', 'inactive': 'inactivo',
+    'Delete "{x}"? Its items stay, without a vendor.': '¿Eliminar "{x}"? Sus productos se quedan, sin proveedor.',
+    'Every movement': 'Cada movimiento', 'All items': 'Todos los productos', 'All kinds': 'Todos los tipos', 'Received': 'Recibido', 'Sold': 'Vendido', 'Returned (void)': 'Devuelto (anulación)',
+    'Returned': 'Devuelto', 'Count adjustments': 'Ajustes de conteo', 'Adjustment': 'Ajuste', 'Kind': 'Tipo', 'Qty': 'Cant.', 'Unit cost': 'Costo unitario', 'Note': 'Nota', 'By': 'Por', 'Nothing yet.': 'Todavía nada.',
+    'per pack': 'por paquete', 'expires {d}': 'vence {d}',
+    'What came in, what went out through sales, what was wasted, and what is on the shelf right now.': 'Lo que entró, lo que salió por ventas, lo que se desperdició y lo que hay en el estante ahora.',
+    'Ordered': 'Pedido', 'Cost': 'Costo', 'Count adj.': 'Ajuste conteo', 'In stock now': 'En existencia ahora', 'Total spent': 'Total gastado', 'Nothing in this month.': 'Nada en este mes.',
+    'Previous month': 'Mes anterior', 'Next month': 'Mes siguiente',
+    'Category': 'Categoría', 'Dairy': 'Lácteos', 'Bakery': 'Panadería', 'Sandwich': 'Sándwich', 'Produce': 'Frutas y verduras', 'Drinks': 'Bebidas', 'Packaging': 'Empaques', 'Cleaning': 'Limpieza',
+    'Counted in': 'Se cuenta en', 'units': 'unidades', 'grams': 'gramos', 'kilograms': 'kilogramos', 'millilitres': 'mililitros', 'litres': 'litros',
+    'What you buy': 'Lo que compra', 'Units per pack': 'Unidades por paquete', 'Cost per pack (₡)': 'Costo por paquete (₡)', 'No vendor': 'Sin proveedor', 'No vendor set': 'Sin proveedor asignado',
+    'Par level (target after an order)': 'Nivel par (meta después de un pedido)', 'Reorder point (alert at)': 'Punto de reorden (alerta en)', 'Shelf life (days, optional)': 'Vida útil (días, opcional)',
+    'Starting stock (new items)': 'Existencia inicial (productos nuevos)', 'Notes': 'Notas', 'Active (counted and ordered)': 'Activo (se cuenta y se pide)', 'Delete item': 'Eliminar producto', 'Item deleted': 'Producto eliminado',
+    'Delete "{x}" and its history? If you only stopped buying it, untick Active instead.': '¿Eliminar "{x}" y su historial? Si solo dejó de comprarlo, mejor desmarque Activo.',
+    'e.g. Whole milk': 'ej. Leche entera', 'e.g. bottle 1 L': 'ej. botella 1 L', 'e.g. Mon, Thu': 'ej. lun, jue', 'starting stock': 'existencia inicial',
+    'Count': 'Contar', 'Receive': 'Recibir', 'Count · {x}': 'Contar · {x}', 'Receive · {x}': 'Recibir · {x}', 'Waste · {x}': 'Merma · {x}', 'Counted now': 'Contado ahora',
+    'On the books: {q}. Type what you actually see; the difference is logged.': 'En los libros: {q}. Escriba lo que ve en realidad; la diferencia queda anotada.',
+    'Add what just arrived. Packs or units, either one.': 'Agregue lo que acaba de llegar. Paquetes o unidades, cualquiera de los dos.',
+    'Add what just arrived. Packs or units, either one. One pack = {x}.': 'Agregue lo que acaba de llegar. Paquetes o unidades, cualquiera de los dos. Un paquete = {x}.',
+    'Take out what was thrown away, spilled or expired.': 'Descuente lo que se botó, se derramó o se venció.', 'Packs': 'Paquetes', 'Units': 'Unidades', 'Expires on': 'Vence el', 'Expires': 'Vence',
+    'optional': 'opcional', 'Type the quantity you counted.': 'Escriba la cantidad que contó.', 'Type a quantity above zero.': 'Escriba una cantidad mayor que cero.',
+    '{x} counted': '{x} contado', '{x} received': '{x} recibido', '{x} waste logged': 'merma de {x} anotada',
+    'Nothing needs ordering right now.': 'No hay nada que pedir por ahora.', 'orders on {d}': 'pide los {d}', '{n} day lead': '{n} días de entrega', 'Par': 'Par', 'Packs to order': 'Paquetes a pedir',
+    'pack of {q}': 'paquete de {q}', 'Create order': 'Crear pedido', 'Nothing to order.': 'Nada que pedir.', 'No open orders.': 'No hay pedidos abiertos.', 'Nothing received yet.': 'Todavía no se ha recibido nada.',
+    'No lines yet': 'Sin líneas todavía', '+ Add line': '+ Agregar línea', 'Send by WhatsApp': 'Enviar por WhatsApp', 'Print': 'Imprimir', 'Mark received': 'Marcar recibido', 'Cancel order': 'Cancelar pedido',
+    'Cancel this order?': '¿Cancelar este pedido?', 'Could not create the order. Try again.': 'No se pudo crear el pedido. Intente de nuevo.', 'Could not add the lines. Try again.': 'No se pudieron agregar las líneas. Intente de nuevo.',
+    'Order created': 'Pedido creado', 'Draft': 'Borrador', 'Sent': 'Enviado', 'Cancelled': 'Cancelado', 'Add to order': 'Agregar al pedido', '1 pack = {x}': '1 paquete = {x}',
+    'Pick an item and a number of packs.': 'Elija un producto y un número de paquetes.', 'Mark as received': 'Marcar como recibido',
+    "Change any quantity that arrived short or long. Costs update the item's price.": 'Cambie cualquier cantidad que llegó de menos o de más. Los costos actualizan el precio del producto.',
+    'Cost / pack': 'Costo / paquete', 'Add to stock': 'Agregar a existencias', 'Order received, stock updated': 'Pedido recibido, existencias actualizadas', 'per sale': 'por venta',
+    'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'dueño', 'POS': 'Caja', 'about {n} days left': 'unos {n} días',
+    /* owner areas behind a PIN (access.js) */
+    'Owners and managers only': 'Solo dueños y encargados', 'owners and managers': 'dueños y encargados', 'Owner': 'Dueño',
+    'Type the PIN of an owner, GM or manager. It stays open on this device for 15 minutes, or until someone taps Lock.':
+      'Escriba el PIN de un dueño, GM o encargado. Queda abierto en este dispositivo por 15 minutos, o hasta que alguien toque Bloquear.',
+    'Back to the POS': 'Volver a la caja', 'No owner or manager set up yet': 'Todavía no hay dueño ni encargado', 'Lock': 'Bloquear',
+    'Needs the PIN of an owner, GM or manager': 'Necesita el PIN de un dueño, GM o encargado',
+    'Owner areas open': 'Áreas de dueños abiertas', 'until {t}': 'hasta las {t}',
+    'Only an owner, GM or manager can open this area.': 'Solo un dueño, GM o encargado puede abrir esta área.',
+    'Pick who is opening.': 'Elija quién abre.',
+    'Could not open. Try again.': 'No se pudo abrir. Intente de nuevo.',
+    'The PIN was right, but this device could not confirm it. Reload the page and try again.': 'El PIN era correcto, pero este dispositivo no pudo confirmarlo. Recargue la página e intente de nuevo.',
+    'This manager may not open the sales reports. The owner can allow it in the Time clock, Team section. Or someone else can open them.':
+      'Este encargado no puede abrir los reportes de ventas. El dueño lo puede permitir en el Reloj de marcas, sección Equipo. O que los abra otra persona.',
+    'Owner (full access)': 'Dueño (acceso total)', 'Only an owner can add or change an owner.': 'Solo un dueño puede agregar o cambiar a un dueño.',
+    'Team changes need the PIN of an owner, GM or manager.': 'Los cambios del equipo necesitan el PIN de un dueño, GM o encargado.',
+    '{n} (owner)': '{n} (dueño)', '{n} (manager)': '{n} (encargado)',
+    'Owner areas opened': 'Áreas de dueños abiertas', 'Discount approved': 'Descuento aprobado', 'Inventory opened': 'Inventario abierto',
+    'Unpaid order cancelled': 'Pedido sin pagar cancelado',
+    /* POS: discounts approved with a PIN */
+    'Discount': 'Descuento', 'Discount approved by {n}': 'Descuento aprobado por {n}', 'Discount {a}': 'Descuento {a}', 'Subtotal': 'Subtotal', 'Remove the discount': 'Quitar el descuento',
+    'Approved by {x}': 'Aprobado por {x}', 'approved by {x}': 'aprobado por {x}', 'New total {a}': 'Nuevo total {a}',
+    'A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.':
+      'Un descuento necesita un motivo y el PIN de un dueño, GM o encargado. Queda guardado con el pedido.',
+    'How much': 'Cuánto', 'Or an amount in colones': 'O un monto en colones', 'Pick a reason': 'Elija un motivo',
+    'Regular customer': 'Cliente frecuente', 'Team member': 'Miembro del equipo', 'Courtesy for a mistake or a wait': 'Cortesía por un error o una espera',
+    'Promotion': 'Promoción', 'Details (needed for Other)': 'Detalles (necesarios para Otro)', 'Details': 'Detalles',
+    'Approve the discount': 'Aprobar el descuento',
+    'Only an owner, GM or manager can approve a discount.': 'Solo un dueño, GM o encargado puede aprobar un descuento.',
+    'Pick who is approving the discount.': 'Elija quién aprueba el descuento.', 'Pick the reason for the discount.': 'Elija el motivo del descuento.',
+    'Pick a percentage or type an amount.': 'Elija un porcentaje o escriba un monto.', 'The discount is bigger than the order.': 'El descuento es mayor que el pedido.',
+    'Write the reason in Details.': 'Escriba el motivo en Detalles.', 'Type the PIN.': 'Escriba el PIN.', 'Could not approve. Try again.': 'No se pudo aprobar. Intente de nuevo.',
+    'Discounts switch on once supabase/pos-stations.sql is run in Supabase.': 'Los descuentos se activan cuando se ejecute supabase/pos-stations.sql en Supabase.',
+    'A discount needs the internet to check the PIN.': 'Un descuento necesita internet para revisar el PIN.',
+    'Discount removed': 'Descuento quitado',
+    'Recorded {x}': 'Registrado {x}', 'number {n}': 'número {n}',
+    /* POS: devices (front register, iPad) */
+    'This device': 'Este dispositivo', 'Which device is this?': '¿Qué dispositivo es este?',
+    'Every order keeps the name of the device that took it. Every device shows the orders still to deliver at the top, and the orders still to charge under the menu.':
+      'Cada pedido guarda el nombre del dispositivo que lo tomó. Todos los dispositivos muestran arriba los pedidos por entregar, y debajo del menú las órdenes por cobrar.',
+    'Main register': 'Caja principal', 'The front counter, with the cash drawer. Charges the orders sent from other devices.':
+      'El mostrador del frente, con la gaveta del efectivo. Cobra los pedidos enviados desde otros dispositivos.',
+    'Second device': 'Segundo dispositivo', 'The iPad or a phone. Takes orders and sends them to the register, or charges them here.':
+      'El iPad o un teléfono. Toma pedidos y los envía a la caja, o los cobra aquí.',
+    'Name of this device': 'Nombre de este dispositivo', 'e.g. Front register, iPad': 'p. ej. Caja del frente, iPad',
+    'Type a name for this device.': 'Escriba un nombre para este dispositivo.', 'Front register': 'Caja del frente',
+    'Name or table (optional)': 'Nombre o mesa (opcional)', 'Name or table': 'Nombre o mesa',
+    'Pay later': 'Cobrar después', 'Send to the register': 'Enviar a la caja', 'Sent to the register': 'Enviado a la caja',
+    'Run supabase/pos-stations.sql in Supabase to send orders between devices.': 'Ejecute supabase/pos-stations.sql en Supabase para enviar pedidos entre dispositivos.',
+    'Not paid': 'Sin pagar', 'Delivered': 'Entregado', 'Charge': 'Cobrar',
+    'Cancel this order? It was not paid, so nothing is charged.': '¿Cancelar este pedido? No se pagó, así que no se cobra nada.',
+    'It was already paid. A manager can void it from Orders.': 'Ya estaba pagado. Un encargado lo puede anular desde Pedidos.',
+    'It was already delivered. Charge it, or a manager voids it from Orders.': 'Ya se entregó. Cóbrelo, o que un encargado lo anule desde Pedidos.',
+    'Order cancelled': 'Pedido cancelado', 'Already charged on another device.': 'Ya se cobró en otro dispositivo.',
+    'That order was cancelled.': 'Ese pedido fue cancelado.', 'Cancelled before payment': 'Cancelado antes de pagar',
+    'Not paid yet (not counted)': 'Sin pagar todavía (no se cuenta)',
+    'One order is not paid yet ({x}). Charge it or cancel it before closing: unpaid orders are not counted.':
+      'Un pedido todavía no está pagado ({x}). Cóbrelo o cancélelo antes de cerrar: los pedidos sin pagar no se cuentan.',
+    '{n} orders are not paid yet ({x}). Charge them or cancel them before closing: unpaid orders are not counted.':
+      '{n} pedidos todavía no están pagados ({x}). Cóbrelos o cancélelos antes de cerrar: los pedidos sin pagar no se cuentan.',
+    'Discounts given': 'Descuentos dados',
+    "Only an owner can change another manager's PIN, role or status.": 'Solo un dueño puede cambiar el PIN, el puesto o el estado de otro encargado.',
+    'The discount approval is more than {n} minutes old. Ask for it again.': 'La aprobación del descuento tiene más de {n} minutos. Pídala de nuevo.',
+    'Sending to the register needs the internet. Charge it here or try again.': 'Enviar a la caja necesita internet. Cóbrelo aquí o intente de nuevo.',
+    'Already done on another device.': 'Ya se hizo en otro dispositivo.',
+    'not verified': 'sin verificar',
+    /* TV board */
+    "Vertical · the TV's top edge is on the left": 'Vertical · el borde de arriba del televisor quedó a la izquierda',
+    "Vertical · the TV's top edge is on the right": 'Vertical · el borde de arriba del televisor quedó a la derecha',
+    "The TV's top edge is the side where its browser bar or its brand logo ended up. If the menu shows upside down, pick the other vertical option.":
+      'El borde de arriba es el lado donde quedó la barra del navegador o el logo de la marca del televisor. Si el menú sale de cabeza, elija la otra opción vertical.',
+    'Look': 'Apariencia', 'Automatic: bright by day, dark at night (recommended behind a window)': 'Automática: clara de día, oscura de noche (recomendada detrás de una ventana)',
+    'Always bright (easiest to read with reflections)': 'Siempre clara (la más fácil de leer con reflejos)', 'Always dark': 'Siempre oscura',
+    'Saved. To keep the look, run supabase/tv-board-look.sql once in Supabase.': 'Guardado. Para guardar la apariencia, ejecute supabase/tv-board-look.sql una vez en Supabase.',
+    'Press OK on the remote for full screen': 'Presione OK en el control para pantalla completa',
+    /* POS: open bills (pay later), items added later, split payments */
+    'Open bill': 'Abrir cuenta', 'Adding to the bill': 'Añadiendo a la cuenta', 'Add to the bill': 'Añadir a la cuenta',
+    'Name or table, to find the bill later': 'Nombre o mesa, para encontrar la cuenta después', 'e.g. Ana, table 3': 'p. ej. Ana, mesa 3',
+    'Whole bill': 'Toda la cuenta', 'By item': 'Por producto', 'Equal parts': 'Partes iguales', 'An amount': 'Un monto',
+    'To pay now': 'A cobrar ahora', 'To pay now (closes the bill)': 'A cobrar ahora (cierra la cuenta)', 'Paid in full': 'Pagada por completo',
+    'This bill was already delivered, so a manager approves taking an item off.': 'Esta cuenta ya se entregó, así que un encargado aprueba quitar un producto.',
+    'e.g. the guest changed their mind': 'p. ej. el cliente cambió de opinión', 'Take it off': 'Quitarlo', 'Add items': 'Añadir productos',
+    'Print the bill': 'Imprimir la cuenta', 'Take off': 'Quitar', 'Opening a bill needs the internet.': 'Abrir una cuenta necesita internet.',
+    'Could not open the bill. Check the connection.': 'No se pudo abrir la cuenta. Revise la conexión.',
+    'That order is no longer open.': 'Ese pedido ya no está abierto.', 'That order was cancelled.': 'Ese pedido fue cancelado.',
+    'That bill was already paid.': 'Esa cuenta ya fue pagada.', 'The bill changed on another device. Check it and try again.': 'La cuenta cambió en otro dispositivo. Revísela e intente de nuevo.',
+    'Nothing left to pay on this bill.': 'No queda nada por pagar en esta cuenta.', 'Type an amount no bigger than what is owed.': 'Escriba un monto que no pase de lo que se debe.',
+    'Pick how they paid.': 'Elija cómo pagó.', 'Something on the order is not on the menu any more.': 'Algo del pedido ya no está en el menú.',
+    'Add fewer items at a time.': 'Añada menos productos a la vez.', 'That is the last thing on the bill. Cancel the order instead.': 'Es lo último de la cuenta. Mejor cancele el pedido.',
+    'This bill was already delivered. A manager approves taking an item off.': 'Esta cuenta ya se entregó. Un encargado aprueba quitar un producto.',
+    'Write the reason.': 'Escriba el motivo.', 'Only an owner, GM or manager can approve this.': 'Solo un dueño, gerente o encargado puede aprobar esto.',
+    'Pick who is approving.': 'Elija quién aprueba.', 'Open bills switch on once supabase/pos-tabs.sql is run in Supabase.': 'Las cuentas abiertas se activan cuando se ejecute supabase/pos-tabs.sql en Supabase.',
+    'New': 'Nuevo', 'In the kitchen': 'En cocina', 'Preparing': 'Preparando', 'Paid': 'Pagado', 'Opened {t}': 'Abierta {t}', 'Paid by': 'Pagado con',
+    'No items on this bill.': 'No hay productos en esta cuenta.', 'Added to the order': 'Añadido al pedido', 'Added to {x}': 'Añadido a {x}', 'Added {t}': 'Añadido {t}',
+    '1 paid': '1 pagado', '{n} paid': '{n} pagados', 'This person pays': 'Esta persona paga', 'One less {x}': 'Uno menos de {x}', 'One more {x}': 'Uno más de {x}',
+    'Take one {x} off the bill': 'Quitar un {x} de la cuenta', 'Paid in parts {x}': 'Pagado en partes {x}', 'still to pay {x}': 'falta {x}',
+    'Paid {t}': 'Pagado {t}', 'voided': 'anulado', 'Last payment': 'Último pago', 'Still to pay': 'Por pagar',
+    'Their items: {x}': 'Sus productos: {x}', 'less the discount': 'menos el descuento',
+    'Tap + on what this person pays. Each person pays in turn.': 'Toque + en lo que paga esta persona. Cada persona paga a su turno.',
+    '{n} people still to pay, the same part each.': 'Faltan {n} personas por pagar, la misma parte cada una.',
+    'The last person pays what is left.': 'La última persona paga lo que queda.', 'How many people pay?': '¿Cuántas personas pagan?',
+    'Amount this person pays (₡)': 'Monto que paga esta persona (₡)', 'One payment for everything still owed.': 'Un solo pago por todo lo que se debe.',
+    'That is more than what is owed ({x}).': 'Es más de lo que se debe ({x}).',
+    'Charging a bill needs the internet. Try again in a moment.': 'Cobrar una cuenta necesita internet. Intente de nuevo en un momento.',
+    'Could not record the payment. Check the connection and try again.': 'No se pudo registrar el pago. Revise la conexión e intente de nuevo.',
+    'Bill paid': 'Cuenta pagada', 'Part paid': 'Parte pagada', 'Name or table for this bill:': 'Nombre o mesa para esta cuenta:', 'Could not save.': 'No se pudo guardar.',
+    'Take 1× {x} off the bill?': '¿Quitar 1× {x} de la cuenta?', 'Take 1× {x} off the bill': 'Quitar 1× {x} de la cuenta',
+    'This needs the internet. Try again in a moment.': 'Esto necesita internet. Intente de nuevo en un momento.',
+    'Could not take it off. Try again.': 'No se pudo quitar. Intente de nuevo.', 'Taken off': 'Quitado', 'the bill is settled': 'la cuenta quedó saldada',
+    'Tap the items to add to {x}': 'Toque los productos para añadir a {x}', 'Adding to a bill needs the internet. Try again in a moment.': 'Añadir a una cuenta necesita internet. Intente de nuevo en un momento.',
+    'Could not add. Check the connection and try again.': 'No se pudo añadir. Revise la conexión e intente de nuevo.', 'Could not add. Try again.': 'No se pudo añadir. Intente de nuevo.',
+    'sent to the kitchen': 'enviado a cocina', 'Part of {x}': 'Parte de la cuenta {x}',
+    'Part of this bill was paid. Take items off one by one instead.': 'Parte de esta cuenta ya se pagó. Quite los productos uno por uno.',
+    'Item taken off a bill': 'Producto quitado de una cuenta', 'Paid in parts {x} · this is the last payment': 'Pagado en partes {x} · este es el último pago',
+    'this is the last payment': 'este es el último pago',     'only these': 'solo esto', 'Something was just added to this order. Check the ticket.': 'Se acaba de añadir algo a este pedido. Revise el ticket.',
+    'Something was added · check the ticket': 'Se añadió algo · revise el ticket', 'Paid earlier': 'Pagado antes',
+    'Part of this bill was already paid on account. A manager voids (or gives back) that payment in Orders first, then try again.': 'Parte de esta cuenta ya se pagó a cuenta. Un encargado anula (o devuelve) ese pago en Pedidos primero; luego intente de nuevo.',
+    'Take off the combo discount line first.': 'Primero quite la línea de descuento del combo.', 'That would take the bill below zero.': 'Eso dejaría la cuenta por debajo de cero.',
+    'Finish adding to No number first: tap Add to the bill or Cancel.': 'Termine de añadir a la cuenta sin número primero: toque Añadir a la cuenta o Cancelar.',
+    'Finish adding to {x} first: tap Add to the bill or Cancel.': 'Termine de añadir a {x} primero: toque Añadir a la cuenta o Cancelar.',
+    'Added to No number': 'Añadido a la cuenta sin número', 'Tap the items to add to No number': 'Toque los productos para añadir a la cuenta sin número',
+    'Saving': 'Guardando', 'ordered from the room': 'pedido desde la habitación',
+    'The clock of this device is off by {x}': 'El reloj de este dispositivo está desfasado por {x}',
+    'Set the date and time to automatic in the device settings.': 'Ponga la fecha y la hora en automático en los ajustes del dispositivo.',
+    'The session ended because it could not be renewed. Sign in again.': 'La sesión terminó porque no se pudo renovar. Vuelva a ingresar.',
+    'Void': 'Anular', 'Void {x}': 'Anular {x}', 'not paid yet': 'sin pagar todavía', 'Accept': 'Aceptar',
+    'Give back': 'Devolver', 'Give back {x}': 'Devolver {x}', 'Give it back': 'Devolverlo', 'Given back {t}': 'Devuelto {t}',
+    'Money given back': 'Dinero devuelto', 'given back': 'devuelto', 'it is back on the bill': 'vuelve a la cuenta',
+    'Payment given back': 'Pago devuelto', 'Given back': 'Devuelto',
+    'Some of these were already added to {x}. Check the bill and add what is missing.': 'Parte de esto ya se había añadido a {x}. Revise la cuenta y añada lo que falte.',
+    'That is the last thing on the bill. A manager voids it from Orders.': 'Es lo último de la cuenta. Un encargado lo anula desde Pedidos.',
+    'That bill is closed.': 'Esa cuenta está cerrada.', 'The items stay on the ticket to charge as a new sale.': 'Los productos quedan en el pedido para cobrarlos como una venta nueva.',
+    /* POS: open orders under the menu, sales kept on this device, a discount on a bill */
+    'Open orders': 'Órdenes abiertas', '1 order · {x} to collect': '1 orden · {x} por cobrar', '{n} orders · {x} to collect': '{n} órdenes · {x} por cobrar',
+    'Tap one to add items, give a discount or charge it.': 'Toque una para añadir productos, dar un descuento o cobrarla.',
+    'None right now. An order charged later stays here until it is paid.': 'Ninguna por ahora. Una orden para cobrar después queda aquí hasta que se pague.',
+    'Adding items': 'Añadiendo productos', 'Not saved yet': 'Sin guardar todavía', 'See why': 'Ver por qué',
+    'Sales saved on this device': 'Ventas guardadas en este dispositivo', 'Saved on this device': 'Guardado en este dispositivo',
+    'Try again now': 'Intentar de nuevo ahora', '{n} not saved yet': '{n} sin guardar todavía', 'saving {n}': 'guardando {n}',
+    /* an open order still only on this device (pos.html, its own window) */
+    'Open this order ›': 'Abrir esta orden ›', 'Trying now': 'Intentando ahora', 'Tried at {t}': 'Intentado a las {t}',
+    'Tried at {t} · still not saved': 'Intentado a las {t} · sigue sin guardar',   /* before the shorter ones below */
+    '1 saved now': '1 guardada ahora', '{n} saved now': '{n} guardadas ahora',
+    'everything is saved': 'todo está guardado', 'still not saved': 'sigue sin guardar',
+    'Only on this device': 'Solo en este dispositivo', 'Paid here': 'Pagada aquí', 'not in the system yet': 'todavía no está en el sistema',
+    'Items added and the payment taken here go to the system by themselves, right after the order. Do not ring it again.':
+      'Los productos añadidos y el pago cobrado aquí suben al sistema solos, justo después de la orden. No la vuelva a marcar.',
+    'Discount, splitting the bill and taking an item off work once the order is in the system.':
+      'El descuento, dividir la cuenta y quitar un producto funcionan cuando la orden ya esté en el sistema.',
+    'It is in the system now.': 'Ya está en el sistema.', 'It goes to the system with the order.': 'Sube al sistema con la orden.',
+    'This order has a discount: add items once it is in the system.': 'Esta orden tiene descuento: añada productos cuando ya esté en el sistema.',
+    'Check this': 'Revise esto', 'OK, checked': 'Listo, revisado', 'Not added to No number': 'No se añadió a Sin número', 'Not added to {x}': 'No se añadió a {x}',
+    'Already paid here with the bill: ring these as a new sale with the same payment, without charging the customer again.':
+      'Ya se cobraron aquí con la cuenta: regístrelos como una venta nueva con el mismo pago, sin cobrarle otra vez al cliente.',
+    'The bill changed on another device.': 'La cuenta cambió en otro dispositivo.',
+    'Not on the list of No number': 'No está en la lista de Sin número', 'Not on the list of {x}': 'No está en la lista de {x}',
+    'The bill’s total counts them. Tell the manager.': 'El total de la cuenta los incluye. Avise al encargado.',
+    'Record what was taken on the bill in the system (pay by amount), then charge the rest.': 'Registre lo cobrado en la cuenta en el sistema (pago por monto) y luego cobre el resto.',
+    'Charge these as a new sale if the customer has them.': 'Cóbrelos como una venta nueva si el cliente los tiene.',
+    'Payment not recorded': 'Pago no registrado', 'Taken on this device': 'Cobrado en este dispositivo',
+    'Check the money: give it back if the customer paid.': 'Revise el dinero: devuélvalo si el cliente pagó.',
+    'Paid twice?': '¿Pagado dos veces?', 'It was already paid in the system': 'Ya estaba pagada en el sistema',
+    'If the customer paid twice, give one payment back.': 'Si el cliente pagó dos veces, devuelva uno de los pagos.',
+    'No internet on this device. It saves by itself when the internet is back.': 'Este dispositivo no tiene internet. Se guarda solo cuando vuelva el internet.',
+    'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.': 'Hay que renovar el ingreso. Si no se guarda en un minuto, toque Cerrar sesión y vuelva a ingresar.',
+    'This login is not connected to the café in the system. The owner must connect it in Supabase.': 'Este ingreso no está conectado al café en el sistema. El dueño tiene que conectarlo en Supabase.',
+    'The system refused this sale.': 'El sistema rechazó esta venta.',
+    'Everything taken on this device is saved in the system.': 'Todo lo que se tomó en este dispositivo está guardado en el sistema.',
+    'These sales are kept on this device until they reach the system, and they go by themselves. The other devices, the register and the open orders see them once they are saved. Nothing is lost: do not clear this browser’s data.':
+      'Estas ventas se guardan en este dispositivo hasta que lleguen al sistema, y se envían solas. Los otros dispositivos, la caja y las órdenes abiertas las ven cuando ya están guardadas. No se pierde nada: no borre los datos de este navegador.',
+    'Discount on the bill': 'Descuento en la cuenta', 'Still to pay {x}': 'Por pagar {x}',
+    'On the items of this bill not paid yet ({x}). It needs a reason and the PIN of an owner, GM or manager.':
+      'Sobre los productos de esta cuenta que aún no se pagan ({x}). Necesita un motivo y el PIN de un dueño, GM o encargado.',
+    'The discount is bigger than what is still to pay.': 'El descuento es mayor que lo que falta por pagar.',
+    'That approval was not found. Ask for the discount again.': 'No se encontró esa aprobación. Pida el descuento de nuevo.',
+    'That approval was already used on another order. Ask for the discount again.': 'Esa aprobación ya se usó en otro pedido. Pida el descuento de nuevo.',
+    'A discount on a bill switches on once the new part of supabase/pos-tabs.sql is run in Supabase.': 'El descuento en una cuenta se activa cuando se ejecute la parte nueva de supabase/pos-tabs.sql en Supabase.',
+    'Could not save the discount. Check the connection and try again.': 'No se pudo guardar el descuento. Revise la conexión e intente de nuevo.',
+    'Could not save the discount. Try again.': 'No se pudo guardar el descuento. Intente de nuevo.',
+    'Take the discount off this bill?': '¿Quitar el descuento de esta cuenta?', 'Discount taken off what is still to pay': 'Descuento quitado de lo que falta por pagar',
+    'Discount taken off a bill': 'Descuento quitado de una cuenta',
+    '{n} sales are not saved yet. Tap the red sign at the top to see why, before closing.': '{n} ventas no se han guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
+    'One sale is not saved yet. Tap the red sign at the top to see why, before closing.': 'Una venta no se ha guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
+    'One sale is waiting to sync. Connect to the internet before closing.': 'Una venta espera sincronizarse. Conéctese a internet antes de cerrar.',
+    'not kept on this device': 'no guardado en este dispositivo',
+    'The system is not answering right now. It saves by itself when it is back: do not ring the sale again.': 'El sistema no responde en este momento. Se guarda solo cuando vuelva: no cobre la venta otra vez.',
+    'This device’s storage is full or blocked, so these sales are only on this page. Do not close or reload it until they are saved.': 'El almacenamiento de este dispositivo está lleno o bloqueado, así que estas ventas solo están en esta página. No la cierre ni la recargue hasta que se guarden.',
+    'Could not update the list. Check the internet, or sign out and sign in again.': 'No se pudo actualizar la lista. Revise el internet, o cierre sesión y vuelva a ingresar.',
+    'Could not load the open orders. Check the internet, or sign out and sign in again.': 'No se pudieron cargar las órdenes abiertas. Revise el internet, o cierre sesión y vuelva a ingresar.',
+    /* faq:start */
+    "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
+    "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",
+    "What time do you open? I want coffee before the cloud forest reserve.": "¿A qué hora abren? Quiero café antes de la reserva del bosque nuboso.",
+    "We open at 6:00 every day, one hour before the Monteverde Cloud Forest Reserve opens its gate at 7:00. Coffee, a warm croissant or an empanada, and you are on the trail before the crowds. We close at 19:00.": "Abrimos a las 6:00 todos los días, una hora antes de que la Reserva del Bosque Nuboso Monteverde abra su portón a las 7:00. Un café, un croissant caliente o una empanada, y está en el sendero antes que todos. Cerramos a las 19:00.",
+    "Where can I have breakfast in Santa Elena before a tour?": "¿Dónde puedo desayunar en Santa Elena antes de un tour?",
+    "Right here, from 6:00. Sandwiches such as the Mano de Piedra with Costa Rican beef, empanadas, croissants, banana bread and a chorreado coffee. Leaving before dawn? Order an Adventure Box by 20:00 the night before and pick it up from 6:30.": "Aquí mismo, desde las 6:00. Sándwiches como el Mano de Piedra con carne costarricense, empanadas, croissants, pan de banano y un café chorreado. ¿Sale antes del amanecer? Pida una Adventure Box antes de las 20:00 la noche anterior y recójala desde las 6:30.",
+    "Where is Hanging Garden Café, and how far is it from the reserve?": "¿Dónde queda Hanging Garden Café y a qué distancia está de la reserva?",
+    "We are 50 metres south and 50 metres east of the church in Santa Elena, Monteverde, Puntarenas, Costa Rica. The Monteverde Cloud Forest Reserve is about 10 minutes away by car, and the centre of Santa Elena is a short walk. Tap \"Get directions\" in the visit section and Google Maps takes you to the door.": "Estamos 50 metros sur y 50 metros este de la Iglesia de Santa Elena, Monteverde, Puntarenas, Costa Rica. La Reserva del Bosque Nuboso Monteverde queda a unos 10 minutos en carro, y el centro de Santa Elena a una caminata corta. Toque \"Cómo llegar\" en la sección de visita y Google Maps lo lleva a la puerta.",
+    "Is Monteverde coffee really that good?": "¿De verdad es tan bueno el café de Monteverde?",
+    "Yes, and there is a reason. Monteverde sits at about 1,400 metres, where cool nights make the coffee cherry ripen slowly and build sugar. That is why a Monteverde cup tastes sweet and clean, with chocolate and citrus notes. Our coffee page explains altitude, harvest and roast in plain words.": "Sí, y hay una razón. Monteverde está a unos 1 400 metros, donde las noches frías hacen que el fruto madure despacio y acumule azúcar. Por eso una taza de Monteverde sabe dulce y limpia, con notas de chocolate y cítricos. Nuestra página del café explica altitud, cosecha y tueste en palabras sencillas.",
+    "Is there a coffee tour near Santa Elena, and how long does it take?": "¿Hay un tour de café cerca de Santa Elena y cuánto dura?",
+    "Yes. Several family farms around Monteverde run coffee tours of two to three hours, from the plant to the roaster, usually with sugar cane and chocolate too. If you only have twenty minutes, come and taste the same mountain in a cup: we serve El Trapiche coffee and are happy to tell you how it is made.": "Sí. Varias fincas familiares alrededor de Monteverde hacen tours de café de dos a tres horas, de la planta al tostador, casi siempre con caña de azúcar y chocolate también. Si solo tiene veinte minutos, venga a probar la misma montaña en una taza: servimos café de El Trapiche y con gusto le contamos cómo se hace.",
+    "Can I buy Monteverde coffee beans to take home?": "¿Puedo comprar café de Monteverde en grano para llevar a casa?",
+    "Ask at the counter. We sell what we brew when we have it, whole bean or ground, and we can tell you which farm it comes from and when it was roasted. It packs flat in a suitcase and it is the souvenir people write to us about.": "Pregunte en el mostrador. Vendemos lo mismo que servimos cuando lo tenemos, en grano o molido, y le decimos de qué finca viene y cuándo se tostó. Cabe plano en la maleta y es el recuerdo por el que la gente nos escribe.",
+    "What can I do in Monteverde when it rains?": "¿Qué puedo hacer en Monteverde cuando llueve?",
+    "Let it rain, this is a cloud forest. A hot chocolate or a Cloud Forest Latte under the hanging plants is the local way to wait it out, and the forest is at its greenest right after. Our rainy day guide lists what stays open and what is better in the mist.": "Que llueva, esto es un bosque nuboso. Un chocolate caliente o un Cloud Forest Latte bajo las plantas colgantes es la forma local de esperar, y el bosque está más verde justo después. Nuestra guía de días de lluvia dice qué sigue abierto y qué es mejor con neblina.",
+    "Do you have garden seating or a view?": "¿Tienen mesas en el jardín o vista?",
+    "Our tables sit under hanging plants, ferns and flowers, with the cloud forest air coming through. It is a garden more than a view: hummingbirds visit, and on clear afternoons the light comes in sideways through the mist.": "Nuestras mesas están bajo plantas colgantes, helechos y flores, con el aire del bosque nuboso entrando. Es más jardín que vista: los colibríes visitan, y en las tardes despejadas la luz entra de lado a través de la neblina.",
+    "Is Monteverde cold? What should I wear?": "¿Hace frío en Monteverde? ¿Qué debo llevar?",
+    "Cool, not cold: about 15 to 22 °C most of the year, with mist and wind. Bring layers and a light rain jacket even on sunny mornings. Then come in for something hot; we have coffee, tea and Costa Rican hot chocolate.": "Fresco, no frío: unos 15 a 22 °C casi todo el año, con neblina y viento. Lleve capas y una capa ligera de lluvia incluso en mañanas soleadas. Luego pase por algo caliente; tenemos café, té y chocolate caliente costarricense.",
+    "Do you accept credit cards, US dollars and colones?": "¿Aceptan tarjetas, dólares y colones?",
+    "Yes to all three. Prices are in colones; we also take dollars at the counter, cards, and SINPE Móvil. Change is given in colones.": "Sí, los tres. Los precios están en colones; también aceptamos dólares en el mostrador, tarjetas y SINPE Móvil. El vuelto se da en colones.",
+    "Do you have wifi? Can I work on my laptop?": "¿Tienen wifi? ¿Puedo trabajar con mi computadora?",
+    "Yes, there is free wifi for guests; ask at the counter for the password. You are welcome to work a while. Mornings are the quietest and there are some outlets.": "Sí, hay wifi gratis para visitantes; pida la clave en el mostrador. Puede venir a trabajar un rato. Las mañanas son lo más tranquilo y hay algunos enchufes.",
+    "Do you have oat milk, almond milk or lactose free milk?": "¿Tienen leche de avena, de almendra o deslactosada?",
+    "We have lactose free milk for any coffee or hot chocolate, just ask. We do not stock oat or almond milk. Every smoothie can be made in water instead of milk.": "Tenemos leche deslactosada para cualquier café o chocolate caliente, solo pídala. No tenemos leche de avena ni de almendra. Todos los batidos se pueden hacer en agua en vez de leche.",
+    "Do you have decaf?": "¿Tienen descafeinado?",
+    "No, we do not serve decaf. Our coffee is arabica from Monteverde, which is naturally lower in caffeine than most supermarket blends. For no caffeine at all, try the tea, the Costa Rican hot chocolate or a garden smoothie.": "No, no servimos descafeinado. Nuestro café es arábica de Monteverde, que por naturaleza tiene menos cafeína que la mayoría de las mezclas de supermercado. Si no quiere nada de cafeína, pruebe el té, el chocolate caliente costarricense o un batido del jardín.",
+    "Do you have gluten free, vegan or vegetarian options?": "¿Tienen opciones sin gluten, veganas o vegetarianas?",
+    "Vegetarian, yes: the Monteverde sandwich, most pastries, drinks and smoothies. Vegan: smoothies in water, americano, tea and the sweet cane drink. Our kitchen is small, so we cannot promise zero contact with gluten; tell the team when you order and they will guide you.": "Vegetarianas, sí: el sándwich Monteverde, casi toda la repostería, las bebidas y los batidos. Veganas: batidos en agua, americano, té y agua dulce. Nuestra cocina es pequeña, así que no podemos prometer cero contacto con gluten; avise al equipo al ordenar y le orientan.",
+    "Is the café dog friendly?": "¿Se puede ir con perro?",
+    "Well behaved dogs are welcome at the garden tables, and we will find them a bowl of water.": "Los perros educados son bienvenidos en las mesas del jardín, y les buscamos un tazón de agua.",
+    "Is it good for kids?": "¿Es bueno para niños?",
+    "Very. The garden gives children room to look at plants and hummingbirds, and the Costa Rican hot chocolate was practically made for them.": "Mucho. El jardín les da espacio para mirar plantas y colibríes, y el chocolate caliente costarricense es casi para ellos.",
+    "Is there parking?": "¿Hay parqueo?",
+    "Yes, free street parking right by the café. Mornings before 7:00 are the easiest time to find a spot.": "Sí, hay parqueo gratis en la calle junto al café. Antes de las 7:00 es la hora más fácil para encontrar campo.",
+    "Can I book a table, or bring a group?": "¿Puedo reservar mesa o venir en grupo?",
+    "No reservation needed, just come in. For groups of eight or more, or a small celebration, message us on WhatsApp a day ahead and we will set the garden for you.": "No necesita reserva, solo llegue. Para grupos de ocho o más, o una celebración pequeña, escríbanos por WhatsApp un día antes y le acomodamos el jardín.",
+    "Do you do takeaway, and can I order on WhatsApp?": "¿Tienen para llevar y puedo pedir por WhatsApp?",
+    "Everything on the menu travels well; just ask for it to go. To order ahead, write to us on WhatsApp at +506 6400 6601 and tell us when you will pick it up.": "Todo el menú viaja bien; solo pídalo para llevar. Para pedir con anticipación, escríbanos por WhatsApp al +506 6400 6601 y díganos a qué hora lo recoge.",
+    "Are you open on Sundays and holidays?": "¿Abren domingos y feriados?",
+    "Yes. We open every day of the week, 6:00 to 19:00, holidays included. If a storm or a special day changes that, we post it on our Google profile first.": "Sí. Abrimos todos los días de la semana, de 6:00 a 19:00, feriados incluidos. Si una tormenta o un día especial cambia eso, lo publicamos primero en nuestro perfil de Google.",
+    "Is there a bathroom?": "¿Hay baño?",
+    "Yes, we have restrooms for guests.": "Sí, tenemos baños para visitantes.",
+    "Is tipping expected in Costa Rica?": "¿Se deja propina en Costa Rica?",
+    "Tips are never expected in Costa Rica and always appreciated. If someone made your morning, a small extra says so.": "La propina nunca es obligatoria en Costa Rica y siempre se agradece. Si alguien le alegró la mañana, un poco extra lo dice.",
+    "Do you speak English?": "¿Hablan inglés?",
+    "English y español, con mucho gusto. The menu, this website and our team speak both.": "English y español, con mucho gusto. El menú, este sitio y nuestro equipo hablan los dos.",
+    "Our coffee": "Nuestro café",
+    "Why coffee from 1,400 metres tastes sweeter": "Por qué el café de 1 400 metros sabe más dulce",
+    "What makes Monteverde coffee taste the way it does: 1,400 metres of altitude, hand picking, honey and washed processing, local roasting, and the chorreado.": "Qué hace que el café de Monteverde sepa como sabe: 1 400 metros de altura, recolección a mano, proceso honey y lavado, tueste local y el chorreado.",
+    "Monteverde guide": "Guía de Monteverde",
+    "Looking for the best coffee in Monteverde, Costa Rica? Five signs of a great cup, where the coffee comes from, what to order, and why Hanging Garden Café opens at 6:00 for it..": "¿Busca el mejor café de Monteverde, Costa Rica? Cinco señales de una gran taza, de dónde viene el café, qué pedir y por qué Hanging Garden Café abre a las 6:00 para eso..",
+    "Best coffee in Monteverde": "El mejor café de Monteverde",
+    "Breakfast in Santa Elena before the cloud forest": "Desayuno en Santa Elena antes del bosque nuboso",
+    "Where to have breakfast in Santa Elena, Monteverde before the cloud forest reserve, the hanging bridges or a sunrise tour.": "Dónde desayunar en Santa Elena, Monteverde antes de la reserva del bosque nuboso, los puentes colgantes o un tour al amanecer.",
+    "Breakfast before the reserve": "Desayuno antes de la reserva",
+    "What to do in Monteverde when it rains": "Qué hacer en Monteverde cuando llueve",
+    "Rain in Monteverde is normal and the forest is better for it.": "Llover en Monteverde es normal y el bosque está mejor así.",
+    "Rainy day in Monteverde": "Día de lluvia en Monteverde",
+    "Specialty coffee · Fresh food": "Café de especialidad · Comida fresca",
+    "The menu": "El menú",
+    "The full menu of Hanging Garden Café in Monteverde, Costa Rica with prices in colones: specialty coffee from El Trapiche, chorreado, sandwiches, empanadas, pastries, Costa Rican favourites and garden smoothies.": "El menú completo de Hanging Garden Café en Monteverde, Costa Rica con precios en colones: café de especialidad de El Trapiche, chorreado, sándwiches, empanadas, repostería, favoritos costarricenses y batidos del jardín.",
+    "Menu": "Menú",
+    "Questions people ask before they visit": "Preguntas que la gente hace antes de visitar",
+    "Good to know": "Bueno saberlo",
+    "Hours, coffee, payment, what to wear: the answers we give at the counter, here before you arrive.": "Horario, café, pagos, qué ponerse: las respuestas que damos en el mostrador, aquí antes de que llegue.",
+    "Read before you come": "Lea antes de venir",
+    "Monteverde guides": "Guías de Monteverde",
+    "Leave a review on Google": "Deje una reseña en Google",
+    "Open the menu as its own page": "Abrir el menú en su propia página",
+/* faq:end */
+  };
+
+  /* ---------- pattern entries ({x} placeholders) ---------- */
+  var PAT = [];
+  Object.keys(D).forEach(function (k) {
+    if (k.indexOf('{') < 0) return;
+    var names = [];
+    var re = '^' + k.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{(\w+)\}/g, function (_, n) { names.push(n); return '(.+?)'; }) + '$';
+    PAT.push({ re: new RegExp(re), names: names, es: D[k], sep: k.indexOf(' · ') > -1,
+               head: /^\{\w+\}/.test(k), tail: /\{\w+\}$/.test(k) });
+  });
+
+  function lookup(k) {
+    if (D.hasOwnProperty(k)) return D[k];
+    for (var i = 0; i < PAT.length; i++) {
+      var m = k.match(PAT[i].re);
+      /* an open-ended entry never swallows a " · " it does not have itself: "Recorded {x}" must not eat
+         "₡5 000 · Cash ₡ · number 3"; such a line is translated part by part below */
+      if (m && !PAT[i].sep && ((PAT[i].head && m[1].indexOf(' · ') > -1) || (PAT[i].tail && m[m.length - 1].indexOf(' · ') > -1))) continue;
+      if (m) {
+        var out = PAT[i].es;
+        PAT[i].names.forEach(function (n, j) { out = out.replace('{' + n + '}', m[j + 1]); });
+        return out;
+      }
+    }
+    return null;
+  }
+  /* short English day and month names the pages print next to numbers */
+  var DAYS = { Mon: 'lun', Tue: 'mar', Wed: 'mié', Thu: 'jue', Fri: 'vie', Sat: 'sáb', Sun: 'dom' };
+  var MONTHS = { Jan: 'ene', Feb: 'feb', Mar: 'mar', Apr: 'abr', May: 'may', June: 'jun', Jun: 'jun', July: 'jul', Jul: 'jul', Aug: 'ago', Sept: 'set', Sep: 'set', Oct: 'oct', Nov: 'nov', Dec: 'dic' };
+  var LONG = { January: 'enero', February: 'febrero', March: 'marzo', April: 'abril', May: 'mayo', June: 'junio', July: 'julio', August: 'agosto', September: 'setiembre', October: 'octubre', November: 'noviembre', December: 'diciembre' };
+  function esDates(str) {
+    return str.replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)(?= \d{4}\b)/g, function (m) { return LONG[m]; })
+              .replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(?= \d)/g, function (d) { return DAYS[d]; })
+              .replace(/(?<=\d )(Jan|Feb|Mar|Apr|May|June|Jun|July|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\b/g, function (m) { return MONTHS[m]; });
+  }
+  function tr(text) {
+    var k = text.replace(/\s+/g, ' ').trim();
+    if (!k || !/[A-Za-z]/.test(k)) return null;
+    var t = lookup(k);
+    if (t !== null) return esDates(t);
+    var dated = esDates(k);
+    if (dated !== k) { var t2 = lookup(dated); return t2 !== null ? t2 : dated; }
+    /* "Label:" or "Label…" */
+    var m = k.match(/^(.*?)([:…]|\.\.\.)$/);
+    if (m && (t = lookup(m[1].trim())) !== null) return t + m[2];
+    /* "part · part" */
+    if (k.indexOf(' · ') > 0) {
+      var any = false;
+      var parts = k.split(' · ').map(function (p) { var x = lookup(p.trim()); if (x !== null) { any = true; return x; } return p; });
+      if (any) return parts.join(' · ');
+    }
+    return null;
+  }
+
+  /* ---------- state ---------- */
+  var lang = 'en';
+  try { lang = localStorage.getItem(KEY) || ''; } catch (e) {}
+  if (lang !== 'en' && lang !== 'es') lang = /^es/i.test(navigator.language || '') ? 'es' : 'en';
+  window.HG_LANG = lang;
+  /* exact dictionary entries only, for text typed in the Menu Manager (the QR menu, m.html): a dish name is
+     never put through the patterns or word-by-word rules, so 'Float' or 'Baked fresh today' stay as typed */
+  var MENU = {};
+  (function () {
+    var keys = Object.keys(D), a = keys.indexOf('\u0000menu-start'), b = keys.indexOf('\u0000menu-end');
+    for (var i = a + 1; a > -1 && i < b; i++) MENU[keys[i]] = 1;
+  })();
+  window.HG_EXACT = function (k) {
+    k = String(k == null ? '' : k).replace(/\s+/g, ' ').trim();
+    return k && MENU.hasOwnProperty(k) && D[k] ? D[k] : null;
+  };
+
+  var ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
+
+  function setText(node, value) { if (node.nodeValue !== value) node.nodeValue = value; node.__hgLast = value; }
+
+  function handleText(node) {
+    var p = node.parentNode;
+    if (!p || p.nodeType !== 1) return;
+    var tag = p.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'TEXTAREA') return;
+    if (p.closest && p.closest('[data-no-translate],[data-split]')) return;
+    var cur = node.nodeValue;
+    if (node.__hgLast === undefined || cur !== node.__hgLast) node.__hgEn = cur;   /* fresh English from the page or its scripts */
+    var en = node.__hgEn;
+    if (lang === 'es') {
+      var t = tr(en);
+      if (t !== null) {
+        var lead = en.match(/^\s*/)[0], tail = en.match(/\s*$/)[0];
+        setText(node, lead + t + tail); return;
+      }
+    }
+    setText(node, en);
+  }
+
+  function handleAttr(el, a) {
+    var cur = el.getAttribute(a);
+    if (cur === null) return;
+    el.__hgA = el.__hgA || {};
+    var rec = el.__hgA[a];
+    if (!rec || cur !== rec.last) rec = el.__hgA[a] = { en: cur, last: cur };
+    var want = rec.en;
+    if (lang === 'es') { var t = tr(rec.en); if (t !== null) want = t; }
+    if (cur !== want) el.setAttribute(a, want);
+    rec.last = want;
+  }
+
+  /* headline words split into spans by the home page: translate the whole line, then re-split */
+  function handleSplit(el) {
+    var en = el.__hgSplitEn || (el.__hgSplitEn = el.getAttribute('aria-label') || el.textContent);
+    var spans = el.querySelectorAll('.w');
+    if (!spans.length) return;
+    var want = lang === 'es' ? (tr(en) || en) : en;
+    if (el.__hgSplitLast === want) return;
+    el.__hgSplitLast = want;
+    var words = want.split(' ');
+    if (words.length === spans.length) { spans.forEach(function (s, i) { s.textContent = words[i]; }); }
+    else { spans.forEach(function (s, i) { s.textContent = i === 0 ? want : ''; }); }
+  }
+
+  var swHost = null;
+  function visible(el) { return !!(el && el.getClientRects().length); }
+  function placeSwitch() {
+    if (!sw) return;
+    if (swHost === null) {
+      swHost = document.querySelector('#nav .navlinks') || document.querySelector('nav.pagenav') ||
+               document.querySelector('header.top') || document.getElementById('soundBtn') ||
+               document.querySelector('.app .topbar') || false;
+    }
+    var host = swHost;
+    if (host && visible(host)) {
+      if (sw.parentNode === host.parentNode && host.id === 'soundBtn') return;
+      if (sw.parentNode === host) return;
+      sw.classList.remove('fixed'); sw.style.marginLeft = '';
+      if (host.id === 'soundBtn') { host.parentNode.insertBefore(sw, host); }
+      else if (host.tagName === 'HEADER') { var ob = host.querySelector('#outBtn'); sw.style.marginLeft = 'auto'; if (ob) { ob.style.marginLeft = '0'; host.insertBefore(sw, ob); } else host.appendChild(sw); }
+      else if (host.classList.contains('pagenav')) { sw.style.marginLeft = 'auto'; host.appendChild(sw); }
+      else { host.appendChild(sw); }
+      if (!document.getElementById('nav')) sw.classList.remove('dark');
+    } else {
+      if (sw.parentNode === document.body && sw.classList.contains('fixed')) return;
+      sw.classList.add('fixed'); sw.style.marginLeft = '';
+      document.body.appendChild(sw);
+      if (document.body.classList.contains('tv') || document.getElementById('board')) sw.classList.add('dark');
+    }
+  }
+
+  var busy = false;
+  function applyAll() {
+    if (busy) return; busy = true;
+    try {
+      var root = document.documentElement;
+      var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var n; while ((n = w.nextNode())) handleText(n);
+      var all = root.querySelectorAll('[placeholder],[title],[aria-label],[alt],input[type=button],input[type=submit]');
+      for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        for (var j = 0; j < ATTRS.length; j++) if (el.hasAttribute(ATTRS[j])) handleAttr(el, ATTRS[j]);
+        if (el.tagName === 'INPUT' && (el.type === 'button' || el.type === 'submit')) handleAttr(el, 'value');
+      }
+      var splits = root.querySelectorAll('[data-split]');
+      for (var s = 0; s < splits.length; s++) handleSplit(splits[s]);
+      root.lang = lang;
+    } finally { busy = false; }
+    placeSwitch();
+    syncSwitch();
+  }
+
+  /* native dialogs built by the pages' own scripts */
+  ['alert', 'confirm', 'prompt'].forEach(function (fn) {
+    var orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = function (msg, dflt) {
+      var m = (lang === 'es' && typeof msg === 'string') ? (tr(msg) || msg) : msg;
+      return fn === 'prompt' ? orig.call(window, m, dflt) : orig.call(window, m);
+    };
+  });
+
+  /* ---------- the visible switch ---------- */
+  var sw;
+  function syncSwitch() {
+    if (!sw) return;
+    var bs = sw.querySelectorAll('button');
+    bs[0].classList.toggle('on', lang === 'en'); bs[0].setAttribute('aria-pressed', lang === 'en');
+    bs[1].classList.toggle('on', lang === 'es'); bs[1].setAttribute('aria-pressed', lang === 'es');
+  }
+  function setLang(l) {
+    if (l === lang) return;
+    lang = l; window.HG_LANG = l;
+    try { localStorage.setItem(KEY, l); } catch (e) {}
+    applyAll();
+    try { document.dispatchEvent(new CustomEvent('hg-lang', { detail: l })); } catch (e) {}
+  }
+  function buildSwitch() {
+    var css = document.createElement('style');
+    css.setAttribute('data-hg-lang', '');
+    css.textContent =
+      '.hg-lang{display:inline-flex;align-items:center;gap:0;border:1.5px solid rgba(120,120,110,.45);border-radius:99px;padding:2px;' +
+      'font:600 .72rem/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:.06em;background:rgba(255,255,255,.55);' +
+      'backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);flex:none;text-shadow:none}' +
+      '.hg-lang button{all:unset;cursor:pointer;padding:.42em .7em;border-radius:99px;color:#4a5a4e;min-height:0;line-height:1}' +
+      '.hg-lang button.on{background:#1E4B33;color:#fff}' +
+      '.hg-lang button:focus-visible{outline:2px solid #1E4B33;outline-offset:2px}' +
+      '.hg-lang.fixed{position:fixed;top:.6rem;right:.7rem;z-index:2147483000}' +
+      '.hg-lang.dark{background:rgba(0,0,0,.35);border-color:rgba(255,255,255,.45)}.hg-lang.dark button{color:#F6EFE3}.hg-lang.dark button.on{background:#F6EFE3;color:#1E4B33}' +
+      '@media print{.hg-lang{display:none}}';
+    document.head.appendChild(css);
+    sw = document.createElement('div');
+    sw.className = 'hg-lang'; sw.setAttribute('data-no-translate', ''); sw.setAttribute('role', 'group'); sw.setAttribute('aria-label', 'Language / Idioma');
+    sw.innerHTML = '<button type="button" lang="en">EN</button><button type="button" lang="es">ES</button>';
+    sw.querySelectorAll('button')[0].addEventListener('click', function () { setLang('en'); });
+    sw.querySelectorAll('button')[1].addEventListener('click', function () { setLang('es'); });
+    placeSwitch();
+    if (document.getElementById('nav')) {
+      /* the website's bar swaps colours over the film; follow it */
+      var nav = document.getElementById('nav');
+      var follow = function () { sw.classList.toggle('dark', nav.classList.contains('on-video')); };
+      new MutationObserver(follow).observe(nav, { attributes: true, attributeFilter: ['class'] }); follow();
+    }
+    syncSwitch();
+  }
+
+  function start() {
+    buildSwitch();
+    applyAll();
+    var pending = false;
+    new MutationObserver(function () {
+      if (busy || pending) return;
+      pending = true;
+      requestAnimationFrame(function () { pending = false; applyAll(); });
+    }).observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS.concat(['value']) });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
