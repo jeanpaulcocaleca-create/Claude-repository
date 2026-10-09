@@ -94,7 +94,7 @@ nav.chips a[aria-current="true"]{background:var(--accent);border-color:var(--acc
 .it .nm,.it .ds{overflow-wrap:break-word}
 @media (max-width:300px){.it.has-ph{grid-template-columns:56px minmax(0,1fr) auto}.it .ph{width:56px;height:56px}}
 /* very big text on a small phone: the price goes under the name, long headings wrap */
-@media (max-width:220px){.it.has-ph{grid-template-columns:48px minmax(0,1fr)}.it .ph{width:48px;height:48px}.it.has-ph .pr{grid-column:2}
+@media (max-width:280px){.it.has-ph{grid-template-columns:48px minmax(0,1fr)}.it .ph{width:48px;height:48px}.it.has-ph .pr{grid-column:2}
   .fav h2,.cat h2{overflow-wrap:anywhere;letter-spacing:.04em}}
 
 /* the combo saving, while the till has its combo line */
@@ -251,7 +251,7 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     var line = $('chips').getBoundingClientRect().bottom, els = root.querySelectorAll('[data-k]');
     for (var n = 0; n < els.length; n++){
       var r = els[n].getBoundingClientRect();
-      if (r.bottom > line){
+      if (r.bottom > line + 16){   /* not the sliver of the section above, left under the bars by a chip tap */
         var h = els[n].dataset.s ? find(root, els[n].dataset.s) : null;
         return {k: els[n].dataset.k, top: r.top, s: els[n].dataset.s || '', sTop: h ? h.getBoundingClientRect().top : 0};
       }
@@ -264,6 +264,7 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
     if (key === shown) return;
     shown = key;
     var y = window.scrollY, root = $('menu'), chips = $('chips'), at = place(root);
+    var oldRow = root.querySelector('.favrow'), favX = oldRow ? oldRow.scrollLeft : 0;   /* the favourites row keeps where it was slid to */
     root.textContent = ''; chips.textContent = '';
     if (!menu || !menu.length) return;
 
@@ -287,6 +288,7 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
       });
       fs.appendChild(row);
       root.appendChild(fs);
+      row.scrollLeft = favX;
     }
 
     if (combo > 0){
@@ -381,7 +383,9 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
   function openPhoto(i){
     if ($('lb').hidden){
       opener = document.activeElement;
-      try { history.pushState({hgPhoto: 1}, ''); } catch (e) {}
+      /* the entry under the photo does not restore its old scroll on Back (it would jump to a #section a chip
+         left in the address, or undo a live update's "keep the guest's place"); the photo entry itself does */
+      try { history.scrollRestoration = 'manual'; history.pushState({hgPhoto: 1}, ''); history.scrollRestoration = 'auto'; } catch (e) {}
     }
     lbItem = i.id;
     fillPhoto(i);
@@ -416,7 +420,10 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
   }
   $('lbClose').addEventListener('click', closePhoto);
   $('lb').addEventListener('click', function(e){ if (e.target === $('lb')) closePhoto(); });
-  window.addEventListener('popstate', function(){ if (!$('lb').hidden) closePhoto(); });
+  window.addEventListener('popstate', function(){
+    setTimeout(function(){ try { history.scrollRestoration = 'auto'; } catch (e) {} }, 0);
+    if (!$('lb').hidden) closePhoto();
+  });
   document.addEventListener('keydown', function(e){
     if ($('lb').hidden) return;
     if (e.key === 'Escape') closePhoto();
