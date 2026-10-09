@@ -274,7 +274,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_ACCESS ? HG_ACCESS.options() : undefined);
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(window.HG_ACCESS ? HG_ACCESS.options() : undefined) : (window.HG_ACCESS ? HG_ACCESS.options() : undefined));
 
 /* ---------- who is signed in: owner login or café login ---------- */
 var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */

@@ -106,7 +106,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options() : undefined);
 
 var known = null;        /* ids of tickets already on screen (null until first load) */
 var revs = {};           /* ticket id -> how many times kitchen items were added to it (supabase/pos-tabs.sql) */
