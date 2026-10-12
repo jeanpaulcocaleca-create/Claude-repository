@@ -38,7 +38,7 @@ Last updated: 2026-10-12.
 
 | Feature | Status | Depends on | Tests | Known issues | Commit | Prod |
 |---|---|---|---|---|---|---|
-| Independent security review (4 areas) and hardening (0025): books/payroll/bank need the owner's phone code or the accountant with code; sales numbers need the sales permission; NaN/infinity refused; payables, bank, payroll, PIN, FX, inventory and storage fixes; CSV, XSS, PIN and workflow fixes in the pages (D-022) | ✅ | – | 250_security_hardening (39), 240_release_check (4), e2e 170, 210 | Two accepted low findings (D-022) | (this commit) | R |
+| Independent security review (4 areas) and hardening (0025): books/payroll/bank need the owner's phone code or the accountant with code; sales numbers need the sales permission; NaN/infinity refused; payables, bank, payroll, PIN, FX, inventory and storage fixes; CSV, XSS, PIN and workflow fixes in the pages (D-022) | ✅ | – | 250_security_hardening (39), 240_release_check (4), e2e 170, 210 | Two accepted low findings (D-022) | e476844 | R |
 | Release package: wave plan, read-only release check, rollback by migration, training (docs/LANZAMIENTO.md, supabase/tools/release-check.sql) | ✅ | E-13/E-14 (staging) for the dress rehearsal | 240_release_check | Staging rehearsal not done (no staging project yet) | 9ecc79a | R |
 
 ## Phase 1 · POS and operations
