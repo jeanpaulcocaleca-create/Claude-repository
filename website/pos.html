@@ -1121,7 +1121,7 @@ document.getElementById('discForm').addEventListener('submit', async function(e)
   if (token !== discToken) return;   /* the window was closed or opened again meanwhile: nothing is applied */
   if (r.error){
     err.textContent = /approve_discount|schema cache|could not find/i.test(r.error.message || '')
-      ? 'Discounts switch on once supabase/pos-stations.sql is run in Supabase.'
+      ? 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.'
       : 'Could not check the PIN. Check the connection.';
     return;
   }
@@ -1277,7 +1277,7 @@ document.getElementById('sendBtn').addEventListener('click', async function(){
   if (!ticket.length){ toast('The order is empty.'); return; }
   if (discExpired()) return;
   if (STATIONS_READY !== true) await checkStations();
-  if (STATIONS_READY === false){ toast('Run supabase/pos-stations.sql in Supabase to send orders between devices.'); return; }
+  if (STATIONS_READY === false){ toast('This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.'); return; }
   if (STATIONS_READY !== true){ toast('Sending to the register needs the internet. Charge it here or try again.'); return; }
   pendingPay = {method: 'pending', label: isMain() ? 'Pay later' : 'Sent to the register'};
   if (!settings){ recordSale(null); return; }
@@ -1343,7 +1343,7 @@ function cashFinish(exact){
   var done = cash.done, chg = t.change_crc;
   cash = null; document.getElementById('cashModal').hidden = true;
   done(t, t.usd_in > 0 ? 'cash_usd' : 'cash_crc');
-  if (chg > 0) toast('Change ' + fmt(chg));
+  if (chg > 0) toast('Change to give: ' + fmt(chg));
 }
 document.getElementById('cashExact').addEventListener('click', function(){ cashFinish(true); });
 document.getElementById('cashGo').addEventListener('click', function(){ cashFinish(false); });
@@ -2065,7 +2065,7 @@ function renderRegister(body){
     body.appendChild(note);
     var setup = document.createElement('p');
     setup.style.cssText = 'font-size:.8rem;color:var(--sec);margin:.4rem 0 0';
-    setup.textContent = 'Run supabase/register.sql in Supabase to open and close the register here.';
+    setup.textContent = 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.';
     body.appendChild(setup);
     document.getElementById('countedCash').value = '';
     document.getElementById('cashDiff').textContent = '';
@@ -2821,13 +2821,19 @@ function openPay(o){
 }
 document.getElementById('payCancel').addEventListener('click', function(){ payTarget = null; document.getElementById('payModal').hidden = true; });
 document.querySelectorAll('[data-rpay]').forEach(function(b){
-  b.addEventListener('click', async function(){
+  b.addEventListener('click', function(){
     if (!payTarget) return;
-    var o = payTarget, room = o.source === 'room';
+    if (CASH_TENDER && isCash(b.dataset.rpay)){ var o0 = payTarget; openCash(o0.total_crc, function(t, m){ payAtWindow(b, o0, t, m); }); return; }
+    payAtWindow(b, payTarget, null, null);
+  });
+});
+async function payAtWindow(b, o, tender, cashMethod){
+  {
+    var room = o.source === 'room', method = cashMethod || b.dataset.rpay;
     b.disabled = true;
-    var r = await db.rpc('finish_order', {p_order_id: o.id, p_payment_method: b.dataset.rpay});
+    var r = await db.rpc('finish_order', {p_order_id: o.id, p_payment_method: method});
     if (room && r.error && /finish_order|schema cache|could not find/i.test(r.error.message || ''))   /* pos-stations SQL not run yet */
-      r = await db.rpc('finish_room_order', {p_order_id: o.id, p_payment_method: b.dataset.rpay});
+      r = await db.rpc('finish_room_order', {p_order_id: o.id, p_payment_method: method});
     b.disabled = false;
     if (r.error || !r.data || !r.data.ok){
       var code = r.data && r.data.error;
@@ -2836,18 +2842,20 @@ document.querySelectorAll('[data-rpay]').forEach(function(b){
       return;
     }
     document.getElementById('payModal').hidden = true;
+    if (tender) db.rpc('pos_record_tender', {p_order_id: o.id, p_tender: tender}).then(function(){});
+    var lbl = cashMethod ? (cashMethod === 'cash_usd' ? 'Cash $' : 'Cash ₡') : b.textContent.trim();
     /* keep it for "Print receipt" */
     if ((o.order_items || []).every(function(it){ return it.price_crc != null; })){
       var disc = o.discount_crc || 0;
       lastOrder = {at: new Date(), items: (o.order_items || []).map(function(it){ return {name: it.item_name, price: it.price_crc, qty: it.qty}; }),
                    total: o.total_crc, sub: o.subtotal_crc || o.total_crc + disc, disc: disc, discText: '',
-                   label: b.textContent.trim(), method: b.dataset.rpay, number: o.pickup_number};
+                   label: lbl, method: method, number: o.pickup_number, tender: tender};
       document.getElementById('printBtn').disabled = false;
     }
-    toast('Recorded ' + fmt(o.total_crc) + ' · ' + b.textContent.trim() + ' · ' + orderLabel(o));
+    toast('Recorded ' + fmt(o.total_crc) + ' · ' + lbl + ' · ' + orderLabel(o));
     payTarget = null; pollLive();
-  });
-});
+  }
+}
 /* ---------- open bills: what is owed, items added later, an item taken off, the payment split ----------
    supabase/pos-tabs.sql. Each payment for part of a bill is a sale of its own, with its own payment method,
    and is taken off the bill; the last payment closes the bill. Splitting by item: each person pays their
@@ -2873,8 +2881,8 @@ var TAB_ERR = {not_found: 'That order is no longer open.', cancelled: 'That orde
   discount_not_approved: 'That approval was not found. Ask for the discount again.',
   discount_used: 'That approval was already used on another order. Ask for the discount again.',
   discount_expired: 'The discount approval is more than 30 minutes old. Ask for it again.'};
-var TAB_SETUP = 'Open bills switch on once supabase/pos-tabs.sql is run in Supabase.';
-var TAB_DISC_SETUP = 'A discount on a bill switches on once the new part of supabase/pos-tabs.sql is run in Supabase.';
+var TAB_SETUP = 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.';
+var TAB_DISC_SETUP = 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.';
 var PAY_NAMES = {cash_crc: 'Cash ₡', cash_usd: 'Cash $', card: 'Card', sinpe: 'SINPE', other: 'Other'};
 function tabMissing(err){ return /tab_|parts_crc|parts_items_crc|kitchen_round|paid_qty|added_at|part_of|schema cache|could not find/i.test((err && err.message) || ''); }
 function tabOpenable(o){ return !o.paid && !o.voided_at && o.status !== 'cancelled'; }
@@ -3472,7 +3480,13 @@ document.querySelectorAll('#locPayRow [data-lpay]').forEach(function(b){
     if (!o){ locGone(); return; }
     if (o.charge) return;
     if (adding && adding.id === o.id){ toast('Finish adding to ' + adding.label + ' first: tap Add to the bill or Cancel.'); return; }
-    var method = b.dataset.lpay, label = b.textContent.trim(), lines = qLines(o), total = qTotal(o);
+    if (CASH_TENDER && isCash(b.dataset.lpay) && !b.__tender){
+      openCash(qTotal(o), function(t, m){ b.__tender = {t: t, m: m}; b.click(); });
+      return;
+    }
+    var tnd = b.__tender; b.__tender = null;
+    var method = tnd ? tnd.m : b.dataset.lpay, label = tnd ? (tnd.m === 'cash_usd' ? 'Cash $' : 'Cash ₡') : b.textContent.trim(), lines = qLines(o), total = qTotal(o);
+    if (tnd) o.tender = tnd.t;
     var sub = lines.reduce(function(s, l){ return s + l.price * l.qty; }, 0);
     o.charge = {method: method, at: new Date().toISOString(), total: total, lost: qLostValue(o)};
     saveQueue();

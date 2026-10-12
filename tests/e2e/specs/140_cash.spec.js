@@ -57,4 +57,24 @@ module.exports.tests = [
       assert.deepStrictEqual(pg.errors, []);
     }
   }
+,
+  {
+    name: 'a room order paid in cash at the window keeps its change',
+    run: async ({ browser }) => {
+      sql(`insert into orders (id, created_at, total_crc, payment_method, status, paid, source, needs_kitchen, room_id)
+             select '0d000000-0000-4000-8000-0000000e2e14', now(), 3000, 'pending', 'ready', false, 'room', false, id from rooms order by number limit 1;
+           insert into order_items (order_id, item_name, price_crc, qty) values ('0d000000-0000-4000-8000-0000000e2e14', 'Mocha', 1500, 2)`);
+      const pg = await pos(browser);
+      const paid = pg.locator('button', { hasText: 'Paid & picked up' }).first();
+      await until(async () => (await paid.count()) > 0, 10000, 'room order on the live bar');
+      await paid.click();
+      await pg.click('[data-rpay="cash_crc"]');
+      await pg.waitForSelector('#cashModal:not([hidden])');
+      await pg.locator('#denCrc button', { hasText: /^₡5\s000$/ }).click();
+      await pg.click('#cashGo');
+      await until(() => sql(`select o.paid || '|' || t.crc_in || '|' || t.change_crc from orders o join cash_tenders t on t.order_id = o.id
+                               where o.id = '0d000000-0000-4000-8000-0000000e2e14'`) === 'true|5000|2000', 10000, 'paid with its tender');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  }
 ];

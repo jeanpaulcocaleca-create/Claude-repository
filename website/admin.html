@@ -176,7 +176,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
           </div>
         </div>
       </div>
-      <p class="hint" id="esNotReady" style="margin:.8rem 0 0" hidden>To give each item a Spanish name and description for the QR menu, run supabase/menu-spanish.sql once in Supabase.</p>
+      <p class="hint" id="esNotReady" style="margin:.8rem 0 0" hidden>Spanish names and descriptions for the QR menu need a database update: apply the pending migrations (docs/MIGRACIONES.md).</p>
     </div>
 
     <div class="card" id="tvCard">
@@ -730,7 +730,7 @@ document.getElementById('tvForm').addEventListener('submit', async function(e){
   var r = await db.from('board_settings').upsert(row);
   if (r.error){ toast('Could not save the TV settings. Try again.'); return; }
   if (!tvThemeReady && document.getElementById('tvTheme').value !== 'auto'){
-    toast('Saved. To keep the look, run supabase/tv-board-look.sql once in Supabase.'); return;
+    toast('Saved. To keep the look, apply the pending database migrations (docs/MIGRACIONES.md).'); return;
   }
   toast('TV board updated. The screen follows within a minute.');
 });

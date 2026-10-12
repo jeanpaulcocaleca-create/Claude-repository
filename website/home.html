@@ -326,7 +326,7 @@ async function loadSecurity(){
   var codeEl = document.getElementById('secCode'), btn = document.getElementById('codeBtn'), hint = document.getElementById('secHint');
   if (ACCOUNT === null){
     codeEl.textContent = 'not available yet';
-    hint.textContent = 'Run supabase/accounts.sql once to switch on the owner and café logins.';
+    hint.textContent = 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.';
     btn.hidden = true; return;
   }
   var f = await db.auth.mfa.listFactors();
@@ -446,7 +446,8 @@ async function loadSettingsCard(){
   var guards = {};
   r.data.forEach(function(st){
     var row = document.createElement('div'); row.className = 'setrow';
-    var name = document.createElement('b'); name.textContent = (SET_LABEL[st.key] || st.key) + (st.locked ? ' 🔒' : '');
+    var name = document.createElement('b'); name.textContent = SET_LABEL[st.key] || st.key;
+    if (st.locked){ var lk = document.createElement('span'); lk.textContent = ' 🔒'; lk.title = 'Locked until the rule is confirmed'; name.appendChild(lk); }
     var sel = document.createElement('select'); sel.setAttribute('aria-label', SET_LABEL[st.key] || st.key);
     (st.choices || []).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = CHOICE_LABEL[c] || c; sel.appendChild(o); });
     sel.value = st.value;

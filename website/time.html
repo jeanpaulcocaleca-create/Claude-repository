@@ -164,8 +164,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   Supabase. It takes about a minute:</p>
   <ol>
     <li>Open your Supabase project → <strong>SQL Editor</strong> → <strong>New query</strong>.</li>
-    <li>Paste and run <span class="mono">supabase/timeclock.sql</span>, then paste and run
-        <span class="mono">supabase/authorization.sql</span> (ask Claude for them in the chat).</li>
+    <li>Apply the pending database migrations, in order, as described in docs/MIGRACIONES.md.</li>
     <li>Come back here, reload, and make yourself the first manager under <strong>Hours &amp; team</strong>.</li>
   </ol>
 </div>
@@ -494,7 +493,7 @@ var ERR = {
 /* Approval blocks are hidden for the owner login (supabase/access.sql lets it act directly).
    If the database still asks for a manager PIN, the block reappears with an explanation. */
 var needApproval = false;
-var NEED_APPROVAL_MSG = 'Approve with a manager PIN, or run supabase/access.sql once so the owner login does not need one.';
+var NEED_APPROVAL_MSG = 'Approve with a manager PIN.';
 function approvalNeeded(r){
   var code = r && r.data && r.data.error;
   return !r.error && (code === 'unknown_staff' || code === 'not_manager' || code === 'bad_pin');

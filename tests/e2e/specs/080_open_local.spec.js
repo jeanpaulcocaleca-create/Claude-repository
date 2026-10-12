@@ -8,7 +8,7 @@
      refused 400, the database refused the sale (sure) */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister } = require('../lib');
+const { page, goto, until, sql, openRegister, cashExact } = require('../lib');
 
 const id = (n) => 'f1000000-0000-4000-8000-0000000060' + String(n).padStart(2, '0');
 const CORS = { 'access-control-allow-origin': '*' };
@@ -101,6 +101,7 @@ async function addHere(pg, name) {
 }
 async function chargeHere(pg, method) {
   await pg.click('#locPayRow [data-lpay="' + method + '"]');
+  if (/^cash/.test(method)) await cashExact(pg);
   await pg.waitForSelector('#locPaid:not([hidden])');
 }
 async function closeLocal(pg) { await pg.click('#locClose'); await idle(pg); }

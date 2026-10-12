@@ -47,10 +47,10 @@ Last updated: 2026-10-12.
 | Cash window: notes and coins, typed amount, exact, change, dollars and mixed; tender kept per payment (new sales and bills) | ✅ | – | e2e 140 (2), 070 | Charging an open order from the list (data-lpay) and room orders at the window (data-rpay) still record no tender: counted as before | f9f0ab1 | R |
 | Two-currency register: float and count in ₡ and $, expected from the tenders, day's rate kept | ✅ | – | 110, e2e 140 | Payments without tender detail count in colones as before | f9f0ab1 | R |
 | Server receipt numbers; sales search (day, Nº, item, name, cashier, amount); reprint marked COPIA with change and IVA as stored, logged; void (open day) / refund (closed day) from the search (0011) | ✅ | – | 120_history_receipts (16), e2e 150 (2) | Older sales have no number (shown by time); earlier days need a manager PIN | 64548dc | R |
-| Inventory → create every vendor's order in one tap (suggestions by vendor already existed); PO numbers (0012) | ✅ | – | 130_purchasing, e2e 160 | – | (this commit) | R |
-| PO document (print / save as PDF), WhatsApp, email, share sheet or copy text | ✅ | – | e2e 160 | PDF is the browser's "Save as PDF" (no paid service) | (this commit) | R |
-| Deliveries in parts with supplier invoice Nº/date, duplicate-invoice guard, repeat-safe, "nothing more is coming" (0012) | ✅ | – | 130_purchasing (16), e2e 160 | – | (this commit) | R |
-| Spanish-first staff screens | 🟡 | – | e2e 110 (default), 060 (Spanish card) | Staff pages default to Spanish; new strings translated; a full untranslated-text sweep is still to do | b02dfbe | – |
+| Inventory → create every vendor's order in one tap (suggestions by vendor already existed); PO numbers (0012) | ✅ | – | 130_purchasing, e2e 160 | – | 1fdfb9c | R |
+| PO document (print / save as PDF), WhatsApp, email, share sheet or copy text | ✅ | – | e2e 160 | PDF is the browser's "Save as PDF" (no paid service) | 1fdfb9c | R |
+| Deliveries in parts with supplier invoice Nº/date, duplicate-invoice guard, repeat-safe, "nothing more is coming" (0012) | ✅ | – | 130_purchasing (16), e2e 160 | – | 1fdfb9c | R |
+| Spanish-first staff screens: default Spanish, every new message translated, sweep of all staff pages done (outdated setup messages replaced), lint refuses conflicting translations | ✅ | – | e2e 110, 060; lint | Menu item names and descriptions are the owner's own text (Spanish columns for the QR menu) | (this commit) | R |
 
 ## Phase 2 · Accounting foundation
 
