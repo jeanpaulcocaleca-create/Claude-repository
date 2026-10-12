@@ -1,0 +1,71 @@
+# =====================================================================================================
+# Canopy OS · respaldo nocturno (va en el repositorio PRIVADO "canopy-respaldos" del dueño, NO en el público)
+# Copie esta carpeta completa (repositorio-respaldos/) a un repositorio privado nuevo: docs/RESPALDOS.md, paso 3.
+# Corre todas las noches a las 02:17 (hora de Costa Rica) y también con el botón "Run workflow"
+# (respaldo inmediato, por ejemplo antes de aplicar una migración).
+# Todo lo que ejecuta está en ESTE repositorio privado: nunca descarga scripts del repositorio público,
+# para que nadie pueda cambiar lo que corre con la contraseña de respaldos.
+#
+# Secretos (Settings → Secrets and variables → Actions → New repository secret):
+#   CANOPY_DB_URL      conexión de la cuenta canopy_backup por el "Session pooler" (puerto 5432, ?sslmode=require)
+#   AGE_RECIPIENTS     las DOS llaves públicas age1... (del dueño y la de recuperación), separadas por un espacio
+#   RCLONE_CONF        la configuración de rclone del almacenamiento externo (solo permiso de ESCRIBIR)
+#   RCLONE_REMOTE      por ejemplo  offsite:canopy-respaldos
+# Variable (no secreta):  SUPABASE_URL = https://<proyecto>.supabase.co
+# =====================================================================================================
+name: Respaldo nocturno
+
+on:
+  schedule:
+    - cron: '17 8 * * *'      # 08:17 UTC = 02:17 en Costa Rica (UTC-6, sin horario de verano)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      # base desechable SOLO para la prueba de restauración (se borra al terminar)
+      prueba:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: prueba-desechable
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Instalar herramientas (cliente de PostgreSQL 17, age, rclone)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age rclone
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Configurar el almacenamiento externo
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          chmod 600 ~/.config/rclone/rclone.conf
+      - name: Respaldar, probar la restauración, cifrar y subir
+        env:
+          CANOPY_DB_URL: ${{ secrets.CANOPY_DB_URL }}
+          AGE_RECIPIENTS: ${{ secrets.AGE_RECIPIENTS }}
+          RCLONE_REMOTE: ${{ secrets.RCLONE_REMOTE }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          RESTORE_TEST_URL: postgresql://postgres:prueba-desechable@127.0.0.1:5432/postgres
+          BACKUP_SOURCE: cloud
+        run: bash ./backup.sh
+      - name: Borrar la configuración
+        if: always()
+        run: rm -f ~/.config/rclone/rclone.conf
