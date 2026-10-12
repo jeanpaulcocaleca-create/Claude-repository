@@ -41,6 +41,22 @@ Sin una de esas llaves **nadie** puede leer un respaldo, ni GitHub, ni el almace
 - los secretos de Vault (token del BCCR y otros);
 - la configuración de inicio de sesión de Supabase.
 
+## Primer respaldo: ANTES de aplicar cualquier migración
+
+El primer respaldo verificado se hace con la base tal como está hoy (sin la migración 0000). Para eso no hace
+falta el almacenamiento externo del paso 1: la copia **cifrada** queda como archivo descargable de la corrida de
+GitHub ("Artifacts", 14 días) y usted la guarda en su computadora.
+
+Orden: paso 2 (cuenta de respaldo) → paso 3 (repositorio privado, sin los secretos `RCLONE_*`) → **Run workflow**
+→ descargar el archivo → paso 1 y 4 cuando quiera (antes de dejar el respaldo nocturno solo).
+
+Qué se verifica en cada respaldo (si algo no coincide, la corrida queda en **rojo**):
+
+- la copia se restaura en una base desechable y **cada tabla tiene las mismas filas y el mismo contenido** (huella
+  md5 de cada fila; las tablas que cambiaron durante la copia se revisan por cantidad de filas);
+- **los mismos permisos**: quién puede ejecutar cada función y leer cada tabla, qué tablas tienen reglas de filas;
+- **cada foto del menú** listada en Storage está en la copia, con el mismo tamaño.
+
 ## Instalación (una sola vez, aprox. 1 hora)
 
 ### Paso 1 · Almacenamiento externo con protección contra borrado
@@ -58,13 +74,17 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
 
 ### Paso 2 · Base de datos (Supabase)
 
-1. Aplique las migraciones **0000, 0001 y 0002** (vea `docs/MIGRACIONES.md`).
+1. SQL Editor → New query → pegue **todo** `supabase/tools/backup-account.sql` → Run. Debe decir
+   **"lista: la cuenta canopy_backup puede leer todo y no puede cambiar nada"**. No necesita ninguna migración y
+   no toca datos del negocio. (Si ya aplicó la 0002, la cuenta ya existe: el script no cambia nada.)
 2. Invente una contraseña larga (por ejemplo, 30 letras y números al azar de su gestor de contraseñas) y
    ejecute en el SQL Editor:
    ```sql
    alter role canopy_backup with login password 'LA-CONTRASEÑA-LARGA';
    ```
    La cuenta `canopy_backup` **solo puede leer**. No puede cambiar ni borrar nada.
+   Después de ejecutarla, **borre esa consulta** de la lista de consultas guardadas del SQL Editor (tiene la
+   contraseña).
 3. Ejecute `select version();` y anote el número (por ejemplo 17.x).
 4. Supabase → **Connect** → **Session pooler**. Copie la dirección y cambie:
    - el usuario `postgres.<proyecto>` por `canopy_backup.<proyecto>`;
@@ -91,10 +111,12 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
    - Secreto `CANOPY_DB_URL`: la dirección del paso 2.
    - Secreto `AGE_RECIPIENTS`: las **dos** llaves públicas `age1...`, separadas por un espacio.
    - Secreto `RCLONE_CONF`: la configuración de rclone con la llave de **escritura** (plantilla abajo).
-   - Secreto `RCLONE_REMOTE`: `offsite:canopy-respaldos`
+     *(Opcional para el primer respaldo.)*
+   - Secreto `RCLONE_REMOTE`: `offsite:canopy-respaldos` *(opcional para el primer respaldo)*
    - Variable `SUPABASE_URL`: `https://<proyecto>.supabase.co`
-5. **Actions → Respaldo nocturno → Run workflow**. Debe terminar en verde, y la tarjeta Respaldos en Inicio
-   debe quedar verde.
+5. **Actions → Respaldo nocturno → Run workflow**. Debe terminar en verde. Abra la corrida y, abajo, en
+   **Artifacts**, descargue `respaldo-cifrado`: guárdelo en su computadora (es el respaldo cifrado).
+   Cuando ya esté aplicada la migración 0002, la tarjeta Respaldos de Inicio también queda verde.
 
 Plantilla `RCLONE_CONF` para Cloudflare R2:
 
@@ -211,6 +233,10 @@ con su contador. Los respaldos anuales y la base misma cubren ese período.
   Y actualice el secreto en GitHub.
 - **GitHub y el almacenamiento solo tienen llaves públicas** (`age1…`). Pueden cifrar, nunca descifrar.
 - **La llave de escritura del almacenamiento no puede borrar** respaldos bloqueados.
-- **El repositorio privado no ejecuta código del repositorio público.** Nadie puede cambiar lo que corre con la
-  contraseña de respaldos.
+- **Con la contraseña de respaldos solo corre código del repositorio privado.** El "Ensayo en pruebas"
+  (docs/PRUEBAS.md) usa las migraciones del repositorio público, pero solo contra el proyecto de PRUEBAS, enviadas
+  como SQL puro (`psql -c`: ningún comando de terminal escrito en esos archivos se ejecuta), y la comparación final
+  corre en un paso sin contraseñas.
+- **Restaurar no abre permisos.** Supabase da a los visitantes acceso a cada función nueva; al restaurar, eso se
+  apaga mientras se cargan las funciones y se comprueba que los permisos quedaron idénticos a los del respaldo.
 - **Nunca envíe** contraseñas, llaves privadas ni direcciones de conexión por chat ni por correo.

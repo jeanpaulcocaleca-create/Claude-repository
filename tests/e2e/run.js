@@ -63,22 +63,28 @@ async function startPostgrest(bin, db, port) {
   pgEnv();
   const filter = process.argv[2] || '';
   const SUFFIX = process.env.E2E_SUFFIX || '';
-  const TPL = 'canopy_e2e_tpl' + SUFFIX, DB = 'canopy_e2e' + SUFFIX;
+  // E2E_TEMPLATE_DB: copy each test's database from an existing one (the rehearsal's migrated copy) instead of a fresh build
+  const TPL = process.env.E2E_TEMPLATE_DB || 'canopy_e2e_tpl' + SUFFIX, DB = 'canopy_e2e' + SUFFIX;
+  // E2E_SITE_ROOT / E2E_SPECS_DIR: other pages (the ones live on the café's site) and their own specs
+  const SITE_ROOT = process.env.E2E_SITE_ROOT || path.join(ROOT, 'website');
+  const SPEC_DIR = process.env.E2E_SPECS_DIR || path.join(__dirname, 'specs');
   const SITE_PORT = Number(process.env.E2E_SITE_PORT || 8090), PGRST_PORT = Number(process.env.E2E_PGRST_PORT || 3013);
   process.env.CANOPY_E2E_DB = DB;
-  const b = spawnSync('bash', [path.join(ROOT, 'tests/build-db.sh'), TPL], { encoding: 'utf8' });
-  if (b.status !== 0) { console.error(b.stdout, b.stderr); process.exit(1); }
+  if (!process.env.E2E_TEMPLATE_DB) {
+    const b = spawnSync('bash', [path.join(ROOT, 'tests/build-db.sh'), TPL], { encoding: 'utf8' });
+    if (b.status !== 0) { console.error(b.stdout, b.stderr); process.exit(1); }
+  }
   const bin = postgrestBin();
   const gw = require('./gateway');
   const state = { offline: false, release: null };
-  const server = await gw.start({ siteRoot: path.join(ROOT, 'website'), sitePort: SITE_PORT, postgrestPort: PGRST_PORT, offline: () => state.offline, release: () => state.release });
+  const server = await gw.start({ siteRoot: SITE_ROOT, sitePort: SITE_PORT, postgrestPort: PGRST_PORT, offline: () => state.offline, release: () => state.release });
   const { chromium } = playwright();
   const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
 
-  const specs = fs.readdirSync(path.join(__dirname, 'specs')).filter((f) => f.endsWith('.spec.js') && f.includes(filter)).sort();
+  const specs = fs.readdirSync(SPEC_DIR).filter((f) => f.endsWith('.spec.js') && f.includes(filter)).sort();
   let pass = 0, fail = 0; const failed = [];
   for (const f of specs) {
-    const spec = require(path.join(__dirname, 'specs', f));
+    const spec = require(path.join(SPEC_DIR, f));
     const tests = spec.tests || [{ name: f, run: spec.run }];
     for (const t of tests) {
       psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`, '-c', `create database ${DB} template ${TPL}`]);
@@ -99,7 +105,7 @@ async function startPostgrest(bin, db, port) {
     }
   }
   await browser.close(); server.close();
-  psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`, '-c', `drop database if exists ${TPL} with (force)`]);
+  psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`].concat(process.env.E2E_TEMPLATE_DB ? [] : ['-c', `drop database if exists ${TPL} with (force)`]));
   console.log(`Browser tests: ${pass} passed, ${fail} failed${fail ? ' (' + failed.join('; ') + ')' : ''}`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

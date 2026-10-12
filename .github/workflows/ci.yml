@@ -17,7 +17,7 @@ concurrency:
 jobs:
   tests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:17
@@ -49,10 +49,30 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Lint
         run: bash tests/lint.sh
+      - name: The live site is an approved release
+        run: bash tests/tools/live-site-check.sh
       - name: SQL tests
         run: bash tests/run-sql.sh
       - name: Backup pipeline
         run: bash tests/backup/test-backup-pipeline.sh
+      - name: Migration rehearsal (production as it is today, every migration, the live pages)
+        env:
+          REHEARSAL_OUT: ${{ runner.temp }}/rehearsal
+        run: |
+          bash tests/rehearsal/run.sh
+          bash tests/rehearsal/live-pages.sh
+      - name: Keep the rehearsal reports
+        # also proves that the pinned upload action the private backup repository uses still resolves
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rehearsal-reports
+          path: |
+            ${{ runner.temp }}/rehearsal/*.json
+            ${{ runner.temp }}/rehearsal/*.log
+            ${{ runner.temp }}/rehearsal/*.txt
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Browser tests
         if: hashFiles('tests/e2e/run.js') != ''
         run: node tests/e2e/run.js

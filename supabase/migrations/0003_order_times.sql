@@ -27,17 +27,21 @@ alter table public.orders add column if not exists flags text[] not null default
 
 -- earlier sales: fill the new columns once (nothing else is touched). For a bill whose created_at was moved to
 -- the payment day, the oldest line written by the till still carries the original time (pos-tabs.sql).
+-- (the lines of an order are found by order_id everywhere: kitchen, bills, sales; this index was missing)
+create index if not exists order_items_order_idx on public.order_items (order_id);
 create or replace function canopy.backfill_order_times()
 returns int language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
+  -- one pass over the lines (the per-order lookup took minutes on a large history; same result, rehearsal 2026-10-12)
   update public.orders o set
-      rung_at = least(o.created_at, coalesce((select min(i.added_at) from public.order_items i where i.order_id = o.id), o.created_at)),
+      rung_at = least(o.created_at, coalesce(f.first_at, o.created_at)),
       paid_at = case when coalesce(o.paid, true) then o.created_at end,
       business_date = case when coalesce(o.paid, true) then (o.created_at at time zone 'America/Costa_Rica')::date end,
-      flags = case when (select min(i.added_at) from public.order_items i where i.order_id = o.id) < o.created_at - interval '1 minute'
-                   then array_append(o.flags, 'rung_at_from_lines') else o.flags end
-    where o.rung_at is null;
+      flags = case when f.first_at < o.created_at - interval '1 minute' then array_append(o.flags, 'rung_at_from_lines') else o.flags end
+    from public.orders o2
+    left join (select order_id, min(added_at) as first_at from public.order_items group by order_id) f on f.order_id = o2.id
+   where o2.id = o.id and o.rung_at is null;
   get diagnostics n = row_count;
   return n;
 end $$;

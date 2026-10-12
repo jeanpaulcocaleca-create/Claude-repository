@@ -1,13 +1,15 @@
 # canopy-respaldos (repositorio PRIVADO del dueño)
 
-Este repositorio solo existe para el respaldo nocturno de la base de datos del café.
+Este repositorio existe para el respaldo nocturno de la base de datos del café y para el ensayo en PRUEBAS.
 Debe ser **privado** y **no** debe conectarse a sesiones de asistentes de IA.
 
 Contenido (copiado de `ops/backup/` del repositorio de desarrollo; actualícelo solo cuando
-`docs/RESPALDOS.md` lo indique):
+`docs/RESPALDOS.md` o `docs/PRUEBAS.md` lo indiquen):
 
-- `.github/workflows/respaldo.yml`: corre todas las noches y con el botón "Run workflow".
-- `backup.sh`: hace el respaldo, la prueba de restauración, el cifrado y la subida.
+- `.github/workflows/respaldo.yml`: respaldo todas las noches y con el botón "Run workflow".
+- `backup.sh`: respaldo, prueba de restauración (filas, contenido y permisos), cifrado y subida.
 - `restore-stub.sql`: imitación mínima de Supabase para la prueba de restauración.
+- `.github/workflows/ensayo-pruebas.yml`, `ensayo.sh`, `anonimizar.sql`: copia anonimizada de producción en el
+  proyecto de PRUEBAS y ensayo de las migraciones (solo con el botón).
 
-Instalación paso a paso: `docs/RESPALDOS.md` del repositorio de desarrollo.
+Instalación paso a paso: `docs/RESPALDOS.md` y `docs/PRUEBAS.md` del repositorio de desarrollo.

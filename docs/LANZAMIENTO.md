@@ -27,6 +27,25 @@ Documentos relacionados:
    - `ledger.unbalanced` en 0.
 6. **Observar 1 a 3 días** antes de la ola siguiente.
 
+## Ensayo (hecho el 2026-10-12)
+
+`tests/run.sh rehearsal` (también en cada cambio, en GitHub): base igual a producción hoy (los 18 archivos
+históricos) con unos 4 meses de historia (14 534 ventas, 38 280 líneas, 60 548 movimientos de inventario, 250
+pagos parciales, 208 anulaciones, 420 descuentos, 291 pedidos de habitación, 121 días de caja), migraciones
+0000 → 0025 aplicadas como la cuenta del SQL Editor (no superusuario):
+
+- **2,1 segundos en total** (la más lenta, 0004: 0,5 s);
+- **nada de lo que existía cambió**: las 26 tablas originales (cada columna original, huella md5) y 27 revisiones
+  del negocio idénticas antes y después;
+- las **páginas que hoy están en el sitio** siguen funcionando contra la base migrada (venta, venta sin internet
+  que se sube después, reloj, Administrador del menú, todas las páginas sin errores);
+- una venta tomada sin internet **antes** de la ventana y subida después se guarda en su día y queda marcada para
+  el encargado (nunca se rechaza);
+- el contador asienta 30 días de la historia vieja: cuadra y coincide con las ventas colón por colón;
+- respaldo y restauración antes y después: contenido y permisos idénticos.
+
+Con los datos reales, el mismo ensayo se repite en PRUEBAS antes de la ventana (docs/PRUEBAS.md).
+
 ## Recomendación: la base en una sola ventana, el uso por olas
 
 La migración **0025** corrige lo que encontró la revisión de seguridad en todas las fases. Depende de todas las
@@ -44,16 +63,27 @@ Si prefiere aplicar la base por olas, aplique **0025 junto con la ola 5**. Hasta
 - no dé acceso de contador;
 - no escriba el PIN del dueño en la tableta.
 
-## Ola 0 · Seguridad y respaldos (urgente, ya se puede)
+## Ola 0 · Verificar, respaldar y cerrar los huecos (urgente)
 
-| Paso | Qué | Quién |
-|---|---|---|
-| 1 | Migraciones **0000** (registro) y **0001** (cierra el hueco de los pedidos de habitación) | Usted (E-01) |
-| 2 | Supabase → Authentication → apagar "Allow new users to sign up" | Usted (E-02) |
-| 3 | Migración **0002** e instalación de respaldos (unos 60 minutos, docs/RESPALDOS.md) | Usted (E-03) |
+En este orden. Cada paso es de solo lectura o se puede deshacer, hasta el paso 5.
 
-- **Comprobar**: el primer respaldo nocturno sale bien. La tarjeta Respaldos está en verde.
-- **Volver atrás**: no hace falta: solo agregan revisiones de permiso y el registro.
+| Paso | Qué | Cambia producción | Quién |
+|---|---|---|---|
+| 1 | **Foto de producción**: `supabase/tools/production-snapshot.sql` (solo lectura) y pegar el resultado | No | Usted (E-00) |
+| 2 | Revisar la lista de **ingresos** de la foto y apagar **Allow new users to sign up** (y revisar que los ingresos anónimos estén apagados) | Ajuste reversible, sin datos | Usted (E-02) |
+| 3 | **Respaldo verificado** antes de cualquier migración: `supabase/tools/backup-account.sql`, repositorio privado, primer respaldo y descarga (docs/RESPALDOS.md) | Solo crea la cuenta de lectura | Usted (E-03) |
+| 4 | Guardar el sitio de hoy como `sitio-2026-10-09` (docs/PUBLICAR.md) | No | Usted (E-19) |
+| 5 | Migraciones **0000**, **0001** y **0002**, una por una, con la foto antes y después | Sí (solo agrega revisiones) | Usted (E-01) |
+
+- **Qué cierra la 0001**: un ingreso ajeno ya no puede cancelar o marcar pagados los pedidos de habitación,
+  cambiar el código QR de una habitación, ver las ventas por producto, **cambiar las categorías del menú** (se ven
+  en el menú QR y la TV), ni **probar PINs** del reloj y de las anulaciones. El pedido desde la habitación vuelve
+  a funcionar (encuentra `gen_random_bytes`).
+- **Qué NO cambia para el personal**: nada. Probado con las páginas que están hoy en el sitio (ensayo, D-023).
+- **Comprobar después del paso 2**: la tableta sigue con su sesión; usted puede entrar; "olvidé mi contraseña"
+  sigue enviando el correo; el pedido de habitación funciona.
+- **Volver atrás**: paso 2, volver a encender el ajuste. Paso 5: no hace falta (solo agrega revisiones); si algo
+  fallara, restaurar el respaldo del paso 3 en PRUEBAS para investigar, nunca encima de producción.
 
 ## Ola 1 · Integridad de las ventas y la caja (Fases 0–1)
 

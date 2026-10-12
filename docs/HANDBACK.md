@@ -3,6 +3,10 @@
 Date: 2026-10-12 · Branch `claude/hanging-garden-coffee-proposal-1m8zd4` · PR #1 (draft) · Nothing has been
 published to production and the production database has not been touched.
 
+> **For going to production, read `docs/PRODUCTION-READINESS.md`** (later the same day): verified production
+> status, the backup-first order, the rehearsal results, new findings fixed in 0001–0003 and in restores, and the
+> exact deployment sequence. Where the two differ, that report is current.
+
 Status vocabulary used throughout:
 - **Implemented and tested**: built, covered by automated tests, ready to apply.
 - **Awaiting external verification**: built and tested, but switched OFF until an owner/accountant/official

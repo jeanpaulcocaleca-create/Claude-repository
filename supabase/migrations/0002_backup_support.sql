@@ -18,11 +18,25 @@ select canopy.migration_begin(2, 'backup_support');
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'canopy_backup') then
     create role canopy_backup nologin bypassrls;
-  else
-    alter role canopy_backup bypassrls;
+  elsif not (select rolbypassrls from pg_roles where rolname = 'canopy_backup') then
+    alter role canopy_backup bypassrls;   -- only when needed: altering a role needs ADMIN on it (PostgreSQL 16+)
   end if;
 end $$;
-grant pg_read_all_data to canopy_backup;
+do $$
+begin
+  grant pg_read_all_data to canopy_backup;
+exception when others then
+  -- servers that do not let this account hand out pg_read_all_data: read access table by table, also for later tables
+  -- (same as supabase/tools/backup-account.sql)
+  raise notice 'pg_read_all_data no disponible (%); lectura tabla por tabla', sqlerrm;
+  grant usage on schema public, canopy, storage to canopy_backup;
+  grant select on all tables in schema public to canopy_backup;
+  grant select on all sequences in schema public to canopy_backup;
+  alter default privileges in schema public grant select on tables to canopy_backup;
+  alter default privileges in schema public grant select on sequences to canopy_backup;
+  alter default privileges in schema canopy grant select on tables to canopy_backup;
+  grant select on storage.objects, storage.buckets to canopy_backup;
+end $$;
 grant usage on schema canopy to canopy_backup;
 
 create table if not exists canopy.backup_runs (

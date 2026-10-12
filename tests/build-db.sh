@@ -28,6 +28,8 @@ while read -r f; do
   f="${f%%#*}"; f="$(echo "$f" | xargs)"; [ -z "$f" ] && continue
   run "$ROOT/supabase/$f" "legacy $f"
 done < "$HERE/db/legacy-order.txt"
+# CANOPY_LEGACY_ONLY=1: stop after the historical scripts (production as it is before migration 0000)
+if [ -n "${CANOPY_LEGACY_ONLY:-}" ]; then echo "built $DB (legacy only)"; exit 0; fi
 if [ -d "$ROOT/supabase/migrations" ]; then
   for m in $(ls "$ROOT/supabase/migrations"/*.sql 2>/dev/null | sort); do
     # one transaction per file, like a paste into the Supabase SQL Editor

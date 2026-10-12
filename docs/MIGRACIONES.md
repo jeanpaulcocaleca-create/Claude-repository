@@ -8,14 +8,17 @@ Ya no se ejecutan: después de la migración 0000 se detienen solos en la primer
 
 ## Cómo aplicar una migración (dueño)
 
-1. **Respaldo primero.** Confirme que el respaldo de esta noche salió bien (tarjeta "Respaldos" en Inicio),
-   o pida uno ahora (docs/RESPALDOS.md → "Respaldo inmediato").
-2. **Primero en pruebas.** Aplíquela en el proyecto de **pruebas (staging)** y revise el sitio de pruebas.
-3. **Luego en producción.** Hágalo fuera del horario de atención (antes de las 6:00 o después del cierre de caja):
+1. **Respaldo primero.** Pida uno ahora (docs/RESPALDOS.md → "Respaldo inmediato") y espere el verde. Antes de la
+   0002 no hay tarjeta en Inicio: el verde de GitHub es la prueba.
+2. **Primero en pruebas.** "Ensayo en pruebas" en verde con la misma versión (docs/PRUEBAS.md), que aplica la
+   migración en una copia anonimizada de producción y compara antes y después.
+3. **Foto antes y después.** `supabase/tools/production-snapshot.sql` (solo lectura) antes y después; para la
+   ventana grande también `supabase/tools/consistency-check.sql`: los valores de "kept" deben salir iguales.
+4. **Luego en producción.** Hágalo fuera del horario de atención (antes de las 6:00 o después del cierre de caja):
    1. Supabase → **SQL Editor** → **New query**.
    2. Abra el archivo en GitHub, botón **Raw**, copie **todo** y péguelo.
    3. Presione **Run**.
-4. **Revise el resultado**: debe decir *Success*. Para ver lo aplicado:
+5. **Revise el resultado**: debe decir *Success*. Para ver lo aplicado:
    ```sql
    select * from canopy.migrations order by version desc limit 5;
    ```
@@ -36,12 +39,20 @@ Ya no se ejecutan: después de la migración 0000 se detienen solos en la primer
   cuando todas las tabletas ya tienen la versión nueva.
 - **Nunca borran ni reescriben registros del negocio** (ventas, pagos, inventario, horas, contabilidad).
 - **Cada archivo explica en español** qué hace, por qué, y cómo revertirlo si aplica.
+- **Solo SQL.** Ningún comando de psql (líneas que empiezan con `\`): el SQL Editor no los entiende y el ensayo en
+  pruebas los rechaza (lo revisa `tests/lint.sh`).
+- **Se ensaya antes de llegar aquí.** `tests/run.sh rehearsal` aplica todas las migraciones sobre una copia con la
+  estructura de producción y meses de historia, como una cuenta que no es superusuario, y compara los datos
+  (D-023).
 
 ## Línea base: la estructura real de producción
 
 Las tablas `orders`, `order_items`, `menu_items` y `menu_categories` se crearon antes de que existiera este
 repositorio. Por eso las pruebas usan una reconstrucción (`tests/db/01_base_tables.sql`). Para usar la
 estructura exacta:
+
+Primero, la foto (`supabase/tools/production-snapshot.sql`) dice si hace falta: si `functions_changed`,
+`functions_unknown` y `tables_columns_differ` salen vacíos, producción es igual a la reconstrucción.
 
 1. Supabase → SQL Editor → pegue `supabase/tools/catalog-export.sql` → **Run**.
    Es solo lectura: no muestra ventas, nombres, PINs ni contraseñas.

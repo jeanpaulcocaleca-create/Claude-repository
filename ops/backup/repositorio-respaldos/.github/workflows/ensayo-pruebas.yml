@@ -1,0 +1,83 @@
+# =====================================================================================================
+# Canopy OS · ENSAYO EN PRUEBAS (va en el repositorio PRIVADO "canopy-respaldos", junto al respaldo nocturno)
+# Solo con el botón "Run workflow". Copia producción con la cuenta de SOLO LECTURA, la anonimiza, la carga en el
+# proyecto de PRUEBAS y ensaya ahí las migraciones de la versión elegida del repositorio de desarrollo.
+# Producción nunca recibe ningún cambio: la cuenta canopy_backup no puede escribir y ensayo.sh se niega si la
+# dirección de PRUEBAS es la de producción.
+# Secretos (además de los del respaldo): STAGING_DB_URL (pruebas: Connect → Session pooler, usuario postgres,
+#   ?sslmode=require) y STAGING_PIN (4 a 8 dígitos: el PIN de todas las personas en la copia de pruebas).
+# =====================================================================================================
+name: Ensayo en pruebas
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Rama o etiqueta del repositorio de desarrollo a ensayar'
+        required: true
+        default: 'claude/hanging-garden-coffee-proposal-1m8zd4'
+      vaciar:
+        description: 'Escriba si para vaciar PRUEBAS antes de cargar la copia'
+        required: true
+        default: 'no'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ensayo
+  cancel-in-progress: false
+
+jobs:
+  ensayo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      desechable:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: desechable
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      OUT: ${{ runner.temp }}/ensayo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Traer la versión a ensayar del repositorio de desarrollo (solo lectura)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: jeanpaulcocaleca-create/Claude-repository
+          ref: ${{ github.event.inputs.version }}
+          path: publico
+          persist-credentials: false
+      - name: Instalar el cliente de PostgreSQL 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Copiar, anonimizar, cargar en PRUEBAS y ensayar las migraciones
+        env:
+          CANOPY_DB_URL: ${{ secrets.CANOPY_DB_URL }}
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          STAGING_PIN: ${{ secrets.STAGING_PIN }}
+          PROD_URL: ${{ vars.SUPABASE_URL }}
+          SCRATCH_URL: postgresql://postgres:desechable@127.0.0.1:5432/postgres
+          PUBLIC_DIR: ${{ github.workspace }}/publico
+          EMPTY_STAGING: ${{ github.event.inputs.vaciar }}
+        run: bash ./ensayo.sh
+      - name: Comparar antes y después (este paso no tiene contraseñas)
+        run: python3 publico/tests/rehearsal/compare.py "$OUT" after | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Guardar los resultados (solo cantidades y huellas, sin datos)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ensayo-resultados
+          path: |
+            ${{ runner.temp }}/ensayo/*.json
+            ${{ runner.temp }}/ensayo/*.txt
+          retention-days: 30
+          if-no-files-found: ignore

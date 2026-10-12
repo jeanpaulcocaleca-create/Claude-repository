@@ -245,3 +245,53 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Accepted (low, documented):**
   - the till's internal tender function stays callable by the café login (a wrong tender is flagged as a mismatch);
   - inventory cost-edit log rows can be written by an unlocked manager (attributed to them).
+
+## D-023 · 2026-10-12 · Before production: verify read-only, back up first, rehearse on a copy of today's schema
+- **Verified (read-only):** the live site is the `gh-pages` branch at `8950054`, an exact copy of development
+  commit `ac8298a`'s `website/` (plus CNAME), published automatically on 2026-10-09 by the old workflow. Since the
+  manual-only workflow (`c754fc4`), 27 pushes (20 touching `website/`) published nothing. The database could not
+  be read from here (and must not be): `supabase/tools/production-snapshot.sql` reports it, read-only.
+- **Order:** snapshot → logins review and sign-ups off (no data change, reversible, no page depends on sign-ups)
+  → verified backup (works before 0000: `supabase/tools/backup-account.sql`) → 0000, 0001, 0002 → rehearsal with
+  the real data in staging → the 0003–0025 window.
+- **Rehearsal** (`tests/run.sh rehearsal`, also in CI): the historical scripts plus ~4 months of café history,
+  migrations applied as a non-superuser account like Supabase's SQL Editor, then every original column of every
+  original table and 27 business checks compared (identical), the live pages run against the result, an offline
+  sale queued before the window uploaded after it, 30 days of old history booked (balanced, tied to sales), backup
+  and restore before and after.
+- **It found and fixed (all in migrations not yet applied):**
+  - 0001 also closes three more ways a self-made login could act: rename/recolor menu categories (the legacy
+    "categories color for signed-in" rule covered every column on Supabase), guess PINs on the time clock, and
+    on voids; the old pages' Menu Manager keeps working through the owner rule;
+  - 0002 failed on PostgreSQL 16+ when the backup account already existed (it altered a role it did not own);
+    it now alters only when needed and has a table-by-table fallback if `pg_read_all_data` cannot be granted;
+  - 0003's backfill looked up each order's lines one by one (no index on `order_items.order_id`): 42 s on 14 500
+    orders, minutes on a larger history and the 300 s limit; now one pass plus that index: 0.3 s, same result
+    (checked row by row).
+- **Why:** the user asked for verified state, a restorable backup and a rehearsal before any production change.
+
+## D-024 · 2026-10-12 · Restoring a backup keeps who may run what
+- **Found by the staging rehearsal:** Supabase grants every new function and table in `public` to visitors and
+  logins. A dump records each object's rights only as a difference from PostgreSQL's own default, so a plain
+  restore opened ~50 functions, `make_owner` included, to anonymous visitors.
+- **Decision:** every restore (nightly test, disaster `restore.sh`, staging copy) switches those default grants off
+  while loading and back on afterwards, and compares a fingerprint of all rights, row-security switches and rules
+  with the source; a difference fails the restore. The backup manifest carries that fingerprint.
+
+## D-025 · 2026-10-12 · Staging: a separate free project, an anonymized copy, a separate site
+- **Decision:** staging is its own Supabase project and its own GitHub Pages site
+  (`jeanpaulcocaleca-create.github.io/canopy-pruebas`). The copy is made by the owner's private repository with
+  the read-only account, anonymized in a throw-away database (names, guests, suppliers, PINs, logins), then loaded
+  into staging, where the migrations are rehearsed. `config.js` and the staging publisher refuse production's
+  address or key, and any key that is not the public anon key.
+- **Why:** a rehearsal on the real data shape without real personal data, and no path from the staging site to
+  production. Public-repository SQL reaches staging only through `psql -c` (no psql or shell commands run).
+
+## D-026 · 2026-10-12 · The owner's pricing policy is kept, switched off
+- **Policy (owner, 2026-10-12):** menu prices exclude IVA; the applicable tax is added at checkout.
+- **Built:** `price_mode = exclusive` (POS shows prices before IVA and adds it; the Menu Manager takes prices before
+  IVA). It stays OFF in production behind the `price_display_rules` confirmation until the legal treatment and the
+  customer-facing prices are verified (A-03). The rehearsal checks it is off after the window.
+- **Activation question (not a code change):** prices are stored as charged. Switching the mode alone does not
+  change what customers pay. If today's prices are meant to be before IVA, each must be re-entered as a
+  before-IVA price (customers then pay 13 % more): an owner and accountant decision.

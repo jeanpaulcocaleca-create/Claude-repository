@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # =====================================================================================================
 # Canopy OS · nightly backup pipeline
-#   1. counts rows (before)          4. restores the dump into a throw-away database and checks every table
-#   2. dumps the database            5. downloads Storage files (menu photos)
-#   3. counts rows (after)           6. packs + ENCRYPTS with age (public keys only) + checksums
-#   7. uploads the encrypted file    8. records the result in canopy.backup_runs (owner's Home tile)
+#   1. counts rows + fingerprints (before)   4. restores the dump into a throw-away database and checks every
+#   2. dumps the database                       table: same rows AND same content (md5 fingerprint)
+#   3. counts rows + fingerprints (after)    5. downloads Storage files and checks every one arrived, same size
+#   6. packs + ENCRYPTS with age (public keys only) + checksums
+#   7. uploads the encrypted file            8. records the result in canopy.backup_runs (owner's Home tile)
+# Works before migration 0000 too (account from supabase/tools/backup-account.sql). Until migration 0002 exists
+# nothing is recorded in the database: the GitHub run is the record.
 # Nothing unencrypted is ever uploaded or kept. The script can encrypt but can never decrypt a backup.
 #
 # Settings (environment variables; in GitHub they come from the PRIVATE backup repository's secrets):
@@ -23,6 +26,7 @@
 # =====================================================================================================
 set -euo pipefail
 umask 077
+export PGTZ=UTC   # fingerprints compare text: the same time zone everywhere
 
 : "${CANOPY_DB_URL:?Falta CANOPY_DB_URL}"
 : "${AGE_RECIPIENTS:?Falta AGE_RECIPIENTS (llaves públicas age1...)}"
@@ -62,6 +66,45 @@ COUNT_SQL="select coalesce(jsonb_object_agg(t, n), '{}'::jsonb) from (
          (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', schemaname, relname), false, true, '')))[1]::text::bigint as n
     from pg_stat_user_tables where schemaname in ('public','canopy','acct')) s"
 
+# per table: "rows:md5 of every row" (the content itself never leaves the database in this check)
+FP_SQL="select coalesce(jsonb_object_agg(t, f), '{}'::jsonb) from (
+  select format('%s.%s', schemaname, relname) as t,
+         (xpath('/row/f/text()', query_to_xml(format('select count(*)::text || '':'' || coalesce(md5(string_agg(x::text, E''\\n'' order by x::text)), ''-'') as f from %I.%I x', schemaname, relname), false, true, '')))[1]::text as f
+    from pg_stat_user_tables where schemaname in ('public','canopy','acct')) s"
+
+# Supabase gives anonymous visitors and logins every new table and function in "public" (default privileges). A dump
+# only records how each object differs from PostgreSQL's own default, so restoring it with those defaults on would
+# open every function (make_owner included) to anonymous visitors. They are switched off while restoring, back on after.
+DEFAULTS_OFF="alter default privileges in schema public revoke all on tables from anon, authenticated, service_role;
+alter default privileges in schema public revoke all on functions from anon, authenticated, service_role;
+alter default privileges in schema public revoke all on sequences from anon, authenticated, service_role;"
+DEFAULTS_ON="alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;"
+# what visitors, logins, the service and the backup account may run, read or write; row security; rules (md5)
+PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x), '')) from (
+  select 'f|' || n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')|' || coalesce(g.rolname, 'PUBLIC') || '|' || a.privilege_type || '|' || p.prosecdef as x
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a left join pg_roles g on g.oid = a.grantee
+   where n.nspname in ('public', 'canopy', 'acct') and coalesce(g.rolname, 'PUBLIC') in ('PUBLIC', 'anon', 'authenticated', 'service_role', 'canopy_backup')
+     and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+  union all
+  select 't|' || n.nspname || '.' || c.relname || '|' || coalesce(g.rolname, 'PUBLIC') || '|' || a.privilege_type
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a left join pg_roles g on g.oid = a.grantee
+   where n.nspname in ('public', 'canopy', 'acct') and c.relkind in ('r', 'p', 'v', 'm') and coalesce(g.rolname, 'PUBLIC') in ('PUBLIC', 'anon', 'authenticated', 'service_role', 'canopy_backup')
+  union all
+  select 's|' || n.nspname || '.' || c.relname || '|' || coalesce(g.rolname, 'PUBLIC') || '|' || a.privilege_type
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    cross join lateral aclexplode(coalesce(c.relacl, acldefault('s', c.relowner))) a left join pg_roles g on g.oid = a.grantee
+   where n.nspname in ('public', 'canopy', 'acct') and c.relkind = 'S' and coalesce(g.rolname, 'PUBLIC') in ('PUBLIC', 'anon', 'authenticated', 'service_role', 'canopy_backup')
+  union all
+  select 'rls|' || n.nspname || '.' || c.relname || '|' || c.relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('public', 'canopy', 'acct') and c.relkind in ('r', 'p')
+  union all
+  select 'pol|' || schemaname || '.' || tablename || '|' || policyname || '|' || cmd || '|' || array_to_string(roles, ',') || '|' || permissive
+    from pg_policies where schemaname in ('public', 'canopy', 'acct')) q"
+
 STEP="conectar con la base"
 log "conectando ($SOURCE)…"
 SERVER_VERSION="$(sql -c 'show server_version')"
@@ -74,6 +117,7 @@ SCHEMAS="$(sql -c "select string_agg(nspname, ' ') from pg_namespace where nspna
 
 STEP="contar filas (antes)"
 sql -c "$COUNT_SQL" > "$PACK/counts-before.json"
+sql -c "$FP_SQL" > "$PACK/fingerprints-before.json"
 
 STEP="volcar la base (pg_dump)"
 log "volcando esquemas: $SCHEMAS"
@@ -86,6 +130,8 @@ pg_dump "$CANOPY_DB_URL" --format=custom --data-only --table='auth.users' --tabl
 
 STEP="contar filas (después)"
 sql -c "$COUNT_SQL" > "$PACK/counts-after.json"
+sql -c "$FP_SQL" > "$PACK/fingerprints-after.json"
+sql -c "$PRIV_SQL" > "$PACK/privileges.md5"
 COUNTS_JSON="$(cat "$PACK/counts-after.json")"
 
 if [ -n "${RESTORE_TEST_URL:-}" ]; then
@@ -100,16 +146,29 @@ PY
 )"
   psql -X -q -v ON_ERROR_STOP=1 "$TURL" -f "$HERE/restore-stub.sql" >/dev/null
   pg_restore -l "$PACK/app.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' > "$WORK/toc.list"
+  psql -X -q -v ON_ERROR_STOP=1 "$TURL" -c "$DEFAULTS_OFF" >/dev/null
   pg_restore --no-owner --exit-on-error -L "$WORK/toc.list" -d "$TURL" "$PACK/app.dump"
+  psql -X -q -v ON_ERROR_STOP=1 "$TURL" -c "$DEFAULTS_ON" >/dev/null
   psql -X -q -At "$TURL" -c "$COUNT_SQL" > "$PACK/counts-restored.json"
-  if python3 - "$PACK/counts-before.json" "$PACK/counts-after.json" "$PACK/counts-restored.json" <<'PY'
+  if [ "$(psql -X -q -At "$TURL" -c "$PRIV_SQL")" != "$(cat "$PACK/privileges.md5")" ]; then
+    psql -X -q "$RESTORE_TEST_URL" -c "drop database if exists $TESTDB" >/dev/null || true
+    STEP="prueba de restauración: los permisos restaurados no son los de la base"; false
+  fi
+  psql -X -q -At "$TURL" -c "$FP_SQL" > "$PACK/fingerprints-restored.json"
+  if python3 - "$PACK/counts-before.json" "$PACK/counts-after.json" "$PACK/counts-restored.json" \
+               "$PACK/fingerprints-before.json" "$PACK/fingerprints-after.json" "$PACK/fingerprints-restored.json" <<'PY'
 import json, sys
-b, a, r = (json.load(open(f)) for f in sys.argv[1:4])
+b, a, r, fb, fa, fr = (json.load(open(f)) for f in sys.argv[1:7])
 bad = [t for t in a if not (min(b.get(t, 0), a[t]) <= r.get(t, -1) <= max(b.get(t, 0), a[t]))]
 missing = [t for t in a if t not in r]
-if bad or missing:
-    print('tablas que no coinciden:', ', '.join(sorted(set(bad + missing))[:20])); sys.exit(1)
-print(f'restauración verificada: {len(r)} tablas, {sum(r.values())} filas')
+# a table nobody wrote to during the copy must come back with exactly the same content
+quiet = [t for t in fa if fb.get(t) == fa[t]]
+changed = [t for t in quiet if fr.get(t) != fa[t]]
+busy = sorted(set(fa) - set(quiet))
+if bad or missing or changed:
+    print('tablas que no coinciden:', ', '.join(sorted(set(bad + missing + changed))[:20])); sys.exit(1)
+print(f'restauración verificada: {len(r)} tablas, {sum(r.values())} filas; contenido idéntico en {len(quiet)} tablas'
+      + (f'; {len(busy)} con movimiento durante la copia (filas dentro del rango): {", ".join(busy[:10])}' if busy else ''))
 PY
   then RESTORE_RESULT="passed"; else RESTORE_RESULT="failed"; fi
   psql -X -q "$RESTORE_TEST_URL" -c "drop database if exists $TESTDB" >/dev/null || true
@@ -129,6 +188,20 @@ if [ -n "${SUPABASE_URL:-}" ]; then
       else log "aviso: no se pudo descargar $b/$obj"; fi
     done < "$WORK/objects-$b.txt"
     log "fotos copiadas de $b: $n"
+    # every listed file must be here, with the size Storage recorded
+    STEP="verificar los archivos de $b"
+    sql -c "select name || '|' || coalesce(metadata ->> 'size', '') from storage.objects where bucket_id = '$b' and name not like '%/.emptyFolderPlaceholder'" > "$WORK/sizes-$b.txt"
+    python3 - "$PACK/storage/$b" "$WORK/sizes-$b.txt" "$PACK/storage-check-$b.json" <<'PY'
+import json, os, sys
+root, listing, out = sys.argv[1:4]
+want = dict(l.rstrip('\n').rsplit('|', 1) for l in open(listing, encoding='utf-8') if l.strip())
+missing = [n for n in want if not os.path.isfile(os.path.join(root, n))]
+wrong = [n for n, s in want.items() if n not in missing and s and os.path.getsize(os.path.join(root, n)) != int(s)]
+json.dump({'listed': len(want), 'copied': len(want) - len(missing), 'size_mismatch': wrong[:50], 'missing': missing[:50]}, open(out, 'w'))
+if missing or wrong:
+    print(f'faltan {len(missing)} y difieren {len(wrong)} de {len(want)} archivos:', ', '.join((missing + wrong)[:10])); sys.exit(1)
+print(f'{len(want)} archivos verificados')
+PY
   done
 fi
 
@@ -160,8 +233,12 @@ for root, _, names in os.walk(pack):
     for n in names:
         p = os.path.join(root, n); rel = os.path.relpath(p, pack)
         files[rel] = hashlib.sha256(open(p, 'rb').read()).hexdigest()
+fb = json.load(open(os.path.join(pack, 'fingerprints-before.json')))
+fa = json.load(open(os.path.join(pack, 'fingerprints-after.json')))
 json.dump({'started_at': started, 'server_version': server, 'pg_dump': client, 'restore_test': restore,
            'source': source, 'row_counts': json.load(open(os.path.join(pack, 'counts-after.json'))),
+           'fingerprints': {t: f for t, f in fa.items() if fb.get(t) == f},
+           'privileges_md5': open(os.path.join(pack, 'privileges.md5')).read().strip(),
            'files': files}, open(os.path.join(pack, 'manifest.json'), 'w'), indent=1)
 PY
 RECIPS=(); for k in $AGE_RECIPIENTS; do RECIPS+=(-r "$k"); done
@@ -175,10 +252,12 @@ YEAR="${STAMP:0:4}"; MONTH="${STAMP:4:2}"
 if [ -n "${RCLONE_REMOTE:-}" ]; then
   rclone copyto "$WORK/$NAME.tar.age" "$RCLONE_REMOTE/$YEAR/$MONTH/$NAME.tar.age"
   rclone copyto "$WORK/$NAME.tar.age.sha256" "$RCLONE_REMOTE/$YEAR/$MONTH/$NAME.tar.age.sha256"
-elif [ -n "${UPLOAD_DIR:-}" ]; then
+fi
+if [ -n "${UPLOAD_DIR:-}" ]; then   # also (or only) a folder: e.g. the GitHub run keeps it as a downloadable file
   mkdir -p "$UPLOAD_DIR/$YEAR/$MONTH"
   cp "$WORK/$NAME.tar.age" "$WORK/$NAME.tar.age.sha256" "$UPLOAD_DIR/$YEAR/$MONTH/"
-else
+fi
+if [ -z "${RCLONE_REMOTE:-}" ] && [ -z "${UPLOAD_DIR:-}" ]; then
   log "sin destino (RCLONE_REMOTE/UPLOAD_DIR): la copia queda en $WORK"
 fi
 

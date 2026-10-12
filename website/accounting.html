@@ -257,6 +257,8 @@ tr.head td{font-weight:700;background:var(--canvas)}
     </div>
     <div class="card">
       <h2>New supplier invoice</h2>
+      <div class="tools"><div><label for="viXml">Fill in from the supplier's electronic invoice (XML file)</label><input id="viXml" type="file" accept=".xml,text/xml,application/xml"></div></div>
+      <p class="hint" id="viXmlMsg"></p>
       <div class="grid2">
         <div><label for="viVendor">Supplier</label><select id="viVendor"></select></div>
         <div><label for="viNum">Invoice Nº</label><input id="viNum" maxlength="50"></div>
@@ -1067,6 +1069,48 @@ function invoiceDiff(){
 }
 $('viVendor').addEventListener('change', renderInvoiceForm);
 $('viNet').addEventListener('input', invoiceDiff);
+
+/* the supplier's electronic invoice (Hacienda XML, versions 4.3 and 4.4): it only fills in the form; the accountant
+   checks it and saves. Read as data: nothing in the file is run or shown as HTML. */
+function eInvoiceRead(text){
+  var doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) return {error: 'not_xml'};
+  var root = doc.documentElement, kind = root ? root.localName : '';
+  var one = function(el, name){ var n = el ? el.getElementsByTagNameNS('*', name) : []; return n.length ? n[0].textContent.trim() : ''; };
+  var num = function(v){ var x = Number(String(v || '').replace(',', '.')); return isFinite(x) ? x : 0; };
+  if (!/^(FacturaElectronica|TiqueteElectronico|NotaCreditoElectronica|NotaDebitoElectronica|FacturaElectronicaCompra)$/.test(kind)) return {error: 'not_einvoice'};
+  var emisor = root.getElementsByTagNameNS('*', 'Emisor')[0], resumen = root.getElementsByTagNameNS('*', 'ResumenFactura')[0];
+  var other = 0;   /* taxes that are not IVA (v4.4 breaks the total down by tax code; 01 = IVA) */
+  Array.prototype.forEach.call(resumen ? resumen.getElementsByTagNameNS('*', 'TotalDesgloseImpuesto') : [], function(d){
+    if (one(d, 'Codigo') && one(d, 'Codigo') !== '01') other += num(one(d, 'TotalMontoImpuesto'));
+  });
+  return {kind: kind, key: one(root, 'Clave'), number: one(root, 'NumeroConsecutivo'), date: one(root, 'FechaEmision').slice(0, 10),
+          vendor: one(emisor, 'Nombre'), vendorId: one(emisor, 'Numero'), currency: one(resumen, 'CodigoMoneda') || 'CRC',
+          net: num(one(resumen, 'TotalVentaNeta')), tax: num(one(resumen, 'TotalImpuesto')), total: num(one(resumen, 'TotalComprobante')),
+          charges: num(one(resumen, 'TotalOtrosCargos')), otherTax: other};
+}
+function plain(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(s\.?\s?a|s\.?r\.?l|ltda|limitada|sociedad anonima)\b\.?/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
+$('viXml').addEventListener('change', async function(){
+  var f = this.files && this.files[0], msg = $('viXmlMsg'); msg.textContent = '';
+  if (!f) return;
+  var x = f.size > 2000000 ? {error: 'not_einvoice'} : eInvoiceRead(await f.text());
+  this.value = '';
+  if (x.error){ msg.textContent = x.error === 'not_xml' ? 'That file is not an XML file.' : 'That file is not an electronic invoice from Hacienda.'; return; }
+  if (x.kind === 'NotaCreditoElectronica' || x.kind === 'NotaDebitoElectronica'){ msg.textContent = 'That is a credit or debit note, not an invoice: record it by hand with the accountant.'; return; }
+  if (x.currency !== 'CRC'){ msg.textContent = 'This invoice is in ' + x.currency + '. Invoices in dollars are not recorded here yet: ask the accountant.'; return; }
+  $('viNum').value = x.number || x.key; $('viDate').value = x.date || $('viDate').value;
+  $('viNet').value = x.net; $('viIva').value = x.tax - x.otherTax;
+  var want = plain(x.vendor), match = AP ? AP.vendor_list.filter(function(v){ var n = plain(v.name); return n && want && (n === want || want.indexOf(n) >= 0 || n.indexOf(want) >= 0); }) : [];
+  if (match.length === 1){ $('viVendor').value = match[0].id; renderInvoiceForm(); }
+  var notes = ['Read from the XML: ' + x.vendor + (x.vendorId ? ' (' + x.vendorId + ')' : '') + ', total ' + fmt(x.total) + '.'];
+  if (match.length !== 1) notes.push('Pick the supplier: no single supplier in the list has that name.');
+  if (x.charges) notes.push('The invoice also has other charges of ' + fmt(x.charges) + ' (not IVA): check them with the accountant.');
+  if (x.otherTax) notes.push('It includes other taxes of ' + fmt(x.otherTax) + ' that are not IVA: they were left out of the IVA.');
+  if (Math.abs(x.net + x.tax + x.charges - x.total) > 1) notes.push('Its total does not add up (' + fmt(x.net) + ' + ' + fmt(x.tax) + ' + ' + fmt(x.charges) + '): check the invoice.');
+  notes.push('Check the amounts, tick the deliveries on it, then save.');
+  msg.replaceChildren.apply(msg, notes.map(function(n){ var d = document.createElement('div'); d.textContent = n; return d; }));
+  invoiceDiff();
+});
 $('viGo').addEventListener('click', async function(){
   var ids = checkedReceipts();
   var x = {vendor_id: $('viVendor').value, number: $('viNum').value.trim(), date: $('viDate').value, due_date: $('viDue').value || null,

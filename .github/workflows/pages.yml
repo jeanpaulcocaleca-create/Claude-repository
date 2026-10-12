@@ -8,6 +8,8 @@ name: Publish website (PRODUCTION · manual only)
 #   1. creates a release tag (vYYYY.MM.DD-N) on GitHub, then
 #   2. Actions → "Publish website (PRODUCTION · manual only)" → Run workflow →
 #      "Use workflow from" = that tag, and types PUBLICAR in the box.
+# Going back: run it again from the previous release tag. To go back to a site that was live before any release
+# (a saved copy: a tag "sitio-AAAA-MM-DD" on the gh-pages branch), also write that name in "restaurar".
 # AI agents working in this repository must never run this workflow or create release tags
 # (see CLAUDE.md). See docs/PUBLICAR.md for the full release checklist and rollback.
 #
@@ -20,6 +22,10 @@ on:
       confirm:
         description: 'Escriba PUBLICAR para publicar esta versión en el sitio real del café'
         required: true
+        default: ''
+      restaurar:
+        description: 'Solo para volver a un sitio guardado (sitio-AAAA-MM-DD). Vacío = publicar esta versión'
+        required: false
         default: ''
 
 permissions:
@@ -38,6 +44,7 @@ jobs:
         # inputs reach the script as variables, never pasted into it (text typed in the box cannot run commands)
         env:
           CONFIRM: ${{ github.event.inputs.confirm }}
+          RESTORE: ${{ github.event.inputs.restaurar }}
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
@@ -47,8 +54,22 @@ jobs:
           if [ "$REF_TYPE" != "tag" ] || ! [[ "$REF_NAME" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]+$ ]]; then
             echo "::error::Solo se publica desde una etiqueta de versión (vAAAA.MM.DD-N). Nada se publicó."; exit 1
           fi
+          if [ -n "$RESTORE" ] && ! [[ "$RESTORE" =~ ^sitio-[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "::error::Un sitio guardado se llama sitio-AAAA-MM-DD. Nada se publicó."; exit 1
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Going back to a saved site (only when "restaurar" is filled in)
+        if: github.event.inputs.restaurar != ''
+        env:
+          RESTORE: ${{ github.event.inputs.restaurar }}
+        run: |
+          git fetch --depth=1 origin "refs/tags/$RESTORE:refs/tags/$RESTORE" || { echo "::error::No existe la copia $RESTORE. Nada se publicó."; exit 1; }
+          mkdir sitio-restaurado
+          git archive "$RESTORE" | tar -x -C sitio-restaurado
+          test -f sitio-restaurado/index.html && test -f sitio-restaurado/pos.html || { echo "::error::$RESTORE no es una copia del sitio. Nada se publicó."; exit 1; }
+          echo "Se publicará la copia guardada $RESTORE tal como estaba."
       - name: Fetch the film and photos listed in website/ASSETS.md
+        if: github.event.inputs.restaurar == ''
         run: |
           python3 - <<'PY'
           import re, os, urllib.request
@@ -62,6 +83,7 @@ jobs:
               print('fetched', path, os.path.getsize(dest), 'bytes')
           PY
       - name: Stamp the release version
+        if: github.event.inputs.restaurar == ''
         # Every page carries its build; open tablets compare it with version.json and reload between sales
         # (website/version.js). Local scripts get ?v=<build> so no device keeps an old copy from its cache.
         env:
@@ -76,7 +98,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./website
+          publish_dir: ${{ github.event.inputs.restaurar != '' && './sitio-restaurado' || './website' }}
           force_orphan: true
           cname: hanginggardencafe.com
-          commit_message: 'Publish website ${{ github.ref_name }}'
+          commit_message: "Publish website ${{ github.ref_name }}${{ github.event.inputs.restaurar != '' && format(' · {0}', github.event.inputs.restaurar) || '' }}"

@@ -8,7 +8,8 @@
   var ENVS = {
     production: { url: 'https://nbvczarfweanoxvdqplk.supabase.co',
                   key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU' },
-    /* the free staging project: filled in once the owner has created it (docs/DEPENDENCIES.md) */
+    /* the free staging project: left empty here; the staging site's own publishing fills it in from that
+       repository's settings (docs/PRUEBAS.md). It can never be the production project (checked below). */
     staging: { url: '', key: '' },
     /* automated tests only: a local stand-in for Supabase (tests/e2e/gateway.js) on the page's port + 1000,
        with a test-only key */
@@ -18,6 +19,9 @@
   var HOSTS = {
     'hanginggardencafe.com': 'production', 'www.hanginggardencafe.com': 'production',
     'staging.hanginggardencafe.com': 'staging',
+    /* the staging site on GitHub Pages (jeanpaulcocaleca-create.github.io/canopy-pruebas); the live site has its own
+       domain, so this address only ever serves the staging copy */
+    'jeanpaulcocaleca-create.github.io': 'staging',
     '127.0.0.1': 'local', 'localhost': 'local'
   };
   /* staff pages (sales, money, people): they only run on a known address. Public pages (menu, website, room
@@ -27,7 +31,8 @@
   var staffPage = STAFF.test(location.pathname);
   var cfg = ENVS[env] || ENVS.production;
   var blocked = env === 'unknown' && staffPage;
-  if (env === 'staging' && !cfg.url) blocked = true;
+  /* staging never runs without its own project, and never on the production one */
+  if (env === 'staging' && (!cfg.url || cfg.url === ENVS.production.url || cfg.key === ENVS.production.key)) blocked = true;
 
   window.HG_CONFIG = Object.freeze({
     env: env,
