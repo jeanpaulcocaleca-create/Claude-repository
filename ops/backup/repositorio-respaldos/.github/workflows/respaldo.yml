@@ -11,7 +11,10 @@
 #   AGE_RECIPIENTS     las DOS llaves públicas age1... (del dueño y la de recuperación), separadas por un espacio
 #   RCLONE_CONF        la configuración de rclone del almacenamiento externo (solo permiso de ESCRIBIR)
 #   RCLONE_REMOTE      por ejemplo  offsite:canopy-respaldos
-# Variable (no secreta):  SUPABASE_URL = https://<proyecto>.supabase.co
+#   STORAGE_S3_KEY_ID, STORAGE_S3_SECRET   llaves S3 de Supabase Storage (Storage → S3 Connection → New access key),
+#                      para copiar las facturas de gastos (depósito privado). Sin ellas, las facturas no se copian.
+# Variables (no secretas):  SUPABASE_URL = https://<proyecto>.supabase.co
+#                           STORAGE_S3_ENDPOINT = https://<proyecto>.supabase.co/storage/v1/s3 ; STORAGE_S3_REGION (la que muestra Supabase)
 # =====================================================================================================
 name: Respaldo nocturno
 
@@ -63,6 +66,10 @@ jobs:
           AGE_RECIPIENTS: ${{ secrets.AGE_RECIPIENTS }}
           RCLONE_REMOTE: ${{ secrets.RCLONE_REMOTE }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          STORAGE_S3_ENDPOINT: ${{ vars.STORAGE_S3_ENDPOINT }}
+          STORAGE_S3_REGION: ${{ vars.STORAGE_S3_REGION }}
+          STORAGE_S3_KEY_ID: ${{ secrets.STORAGE_S3_KEY_ID }}
+          STORAGE_S3_SECRET: ${{ secrets.STORAGE_S3_SECRET }}
           RESTORE_TEST_URL: postgresql://postgres:prueba-desechable@127.0.0.1:5432/postgres
           BACKUP_SOURCE: cloud
         run: bash ./backup.sh

@@ -173,6 +173,11 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <span class="t">Inventory</span>
       <span class="d">What is on the shelf, what each sale uses, and what to order before it runs out.</span>
     </a>
+    <a class="tile" href="accounting.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h11l3 3v15H5zM8 9h8M8 13h8M8 17h5"/></svg>
+      <span class="t">Accounting</span>
+      <span class="d">The books: the day's entries, expenses, reports and exports for the accountant.</span>
+    </a>
     <a class="tile" href="time.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.6M9 2h6"/></svg>
       <span class="t">Time clock</span>
@@ -215,6 +220,8 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <div class="secrow"><span>Signed in as <b id="secEmail"></b></span><button class="ghost small" id="outAllBtn">Sign out everywhere</button></div>
     <div class="secrow"><span>Phone code (2FA): <b id="secCode">checking</b></span><button class="ghost small" id="codeBtn" hidden>Turn on</button></div>
     <p class="hint" id="secHint" style="margin:.3rem 0 0"></p>
+    <div class="secrow" id="acctRow"><span>Accountant login</span><input id="acctEmail" type="email" placeholder="accountant's email" aria-label="Accountant's email" style="max-width:16rem"><button class="ghost small" id="acctGrant">Give access</button></div>
+    <p class="hint" id="acctHint" style="margin:0">First create their login in Supabase → Authentication → Add user. They see only the accounting, never the POS or the inventory.</p>
     <div id="enrollBox" hidden>
       <p class="hint">Scan this with Google Authenticator, Microsoft Authenticator or 1Password on your phone, then type the 6-digit code it shows.</p>
       <img id="enrollQr" alt="QR code for the authenticator app" width="180" height="180">
@@ -475,6 +482,13 @@ document.getElementById('confGo').addEventListener('click', async function(){
   if (r.error || !r.data || !r.data.ok){ msg.textContent = r.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[r.data.error] || 'Could not save. Try again.'); return; }
   document.getElementById('confWho').value = ''; document.getElementById('confRef').value = '';
   msg.className = 'err ok'; msg.textContent = 'Confirmation recorded.'; loadSettingsCard();
+});
+document.getElementById('acctGrant').addEventListener('click', async function(){
+  var em = document.getElementById('acctEmail').value.trim(), hint = document.getElementById('acctHint');
+  if (!em) return;
+  var r = await db.rpc('accountant_grant', {p_email: em});
+  var E = {no_such_login: 'There is no login with that email yet: create it in Supabase → Authentication first.', is_owner: 'That is an owner login.', owner_only: 'Only the owner login can do this.'};
+  hint.textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.ok ? 'Done: ' + em + ' can open the accounting.' : (E[r.data && r.data.error] || 'Could not save. Try again.'));
 });
 async function loadStats(){
   loadInventoryAlerts();

@@ -56,15 +56,15 @@ Last updated: 2026-10-12.
 
 | Feature | Status | Depends on | Tests | Known issues | Commit | Prod |
 |---|---|---|---|---|---|---|
-| Chart of accounts (default, accountant-editable) | ⏳ | A-07 | – | – | – | – |
-| Double-entry ledger (balanced, immutable, idempotent) | ⏳ | – | – | – | – | – |
-| Fiscal periods, closing and locking | ⏳ | – | – | – | – | – |
-| Automated posting (daily sales, refunds, cash, COGS) | ⏳ | – | – | – | – | – |
-| Expenses, petty cash, receipt photos | ⏳ | – | – | – | – | – |
-| Accountant role and login | ⏳ | – | – | – | – | – |
-| Trial balance, P&L, balance sheet, cash flow | ⏳ | – | – | – | – | – |
-| Accountant exports (CSV/Excel/PDF, monthly package) | ⏳ | – | – | – | – | – |
-| Accounting section in owner dashboard | ⏳ | – | – | – | – | – |
+| Chart of accounts (proposed, accountant-editable) + mappings of the automatic lines (0013) | 🔒 | A-07 | 140_ledger, e2e 170 | Automatic posting waits for the accountant's approval (chart_of_accounts_approved) | (this commit) | R |
+| Double-entry ledger: balanced at commit, never edited (reversals), idempotent source keys (0013) | ✅ | – | 140_ledger (48), e2e 170 | – | (this commit) | R |
+| Monthly periods open → closed → locked, in order (0013) | ✅ | – | 140, e2e 170 | – | (this commit) | R |
+| Automated posting of each day at the register close: sales net of IVA, IVA, money by method and currency, open-bill advances, cash over/short, COGS, waste, counts, purchases; late sales post the difference (0013) | 🔒 | A-07 | 140, e2e 170 | Off until approved; bills count on the day paid in full (revenue timing pending A-07); card fees/withholdings come with bank reconciliation (Phase 4) | (this commit) | R |
+| Expenses with creditable IVA (cash, petty cash, bank, on credit), duplicate-invoice guard, voids by reversal, invoice photo/PDF in a private bucket (0014, 0015) | ✅ | E-17 for backing up the invoice files | 150_expenses (13), 160_receipts (10), e2e 170 | Petty-cash top-ups are journal entries until Phase 4 | (this commit) | R |
+| Accountant login kind (phone code), granted by the owner on Home; no POS/inventory access (0013) | ✅ | – | 140, e2e 170 | The owner creates the login in Supabase Auth first | (this commit) | R |
+| Trial balance, income statement, balance sheet (checks it balances), cash flow (direct) | ✅ | – | 140, e2e 170 | – | (this commit) | R |
+| Exports: CSV of every report, journal and expenses; print to PDF; month's package (ZIP of 7 CSVs incl. sales IVA by rate) | ✅ | – | e2e 170 | CSV opens in Excel (UTF-8 with BOM) | (this commit) | R |
+| Accounting page (accounting.html) + tile on Home, Spanish | ✅ | – | e2e 170 (5) | – | (this commit) | R |
 
 ## Phase 3 · Costa Rican tax and supplier accounting
 

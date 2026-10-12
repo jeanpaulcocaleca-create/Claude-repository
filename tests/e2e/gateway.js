@@ -43,7 +43,7 @@ function sessionFor(email, aal) { return session(USERS[email], email, aal); }
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, x-hg-unlock, range, x-supabase-api-version',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, prefer, x-client-info, accept-profile, content-profile, x-hg-unlock, x-hg-operator, x-upsert, cache-control, range, x-supabase-api-version',
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
   'Access-Control-Expose-Headers': 'content-range, content-location, x-total-count'
 };
@@ -55,6 +55,7 @@ function readBody(req) {
   return new Promise((ok) => { const c = []; req.on('data', (d) => c.push(d)); req.on('end', () => ok(Buffer.concat(c))); });
 }
 
+const STORE = new Map();   // test Storage: "bucket/path" -> {body, type}
 function supabaseHandler(opts) {
   return async (req, res) => {
     const u = new URL(req.url, 'http://x');
@@ -94,6 +95,42 @@ function supabaseHandler(opts) {
     if (u.pathname === '/auth/v1/logout') return send(res, 204);
     if (u.pathname.startsWith('/auth/v1/')) return send(res, 200, {});
     if (u.pathname.startsWith('/storage/v1/object/list')) return send(res, 200, []);
+    // a minimal Storage: uploads kept in memory, signed links that serve them (no access rules here: the
+    // storage.objects policies are tested in SQL)
+    const sign = u.pathname.match(/^\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/);
+    if (sign && req.method === 'POST') {
+      const key = sign[1] + '/' + decodeURIComponent(sign[2]);
+      if (!STORE.has(key)) return send(res, 400, { statusCode: '404', error: 'not_found', message: 'Object not found' });
+      return send(res, 200, { signedURL: '/object/sign/' + sign[1] + '/' + sign[2] + '?token=test' });
+    }
+    if (sign && req.method === 'GET') {
+      const o = STORE.get(sign[1] + '/' + decodeURIComponent(sign[2]));
+      if (!o) return send(res, 404, { message: 'not found' });
+      res.writeHead(200, Object.assign({ 'Content-Type': o.type }, CORS)); return res.end(o.body);
+    }
+    const up = u.pathname.match(/^\/storage\/v1\/object\/([^/]+)\/(.+)$/);
+    if (up && req.method === 'POST') {
+      const key = up[1] + '/' + decodeURIComponent(up[2]);
+      if (STORE.has(key) && req.headers['x-upsert'] !== 'true') return send(res, 400, { statusCode: '409', error: 'Duplicate', message: 'The resource already exists' });
+      let data = body, type = req.headers['content-type'] || 'application/octet-stream';
+      const mb = /multipart\/form-data;\s*boundary=(.+)$/i.exec(type);
+      if (mb) {   // supabase-js sends a File as form data: keep the file part
+        const sep = Buffer.from('--' + mb[1]);
+        for (let i = body.indexOf(sep); i > -1; ) {
+          const next = body.indexOf(sep, i + sep.length);
+          const part = body.slice(i + sep.length, next > -1 ? next : body.length);
+          const he = part.indexOf('\r\n\r\n');
+          const head = part.slice(0, he > -1 ? he : 0).toString();
+          if (/filename=/i.test(head) || /name="?(file|"")/.test(head)) {
+            data = part.slice(he + 4, part.length - 2);
+            const ct = /content-type:\s*([^\r\n]+)/i.exec(head); type = ct ? ct[1] : 'application/octet-stream';
+          }
+          i = next;
+        }
+      }
+      STORE.set(key, { body: data, type });
+      return send(res, 200, { Key: key, Id: key });
+    }
     if (u.pathname.startsWith('/storage/v1/')) return send(res, 404, { message: 'not found (test storage)' });
     return send(res, 404, { message: 'unknown path ' + u.pathname });
   };
@@ -132,4 +169,4 @@ function start(opts) {
   ]).then(() => ({ close: () => { site.close(); api.close(); } }));
 }
 
-module.exports = { start, sessionFor, sign, SECRET, USERS };
+module.exports = { start, sessionFor, sign, SECRET, USERS, STORE };

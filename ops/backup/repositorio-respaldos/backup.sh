@@ -12,6 +12,9 @@
 #   AGE_RECIPIENTS     the owner's age PUBLIC keys (age1...), separated by spaces or new lines (2 recommended)
 #   SUPABASE_URL       https://<ref>.supabase.co (public; used to download public Storage files)
 #   STORAGE_BUCKETS    public buckets to copy (default: menu-photos)
+#   PRIVATE_BUCKETS    private buckets to copy with Storage's S3 access (default: expense-receipts)
+#   STORAGE_S3_ENDPOINT, STORAGE_S3_REGION, STORAGE_S3_KEY_ID, STORAGE_S3_SECRET
+#                      Supabase → Storage → S3 access keys (read is enough); without them private buckets are skipped
 #   RESTORE_TEST_URL   optional: a THROW-AWAY Postgres server (never Supabase) for the nightly restore test
 #   RCLONE_REMOTE      optional: rclone destination, e.g. offsite:canopy-respaldos   (or)
 #   UPLOAD_DIR         optional: copy the encrypted file to this folder instead
@@ -126,6 +129,25 @@ if [ -n "${SUPABASE_URL:-}" ]; then
       else log "aviso: no se pudo descargar $b/$obj"; fi
     done < "$WORK/objects-$b.txt"
     log "fotos copiadas de $b: $n"
+  done
+fi
+
+STEP="copiar facturas (Storage privado)"
+PRIVATE="${PRIVATE_BUCKETS:-expense-receipts}"
+if [ -n "${STORAGE_S3_KEY_ID:-}" ] && [ -n "${STORAGE_S3_SECRET:-}" ] && [ -n "${STORAGE_S3_ENDPOINT:-}" ]; then
+  export RCLONE_CONFIG_SUPASTORE_TYPE=s3 RCLONE_CONFIG_SUPASTORE_PROVIDER=Other
+  export RCLONE_CONFIG_SUPASTORE_ENDPOINT="$STORAGE_S3_ENDPOINT" RCLONE_CONFIG_SUPASTORE_REGION="${STORAGE_S3_REGION:-us-east-1}"
+  export RCLONE_CONFIG_SUPASTORE_ACCESS_KEY_ID="$STORAGE_S3_KEY_ID" RCLONE_CONFIG_SUPASTORE_SECRET_ACCESS_KEY="$STORAGE_S3_SECRET"
+  export RCLONE_CONFIG_SUPASTORE_FORCE_PATH_STYLE=true
+  for b in $PRIVATE; do
+    mkdir -p "$PACK/storage/$b"
+    rclone copy "supastore:$b" "$PACK/storage/$b" --quiet
+    log "archivos copiados de $b: $(find "$PACK/storage/$b" -type f | wc -l)"
+  done
+else
+  for b in $PRIVATE; do
+    n="$(sql -c "select count(*) from storage.objects where bucket_id = '$b'" 2>/dev/null || echo 0)"
+    [ "${n:-0}" != "0" ] && log "aviso: $n archivos de $b NO se copiaron (faltan las llaves S3 de Storage, docs/RESPALDOS.md)"
   done
 fi
 

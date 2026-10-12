@@ -113,3 +113,15 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   public API (free, no key) when the owner enables the extensions, or typed by a manager (never over an
   official rate). The owner chooses buy or sell (`fx_rate_kind`, default buy, pending A-06).
 - **Why:** "Cash $" kept only a colón amount, and the close expected those dollars as colones.
+
+## D-013 · 2026-10-12 · The ledger posts each day from the register, as differences
+- **Decision:** the books live in schema `acct` (not exposed). Each closed day gets one entry computed from
+  the sales, payments, tenders, register count and stock moves of that day; posting again compares the
+  computed day with what is already posted and records only the difference (a late sale, a re-close). A
+  closed month is never touched: a difference for it is dated in the open month with a note. Entries balance
+  at commit, are never edited or deleted (reversals), and automatic ones are keyed so they never repeat.
+- **Why:** sales keep arriving after a close (offline devices, bills paid later); recomputing and posting
+  deltas keeps the books equal to the operational records without ever rewriting history.
+- **Bills paid in parts:** money received before the bill is fully paid waits in "Anticipos de clientes"; the
+  sale (and its IVA) is recognized the day the bill is paid in full — revenue timing to confirm (A-07).
+- **Pending:** the accountant approves the chart and the mappings (A-07) before automatic posting is switched on.

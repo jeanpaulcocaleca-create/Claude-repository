@@ -22,6 +22,8 @@ Status: **OPEN** (waiting), **DONE**.
 | E-14 | DNS: `staging.hanginggardencafe.com` → GitHub Pages of the staging repository (owner) | Staging site on its own address | OPEN |
 | E-15 | Front-register hardware (touch PC or iPad; physical keyboard?) (owner) | Default for the on-screen keyboard | OPEN (default: auto) |
 | E-16 | Supabase → Database → Extensions: turn on **http** and **pg_cron**, then run `supabase/tools/fx-job.sql` (owner) | Daily exchange rate from Hacienda's free public API (no key). The answer's format could not be checked from the development environment; the first run is checked in `canopy.fx_fetch_log`. Until then a manager types the rate. | OPEN |
+| E-17 | Supabase → Storage → S3 Connection → New access key; add STORAGE_S3_KEY_ID / STORAGE_S3_SECRET (secrets) and STORAGE_S3_ENDPOINT / STORAGE_S3_REGION (variables) to the private backup repository (owner) | Nightly copy of the expense invoice files (private bucket). Without it the database is backed up but the invoice files are not. | OPEN |
+| E-18 | Create the accountant's login in Supabase → Authentication → Add user, then Home → Owner login → Accountant login → Give access (owner) | The accountant's own access to the books | OPEN |
 
 ## Accountant / lawyer confirmations (regulated features stay disabled until then)
 
