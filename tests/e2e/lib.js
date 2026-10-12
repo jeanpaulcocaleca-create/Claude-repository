@@ -85,4 +85,10 @@ async function pos(browser, opts) {
   return pg;
 }
 
-module.exports = { page, goto, until, sql, sqlJson, openRegister, pos, SITE, STAFF, PINS, LOGINS, ROOT };
+/* a cash payment opens the cash window (migration 0010): pay the exact amount */
+async function cashExact(pg) {
+  await pg.waitForSelector('#cashModal:not([hidden])', { timeout: 5000 });
+  await pg.click('#cashExact');
+}
+
+module.exports = { page, goto, until, sql, sqlJson, openRegister, pos, cashExact, SITE, STAFF, PINS, LOGINS, ROOT };

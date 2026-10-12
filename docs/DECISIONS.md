@@ -104,3 +104,12 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   prices on public displays follow the MEIC rule reported in A-03; switching the mode never rewrites history.
 - **Rates:** only the general 13 % (Ley 9635) is built in. Any other rate is added by the owner with who
   confirmed it and the document; a rate used on sales can never be changed (a new code is added instead).
+
+## D-012 · 2026-10-12 · Cash is recorded as it is received; the drawer is counted in two currencies
+- **Decision:** every cash payment can carry its tender (`cash_tenders`: colones in, dollars in, change in
+  colones, the rate the cashier used and the official one). The register expects colones = float + colones
+  in − change, and dollars = dollar float + dollars in. Payments without tender (older pages, room orders
+  charged at the window) count in colones as before. Rates: a daily row in `fx_rates` from Hacienda's
+  public API (free, no key) when the owner enables the extensions, or typed by a manager (never over an
+  official rate). The owner chooses buy or sell (`fx_rate_kind`, default buy, pending A-06).
+- **Why:** "Cash $" kept only a colón amount, and the close expected those dollars as colones.

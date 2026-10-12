@@ -433,8 +433,9 @@ async function loadBackupStatus(){
   card.hidden = false;
 }
 /* system settings (migration 0008): the owner's decisions, regulated ones locked until confirmed */
-var SET_LABEL = {operator_mode: 'Who rings up each sale'};
-var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On'};
+var SET_LABEL = {operator_mode: 'Who rings up each sale', fx_rate_kind: 'Exchange rate for dollars', price_mode: 'Prices at the POS'};
+var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On',
+                    buy: 'Buy rate of the day', sell: 'Sell rate of the day', inclusive: 'IVA included (as today)', exclusive: 'Before IVA, IVA added at checkout'};
 var SET_ERR = {owner_only: 'Only the owner login, with the phone code, can change settings.', bad_value: 'That value is not allowed.',
                needs_confirmation: 'Locked: record the confirmation of this rule first.'};
 async function loadSettingsCard(){

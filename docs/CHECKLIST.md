@@ -41,11 +41,11 @@ Last updated: 2026-10-12.
 | On-screen numeric PIN keypad (all PIN fields) | ✅ | – | e2e 110 (3) | – | b02dfbe | R |
 | Amount and quantity pads; optional on-screen text keyboard | ✅ | – | e2e 110 | Text keyboard is opt-in per device (HG_KEYPAD.setText) | b02dfbe | R |
 | Settings framework with compliance locks; operator sessions, clock-in requirement, sale attribution, offline claims (0008) | ✅ | – | 090_settings_operators (27), e2e 120 (5) | Mode starts 'off' in production; owner switches it on Home | aeca1d1 | R |
-| Tax engine: rates with confirmation, per-item rate + CABYS, per-line IVA/net/discount share stored by the server, refunds carry IVA back, tax_summary (0009); POS ticket and receipt by rate; Menu Manager fields | ✅ | A-04 (each item's rate and CABYS) | 100_tax_engine (21), e2e 130 (3) | Every item starts at 13 % (as today) until the accountant assigns codes | (this commit) | R |
-| Tax-exclusive pricing: POS shows prices before IVA and adds it; Menu Manager takes prices before IVA; website/TV/QR keep final prices | 🔒 | A-03, A-04 | 100 (lock), e2e 130 (display) | Locked by the `price_display_rules` confirmation | (this commit) | – |
-| CRC + USD totals, exchange-rate fetch, rate snapshots | ⏳ | A-06 (policy) | – | – | – | – |
-| Cash window: denominations, change, mixed currency | ⏳ | – | – | – | – | – |
-| Two-currency register close | ⏳ | – | – | – | – | – |
+| Tax engine: rates with confirmation, per-item rate + CABYS, per-line IVA/net/discount share stored by the server, refunds carry IVA back, tax_summary (0009); POS ticket and receipt by rate; Menu Manager fields | ✅ | A-04 (each item's rate and CABYS) | 100_tax_engine (21), e2e 130 (3) | Every item starts at 13 % (as today) until the accountant assigns codes | f84231c | R |
+| Tax-exclusive pricing: POS shows prices before IVA and adds it; Menu Manager takes prices before IVA; website/TV/QR keep final prices | 🔒 | A-03, A-04 | 100 (lock), e2e 130 (display) | Locked by the `price_display_rules` confirmation | f84231c | – |
+| CRC + USD totals; daily rate (Hacienda API job, manual entry by a manager, buy/sell setting); rate kept with every dollar payment (0010) | 🟡 | A-06, E-16 | 110_fx_cash (21), e2e 140 | Automatic fetch needs the http + pg_cron extensions and a first live check of the API answer (E-16); manual rate works now | (this commit) | R (manual) |
+| Cash window: notes and coins, typed amount, exact, change, dollars and mixed; tender kept per payment (new sales and bills) | ✅ | – | e2e 140 (2), 070 | Charging an open order from the list (data-lpay) and room orders at the window (data-rpay) still record no tender: counted as before | (this commit) | R |
+| Two-currency register: float and count in ₡ and $, expected from the tenders, day's rate kept | ✅ | – | 110, e2e 140 | Payments without tender detail count in colones as before | (this commit) | R |
 | Order history search + receipt reprint (COPIA) | ⏳ | – | – | – | – | – |
 | Inventario → Crear Pedido (multi-supplier) | ⏳ | – | – | – | – | – |
 | PO document (print/PDF), text, WhatsApp, share, email | ⏳ | – | – | – | – | – |

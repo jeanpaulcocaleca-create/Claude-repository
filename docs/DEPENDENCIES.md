@@ -21,6 +21,7 @@ Status: **OPEN** (waiting), **DONE**.
 | E-13 | Create the free staging Supabase project; give its URL and **anon** key (public values, owner) | Staging environment (`website/config.js` "staging" entry) | OPEN |
 | E-14 | DNS: `staging.hanginggardencafe.com` → GitHub Pages of the staging repository (owner) | Staging site on its own address | OPEN |
 | E-15 | Front-register hardware (touch PC or iPad; physical keyboard?) (owner) | Default for the on-screen keyboard | OPEN (default: auto) |
+| E-16 | Supabase → Database → Extensions: turn on **http** and **pg_cron**, then run `supabase/tools/fx-job.sql` (owner) | Daily exchange rate from Hacienda's free public API (no key). The answer's format could not be checked from the development environment; the first run is checked in `canopy.fx_fetch_log`. Until then a manager types the rate. | OPEN |
 
 ## Accountant / lawyer confirmations (regulated features stay disabled until then)
 

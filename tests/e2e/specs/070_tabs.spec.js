@@ -3,7 +3,7 @@
    while the system does not take them (queue). Ported from the e2e3 suites tabs-e2e.js and tabs-e2e6.js. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, cashExact, PINS } = require('../lib');
 const gw = require('../gateway');
 
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -174,6 +174,7 @@ module.exports.tests = [
       await pg.locator('#splitBody .chips button', { hasText: /^2$/ }).click();
       assert.strictEqual(money(await text(pg, '#tabDue')), '₡2750', 'half of ₡5 500 = ₡2 750');
       await pg.click('#tabPayRow [data-tpay="cash_crc"]');
+      await cashExact(pg);
       await until(async () => (await pg.locator('#tabTotals .trow.part').count()) === 2, 8000, 'two parts paid');
       await untilText(pg, '#tabDueLbl', /cierra la cuenta/);
       assert.strictEqual(money(await text(pg, '#tabDue')), '₡2750', 'second half ₡2 750');
@@ -256,8 +257,10 @@ module.exports.tests = [
       await pg.click('#tabSplit [data-mode="all"]');
       assert.strictEqual(money(await text(pg, '#tabDue')), '₡3800', 'the rest');
       await pg.click('#tabPayRow [data-tpay="cash_crc"]');
+      await cashExact(pg);
       await pg.waitForSelector('#tabPaidAll:not([hidden])', { timeout: 8000 });
       assert.strictEqual(sql(`select paid || ' ' || payment_method || ' ' || total_crc from orders where id = '${id(20)}'`), 'true cash_crc 3800', 'closed in cash');
+      await until(() => sql(`select crc_in || ' ' || change_crc from cash_tenders where order_id = '${id(20)}'`) === '3800 0', 8000, 'the cash received is kept with the payment');
       assert.strictEqual(sql(`select sum(total_crc) from orders where id = '${id(20)}' or part_of = '${id(20)}'`), '5000', 'all payments add up to the bill');
       assert.deepStrictEqual(pg.errors, []);
     }
@@ -391,6 +394,7 @@ module.exports.tests = [
       await pg.route(/rest\/v1\/rpc\/pos_record_sale/, refuse);
       await pg.evaluate(() => { document.querySelector('.pbtn').click(); });
       await pg.click('[data-pay="cash_crc"]');
+      await cashExact(pg);
       await until(async () => (await pg.isVisible('#numModal')) || (await pg.evaluate(() => queue.length > 0)), 8000, 'the number window or the sale');
       if (await pg.isVisible('#numModal')) await pg.click('#numNone');
       await untilText(pg, '#netChip', /no guardado en este dispositivo/);

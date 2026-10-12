@@ -1,13 +1,14 @@
 /* The POS saves each sale once, with its lines, online or after being offline; old databases still work. */
 'use strict';
 const assert = require('assert');
-const { until, sql, pos } = require('../lib');
+const { until, sql, pos, cashExact } = require('../lib');
 
 async function ringFirstItem(pg, times, method) {
   const first = pg.locator('.pbtn').first();
   const name = (await first.locator('.nm').textContent()).trim();
   for (let i = 0; i < times; i++) await first.click();
   await pg.click(`[data-pay="${method || 'cash_crc'}"]`);
+  if (/^cash/.test(method || 'cash_crc')) await cashExact(pg);
   if (await pg.locator('#numModal:not([hidden])').count()) await pg.click('#numNone');
   return name;
 }

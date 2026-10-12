@@ -1,7 +1,7 @@
 /* Smoke tests: the real pages run against the local test database and never reach Supabase. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, pos } = require('../lib');
+const { page, goto, until, sql, pos, cashExact } = require('../lib');
 
 module.exports.tests = [
   {
@@ -22,6 +22,7 @@ module.exports.tests = [
       const name = (await first.locator('.nm').textContent()).trim();
       await first.click(); await first.click();
       await pg.click('[data-pay="cash_crc"]');
+      await cashExact(pg);
       if (await pg.locator('#numModal:not([hidden])').count()) await pg.click('#numNone');
       const row = await until(() => sql(`select o.total_crc || '|' || i.qty || '|' || i.item_name from orders o join order_items i on i.order_id = o.id where o.payment_method = 'cash_crc' limit 1`), 10000, 'sale saved');
       const [total, qty, item] = row.split('|');

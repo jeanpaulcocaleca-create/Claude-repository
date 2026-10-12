@@ -199,6 +199,24 @@ button.chip:hover{background:var(--canvas)}
 .dayrow{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px dotted var(--muted);font-size:.95rem}
 .dayrow.big{font-weight:700;font-size:1.1rem;border-bottom:none;padding-top:.6rem}
 .modal .close{width:100%;margin-top:1rem}
+#cashModal{z-index:30}   /* above the bill window it is opened from */
+.cashbox{max-width:560px}
+.cashdue{display:flex;align-items:baseline;gap:.6rem;flex-wrap:wrap;font-size:1.05rem;margin-bottom:.6rem}
+.cashdue b{font-size:1.6rem}.cashdue small,.cashgot small{color:var(--sec)}
+.cashcols{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.cashcols h3{font-size:.9rem;margin:0 0 .4rem;color:var(--sec)}
+.denoms{display:grid;grid-template-columns:repeat(2,1fr);gap:.45rem}
+.denoms button{min-height:52px;font-size:1.05rem;font-weight:700}
+.denoms button:disabled{opacity:.4}
+.cashtotals{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.9rem 0 .2rem}
+.cashtotals div{background:var(--canvas);border-radius:12px;padding:.6rem .8rem}
+.cashtotals span{display:block;font-size:.85rem;color:var(--sec)}
+.cashtotals b{font-size:1.45rem}
+.cashtotals .chg b{color:var(--accent)}
+.cashtotals small{display:block;font-size:.8rem}
+.cashtyped{display:flex;gap:.5rem;margin-top:.6rem}.cashtyped input{flex:1}
+.trow.usd{font-size:.85rem;color:var(--sec)}
+@media (max-width:520px){.cashcols{grid-template-columns:1fr}}
 .opgrid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.2rem 0 .9rem}
 .opgrid button{min-height:56px;font-size:1.05rem}
 .opgrid button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -356,6 +374,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <div class="trow" id="netRow" hidden><span>Before IVA</span><span class="mono" id="netAmt">₡0</span></div>
       <div class="trow"><span id="ivaLbl">Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
       <div class="trow big"><span>Total</span><span class="mono" id="totalAmt">₡0</span></div>
+      <div class="trow usd" id="usdRow" hidden><span id="usdLbl">In dollars</span><span class="mono" id="usdAmt"></span></div>
     </div>
     <button type="button" class="addgo" id="addGo" hidden>Add to the bill</button>
     <div class="payrow" id="payRow">
@@ -388,6 +407,8 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <input id="roPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
       <label for="roFloat">Cash float received (₡)</label>
       <input id="roFloat" data-keypad="amount" type="number" min="0" step="1" inputmode="numeric" value="50000" required>
+      <label for="roFloatUsd">Dollars in the float ($)</label>
+      <input id="roFloatUsd" data-keypad="amount" type="number" min="0" step="1" inputmode="numeric" value="0">
       <p class="err" id="roErr"></p>
       <button type="submit">Open the register</button>
     </form>
@@ -399,6 +420,9 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="rcCash">Cash in the drawer, float included (₡)</label>
       <input id="rcCash" data-keypad="amount" type="number" min="0" inputmode="numeric" placeholder="₡" required>
       <span class="diff mono" id="rcCashDiff"></span>
+      <label for="rcCashUsd">Dollars in the drawer, float included ($)</label>
+      <input id="rcCashUsd" data-keypad="amount" type="number" min="0" step="1" inputmode="numeric" placeholder="$">
+      <span class="diff mono" id="rcUsdDiff"></span>
       <label for="rcNotes">Notes (optional)</label>
       <input id="rcNotes" maxlength="200" autocomplete="off" placeholder="e.g. ₡2 000 short, tip jar">
       <label for="rcStaff">Who is closing</label>
@@ -445,6 +469,29 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       </div>
     </div>
     <button class="close" id="ordersClose">Close</button>
+  </div>
+</div>
+
+<div class="modal" id="cashModal" hidden>
+  <div class="box cashbox">
+    <h2>Cash received</h2>
+    <div class="cashdue"><span>To pay</span><b class="mono" id="cashDue">₡0</b><small class="mono" id="cashDueUsd"></small></div>
+    <div class="cashcols">
+      <div><h3>Colones</h3><div class="denoms" id="denCrc"></div></div>
+      <div><h3>Dollars <small id="cashRate"></small></h3><div class="denoms" id="denUsd"></div></div>
+    </div>
+    <div class="cashtyped"><input id="cashTyped" data-keypad="amount" data-keypad-ok="#cashTypedGo" type="number" min="0" step="1" inputmode="numeric" placeholder="Other amount in colones" aria-label="Other amount in colones"><button type="button" class="ghost" id="cashTypedGo">Add</button></div>
+    <div class="cashtotals">
+      <div><span>Received</span><b class="mono" id="cashGot">₡0</b><small id="cashGotDetail"></small></div>
+      <div class="chg"><span>Change</span><b class="mono" id="cashChange">₡0</b></div>
+    </div>
+    <p class="err" id="cashErr"></p>
+    <div style="display:flex;gap:.6rem">
+      <button type="button" class="ghost" id="cashExact" style="flex:1">Exact amount</button>
+      <button type="button" class="ghost" id="cashClear" style="flex:1">Start over</button>
+    </div>
+    <button type="button" id="cashGo" style="width:100%;margin-top:.6rem" disabled>Charge</button>
+    <button type="button" class="ghost close" id="cashCancel">Cancel</button>
   </div>
 </div>
 
@@ -704,7 +751,7 @@ async function refreshAuth(){
   document.getElementById('appView').hidden = !authed;
   /* signed out (also by itself): no window stays over the sign-in box */
   if (!authed){ document.querySelectorAll('.modal').forEach(function(m){ m.hidden = true; }); payTarget = null; pendingPay = null; }
-  if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); syncQueue(); loadSettings(); loadOperator(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
+  if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); syncQueue(); loadSettings(); loadOperator(); loadFx(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
     loadRegister().then(function(){ if (STATION && STATION.main) nudgeRegister(); });
     if (!STATION) openStation(); }
 }
@@ -909,6 +956,8 @@ function renderTicket(){
   document.getElementById('ivaAmt').textContent = fmt(tax);
   document.getElementById('netRow').hidden = PRICE_MODE !== 'exclusive';
   document.getElementById('netAmt').textContent = fmt(total - tax);
+  document.getElementById('usdRow').hidden = !(FX && total > 0);
+  if (FX && total > 0) document.getElementById('usdAmt').textContent = '≈ ' + usd(total / FX.rate);
   document.getElementById('ticketSum').textContent = n ? n + (n === 1 ? ' item · ' : ' items · ') + fmt(total) : '';
   if (adding) document.getElementById('addGo').textContent = n ? 'Add to the bill · ' + fmt(total) : 'Add to the bill';
 }
@@ -1141,7 +1190,7 @@ async function startOp(clockIn){
     if (code === 'not_clocked_in'){ err.textContent = opPick.name + ' has not clocked in. Clock in to start.'; document.getElementById('opClockGo').hidden = false; document.getElementById('opPin').focus(); return; }
     err.textContent = OP_ERR[code] || 'Could not start. Try again.'; document.getElementById('opPin').focus(); return;
   }
-  if (OP && OP.token && OP.token !== r.data.token) db.rpc('pos_operator_end', {p_token: OP.token});
+  if (OP && OP.token && OP.token !== r.data.token) db.rpc('pos_operator_end', {p_token: OP.token}).then(function(){});
   OP = {token: r.data.token, staff_id: r.data.staff_id, name: r.data.name, expires_at: r.data.expires_at};
   saveOp();
   document.getElementById('opModal').hidden = true;
@@ -1156,7 +1205,7 @@ document.getElementById('opOffline').addEventListener('click', function(){
   saveOp(); document.getElementById('opModal').hidden = true;
 });
 document.getElementById('opEnd').addEventListener('click', function(){
-  if (OP && OP.token) db.rpc('pos_operator_end', {p_token: OP.token});
+  if (OP && OP.token) db.rpc('pos_operator_end', {p_token: OP.token}).then(function(){});
   OP = null; saveOp(); openOp();
 });
 document.getElementById('opSkip').addEventListener('click', function(){ document.getElementById('opModal').hidden = true; });
@@ -1205,13 +1254,81 @@ async function loadSettings(){
   var r = await db.from('app_settings').select('pickup_numbers,numbers_out').eq('id', 1);
   settings = (!r.error && r.data && r.data[0]) ? r.data[0] : null;
 }
+/* ---------- cash window (migration 0010): notes and coins received, change, dollars at the day's rate ----------
+   What came in is kept with the payment (cash_tenders), so the drawer is counted in colones and in dollars. */
+var FX = null, FX_KEY = 'hg-pos-fx';
+try { FX = JSON.parse(localStorage.getItem(FX_KEY) || 'null'); } catch (e) { FX = null; }
+async function loadFx(){
+  var r = await db.rpc('fx_today');
+  if (r.error || !r.data || !r.data.ok) return;          /* an older database: the cash window works in colones */
+  FX = r.data.rate ? {rate: Number(r.data.rate), day: r.data.day, source: r.data.source, stale: !!r.data.stale} : null;
+  try { localStorage.setItem(FX_KEY, JSON.stringify(FX)); } catch (e) {}
+  renderTicket();
+}
+var CRC_DENOMS = [1000, 2000, 5000, 10000, 20000, 50000, 500, 100], USD_DENOMS = [1, 5, 10, 20, 50, 100];
+var cash = null;   /* {due, crc, usd, done(tender, method)} */
+function usd(n){ return '$' + (Math.round(n * 100) / 100).toFixed(2); }
+function cashGot(){ return cash.crc + (cash.usd > 0 && FX ? Math.round(cash.usd * FX.rate) : 0); }
+function openCash(due, done){
+  cash = {due: due, crc: 0, usd: 0, done: done};
+  var dc = document.getElementById('denCrc'), du = document.getElementById('denUsd');
+  dc.replaceChildren(); du.replaceChildren();
+  CRC_DENOMS.forEach(function(v){ var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost mono'; b.textContent = fmt(v);
+    b.addEventListener('click', function(){ cash.crc += v; renderCash(); }); dc.appendChild(b); });
+  USD_DENOMS.forEach(function(v){ var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost mono'; b.textContent = '$' + v;
+    b.disabled = !FX; b.addEventListener('click', function(){ cash.usd += v; renderCash(); }); du.appendChild(b); });
+  document.getElementById('cashRate').textContent = FX ? '· ' + fmt(FX.rate) + (FX.stale ? ' (old rate)' : '') : '· no rate today';
+  document.getElementById('cashDue').textContent = fmt(due);
+  document.getElementById('cashDueUsd').textContent = FX ? '≈ ' + usd(due / FX.rate) : '';
+  document.getElementById('cashTyped').value = '';
+  document.getElementById('cashModal').hidden = false;
+  renderCash();
+}
+function renderCash(){
+  var got = cashGot(), chg = Math.max(0, got - cash.due);
+  document.getElementById('cashGot').textContent = fmt(got);
+  document.getElementById('cashGotDetail').textContent = cash.usd > 0 ? usd(cash.usd) + (cash.crc ? ' + ' + fmt(cash.crc) : '') : '';
+  document.getElementById('cashChange').textContent = fmt(chg);
+  document.getElementById('cashGo').disabled = got < cash.due;
+  document.getElementById('cashErr').textContent = got > 0 && got < cash.due ? 'Missing ' + fmt(cash.due - got) : '';
+}
+function cashFinish(exact){
+  if (!cash) return;
+  if (exact){ cash.crc = cash.due; cash.usd = 0; }
+  var got = cashGot(); if (got < cash.due) return;
+  var t = {crc_in: cash.crc, usd_in: cash.usd, change_crc: got - cash.due, fx_rate: cash.usd > 0 && FX ? FX.rate : null};
+  var done = cash.done, chg = t.change_crc;
+  cash = null; document.getElementById('cashModal').hidden = true;
+  done(t, t.usd_in > 0 ? 'cash_usd' : 'cash_crc');
+  if (chg > 0) toast('Change ' + fmt(chg));
+}
+document.getElementById('cashExact').addEventListener('click', function(){ cashFinish(true); });
+document.getElementById('cashGo').addEventListener('click', function(){ cashFinish(false); });
+document.getElementById('cashClear').addEventListener('click', function(){ if (cash){ cash.crc = 0; cash.usd = 0; renderCash(); } });
+document.getElementById('cashCancel').addEventListener('click', function(){ cash = null; pendingPay = null; document.getElementById('cashModal').hidden = true; });
+document.getElementById('cashTypedGo').addEventListener('click', function(){
+  var v = parseInt(document.getElementById('cashTyped').value, 10);
+  if (cash && v > 0){ cash.crc += v; document.getElementById('cashTyped').value = ''; renderCash(); }
+});
+var CASH_TENDER = true;   /* false on a database without migration 0010: no window, as before */
+function isCash(m){ return m === 'cash_crc' || m === 'cash_usd'; }
+
 document.querySelectorAll('[data-pay]').forEach(function(b){
   b.addEventListener('click', function(){
     if (!ticket.length){ toast('The order is empty.'); return; }
     if (discExpired()) return;
     pendingPay = {method: b.dataset.pay, label: b.textContent.trim()};
-    if (!settings){ recordSale(null); return; }   /* number stands switch on after the kitchen SQL */
-    openNumbers();
+    var go = function(){ if (!settings){ recordSale(null); return; } openNumbers(); };   /* number stands switch on after the kitchen SQL */
+    if (CASH_TENDER && isCash(pendingPay.method)){
+      var sub = subtotal();
+      openCash(sub - discOf(sub), function(t, m){
+        if (!pendingPay) return;
+        pendingPay.tender = t; pendingPay.method = m; pendingPay.label = m === 'cash_usd' ? 'Cash $' : 'Cash ₡';
+        go();
+      });
+      return;
+    }
+    go();
   });
 });
 function usedNumbers(){
@@ -1264,6 +1381,7 @@ function recordSale(number){
     items: ticket.map(function(l){return {id: uuid(), item_name:l.name, price_crc:l.price, qty:l.qty, menu_item_id: l.id}})
   };
   if (OP_MODE !== 'off') order.operator = saleOperator();
+  if (pendingPay.tender) order.tender = pendingPay.tender;
   if (disc > 0){
     order.subtotal_crc = sub; order.discount_crc = disc; order.discount_id = tDisc.id;
     order.discount_note = 'Discount ' + discText(tDisc) + ' · ' + tDisc.reason + ' · ' + tDisc.by;
@@ -1518,6 +1636,7 @@ async function qSaveRpc(o, row, extra, items){
   if (!SALE_RPC && Date.now() < saleRpcRetry) return null;
   var lines = items.map(function(it){ var c = Object.assign({}, it); delete c.order_id; return c; });
   var op = 'operator' in o ? {operator: o.operator} : {};
+  if (o.tender) op.tender = o.tender;
   var r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, extra, op, {items: lines})});
   if (r.error && rpcMissing(r.error)){ SALE_RPC = false; saleRpcRetry = Date.now() + 60000; return null; }
   SALE_RPC = true;
@@ -1793,6 +1912,7 @@ document.getElementById('dayBtn').addEventListener('click', openDay);
 document.getElementById('dayClose').addEventListener('click', function(){ document.getElementById('dayModal').hidden = true; });
 var dayCash = 0;
 var dayBy = {};
+var regExp = null;   /* what the drawer should hold, from the server (migration 0010): {expected_crc, expected_usd} */
 var dayUnpaid = {n: 0, sum: 0};   /* orders sent to the register or left to pay later, still not charged */
 var REG = null;             /* the register row to show: a day still open, or today's; null until opened */
 var REG_SUPPORT = true;     /* false until supabase/register.sql has been run */
@@ -1905,7 +2025,7 @@ function renderRegister(body){
     document.getElementById('roPin').value = '';
     return;
   }
-  var expected = REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
+  var expected = regExp ? regExp.expected_crc : REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
   if (!REG.closed_at){
     if (staleDay()){
       /* an earlier day still open: today's sums on screen do not apply to it; the server adds up that day on close */
@@ -1918,6 +2038,7 @@ function renderRegister(body){
     } else {
       state.textContent = 'Opened at ' + hhmm(REG.opened_at) + ' by ' + REG.opened_by_name + ' · float ' + fmt(REG.float_crc);
       dayRow(body, 'Expected in the drawer (float + cash)', fmt(expected));
+      if (regExp && (regExp.expected_usd > 0)) dayRow(body, 'Expected dollars in the drawer', usd(regExp.expected_usd));
     }
     closeF.hidden = false;
     document.getElementById('rcErr').textContent = '';
@@ -1933,6 +2054,13 @@ function renderRegister(body){
   dayRow(body, 'Expected cash', fmt(REG.expected_cash_crc));
   dayRow(body, 'Cash counted', fmt(REG.cash_counted_crc));
   dayRow(body, 'Cash difference', signed(REG.cash_diff_crc)).className = 'mono diff ' + (REG.cash_diff_crc === 0 ? 'ok' : 'bad');
+  if (REG.expected_cash_usd != null && (Number(REG.expected_cash_usd) > 0 || REG.cash_counted_usd != null)){
+    dayRow(body, 'Expected dollars', usd(Number(REG.expected_cash_usd)));
+    if (REG.cash_counted_usd != null){
+      dayRow(body, 'Dollars counted', usd(Number(REG.cash_counted_usd)));
+      dayRow(body, 'Dollar difference', (Number(REG.cash_diff_usd) > 0 ? '+' : '') + usd(Number(REG.cash_diff_usd)).replace('$-', '-$')).className = 'mono diff ' + (Number(REG.cash_diff_usd) === 0 ? 'ok' : 'bad');
+    }
+  }
   dayRow(body, 'Card sales', fmt(REG.sales_card_crc));
   dayRow(body, 'Card terminal', fmt(REG.terminal_crc));
   dayRow(body, 'Card difference', signed(REG.card_diff_crc)).className = 'mono diff ' + (REG.card_diff_crc === 0 ? 'ok' : 'bad');
@@ -1950,17 +2078,23 @@ function liveDiffs(){
   var cd = document.getElementById('rcCardDiff'), cc = document.getElementById('rcCashDiff');
   function twoPart(el, head, amount, d){ el.textContent = head + ' ' + fmt(amount) + ' · '; var s = document.createElement('span'); s.textContent = signed(d); el.appendChild(s); el.className = 'diff mono ' + (d === 0 ? 'ok' : 'bad'); }
   if (isNaN(t)) cd.textContent = ''; else twoPart(cd, 'Card sales', dayBy.card || 0, t - (dayBy.card || 0));
-  var expected = REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
+  var expected = regExp ? regExp.expected_crc : REG.float_crc + (dayBy.cash_crc || 0) + (dayBy.cash_usd || 0);
   if (isNaN(c)) cc.textContent = ''; else twoPart(cc, 'Expected', expected, c - expected);
+  var u = parseFloat(document.getElementById('rcCashUsd').value), ud = document.getElementById('rcUsdDiff');
+  if (isNaN(u) || !regExp) ud.textContent = '';
+  else { var d = Math.round((u - regExp.expected_usd) * 100) / 100; ud.textContent = 'Expected ' + usd(regExp.expected_usd) + ' · ' + (d > 0 ? '+' : '') + d.toFixed(2); ud.className = 'diff mono ' + (d === 0 ? 'ok' : 'bad'); }
 }
+document.getElementById('rcCashUsd').addEventListener('input', liveDiffs);
 document.getElementById('rcTerminal').addEventListener('input', liveDiffs);
 document.getElementById('rcCash').addEventListener('input', liveDiffs);
 document.getElementById('regOpenForm').addEventListener('submit', async function(e){
   e.preventDefault();
   var err = document.getElementById('roErr'); err.textContent = '';
   var staff = document.getElementById('roStaff').value;
-  var r = await db.rpc('register_open', {p_staff_id: staff || null, p_pin: document.getElementById('roPin').value.trim(),
-    p_float_crc: parseInt(document.getElementById('roFloat').value, 10)});
+  var fu = parseFloat(document.getElementById('roFloatUsd').value);
+  var oargs = {p_staff_id: staff || null, p_pin: document.getElementById('roPin').value.trim(), p_float_crc: parseInt(document.getElementById('roFloat').value, 10)};
+  if (fu > 0) oargs.p_float_usd = fu;    /* only sent when there are dollars: an older database still opens */
+  var r = await db.rpc('register_open', oargs);
   document.getElementById('roPin').value = '';   /* a PIN never stays on screen, right or wrong */
   if (r.error || !r.data || !r.data.ok){ err.textContent = regErr(r); return; }
   try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
@@ -1971,9 +2105,12 @@ document.getElementById('regCloseForm').addEventListener('submit', async functio
   var err = document.getElementById('rcErr'); err.textContent = '';
   if (queue.length){ err.textContent = queueMsg(); return; }
   var staff = document.getElementById('rcStaff').value;
-  var r = await db.rpc('register_close', {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value.trim(),
+  var cu = parseFloat(document.getElementById('rcCashUsd').value);
+  var cargs = {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value.trim(),
     p_terminal_crc: parseInt(document.getElementById('rcTerminal').value, 10), p_cash_counted_crc: parseInt(document.getElementById('rcCash').value, 10),
-    p_notes: document.getElementById('rcNotes').value});
+    p_notes: document.getElementById('rcNotes').value};
+  if (!isNaN(cu)) cargs.p_cash_counted_usd = cu;
+  var r = await db.rpc('register_close', cargs);
   document.getElementById('rcPin').value = '';
   if (r.error || !r.data || !r.data.ok){ err.textContent = regErr(r); return; }
   try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
@@ -1998,6 +2135,8 @@ async function openDay(){
   hideRegisterBlocks();
   document.getElementById('dayModal').hidden = false;
   var regP = loadRegister();
+  regExp = null;
+  var expP = db.rpc('register_expected').then(function(x){ regExp = (!x.error && x.data && x.data.ok) ? {expected_crc: Number(x.data.expected_crc), expected_usd: Number(x.data.expected_usd)} : null; });
   if (!staffList) loadStaffList();
   var r = await db.from('orders').select('id,total_crc,payment_method,voided_at,paid,status,part_of').gte('created_at', start.toISOString());
   if (r.error && /part_of/.test(r.error.message || '')){ /* pos-tabs SQL not run yet */
@@ -2050,7 +2189,7 @@ async function openDay(){
   body.appendChild(t);
   dayCash = by.cash_crc || 0;
   dayBy = by;
-  await regP;
+  await regP; await expP;
   renderRegister(body);
 }
 document.getElementById('countedCash').addEventListener('input', function(){
@@ -2779,12 +2918,14 @@ document.querySelectorAll('#tabSplit [data-mode]').forEach(function(b){
   b.addEventListener('click', function(){ tabMode = b.dataset.mode; document.getElementById('tabErr').textContent = ''; renderTab(); });
 });
 document.querySelectorAll('#tabPayRow [data-tpay]').forEach(function(b){ b.addEventListener('click', function(){ tabPay(b); }); });
-async function tabPay(b){
+async function tabPay(b, tender, cashMethod){
   if (!tab || tabBusy) return;
   var o = tab.o, due = tabDue(), err = document.getElementById('tabErr'); err.textContent = '';
   if (!navigator.onLine){ err.textContent = 'Charging a bill needs the internet. Try again in a moment.'; return; }
   if (due <= 0 && !tabZero()) return;
-  var method = b.dataset.tpay, label = b.textContent.trim();
+  /* cash: what came in and the change first (the cash window), then the payment */
+  if (!tender && CASH_TENDER && isCash(b.dataset.tpay) && due > 0){ openCash(due, function(t, m){ tabPay(b, t, m); }); return; }
+  var method = cashMethod || b.dataset.tpay, label = cashMethod ? (cashMethod === 'cash_usd' ? 'Cash $' : 'Cash ₡') : b.textContent.trim();
   /* p_expect: the total on this screen; if another device changed the bill meanwhile, nothing is charged */
   var args = {p_order_id: o.id, p_method: method, p_lines: null, p_amount: null, p_station: stationName() || null, p_expect: o.total_crc};
   var picked = [];
@@ -2808,6 +2949,8 @@ async function tabPay(b){
     return;
   }
   var amt = r.data.amount, closed = !!r.data.closed;
+  /* supabase-js only sends a request once it is awaited or then'ed */
+  if (tender) db.rpc('pos_record_tender', {p_order_id: r.data.part_id || r.data.order_id || o.id, p_tender: tender}).then(function(){});
   var rec = {at: new Date(), method: method, label: label, number: o.pickup_number, total: amt, disc: 0, discText: '', extra: [],
              note: (closed ? 'CUENTA · BILL ' : 'PAGO PARCIAL · PART PAYMENT · ') + (tabWho(o) || hhmm(o.created_at))};
   if (closed){

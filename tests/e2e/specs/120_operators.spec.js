@@ -1,11 +1,12 @@
 /* Who is ringing up (migration 0008): sign in with a PIN, every sale carries the operator, also offline. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, pos, STAFF, PINS } = require('../lib');
+const { page, goto, until, sql, pos, cashExact, STAFF, PINS } = require('../lib');
 
 async function ring(pg, method) {
   await pg.locator('.pbtn').first().click();
   await pg.click(`[data-pay="${method || 'card'}"]`);
+  if (/^cash/.test(method || 'card')) await cashExact(pg);
   if (await pg.locator('#numModal:not([hidden])').count()) await pg.click('#numNone');
 }
 async function signIn(pg, who, pin) {
@@ -39,6 +40,9 @@ module.exports.tests = [
       await ring(pg);
       await until(() => sql(`select count(*) from orders`) === '1', 10000, 'sale saved');
       assert.strictEqual(sql(`select operator_name || '|' || array_to_string(flags, ',') from orders`), 'Luis|operator_not_clocked_in');
+      await pg.click('#opBtn');
+      await pg.click('#opEnd');
+      await until(() => sql(`select count(*) from operator_sessions where ended_at is not null`) === '1', 8000, 'his turn ended on the server');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -87,7 +91,7 @@ module.exports.tests = [
     run: async ({ browser }) => {
       const pg = await page(browser, { login: 'owner', aal: 'aal2', lang: 'en' });
       await goto(pg, '/home');
-      const sel = pg.locator('#setList select').first();
+      const sel = pg.locator('#setList select[aria-label="Who rings up each sale"]');
       await until(async () => sel.isVisible(), 10000, 'settings card');
       await sel.selectOption('record');
       await until(() => sql(`select value #>> '{}' from settings where key = 'operator_mode'`) === 'record', 8000, 'saved');
