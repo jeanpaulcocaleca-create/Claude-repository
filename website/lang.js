@@ -50,6 +50,33 @@
     'That code did not work. Codes change every 30 seconds, try the newest one.': 'Ese código no funcionó. Los códigos cambian cada 30 segundos; pruebe el más reciente.',
     'Nothing to print yet.': 'Todavía no hay nada que imprimir.',
 
+    /* Canopy OS · Phase 0: updates, refunds, inventory history */
+    'A new version is ready. It updates by itself when you finish what you are doing.': 'Hay una versión nueva. Se actualiza sola cuando termine lo que está haciendo.',
+    'Update now': 'Actualizar ahora', 'update ready': 'actualización lista',
+    'A new version is ready. It updates by itself between sales.': 'Hay una versión nueva. Se actualiza sola entre ventas.',
+    'Finish the sale in progress first, or wait until the pending sales are saved.': 'Termine primero la venta en curso, o espere a que se guarden las ventas pendientes.',
+    'Money goes back as': 'El dinero se devuelve en', 'Put the items back in stock (unopened, still good)': 'Devolver los productos al inventario (sin abrir, en buen estado)',
+    'Refund · money given back': 'Devolución · dinero devuelto', 'Refund today': 'Devolver hoy',
+    'That day was already closed at the register, so the sale stays on it. The money is given back today: type the PIN again.':
+      'Ese día ya se cerró en caja, así que la venta se queda en ese día. El dinero se devuelve hoy: escriba el PIN otra vez.',
+    'That sale was already refunded.': 'Esa venta ya se devolvió.', 'A refund cannot be voided. Ring up a new sale instead.': 'Una devolución no se anula. Registre una venta nueva.',
+    'This day is still open: void the sale instead.': 'Este día sigue abierto: anule la venta.',
+    'This bill was paid in parts: give each payment back from the bill.': 'Esta cuenta se pagó por partes: devuelva cada pago desde la cuenta.',
+    'That bill was not paid.': 'Esa cuenta no se pagó.', 'Pick how the money goes back.': 'Elija cómo se devuelve el dinero.',
+    'Refunded {x}': 'Devuelto {x}', 'items back in stock': 'productos de vuelta al inventario',
+    'This item has history (sales, counts or orders), so it is kept. Untick Active to hide it.': 'Este producto tiene historial (ventas, conteos o pedidos), por eso se conserva. Desmarque Activo para ocultarlo.',
+    'This vendor has purchase orders, so it is kept. Untick Active to hide it.': 'Este proveedor tiene órdenes de compra, por eso se conserva. Desmarque Activo para ocultarlo.',
+    'Delete "{n}"? Items with history cannot be deleted: untick Active instead.': '¿Eliminar "{n}"? Los productos con historial no se eliminan: desmarque Activo.',
+    'This order was already received.': 'Esta orden ya se recibió.', 'This order was cancelled.': 'Esta orden se canceló.',
+    'Quantities and costs cannot be negative.': 'Las cantidades y los costos no pueden ser negativos.',
+    'Could not check the PIN. Check the connection and try again.': 'No se pudo revisar el PIN. Revise la conexión e intente de nuevo.',
+    'Backups': 'Respaldos', 'Backups OK': 'Respaldos al día', 'Backups are not running yet': 'Los respaldos todavía no están funcionando',
+    'No verified backup in 2 days': 'Sin respaldo verificado en 2 días', 'The backup is late': 'El respaldo está atrasado',
+    'Last verified copy': 'Última copia verificada', 'restore test passed': 'prueba de restauración aprobada', 'Last attempt failed': 'El último intento falló',
+    '{n} failed this week': '{n} fallaron esta semana', 'see docs/RESPALDOS.md': 'vea docs/RESPALDOS.md',
+    'Set up the nightly backup: see docs/RESPALDOS.md.': 'Configure el respaldo nocturno: vea docs/RESPALDOS.md.',
+    'less than an hour ago': 'hace menos de una hora', '{n} h ago': 'hace {n} h', '{n} days ago': 'hace {n} días',
+
     /* website: the film */
     '1,400 metres above the sea.': 'A 1 400 metros sobre el mar.', 'Monteverde, Costa Rica': 'Monteverde, Costa Rica',
     'Cool nights ripen the cherry slowly.': 'Las noches frías maduran el fruto despacio.',

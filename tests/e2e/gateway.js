@@ -102,21 +102,29 @@ function supabaseHandler(opts) {
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.json': 'application/json',
                 '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
                 '.txt': 'text/plain', '.xml': 'application/xml', '.mp4': 'video/mp4', '.woff2': 'font/woff2' };
-function staticHandler(root) {
+function staticHandler(root, opts) {
   return (req, res) => {
-    let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    const u = new URL(req.url, 'http://x');
+    let p = decodeURIComponent(u.pathname);
+    // a simulated release: pages are served as build `served`, the site says `published` is out
+    // (a page asked for with ?v=<published> is the new one), like pages.yml stamps a real release
+    const rel = opts && opts.release && opts.release();
+    if (rel && p === '/version.json') return send(res, 200, JSON.stringify({ build: rel.published }), { 'Content-Type': 'application/json' });
     if (p.endsWith('/')) p += 'index.html';
     let f = path.join(root, p);
     if (!f.startsWith(root)) { res.writeHead(403); return res.end(); }
     if (!fs.existsSync(f) && fs.existsSync(f + '.html')) f += '.html';
     if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    if (rel && f.endsWith('.html')) {
+      return res.end(fs.readFileSync(f, 'utf8').replace(/__BUILD__/g, u.searchParams.get('v') === rel.published ? rel.published : rel.served));
+    }
     fs.createReadStream(f).pipe(res);
   };
 }
 
 function start(opts) {
-  const site = http.createServer(staticHandler(opts.siteRoot));
+  const site = http.createServer(staticHandler(opts.siteRoot, opts));
   const api = http.createServer(supabaseHandler(opts));
   return Promise.all([
     new Promise((ok) => site.listen(opts.sitePort || 8090, '0.0.0.0', ok)),

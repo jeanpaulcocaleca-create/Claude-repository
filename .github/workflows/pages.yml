@@ -57,8 +57,14 @@ jobs:
               print('fetched', path, os.path.getsize(dest), 'bytes')
           PY
       - name: Stamp the release version
+        # Every page carries its build; open tablets compare it with version.json and reload between sales
+        # (website/version.js). Local scripts get ?v=<build> so no device keeps an old copy from its cache.
         run: |
-          printf '{"version":"%s","sha":"%s","built_at":"%s"}\n' "${{ github.ref_name }}" "${{ github.sha }}" "$(date -u +%FT%TZ)" > website/version.json
+          BUILD="${GITHUB_SHA::12}"
+          printf '{"version":"%s","build":"%s","sha":"%s","built_at":"%s"}\n' "${{ github.ref_name }}" "$BUILD" "${{ github.sha }}" "$(date -u +%FT%TZ)" > website/version.json
+          sed -i "s/__BUILD__/$BUILD/g" website/*.html
+          sed -i -E "s/(<script src=\"[a-z0-9_-]+\.js)\"/\1?v=$BUILD\"/g" website/*.html
+          grep -q "content=\"$BUILD\"" website/pos.html || { echo "::error::build stamp missing"; exit 1; }
       - name: Publish to the gh-pages branch (GitHub Pages serves it)
         uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:

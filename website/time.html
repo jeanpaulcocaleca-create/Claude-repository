@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="hg-build" content="__BUILD__">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Time clock · Hanging Garden</title>
 <meta name="robots" content="noindex">
@@ -9,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="config.js"></script>
+<script src="version.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
 <script src="login.js"></script>
@@ -678,29 +680,14 @@ function hoursWindow(){
   }
   return {start:start, end:end};
 }
-var hoursAuth = null; /* café login: {id, pin, until} after a PIN, kept for 15 minutes */
+var hoursAuth = null; /* café login, after a PIN: {id, until, entries} for 15 minutes. The PIN itself is never kept. */
 async function loadHours(){
   if (!(await loadStaff())) return;
   var w = hoursWindow();
   var r;
   if (!canManage()){
-    if (!hoursAuth || hoursAuth.until < Date.now()){ hoursEntries = []; renderHours(); renderTeam(); openHoursPin(''); return; }
-    var hargs = {p_staff_id: hoursAuth.id, p_pin: hoursAuth.pin, p_from: w.start.toISOString(), p_to: w.end.toISOString()};
-    /* hours_for counts a wrong PIN (lockout after 5) and answers as data; hours_report is for before the SQL update */
-    r = await db.rpc('hours_for', hargs);
-    if (r.error && /hours_for|schema cache|could not find/i.test(r.error.message || '')) r = await db.rpc('hours_report', hargs);
-    else if (!r.error){
-      if (!r.data || !r.data.ok){
-        hoursAuth = null; hoursEntries = []; renderHours(); renderTeam();
-        openHoursPin(ERR[r.data && r.data.error] || 'That PIN is not right.'); return;
-      }
-      r = {data: r.data.entries || [], error: null};
-    }
-    if (r.error && /pin:/.test(r.error.message || '')){
-      var code = (r.error.message.match(/pin:(\w+)/) || [])[1];
-      hoursAuth = null; hoursEntries = []; renderHours(); renderTeam();
-      openHoursPin(ERR[code] || 'That PIN is not right.'); return;
-    }
+    if (!hoursAuth || hoursAuth.until < Date.now()){ hoursAuth = null; hoursEntries = []; renderHours(); renderTeam(); openHoursPin(''); return; }
+    r = {error: null, data: hoursAuth.entries.filter(function(t){ var c = new Date(t.clock_in); return c >= w.start && c < w.end; })};
   } else {
     r = await db.from('time_entries').select('*')
       .gte('clock_in', w.start.toISOString())
@@ -739,7 +726,14 @@ document.getElementById('hoursPinForm').addEventListener('submit', async functio
     document.getElementById('hoursPinModal').hidden = true;
     loadHours(); return;
   }
-  hoursAuth = {id: who, pin: pin, until: Date.now() + 15 * 60000};
+  /* one PIN check fetches every range the tabs can show (this week, last week, this month); only the hours stay */
+  var span = ['thisweek', 'lastweek', 'month'].map(function(k){ var keep = hRange; hRange = k; var x = hoursWindow(); hRange = keep; return x.start; });
+  var from = new Date(Math.min.apply(null, span.map(Number)));
+  var r = await db.rpc('hours_for', {p_staff_id: who, p_pin: pin, p_from: from.toISOString(), p_to: new Date(Date.now() + 60000).toISOString()});
+  document.getElementById('hpPin').value = ''; pin = '';
+  if (r.error){ document.getElementById('hpErr').textContent = 'Could not check the PIN. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){ document.getElementById('hpErr').textContent = ERR[r.data && r.data.error] || 'That PIN is not right.'; document.getElementById('hpPin').focus(); return; }
+  hoursAuth = {id: who, until: Date.now() + 15 * 60000, entries: r.data.entries || []};
   document.getElementById('hoursPinModal').hidden = true;
   loadHours();
 });

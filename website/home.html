@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="hg-build" content="__BUILD__">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Home · Hanging Garden</title>
 <meta name="robots" content="noindex">
@@ -9,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="config.js"></script>
+<script src="version.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
 <script src="login.js"></script>
@@ -65,6 +67,11 @@ h2.section{font-size:1.1rem;margin:0 0 .8rem}
 .tile .t .ext{font-size:.8em;color:var(--sec)}
 .tile .d{font-size:.88rem;color:var(--sec)}
 .invcard{background:var(--panel);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid #E7C7A0}
+.bkcard{display:flex;gap:.8rem;align-items:center;background:var(--panel);border-radius:16px;padding:.8rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid var(--muted)}
+.bkcard .s{font-size:.85rem;color:var(--sec);margin-top:.15rem}
+.bkdot{flex:none;width:14px;height:14px;border-radius:50%;background:var(--muted)}
+.bkcard.green .bkdot{background:var(--ok)} .bkcard.amber .bkdot{background:var(--gold)} .bkcard.red .bkdot{background:var(--bad)}
+.bkcard.amber{border-color:var(--gold)} .bkcard.red{border-color:var(--bad)}
 .invhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem}
 .invhead .btnlink{display:inline-flex;align-items:center;min-height:36px;padding:.3em .9em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600;font-size:.85rem}
 .invrow{display:flex;justify-content:space-between;gap:.6rem;padding:.4rem 0;border-bottom:1px solid rgba(201,207,182,.5);font-size:.92rem}
@@ -131,6 +138,11 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   <div class="card invcard" id="invCard" hidden>
     <div class="invhead"><h2 class="section" style="margin:0">Before it runs out</h2><a class="ghost btnlink small" href="inventory.html">Open inventory</a></div>
     <div id="invList"></div>
+  </div>
+
+  <div class="card bkcard" id="bkCard" hidden>
+    <span class="bkdot" id="bkDot" aria-hidden="true"></span>
+    <div><b id="bkTitle">Backups</b><div class="s" id="bkSub"></div></div>
   </div>
 
   <h2 class="section">Your café, one tap away</h2>
@@ -376,8 +388,32 @@ async function loadInventoryAlerts(){
   });
   card.hidden = false;
 }
+/* nightly backups (migration 0002 + ops/backup): green = verified copy in the last 26 h */
+function ago(iso){
+  var h = Math.round((Date.now() - new Date(iso)) / 3600000);
+  return h < 1 ? 'less than an hour ago' : h < 48 ? h + ' h ago' : Math.round(h / 24) + ' days ago';
+}
+async function loadBackupStatus(){
+  var card = document.getElementById('bkCard');
+  var r = await db.rpc('backup_status');
+  if (r.error || !r.data || r.data.ok === false){ card.hidden = true; return; }   /* not the owner, or 0002 not applied */
+  var b = r.data, title = document.getElementById('bkTitle'), sub = document.getElementById('bkSub');
+  card.className = 'card bkcard ' + b.health;
+  if (!b.last_ok_at){
+    title.textContent = 'Backups are not running yet';
+    sub.textContent = b.last_attempt_at ? ['Last attempt failed', ago(b.last_attempt_at), 'see docs/RESPALDOS.md'].join(' · ') : 'Set up the nightly backup: see docs/RESPALDOS.md.';
+  } else if (b.health === 'green'){
+    title.textContent = 'Backups OK';
+    sub.textContent = ['Last verified copy', ago(b.last_ok_at), 'restore test passed'].join(' · ');
+  } else {
+    title.textContent = b.health === 'red' ? 'No verified backup in 2 days' : 'The backup is late';
+    sub.textContent = ['Last verified copy', ago(b.last_ok_at)].concat(b.failures_7d ? [b.failures_7d + ' failed this week'] : [], ['see docs/RESPALDOS.md']).join(' · ');
+  }
+  card.hidden = false;
+}
 async function loadStats(){
   loadInventoryAlerts();
+  loadBackupStatus();
   var start = new Date(); start.setHours(0,0,0,0);
   var rs = await Promise.all([
     db.from('orders').select('total_crc,voided_at,paid,part_of').gte('created_at', start.toISOString()),

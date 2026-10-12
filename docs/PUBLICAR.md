@@ -24,8 +24,10 @@ desde una **versión aprobada**. Hacer *push* a una rama ya **no** publica nada 
    - En **Use workflow from**, elija **Tags → la etiqueta nueva**.
    - Escriba **PUBLICAR** en la casilla.
    - Presione **Run workflow**.
-4. En 2–10 minutos el sitio muestra la versión nueva. Las tabletas la cargan solas cuando están libres
-   (sin una venta a medias). Si alguna no cambia, recárguela.
+4. En 2–10 minutos el sitio muestra la versión nueva. Las tabletas la cargan solas cuando están libres:
+   la caja muestra **"actualización lista"** en el aviso de conexión y se recarga sola entre ventas (nunca con
+   una venta a medias ni con ventas sin subir); las demás pantallas muestran un aviso arriba con el botón
+   **Actualizar ahora**. Revisan cada 5 minutos. Si alguna no cambia en 15 minutos, recárguela.
 
 Si el trabajo no parte de una etiqueta `v…`, o la casilla no dice PUBLICAR, se detiene sin publicar nada.
 

@@ -62,8 +62,8 @@ async function startPostgrest(bin, db, port) {
   if (b.status !== 0) { console.error(b.stdout, b.stderr); process.exit(1); }
   const bin = postgrestBin();
   const gw = require('./gateway');
-  const state = { offline: false };
-  const server = await gw.start({ siteRoot: path.join(ROOT, 'website'), sitePort: SITE_PORT, postgrestPort: PGRST_PORT, offline: () => state.offline });
+  const state = { offline: false, release: null };
+  const server = await gw.start({ siteRoot: path.join(ROOT, 'website'), sitePort: SITE_PORT, postgrestPort: PGRST_PORT, offline: () => state.offline, release: () => state.release });
   const { chromium } = playwright();
   const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
 
@@ -75,10 +75,10 @@ async function startPostgrest(bin, db, port) {
     for (const t of tests) {
       psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`, '-c', `create database ${DB} template ${TPL}`]);
       const pgrst = await startPostgrest(bin, DB, PGRST_PORT);
-      state.offline = false;
+      state.offline = false; state.release = null;
       const t0 = Date.now();
       try {
-        await t.run({ browser, setOffline: (v) => { state.offline = !!v; } });
+        await t.run({ browser, setOffline: (v) => { state.offline = !!v; }, setRelease: (r) => { state.release = r || null; } });
         pass++; console.log(`  ok    ${f} › ${t.name} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
       } catch (e) {
         fail++; failed.push(`${f} › ${t.name}`);

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="hg-build" content="__BUILD__">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POS · Hanging Garden</title>
 <meta name="robots" content="noindex">
@@ -9,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="config.js"></script>
+<script src="version.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
 <script src="login.js"></script>
@@ -636,6 +638,13 @@ function trimNav(){
 
 var ticket = [];          /* {id, name, price, qty} */
 var queue = [];           /* offline orders waiting to sync */
+/* version.js: after a release the POS reloads itself only between sales, with nothing waiting to upload */
+var updateReady = false;
+window.HG_VERSION_NOTICE = function(){ updateReady = true; updateChip(); };   /* the status chip says it, never over the buttons */
+window.HG_SAFE_TO_RELOAD = function(){
+  if (ticket.length || queue.length || tab) return false;
+  return !Array.prototype.some.call(document.querySelectorAll('[id$="Modal"]'), function(m){ return !m.hidden && m.id !== 'dayModal'; });
+};
 var QKEY = 'hg-pos-queue';
 var toastTimer = null;
 
@@ -1329,7 +1338,10 @@ async function qSteps(o){
 /* pos_record_sale (supabase/migrations/0004) saves a sale and its lines in one transaction; a repeated send answers
    "already". Until that migration is in the database, null sends the sale the older two-step way. */
 var SALE_RPC = true, saleRpcRetry = 0;
-function rpcMissing(err){ return !!err && (err.code === 'PGRST202' || /could not find the function|schema cache/i.test(err.message || '')); }
+/* the function is not in the database: the API says so (PGRST202), or its cache is older than a rollback and the
+   database answers 42883 naming this very function */
+function rpcMissing(err){ return !!err && (err.code === 'PGRST202' || /could not find the function|schema cache/i.test(err.message || '') ||
+                                           (err.code === '42883' && /pos_record_sale/.test(err.message || ''))); }
 async function qSaveRpc(o, row, extra, items){
   if (!SALE_RPC && Date.now() < saleRpcRetry) return null;
   var lines = items.map(function(it){ var c = Object.assign({}, it); delete c.order_id; return c; });
@@ -1503,6 +1515,7 @@ function updateChip(){
   else if (!navigator.onLine){ c.textContent = queue.length ? 'offline · ' + queue.length + ' on this device' : 'offline'; c.className = 'chip off'; }
   else if (queue.length && stuck){ c.textContent = queue.length + ' not saved yet'; c.className = 'chip off'; }
   else if (queue.length){ c.textContent = 'saving ' + queue.length + '…'; c.className = 'chip pend'; }
+  else if (updateReady){ c.textContent = 'update ready'; c.className = 'chip pend'; c.title = 'A new version is ready. It updates by itself between sales.'; }
   else { c.textContent = 'online'; c.className = 'chip on'; }
   if (typeof renderOpen === 'function') renderOpen();
 }
@@ -1773,8 +1786,9 @@ document.getElementById('regOpenForm').addEventListener('submit', async function
   e.preventDefault();
   var err = document.getElementById('roErr'); err.textContent = '';
   var staff = document.getElementById('roStaff').value;
-  var r = await db.rpc('register_open', {p_staff_id: staff || null, p_pin: document.getElementById('roPin').value,
+  var r = await db.rpc('register_open', {p_staff_id: staff || null, p_pin: document.getElementById('roPin').value.trim(),
     p_float_crc: parseInt(document.getElementById('roFloat').value, 10)});
+  document.getElementById('roPin').value = '';   /* a PIN never stays on screen, right or wrong */
   if (r.error || !r.data || !r.data.ok){ err.textContent = regErr(r); return; }
   try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
   REG = r.data.register; toast('Register opened'); openDay();
@@ -1784,9 +1798,10 @@ document.getElementById('regCloseForm').addEventListener('submit', async functio
   var err = document.getElementById('rcErr'); err.textContent = '';
   if (queue.length){ err.textContent = queueMsg(); return; }
   var staff = document.getElementById('rcStaff').value;
-  var r = await db.rpc('register_close', {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value,
+  var r = await db.rpc('register_close', {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value.trim(),
     p_terminal_crc: parseInt(document.getElementById('rcTerminal').value, 10), p_cash_counted_crc: parseInt(document.getElementById('rcCash').value, 10),
     p_notes: document.getElementById('rcNotes').value});
+  document.getElementById('rcPin').value = '';
   if (r.error || !r.data || !r.data.ok){ err.textContent = regErr(r); return; }
   try { localStorage.setItem('hg-pos-reg-staff', staff); } catch (e2) {}
   REG = r.data.register; toast(r.data.reclosed ? 'Register closed again' : 'Register closed'); openDay();
@@ -2064,9 +2079,9 @@ document.getElementById('vGo').addEventListener('click', async function(){
     p_reason: document.getElementById('vReason').value.trim()
   });
   btn.disabled = false;
+  document.getElementById('vPin').value = '';
   if (r.error || !r.data || !r.data.ok){
     var code = r.data && r.data.error;
-    document.getElementById('vPin').value = '';
     if (code === 'closed_day' && !back){
       /* that day was already counted at the register: the money goes back today instead (migration 0006) */
       voidTarget.refund = true;
