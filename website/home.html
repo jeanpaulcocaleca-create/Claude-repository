@@ -440,9 +440,11 @@ async function loadBackupStatus(){
   card.hidden = false;
 }
 /* system settings (migration 0008): the owner's decisions, regulated ones locked until confirmed */
-var SET_LABEL = {operator_mode: 'Who rings up each sale', fx_rate_kind: 'Exchange rate for dollars', price_mode: 'Prices at the POS'};
+var SET_LABEL = {operator_mode: 'Who rings up each sale', fx_rate_kind: 'Exchange rate for dollars', price_mode: 'Prices at the POS',
+                 einvoice_mode: 'Electronic invoices (Hacienda)'};
 var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On',
-                    buy: 'Buy rate of the day', sell: 'Sell rate of the day', inclusive: 'IVA included (as today)', exclusive: 'Before IVA, IVA added at checkout'};
+                    buy: 'Buy rate of the day', sell: 'Sell rate of the day', inclusive: 'IVA included (as today)', exclusive: 'Before IVA, IVA added at checkout',
+                    shadow: 'Record only, send nothing (to check the data)'};
 var SET_ERR = {owner_only: 'Only the owner login, with the phone code, can change settings.', bad_value: 'That value is not allowed.',
                needs_confirmation: 'Locked: record the confirmation of this rule first.'};
 async function loadSettingsCard(){
@@ -452,6 +454,7 @@ async function loadSettingsCard(){
   var list = document.getElementById('setList'); list.replaceChildren();
   var guards = {};
   r.data.forEach(function(st){
+    if (st.kind !== 'choice') return;       /* the books' switches live on the Accounting page, with their approval */
     var row = document.createElement('div'); row.className = 'setrow';
     var name = document.createElement('b'); name.textContent = SET_LABEL[st.key] || st.key;
     if (st.locked){ var lk = document.createElement('span'); lk.textContent = ' 🔒'; lk.title = 'Locked until the rule is confirmed'; name.appendChild(lk); }

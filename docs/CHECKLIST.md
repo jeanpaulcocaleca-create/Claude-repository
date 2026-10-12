@@ -70,12 +70,12 @@ Last updated: 2026-10-12.
 
 | Feature | Status | Depends on | Tests | Known issues | Commit | Prod |
 |---|---|---|---|---|---|---|
-| IVA accounting and monthly IVA summary | ⏳ | A-01 | – | – | – | – |
-| CABYS support | ⏳ | A-04 | – | – | – | – |
-| E-invoice document tracking + credit notes (provider integration OFF) | ⏳ | A-02, A-10 | – | – | – | – |
-| Supplier invoices linked to deliveries (IVA credit, price difference to 5103), invoices for services to their account, AP, supplier payments (oldest first or chosen invoice), aging 0/30/60/60+, AP tie-out to the ledger, voids by reversal (0016) | ✅ | – | 170_payables (41), e2e 180 (2) | Supplier e-invoice XML import not built (typed by hand) | (this commit) | R |
-| Weighted-average costing, inventory valuation, COGS | ⏳ | A-07 | – | – | – | – |
-| Recipe profitability | ⏳ | – | – | – | – | – |
+| IVA accounting (sales IVA per line at sale time, creditable IVA on expenses and supplier invoices, ledger 2110/1140) and the period's IVA draft for the accountant: sales by rate, refunds, every purchase document, net, tie-out to the books; in the month's package (0009, 0013, 0014, 0016, 0017) | ✅ | A-01 (regime, proportional credit) | 100_tax, 180_iva_costing (24), e2e 190 | A draft, not the return: the accountant applies proportionality and files; sales before 0009 have no IVA detail and are shown apart | (this commit) | R |
+| CABYS per product (13 digits, Admin → Menu) and the list of products on sale still without one (0009, 0018) | 🔒 | A-04 (each product's code) | 100_tax, 190_einvoice, e2e 200 | Codes are typed by the owner/accountant; none are guessed | (this commit) | R |
+| E-invoice document tracking: one document per sale (ticket), per refund (credit note linked to the sale's), invoice with the customer's ID; statuses forward-only through a service-only function; "record only" mode, nothing sent; Accounting → E-invoices (0018) | 🔒 | A-02, A-10 (provider, credentials, format version) | 190_einvoice (26), e2e 200 (2) | No provider connector, no XML, no signing, no sending (built after A-10); the POS has no "invoice with ID" button yet (function ready) | (this commit) | R |
+| Supplier invoices linked to deliveries (IVA credit, price difference to 5103), invoices for services to their account, AP, supplier payments (oldest first or chosen invoice), aging 0/30/60/60+, AP tie-out to the ledger, voids by reversal (0016) | ✅ | – | 170_payables (41), e2e 180 (2) | Supplier e-invoice XML import not built (typed by hand) | c264eb2 | R |
+| Weighted-average cost per item, cost stamped on every stock move, COGS at the day's entry, inventory valuation report with tie-out to 1150 (0005, 0013, 0017) | 🔒 | A-07 (costing method) | 060_inventory, 140_ledger, 180_iva_costing, e2e 190 | Method proposed (weighted average) until the accountant confirms | (this commit) | R |
+| Profit by product: units, sales net of IVA and discounts, actual cost at the moment of sale, margin, food cost %; recipe cost and margin per unit at today's price; products without recipe counted (0017) | ✅ | – | 180_iva_costing, e2e 190 | Products are matched by name, as the stock deduction does | (this commit) | R |
 
 ## Phase 4 · Cash, banking, payroll
 

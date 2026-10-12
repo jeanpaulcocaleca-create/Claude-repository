@@ -138,3 +138,22 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   the invoice is the document for IVA and for what is owed.
 - **Tie-out:** accounts payable in the books = open invoices + received not invoiced + expenses on credit;
   the Suppliers screen shows any difference (days not posted, entries by hand).
+
+## D-015 · 2026-10-12 · The period's IVA is a draft built from the documents, checked against the books
+- **Decision:** `iva_report` adds the IVA stamped on each sale line (by rate), the IVA given back by refunds,
+  and the creditable IVA of every expense and supplier invoice (each document listed), and shows the same
+  period in the ledger (2110, 1140) with the days still unposted. It is labelled a draft: the accountant
+  applies the proportional credit if any sales are exempt or at other rates, completes the return and files
+  it. Sales recorded before the tax engine (0009) are listed apart, never estimated into the totals.
+- **Why:** the café's regime and the return's exact layout are pending (A-01); the data the accountant needs
+  is complete and traceable without the system pretending to file.
+
+## D-016 · 2026-10-12 · Electronic invoicing: a document register now, the provider connector later
+- **Decision:** `e_documents` holds one document per sale (ticket), per refund (credit note linked to the
+  sale's document) and, when a customer gives their ID, an invoice. The only modes are `off` (default) and
+  `shadow` (record and show what is missing, e.g. CABYS; send nothing). No XML, signature, numbering key
+  or sending is built: the key (clave) and consecutive number are stored only as returned by a provider.
+  States move forward only through `canopy.einvoice_mark`, callable by the service role (the future
+  connector), never by a page. A sale is never stopped by this register (errors go to the audit log).
+- **Why:** the provider, credentials and the format version (A-02, A-10) are not chosen; building the
+  register now lets the owner see readiness (CABYS per product, volumes) at zero cost and with no risk.

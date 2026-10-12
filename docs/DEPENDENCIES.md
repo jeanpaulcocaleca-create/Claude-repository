@@ -29,7 +29,7 @@ Status: **OPEN** (waiting), **DONE**.
 
 | # | Question | Blocks activation of | Status |
 |---|---|---|---|
-| A-01 | Tax regime (traditional vs simplified), persona física/jurídica | IVA return layout, e-invoicing obligation | OPEN |
+| A-01 | Tax regime (traditional vs simplified), persona física/jurídica; whether proportional IVA credit applies | IVA return layout (the period's IVA draft is built, 0017), e-invoicing obligation | OPEN |
 | A-02 | Does the café issue electronic tiquetes today? With which tool? | E-invoicing priority and provider | OPEN |
 | A-03 | Price display: MEIC requires final IVA-inclusive prices on menus (press reports, Feb 2026). Confirm whether tax-exclusive menu display is lawful. | Activation of tax-exclusive pricing (built, OFF) | OPEN |
 | A-04 | IVA rate and CABYS code for each product | Per-product tax configuration (built, defaults pending) | OPEN |
@@ -38,4 +38,4 @@ Status: **OPEN** (waiting), **DONE**.
 | A-07 | Chart of accounts, inventory costing method (weighted average proposed), revenue timing for pay-later bills | Ledger activation | OPEN |
 | A-08 | Payroll: pay frequency, contracts, CCSS/INS/income-tax rates and rules, who runs payroll | Payroll calculation settings (built, require confirmation) | OPEN |
 | A-09 | Record retention period (plan: 10 years) | Retention policy | OPEN |
-| A-10 | E-invoicing provider choice (written confirmation of offline/contingency support and the v4.4 2026-11-01 update), Hacienda credentials | E-invoicing activation (built as disabled module) | OPEN |
+| A-10 | E-invoicing provider choice (written confirmation of offline/contingency support and the v4.4 2026-11-01 update), Hacienda credentials | E-invoicing: the document register is built (0018, record-only mode); the connector, sending, and the POS "invoice with ID" button are built after this choice. Provider cost to be presented before activation. | OPEN |

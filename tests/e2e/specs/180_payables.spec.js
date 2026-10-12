@@ -69,6 +69,10 @@ module.exports.tests = [
       await until(async () => (await pg.locator('#viRecs input').count()) === 1, 5000, 'the delivery');
       // not ticked: the invoice is for a repair
       assert.strictEqual(await pg.locator('#viAcctBox').isVisible(), true, 'the account is asked when there is no delivery');
+      const accts = await pg.locator('#viAcct option').evaluateAll((os) => os.map((o) => o.value));
+      assert.match(accts[0], /^[56]/, 'costs and expenses first');
+      ['1101', '1110', '1120', '1130', '1140', '2101'].forEach((c) => assert.ok(!accts.includes(c), c + ' is not offered: money, IVA or payables'));
+      assert.ok(accts.includes('1201'), 'equipment can be bought on an invoice');
       await pg.fill('#viNum', 'S-12');
       await pg.fill('#viNet', '20000');
       await pg.fill('#viIva', '2600');

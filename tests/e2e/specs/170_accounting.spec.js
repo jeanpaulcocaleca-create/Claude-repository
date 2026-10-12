@@ -120,9 +120,9 @@ module.exports.tests = [
       const fs = require('fs'); const p = await dl.path(); const z = fs.readFileSync(p);
       assert.strictEqual(z.readUInt32LE(0), 0x04034b50, 'a ZIP file');
       const t = require('child_process').spawnSync('python3', ['-c', 'import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); print(z.testzip(), len(z.namelist()), z.read("diario.csv").decode("utf-8-sig").splitlines()[0])', p], { encoding: 'utf8' });
-      assert.strictEqual(t.stdout.trim(), 'None 7 entry_no,date,source,memo,account,account_name,debit,credit', 'a valid ZIP that opens anywhere: ' + t.stderr);
+      assert.strictEqual(t.stdout.trim(), 'None 9 entry_no,date,source,memo,account,account_name,debit,credit', 'a valid ZIP that opens anywhere: ' + t.stderr);
       const names = z.toString('latin1');
-      ['diario.csv', 'balanza.csv', 'estado-resultados.csv', 'balance-general.csv', 'flujo-efectivo.csv', 'gastos.csv', 'iva-ventas.csv']
+      ['diario.csv', 'balanza.csv', 'estado-resultados.csv', 'balance-general.csv', 'flujo-efectivo.csv', 'gastos.csv', 'iva-ventas.csv', 'iva-compras.csv', 'inventario-valorado-']
         .forEach((n) => assert.ok(names.includes(n), n + ' in the package'));
       assert.deepStrictEqual(pg.errors, []);
     }

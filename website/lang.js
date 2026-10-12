@@ -303,6 +303,36 @@
     'Why is this invoice voided?': '¿Por qué se anula esta factura?', 'Why is this payment voided?': '¿Por qué se anula este pago?',
     'Invoice voided': 'Factura anulada', 'Payment voided': 'Pago anulado', 'Invoice saved': 'Factura guardada', 'Payment recorded': 'Pago registrado',
 
+    /* accounting: IVA of the period, inventory valuation, profit by product (0017) */
+    'IVA of the period (draft)': 'IVA del período (borrador)', 'Inventory at average cost': 'Inventario a costo promedio', 'Profit by product': 'Rentabilidad por producto',
+    'Draft for the accountant, not the return: they review it, apply the proportional credit if it applies, and file it.':
+      'Borrador para el contador, no es la declaración: él la revisa, aplica la proporcionalidad del crédito si corresponde y la presenta.',
+    'IVA on sales': 'IVA de las ventas', 'Refunds': 'Devoluciones', 'Total IVA on sales': 'Total IVA de las ventas', 'Creditable IVA on purchases': 'IVA acreditable de las compras',
+    'Expenses ({n})': 'Gastos ({n})', 'Supplier invoices ({n})': 'Facturas de proveedores ({n})', 'Total creditable IVA': 'Total IVA acreditable',
+    'IVA to pay': 'IVA por pagar', 'Credit balance for the next period': 'Saldo a favor para el siguiente período', 'In the books': 'En los libros',
+    'IVA payable posted (2110)': 'IVA por pagar asentado (2110)', 'IVA credit posted (1140)': 'IVA crédito fiscal asentado (1140)',
+    '{n} closed days not in the books yet: post them so the books match.': '{n} días cerrados todavía sin asentar: asiéntelos para que los libros coincidan.',
+    '{n} sales recorded before the IVA update have no IVA detail: {x} (left out of the totals).': '{n} ventas registradas antes de la actualización del IVA no tienen el detalle del IVA: {x} (fuera de los totales).',
+    'Purchase documents': 'Documentos de compra', 'Base': 'Base', 'Average cost': 'Costo promedio', 'Below zero': 'Bajo cero',
+    'Inventory in the books (1150)': 'Inventario en los libros (1150)',
+    'Difference with the books {x}: counts or receipts of days not posted yet, or the opening entry.': 'Diferencia con los libros {x}: conteos o recibos de días sin asentar, o el asiento de apertura.',
+    'The books have no days posted yet.': 'Los libros todavía no tienen días asentados.',
+    "Sales that stand (not voided or refunded), net of IVA and discounts. Cost: what the stock cost at the moment of each sale. Recipe: today's cost and price.":
+      'Ventas firmes (sin anuladas ni devueltas), sin IVA y con descuentos. Costo: lo que costó el inventario en el momento de cada venta. Receta: costo y precio de hoy.',
+    'Product': 'Producto', 'Sold, no IVA': 'Vendido, sin IVA', 'Margin': 'Margen', 'Food cost': 'Costo de alimentos', 'Recipe cost': 'Costo de la receta',
+    'Margin per unit': 'Margen por unidad', 'No recipe': 'Sin receta',
+    'E-invoices': 'Comprobantes', 'Electronic documents': 'Comprobantes electrónicos', 'Receipt': 'Recibo', 'Document': 'Documento', 'Missing': 'Falta',
+    'Ticket': 'Tiquete', 'Credit note': 'Nota de crédito', 'Waiting': 'En espera', 'Queued': 'En cola', 'Sent': 'Enviado', 'Accepted': 'Aceptado', 'Rejected': 'Rechazado',
+    'Contingency': 'Contingencia', "the sale's document": 'el documento de la venta', 'CABYS: {x}': 'CABYS: {x}',
+    'Recording only: each sale and refund records its document here to check the data. Nothing is sent to Hacienda or to any provider.':
+      'Solo registro: cada venta y devolución registra aquí su documento para revisar los datos. No se envía nada a Hacienda ni a ningún proveedor.',
+    'Off: nothing is recorded or sent. To check the data before choosing a provider, the owner switches on "Record only" in Home → Settings.':
+      'Apagado: no se registra ni se envía nada. Para revisar los datos antes de elegir proveedor, el dueño activa "Solo registrar" en Inicio → Ajustes.',
+    '{n} products on sale have no CABYS code yet (Admin → Menu).': '{n} productos a la venta todavía no tienen código CABYS (Admin → Menú).',
+    'Electronic documents need a database update (migration 0018).': 'Los comprobantes necesitan una actualización de la base de datos (migración 0018).',
+    'Electronic invoices (Hacienda)': 'Comprobantes electrónicos (Hacienda)', 'Record only, send nothing (to check the data)': 'Solo registrar, sin enviar nada (para revisar los datos)',
+    '{n} products on the menu have no recipe yet: their cost is unknown (Inventory → Recipes).': '{n} productos del menú todavía no tienen receta: su costo es desconocido (Inventario → Recetas).',
+
     /* website: the film */
     '1,400 metres above the sea.': 'A 1 400 metros sobre el mar.', 'Monteverde, Costa Rica': 'Monteverde, Costa Rica',
     'Cool nights ripen the cherry slowly.': 'Las noches frías maduran el fruto despacio.',

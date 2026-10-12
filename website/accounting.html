@@ -137,6 +137,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
     <button type="button" data-view="reports">Reports</button>
     <button type="button" data-view="expenses">Expenses</button>
     <button type="button" data-view="payables">Suppliers</button>
+    <button type="button" data-view="einvoice">E-invoices</button>
     <button type="button" data-view="accounts">Accounts</button>
     <button type="button" data-view="periods">Periods</button>
   </div>
@@ -186,7 +187,8 @@ tr.head td{font-weight:700;background:var(--canvas)}
       <div class="tools">
         <div><label for="rKind">Report</label><select id="rKind">
           <option value="tb">Trial balance</option><option value="is">Income statement</option>
-          <option value="bs">Balance sheet</option><option value="cf">Cash flow</option></select></div>
+          <option value="bs">Balance sheet</option><option value="cf">Cash flow</option>
+          <option value="iva">IVA of the period (draft)</option><option value="inv">Inventory at average cost</option><option value="pp">Profit by product</option></select></div>
         <div><label for="rFrom">From</label><input id="rFrom" type="date"></div>
         <div><label for="rTo">To</label><input id="rTo" type="date"></div>
         <div><button type="button" id="rGo">Show</button></div>
@@ -269,6 +271,22 @@ tr.head td{font-weight:700;background:var(--canvas)}
       <div class="tablewrap"><table id="viTable"><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th>Due</th><th class="num">Total</th><th class="num">Still owed</th><th></th></tr></thead><tbody></tbody></table></div>
       <h2 style="margin-top:1rem">Payments of the last 3 months</h2>
       <div class="tablewrap"><table id="vpTable"><thead><tr><th>Date</th><th>Supplier</th><th>Paid from</th><th>Reference</th><th>Invoices</th><th class="num">Amount</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ELECTRONIC DOCUMENTS: recorded only, never sent (0018) -->
+  <section class="view" id="view-einvoice" hidden>
+    <div class="card">
+      <h2>Electronic documents</h2>
+      <p class="hint" id="eMode"></p>
+      <div class="tools">
+        <div><label for="eFrom">From</label><input id="eFrom" type="date"></div>
+        <div><label for="eTo">To</label><input id="eTo" type="date"></div>
+        <div><button type="button" id="eGo">Show</button></div>
+      </div>
+      <p class="hint mono" id="eCounts"></p>
+      <details id="eCabys" hidden><summary class="err" id="eCabysN"></summary><p class="hint" id="eCabysList" data-no-translate></p></details>
+      <div class="tablewrap"><table id="eTable"><thead><tr><th>Nº</th><th>Date</th><th>Receipt</th><th>Document</th><th class="num">Total</th><th class="num">IVA</th><th>Status</th><th>Missing</th></tr></thead><tbody></tbody></table></div>
     </div>
   </section>
 
@@ -420,6 +438,7 @@ function showView(v){
   if (v === 'reports') loadReport();
   if (v === 'expenses') loadExpenses();
   if (v === 'payables') loadPayables();
+  if (v === 'einvoice') loadEDocs();
   if (v === 'periods' || v === 'accounts') reloadOverview();   /* months appear as entries are posted */
 }
 document.querySelectorAll('#tabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.view); }); });
@@ -523,7 +542,10 @@ var REPORT = null, rSeq = 0;
 async function loadReport(){
   if (!$('rFrom').value){ $('rFrom').value = monthStart(today()); $('rTo').value = today(); }
   var k = $('rKind').value, from = $('rFrom').value, to = $('rTo').value, r, mine = ++rSeq;
-  $('rFrom').disabled = k === 'bs';
+  $('rFrom').disabled = k === 'bs' || k === 'inv'; $('rTo').disabled = k === 'inv';
+  if (k === 'iva') r = await db.rpc('iva_report', {p_from: from, p_to: to});
+  if (k === 'inv') r = await db.rpc('inventory_valuation');
+  if (k === 'pp') r = await db.rpc('product_profitability', {p_from: from, p_to: to});
   if (k === 'tb') r = await db.rpc('acct_trial_balance', {p_from: from, p_to: to});
   if (k === 'is') r = await db.rpc('acct_income_statement', {p_from: from, p_to: to});
   if (k === 'bs') r = await db.rpc('acct_balance_sheet', {p_as_of: to});
@@ -564,14 +586,82 @@ async function loadReport(){
       tr(['Cash and bank at the end', Number(d.closing)], 'total') + '</tbody></table>';
     rows.push(['opening', d.opening]); rows.push(['closing', d.closing]);
   }
+  function cell(v, kind){   /* kind: money (₡), qty, pct, or text */
+    if (v == null || v === '') return '<td></td>';
+    if (kind === 'money') return '<td class="num">' + fmt(v) + '</td>';
+    if (kind === 'qty') return '<td class="num">' + esc(Number(v).toLocaleString('fr-FR', {maximumFractionDigits: 3})) + '</td>';
+    if (kind === 'pct') return '<td class="num">' + esc(String(v).replace('.', ',')) + ' %</td>';
+    return '<td>' + esc(v) + '</td>';
+  }
+  if (k === 'iva'){
+    var S = d.sales, C = d.credits, L = d.ledger, exp = C.documents.filter(function(x){ return x.source === 'expense'; }),
+        inv = C.documents.filter(function(x){ return x.source !== 'expense'; });
+    function sum(xs){ return xs.reduce(function(t, x){ return t + Number(x.iva_crc); }, 0); }
+    rows.push(['section', 'item', 'base_crc', 'iva_crc']);
+    html = '<p class="hint">Draft for the accountant, not the return: they review it, apply the proportional credit if it applies, and file it.</p><table><tbody>' +
+      '<tr class="head"><td colspan="3">IVA on sales</td></tr>' +
+      S.by_rate.map(function(x){ rows.push(['sales', x.code + ' ' + Math.round(Number(x.rate) * 1000) / 10 + ' %', x.net_crc, x.tax_crc]);
+        return '<tr><td>' + esc(x.code + ' · ' + (Math.round(Number(x.rate) * 1000) / 10).toString().replace('.', ',') + ' %') + '</td>' + cell(x.net_crc, 'money') + cell(x.tax_crc, 'money') + '</tr>'; }).join('') +
+      '<tr><td>Refunds</td><td></td>' + cell(S.refunds_tax_crc, 'money') + '</tr>' +
+      '<tr class="total"><td>Total IVA on sales</td><td></td>' + cell(S.tax_crc, 'money') + '</tr>' +
+      '<tr class="head"><td colspan="3">Creditable IVA on purchases</td></tr>' +
+      '<tr><td>' + esc('Expenses (' + exp.length + ')') + '</td><td></td>' + cell(sum(exp), 'money') + '</tr>' +
+      '<tr><td>' + esc('Supplier invoices (' + inv.length + ')') + '</td><td></td>' + cell(sum(inv), 'money') + '</tr>' +
+      '<tr class="total"><td>Total creditable IVA</td><td></td>' + cell(C.iva_crc, 'money') + '</tr>' +
+      '<tr class="total"><td>' + (Number(d.net_crc) >= 0 ? 'IVA to pay' : 'Credit balance for the next period') + '</td><td></td>' + cell(Math.abs(Number(d.net_crc)), 'money') + '</tr>' +
+      '<tr class="head"><td colspan="3">In the books</td></tr>' +
+      '<tr><td>IVA payable posted (2110)</td><td></td>' + cell(L.iva_out_crc, 'money') + '</tr>' +
+      '<tr><td>IVA credit posted (1140)</td><td></td>' + cell(L.iva_in_crc, 'money') + '</tr>' +
+      '</tbody></table>' +
+      (Number(L.pending_days) ? '<p class="err">' + esc(L.pending_days + ' closed days not in the books yet: post them so the books match.') + '</p>' : '') +
+      (Number(S.without_tax_detail.orders) ? '<p class="hint">' + esc(S.without_tax_detail.orders + ' sales recorded before the IVA update have no IVA detail: ' + fmt(S.without_tax_detail.total_crc) + ' (left out of the totals).') + '</p>' : '') +
+      '<h2 style="margin-top:1rem">Purchase documents</h2><table><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th class="num">Base</th><th class="num">IVA</th></tr></thead><tbody>' +
+      C.documents.map(function(x){ return '<tr><td class="mono">' + esc(x.date) + '</td><td>' + esc(x.supplier || '') + '</td><td>' + esc(x.number || '') + '</td>' + cell(x.base_crc, 'money') + cell(x.iva_crc, 'money') + '</tr>'; }).join('') +
+      '</tbody></table>';
+    rows.push(['sales', 'refunds', '', S.refunds_tax_crc], ['sales', 'total', '', S.tax_crc], ['credits', 'expenses', '', sum(exp)], ['credits', 'supplier invoices', '', sum(inv)],
+              ['credits', 'total', '', C.iva_crc], ['net', Number(d.net_crc) >= 0 ? 'to pay' : 'credit balance', '', d.net_crc],
+              ['ledger', '2110', '', L.iva_out_crc], ['ledger', '1140', '', L.iva_in_crc], ['', '', '', '']);
+    rows.push(['date', 'supplier', 'invoice', 'base_crc', 'iva_crc', 'source']);
+    C.documents.forEach(function(x){ rows.push([x.date, x.supplier, x.number, x.base_crc, x.iva_crc, x.source]); });
+  }
+  if (k === 'inv'){
+    rows.push(['item', 'category', 'on_hand', 'unit', 'avg_cost', 'value_crc']);
+    var diff = Number(d.ledger_crc) - Number(d.total_crc);
+    html = '<table><thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Average cost</th><th class="num">Value</th></tr></thead><tbody>' +
+      d.items.map(function(x){ rows.push([x.name, x.category, x.on_hand, x.unit, x.avg_cost, x.value_crc]);
+        return '<tr><td>' + esc(x.name) + (x.negative ? ' <span class="tag rev">Below zero</span>' : '') + '</td>' + cell(x.on_hand, 'qty').replace('</td>', ' ' + esc(x.unit) + '</td>') +
+          cell(x.avg_cost, 'money') + cell(x.value_crc, 'money') + '</tr>'; }).join('') +
+      '<tr class="total"><td>Total</td><td></td><td></td>' + cell(d.total_crc, 'money') + '</tr>' +
+      '<tr><td>Inventory in the books (1150)</td><td></td><td></td>' + cell(d.ledger_crc, 'money') + '</tr></tbody></table>' +
+      (d.posted ? (Math.abs(diff) >= 1 ? '<p class="hint">' + esc('Difference with the books ' + fmt(diff) + ': counts or receipts of days not posted yet, or the opening entry.') + '</p>' : '') :
+       '<p class="hint">The books have no days posted yet.</p>');
+    rows.push(['total', '', '', '', '', d.total_crc], ['books 1150', '', '', '', '', d.ledger_crc]);
+  }
+  if (k === 'pp'){
+    rows.push(['product', 'units', 'net_crc', 'cost_crc', 'margin_crc', 'food_cost_pct', 'price_crc', 'price_net_crc', 'recipe_cost_crc', 'unit_margin_crc', 'unit_margin_pct', 'has_recipe']);
+    html = '<p class="hint">Sales that stand (not voided or refunded), net of IVA and discounts. Cost: what the stock cost at the moment of each sale. Recipe: today\'s cost and price.</p>' +
+      '<table><thead><tr><th>Product</th><th class="num">Units</th><th class="num">Sold, no IVA</th><th class="num">Cost</th><th class="num">Margin</th><th class="num">Food cost</th>' +
+      '<th class="num">Recipe cost</th><th class="num">Margin per unit</th></tr></thead><tbody>' +
+      d.rows.map(function(x){ rows.push([x.name, x.units, x.net_crc, x.cost_crc, x.margin_crc, x.food_cost_pct, x.price_crc, x.price_net_crc, x.recipe_cost_crc, x.unit_margin_crc, x.unit_margin_pct, x.has_recipe ? 'yes' : 'no']);
+        if (!Number(x.units) && !x.has_recipe) return '';      /* not sold and no recipe: nothing to show (counted below) */
+        return '<tr><td>' + esc(x.name) + (x.has_recipe ? '' : ' <span class="tag rev">No recipe</span>') + '</td>' + cell(x.units, 'qty') + cell(x.net_crc, 'money') + cell(x.cost_crc, 'money') +
+          cell(x.margin_crc, 'money') + cell(x.food_cost_pct, 'pct') + cell(x.has_recipe ? x.recipe_cost_crc : null, 'money') +
+          (x.on_menu && x.has_recipe ? '<td class="num">' + fmt(x.unit_margin_crc) + ' · ' + esc(String(x.unit_margin_pct).replace('.', ',')) + ' %</td>' : '<td></td>') + '</tr>'; }).join('') +
+      '<tr class="total"><td>Total</td>' + cell(d.totals.units, 'qty') + cell(d.totals.net_crc, 'money') + cell(d.totals.cost_crc, 'money') + cell(d.totals.margin_crc, 'money') +
+      cell(Number(d.totals.net_crc) > 0 ? Math.round(1000 * Number(d.totals.cost_crc) / Number(d.totals.net_crc)) / 10 : null, 'pct') + '<td></td><td></td></tr></tbody></table>';
+    var noRecipe = d.rows.filter(function(x){ return x.on_menu && !x.has_recipe; }).length;
+    if (noRecipe) html += '<p class="hint">' + esc(noRecipe + ' products on the menu have no recipe yet: their cost is unknown (Inventory → Recipes).') + '</p>';
+  }
   out.innerHTML = html; REPORT = {kind: k, rows: rows};
 }
 $('rGo').addEventListener('click', loadReport); $('rKind').addEventListener('change', loadReport);
-$('rCsv').addEventListener('click', function(){ if (REPORT) download({tb: 'balanza', is: 'estado-resultados', bs: 'balance-general', cf: 'flujo-efectivo'}[REPORT.kind] + '-' + $('rTo').value + '.csv', REPORT.rows); });
+$('rCsv').addEventListener('click', function(){ if (REPORT) download({tb: 'balanza', is: 'estado-resultados', bs: 'balance-general', cf: 'flujo-efectivo', iva: 'iva-periodo', inv: 'inventario-valorado', pp: 'rentabilidad-productos'}[REPORT.kind] +
+  '-' + (REPORT.kind === 'inv' ? today() : $('rTo').value) + '.csv', REPORT.rows); });
 $('rPrint').addEventListener('click', function(){ window.print(); });
 
 /* the month for the accountant in one file: journal, trial balance, income statement, balance sheet, cash flow,
-   expenses and sales IVA by rate, each a CSV inside a ZIP (built here, nothing is sent anywhere) */
+   expenses, sales IVA by rate, purchase IVA documents and today's inventory valuation, each a CSV inside a ZIP
+   (built here, nothing is sent anywhere) */
 function csvText(rows){ return '\ufeff' + rows.map(function(r){ return r.map(function(c){ var t = c == null ? '' : String(c); return /[",\n;]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(','); }).join('\r\n'); }
 var CRC_T = (function(){ var t = []; for (var n = 0; n < 256; n++){ var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function crc32(b){ var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
@@ -597,7 +687,8 @@ $('rPack').addEventListener('click', async function(){
   var m = ($('rTo').value || today()).slice(0, 7), from = m + '-01', to = monthEnd(from), b = this; b.disabled = true;
   var r = await Promise.all([db.rpc('acct_journal', {p_from: from, p_to: to}), db.rpc('acct_trial_balance', {p_from: from, p_to: to}),
     db.rpc('acct_income_statement', {p_from: from, p_to: to}), db.rpc('acct_balance_sheet', {p_as_of: to}), db.rpc('acct_cash_flow', {p_from: from, p_to: to}),
-    db.rpc('expense_list', {p_from: from, p_to: to}), db.rpc('tax_summary', {p_from: from, p_to: to})]);
+    db.rpc('expense_list', {p_from: from, p_to: to}), db.rpc('tax_summary', {p_from: from, p_to: to}), db.rpc('iva_report', {p_from: from, p_to: to}),
+    db.rpc('inventory_valuation')]);
   b.disabled = false;
   if (r.some(function(x){ return x.error || !x.data || x.data.ok === false; })){ toast('Could not build the package. Check the connection and try again.'); return; }
   var j = [['entry_no', 'date', 'source', 'memo', 'account', 'account_name', 'debit', 'credit']];
@@ -610,9 +701,13 @@ $('rPack').addEventListener('click', async function(){
     r[5].data.expenses.map(function(x){ return [x.date, x.vendor_name, x.description, x.account, x.amount_crc, x.iva_crc, x.paid_from, x.invoice_no, x.invoice_date, x.voided_at ? 'yes' : '', x.receipt_path || '']; }));
   var iva = [['code', 'rate', 'lines', 'gross_crc', 'net_crc', 'tax_crc']].concat(r[6].data.by_rate.map(function(x){ return [x.code, x.rate, x.lines, x.gross_crc, x.net_crc, x.tax_crc]; }),
     [['refunds', '', '', '', '', r[6].data.refunds_tax_crc], ['sales without tax detail (before 0009)', '', r[6].data.without_tax_detail.orders, r[6].data.without_tax_detail.total_crc, '', '']]);
+  var ivc = [['date', 'supplier', 'invoice', 'base_crc', 'iva_crc', 'source', 'account']].concat(r[7].data.credits.documents.map(function(x){
+    return [x.date, x.supplier, x.number, x.base_crc, x.iva_crc, x.source, x.account]; }), [['', 'total', '', '', r[7].data.credits.iva_crc, '', '']]);
+  var stk = [['item', 'category', 'on_hand', 'unit', 'avg_cost', 'value_crc']].concat(r[8].data.items.map(function(x){ return [x.name, x.category, x.on_hand, x.unit, x.avg_cost, x.value_crc]; }),
+    [['total', '', '', '', '', r[8].data.total_crc], ['books 1150', '', '', '', '', r[8].data.ledger_crc]]);
   var blob = zip([{name: 'diario.csv', text: csvText(j)}, {name: 'balanza.csv', text: csvText(tb)}, {name: 'estado-resultados.csv', text: csvText(is)},
                   {name: 'balance-general.csv', text: csvText(bs)}, {name: 'flujo-efectivo.csv', text: csvText(cf)}, {name: 'gastos.csv', text: csvText(ex)},
-                  {name: 'iva-ventas.csv', text: csvText(iva)}]);
+                  {name: 'iva-ventas.csv', text: csvText(iva)}, {name: 'iva-compras.csv', text: csvText(ivc)}, {name: 'inventario-valorado-' + today() + '.csv', text: csvText(stk)}]);
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'contabilidad-' + m + '.zip'; a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
 });
@@ -810,6 +905,31 @@ $('pyCsv').addEventListener('click', function(){
   AP.vendors.forEach(function(v){ v.invoices.forEach(function(i){ if (Number(i.open) > 0) rows.push([v.name, i.number, i.date, i.due_date, i.total, i.open]); }); });
   download('cuentas-por-pagar-' + AP.as_of + '.csv', rows);
 });
+
+/* ---------- electronic documents: what would be sent, once there is a provider ---------- */
+var E_KIND = {TE: 'Ticket', FE: 'Invoice', NC: 'Credit note'},
+    E_STATUS = {pending: 'Waiting', queued: 'Queued', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected', error: 'Error', contingency: 'Contingency', cancelled: 'Voided'};
+async function loadEDocs(){
+  if (!$('eFrom').value){ $('eFrom').value = monthStart(today()); $('eTo').value = today(); }
+  var r = await db.rpc('einvoice_list', {p_from: $('eFrom').value, p_to: $('eTo').value});
+  var tb = $('eTable').querySelector('tbody'); tb.replaceChildren();
+  if (r.error || !r.data || !r.data.ok){ $('eMode').textContent = r.error && /einvoice_list|Could not find/i.test(r.error.message || '') ? 'Electronic documents need a database update (migration 0018).' : errText(r); return; }
+  var d = r.data, mode = d.mode === 'shadow' || d.mode === '"shadow"' ? 'shadow' : 'off';
+  $('eMode').textContent = mode === 'shadow' ? 'Recording only: each sale and refund records its document here to check the data. Nothing is sent to Hacienda or to any provider.'
+    : 'Off: nothing is recorded or sent. To check the data before choosing a provider, the owner switches on "Record only" in Home → Settings.';
+  $('eCounts').innerHTML = Object.keys(d.counts).map(function(k){ return '<span>' + esc(E_STATUS[k] || k) + '</span> ' + esc(d.counts[k]); }).join(' · ');
+  $('eCabys').hidden = !d.products_without_cabys.length;
+  $('eCabysN').textContent = d.products_without_cabys.length + ' products on sale have no CABYS code yet (Admin → Menu).';
+  $('eCabysList').textContent = d.products_without_cabys.join(', ');
+  d.documents.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.internal_no) + '</td><td class="mono">' + esc(String(x.created_at).slice(0, 16).replace('T', ' ')) + '</td><td class="mono">' + esc(x.receipt_no || '') +
+      '</td><td>' + esc(E_KIND[x.kind] || x.kind) + (x.receiver ? ' · ' + esc(x.receiver.name) : '') + '</td><td class="num">' + fmt(x.total_crc) + '</td><td class="num">' + (x.tax_crc == null ? '' : fmt(x.tax_crc)) +
+      '</td><td>' + esc(E_STATUS[x.status] || x.status) + '</td><td>' + esc((x.missing || []).map(function(m){ return m === 'reference' ? 'the sale\'s document' : m.replace(/^cabys:/, 'CABYS: '); }).join(', ')) + '</td>';
+    tb.appendChild(t);
+  });
+}
+$('eGo').addEventListener('click', loadEDocs);
 
 /* ---------- accounts and mappings ---------- */
 var TYPE = {asset: 'Asset', liability: 'Liability', equity: 'Equity', revenue: 'Revenue', expense: 'Cost or expense'};

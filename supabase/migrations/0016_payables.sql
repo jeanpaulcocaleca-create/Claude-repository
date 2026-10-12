@@ -75,6 +75,14 @@ $$;
 revoke all on function public._ap_allowed() from public, anon;
 grant execute on function public._ap_allowed() to authenticated;
 
+-- where an invoice without deliveries may go: a cost, an expense or an asset bought (equipment), never an
+-- account the automatic entries use for money, IVA, payables or advances
+create or replace function public._ap_target(p_code text) returns boolean language sql stable security definer set search_path = public, acct as $$
+  select not exists (select 1 from acct.mappings m where m.account = p_code
+                      and (m.key like 'pay\_%' or m.key like 'from\_%' or m.key in ('iva_in', 'iva_out', 'ap', 'advances', 'revenue', 'returns')));
+$$;
+revoke all on function public._ap_target(text) from public, anon, authenticated;
+
 -- an invoice: what is still open on it
 create or replace function public._invoice_open(p_id uuid) returns numeric language sql stable security definer set search_path = public as $$
   select i.total_crc - coalesce((select sum(a.amount_crc) from public.supplier_payment_allocations a join public.supplier_payments p on p.id = a.payment_id
@@ -112,7 +120,7 @@ begin
   if cardinality(rids) > 0 then diff_acct := acct.map('price_variance');
   else
     select * into a from acct.accounts where code = p_invoice->>'account';
-    if a.code is null or not a.active or a.cash or a.type not in ('expense', 'asset') or a.code in (acct.map('iva_in'), acct.map('ap')) then
+    if a.code is null or not a.active or a.cash or a.type not in ('expense', 'asset') or not public._ap_target(a.code) then
       return jsonb_build_object('ok', false, 'error', 'bad_account'); end if;
     diff_acct := a.code;
   end if;
@@ -219,8 +227,8 @@ begin
   if not public._ap_allowed() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
   return jsonb_build_object('ok', true, 'as_of', d,
     'vendor_list', (select coalesce(jsonb_agg(jsonb_build_object('id', id, 'name', name) order by name), '[]') from public.vendors where active),
-    'accounts', (select coalesce(jsonb_agg(jsonb_build_object('code', code, 'name', name) order by code), '[]') from acct.accounts
-                  where active and not cash and type in ('expense', 'asset') and code not in (acct.map('iva_in'), acct.map('ap'))),
+    'accounts', (select coalesce(jsonb_agg(jsonb_build_object('code', code, 'name', name) order by type = 'asset', code), '[]') from acct.accounts
+                  where active and not cash and type in ('expense', 'asset') and public._ap_target(code)),
     'vendors', (select coalesce(jsonb_agg(x order by x->>'name'), '[]') from (
       select jsonb_build_object('vendor_id', v.id, 'name', v.name,
                'current', coalesce(sum(o.open) filter (where coalesce(o.due_date, o.date + 30) >= d), 0),
