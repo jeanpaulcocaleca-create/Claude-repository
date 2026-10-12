@@ -259,6 +259,16 @@ button.chip:hover{background:var(--canvas)}
 #receipt .rrow span:last-child{white-space:nowrap}
 #receipt .rtot{display:flex;justify-content:space-between;font-weight:700;font-size:11pt;margin-top:2pt}
 #receipt .rfoot{text-align:center;margin-top:10pt;font-size:9pt}
+#receipt .rcopy{text-align:center;font-weight:700;font-size:11pt;border:1.5pt solid #000;margin:0 0 4pt;padding:2pt 0;letter-spacing:.08em}
+.histform{display:grid;grid-template-columns:150px 1fr 120px auto;gap:.5rem;margin-bottom:.4rem}
+.histform input{min-height:44px}
+@media (max-width:640px){.histform{grid-template-columns:1fr 1fr}}
+.modal .box.histbox{max-width:760px}
+.hrow{display:grid;grid-template-columns:auto 1fr auto;gap:.2rem .8rem;padding:.6rem 0;border-bottom:1px solid var(--muted);align-items:center}
+.hrow .items{grid-column:1 / -1;font-size:.85rem;color:var(--sec)}
+.hrow .tags{grid-column:1 / -1;display:flex;gap:.4rem;flex-wrap:wrap}
+.hrow .hb{display:flex;gap:.4rem;grid-column:1 / -1;justify-content:flex-end}
+.hrow .hb button{min-height:40px}
 #receipt .rnum{text-align:center;font-size:22pt;font-weight:700;margin:6pt 0 2pt}
 #receipt .rnum small{display:block;font-size:8pt;font-weight:400;letter-spacing:.1em}
 @media print{
@@ -448,6 +458,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   <div class="box">
     <h2>Today's orders</h2>
     <p class="hint" style="margin:0 0 .6rem">Voiding an order needs a manager's PIN and a reason. The order stays on record, marked as voided, and the approval is logged.</p>
+    <button type="button" class="ghost" id="histBtn" style="width:100%;margin-bottom:.6rem">Search earlier sales · reprint · refund</button>
     <div id="ordersBody"></div>
     <div class="voidbox" id="voidBox" hidden>
       <strong id="voidWhich">Void this order</strong>
@@ -469,6 +480,38 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       </div>
     </div>
     <button class="close" id="ordersClose">Close</button>
+  </div>
+</div>
+
+<div class="modal" id="histModal" hidden>
+  <div class="box histbox">
+    <h2>Search sales</h2>
+    <form class="histform" id="histForm" autocomplete="off">
+      <input type="date" id="hDay" aria-label="Day">
+      <input id="hText" maxlength="60" placeholder="Receipt Nº, item, name or cashier" aria-label="Receipt Nº, item, name or cashier">
+      <input id="hAmt" data-keypad="amount" type="number" min="0" inputmode="numeric" placeholder="Amount ₡" aria-label="Amount">
+      <button type="submit" id="hGo">Search</button>
+    </form>
+    <p class="err" id="hErr"></p>
+    <button type="button" class="ghost" id="hUnlock" hidden style="width:100%">Open earlier days with a manager PIN</button>
+    <div id="hList"></div>
+    <div class="voidbox" id="hBox" hidden>
+      <strong id="hWhich"></strong>
+      <label for="hReason">Reason</label>
+      <input id="hReason" maxlength="120" autocomplete="off">
+      <div id="hRefundBox" hidden>
+        <label for="hMethod">Money goes back as</label>
+        <select id="hMethod"><option value="cash_crc">Cash ₡</option><option value="cash_usd">Cash $</option><option value="card">Card</option><option value="sinpe">SINPE</option><option value="other">Other</option></select>
+        <label class="chk"><input type="checkbox" id="hRestock"> Put the items back in stock (unopened, still good)</label>
+      </div>
+      <label for="hMgr">Approved by</label>
+      <select id="hMgr"></select>
+      <label for="hPin">Manager PIN</label>
+      <input id="hPin" data-keypad-ok="#hBoxGo" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <p class="err" id="hBoxErr"></p>
+      <div class="row"><button type="button" id="hBoxGo">Confirm</button><button type="button" class="ghost" id="hBoxCancel">Cancel</button></div>
+    </div>
+    <button type="button" class="ghost close" id="hClose">Close</button>
   </div>
 </div>
 
@@ -1388,7 +1431,7 @@ function recordSale(number){
   }
   if (!unpaid){
     lastOrder = {at: new Date(), items: ticket.slice(), total: total, sub: sub, disc: disc, discText: disc ? discText(tDisc) : '',
-                 label: pendingPay.label, method: pendingPay.method, number: number};
+                 label: pendingPay.label, method: pendingPay.method, number: number, tender: pendingPay.tender || null};
     document.getElementById('printBtn').disabled = false;
   }
   queue.push(order); saveQueue();
@@ -1412,15 +1455,18 @@ function esc(s){ var e = document.createElement('span'); e.textContent = s; retu
 /* fixed bilingual labels on paper, whatever language the screen is in; plain spaces so the mono font keeps the digits together */
 var PAY_RECEIPT = {cash_crc: 'Efectivo ₡ · Cash', cash_usd: 'Efectivo $ · Cash USD', card: 'Tarjeta · Card', sinpe: 'SINPE Móvil', other: 'Otro · Other'};
 function rfmt(n){ return fmt(n).replace(/[\u202f\u00a0]/g, ' '); }
-document.getElementById('printBtn').addEventListener('click', function(){
-  if (!lastOrder) return;
-  var d = lastOrder.at;
+/* one receipt for a sale, a payment or a copy: rec = {at, items, total, sub, disc, discText, extra, method, label,
+   number, note, tender, receiptNo, copy, taxGroups} */
+function receiptHtml(lastOrder){
+  var d = new Date(lastOrder.at);
   var when = d.toLocaleDateString('en-GB') + ' ' +
     String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   var html =
+    (lastOrder.copy ? '<div class="rcopy">COPIA · COPY</div>' : '') +
     '<div class="rhead">HANGING GARDEN CAFÉ</div>' +
     '<div class="rsub">Monteverde · Costa Rica</div>' +
     '<div class="rsub">' + when + '</div>' +
+    (lastOrder.receiptNo ? '<div class="rsub">Recibo · Receipt Nº ' + lastOrder.receiptNo + '</div>' : '') +
     (lastOrder.note ? '<div class="rsub">' + esc(lastOrder.note) + '</div>' : '') +
     (lastOrder.number ? '<div class="rnum"><small>YOUR NUMBER · SU NÚMERO</small>' + lastOrder.number + '</div>' : '') +
     '<div class="rrule"></div>';
@@ -1437,13 +1483,21 @@ document.getElementById('printBtn').addEventListener('click', function(){
   }
   html +=
     '<div class="rtot"><span>TOTAL</span><span>' + rfmt(lastOrder.total) + '</span></div>' +
-    ivaGroups(lastOrder.items, lastOrder.disc || 0).map(function(g){
+    (lastOrder.taxGroups || ivaGroups(lastOrder.items, lastOrder.disc || 0)).map(function(g){
       return '<div class="rrow"><span>Incluye IVA ' + pct(g.rate) + ' · Includes VAT</span><span>' + rfmt(g.tax) + '</span></div>'; }).join('') +
     '<div class="rrow"><span>Pago · Paid by</span><span>' + esc(PAY_RECEIPT[lastOrder.method] || lastOrder.label) + '</span></div>' +
+    tenderHtml(lastOrder.tender) +
     '<div class="rfoot">¡Pura vida! · Gracias</div>';
-  document.getElementById('receipt').innerHTML = html;
-  printReceipt();
-});
+  return html;
+}
+function tenderHtml(t){
+  if (!t || !(t.crc_in > 0 || t.usd_in > 0)) return '';
+  var got = [t.usd_in > 0 ? '$' + Number(t.usd_in).toFixed(2) + ' (' + rfmt(t.fx_rate) + ')' : '', t.crc_in > 0 ? rfmt(t.crc_in) : ''].filter(Boolean).join(' + ');
+  return '<div class="rrow"><span>Recibido · Received</span><span>' + esc(got) + '</span></div>' +
+         '<div class="rrow"><span>Vuelto · Change</span><span>' + rfmt(t.change_crc || 0) + '</span></div>';
+}
+function printRec(rec){ document.getElementById('receipt').innerHTML = receiptHtml(rec); printReceipt(); }
+document.getElementById('printBtn').addEventListener('click', function(){ if (lastOrder) printRec(lastOrder); });
 
 /* ---------- offline queue ----------
    Every sale waits in this device's storage until it is in the system. Two tabs of the till on one device share
@@ -2228,6 +2282,112 @@ async function loadManagers(){
   });
 }
 document.getElementById('ordersBtn').addEventListener('click', openOrders);
+
+/* ---------- earlier sales (migration 0011): search, reprint (COPIA), void while the day is open, refund after ---------- */
+var hRows = [], hTarget = null;
+function crTodayStr(){ var d = new Date(Date.now() - 6 * 3600000); return d.toISOString().slice(0, 10); }   /* Costa Rica is UTC−6 */
+function openHist(){
+  document.getElementById('ordersModal').hidden = true;
+  if (!document.getElementById('hDay').value) document.getElementById('hDay').value = crTodayStr();
+  document.getElementById('hBox').hidden = true; document.getElementById('hErr').textContent = '';
+  document.getElementById('histModal').hidden = false;
+  if (!managersList) loadManagers().then(fillHMgr); else fillHMgr();
+  searchHist();
+}
+function fillHMgr(){
+  var sel = document.getElementById('hMgr'); sel.textContent = '';
+  (managersList || []).forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o); });
+}
+async function searchHist(){
+  var day = document.getElementById('hDay').value || crTodayStr(), text = document.getElementById('hText').value.trim();
+  var amt = parseInt(document.getElementById('hAmt').value, 10), list = document.getElementById('hList'), err = document.getElementById('hErr');
+  err.textContent = ''; document.getElementById('hUnlock').hidden = true;
+  var args = {p_from: day, p_to: day};
+  if (/^\d{1,9}$/.test(text)) args.p_receipt = Number(text); else if (text) args.p_text = text;
+  if (amt > 0) args.p_amount = amt;
+  var r = await db.rpc('order_search', args);
+  if (r.error){ err.textContent = rpcMissing(r.error) || /order_search/.test(r.error.message || '') ? 'Searching earlier sales switches on with the next database update.' : 'Could not search. Check the connection and try again.'; return; }
+  if (!r.data || !r.data.ok){
+    if (r.data && r.data.error === 'locked'){ err.textContent = 'Earlier days are sales history: a manager opens them with a PIN.'; document.getElementById('hUnlock').hidden = false; return; }
+    err.textContent = 'Could not search. Try again.'; return;
+  }
+  hRows = r.data.orders || [];
+  list.replaceChildren();
+  if (!hRows.length){ var p = document.createElement('p'); p.className = 'hint'; p.textContent = 'No sales found.'; list.appendChild(p); return; }
+  hRows.forEach(function(o){
+    var row = document.createElement('div'); row.className = 'hrow';
+    var when = document.createElement('span'); when.className = 'mono'; when.textContent = hhmm(o.created_at);
+    var head = document.createElement('span');
+    head.textContent = [o.receipt_no ? 'Nº ' + o.receipt_no : '', o.paid === false ? 'not paid yet' : (PAY_NAMES[o.payment_method] || o.payment_method),
+                        o.guest_name, o.operator_name].filter(Boolean).join(' · ');
+    var amt = document.createElement('span'); amt.className = 'mono'; amt.textContent = fmt(o.total_crc);
+    var items = document.createElement('span'); items.className = 'items';
+    items.textContent = (o.items || []).map(function(i){ return i.qty + '× ' + i.name; }).join(', ') || (o.notes || '');
+    row.appendChild(when); row.appendChild(head); row.appendChild(amt); row.appendChild(items);
+    var tags = document.createElement('span'); tags.className = 'tags';
+    if (o.voided_at){ var v = document.createElement('span'); v.className = 'vtag'; v.textContent = 'Voided · ' + (o.void_reason || ''); tags.appendChild(v); }
+    if (o.refunded_at){ var rf = document.createElement('span'); rf.className = 'dtag'; rf.textContent = 'Refunded ' + dayLabel(String(o.refunded_at).slice(0, 10)); tags.appendChild(rf); }
+    if (o.refund_of){ var rr = document.createElement('span'); rr.className = 'dtag'; rr.textContent = 'Refund · money given back'; tags.appendChild(rr); }
+    if (tags.childNodes.length) row.appendChild(tags);
+    var hb = document.createElement('span'); hb.className = 'hb';
+    var rp = document.createElement('button'); rp.type = 'button'; rp.className = 'ghost'; rp.textContent = 'Reprint';
+    rp.addEventListener('click', function(){ reprint(o); }); hb.appendChild(rp);
+    if (o.can_void){ var vb = document.createElement('button'); vb.type = 'button'; vb.className = 'ghost'; vb.textContent = 'Void';
+      vb.addEventListener('click', function(){ openHBox(o, false); }); hb.appendChild(vb); }
+    if (o.can_refund){ var fb = document.createElement('button'); fb.type = 'button'; fb.className = 'ghost'; fb.textContent = 'Refund';
+      fb.addEventListener('click', function(){ openHBox(o, true); }); hb.appendChild(fb); }
+    row.appendChild(hb);
+    list.appendChild(row);
+  });
+}
+async function reprint(o){
+  var groups = null;
+  if ((o.items || []).length && o.items.every(function(i){ return i.tax != null && i.tax_rate != null; })){
+    var by = {}; o.items.forEach(function(i){ by[i.tax_rate] = (by[i.tax_rate] || 0) + i.tax; });
+    groups = Object.keys(by).map(function(k){ return {rate: Number(k), tax: by[k]}; }).sort(function(a, b){ return b.rate - a.rate; });
+  }
+  var disc = o.discount_crc || 0;
+  printRec({at: o.created_at, items: (o.items || []).map(function(i){ return {name: i.name, price: i.price, qty: i.qty}; }),
+            total: o.total_crc, sub: o.subtotal_crc || o.total_crc + disc, disc: disc, discText: '', extra: [],
+            method: o.payment_method, label: PAY_NAMES[o.payment_method] || o.payment_method, number: o.pickup_number,
+            note: o.guest_name || '', tender: o.tender, receiptNo: o.receipt_no, copy: true, taxGroups: groups});
+  await db.rpc('order_reprint', {p_order_id: o.id, p_station: stationName() || null});
+}
+function openHBox(o, refund){
+  hTarget = {o: o, refund: refund};
+  document.getElementById('hWhich').textContent = (refund ? 'Refund ' : 'Void ') + (o.receipt_no ? 'Nº ' + o.receipt_no + ' · ' : '') + fmt(o.total_crc);
+  document.getElementById('hRefundBox').hidden = !refund;
+  document.getElementById('hMethod').value = PAY_NAMES[o.payment_method] ? o.payment_method : 'cash_crc';
+  document.getElementById('hRestock').checked = false;
+  document.getElementById('hReason').value = ''; document.getElementById('hPin').value = ''; document.getElementById('hBoxErr').textContent = '';
+  document.getElementById('hBoxGo').textContent = refund ? 'Refund today' : 'Void this order';
+  document.getElementById('hBox').hidden = false; document.getElementById('hReason').focus();
+}
+document.getElementById('hBoxGo').addEventListener('click', async function(){
+  if (!hTarget) return;
+  var btn = this, args = {p_manager_id: document.getElementById('hMgr').value || null, p_manager_pin: document.getElementById('hPin').value.trim(),
+                          p_order_id: hTarget.o.id, p_reason: document.getElementById('hReason').value.trim()};
+  if (hTarget.refund){ args.p_restock = document.getElementById('hRestock').checked; args.p_method = document.getElementById('hMethod').value; args.p_station = stationName() || null; }
+  btn.disabled = true;
+  var r = await db.rpc(hTarget.refund ? 'manager_refund_order' : 'manager_void_order', args);
+  btn.disabled = false; document.getElementById('hPin').value = '';
+  if (r.error || !r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    document.getElementById('hBoxErr').textContent = r.error ? 'Could not save. Check the connection and try again.' : (ERR[code] || 'Could not save. Try again.');
+    return;
+  }
+  toast(hTarget.refund ? 'Refunded ' + fmt(r.data.total) + ' · ' + (PAY_NAMES[r.data.method] || r.data.method) : 'Order voided · ' + fmt(hTarget.o.total_crc));
+  hTarget = null; document.getElementById('hBox').hidden = true; searchHist();
+});
+document.getElementById('hBoxCancel').addEventListener('click', function(){ hTarget = null; document.getElementById('hBox').hidden = true; });
+document.getElementById('histBtn').addEventListener('click', openHist);
+document.getElementById('histForm').addEventListener('submit', function(e){ e.preventDefault(); searchHist(); });
+document.getElementById('hDay').addEventListener('change', searchHist);
+document.getElementById('hClose').addEventListener('click', function(){ document.getElementById('histModal').hidden = true; });
+document.getElementById('hUnlock').addEventListener('click', function(){
+  if (!window.HG_ACCESS || !HG_ACCESS.gate) return;
+  HG_ACCESS.gate(db, {title: 'Sales history · managers', backLabel: 'Back', backHref: 'pos.html'}).then(function(){ searchHist(); });
+});
 document.getElementById('ordersClose').addEventListener('click', function(){ document.getElementById('ordersModal').hidden = true; });
 document.getElementById('vCancel').addEventListener('click', function(){ voidTarget = null; document.getElementById('voidBox').hidden = true; });
 async function openOrders(){
