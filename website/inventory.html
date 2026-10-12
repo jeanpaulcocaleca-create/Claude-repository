@@ -238,7 +238,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   <!-- ORDERS -->
   <section class="view" id="view-orders" hidden>
     <div class="card">
-      <h2>Suggested order <span class="sp"></span><span class="hint">based on the last 30 days of sales and each vendor's lead time</span></h2>
+      <h2>Suggested order <span class="sp"></span><span class="hint">based on the last 30 days of sales and each vendor's lead time</span> <button class="small" id="allPoBtn" hidden>Create all orders</button></h2>
       <div id="suggestList"></div>
     </div>
     <div class="card">
@@ -418,9 +418,12 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <!-- RECEIVE PO MODAL -->
 <div class="modalbg" id="recvModal" hidden>
   <form class="modal" id="recvForm" style="max-width:640px">
-    <h2>Mark as received</h2>
-    <p class="hint">Change any quantity that arrived short or long. Costs update the item's price.</p>
-    <div class="tablewrap"><table id="recvTable"><thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Received</th><th class="num">Cost / pack</th><th>Expires</th></tr></thead><tbody></tbody></table></div>
+    <h2>Receive a delivery</h2>
+    <p class="hint">Type what arrived in this delivery. If part of the order comes later, receive it again then. Costs update the item's price.</p>
+    <div class="row"><div><label for="recvInv">Supplier invoice Nº</label><input id="recvInv" maxlength="40" autocomplete="off"></div>
+      <div><label for="recvInvDate">Invoice date</label><input id="recvInvDate" type="date"></div></div>
+    <div class="tablewrap"><table id="recvTable"><thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Already in</th><th class="num">This delivery</th><th class="num">Cost / pack</th><th>Expires</th></tr></thead><tbody></tbody></table></div>
+    <label class="chk" style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem"><input type="checkbox" id="recvFinal"> Nothing more is coming: close the order</label>
     <p class="err" id="recvErr"></p>
     <div class="btns"><button type="button" class="ghost" id="recvCancel">Cancel</button><button type="submit">Add to stock</button></div>
   </form>
@@ -809,13 +812,14 @@ $('moveForm').addEventListener('submit', async function(e){
 /* ---------- orders ---------- */
 function unitCost(i){ return i.pack_qty ? Number(i.cost_per_pack) / Number(i.pack_qty) : 0; }
 function renderOrders(){
-  var openPos = POS.filter(function(p){ return p.status === 'draft' || p.status === 'sent'; });
+  var openPos = POS.filter(function(p){ return p.status === 'draft' || p.status === 'sent' || p.status === 'partially_received'; });
   $('poCount').hidden = !openPos.length; $('poCount').textContent = openPos.length;
   /* suggestions grouped by vendor */
   var sug = STATS.filter(function(i){ return i.active && i.status !== 'ok' && Number(i.suggested_packs) > 0; });
   var groups = {}; sug.forEach(function(i){ var k = i.vendor_id || ''; (groups[k] = groups[k] || []).push(i); });
   var box = $('suggestList'); box.replaceChildren();
   if (!sug.length) box.innerHTML = '<p class="empty">Nothing needs ordering right now.</p>';
+  $('allPoBtn').hidden = Object.keys(groups).length < 2;
   Object.keys(groups).forEach(function(vid){
     var v = VENDORS.filter(function(x){ return x.id === vid; })[0];
     var d = document.createElement('div'); d.className = 'po';
@@ -836,6 +840,7 @@ function renderOrders(){
       if (!lines.length){ toast('Nothing to order.'); return; }
       await createPo(vid || null, lines);
     }, '');
+    d.dataset.vendor = vid;
     btn.className = 'small';
     head.appendChild(btn); d.appendChild(head); d.appendChild(tb); box.appendChild(d);
   });
@@ -849,32 +854,47 @@ function renderOrders(){
   recv.forEach(function(p){ done.appendChild(poCard(p, false)); });
 }
 function poTotal(p){ return (p.purchase_lines || []).reduce(function(s, l){ return s + Number(l.received_qty != null && p.status === 'received' ? l.received_qty : l.qty) * Number(l.unit_cost || 0); }, 0); }
+/* one order per vendor from every suggestion on the screen, in one tap */
+$('allPoBtn').addEventListener('click', async function(){
+  var made = 0;
+  for (var d of Array.prototype.slice.call($('suggestList').querySelectorAll('.po'))){
+    var lines = []; d.querySelectorAll('input[data-item]').forEach(function(inp){ var packs = Number(inp.value); if (packs > 0) lines.push({item: byId[inp.dataset.item], packs: packs}); });
+    if (lines.length && await createPo(d.dataset.vendor || null, lines, true)) made++;
+  }
+  toast(made === 1 ? '1 order created' : made + ' orders created'); await loadAll(); showView('orders');
+});
 function poCard(p, open){
   var v = VENDORS.filter(function(x){ return x.id === p.vendor_id; })[0];
   var d = document.createElement('div'); d.className = 'po';
   var head = document.createElement('div'); head.className = 'head';
-  var statusText = {draft: 'Draft', sent: 'Sent', received: 'Received', cancelled: 'Cancelled'}[p.status] || p.status;
-  head.innerHTML = '<b>' + esc(v ? v.name : 'No vendor') + '</b><span class="pill ' + p.status + '">' + statusText + '</span><span class="hint">' + esc(fmtDT(p.received_at || p.sent_at || p.created_at)) + '</span><span class="hint">' + fmt(poTotal(p)) + '</span>';
+  var statusText = {draft: 'Draft', sent: 'Sent', partially_received: 'Partly received', received: 'Received', cancelled: 'Cancelled'}[p.status] || p.status;
+  head.innerHTML = (p.po_number ? '<span class="hint">Nº ' + p.po_number + '</span>' : '') + '<b>' + esc(v ? v.name : 'No vendor') + '</b><span class="pill ' + p.status + '">' + statusText + '</span><span class="hint">' + esc(fmtDT(p.received_at || p.sent_at || p.created_at)) + '</span><span class="hint">' + fmt(poTotal(p)) + '</span>';
   var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
   var lines = document.createElement('div'); lines.className = 'lines';
-  lines.textContent = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return (i ? i.name : '?') + ' × ' + num(l.packs, 2) + (p.status === 'received' && l.received_qty != null && Number(l.received_qty) !== Number(l.qty) ? ' (got ' + num(l.received_qty, 1) + (i ? ' ' + unitLabel(i.unit) : '') + ')' : ''); }).join(' · ') || 'No lines yet';
+  lines.textContent = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return (i ? i.name : '?') + ' × ' + num(l.packs, 2) + ((p.status === 'received' || p.status === 'partially_received') && l.received_qty != null && Number(l.received_qty) !== Number(l.qty) ? ' (got ' + num(l.received_qty, 1) + (i ? ' ' + unitLabel(i.unit) : '') + ')' : ''); }).join(' · ') || 'No lines yet';
   if (open){
     head.appendChild(actBtn('+ Add line', function(){ openLine(p); }));
-    if (v && v.whatsapp) head.appendChild(actBtn('Send by WhatsApp', function(){ sendPo(p, v); }));
-    head.appendChild(actBtn('Print', function(){ printPo(p, v); }));
-    var rb = actBtn('Mark received', function(){ openRecv(p); }); rb.className = 'small'; head.appendChild(rb);
-    head.appendChild(actBtn('Cancel order', async function(){ if (!confirm('Cancel this order?')) return; await db.from('purchase_orders').update({status: 'cancelled'}).eq('id', p.id); loadAll(); }));
+    if (p.status !== 'partially_received'){
+      if (v && v.whatsapp) head.appendChild(actBtn('Send by WhatsApp', function(){ sendPo(p, v); }));
+      if (v && v.email) head.appendChild(actBtn('Email', function(){ mailPo(p, v); }));
+      head.appendChild(actBtn(navigator.share ? 'Share' : 'Copy text', function(){ sharePo(p, v); }));
+    }
+    head.appendChild(actBtn('Print / PDF', function(){ printPo(p, v); }));
+    var rb = actBtn('Receive', function(){ openRecv(p); }); rb.className = 'small'; head.appendChild(rb);
+    if (p.status !== 'partially_received') head.appendChild(actBtn('Cancel order', async function(){ if (!confirm('Cancel this order?')) return; await db.from('purchase_orders').update({status: 'cancelled'}).eq('id', p.id); loadAll(); }));
   }
   d.appendChild(head); d.appendChild(lines);
   return d;
 }
-async function createPo(vendorId, lines){
+async function createPo(vendorId, lines, quiet){
   var r = await db.from('purchase_orders').insert({vendor_id: vendorId, status: 'draft', by_name: (HG_ACCESS.state() && HG_ACCESS.state().name) || (ACCOUNT === 'cafe' ? 'café' : 'owner')}).select('id');
-  if (r.error || !r.data || !r.data.length){ toast('Could not create the order. Try again.'); return; }
+  if (r.error || !r.data || !r.data.length){ toast('Could not create the order. Try again.'); return false; }
   var rows = lines.map(function(l){ return {po_id: r.data[0].id, item_id: l.item.id, packs: l.packs, qty: l.packs * Number(l.item.pack_qty), unit_cost: unitCost(l.item) || null}; });
   var r2 = await db.from('purchase_lines').insert(rows);
-  if (r2.error){ toast('Could not add the lines. Try again.'); return; }
+  if (r2.error){ toast('Could not add the lines. Try again.'); return false; }
+  if (quiet) return true;
   toast('Order created'); await loadAll(); showView('orders');
+  return true;
 }
 $('newPoBtn').addEventListener('click', async function(){
   var v = VENDORS.filter(function(x){ return x.active; })[0];
@@ -899,46 +919,94 @@ $('lineForm').addEventListener('submit', async function(e){
 });
 function poText(p, v){
   var lines = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return '• ' + (i ? i.name : '?') + ': ' + num(l.packs, 2) + ' × ' + (i && i.pack_label ? i.pack_label : 'pack') + ' (' + (i ? qtyU(l.qty, i.unit) : l.qty) + ')'; });
-  return 'Hola' + (v && v.contact_name ? ' ' + v.contact_name : '') + ', pedido de Hanging Garden Café:\n' + lines.join('\n') + '\n\nGracias. / Order from Hanging Garden Café, thank you.';
+  return 'Hola' + (v && v.contact_name ? ' ' + v.contact_name : '') + ', pedido' + (p.po_number ? ' Nº ' + p.po_number : '') + ' de Hanging Garden Café:\n' + lines.join('\n') + '\n\nGracias. / Order from Hanging Garden Café, thank you.';
+}
+async function markSent(p){ if (p.status === 'draft'){ await db.from('purchase_orders').update({status: 'sent', sent_at: new Date().toISOString()}).eq('id', p.id); loadAll(); } }
+function mailPo(p, v){
+  location.href = 'mailto:' + encodeURIComponent(v.email) + '?subject=' + encodeURIComponent('Pedido' + (p.po_number ? ' Nº ' + p.po_number : '') + ' · Hanging Garden Café') + '&body=' + encodeURIComponent(poText(p, v));
+  markSent(p);
+}
+async function sharePo(p, v){
+  var text = poText(p, v);
+  try {
+    if (navigator.share){ await navigator.share({title: 'Pedido · Hanging Garden Café', text: text}); }
+    else { await navigator.clipboard.writeText(text); toast('Order text copied'); }
+    markSent(p);
+  } catch (e) { /* the person closed the share sheet */ }
 }
 async function sendPo(p, v){
   var url = 'https://wa.me/' + String(v.whatsapp).replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(poText(p, v));
   window.open(url, '_blank', 'noopener');
   if (p.status === 'draft'){ await db.from('purchase_orders').update({status: 'sent', sent_at: new Date().toISOString()}).eq('id', p.id); loadAll(); }
 }
+/* the purchase order as a document: print it, or "Save as PDF" in the print window */
+function poDocHtml(p, v){
+  var total = 0;
+  var rows = (p.purchase_lines || []).map(function(l){
+    var i = byId[l.item_id], cpp = l.unit_cost != null && i ? Number(l.unit_cost) * Number(i.pack_qty) : null, lt = cpp != null ? cpp * Number(l.packs) : null;
+    if (lt != null) total += lt;
+    return '<tr><td>' + esc(i ? i.name : '?') + '<br><small>' + esc(i ? (i.pack_label || qtyU(i.pack_qty, i.unit)) : '') + '</small></td><td class="n">' + num(l.packs, 2) +
+           '</td><td class="n">' + esc(i ? qtyU(l.qty, i.unit) : String(l.qty)) + '</td><td class="n">' + (cpp != null ? fmt(Math.round(cpp)) : '') + '</td><td class="n">' + (lt != null ? fmt(Math.round(lt)) : '') + '</td></tr>';
+  }).join('');
+  var when = new Date(p.created_at || Date.now());
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Pedido ' + (p.po_number || '') + ' · Hanging Garden Café</title><style>' +
+    'body{font:13px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2a24;margin:24px}h1{font-size:20px;margin:0}' +
+    '.top{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #1E4B33;padding-bottom:10px;margin-bottom:14px}' +
+    'table{width:100%;border-collapse:collapse;margin-top:10px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #ccc;vertical-align:top}' +
+    'th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#555}.n{text-align:right;white-space:nowrap}small{color:#666}' +
+    'tfoot td{font-weight:700;border-bottom:0}.foot{margin-top:24px;color:#555;font-size:12px}</style></head><body>' +
+    '<div class="top"><div><h1>Hanging Garden Café</h1><div>Monteverde, Costa Rica</div></div>' +
+    '<div style="text-align:right"><b>PEDIDO · PURCHASE ORDER' + (p.po_number ? ' Nº ' + p.po_number : '') + '</b><br>' + when.toLocaleDateString('es-CR') +
+    (p.expected_on ? '<br>Entrega esperada: ' + esc(p.expected_on) : '') + '</div></div>' +
+    '<div><b>Proveedor · Vendor:</b> ' + esc(v ? v.name : '—') + (v && v.contact_name ? ' · ' + esc(v.contact_name) : '') + (v && v.phone ? ' · ' + esc(v.phone) : '') + (v && v.email ? ' · ' + esc(v.email) : '') + '</div>' +
+    '<table><thead><tr><th>Producto · Item</th><th class="n">Paquetes</th><th class="n">Cantidad</th><th class="n">Costo / paquete</th><th class="n">Total</th></tr></thead><tbody>' + rows + '</tbody>' +
+    '<tfoot><tr><td colspan="4" class="n">Total estimado · Estimated total</td><td class="n">' + fmt(Math.round(total)) + '</td></tr></tfoot></table>' +
+    (p.note ? '<p><b>Nota:</b> ' + esc(p.note) + '</p>' : '') +
+    '<div class="foot">Por favor indique en la factura el número de pedido. · Please quote the order number on the invoice.</div></body></html>';
+}
 function printPo(p, v){
   var w = window.open('', '_blank');
-  if (!w) return;
-  w.document.write('<title>Order · Hanging Garden Café</title><pre style="font:14px/1.5 monospace;padding:2rem">' + esc(poText(p, v)) + '</pre>');
-  w.document.close(); w.print();
+  if (!w) { toast('Allow pop-ups to print the order.'); return; }
+  w.document.write(poDocHtml(p, v));
+  w.document.close(); w.focus(); w.print();
 }
-var recvTarget = null;
+var recvTarget = null, recvReq = null;
 function openRecv(p){
-  recvTarget = p; var tb = $('recvTable').querySelector('tbody'); tb.replaceChildren();
+  recvTarget = p; recvReq = uuid(); var tb = $('recvTable').querySelector('tbody'); tb.replaceChildren();
   (p.purchase_lines || []).forEach(function(l){
     var i = byId[l.item_id]; if (!i) return;
+    var already = Number(l.received_qty || 0), left = Math.max(0, Number(l.qty) - already);
     var tr = document.createElement('tr'); tr.dataset.line = l.id;
     var exp = l.expires_on || (i.shelf_life_days ? new Date(Date.now() + i.shelf_life_days * 86400000).toISOString().slice(0, 10) : '');
-    tr.innerHTML = '<td>' + esc(i.name) + '<span class="sub">' + esc(unitLabel(i.unit)) + '</span></td><td class="num">' + num(l.qty, 1) + '</td>' +
-      '<td class="num"><input type="number" min="0" step="any" value="' + esc(l.qty) + '" data-f="qty" style="width:90px"></td>' +
+    tr.innerHTML = '<td>' + esc(i.name) + '<span class="sub">' + esc(unitLabel(i.unit)) + '</span></td><td class="num">' + num(l.qty, 1) + '</td><td class="num">' + num(already, 1) + '</td>' +
+      '<td class="num"><input type="number" min="0" step="any" value="' + esc(left) + '" data-f="qty" style="width:90px"></td>' +
       '<td class="num"><input type="number" min="0" step="any" value="' + esc(l.unit_cost != null ? Math.round(Number(l.unit_cost) * Number(i.pack_qty) * 100) / 100 : '') + '" data-f="cost" style="width:100px"></td>' +
       '<td><input type="date" value="' + esc(exp) + '" data-f="exp" style="width:150px"></td>';
     tb.appendChild(tr);
   });
+  $('recvInv').value = ''; $('recvInvDate').value = new Date().toISOString().slice(0, 10); $('recvFinal').checked = false;
   $('recvErr').textContent = ''; $('recvModal').hidden = false;
 }
 $('recvCancel').addEventListener('click', function(){ $('recvModal').hidden = true; });
+var RECV_ERR = {already_received: 'This order was already received.', cancelled: 'This order was cancelled.', bad_qty: 'Quantities and costs cannot be negative.',
+                duplicate_invoice: 'That invoice of this supplier was already entered.', locked: 'The inventory is locked. Type a manager PIN again.'};
 $('recvForm').addEventListener('submit', async function(e){
   e.preventDefault();
-  var lines = [];
+  var lines = [], legacy = [];
   $('recvTable').querySelectorAll('tbody tr').forEach(function(tr){
-    var i = byId[(recvTarget.purchase_lines || []).filter(function(l){ return l.id === tr.dataset.line; })[0].item_id];
-    var cost = Number(tr.querySelector('[data-f=cost]').value);
-    lines.push({line_id: tr.dataset.line, received_qty: Number(tr.querySelector('[data-f=qty]').value) || 0, unit_cost: cost > 0 && i ? cost / Number(i.pack_qty) : null, expires_on: tr.querySelector('[data-f=exp]').value || null});
+    var l = (recvTarget.purchase_lines || []).filter(function(x){ return x.id === tr.dataset.line; })[0];
+    var i = byId[l.item_id], cost = Number(tr.querySelector('[data-f=cost]').value), q = Number(tr.querySelector('[data-f=qty]').value) || 0;
+    var uc = cost > 0 && i ? cost / Number(i.pack_qty) : null, ex = tr.querySelector('[data-f=exp]').value || null;
+    lines.push({line_id: l.id, qty: q, unit_cost: uc, expires_on: ex});
+    legacy.push({line_id: l.id, received_qty: Number(l.received_qty || 0) + q, unit_cost: uc, expires_on: ex});
   });
-  var r = await db.rpc('po_receive', {p_po_id: recvTarget.id, p_lines: lines});
-  if (r.error || !r.data || !r.data.ok){ var why = r.data && r.data.error; $('recvErr').textContent = why === 'already_received' ? 'This order was already received.' : why === 'cancelled' ? 'This order was cancelled.' : why === 'bad_qty' ? 'Quantities and costs cannot be negative.' : 'Could not save. Check the connection and try again.'; if (why === 'already_received') loadAll(); return; }
-  $('recvModal').hidden = true; toast('Order received, stock updated'); loadAll();
+  var r = await db.rpc('po_receive_delivery', {p_po_id: recvTarget.id, p_lines: lines, p_receipt_id: recvReq,
+    p_invoice_no: $('recvInv').value.trim() || null, p_invoice_date: $('recvInvDate').value || null, p_final: $('recvFinal').checked});
+  /* a database without migration 0012: receive the whole order in one step, as before */
+  if (r.error && (r.error.code === 'PGRST202' || /Could not find the function/i.test(r.error.message || ''))) r = await db.rpc('po_receive', {p_po_id: recvTarget.id, p_lines: legacy});
+  if (r.error || !r.data || !r.data.ok){ var why = r.data && r.data.error; $('recvErr').textContent = RECV_ERR[why] || 'Could not save. Check the connection and try again.'; if (why === 'already_received') loadAll(); return; }
+  $('recvModal').hidden = true;
+  toast(r.data.status === 'partially_received' ? 'Delivery received · the rest is still on order' : 'Order received, stock updated'); loadAll();
 });
 
 /* ---------- recipes ---------- */

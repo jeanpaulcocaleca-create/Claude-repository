@@ -46,10 +46,10 @@ Last updated: 2026-10-12.
 | CRC + USD totals; daily rate (Hacienda API job, manual entry by a manager, buy/sell setting); rate kept with every dollar payment (0010) | 🟡 | A-06, E-16 | 110_fx_cash (21), e2e 140 | Automatic fetch needs the http + pg_cron extensions and a first live check of the API answer (E-16); manual rate works now | f9f0ab1 | R (manual) |
 | Cash window: notes and coins, typed amount, exact, change, dollars and mixed; tender kept per payment (new sales and bills) | ✅ | – | e2e 140 (2), 070 | Charging an open order from the list (data-lpay) and room orders at the window (data-rpay) still record no tender: counted as before | f9f0ab1 | R |
 | Two-currency register: float and count in ₡ and $, expected from the tenders, day's rate kept | ✅ | – | 110, e2e 140 | Payments without tender detail count in colones as before | f9f0ab1 | R |
-| Server receipt numbers; sales search (day, Nº, item, name, cashier, amount); reprint marked COPIA with change and IVA as stored, logged; void (open day) / refund (closed day) from the search (0011) | ✅ | – | 120_history_receipts (16), e2e 150 (2) | Older sales have no number (shown by time); earlier days need a manager PIN | (this commit) | R |
-| Inventario → Crear Pedido (multi-supplier) | ⏳ | – | – | – | – | – |
-| PO document (print/PDF), text, WhatsApp, share, email | ⏳ | – | – | – | – | – |
-| Partial deliveries, supplier invoice refs, duplicate guard | ⏳ | – | – | – | – | – |
+| Server receipt numbers; sales search (day, Nº, item, name, cashier, amount); reprint marked COPIA with change and IVA as stored, logged; void (open day) / refund (closed day) from the search (0011) | ✅ | – | 120_history_receipts (16), e2e 150 (2) | Older sales have no number (shown by time); earlier days need a manager PIN | 64548dc | R |
+| Inventory → create every vendor's order in one tap (suggestions by vendor already existed); PO numbers (0012) | ✅ | – | 130_purchasing, e2e 160 | – | (this commit) | R |
+| PO document (print / save as PDF), WhatsApp, email, share sheet or copy text | ✅ | – | e2e 160 | PDF is the browser's "Save as PDF" (no paid service) | (this commit) | R |
+| Deliveries in parts with supplier invoice Nº/date, duplicate-invoice guard, repeat-safe, "nothing more is coming" (0012) | ✅ | – | 130_purchasing (16), e2e 160 | – | (this commit) | R |
 | Spanish-first staff screens | 🟡 | – | e2e 110 (default), 060 (Spanish card) | Staff pages default to Spanish; new strings translated; a full untranslated-text sweep is still to do | b02dfbe | – |
 
 ## Phase 2 · Accounting foundation

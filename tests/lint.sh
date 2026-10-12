@@ -23,5 +23,7 @@ while read -r f; do f="${f%%#*}"; f="$(echo "$f" | xargs)"; [ -z "$f" ] && conti
 done < tests/db/legacy-order.txt
 # 5) the private backup repository copies match the reviewed scripts
 for f in backup.sh restore-stub.sql; do cmp -s "ops/backup/$f" "ops/backup/repositorio-respaldos/$f" || bad "ops/backup/repositorio-respaldos/$f is out of date"; done
+# the Spanish dictionary never gives one English text two translations
+node "$(dirname "$0")/tools/lang-check.js" || bad "website/lang.js has conflicting translations"
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"
