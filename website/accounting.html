@@ -72,6 +72,8 @@ tr.head td{font-weight:700;background:var(--canvas)}
 .entry table{margin-top:.3rem}
 .tag{font-size:.75rem;padding:.1em .55em;border-radius:99px;border:1px solid var(--muted);color:var(--sec)}
 .tag.rev{border-color:var(--bad);color:var(--bad)}
+#bkTable td:last-child{min-width:15rem}
+#bkTable td:last-child button{white-space:normal;text-align:left}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem}
 .grid2 label{display:block;font-size:.8rem;color:var(--sec);margin-bottom:.2rem}
 .lines .lrow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:.4rem;margin-bottom:.4rem}
@@ -139,6 +141,8 @@ tr.head td{font-weight:700;background:var(--canvas)}
     <button type="button" data-view="payables">Suppliers</button>
     <button type="button" data-view="einvoice">E-invoices</button>
     <button type="button" data-view="cash">Cash</button>
+    <button type="button" data-view="bank">Bank</button>
+    <button type="button" data-view="payroll">Payroll</button>
     <button type="button" data-view="accounts">Accounts</button>
     <button type="button" data-view="periods">Periods</button>
   </div>
@@ -189,7 +193,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
         <div><label for="rKind">Report</label><select id="rKind">
           <option value="tb">Trial balance</option><option value="is">Income statement</option>
           <option value="bs">Balance sheet</option><option value="cf">Cash flow</option>
-          <option value="iva">IVA of the period (draft)</option><option value="inv">Inventory at average cost</option><option value="pp">Profit by product</option></select></div>
+          <option value="iva">IVA of the period (draft)</option><option value="inv">Inventory at average cost</option><option value="pp">Profit by product</option><option value="labor">Labor cost</option></select></div>
         <div><label for="rFrom">From</label><input id="rFrom" type="date"></div>
         <div><label for="rTo">To</label><input id="rTo" type="date"></div>
         <div><button type="button" id="rGo">Show</button></div>
@@ -311,6 +315,117 @@ tr.head td{font-weight:700;background:var(--canvas)}
     </div>
   </section>
 
+  <!-- BANK: accounts, statements imported from the bank's CSV, reconciliation (0020) -->
+  <section class="view" id="view-bank" hidden>
+    <div class="card">
+      <h2>Bank accounts <span class="sp"></span><button type="button" class="small" id="bkNew">+ Bank account</button></h2>
+      <div class="tools"><div><label for="bkAcct">Account</label><select id="bkAcct"></select></div></div>
+      <div class="grid2" id="bkForm" hidden>
+        <div><label for="bkName">Name</label><input id="bkName" maxlength="60" placeholder="BCR colones"></div>
+        <div><label for="bkBank">Bank</label><input id="bkBank" maxlength="60"></div>
+        <div><label for="bkCur">Currency</label><select id="bkCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div>
+        <div><label for="bkLast4">Last 4 digits</label><input id="bkLast4" inputmode="numeric" maxlength="4"></div>
+        <div><label for="bkGl">Account in the books</label><select id="bkGl"></select></div>
+        <div style="align-self:end"><button type="button" id="bkSave">Save</button> <button type="button" class="ghost" id="bkCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="bkErr"></p>
+    </div>
+    <div class="card" id="bkImportCard" hidden>
+      <h2>Import a statement</h2>
+      <p class="hint">Download the movements from the bank's website as CSV (or Excel saved as CSV) and pick the file. Importing the same movements again adds nothing.</p>
+      <div class="tools"><div><label for="bkFile">Statement file (CSV)</label><input id="bkFile" type="file" accept=".csv,.txt,text/csv,text/plain"></div></div>
+      <div id="bkMap" hidden>
+        <div class="grid2">
+          <div><label for="mDate">Date column</label><select id="mDate"></select></div>
+          <div><label for="mDesc">Description column</label><select id="mDesc"></select></div>
+          <div><label for="mRef">Reference column</label><select id="mRef"></select></div>
+          <div><label for="mAmt">Amount column (+ in, − out)</label><select id="mAmt"></select></div>
+          <div><label for="mOut">Or: money out column</label><select id="mOut"></select></div>
+          <div><label for="mIn">and money in column</label><select id="mIn"></select></div>
+          <div><label for="mBal">Balance column</label><select id="mBal"></select></div>
+          <div><label for="mFmt">Dates are written</label><select id="mFmt"><option value="dmy">day/month/year</option><option value="ymd">year-month-day</option><option value="mdy">month/day/year</option></select></div>
+        </div>
+        <div class="tablewrap" style="margin-top:.6rem"><table id="bkPrev"><thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead><tbody></tbody></table></div>
+        <p class="hint mono" id="bkPrevNote"></p>
+        <div class="tools"><button type="button" id="bkImport">Import these movements</button></div>
+      </div>
+      <p class="err" id="bkImpErr"></p>
+    </div>
+    <div class="card" id="bkRecCard" hidden>
+      <h2>Reconcile <span class="sp"></span><button type="button" class="small ghost" id="bkAuto">Match automatically</button></h2>
+      <div class="tools">
+        <div><label for="bkFrom">From</label><input id="bkFrom" type="date"></div>
+        <div><label for="bkTo">To</label><input id="bkTo" type="date"></div>
+        <div><button type="button" id="bkGo">Show</button></div>
+      </div>
+      <p class="hint mono" id="bkSum"></p>
+      <div class="tablewrap"><table id="bkTable"><thead><tr><th>Date</th><th>Movement</th><th class="num">Amount</th><th>In the books</th></tr></thead><tbody></tbody></table></div>
+      <h2 style="margin-top:1rem">In the books, not on the statement</h2>
+      <div class="tablewrap"><table id="bkBook"><thead><tr><th>Date</th><th>Entry</th><th class="num">Amount</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- PAYROLL: periods, approved hours, rates and confirmed rules, the payroll (0021, 0022) -->
+  <section class="view" id="view-payroll" hidden>
+    <div class="card">
+      <h2>Pay periods <span class="sp"></span><button type="button" class="small" id="ppNew">+ Period</button></h2>
+      <div class="tools" id="ppForm" hidden>
+        <div><label for="ppFrom">From</label><input id="ppFrom" type="date"></div>
+        <div><label for="ppTo">To</label><input id="ppTo" type="date"></div>
+        <div><button type="button" id="ppSave">Create</button> <button type="button" class="ghost" id="ppCancel">Cancel</button></div>
+      </div>
+      <div class="tools"><div><label for="ppSel">Period</label><select id="ppSel"></select></div><div><span class="tag" id="ppStatus"></span></div></div>
+      <p class="err" id="ppErr"></p>
+    </div>
+    <div class="card" id="tsCard" hidden>
+      <h2>Hours of the period <span class="sp"></span><button type="button" class="small" id="tsApprove" hidden>Approve the hours</button><button type="button" class="small ghost" id="tsReopen" hidden>Reopen</button></h2>
+      <p class="hint" id="tsHint"></p>
+      <div class="tablewrap"><table id="tsTable"><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">Shifts</th><th>To check</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card" id="prCard" hidden>
+      <h2>Payroll <span class="sp"></span><button type="button" class="small ghost" id="prCsv">Download CSV</button><button type="button" class="small" id="prPrepare">Prepare the payroll</button></h2>
+      <p class="hint" id="prState"></p>
+      <div class="tablewrap"><table id="prTable"><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Other deductions</th><th class="num">Employer charges</th><th class="num">Net</th></tr></thead><tbody></tbody></table></div>
+      <div class="tools" style="margin-top:.6rem">
+        <button type="button" id="prReview" hidden>Mark as reviewed (accountant)</button>
+        <button type="button" class="ghost" id="prBack" hidden>Back to draft</button>
+        <button type="button" id="prPost" hidden>Post to the books</button>
+        <div id="prPayBox" hidden><label for="prFrom">Paid from</label><select id="prFrom"><option value="bank">Bank</option><option value="cash">Cash from the safe (not the register drawer)</option><option value="petty">Petty cash</option></select></div>
+        <div id="prPayDateBox" hidden><label for="prDate">Date</label><input id="prDate" type="date"></div>
+        <button type="button" id="prPay" hidden>Record the payment</button>
+      </div>
+      <p class="err" id="prErr"></p>
+    </div>
+    <div class="card">
+      <h2>Pay rates</h2>
+      <div class="tablewrap"><table id="rtTable"><thead><tr><th>Person</th><th>Pay</th><th>Since</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="grid2" id="rtForm" hidden>
+        <div><label for="rtWho">Person</label><input id="rtWho" disabled></div>
+        <div><label for="rtKind">Paid</label><select id="rtKind"><option value="hourly">By the hour</option><option value="period">A fixed amount per pay period</option></select></div>
+        <div><label for="rtRate">Amount (₡)</label><input id="rtRate" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="rtFrom">From</label><input id="rtFrom" type="date"></div>
+        <div style="align-self:end"><button type="button" id="rtSave">Save</button> <button type="button" class="ghost" id="rtCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="rtErr"></p>
+    </div>
+    <div class="card">
+      <h2>Deductions and employer charges <span class="sp"></span><button type="button" class="small" id="ruNew">+ Rule</button></h2>
+      <p class="hint">None come built in. Each one is entered with who confirmed it (your accountant) and the document. Until then the payroll only works out the gross pay.</p>
+      <div class="tablewrap"><table id="ruTable"><thead><tr><th>Rule</th><th>Who pays it</th><th class="num">%</th><th>Confirmed by</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="grid2" id="ruForm" hidden>
+        <div><label for="ruCode">Code</label><input id="ruCode" maxlength="30" placeholder="ccss_trabajador"></div>
+        <div><label for="ruName">Name</label><input id="ruName" maxlength="80"></div>
+        <div><label for="ruKind">Who pays it</label><select id="ruKind"><option value="employee">Taken from the pay</option><option value="employer">Paid by the business on top</option></select></div>
+        <div><label for="ruPct">Percent of the gross pay</label><input id="ruPct" type="number" min="0" max="49.999" step="0.001"></div>
+        <div><label for="ruWho">Confirmed by</label><input id="ruWho" maxlength="80"></div>
+        <div><label for="ruRef">Document or reference</label><input id="ruRef" maxlength="120"></div>
+        <div style="align-self:end"><label><input type="checkbox" id="ruActive" style="width:auto;min-height:0" checked> Active</label></div>
+        <div style="align-self:end"><button type="button" id="ruSave">Save</button> <button type="button" class="ghost" id="ruCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="ruErr"></p>
+    </div>
+  </section>
+
   <!-- ACCOUNTS -->
   <section class="view" id="view-accounts" hidden>
     <div class="card">
@@ -372,7 +487,14 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   owner_only: 'Only the owner can switch this on.', missing_reference: 'Write who approved it and the document.', bad_range: 'Pick at most three months.',
   missing_reason: 'Write the reason.', already_voided: 'Already voided.', no_vendor: 'Pick the supplier.',
   bad_receipts: 'One of those deliveries is of another supplier or already has its invoice. Refresh and try again.',
-  more_than_owed: 'That is more than is owed to this supplier.', bad_payout: 'That payout is not available: refresh and pick it again.', has_payments: 'This invoice has payments: void the payments first.'};
+  more_than_owed: 'That is more than is owed to this supplier.', bad_payout: 'That payout is not available: refresh and pick it again.',
+  not_open: 'That was already done. Refresh the page.', no_match: 'The amounts are not the same.', already_matched: 'That entry is already matched to another movement.',
+  parts_differ: 'The parts must add up to the bank\'s amount.', overlaps: 'That period overlaps another one.',
+  open_shifts: 'Some shifts have no clock-out: fix them in Time clock first.', not_ended: 'The period has not ended yet.', owner_only: 'Only the owner approves the hours.',
+  not_approved: 'The owner approves the hours first.', not_draft: 'This payroll is no longer a draft.', accountant_only: 'Only the accountant marks it as reviewed.',
+  missing_rates: 'Someone has no pay rate: set it in Pay rates and prepare the payroll again.', empty: 'Nobody to pay in this period.', not_reviewed: 'The accountant reviews it first.',
+  not_posted: 'Post it first.', payroll_posted: 'Its payroll is already posted: the hours stay.', used_by_payroll: 'A posted payroll used this rate: the change starts after that period.',
+  bad_rows: 'Some rows could not be read: check the date format and the columns.', has_payments: 'This invoice has payments: void the payments first.'};
 function errText(r){ return r.error ? 'Could not save. Check the connection and try again.' : (ERR[r.data && r.data.error] || 'Could not save. Try again.'); }
 
 /* ---------- sign in: the owner (phone code) or the accountant ---------- */
@@ -461,6 +583,8 @@ function showView(v){
   if (v === 'payables') loadPayables();
   if (v === 'einvoice') loadEDocs();
   if (v === 'cash') loadCash();
+  if (v === 'bank') loadBank();
+  if (v === 'payroll') loadPayroll();
   if (v === 'periods' || v === 'accounts') reloadOverview();   /* months appear as entries are posted */
 }
 document.querySelectorAll('#tabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.view); }); });
@@ -568,6 +692,7 @@ async function loadReport(){
   if (k === 'iva') r = await db.rpc('iva_report', {p_from: from, p_to: to});
   if (k === 'inv') r = await db.rpc('inventory_valuation');
   if (k === 'pp') r = await db.rpc('product_profitability', {p_from: from, p_to: to});
+  if (k === 'labor') r = await db.rpc('labor_cost', {p_from: from, p_to: to});
   if (k === 'tb') r = await db.rpc('acct_trial_balance', {p_from: from, p_to: to});
   if (k === 'is') r = await db.rpc('acct_income_statement', {p_from: from, p_to: to});
   if (k === 'bs') r = await db.rpc('acct_balance_sheet', {p_as_of: to});
@@ -674,10 +799,21 @@ async function loadReport(){
     var noRecipe = d.rows.filter(function(x){ return x.on_menu && !x.has_recipe; }).length;
     if (noRecipe) html += '<p class="hint">' + esc(noRecipe + ' products on the menu have no recipe yet: their cost is unknown (Inventory → Recipes).') + '</p>';
   }
+  if (k === 'labor'){
+    rows.push(['day', 'hours', 'labor_crc', 'sales_net_crc', 'pct', 'missing_rates']);
+    var th = 0, tl = 0, ts = 0, miss = false;
+    html = '<p class="hint">An estimate: the hours worked at each person\'s rate (fixed pay spread over its pay period), against sales without IVA.</p>' +
+      '<table><thead><tr><th>Day</th><th class="num">Hours</th><th class="num">Labor</th><th class="num">Sales, no IVA</th><th class="num">Labor %</th></tr></thead><tbody>' +
+      d.days.map(function(x){ th += Number(x.hours); tl += Number(x.labor_crc); ts += Number(x.sales_net_crc); miss = miss || x.missing_rates;
+        rows.push([x.day, x.hours, x.labor_crc, x.sales_net_crc, x.pct, x.missing_rates ? 'yes' : '']);
+        return '<tr><td class="mono">' + esc(x.day) + '</td>' + cell(x.hours, 'qty') + cell(x.labor_crc, 'money') + cell(x.sales_net_crc, 'money') + cell(x.pct, 'pct') + '</tr>'; }).join('') +
+      '<tr class="total"><td>Total</td>' + cell(Math.round(th * 100) / 100, 'qty') + cell(tl, 'money') + cell(ts, 'money') + cell(ts > 0 ? Math.round(1000 * tl / ts) / 10 : null, 'pct') + '</tr></tbody></table>' +
+      (miss ? '<p class="err">Some people worked without a pay rate: set it in Payroll → Pay rates.</p>' : '');
+  }
   out.innerHTML = html; REPORT = {kind: k, rows: rows};
 }
 $('rGo').addEventListener('click', loadReport); $('rKind').addEventListener('change', loadReport);
-$('rCsv').addEventListener('click', function(){ if (REPORT) download({tb: 'balanza', is: 'estado-resultados', bs: 'balance-general', cf: 'flujo-efectivo', iva: 'iva-periodo', inv: 'inventario-valorado', pp: 'rentabilidad-productos'}[REPORT.kind] +
+$('rCsv').addEventListener('click', function(){ if (REPORT) download({tb: 'balanza', is: 'estado-resultados', bs: 'balance-general', cf: 'flujo-efectivo', iva: 'iva-periodo', inv: 'inventario-valorado', pp: 'rentabilidad-productos', labor: 'costo-mano-de-obra'}[REPORT.kind] +
   '-' + (REPORT.kind === 'inv' ? today() : $('rTo').value) + '.csv', REPORT.rows); });
 $('rPrint').addEventListener('click', function(){ window.print(); });
 
@@ -988,6 +1124,345 @@ $('cCsv').addEventListener('click', function(){
     'float_usd', 'cash_sales_usd', 'in_usd', 'out_usd', 'expected_usd', 'counted_usd', 'diff_usd', 'fx_rate']].concat(CASH.map(function(d){
       return [d.date, d.closed ? 'yes' : 'no', d.float_crc, d.sales_crc, d.in_crc, d.out_crc, d.expected_crc, d.counted_crc, d.diff_crc,
               d.float_usd, d.sales_usd, d.in_usd, d.out_usd, d.expected_usd, d.counted_usd, d.diff_usd, d.fx_rate]; })));
+});
+
+/* ---------- bank: accounts, statement import, reconciliation ---------- */
+var BANK = null, BK_ROWS = null, bkReq = null, BK_POST = [];
+function bkMoney(v){ var c = BANK && BANK.account && BANK.account.currency === 'USD'; var x = Number(v); return c ? (x < 0 ? '−$' : '$') + Math.abs(x).toFixed(2) : fmt(x); }
+async function loadBank(){
+  if (!$('bkFrom').value){ var d = new Date(Date.now() - 6 * 3600000 - 60 * 86400000); $('bkFrom').value = d.toISOString().slice(0, 10); $('bkTo').value = today(); }
+  var id = $('bkAcct').value || null;
+  var r = await db.rpc('bank_overview', {p_account_id: id, p_from: $('bkFrom').value, p_to: $('bkTo').value});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /bank_overview|Could not find/i.test(r.error.message || '') ? 'The bank needs a database update (migration 0020).' : errText(r)); return; }
+  BANK = r.data;
+  var accts = BANK.accounts || [];
+  $('bkAcct').innerHTML = accts.length ? accts.map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.name + (a.last4 ? ' ·· ' + a.last4 : '')) + '</option>'; }).join('')
+    : '<option value="">' + esc('No bank accounts yet') + '</option>';
+  $('bkGl').innerHTML = (BANK.gl_accounts || []).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  if (id) $('bkAcct').value = id;
+  if (!id && accts.length){ return loadBank(); }    /* the first account, with its lines */
+  $('bkImportCard').hidden = !accts.length; $('bkRecCard').hidden = !accts.length;
+  if (!BANK.account) return;
+  BK_POST = BANK.post_accounts || [];
+  var S = BANK.summary;
+  $('bkSum').textContent = 'Books ' + bkMoney(S.book_balance) + (S.statement_balance == null ? '' : ' · statement ' + bkMoney(S.statement_balance) + ' (' + S.statement_day + ')') +
+    ' · to reconcile on the statement ' + bkMoney(S.open_statement) + ' · in the books only ' + bkMoney(S.book_only);
+  var tb = $('bkTable').querySelector('tbody'); tb.replaceChildren();
+  BANK.lines.forEach(function(l){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(l.date) + '</td><td>' + esc(l.description) + (l.reference ? ' <span class="hint">' + esc(l.reference) + '</span>' : '') +
+      '</td><td class="num">' + bkMoney(l.amount) + '</td>';
+    var c = document.createElement('td');
+    if (l.status === 'open'){
+      (l.suggest || []).forEach(function(sg){
+        c.appendChild(bkBtn('Match: Nº ' + sg.entry_no + ' · ' + sg.date + ' · ' + sg.memo, async function(){ return db.rpc('bank_match', {p_line_id: l.id, p_ledger_line_id: sg.line_id}); }));
+      });
+      var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghost small'; pb.textContent = 'Post…';
+      pb.addEventListener('click', function(){ bkPostForm(c, l); });
+      c.appendChild(pb);
+      c.appendChild(bkBtn('Ignore', async function(){ var why = prompt('Why is it left out?'); if (!why) return null; return db.rpc('bank_ignore', {p_line_id: l.id, p_note: why}); }));
+    } else {
+      var info = document.createElement('span');
+      info.textContent = l.status === 'ignored' ? 'Ignored: ' + (l.note || '') : (l.status === 'posted' ? 'Posted' : 'Matched') + (l.ledger ? ' · Nº ' + l.ledger.entry_no + ' · ' + l.ledger.memo : '');
+      c.appendChild(info);
+      c.appendChild(bkBtn('Undo', async function(){ return db.rpc('bank_undo', {p_line_id: l.id}); }));
+    }
+    t.appendChild(c); tb.appendChild(t);
+  });
+  var bb = $('bkBook').querySelector('tbody'); bb.replaceChildren();
+  BANK.book_only.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc('Nº ' + x.entry_no + ' · ' + x.memo) + '</td><td class="num">' + bkMoney(x.amount) + '</td>';
+    bb.appendChild(t);
+  });
+}
+function bkBtn(label, fn){
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = label; b.style.margin = '0 .3rem .3rem 0';
+  b.addEventListener('click', async function(){ b.disabled = true; var r = await fn(); b.disabled = false; if (!r) return;
+    if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } loadBank(); });
+  return b;
+}
+/* post a movement the books do not have: one account, or two (a card deposit: the card sales and the fee) */
+function bkPostForm(cell, l){
+  cell.replaceChildren();
+  var opts = BK_POST.map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  var f = document.createElement('div'); f.className = 'lines';
+  f.innerHTML = '<div class="lrow"><select aria-label="Account" class="pa1">' + opts + '</select><input class="pv1" type="number" step="any" aria-label="Amount"><span></span><span></span></div>' +
+    '<div class="lrow"><select aria-label="Second account (optional)" class="pa2"><option value="">' + esc('Second account (optional)') + '</option>' + opts + '</select><input class="pv2" type="number" step="any" aria-label="Amount"><span></span><span></span></div>' +
+    '<input class="pmemo" maxlength="200" placeholder="Description" aria-label="Description" style="width:100%;margin-bottom:.4rem">';
+  cell.appendChild(f);
+  f.querySelector('.pv1').value = l.amount;
+  var go = document.createElement('button'); go.type = 'button'; go.className = 'small'; go.textContent = 'Post';
+  var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ghost small'; cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', loadBank);
+  go.addEventListener('click', async function(){
+    var parts = [{account: f.querySelector('.pa1').value, amount: Number(f.querySelector('.pv1').value)}];
+    if (f.querySelector('.pa2').value) parts.push({account: f.querySelector('.pa2').value, amount: Number(f.querySelector('.pv2').value)});
+    var sum = parts.reduce(function(t, p){ return t + p.amount; }, 0);
+    if (Math.abs(sum - Number(l.amount)) > 0.001){ toast('The parts must add up to ' + bkMoney(l.amount) + '.'); return; }
+    go.disabled = true;
+    var r = await db.rpc('bank_post', {p_line_id: l.id, p_parts: parts, p_memo: f.querySelector('.pmemo').value.trim() || null});
+    go.disabled = false;
+    if (r.error || !r.data || !r.data.ok){ toast(r.data && r.data.error === 'bad_account' ? 'Pick the accounts (never the bank\'s own account).' : errText(r)); return; }
+    toast('Posted'); loadBank();
+  });
+  cell.appendChild(go); cell.appendChild(cancel);
+}
+$('bkAcct').addEventListener('change', function(){ BK_ROWS = null; $('bkMap').hidden = true; $('bkFile').value = ''; loadBank(); });
+$('bkGo').addEventListener('click', loadBank);
+$('bkAuto').addEventListener('click', async function(){
+  var r = await db.rpc('bank_auto_match', {p_account_id: $('bkAcct').value});
+  if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; }
+  toast(r.data.matched + ' matched'); loadBank();
+});
+$('bkNew').addEventListener('click', function(){ $('bkForm').hidden = false; $('bkErr').textContent = ''; $('bkName').focus(); });
+$('bkCancel').addEventListener('click', function(){ $('bkForm').hidden = true; });
+$('bkSave').addEventListener('click', async function(){
+  var r = await db.rpc('bank_account_save', {p_account: {name: $('bkName').value.trim(), bank: $('bkBank').value.trim(), currency: $('bkCur').value,
+                                                         last4: $('bkLast4').value.trim(), gl_account: $('bkGl').value}});
+  if (r.error || !r.data || !r.data.ok){ $('bkErr').textContent = r.data && r.data.error === 'bad_account' ? 'Pick a cash or bank account of the books.' : errText(r); return; }
+  $('bkForm').hidden = true; ['bkName', 'bkBank', 'bkLast4'].forEach(function(id){ $(id).value = ''; });
+  toast('Bank account saved'); $('bkAcct').innerHTML = '<option value="' + esc(r.data.id) + '"></option>'; $('bkAcct').value = r.data.id; loadBank();
+});
+/* the bank's CSV, read here: separator and decimal style found from the file; the columns are picked once per account */
+function csvParse(text){
+  var first = text.split(/\r?\n/).slice(0, 5).join('\n'), seps = [';', ',', '\t'], sep = seps.reduce(function(b, c){ return first.split(c).length > first.split(b).length ? c : b; }, ',');
+  var rows = [], row = [], cur = '', q = false;
+  for (var i = 0; i < text.length; i++){
+    var ch = text[i];
+    if (q){ if (ch === '"'){ if (text[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; continue; }
+    if (ch === '"') q = true;
+    else if (ch === sep){ row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r'){ if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur !== '' || row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){ return c.trim() !== ''; }); });
+}
+function bkNum(s){
+  if (s == null) return null;
+  var t = String(s).replace(/[₡$\s ]|CRC|USD/g, ''), neg = /^\(.*\)$/.test(t) || /-$/.test(t);
+  t = t.replace(/[()]/g, '').replace(/-$/, '');
+  if (t === '') return null;
+  var lc = t.lastIndexOf(','), ld = t.lastIndexOf('.');
+  if (lc > ld) t = t.replace(/\./g, '').replace(',', '.');          /* 1.234,56 */
+  else t = t.replace(/,/g, '');                                      /* 1,234.56 */
+  var n = Number(t); if (!isFinite(n)) return null;
+  return neg ? -Math.abs(n) : n;
+}
+function bkDate(s, fmtK){
+  var m = String(s || '').trim().match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})/); if (!m) return null;
+  var a = +m[1], b = +m[2], c = +m[3], y, mo, d;
+  if (m[1].length === 4){ y = a; mo = b; d = c; } else if (fmtK === 'mdy'){ mo = a; d = b; y = c; } else { d = a; mo = b; y = c; }
+  if (y < 100) y += 2000;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+var BK_RAW = null, BK_HEAD = false;
+$('bkFile').addEventListener('change', async function(){
+  var file = this.files && this.files[0]; $('bkImpErr').textContent = ''; BK_ROWS = null;
+  if (!file) return;
+  var buf = await file.arrayBuffer(), text = new TextDecoder('utf-8').decode(buf);
+  if (text.indexOf('�') >= 0) text = new TextDecoder('windows-1252').decode(buf);   /* older bank exports */
+  BK_RAW = csvParse(text.replace(/^﻿/, ''));
+  if (BK_RAW.length < 1){ $('bkImpErr').textContent = 'That file has no rows.'; return; }
+  var width = BK_RAW.reduce(function(w, r){ return Math.max(w, r.length); }, 0);
+  BK_HEAD = !BK_RAW[0].some(function(c){ return bkDate(c, 'dmy'); });
+  var names = []; for (var i = 0; i < width; i++) names.push(BK_HEAD && BK_RAW[0][i] ? BK_RAW[0][i].trim() : 'Column ' + (i + 1));
+  var opt = function(none){ return (none ? '<option value="">' + esc('None') + '</option>' : '') + names.map(function(n, i){ return '<option value="' + i + '">' + esc(n) + '</option>'; }).join(''); };
+  $('mDate').innerHTML = opt(false); $('mDesc').innerHTML = opt(false); ['mRef', 'mAmt', 'mOut', 'mIn', 'mBal'].forEach(function(id){ $(id).innerHTML = opt(true); });
+  var saved = null; try { saved = JSON.parse(localStorage.getItem('hg-bank-map-' + $('bkAcct').value) || 'null'); } catch (e) {}
+  function guess(re){ for (var i = 0; i < names.length; i++) if (re.test(names[i])) return String(i); return ''; }
+  var g = saved || {mDate: guess(/fecha|date/i) || '0', mDesc: guess(/descrip|concepto|detalle|description/i) || '1', mRef: guess(/refer|documento|comprobante/i),
+                    mAmt: guess(/^monto$|importe|amount/i), mOut: guess(/d[eé]bito|cargo|retiro|debit/i), mIn: guess(/cr[eé]dito|abono|dep[oó]sito|credit/i),
+                    mBal: guess(/saldo|balance/i), mFmt: 'dmy'};
+  Object.keys(g).forEach(function(k){ if ($(k) && g[k] != null && (k === 'mFmt' || $(k).querySelector('option[value="' + g[k] + '"]'))) $(k).value = g[k]; });
+  $('bkMap').hidden = false; bkPreview(); bkReq = uuid();
+});
+['mDate', 'mDesc', 'mRef', 'mAmt', 'mOut', 'mIn', 'mBal', 'mFmt'].forEach(function(id){ $(id).addEventListener('change', bkPreview); });
+function bkPreview(){
+  if (!BK_RAW) return;
+  var col = function(id){ return $(id).value === '' ? null : +$(id).value; }, fm = $('mFmt').value, rows = [], skipped = 0;
+  BK_RAW.slice(BK_HEAD ? 1 : 0).forEach(function(r){
+    var d = bkDate(r[col('mDate')], fm), amt = null;
+    if (col('mAmt') != null) amt = bkNum(r[col('mAmt')]);
+    else { var o = col('mOut') != null ? bkNum(r[col('mOut')]) : null, n = col('mIn') != null ? bkNum(r[col('mIn')]) : null;
+           if (o != null || n != null) amt = (n || 0) - Math.abs(o || 0); }
+    var desc = (r[col('mDesc')] || '').trim();
+    if (!d || amt == null || amt === 0 || !desc){ skipped++; return; }      /* totals, blank and title rows are not movements */
+    rows.push({date: d, description: desc, reference: col('mRef') != null ? (r[col('mRef')] || '').trim() : '', amount: Math.round(amt * 100) / 100,
+               balance: col('mBal') != null ? bkNum(r[col('mBal')]) : null});
+  });
+  BK_ROWS = rows;
+  var tb = $('bkPrev').querySelector('tbody'); tb.replaceChildren();
+  rows.slice(0, 5).forEach(function(x){ var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc(x.description) + '</td><td>' + esc(x.reference) + '</td><td class="num">' + bkMoney(x.amount) +
+      '</td><td class="num">' + (x.balance == null ? '' : bkMoney(x.balance)) + '</td>'; tb.appendChild(t); });
+  $('bkPrevNote').textContent = rows.length + ' movements' + (skipped ? ' · ' + skipped + ' rows left out (titles, totals or blank)' : '');
+}
+$('bkImport').addEventListener('click', async function(){
+  if (!BK_ROWS || !BK_ROWS.length){ $('bkImpErr').textContent = 'No movements found: check the columns.'; return; }
+  var map = {}; ['mDate', 'mDesc', 'mRef', 'mAmt', 'mOut', 'mIn', 'mBal', 'mFmt'].forEach(function(id){ map[id] = $(id).value; });
+  try { localStorage.setItem('hg-bank-map-' + $('bkAcct').value, JSON.stringify(map)); } catch (e) {}
+  var b = this; b.disabled = true;
+  var file = $('bkFile').files && $('bkFile').files[0];
+  var r = await db.rpc('bank_import', {p_account_id: $('bkAcct').value, p_file_name: file ? file.name : null, p_rows: BK_ROWS, p_request_id: bkReq || (bkReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('bkImpErr').textContent = r.data && r.data.error === 'bad_rows' ? 'Some rows could not be read: check the date format and the columns.' : errText(r); return; }
+  toast(r.data.added + ' new movements · ' + r.data.skipped + ' already there');
+  bkReq = null; BK_ROWS = null; BK_RAW = null; $('bkMap').hidden = true; $('bkFile').value = '';
+  if (r.data.from && r.data.from < $('bkFrom').value) $('bkFrom').value = r.data.from;
+  loadBank();
+});
+
+/* ---------- payroll: periods, hours approved by the owner, rates, rules, the payroll ---------- */
+var PAYP = null, PAYRUN = null, PAYSTAFF = null;
+var PP_STATUS = {open: 'Hours not approved yet', approved: 'Hours approved', paid: 'Paid'}, PR_STATUS = {draft: 'Draft', reviewed: 'Reviewed by the accountant', posted: 'Posted', paid: 'Paid'};
+async function loadPayroll(){
+  var sel = $('ppSel').value || null;
+  var r = await db.rpc('timesheet', {p_period_id: sel});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /timesheet|Could not find/i.test(r.error.message || '') ? 'Payroll needs a database update (migrations 0021, 0022).' : errText(r)); return; }
+  var periods = r.data.periods || [];
+  $('ppSel').innerHTML = periods.length ? periods.map(function(p){ return '<option value="' + esc(p.id) + '">' + esc(p.starts_on + ' → ' + p.ends_on) + '</option>'; }).join('')
+    : '<option value="">' + esc('No pay periods yet') + '</option>';
+  if (sel) $('ppSel').value = sel;
+  if (!sel && periods.length){ $('ppSel').value = periods[0].id; return loadPayroll(); }
+  PAYP = r.data.period || null;
+  $('ppStatus').textContent = PAYP ? PP_STATUS[PAYP.status] : '';
+  $('tsCard').hidden = !PAYP; $('prCard').hidden = !PAYP;
+  loadPayStaff();
+  if (!PAYP) return;
+  var tb = $('tsTable').querySelector('tbody'); tb.replaceChildren();
+  (r.data.people || []).forEach(function(x){
+    var flags = [];
+    if (+x.open) flags.push(x.open + ' without clock-out');
+    if (+x.long) flags.push(x.long + ' over 12 h');
+    if (+x.overlap) flags.push(x.overlap + ' overlapping');
+    if (+x.edited) flags.push(x.edited + ' changed by hand');
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.name) + '</td><td class="num">' + esc(Number(x.hours || 0).toLocaleString('fr-FR', {maximumFractionDigits: 2})) + '</td><td class="num">' + esc(x.shifts) +
+      '</td><td' + (flags.length ? ' style="color:var(--bad)"' : '') + '>' + esc(flags.join(' · ')) + '</td>';
+    tb.appendChild(t);
+  });
+  var ended = PAYP.ends_on < today();
+  $('tsApprove').hidden = !(KIND === 'owner' && PAYP.status === 'open');
+  $('tsReopen').hidden = !(KIND === 'owner' && PAYP.status === 'approved');
+  $('tsHint').textContent = PAYP.status === 'open' ? (ended ? 'Check the hours (shifts are changed in Time clock with a manager PIN), then the owner approves them. Approved hours can no longer change.'
+                                                            : 'The period has not ended yet.')
+    : (PAYP.approved_by ? 'Approved by ' + PAYP.approved_by + ': these hours no longer change.' : 'Approved: these hours no longer change.');
+  loadPayrun();
+}
+async function loadPayrun(){
+  var r = await db.rpc('payroll_get', {p_period_id: PAYP.id});
+  var tb = $('prTable').querySelector('tbody'); tb.replaceChildren(); $('prErr').textContent = '';
+  PAYRUN = (!r.error && r.data && r.data.ok) ? r.data : null;
+  var run = PAYRUN && PAYRUN.run, st = run ? run.status : null;
+  $('prPrepare').hidden = !(PAYP.status !== 'open' && (!run || st === 'draft'));
+  $('prReview').hidden = !(st === 'draft' && KIND === 'accountant');
+  $('prBack').hidden = st !== 'reviewed';
+  $('prPost').hidden = st !== 'reviewed';
+  ['prPayBox', 'prPayDateBox', 'prPay'].forEach(function(id){ $(id).hidden = st !== 'posted'; });
+  if (!$('prDate').value) $('prDate').value = today();
+  $('prState').textContent = PAYP.status === 'open' ? 'The payroll is prepared once the owner approves the hours.'
+    : !run ? 'Not prepared yet.' : PR_STATUS[st] + (run.reviewed_by ? ' · reviewed by ' + run.reviewed_by : '') +
+      (run.rules && run.rules.length ? '' : ' · no deductions or charges confirmed: gross pay only');
+  if (!run) return;
+  PAYRUN.lines.forEach(function(l){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(l.staff_name) + (l.gross_crc == null ? ' <span class="tag rev">' + esc('No pay rate') + '</span>' : '') + '</td><td class="num">' + esc(Number(l.hours).toLocaleString('fr-FR')) +
+      '</td><td class="num">' + (l.rate_crc == null ? '' : fmt(l.rate_crc) + (l.pay_kind === 'hourly' ? ' /h' : '')) + '</td><td class="num">' + (l.gross_crc == null ? '' : fmt(l.gross_crc)) +
+      '</td><td class="num">' + fmt(l.deductions_crc) + '</td>';
+    var oc = document.createElement('td'); oc.className = 'num';
+    if (st === 'draft' && l.gross_crc != null){
+      var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = 'any'; inp.value = l.other_crc; inp.style.maxWidth = '7rem'; inp.setAttribute('aria-label', 'Other deductions');
+      var note = document.createElement('input'); note.maxLength = 120; note.value = l.other_note || ''; note.placeholder = 'What for'; note.style.maxWidth = '9rem'; note.setAttribute('aria-label', 'What for');
+      var sv = document.createElement('button'); sv.type = 'button'; sv.className = 'ghost small'; sv.textContent = 'Save';
+      sv.addEventListener('click', async function(){
+        var a = await db.rpc('payroll_adjust', {p_run_id: run.id, p_staff_id: l.staff_id, p_other: Number(inp.value) || 0, p_note: note.value.trim() || null});
+        if (a.error || !a.data || !a.data.ok){ $('prErr').textContent = errText(a); return; }
+        loadPayrun();
+      });
+      oc.appendChild(inp); oc.appendChild(note); oc.appendChild(sv);
+    } else oc.textContent = fmt(l.other_crc) + (l.other_note ? ' · ' + l.other_note : '');
+    t.appendChild(oc);
+    t.insertAdjacentHTML('beforeend', '<td class="num">' + fmt(l.employer_crc) + '</td><td class="num">' + (l.net_crc == null ? '' : fmt(l.net_crc)) + '</td>');
+    tb.appendChild(t);
+  });
+  var T = PAYRUN.totals || {}, f = document.createElement('tr'); f.className = 'total';
+  f.innerHTML = '<td>Total</td><td class="num">' + esc(Number(T.hours || 0).toLocaleString('fr-FR')) + '</td><td></td><td class="num">' + fmt(T.gross || 0) + '</td><td class="num">' + fmt(T.deductions || 0) +
+    '</td><td class="num">' + fmt(T.other || 0) + '</td><td class="num">' + fmt(T.employer || 0) + '</td><td class="num">' + fmt(T.net || 0) + '</td>';
+  tb.appendChild(f);
+}
+function payAct(id, fn, done){
+  $(id).addEventListener('click', async function(){
+    var b = this; b.disabled = true; var r = await fn(); b.disabled = false;
+    if (!r) return;
+    if (r.error || !r.data || !r.data.ok){ $(id.slice(0, 2) === 'ts' ? 'ppErr' : 'prErr').textContent = errText(r); return; }
+    toast(done); loadPayroll();
+  });
+}
+payAct('tsApprove', function(){ return confirm('Approve these hours? They can no longer change, unless the owner reopens the period.') ? db.rpc('timesheet_approve', {p_period_id: PAYP.id}) : null; }, 'Hours approved');
+payAct('tsReopen', function(){ var why = prompt('Why is the period reopened?'); return why ? db.rpc('timesheet_reopen', {p_period_id: PAYP.id, p_reason: why}) : null; }, 'Period reopened');
+payAct('prPrepare', function(){ return db.rpc('payroll_prepare', {p_period_id: PAYP.id}); }, 'Payroll prepared');
+payAct('prReview', function(){ return db.rpc('payroll_review', {p_run_id: PAYRUN.run.id}); }, 'Reviewed');
+payAct('prBack', function(){ return db.rpc('payroll_reopen', {p_run_id: PAYRUN.run.id}); }, 'Back to draft');
+payAct('prPost', function(){ return confirm('Post this payroll to the books? It can no longer change.') ? db.rpc('payroll_post', {p_run_id: PAYRUN.run.id}) : null; }, 'Payroll posted');
+payAct('prPay', function(){ return db.rpc('payroll_pay', {p_run_id: PAYRUN.run.id, p_paid_from: $('prFrom').value, p_date: $('prDate').value}); }, 'Payment recorded');
+$('ppSel').addEventListener('change', loadPayroll);
+$('ppNew').addEventListener('click', function(){ $('ppForm').hidden = false; $('ppErr').textContent = ''; });
+$('ppCancel').addEventListener('click', function(){ $('ppForm').hidden = true; });
+$('ppSave').addEventListener('click', async function(){
+  var r = await db.rpc('pay_period_save', {p_starts: $('ppFrom').value || null, p_ends: $('ppTo').value || null});
+  if (r.error || !r.data || !r.data.ok){ $('ppErr').textContent = errText(r); return; }
+  $('ppForm').hidden = true; $('ppSel').innerHTML = '<option value="' + esc(r.data.id) + '"></option>'; $('ppSel').value = r.data.id; toast('Pay period created'); loadPayroll();
+});
+$('prCsv').addEventListener('click', function(){
+  if (!PAYRUN || !PAYRUN.run) return;
+  download('planilla-' + PAYP.starts_on + '-' + PAYP.ends_on + '.csv', [['person', 'hours', 'pay_kind', 'rate_crc', 'gross_crc', 'deductions_crc', 'deductions', 'other_crc', 'other_note', 'employer_crc', 'net_crc']].concat(
+    PAYRUN.lines.map(function(l){ return [l.staff_name, l.hours, l.pay_kind, l.rate_crc, l.gross_crc, l.deductions_crc,
+      (l.deductions || []).map(function(x){ return x.name + ' ' + x.pct + '% ' + x.amount; }).join(' | '), l.other_crc, l.other_note, l.employer_crc, l.net_crc]; })));
+});
+var rtStaff = null;
+async function loadPayStaff(){
+  var r = await db.rpc('payroll_staff');
+  if (r.error || !r.data || !r.data.ok) return;
+  PAYSTAFF = r.data;
+  var tb = $('rtTable').querySelector('tbody'); tb.replaceChildren();
+  PAYSTAFF.staff.filter(function(x){ return x.active || x.pay; }).forEach(function(x){
+    var t = document.createElement('tr'), p = x.pay;
+    t.innerHTML = '<td>' + esc(x.name) + '</td><td>' + (p ? fmt(p.rate_crc) + esc(p.kind === 'hourly' ? ' per hour' : ' per pay period') : '<span style="color:var(--bad)">' + esc('No pay rate') + '</span>') +
+      (x.next ? ' · ' + esc('from ' + x.next.effective_from + ': ') + fmt(x.next.rate_crc) : '') + '</td><td class="mono">' + esc(p ? p.effective_from : '') + '</td>';
+    var c = document.createElement('td'), b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
+    b.addEventListener('click', function(){ rtStaff = x; $('rtWho').value = x.name; $('rtKind').value = p ? p.kind : 'hourly'; $('rtRate').value = ''; $('rtFrom').value = today();
+      $('rtForm').hidden = false; $('rtErr').textContent = ''; $('rtRate').focus(); });
+    c.appendChild(b); t.appendChild(c); tb.appendChild(t);
+  });
+  var rb = $('ruTable').querySelector('tbody'); rb.replaceChildren();
+  if (!PAYSTAFF.rules.length) rb.innerHTML = '<tr><td colspan="5" class="hint">' + esc('No rules confirmed yet.') + '</td></tr>';
+  PAYSTAFF.rules.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.name) + (x.active ? '' : ' <span class="tag">' + esc('Inactive') + '</span>') + '</td><td>' + esc(x.kind === 'employee' ? 'Taken from the pay' : 'Paid by the business on top') +
+      '</td><td class="num">' + esc(String(x.pct).replace('.', ',')) + '</td><td>' + esc(x.confirmed_by + ' · ' + x.reference) + '</td>';
+    var c = document.createElement('td'), b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
+    b.addEventListener('click', function(){ $('ruCode').value = x.code; $('ruName').value = x.name; $('ruKind').value = x.kind; $('ruPct').value = x.pct; $('ruWho').value = ''; $('ruRef').value = '';
+      $('ruActive').checked = x.active; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
+    c.appendChild(b); t.appendChild(c); rb.appendChild(t);
+  });
+}
+$('rtCancel').addEventListener('click', function(){ $('rtForm').hidden = true; });
+$('rtSave').addEventListener('click', async function(){
+  if (!rtStaff) return;
+  var r = await db.rpc('staff_pay_set', {p_staff_id: rtStaff.id, p_kind: $('rtKind').value, p_rate: Number($('rtRate').value) || null, p_from: $('rtFrom').value || null});
+  if (r.error || !r.data || !r.data.ok){ $('rtErr').textContent = errText(r); return; }
+  $('rtForm').hidden = true; toast('Pay rate saved'); loadPayStaff();
+});
+$('ruNew').addEventListener('click', function(){ ['ruCode', 'ruName', 'ruPct', 'ruWho', 'ruRef'].forEach(function(id){ $(id).value = ''; }); $('ruActive').checked = true; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
+$('ruCancel').addEventListener('click', function(){ $('ruForm').hidden = true; });
+$('ruSave').addEventListener('click', async function(){
+  var r = await db.rpc('payroll_rule_save', {p_rule: {code: $('ruCode').value.trim(), name: $('ruName').value.trim(), kind: $('ruKind').value, pct: $('ruPct').value,
+                                                      active: $('ruActive').checked, confirmed_by: $('ruWho').value.trim(), reference: $('ruRef').value.trim()}});
+  if (r.error || !r.data || !r.data.ok){ $('ruErr').textContent = errText(r); return; }
+  $('ruForm').hidden = true; toast('Rule saved'); loadPayStaff();
 });
 
 /* ---------- electronic documents: what would be sent, once there is a provider ---------- */

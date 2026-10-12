@@ -36,6 +36,6 @@ Status: **OPEN** (waiting), **DONE**.
 | A-05 | 10% service charge: any table service? | Service-charge setting (default OFF) | OPEN |
 | A-06 | USD: which rate (BCCR buy, sell, house rate) and accounting of exchange differences | FX policy setting | OPEN |
 | A-07 | Chart of accounts, inventory costing method (weighted average proposed), revenue timing for pay-later bills | Ledger activation | OPEN |
-| A-08 | Payroll: pay frequency, contracts, CCSS/INS/income-tax rates and rules, who runs payroll | Payroll calculation settings (built, require confirmation) | OPEN |
+| A-08 | Payroll: pay frequency, contracts, CCSS/INS/income-tax rates and rules, who runs payroll | Payroll: periods, approval, rates and the review/post flow are built (0021, 0022); each deduction/charge is entered with who confirmed it; until then the payroll computes gross pay only | OPEN |
 | A-09 | Record retention period (plan: 10 years) | Retention policy | OPEN |
 | A-10 | E-invoicing provider choice (written confirmation of offline/contingency support and the v4.4 2026-11-01 update), Hacienda credentials | E-invoicing: the document register is built (0018, record-only mode); the connector, sending, and the POS "invoice with ID" button are built after this choice. Provider cost to be presented before activation. | OPEN |

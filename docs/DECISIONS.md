@@ -169,3 +169,21 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   expense paid in cash: the same colones were taken out of the books twice.
 - **Also fixed:** the day's dollar rate could not be typed anywhere (only the automatic job, still OFF);
   Home → System settings now has the owner/manager field (never over an official rate).
+
+## D-018 · 2026-10-12 · Bank statements are imported from the bank's own CSV; no bank connection
+- **Decision:** the accountant downloads the movements from the bank's website and imports the CSV; the
+  page reads it (separator, decimal style and date order chosen or guessed, columns picked once per account)
+  and the server keeps each movement once, by a fingerprint of date, amount, text, reference and its
+  repetition within the file. Movements are matched to ledger lines of the bank's account (same amount,
+  within days), or posted when the books lack them (one or two parts: a card deposit is the card sales
+  less the fee), or ignored with a note. Undoing a posted movement reverses its entry.
+- **Why:** Costa Rican banks' formats differ and direct connections need paid aggregators or bank
+  agreements (no subscriptions without approval); a CSV works with every bank at no cost.
+
+## D-019 · 2026-10-12 · Payroll is prepared from approved hours; no legal rate is built in
+- **Decision:** the owner approves each pay period's hours (a copy is kept and the period's shifts are
+  locked). The payroll multiplies approved hours by each person's rate (or a fixed amount per period) and
+  applies only the deduction and employer-charge percentages entered with who confirmed them; income-tax
+  withholding and advances are typed per person with a note. The accountant marks it reviewed; only then is
+  it posted (gross and employer charges against salaries, charges and withholdings payable) and paid.
+- **Why:** CCSS, INS and income-tax rules (A-08) are not confirmed; the system must not invent them.

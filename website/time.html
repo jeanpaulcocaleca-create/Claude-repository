@@ -501,6 +501,7 @@ function approvalNeeded(r){
 function toggleApprove(box, show){ box.hidden = !show; }
 function errMsg(r){
   if (r.error){
+    if (/period_locked/.test(r.error.message || '')) return 'That pay period is approved: its hours can no longer change. Ask the owner to reopen it.';
     if (isMissingTables(r.error)) return 'The manager approval setup has not been run in Supabase yet.';
     return 'Could not save: ' + ((r.error.message || 'no connection').replace(/^.*?(function|column|relation) /i, '$1 ').slice(0, 160));
   }
