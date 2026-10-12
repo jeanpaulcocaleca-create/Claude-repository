@@ -353,7 +353,8 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <div class="totals">
       <div class="trow" id="subRow" hidden><span>Subtotal</span><span class="mono" id="subAmt">₡0</span></div>
       <div class="trow disc" id="discRow" hidden><span class="dl"><span id="discLbl"></span><button type="button" class="x" id="discX" aria-label="Remove the discount" title="Remove the discount">×</button></span><span class="mono" id="discAmt"></span></div>
-      <div class="trow"><span>Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
+      <div class="trow" id="netRow" hidden><span>Before IVA</span><span class="mono" id="netAmt">₡0</span></div>
+      <div class="trow"><span id="ivaLbl">Includes IVA 13%</span><span class="mono" id="ivaAmt">₡0</span></div>
       <div class="trow big"><span>Total</span><span class="mono" id="totalAmt">₡0</span></div>
     </div>
     <button type="button" class="addgo" id="addGo" hidden>Add to the bill</button>
@@ -720,7 +721,11 @@ var MENU_CACHE = 'hg-pos-menu';
 async function loadMenu(){
   try{
     var r = await db.from('menu_categories')
-      .select('name,sort,kitchen,color,menu_items(id,name,price_crc,available,sort,color,quick)').order('sort');
+      .select('name,sort,kitchen,color,menu_items(id,name,price_crc,available,sort,color,quick,tax_code)').order('sort');
+    if (r.error && /tax_code/.test(r.error.message || '')){ /* migration 0009 not applied yet: every item at 13 % */
+      r = await db.from('menu_categories')
+        .select('name,sort,kitchen,color,menu_items(id,name,price_crc,available,sort,color,quick)').order('sort');
+    }
     if (r.error && /color|quick/.test(r.error.message || '')){ /* POS layout SQL not run yet */
       r = await db.from('menu_categories')
         .select('name,sort,kitchen,menu_items(id,name,price_crc,available,sort)').order('sort');
@@ -731,6 +736,7 @@ async function loadMenu(){
     }
     if (r.error) throw r.error;
     localStorage.setItem(MENU_CACHE, JSON.stringify(r.data));
+    loadTax();
     renderMenu(r.data);
     loadQuick();
   }catch(e){
@@ -740,6 +746,39 @@ async function loadMenu(){
   }
 }
 var kitchenOf = {};   /* item id -> prepared in the kitchen? */
+/* ---------- IVA (migration 0009): each product has its rate; the server stores the exact tax of every line ----------
+   Prices include IVA. With the owner's price_mode 'exclusive' (locked until the display rules are confirmed) the
+   buttons show the price before IVA and the ticket adds the IVA; what is charged and stored is the same. */
+var TAX = {IVA13: 0.13}, TAX_KEY = 'hg-pos-tax', taxOf = {}, taxByName = {}, PRICE_MODE = 'inclusive';
+try { var tk = JSON.parse(localStorage.getItem(TAX_KEY) || 'null'); if (tk && tk.rates) { TAX = tk.rates; PRICE_MODE = tk.mode || 'inclusive'; } } catch (e) {}
+async function loadTax(){
+  var r = await db.from('tax_rates').select('code,rate');
+  if (!r.error && r.data && r.data.length){ TAX = {}; r.data.forEach(function(t){ TAX[t.code] = Number(t.rate); }); }
+  var m = await db.rpc('setting', {p_key: 'price_mode'});
+  var mode = (!m.error && typeof m.data === 'string') ? m.data : 'inclusive';
+  try { localStorage.setItem(TAX_KEY, JSON.stringify({rates: TAX, mode: mode})); } catch (e) {}
+  if (mode !== PRICE_MODE){ PRICE_MODE = mode; var c = localStorage.getItem(MENU_CACHE); if (c) renderMenu(JSON.parse(c)); }
+  renderTicket();
+}
+function rateOf(line){
+  var code = (line.id && taxOf[line.id]) || taxByName[String(line.name || '').toLowerCase()] || 'IVA13';
+  return TAX[code] != null ? TAX[code] : 0.13;
+}
+/* the same split as the server (_order_tax): the discount shared by amount, the last line takes the rest */
+function ivaGroups(lines, disc){
+  var rows = lines.map(function(l){ return {amt: l.price * l.qty, rate: rateOf(l)}; }).sort(function(a, b){ return b.amt - a.amt; });
+  var gross = rows.reduce(function(t, x){ return t + x.amt; }, 0), left = Math.min(Math.max(disc || 0, 0), Math.max(gross, 0)), d0 = left;
+  var by = {};
+  rows.forEach(function(x, i){
+    var alloc = gross <= 0 ? 0 : (i === rows.length - 1 ? left : Math.min(left, Math.floor(d0 * x.amt / gross)));
+    left -= alloc;
+    var tax = Math.round((x.amt - alloc) * x.rate / (1 + x.rate));
+    by[x.rate] = (by[x.rate] || 0) + tax;
+  });
+  return Object.keys(by).map(Number).sort(function(a, b){ return b - a; }).map(function(r){ return {rate: r, tax: by[r]}; });
+}
+function pct(r){ return (Math.round(r * 1000) / 10) + '%'; }
+function shownPrice(it){ var r = rateOf({id: it.id, name: it.name}); return PRICE_MODE === 'exclusive' ? Math.round(it.price_crc / (1 + r)) : it.price_crc; }
 var itemMeta = {};    /* item id -> {color, catColor, catName, quick} */
 var menuCats = [];    /* categories with their available items, in order */
 var currentTab = localStorage.getItem('hg-pos-tab') || 'Quick';
@@ -755,7 +794,7 @@ function renderMenu(cats){
     var cc = cat.color || CAT_DEFAULT[cat.name] || PALETTE[ci % PALETTE.length];
     var items = (cat.menu_items||[]).filter(function(i){return i.available})
       .sort(function(a,b){return a.sort-b.sort||a.name.localeCompare(b.name)});
-    (cat.menu_items || []).forEach(function(i){ kitchenOf[i.id] = !!cat.kitchen; });
+    (cat.menu_items || []).forEach(function(i){ kitchenOf[i.id] = !!cat.kitchen; taxOf[i.id] = i.tax_code || 'IVA13'; taxByName[String(i.name).toLowerCase()] = i.tax_code || 'IVA13'; });
     items.forEach(function(it, ii){
       /* every item in a category gets its own side color; the tint stays the category's */
       itemMeta[it.id] = {color: it.color || PALETTE[(ci * 5 + ii) % PALETTE.length], catColor: cc, catName: cat.name, quick: it.quick || 'auto'};
@@ -813,7 +852,7 @@ function renderGrid(){
     b.style.setProperty('--c', m.color); b.style.setProperty('--cc', m.catColor); b.style.setProperty('--tint', tint(m.catColor));
     if (isQuick){ var t = document.createElement('span'); t.className = 'tag'; t.textContent = m.catName; b.appendChild(t); }
     var n = document.createElement('span'); n.className = 'nm'; n.textContent = it.name;
-    var p = document.createElement('span'); p.className = 'p'; p.textContent = fmt(it.price_crc);
+    var p = document.createElement('span'); p.className = 'p'; p.textContent = fmt(shownPrice(it)) + (PRICE_MODE === 'exclusive' ? ' + IVA' : '');
     b.appendChild(n); b.appendChild(p);
     b.addEventListener('click', function(){ addLine(it); });
     g.appendChild(b);
@@ -847,7 +886,8 @@ function renderTicket(){
     plus.addEventListener('click', function(){ l.qty++; renderTicket(); });
     q.appendChild(minus); q.appendChild(qn); q.appendChild(plus);
     left.appendChild(nm); left.appendChild(q);
-    var amt = document.createElement('div'); amt.className='amt'; amt.textContent = fmt(l.price * l.qty);
+    var amt = document.createElement('div'); amt.className='amt';
+    amt.textContent = fmt(PRICE_MODE === 'exclusive' ? Math.round(l.price / (1 + rateOf(l))) * l.qty : l.price * l.qty);
     row.appendChild(left); row.appendChild(amt);
     box.appendChild(row);
   });
@@ -863,7 +903,12 @@ function renderTicket(){
     document.getElementById('discAmt').textContent = '−' + fmt(disc);
   }
   document.getElementById('totalAmt').textContent = fmt(total);
-  document.getElementById('ivaAmt').textContent = fmt(Math.round(total - total/1.13));
+  var groups = ivaGroups(ticket, disc), tax = groups.reduce(function(t, g){ return t + g.tax; }, 0);
+  var rates = groups.map(function(g){ return pct(g.rate); }).join(' · ') || '13%';
+  document.getElementById('ivaLbl').textContent = (PRICE_MODE === 'exclusive' ? 'IVA ' : 'Includes IVA ') + rates;
+  document.getElementById('ivaAmt').textContent = fmt(tax);
+  document.getElementById('netRow').hidden = PRICE_MODE !== 'exclusive';
+  document.getElementById('netAmt').textContent = fmt(total - tax);
   document.getElementById('ticketSum').textContent = n ? n + (n === 1 ? ' item · ' : ' items · ') + fmt(total) : '';
   if (adding) document.getElementById('addGo').textContent = n ? 'Add to the bill · ' + fmt(total) : 'Add to the bill';
 }
@@ -1274,7 +1319,8 @@ document.getElementById('printBtn').addEventListener('click', function(){
   }
   html +=
     '<div class="rtot"><span>TOTAL</span><span>' + rfmt(lastOrder.total) + '</span></div>' +
-    '<div class="rrow"><span>Incluye IVA 13% · Includes VAT</span><span>' + rfmt(Math.round(lastOrder.total - lastOrder.total/1.13)) + '</span></div>' +
+    ivaGroups(lastOrder.items, lastOrder.disc || 0).map(function(g){
+      return '<div class="rrow"><span>Incluye IVA ' + pct(g.rate) + ' · Includes VAT</span><span>' + rfmt(g.tax) + '</span></div>'; }).join('') +
     '<div class="rrow"><span>Pago · Paid by</span><span>' + esc(PAY_RECEIPT[lastOrder.method] || lastOrder.label) + '</span></div>' +
     '<div class="rfoot">¡Pura vida! · Gracias</div>';
   document.getElementById('receipt').innerHTML = html;

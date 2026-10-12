@@ -93,3 +93,14 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   Modes: `off` (default, nothing changes), `record` (marks sales of someone not clocked in), `enforce`
   (must be clocked in; the POS offers "Clock in and start").
 - **Why:** accountability per employee without ever refusing a sale that was already charged.
+
+## D-011 · 2026-10-12 · Prices are stored with IVA; "tax-exclusive" is a display and price-entry mode
+- **Decision:** `menu_items.price_crc` and every sale line keep the final price (IVA included). The server
+  works out each line's IVA from the product's rate at the moment of sale (`order_items.tax_crc`, `net_crc`,
+  `discount_alloc_crc`). The owner's tax-exclusive choice (`price_mode = exclusive`, locked behind
+  `price_display_rules`) only changes what the POS buttons and the Menu Manager show and accept
+  (₡1 000 + IVA = ₡1 130 charged and stored); the website, TV board and QR menu always show final prices.
+- **Why:** one storage convention keeps every existing total, bill, split and register check correct; final
+  prices on public displays follow the MEIC rule reported in A-03; switching the mode never rewrites history.
+- **Rates:** only the general 13 % (Ley 9635) is built in. Any other rate is added by the owner with who
+  confirmed it and the document; a rate used on sales can never be changed (a new code is added instead).

@@ -40,9 +40,9 @@ Last updated: 2026-10-12.
 |---|---|---|---|---|---|---|
 | On-screen numeric PIN keypad (all PIN fields) | ✅ | – | e2e 110 (3) | – | b02dfbe | R |
 | Amount and quantity pads; optional on-screen text keyboard | ✅ | – | e2e 110 | Text keyboard is opt-in per device (HG_KEYPAD.setText) | b02dfbe | R |
-| Settings framework with compliance locks; operator sessions, clock-in requirement, sale attribution, offline claims (0008) | ✅ | – | 090_settings_operators (27), e2e 120 (5) | Mode starts 'off' in production; owner switches it on Home | (this commit) | R |
-| Tax engine: tax codes, CABYS, per-line IVA stored | ⏳ | – | – | – | – | – |
-| Tax-exclusive pricing (activation OFF until A-03/A-04) | ⏳ | A-03, A-04 | – | – | – | – |
+| Settings framework with compliance locks; operator sessions, clock-in requirement, sale attribution, offline claims (0008) | ✅ | – | 090_settings_operators (27), e2e 120 (5) | Mode starts 'off' in production; owner switches it on Home | aeca1d1 | R |
+| Tax engine: rates with confirmation, per-item rate + CABYS, per-line IVA/net/discount share stored by the server, refunds carry IVA back, tax_summary (0009); POS ticket and receipt by rate; Menu Manager fields | ✅ | A-04 (each item's rate and CABYS) | 100_tax_engine (21), e2e 130 (3) | Every item starts at 13 % (as today) until the accountant assigns codes | (this commit) | R |
+| Tax-exclusive pricing: POS shows prices before IVA and adds it; Menu Manager takes prices before IVA; website/TV/QR keep final prices | 🔒 | A-03, A-04 | 100 (lock), e2e 130 (display) | Locked by the `price_display_rules` confirmation | (this commit) | – |
 | CRC + USD totals, exchange-rate fetch, rate snapshots | ⏳ | A-06 (policy) | – | – | – | – |
 | Cash window: denominations, change, mixed currency | ⏳ | – | – | – | – | – |
 | Two-currency register close | ⏳ | – | – | – | – | – |

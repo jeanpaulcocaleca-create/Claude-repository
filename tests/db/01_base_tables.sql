@@ -18,7 +18,8 @@ create table if not exists public.menu_items (
   price_crc int not null default 0,
   photo_url text,
   available boolean not null default true,
-  sort int not null default 0
+  sort int not null default 0,
+  updated_at timestamptz not null default now()   -- written by the Menu Manager (admin.html)
 );
 
 create table if not exists public.orders (
