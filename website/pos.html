@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
 <script src="config.js"></script>
 <script src="version.js" defer></script>
+<script src="keypad.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="access.js"></script>
 <script src="login.js"></script>
@@ -380,17 +381,17 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="roPin">PIN</label>
       <input id="roPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
       <label for="roFloat">Cash float received (₡)</label>
-      <input id="roFloat" type="number" min="0" step="1" inputmode="numeric" value="50000" required>
+      <input id="roFloat" data-keypad="amount" type="number" min="0" step="1" inputmode="numeric" value="50000" required>
       <p class="err" id="roErr"></p>
       <button type="submit">Open the register</button>
     </form>
     <form class="regform" id="regCloseForm" hidden>
       <h3>Close the register</h3>
       <label for="rcTerminal">Card terminal total for today (₡)</label>
-      <input id="rcTerminal" type="number" min="0" inputmode="numeric" placeholder="₡" required>
+      <input id="rcTerminal" data-keypad="amount" type="number" min="0" inputmode="numeric" placeholder="₡" required>
       <span class="diff mono" id="rcCardDiff"></span>
       <label for="rcCash">Cash in the drawer, float included (₡)</label>
-      <input id="rcCash" type="number" min="0" inputmode="numeric" placeholder="₡" required>
+      <input id="rcCash" data-keypad="amount" type="number" min="0" inputmode="numeric" placeholder="₡" required>
       <span class="diff mono" id="rcCashDiff"></span>
       <label for="rcNotes">Notes (optional)</label>
       <input id="rcNotes" maxlength="200" autocomplete="off" placeholder="e.g. ₡2 000 short, tip jar">
@@ -425,7 +426,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="vMgr">Approved by</label>
       <select id="vMgr"></select>
       <label for="vPin">Manager PIN</label>
-      <input id="vPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="vPin" data-keypad-ok="#vGo" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
       <div id="vRefundBox" hidden>
         <label for="vMethod">Money goes back as</label>
         <select id="vMethod"><option value="cash_crc">Cash ₡</option><option value="cash_usd">Cash $</option><option value="card">Card</option><option value="sinpe">SINPE</option><option value="other">Other</option></select>
@@ -502,7 +503,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="tabRmMgr">Approved by</label>
       <select id="tabRmMgr"></select>
       <label for="tabRmPin">PIN</label>
-      <input id="tabRmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="tabRmPin" data-keypad-ok="#tabRmGo" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
       <p class="err" id="tabRmErr"></p>
       <div class="row">
         <button type="button" id="tabRmGo">Take it off</button>
@@ -584,7 +585,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <button type="button" data-pct="25">25%</button><button type="button" data-pct="50">50%</button><button type="button" data-pct="100">100%</button>
     </div>
     <label for="discAmtIn">Or an amount in colones</label>
-    <input id="discAmtIn" type="number" min="1" step="1" inputmode="numeric" placeholder="₡">
+    <input id="discAmtIn" data-keypad="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="₡">
     <label for="discWhy">Reason</label>
     <select id="discWhy">
       <option value="">Pick a reason</option>

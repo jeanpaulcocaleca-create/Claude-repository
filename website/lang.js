@@ -70,6 +70,7 @@
     'This order was already received.': 'Esta orden ya se recibió.', 'This order was cancelled.': 'Esta orden se canceló.',
     'Quantities and costs cannot be negative.': 'Las cantidades y los costos no pueden ser negativos.',
     'Could not check the PIN. Check the connection and try again.': 'No se pudo revisar el PIN. Revise la conexión e intente de nuevo.',
+    'PIN keypad': 'Teclado del PIN', 'Number keypad': 'Teclado numérico', 'Keyboard': 'Teclado', 'Erase': 'Borrar', 'Done': 'Listo', 'Clear': 'Limpiar', 'Space': 'Espacio',
     'Backups': 'Respaldos', 'Backups OK': 'Respaldos al día', 'Backups are not running yet': 'Los respaldos todavía no están funcionando',
     'No verified backup in 2 days': 'Sin respaldo verificado en 2 días', 'The backup is late': 'El respaldo está atrasado',
     'Last verified copy': 'Última copia verificada', 'restore test passed': 'prueba de restauración aprobada', 'Last attempt failed': 'El último intento falló',
@@ -882,7 +883,8 @@
   /* ---------- state ---------- */
   var lang = 'en';
   try { lang = localStorage.getItem(KEY) || ''; } catch (e) {}
-  if (lang !== 'en' && lang !== 'es') lang = /^es/i.test(navigator.language || '') ? 'es' : 'en';
+  /* staff screens start in Spanish; public pages follow the visitor's device */
+  if (lang !== 'en' && lang !== 'es') lang = (window.HG_CONFIG && HG_CONFIG.staffPage) || /^es/i.test(navigator.language || '') ? 'es' : 'en';
   window.HG_LANG = lang;
   /* exact dictionary entries only, for text typed in the Menu Manager (the QR menu, m.html): a dish name is
      never put through the patterns or word-by-word rules, so 'Float' or 'Baked fresh today' stay as typed */
