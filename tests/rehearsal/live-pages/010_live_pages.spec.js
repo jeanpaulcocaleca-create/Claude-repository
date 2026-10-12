@@ -13,6 +13,8 @@ function watchApi(pg) {
   return pg;
 }
 const quiet = (ms) => new Promise((r) => setTimeout(r, ms));
+/* sales saved with their lines (the old POS writes the order, then its lines, in two requests) */
+const withLines = () => Number(sql(`select count(*) from public.orders o where exists (select 1 from public.order_items i where i.order_id = o.id)`));
 
 module.exports.tests = [
   {
@@ -48,12 +50,12 @@ module.exports.tests = [
       const pg = watchApi(await page(browser, { login: 'cafe' }));
       await goto(pg, '/pos.html');
       await until(async () => (await pg.locator('#menuGrid .pbtn').count()) > 1, 15000, 'the menu');
-      const before = Number(sql(`select count(*) from public.orders`));
+      const before = withLines();
       await pg.locator('#menuGrid .pbtn').nth(0).click();
       await pg.locator('#menuGrid .pbtn').nth(1).click();
       await pg.click('[data-pay=card]');
       if (await pg.locator('#numModal').isVisible()) await pg.click('#numNone');
-      await until(() => Number(sql(`select count(*) from public.orders`)) === before + 1, 10000, 'the sale saved');
+      await until(() => withLines() === before + 1, 10000, 'the sale saved with its lines');
       const o = sql(`select business_date = public.cr_today(), receipt_no is not null, location_id is not null, payment_method,
                             (select count(*) from public.order_items i where i.order_id = o.id and i.net_crc is not null and i.tax_rate is not null)
                        from public.orders o order by created_at desc limit 1`);
@@ -68,7 +70,7 @@ module.exports.tests = [
       const pg = watchApi(await page(browser, { login: 'cafe' }));
       await goto(pg, '/pos.html');
       await until(async () => (await pg.locator('#menuGrid .pbtn').count()) > 0, 15000, 'the menu');
-      const before = Number(sql(`select count(*) from public.orders`));
+      const before = Number(sql(`select count(*) from public.orders`)), beforeLines = withLines();
       setOffline(true);
       await pg.locator('#menuGrid .pbtn').nth(0).click();
       await pg.click('[data-pay=cash_crc]');
@@ -76,8 +78,8 @@ module.exports.tests = [
       await quiet(1500);
       assert.strictEqual(Number(sql(`select count(*) from public.orders`)), before, 'nothing reached the database while offline');
       setOffline(false);
-      await until(() => Number(sql(`select count(*) from public.orders`)) === before + 1, 70000, 'the offline sale uploaded');
-      assert.strictEqual(sql(`select (select count(*) from public.order_items i where i.order_id = o.id) > 0 from public.orders o order by created_at desc limit 1`), 't');
+      await until(() => withLines() === beforeLines + 1, 70000, 'the offline sale uploaded with its lines');
+      assert.strictEqual(Number(sql(`select count(*) from public.orders`)), before + 1, 'saved once');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
