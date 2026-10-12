@@ -43,5 +43,36 @@ done
 node "$(dirname "$0")/tools/config-check.js" || bad "website/config.js environments"
 # the Spanish dictionary never gives one English text two translations
 node "$(dirname "$0")/tools/lang-check.js" || bad "website/lang.js has conflicting translations"
+# 8) Storage tables are not ours. On Supabase the SQL Editor account (postgres) does not own storage.objects or
+#    storage.buckets: supautils (policy_grants) only lets it create and drop POLICIES on them, and storage-api's grants
+#    let it read and write their rows. Other DDL there (alter table, create trigger or index, grant, drop) fails in
+#    production, while the local rehearsal, which makes the editor a member of the Storage owner
+#    (tests/rehearsal/as-supabase.sql), would not notice. So a migration line that mentions storage. must be a
+#    one-line "insert into storage.buckets ... on conflict ...", "drop policy if exists ... on storage.objects;",
+#    "create policy ... on storage.objects ...", a comment, or read Storage inside a rule or function
+#    (storage.foldername/filename/extension(...), from/join storage.objects|buckets); direct deletes are refused too
+#    (Storage's own trigger stops them). One exception, already released: 0002's read grant for the backup account,
+#    in a fallback production does not take (its postgres can grant pg_read_all_data).
+storage_ddl() {  # files... -> prints the offending lines, fails if any
+  awk '
+    { t = " " tolower($0) " "; sub(/--.*/, " ", t); gsub(/"storage"\./, "storage.", t) }
+    t !~ /[^a-z0-9_]storage\./ { next }
+    t ~ /^ [ \t]*insert into storage\.buckets[ (][^;]* on conflict [^;]*;?[ \t]*$/ { next }
+    t ~ /^ [ \t]*drop policy if exists [^;]* on storage\.objects[ \t]*;[ \t]*$/ { next }
+    t ~ /^ [ \t]*create policy [^;]* on storage\.objects [^;]*;?[ \t]*$/ { next }
+    FILENAME ~ /\/0002_backup_support\.sql$/ && t ~ /^ [ \t]*grant select on storage\.objects, storage\.buckets to canopy_backup;[ \t]*$/ { next }
+    {
+      if (t !~ /delete[ \t]+from[ \t]+storage\./) {
+        gsub(/[^a-z0-9_]storage\.(foldername|filename|extension)[ \t]*\(/, " (", t)
+        gsub(/[^a-z0-9_](from|join)[ \t]+storage\.(objects|buckets)[^a-z0-9_.]/, " ", t)
+      }
+      if (t ~ /[^a-z0-9_]storage\./) { print FILENAME ":" FNR ": " $0; bad = 1 }
+    }
+    END { exit bad }' "$@"
+}
+if ! out="$(storage_ddl supabase/migrations/*.sql)"; then
+  bad "a migration changes the Storage tables beyond what production allows (only policies on storage.objects and a bucket insert):"
+  echo "$out" | sed 's/^/        /'
+fi
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

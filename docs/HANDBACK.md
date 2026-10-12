@@ -180,7 +180,8 @@ Four independent reviews (Phase-1 migrations; books/IVA; cash/bank/payroll/insig
 - `tests/sql/240_release_check` and `supabase/tools/release-check.sql` verify, on the test DB and in production:
   - only the menu and room-order functions run without sign-in;
   - every table has row security;
-  - every owner-rights function fixes its search path.
+  - every owner-rights function fixes its search path;
+  - the expense-receipt bucket and its rules exist, and the upload rule is 0025's (D-027).
 
 **Secrets:** none in the repository or its history. The two anon keys are public by design; the test passwords
 are for the local test database only.

@@ -370,6 +370,8 @@ document.getElementById('codeBtn').addEventListener('click', async function(){
     if (u.error){ alert('Could not turn it off. Sign out, sign in again with the code, then try once more.'); return; }
     loadSecurity(); return;
   }
+  /* each time the code is typed, Supabase signs out every other session of this login without it: never on the café tablets' login */
+  if (!confirm('Only on your own phone and your own login. Typing this code signs out every other device that uses this login, including café tablets. Continue?')) return;
   /* clear leftovers from an enrolment that was never confirmed */
   var all = (f.data && f.data.all) || [];
   for (var i = 0; i < all.length; i++){

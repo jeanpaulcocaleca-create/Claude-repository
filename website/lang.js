@@ -413,6 +413,8 @@
       'Los libros solo se abren con el código de su teléfono. Actívelo una vez; después cada ingreso pide el código.',
     'Could not start the phone code. Ask the owner to check that Supabase → Authentication → Multi-Factor → TOTP is on.':
       'No se pudo activar el código del teléfono. Pida al dueño revisar que Supabase → Authentication → Multi-Factor → TOTP esté activo.',
+    'Only on your own phone and your own login. Typing this code signs out every other device that uses this login, including café tablets. Continue?':
+      'Solo en su propio teléfono y con su propio ingreso. Al escribir este código se cierra la sesión en todos los demás dispositivos que usan este ingreso, incluidas las tabletas del café. ¿Continuar?',
     'Dollar accounts come later: their movements must be valued in colones first.': 'Las cuentas en dólares vienen después: primero hay que valorar sus movimientos en colones.',
     'The hours changed since this payroll was prepared: prepare it again.': 'Las horas cambiaron desde que se preparó esta planilla: prepárela otra vez.',
     'Someone would be paid less than zero: check the deductions.': 'A alguien le quedaría un pago menor que cero: revise las deducciones.',
@@ -1145,6 +1147,7 @@
     'Could not save the discount. Try again.': 'No se pudo guardar el descuento. Intente de nuevo.',
     'Take the discount off this bill?': '¿Quitar el descuento de esta cuenta?', 'Discount taken off what is still to pay': 'Descuento quitado de lo que falta por pagar',
     'Discount taken off a bill': 'Descuento quitado de una cuenta',
+    'Login type changed': 'Tipo de ingreso cambiado', 'Owner access removed': 'Acceso de dueño quitado',
     '{n} sales are not saved yet. Tap the red sign at the top to see why, before closing.': '{n} ventas no se han guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
     'One sale is not saved yet. Tap the red sign at the top to see why, before closing.': 'Una venta no se ha guardado todavía. Toque el aviso rojo de arriba para ver por qué, antes de cerrar.',
     'One sale is waiting to sync. Connect to the internet before closing.': 'Una venta espera sincronizarse. Conéctese a internet antes de cerrar.',

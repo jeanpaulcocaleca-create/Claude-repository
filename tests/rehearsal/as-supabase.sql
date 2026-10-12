@@ -2,7 +2,8 @@
 -- On Supabase the SQL Editor runs as "postgres", which is NOT a superuser: it owns the café's tables and functions,
 -- can create roles and bypass row rules, but cannot do superuser-only things. Here "rehearsal_editor" plays that
 -- part, so a migration that would need a superuser fails in the rehearsal instead of in production.
--- It also does not hold ADMIN on pg_read_all_data, so migration 0002's fallback is what gets exercised.
+-- It does not hold ADMIN on pg_read_all_data, so the rehearsal deliberately exercises migration 0002's fallback;
+-- production's postgres HAS ADMIN on pg_read_all_data (snapshot 2026-10-12) and takes 0002's main path.
 -- Local test databases only.
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'rehearsal_editor') then
@@ -13,7 +14,11 @@ do $$ begin
   end if;
 end $$;
 grant anon, authenticated, service_role to rehearsal_editor;
-grant rehearsal_storage_admin to rehearsal_editor;   -- Supabase lets the SQL Editor manage Storage policies and buckets
+-- Storage: this membership stands in for Supabase's supautils policy_grants (postgres -> storage.objects,
+-- storage.buckets: create and drop policies) plus storage-api's ALL WITH GRANT OPTION grants on both tables, but it
+-- allows more than production. Production's postgres is not a member of supabase_storage_admin (and cannot become
+-- one), so other DDL on the Storage tables fails there and passes here: tests/lint.sh guards the migrations for it.
+grant rehearsal_storage_admin to rehearsal_editor;
 -- the backup account is created by the SQL Editor account in production (supabase/tools/backup-account.sql), which
 -- makes it its admin; roles are shared by every database of this test server, so it may already exist here
 do $$ begin

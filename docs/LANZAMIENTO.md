@@ -24,7 +24,9 @@ Documentos relacionados:
    - `migrations_applied` hasta la 25;
    - `anon_can_run` solo `canopy_schema_version`, `order_status`, `place_room_order` y `room_lookup`;
    - `tables_without_rls` vacío;
-   - `ledger.unbalanced` en 0.
+   - `ledger.unbalanced` en 0;
+   - `storage_buckets_missing` y `storage_policies_missing` vacíos, y `receipt_upload_rule_current` en `true`
+     (después de la 0025); en producción `menu_photos_bucket` sale `true` (en pruebas, `false`).
 6. **Observar 1 a 3 días** antes de la ola siguiente.
 
 ## Ensayo (hecho el 2026-10-12)
@@ -65,25 +67,30 @@ Si prefiere aplicar la base por olas, aplique **0025 junto con la ola 5**. Hasta
 
 ## Ola 0 · Verificar, respaldar y cerrar los huecos (urgente)
 
-En este orden. Cada paso es de solo lectura o se puede deshacer, hasta el paso 5.
+En este orden. Cada paso es de solo lectura o se puede deshacer.
 
 | Paso | Qué | Cambia producción | Quién |
 |---|---|---|---|
-| 1 | **Foto de producción**: `supabase/tools/production-snapshot.sql` (solo lectura) y pegar el resultado | No | Usted (E-00) |
-| 2 | Revisar la lista de **ingresos** de la foto y apagar **Allow new users to sign up** (y revisar que los ingresos anónimos estén apagados) | Ajuste reversible, sin datos | Usted (E-02) |
-| 3 | **Respaldo verificado** antes de cualquier migración: `supabase/tools/backup-account.sql`, repositorio privado, primer respaldo y descarga (docs/RESPALDOS.md) | Solo crea la cuenta de lectura | Usted (E-03) |
-| 4 | Guardar el sitio de hoy como `sitio-2026-10-09` (docs/PUBLICAR.md) | No | Usted (E-19) |
-| 5 | Migraciones **0000**, **0001** y **0002**, una por una, con la foto antes y después | Sí (solo agrega revisiones) | Usted (E-01) |
+| 1 | **Foto de producción**: `supabase/tools/production-snapshot.sql` (solo lectura) y pegar el resultado. **Hecho el 2026-10-12** (D-027) | No | Usted (E-00) |
+| 2 | Apagar **Allow new users to sign up** (y revisar que los ingresos anónimos estén apagados). Los ingresos de la foto ya se revisaron: ninguno ajeno | Ajuste reversible, sin datos | Usted (E-02) |
+| 3 | **Seguimiento** (solo lectura): `supabase/tools/production-followup.sql`, pegar el resultado y decir qué correo usa cada aparato del café y de quién es el ingreso que nunca entró | No | Usted (E-04) |
+| 4 | **Respaldo verificado** antes de cualquier migración: `supabase/tools/backup-account.sql`, repositorio privado, primer respaldo y descarga (docs/RESPALDOS.md) | Solo crea la cuenta de lectura | Usted (E-03) |
+| 5 | Guardar el sitio de hoy como `sitio-2026-10-09` (docs/PUBLICAR.md) | No | Usted (E-19) |
+| 6 | **Ingreso del café** para los aparatos del café: `supabase/tools/cafe-login.sql` (y, si un correo no es suyo, su parte 2) | Una fila de permisos, anotada en el registro; se revierte con `make_owner` | Usted (E-05) |
+| 7 | Migraciones **0000**, **0001** y **0002**, una por una, con la foto antes y después | Sí (solo agrega revisiones) | Usted (E-01) |
 
 - **Qué cierra la 0001**: un ingreso ajeno ya no puede cancelar o marcar pagados los pedidos de habitación,
-  cambiar el código QR de una habitación, ver las ventas por producto, **cambiar las categorías del menú** (se ven
-  en el menú QR y la TV), ni **probar PINs** del reloj y de las anulaciones. El pedido desde la habitación vuelve
-  a funcionar (encuentra `gen_random_bytes`).
+  cambiar el código QR de una habitación, ver las ventas por producto, ni **probar PINs** del reloj y de las
+  anulaciones. El pedido desde la habitación vuelve a funcionar (encuentra `gen_random_bytes`). (Las categorías
+  del menú: la foto mostró que en producción ese hueco no existe; la 0001 lo cierra donde exista, D-027.)
 - **Qué NO cambia para el personal**: nada. Probado con las páginas que están hoy en el sitio (ensayo, D-023).
 - **Comprobar después del paso 2**: la tableta sigue con su sesión; usted puede entrar; "olvidé mi contraseña"
   sigue enviando el correo; el pedido de habitación funciona.
-- **Volver atrás**: paso 2, volver a encender el ajuste. Paso 5: no hace falta (solo agrega revisiones); si algo
-  fallara, restaurar el respaldo del paso 3 en PRUEBAS para investigar, nunca encima de producción.
+- **Comprobar después del paso 6**: la tableta sigue con su sesión y vende; el reloj marca con PIN; las áreas del
+  dueño piden un PIN. El código del teléfono va **solo** en su ingreso personal, desde su teléfono (E-06).
+- **Volver atrás**: paso 2, volver a encender el ajuste. Paso 6: `select public.make_owner('el correo');`. Paso 7:
+  no hace falta (solo agrega revisiones); si algo fallara, restaurar el respaldo del paso 4 en PRUEBAS para
+  investigar, nunca encima de producción.
 
 ## Ola 1 · Integridad de las ventas y la caja (Fases 0–1)
 

@@ -37,6 +37,9 @@ Requisito: el repositorio privado `canopy-respaldos` ya instalado (docs/RESPALDO
 1. Suba al repositorio privado los archivos nuevos de `ops/backup/repositorio-respaldos/`:
    `ensayo.sh`, `anonimizar.sql`, `.github/workflows/ensayo-pruebas.yml` (y las versiones nuevas de `backup.sh`,
    `restore-stub.sql`, `.github/workflows/respaldo.yml`).
+   Si los subió antes, vuelva a subir `ensayo.sh` y `anonimizar.sql`: cambiaron el 2026-10-12 (D-027) para que
+   "vaciar = si" funcione con el Supabase actual, para la columna `note` de los pedidos de producción, y para que un
+   paso que falle no escriba en el registro del trabajo ninguna fila de datos ni el PIN de pruebas.
 2. **Settings → Secrets and variables → Actions → New repository secret**:
    - `STAGING_DB_URL`: proyecto de **PRUEBAS** → **Connect** → **Session pooler** → copie la dirección, ponga la
      contraseña del punto 1.2 y agregue `?sslmode=require` al final.

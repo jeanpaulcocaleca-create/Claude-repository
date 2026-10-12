@@ -556,6 +556,8 @@ $('codeForm').addEventListener('submit', async function(e){
 var enrollId = null;
 $('enrollStart').addEventListener('click', async function(){
   $('enrollErr').textContent = '';
+  /* each time the code is typed, Supabase signs out every other session of this login without it: never on the café tablets' login */
+  if (!confirm('Only on your own phone and your own login. Typing this code signs out every other device that uses this login, including café tablets. Continue?')) return;
   var f = await db.auth.mfa.listFactors(), all = (f.data && f.data.all) || [];
   for (var i = 0; i < all.length; i++){ if (all[i].factor_type === 'totp' && all[i].status !== 'verified') await db.auth.mfa.unenroll({factorId: all[i].id}); }
   var e = await db.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Phone'});

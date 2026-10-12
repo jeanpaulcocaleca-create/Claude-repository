@@ -27,6 +27,12 @@ Ya no se ejecutan: después de la migración 0000 se detienen solos en la primer
 
 - **"ya estaba aplicada"**: no pasó nada; esa migración ya estaba.
 - **"Falta aplicar antes la migración N"**: aplique primero la N y luego esta.
+- **"must be owner of table objects" en la 0015 o la 0025**: no se aplicó nada de ese archivo. Detenga la ventana
+  ahí: las páginas que se usan hoy siguen funcionando (probado con la base en la 0014 y en la 0025; en la 0024 no se
+  probó aparte: la 0025 solo restringe, y aun con ella esas páginas funcionan). No publique las páginas
+  nuevas y mantenga las reglas provisionales: sin acceso del contador, el PIN del dueño nunca se escribe en la
+  tableta, y no se cambian ajustes, confirmaciones ni tarifas de impuestos. Copie el mensaje y avíselo, para que
+  llegue pronto una migración corregida.
 - **Cualquier otro error**: el archivo completo se deshace solo (corre como una sola transacción).
   Nada queda a medias. Copie el mensaje y avíselo.
 
@@ -52,7 +58,9 @@ repositorio. Por eso las pruebas usan una reconstrucción (`tests/db/01_base_tab
 estructura exacta:
 
 Primero, la foto (`supabase/tools/production-snapshot.sql`) dice si hace falta: si `functions_changed`,
-`functions_unknown` y `tables_columns_differ` salen vacíos, producción es igual a la reconstrucción.
+`functions_unknown`, `tables_columns_differ` y `triggers_differ` salen vacíos, producción es igual a la
+reconstrucción. (La foto del 2026-10-12 mostró `audit_menu()` distinta y la columna `orders.note` de más: hace
+falta, D-027.)
 
 1. Supabase → SQL Editor → pegue `supabase/tools/catalog-export.sql` → **Run**.
    Es solo lectura: no muestra ventas, nombres, PINs ni contraseñas.

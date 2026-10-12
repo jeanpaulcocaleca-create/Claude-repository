@@ -39,9 +39,15 @@ if mode == 'after':
         check(not new, f'{k} after the migrations (not there before): {new}')
     for k in ('tables_missing', 'live_pages_rpc_missing'):
         check(sc[k] == [], f'{k}: {sc[k]}')
-    moved = {t: c for t, c in sc['tables_columns_differ'].items() if sb_sc['tables_columns_differ'].get(t) != c}
+    # over the tables different before or after, so drift that disappears is reported here too
+    db, da = sb_sc['tables_columns_differ'], sc['tables_columns_differ']
+    moved = {t: da.get(t) for t in sorted(set(db) | set(da)) if db.get(t) != da.get(t)}
     check(not moved, f"original tables changed type or lost columns: {moved}")
-    drift = sorted(set(sb_sc['functions_changed']) | set(sb_sc['functions_unknown'])) + sorted(sb_sc['tables_columns_differ'])
+    # the original tables' triggers: what differed before (production drift) must still differ the same way
+    check(sc.get('triggers_differ', {}) == sb_sc.get('triggers_differ', {}),
+          f"triggers on the original tables changed: {sb_sc.get('triggers_differ')} -> {sc.get('triggers_differ')}")
+    drift = sorted(set(sb_sc['functions_changed']) | set(sb_sc['functions_unknown'])) + sorted(sb_sc['tables_columns_differ']) + \
+            [f'trigger {k}: {t}' for k, ts in sorted(sb_sc.get('triggers_differ', {}).items()) for t in ts]
     sec = sa['security']
     check(sec['tables_without_rls'] == [], f"tables without RLS: {sec['tables_without_rls']}")
     extra = sorted(set(sec['policies_without_account_check']) - OPEN_POLICIES)
@@ -69,11 +75,23 @@ if mode == 'after':
     for k, v in (('price_mode', 'inclusive'), ('ledger_auto_post', False), ('einvoice_mode', 'off'), ('operator_mode', 'off')):
         check(st.get(k) == v, f'setting {k} should be {v!r} after the window, is {st.get(k)!r}')
     check(rc['confirmations'] == [], f"no confirmation may exist before the owner/accountant gives it: {rc['confirmations']}")
+    # Storage: the receipts bucket and its two rules (0015), the upload rule of 0025; the menu photos rules are
+    # listed by the release check only where the menu-photos bucket exists (a staging project never gets it)
+    check(rc['storage_buckets_missing'] == [], f"storage buckets missing: {rc['storage_buckets_missing']}")
+    check(rc['storage_policies_missing'] == [], f"storage rules missing: {rc['storage_policies_missing']}")
+    check(rc['receipt_upload_rule_current'] is True, f"receipt upload rule current: {rc['receipt_upload_rule_current']}")
     if not errors:
         if drift:
             print(f"    already different from the repository before the window, left as it was: {', '.join(drift)}")
         print(f"    unchanged: {len(fb)} original tables (every original column, md5), {len(before_c['kept'])} business checks; "
               f"open rules {len(sec['policies_without_account_check'])} (all reviewed); functions: {sc['functions_by_version']}")
+        print(f"    storage: receipts bucket and rules in place, upload rule current; menu photos bucket "
+              f"{'and its rules present' if rc['menu_photos_bucket'] else 'absent (not checked)'}")
+        # on a staging project these are Supabase's real rights: compare them with production's (follow-up query);
+        # expected in production: can_insert_buckets true, member_of_storage_owner false, policy_grants_storage_objects true
+        r = sb.get('storage_rights') or {}
+        print(f"    rights of this account in Storage: " + ', '.join(f'{k} {r.get(k)}' for k in
+              ('can_insert_buckets', 'member_of_storage_owner', 'policy_grants_storage_objects')))
         if af.get('orders_business_date_not_sale_day') not in (None, '0'):
             print(f"    note: {af['orders_business_date_not_sale_day']} sales belong to another business day than their clock time (bills paid later, by design)")
 else:

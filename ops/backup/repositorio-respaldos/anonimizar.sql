@@ -14,7 +14,8 @@
 \set ON_ERROR_STOP on
 -- a throw-away copy: the protections of the real database (history guards, audit triggers) do not apply here
 set session_replication_role = replica;
-select set_config('canopy.staging_pin', :'pin', false);
+-- its result is the PIN itself: never printed (if a later step fails it would be the last line in the log)
+select set_config('canopy.staging_pin', :'pin', false) \g /dev/null
 do $$
 declare
   t record;
@@ -48,9 +49,10 @@ begin
   end loop;
   select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'notes') into has;
   if has then update public.expenses set notes = null where notes is not null; end if;
-  -- production's orders has an extra free-text column "note" (snapshot 2026-10-12) whose content is unknown
+  -- production's orders has an extra free-text column "note" (snapshot 2026-10-12) whose content is unknown;
+  -- it may be NOT NULL with a default, so it gets its default (null or blank) rather than null
   select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'note') into has;
-  if has then execute 'update public.orders set note = null where note is not null'; end if;
+  if has then execute 'update public.orders set note = default where note is not null'; end if;
 end $$;
 select set_config('canopy.staging_pin', '', false);
 set session_replication_role = origin;

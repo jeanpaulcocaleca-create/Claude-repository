@@ -12,7 +12,8 @@
 #      window) and the new pages' way, then the checks again
 #   7. the accountant books 30 days of the old history: balanced and tied to the sales, colón for colón
 #   8. a backup + restore of the migrated copy
-#   9. the staging copy as the owner's "Ensayo en pruebas" makes it: anonymized, permissions identical, migrated
+#   9. the staging copy as the owner's "Ensayo en pruebas" makes it: anonymized, permissions identical, migrated;
+#      then again into the same project, emptied first under Supabase Storage's delete guard
 # Usage: tests/rehearsal/run.sh            (local/CI test server only; prints a summary, keeps files in $OUT)
 # =====================================================================================================
 set -euo pipefail
@@ -46,6 +47,7 @@ sc = s['schema']
 for k in ('functions_unknown', 'functions_changed', 'functions_missing_legacy', 'tables_missing', 'live_pages_rpc_missing'):
     assert sc[k] == [], (k, sc[k])
 assert sc['tables_columns_differ'] == {}, sc['tables_columns_differ']
+assert sc['triggers_differ'] == {}, sc['triggers_differ']
 assert sc['functions_by_version'] == {'legacy': sc['functions_total']}, sc['functions_by_version']
 assert any('categories color for signed-in' in p for p in s['security']['policies_without_account_check']), 'the open menu rule should exist before 0001'
 PY
@@ -105,13 +107,38 @@ fi
 step "staging copy: production (read-only account) -> anonymized -> an empty Supabase-like project -> migrations there"
 psql -X -q -d postgres -c "drop database if exists ${DB}_staging with (force)" -c "create database ${DB}_staging" >/dev/null
 psql -X -q -d "${DB}_staging" -f "$ROOT/ops/backup/restore-stub.sql" >/dev/null
+# a staging project has no menu-photos bucket: only the café's schemas are copied, never Storage
+psql -X -q -d "${DB}_staging" -c "delete from storage.buckets where id = 'menu-photos'" >/dev/null
 q -c "alter role canopy_backup login password 'test-only-backup'" > /dev/null
 URL_BASE="postgresql://postgres@${PGHOST}:${PGPORT}"; [ -n "${PGPASSWORD:-}" ] && URL_BASE="postgresql://postgres:${PGPASSWORD}@${PGHOST}:${PGPORT}"
-CANOPY_DB_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/${DB}_src" STAGING_DB_URL="$URL_BASE/${DB}_staging" \
-  STAGING_PIN=2468 PROD_URL="https://nbvczarfweanoxvdqplk.supabase.co" SCRATCH_URL="$URL_BASE/postgres" PUBLIC_DIR="$ROOT" OUT="$OUT/staging" \
-  bash "$ROOT/ops/backup/repositorio-respaldos/ensayo.sh" > "$OUT/staging.log" 2>&1 || { cat "$OUT/staging.log"; die "staging copy"; }
+ensayo() {  # out-dir [extra variables]
+  env CANOPY_DB_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/${DB}_src" STAGING_DB_URL="$URL_BASE/${DB}_staging" \
+    STAGING_PIN=2468 PROD_URL="https://nbvczarfweanoxvdqplk.supabase.co" SCRATCH_URL="$URL_BASE/postgres" SCRATCH_DB="${DB}_ensayo" \
+    PUBLIC_DIR="$ROOT" OUT="$1" "${@:2}" bash "$ROOT/ops/backup/repositorio-respaldos/ensayo.sh"
+}
+ensayo "$OUT/staging" > "$OUT/staging.log" 2>&1 || { cat "$OUT/staging.log"; die "staging copy"; }
 python3 "$HERE/compare.py" "$OUT/staging" after || die "staging copy: differences after the migrations"
 [ "$(psql -X -At -d "${DB}_staging" -c "select count(*) from public.staff where name !~ '^Persona [0-9]+$'")" = "0" ] || die "staging copy: names not anonymized"
 [ "$(psql -X -At -d "${DB}_staging" -c "select count(*) from public.orders where guest_phone is not null")" = "0" ] || die "staging copy: guest phones kept"
+
+step "staging copy again into the same project (emptied first), under Supabase Storage's delete guard"
+# storage-api migration 0055: a statement-level trigger refuses any direct delete from the Storage tables, even one
+# that matches no row, unless storage.allow_delete_query is 'true'
+psql -X -q -v ON_ERROR_STOP=1 -d "${DB}_staging" >/dev/null <<'SQL'
+create function storage.protect_delete() returns trigger language plpgsql as $$
+begin
+  if coalesce(current_setting('storage.allow_delete_query', true), 'false') <> 'true' then
+    raise exception 'Direct deletion from storage tables is not allowed. Use the Storage API instead.' using errcode = '42501';
+  end if;
+  return null;
+end $$;
+create trigger protect_objects_delete before delete on storage.objects for each statement execute function storage.protect_delete();
+create trigger protect_buckets_delete before delete on storage.buckets for each statement execute function storage.protect_delete();
+SQL
+{ psql -X -q -d "${DB}_staging" -c "delete from storage.objects where false" 2>&1 || true; } | grep -q 'Direct deletion from storage tables is not allowed' \
+  || die "the Storage delete guard is not in place"
+ensayo "$OUT/staging-again" EMPTY_STAGING=si > "$OUT/staging-again.log" 2>&1 || { cat "$OUT/staging-again.log"; die "staging copy again (emptied first)"; }
+[ "$(wc -l < "$OUT/staging-again/timings.txt")" = "$(ls "$ROOT/supabase/migrations"/*.sql | wc -l)" ] || die "staging copy again: not every migration ran again"
+python3 "$HERE/compare.py" "$OUT/staging-again" after || die "staging copy again: differences after the migrations"
 psql -X -q -d postgres -c "drop database if exists ${DB}_src with (force)" -c "drop database if exists ${DB}_staging with (force)" >/dev/null
 echo "  ok    migration rehearsal (files in $OUT)"

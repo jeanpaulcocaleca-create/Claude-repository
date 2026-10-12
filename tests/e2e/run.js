@@ -87,7 +87,7 @@ async function startPostgrest(bin, db, port) {
     const spec = require(path.join(SPEC_DIR, f));
     const tests = spec.tests || [{ name: f, run: spec.run }];
     for (const t of tests) {
-      psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`, '-c', `create database ${DB} template ${TPL}`]);
+      psql(['-d', 'postgres', '-c', `drop database if exists "${DB}" with (force)`, '-c', `create database "${DB}" template "${TPL}"`]);
       const pgrst = await startPostgrest(bin, DB, PGRST_PORT);
       state.offline = false; state.release = null;
       const t0 = Date.now();
@@ -105,7 +105,7 @@ async function startPostgrest(bin, db, port) {
     }
   }
   await browser.close(); server.close();
-  psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`].concat(process.env.E2E_TEMPLATE_DB ? [] : ['-c', `drop database if exists ${TPL} with (force)`]));
+  psql(['-d', 'postgres', '-c', `drop database if exists "${DB}" with (force)`].concat(process.env.E2E_TEMPLATE_DB ? [] : ['-c', `drop database if exists "${TPL}" with (force)`]));
   console.log(`Browser tests: ${pass} passed, ${fail} failed${fail ? ' (' + failed.join('; ') + ')' : ''}`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

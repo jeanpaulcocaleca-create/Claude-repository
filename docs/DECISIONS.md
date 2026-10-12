@@ -295,3 +295,60 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Activation question (not a code change):** prices are stored as charged. Switching the mode alone does not
   change what customers pay. If today's prices are meant to be before IVA, each must be re-entered as a
   before-IVA price (customers then pay 13 % more): an owner and accountant decision.
+
+## D-027 · 2026-10-12 · What the production snapshot showed, and what follows from it
+- **Snapshot (read-only, run by the owner on 2026-10-12):**
+  - PostgreSQL 17.6, 13 MB, no migration applied;
+  - 86 functions: 85 are the legacy versions, and only `audit_menu()` differs;
+  - `orders` has one extra column, `note` (text), that no page, function or migration uses;
+  - indexes and table rights are as rebuilt; no table without row security; `make_owner` cannot be called from
+    the pages;
+  - WAL archiving is active with no failures (Supabase's own backups; whether they can be restored depends on the
+    plan, E-10).
+- **Drift is accepted, and the rehearsal checks it is left alone.** No migration touches `audit_menu`, its
+  trigger, `menu_change` rows or `orders.note`, and none writes `menu_items`. This was checked with probe triggers
+  across 0000–0025, and with `note` nullable and NOT NULL with a default, at either column position.
+  - The cause is unknown: `audit_menu` has had one text in the repository since 2026-09-16, and the base tables
+    were created before the repository kept SQL.
+  - E-11 (the read-only catalog export) is now required. It does not block 0000–0025, but it blocks reconciling
+    `audit_menu` and `orders.note`. If the exported body matches the repository's apart from spaces or comments
+    (hashes `aa2499233cf7` / `559f340e7bbd`), it is accepted as is. Otherwise a new expand migration decides
+    which logic stays, and whether IVA-code and CABYS changes in the Menu Manager are logged; with the
+    repository's body they are not.
+  - `orders.note` is kept untouched; dropping or changing it needs the owner. Staging copies set it to its default.
+- **Menu categories (S-3) were never open in production.** The legacy "categories color for signed-in" rule is
+  absent there (only the owner rule exists). 0001 still drops it where it exists, and the rehearsal keeps covering
+  that case.
+- **Logins.** There are three logins, all of the owner kind and none with a phone code; every login has an app
+  account, so nobody has signed themselves up. One was created on 2026-09-16 and has never signed in.
+  - Tested: an owner-kind login without a phone code behaves like a café login until a PIN is typed, on today's
+    schema and after 0025.
+  - It still carries three exposures on a café device:
+    - anyone holding the session or the password can turn on a phone code and become the full owner;
+    - with no active owner-role team member, a manager PIN can create one;
+    - the 30-minute idle sign-out and "Sign out everywhere".
+  - Supabase Auth deletes every session of a login that has no code each time that login's code is typed
+    (auth `mfa.go`, `InvalidateSessionsWithAALLessThan`). A phone code on a login shared with café devices
+    therefore signs the POS and kitchen out.
+  - **Decision:**
+    - café devices move to a café-kind login (`supabase/tools/cafe-login.sql`, one row, audited, works before
+      0000) before the new pages are published;
+    - the phone code goes only on the owner's personal login, used by no café device;
+    - a grant on a mailbox that is not the owner's is revoked by the same tool (audited; `auth.users` is never
+      touched).
+  - Both pages that offer the phone code now warn about this and ask to confirm first.
+  - Tightening who may enroll (Security card only at owner level, and 0026: `manager_save_staff`'s first-owner
+    exception requires `owner_with_code()`) waits until the owner's own code is verified or an active owner-role
+    team member exists. Otherwise the owner could be locked out of enrolling.
+  - Correction to earlier notes: after 0025, `pay_period_save` needs `acct.can_read` (the phone code), not only
+    an owner PIN.
+- **Storage stays strict.** 0015 and 0025 create storage rules as the SQL Editor's account; there is no fallback.
+  - Production's account is not the storage owner and needs Supabase's supautils `policy_grants` for this. Every
+    Supabase configuration since 2024-06 lists `storage.objects` and `storage.buckets` for it; the legacy scripts
+    already created rules there; storage-api grants it ALL on both tables.
+  - If it still failed, that file applies nothing, and the window stops at 0014, where the live pages were tested
+    working (docs/MIGRACIONES.md).
+  - The follow-up query and the snapshot now show these rights. `release-check.sql` checks the expense-receipt
+    bucket, its rules and the current upload rule.
+  - A lint guard refuses any other storage DDL in a migration, which the local rehearsal could not catch.
+  - The staging reset sets `storage.allow_delete_query` (storage-api 0055 forbids direct deletes otherwise).

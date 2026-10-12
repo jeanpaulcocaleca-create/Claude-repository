@@ -12,7 +12,7 @@
 # Variables: CANOPY_DB_URL (producción, solo lectura) · STAGING_DB_URL (pruebas) · STAGING_PIN · PROD_URL
 #            (https://<proyecto>.supabase.co de producción) · SCRATCH_URL (Postgres desechable del trabajo)
 #            PUBLIC_DIR (el repositorio público en la versión a ensayar) · OUT (carpeta de resultados)
-#            EMPTY_STAGING=si para vaciar pruebas antes de cargar
+#            EMPTY_STAGING=si para vaciar pruebas antes de cargar · SCRATCH_DB (opcional; canopy_ensayo)
 # =====================================================================================================
 set -euo pipefail
 umask 077
@@ -22,6 +22,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$OUT"
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 die() { echo "::error::$*"; exit 1; }
+SCRATCH_DB="${SCRATCH_DB:-canopy_ensayo}"   # the throw-away database on SCRATCH_URL (tests give each run its own)
 PROD_REF="$(printf '%s' "$PROD_URL" | sed -E 's#https://([a-z0-9]+)\.supabase\.co.*#\1#')"
 [ -n "$PROD_REF" ] && [ "$PROD_REF" != "$PROD_URL" ] || die "PROD_URL no parece una dirección de Supabase"
 case "$STAGING_DB_URL" in *"$PROD_REF"*) die "La dirección de PRUEBAS contiene el proyecto de PRODUCCIÓN ($PROD_REF). No se hizo nada.";; esac
@@ -66,6 +67,10 @@ PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x), '')) from (
   select 'pol|' || schemaname || '.' || tablename || '|' || policyname || '|' || cmd || '|' || array_to_string(roles, ',') || '|' || permissive
     from pg_policies where schemaname in ('public', 'canopy', 'acct')) q"
 
+# pg_restore's errors carry the server's DETAIL/CONTEXT lines, which can quote a whole row ("Failing row contains",
+# "COPY orders, line 3: …"): keep only its own one-line messages in the log
+restore_quiet() { pg_restore "$@" 2> >(grep --line-buffered '^pg_restore:' >&2 || true); }
+
 log "1/4 copiando producción (solo lectura)…"
 SCHEMAS="$(psql -X -At "$CANOPY_DB_URL" -c "select string_agg('--schema=' || nspname, ' ') from pg_namespace where nspname in ('public','canopy','acct')")"
 # shellcheck disable=SC2086
@@ -74,22 +79,23 @@ PROD_PRIV="$(psql -X -At "$CANOPY_DB_URL" -c "$PRIV_SQL")"
 unset CANOPY_DB_URL
 
 log "2/4 anonimizando en una base desechable…"
-psql -X -q "$SCRATCH_URL" -c "drop database if exists canopy_ensayo" -c "create database canopy_ensayo" >/dev/null
-TMP_URL="$(python3 - "$SCRATCH_URL" <<'PY'
+psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" -c "create database $SCRATCH_DB" >/dev/null
+TMP_URL="$(python3 - "$SCRATCH_URL" "$SCRATCH_DB" <<'PY'
 import sys, urllib.parse as u
-p = u.urlsplit(sys.argv[1]); print(u.urlunsplit(p._replace(path='/canopy_ensayo')))
+p = u.urlsplit(sys.argv[1]); print(u.urlunsplit(p._replace(path='/' + sys.argv[2])))
 PY
 )"
 psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -f "$HERE/restore-stub.sql" >/dev/null
 pg_restore -l "$OUT/produccion.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' > "$OUT/toc.list"
 psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -c "$DEFAULTS_OFF" >/dev/null
-pg_restore --no-owner --exit-on-error -L "$OUT/toc.list" -d "$TMP_URL" "$OUT/produccion.dump"
+restore_quiet --no-owner --exit-on-error -L "$OUT/toc.list" -d "$TMP_URL" "$OUT/produccion.dump"
 psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -c "$DEFAULTS_ON" >/dev/null
 [ "$(psql -X -At "$TMP_URL" -c "$PRIV_SQL")" = "$PROD_PRIV" ] || die "la copia desechable no tiene los permisos de producción"
 rm -f "$OUT/produccion.dump"
-psql -X -q -At -v ON_ERROR_STOP=1 -v pin="$STAGING_PIN" "$TMP_URL" -f "$HERE/anonimizar.sql" | tail -1
+# terse: if a step fails, the error must not print the row it was working on (production data) into the log
+psql -X -q -At -v ON_ERROR_STOP=1 -v VERBOSITY=terse -v pin="$STAGING_PIN" "$TMP_URL" -f "$HERE/anonimizar.sql" | tail -1
 pg_dump "$TMP_URL" --format=custom --no-owner $SCHEMAS --file="$OUT/anonimizada.dump"
-psql -X -q "$SCRATCH_URL" -c "drop database if exists canopy_ensayo" >/dev/null
+psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" >/dev/null
 
 log "3/4 cargando la copia anonimizada en PRUEBAS…"
 HAS="$(psql -X -At "$STAGING_DB_URL" -c "select count(*) from information_schema.tables where table_schema in ('public','canopy','acct')")"
@@ -100,6 +106,10 @@ if [ "$HAS" != "0" ]; then
 do $$
 declare r record;
 begin
+  -- the receipt rules on storage.objects call public functions: drop them by name first, the same way 0015 does
+  -- (Supabase lets the SQL Editor's account manage policies there), so no cascade has to reach Storage's table
+  drop policy if exists "expense receipts read" on storage.objects;
+  drop policy if exists "expense receipts add" on storage.objects;
   drop schema if exists canopy cascade;
   drop schema if exists acct cascade;
   for r in select format('%I.%I', schemaname, tablename) as t from pg_tables where schemaname = 'public' loop
@@ -110,6 +120,9 @@ begin
   for r in select format('%I.%I', n.nspname, t.typname) as ty from pg_type t join pg_namespace n on n.oid = t.typnamespace
             where n.nspname = 'public' and t.typtype in ('e', 'd', 'c') and not exists (select 1 from pg_class c where c.reltype = t.oid) loop
     execute 'drop type if exists ' || r.ty || ' cascade'; end loop;
+  -- Supabase Storage refuses direct deletes from its tables unless this is set (storage-api migration 0055; its
+  -- trigger fires even when no row matches). Only the rows go: the staging receipt files stay orphaned in staging Storage.
+  perform set_config('storage.allow_delete_query', 'true', true);
   delete from storage.objects where bucket_id = 'expense-receipts';
 end $$;
 SQL
@@ -118,7 +131,7 @@ pg_restore -l "$OUT/anonimizada.dump" | grep -v -E 'SCHEMA - public |COMMENT - S
 # production's rights mention the backup account: it must exist in staging too (never able to log in there)
 psql -X -q -v ON_ERROR_STOP=1 "$STAGING_DB_URL" -c "do \$\$ begin if not exists (select 1 from pg_roles where rolname = 'canopy_backup') then create role canopy_backup nologin; end if; end \$\$;" >/dev/null
 psql -X -q -v ON_ERROR_STOP=1 "$STAGING_DB_URL" -c "$DEFAULTS_OFF" >/dev/null
-pg_restore --no-owner --exit-on-error -L "$OUT/toc.list" -d "$STAGING_DB_URL" "$OUT/anonimizada.dump"
+restore_quiet --no-owner --exit-on-error -L "$OUT/toc.list" -d "$STAGING_DB_URL" "$OUT/anonimizada.dump"
 psql -X -q -v ON_ERROR_STOP=1 "$STAGING_DB_URL" -c "$DEFAULTS_ON" >/dev/null
 [ "$(psql -X -At "$STAGING_DB_URL" -c "$PRIV_SQL")" = "$PROD_PRIV" ] || die "PRUEBAS quedó con permisos distintos de producción (revise antes de usarla)"
 rm -f "$OUT/anonimizada.dump" "$OUT/toc.list"
