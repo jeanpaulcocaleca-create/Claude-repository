@@ -1,28 +1,48 @@
-name: Publish website
+name: Publish website (PRODUCTION · manual only)
 
-# Publishes the website/ folder to the gh-pages branch, which GitHub Pages serves
-# (hanginggardencafe.com once the domain points here).
-# The film and photos are not kept in git: they are fetched from the URLs
-# listed in website/ASSETS.md at build time.
+# Publishes the website/ folder to the gh-pages branch, which GitHub Pages serves at
+# hanginggardencafe.com — the LIVE café site (POS, kitchen, TV, menu).
+#
+# SAFETY (owner directive, 2026-10-12): pushing to any branch NEVER publishes.
+# Production is published only when the owner, after approving a release:
+#   1. creates a release tag (vYYYY.MM.DD-N) on GitHub, then
+#   2. Actions → "Publish website (PRODUCTION · manual only)" → Run workflow →
+#      "Use workflow from" = that tag, and types PUBLICAR in the box.
+# AI agents working in this repository must never run this workflow or create release tags
+# (see CLAUDE.md). See docs/PUBLICAR.md for the full release checklist and rollback.
+#
+# The film and photos are not kept in git: they are fetched from the URLs listed in
+# website/ASSETS.md at build time.
 
 on:
-  push:
-    branches: [main, claude/festive-galileo-0twc1p, claude/hanging-garden-coffee-proposal-1m8zd4]
-    paths: ['website/**', '.github/workflows/pages.yml']
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escriba PUBLICAR para publicar esta versión en el sitio real del café'
+        required: true
+        default: ''
 
 permissions:
   contents: write
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: production
     steps:
-      - uses: actions/checkout@v4
+      - name: Refuse anything that is not an approved release
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "PUBLICAR" ]; then
+            echo "::error::Escriba PUBLICAR para confirmar. Nada se publicó."; exit 1
+          fi
+          if [ "${{ github.ref_type }}" != "tag" ] || [[ "${{ github.ref_name }}" != v* ]]; then
+            echo "::error::Solo se publica desde una etiqueta de versión (v...). Elegida: ${{ github.ref_name }}. Nada se publicó."; exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Fetch the film and photos listed in website/ASSETS.md
         run: |
           python3 - <<'PY'
@@ -36,11 +56,14 @@ jobs:
               urllib.request.urlretrieve(url, dest)
               print('fetched', path, os.path.getsize(dest), 'bytes')
           PY
+      - name: Stamp the release version
+        run: |
+          printf '{"version":"%s","sha":"%s","built_at":"%s"}\n' "${{ github.ref_name }}" "${{ github.sha }}" "$(date -u +%FT%TZ)" > website/version.json
       - name: Publish to the gh-pages branch (GitHub Pages serves it)
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./website
           force_orphan: true
           cname: hanginggardencafe.com
-          commit_message: 'Publish website'
+          commit_message: 'Publish website ${{ github.ref_name }}'
