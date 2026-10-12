@@ -280,6 +280,29 @@
     'Set up the nightly backup: see docs/RESPALDOS.md.': 'Configure el respaldo nocturno: vea docs/RESPALDOS.md.',
     'less than an hour ago': 'hace menos de una hora', '{n} h ago': 'hace {n} h', '{n} days ago': 'hace {n} días',
 
+    /* accounting: suppliers (0016) */
+    'What is owed to suppliers': 'Lo que se debe a proveedores', 'Not due yet': 'Sin vencer', '1–30 days late': '1–30 días vencido', '31–60 days late': '31–60 días vencido',
+    'Over 60 days late': 'Más de 60 días vencido', 'New supplier invoice': 'Factura de proveedor nueva', 'Due date': 'Fecha de vencimiento',
+    'Amount before IVA (₡)': 'Monto sin IVA (₡)', 'IVA on the invoice (₡)': 'IVA de la factura (₡)', 'What was it for (no delivery)': 'Para qué fue (sin entrega)',
+    'Deliveries of this supplier waiting for their invoice (tick the ones on it)': 'Entregas de este proveedor que esperan su factura (marque las que incluye)',
+    'Save the invoice': 'Guardar la factura', 'Pay a supplier': 'Pagar a un proveedor', 'Amount (₡)': 'Monto (₡)', 'Bank transfer or SINPE': 'Transferencia o SINPE',
+    'Reference': 'Referencia', 'Invoice to pay first': 'Factura que se paga primero', 'Record the payment': 'Registrar el pago',
+    'Invoices of the last 3 months': 'Facturas de los últimos 3 meses', 'Payments of the last 3 months': 'Pagos de los últimos 3 meses',
+    'Due': 'Vence', 'Still owed': 'Pendiente', 'Invoices': 'Facturas', 'Amount': 'Monto', 'Register': 'Caja', 'The oldest first': 'La más antigua primero',
+    'Pick the supplier.': 'Elija el proveedor.', 'None: this invoice is for something else (a service, equipment…).': 'Ninguna: esta factura es por otra cosa (un servicio, equipo…).',
+    'Received at cost {x}': 'Recibido al costo {x}', 'difference with the invoice {x}': 'diferencia con la factura {x}',
+    'Owed to this supplier: {x}': 'Se le debe a este proveedor: {x}',
+    'Accounts payable in the books {a} = open invoices {b} + received not invoiced {c} + expenses on credit {d}':
+      'Cuentas por pagar en los libros {a} = facturas pendientes {b} + recibido sin factura {c} + gastos a crédito {d}',
+    'Difference {x}: days not posted yet, or entries by hand.': 'Diferencia {x}: días sin asentar todavía, o asientos a mano.',
+    'Suppliers need a database update (migration 0016).': 'Proveedores necesita una actualización de la base de datos (migración 0016).',
+    'One of those deliveries is of another supplier or already has its invoice. Refresh and try again.': 'Una de esas entregas es de otro proveedor o ya tiene su factura. Actualice e intente de nuevo.',
+    'That is more than is owed to this supplier.': 'Eso es más de lo que se le debe a este proveedor.', 'This invoice has payments: void the payments first.': 'Esta factura tiene pagos: anule primero los pagos.',
+    'Pick the supplier and write the invoice number and amount.': 'Elija el proveedor y escriba el número y el monto de la factura.',
+    'Pick the supplier and write the amount.': 'Elija el proveedor y escriba el monto.', 'Pick what the invoice was for.': 'Elija para qué fue la factura.',
+    'Why is this invoice voided?': '¿Por qué se anula esta factura?', 'Why is this payment voided?': '¿Por qué se anula este pago?',
+    'Invoice voided': 'Factura anulada', 'Payment voided': 'Pago anulado', 'Invoice saved': 'Factura guardada', 'Payment recorded': 'Pago registrado',
+
     /* website: the film */
     '1,400 metres above the sea.': 'A 1 400 metros sobre el mar.', 'Monteverde, Costa Rica': 'Monteverde, Costa Rica',
     'Cool nights ripen the cherry slowly.': 'Las noches frías maduran el fruto despacio.',

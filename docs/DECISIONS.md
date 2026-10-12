@@ -125,3 +125,16 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Bills paid in parts:** money received before the bill is fully paid waits in "Anticipos de clientes"; the
   sale (and its IVA) is recognized the day the bill is paid in full — revenue timing to confirm (A-07).
 - **Pending:** the accountant approves the chart and the mappings (A-07) before automatic posting is switched on.
+
+## D-014 · 2026-10-12 · Supplier invoices settle deliveries already owed; differences never touch the inventory account
+- **Decision:** a delivery received in Inventory is owed at its cost from the day it arrives (the day's
+  entry: inventory against accounts payable). The supplier's invoice, entered later in Accounting →
+  Suppliers and linked to its deliveries, posts only what the delivery did not: the creditable IVA and any
+  price difference (to 5103 "Ajustes de inventario", not to inventory, so the inventory account keeps
+  matching the stock valued at average cost). An invoice without deliveries (a repair, equipment) names the
+  account it goes to. Payments go to the chosen invoice first, then the oldest due; never more than owed.
+  Invoices and payments are voided by reversal; an invoice with payments is not voided until they are.
+- **Why:** one cost per delivery (what Inventory received) keeps COGS and the stock valuation consistent;
+  the invoice is the document for IVA and for what is owed.
+- **Tie-out:** accounts payable in the books = open invoices + received not invoiced + expenses on credit;
+  the Suppliers screen shows any difference (days not posted, entries by hand).

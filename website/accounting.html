@@ -136,6 +136,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
     <button type="button" data-view="journal">Journal</button>
     <button type="button" data-view="reports">Reports</button>
     <button type="button" data-view="expenses">Expenses</button>
+    <button type="button" data-view="payables">Suppliers</button>
     <button type="button" data-view="accounts">Accounts</button>
     <button type="button" data-view="periods">Periods</button>
   </div>
@@ -224,6 +225,53 @@ tr.head td{font-weight:700;background:var(--canvas)}
     </div>
   </section>
 
+  <!-- SUPPLIERS: invoices, payments, what is owed -->
+  <section class="view" id="view-payables" hidden>
+    <div class="card">
+      <h2>What is owed to suppliers <span class="sp"></span><button type="button" class="small ghost" id="pyCsv">Download CSV</button></h2>
+      <div class="tablewrap"><table id="agTable"><thead><tr><th>Supplier</th><th class="num">Not due yet</th><th class="num">1–30 days late</th><th class="num">31–60 days late</th><th class="num">Over 60 days late</th><th class="num">Total</th></tr></thead><tbody></tbody></table></div>
+      <p class="hint mono" id="agTie"></p>
+      <p class="hint mono" id="agDiff" hidden></p>
+    </div>
+    <div class="card">
+      <h2>New supplier invoice</h2>
+      <div class="grid2">
+        <div><label for="viVendor">Supplier</label><select id="viVendor"></select></div>
+        <div><label for="viNum">Invoice Nº</label><input id="viNum" maxlength="50"></div>
+        <div><label for="viDate">Invoice date</label><input id="viDate" type="date"></div>
+        <div><label for="viDue">Due date</label><input id="viDue" type="date"></div>
+        <div><label for="viNet">Amount before IVA (₡)</label><input id="viNet" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="viIva">IVA on the invoice (₡)</label><input id="viIva" data-keypad="amount" type="number" min="0" step="any" value="0"></div>
+        <div id="viAcctBox"><label for="viAcct">What was it for (no delivery)</label><select id="viAcct"></select></div>
+      </div>
+      <p class="hint">Deliveries of this supplier waiting for their invoice (tick the ones on it):</p>
+      <div id="viRecs" class="lines"></div>
+      <p class="hint mono" id="viDiff"></p>
+      <div class="tools"><button type="button" id="viGo">Save the invoice</button></div>
+      <p class="err" id="viErr"></p>
+    </div>
+    <div class="card">
+      <h2>Pay a supplier</h2>
+      <div class="grid2">
+        <div><label for="vpVendor">Supplier</label><select id="vpVendor"></select></div>
+        <div><label for="vpAmt">Amount (₡)</label><input id="vpAmt" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="vpFrom">Paid from</label><select id="vpFrom"><option value="bank">Bank transfer or SINPE</option><option value="cash">The register (colones)</option><option value="petty">Petty cash</option></select></div>
+        <div><label for="vpDate">Date</label><input id="vpDate" type="date"></div>
+        <div><label for="vpRef">Reference</label><input id="vpRef" maxlength="80"></div>
+        <div><label for="vpInv">Invoice to pay first</label><select id="vpInv"></select></div>
+      </div>
+      <p class="hint mono" id="vpOwed"></p>
+      <div class="tools"><button type="button" id="vpGo">Record the payment</button></div>
+      <p class="err" id="vpErr"></p>
+    </div>
+    <div class="card">
+      <h2>Invoices of the last 3 months</h2>
+      <div class="tablewrap"><table id="viTable"><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th>Due</th><th class="num">Total</th><th class="num">Still owed</th><th></th></tr></thead><tbody></tbody></table></div>
+      <h2 style="margin-top:1rem">Payments of the last 3 months</h2>
+      <div class="tablewrap"><table id="vpTable"><thead><tr><th>Date</th><th>Supplier</th><th>Paid from</th><th>Reference</th><th>Invoices</th><th class="num">Amount</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
   <!-- ACCOUNTS -->
   <section class="view" id="view-accounts" hidden>
     <div class="card">
@@ -283,7 +331,9 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   system_account: 'The automatic entries use this account: it stays active.', duplicate_invoice: 'That invoice of this supplier was already entered.',
   bad_account: 'Pick an expense account.', future_date: 'The date cannot be in the future.', needs_confirmation: 'Record the approval first.',
   owner_only: 'Only the owner can switch this on.', missing_reference: 'Write who approved it and the document.', bad_range: 'Pick at most three months.',
-  missing_reason: 'Write the reason.', already_voided: 'Already voided.'};
+  missing_reason: 'Write the reason.', already_voided: 'Already voided.', no_vendor: 'Pick the supplier.',
+  bad_receipts: 'One of those deliveries is of another supplier or already has its invoice. Refresh and try again.',
+  more_than_owed: 'That is more than is owed to this supplier.', has_payments: 'This invoice has payments: void the payments first.'};
 function errText(r){ return r.error ? 'Could not save. Check the connection and try again.' : (ERR[r.data && r.data.error] || 'Could not save. Try again.'); }
 
 /* ---------- sign in: the owner (phone code) or the accountant ---------- */
@@ -369,6 +419,7 @@ function showView(v){
   if (v === 'journal') loadJournal();
   if (v === 'reports') loadReport();
   if (v === 'expenses') loadExpenses();
+  if (v === 'payables') loadPayables();
   if (v === 'periods' || v === 'accounts') reloadOverview();   /* months appear as entries are posted */
 }
 document.querySelectorAll('#tabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.view); }); });
@@ -638,6 +689,126 @@ $('xGo').addEventListener('click', async function(){
 $('xCsv').addEventListener('click', function(){
   download('gastos-' + $('xlFrom').value + '-' + $('xlTo').value + '.csv', [['date', 'supplier', 'description', 'account', 'total', 'iva', 'paid_from', 'invoice', 'invoice_date', 'voided']].concat(
     EXPENSES.map(function(x){ return [x.date, x.vendor_name, x.description, x.account, x.amount_crc, x.iva_crc, x.paid_from, x.invoice_no, x.invoice_date, x.voided_at ? 'yes' : '']; })));
+});
+
+/* ---------- suppliers: invoices linked to deliveries, payments, what is owed ---------- */
+var AP = null, viReq = null, vpReq = null, PAID_FROM = {cash: 'Register', petty: 'Petty cash', bank: 'Bank'};
+async function loadPayables(){
+  if (!$('viDate').value){ $('viDate').value = today(); $('vpDate').value = today(); }
+  viReq = viReq || uuid(); vpReq = vpReq || uuid();
+  var r = await db.rpc('ap_aging', {p_as_of: null});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /ap_aging|Could not find/i.test(r.error.message || '') ? 'Suppliers need a database update (migration 0016).' : errText(r)); return; }
+  AP = r.data;
+  var keepI = $('viVendor').value, keepP = $('vpVendor').value;
+  var vopts = '<option value="">–</option>' + AP.vendor_list.map(function(v){ return '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>'; }).join('');
+  $('viVendor').innerHTML = vopts; $('vpVendor').innerHTML = vopts;
+  $('viVendor').value = keepI; $('vpVendor').value = keepP;
+  $('viAcct').innerHTML = AP.accounts.map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  var tb = $('agTable').querySelector('tbody'); tb.replaceChildren();
+  var tot = {current: 0, d30: 0, d60: 0, older: 0, total: 0};
+  AP.vendors.forEach(function(v){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(v.name) + '</td>' + ['current', 'd30', 'd60', 'older', 'total'].map(function(k){ tot[k] += Number(v[k]); return '<td class="num">' + fmt(v[k]) + '</td>'; }).join('');
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'head';
+  f.innerHTML = '<td>Total</td>' + ['current', 'd30', 'd60', 'older', 'total'].map(function(k){ return '<td class="num">' + fmt(tot[k]) + '</td>'; }).join('');
+  tb.appendChild(f);
+  var L = AP.ledger, parts = Number(L.invoices_open) + Number(L.received_not_invoiced) + Number(L.expenses_on_credit);
+  $('agTie').textContent = 'Accounts payable in the books ' + fmt(L.ap_balance) + ' = open invoices ' + fmt(L.invoices_open) + ' + received not invoiced ' + fmt(L.received_not_invoiced) +
+    ' + expenses on credit ' + fmt(L.expenses_on_credit);
+  $('agDiff').hidden = Math.abs(Number(L.ap_balance) - parts) < 0.5;
+  $('agDiff').textContent = 'Difference ' + fmt(Number(L.ap_balance) - parts) + ': days not posted yet, or entries by hand.';
+  renderInvoiceForm(); renderPayForm();
+  var it = $('viTable').querySelector('tbody'); it.replaceChildren();
+  AP.recent_invoices.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td>' + esc(x.number) + (x.voided ? ' <span class="tag rev">Voided</span>' : '') +
+      '</td><td class="mono">' + esc(x.due_date || '') + '</td><td class="num">' + fmt(x.total) + '</td><td class="num">' + (x.voided ? '' : fmt(x.open)) + '</td>';
+    var c = document.createElement('td');
+    if (!x.voided) c.appendChild(voidBtn('supplier_invoice_void', x.id, 'Why is this invoice voided?', 'Invoice voided'));
+    t.appendChild(c); it.appendChild(t);
+  });
+  var pt = $('vpTable').querySelector('tbody'); pt.replaceChildren();
+  AP.payments.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td>' + esc(PAID_FROM[x.paid_from] || x.paid_from) + '</td><td>' + esc(x.reference || '') +
+      '</td><td>' + esc(x.invoices || '') + '</td><td class="num">' + fmt(x.amount) + '</td>';
+    var c = document.createElement('td'); c.appendChild(voidBtn('supplier_payment_void', x.id, 'Why is this payment voided?', 'Payment voided'));
+    t.appendChild(c); pt.appendChild(t);
+  });
+}
+function voidBtn(fn, id, ask, done){
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Void';
+  b.addEventListener('click', async function(){
+    var why = prompt(ask); if (!why) return;
+    var v = await db.rpc(fn, {p_id: id, p_reason: why});
+    if (v.error || !v.data || !v.data.ok){ toast(errText(v)); return; }
+    toast(done); loadPayables();
+  });
+  return b;
+}
+function checkedReceipts(){ return Array.prototype.map.call(document.querySelectorAll('#viRecs input:checked'), function(i){ return i.value; }); }
+function renderInvoiceForm(){
+  var vid = $('viVendor').value, keep = checkedReceipts(), box = $('viRecs'); box.replaceChildren();
+  var recs = AP ? AP.uninvoiced.filter(function(r){ return r.vendor_id === vid; }) : [];
+  if (!vid) box.textContent = 'Pick the supplier.';
+  else if (!recs.length) box.textContent = 'None: this invoice is for something else (a service, equipment…).';
+  recs.forEach(function(r){
+    var l = document.createElement('label'); l.style.display = 'block';
+    var c = document.createElement('input'); c.type = 'checkbox'; c.value = r.id; c.style.width = 'auto'; c.style.minHeight = '0'; c.checked = keep.indexOf(r.id) >= 0;
+    c.addEventListener('change', invoiceDiff);
+    l.appendChild(c);
+    l.appendChild(document.createTextNode(' ' + String(r.received_at).slice(0, 10) + (r.po_number ? ' · Nº ' + r.po_number : '') + (r.invoice_no ? ' · ' + r.invoice_no : '') + ' · ' + fmt(r.total_crc)));
+    box.appendChild(l);
+  });
+  invoiceDiff();
+}
+function invoiceDiff(){
+  var ids = checkedReceipts(), rec = 0;
+  (AP ? AP.uninvoiced : []).forEach(function(r){ if (ids.indexOf(r.id) >= 0) rec += Number(r.total_crc); });
+  $('viAcctBox').hidden = ids.length > 0;
+  var net = Number($('viNet').value) || 0;
+  $('viDiff').textContent = ids.length ? 'Received at cost ' + fmt(rec) + (net ? ' · difference with the invoice ' + fmt(net - rec) : '') : '';
+}
+$('viVendor').addEventListener('change', renderInvoiceForm);
+$('viNet').addEventListener('input', invoiceDiff);
+$('viGo').addEventListener('click', async function(){
+  var ids = checkedReceipts();
+  var x = {vendor_id: $('viVendor').value, number: $('viNum').value.trim(), date: $('viDate').value, due_date: $('viDue').value || null,
+           net_crc: $('viNet').value === '' ? null : Number($('viNet').value), iva_crc: Number($('viIva').value) || 0, receipt_ids: ids,
+           account: ids.length ? null : $('viAcct').value};
+  if (!x.vendor_id || !x.number || x.net_crc == null){ $('viErr').textContent = 'Pick the supplier and write the invoice number and amount.'; return; }
+  var b = this; b.disabled = true;
+  var r = await db.rpc('supplier_invoice_save', {p_invoice: x, p_request_id: viReq || (viReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('viErr').textContent = r.data && r.data.error === 'bad_account' ? 'Pick what the invoice was for.' : errText(r); return; }
+  $('viErr').textContent = ''; ['viNum', 'viDue', 'viNet'].forEach(function(id){ $(id).value = ''; }); $('viIva').value = '0';
+  viReq = uuid(); toast('Invoice saved'); loadPayables();
+});
+function renderPayForm(){
+  var vid = $('vpVendor').value, v = AP ? AP.vendors.filter(function(x){ return x.vendor_id === vid; })[0] : null;
+  $('vpInv').innerHTML = '<option value="">The oldest first</option>' + (v ? v.invoices.filter(function(i){ return Number(i.open) > 0; }).map(function(i){
+    return '<option value="' + esc(i.id) + '">' + esc(i.number + ' · ' + fmt(i.open)) + '</option>'; }).join('') : '');
+  $('vpOwed').textContent = vid ? 'Owed to this supplier: ' + fmt(v ? v.total : 0) : '';
+}
+$('vpVendor').addEventListener('change', renderPayForm);
+$('vpGo').addEventListener('click', async function(){
+  var x = {vendor_id: $('vpVendor').value, amount_crc: Number($('vpAmt').value), paid_from: $('vpFrom').value, date: $('vpDate').value,
+           reference: $('vpRef').value.trim() || null, invoice_ids: $('vpInv').value ? [$('vpInv').value] : []};
+  if (!x.vendor_id || !(x.amount_crc > 0)){ $('vpErr').textContent = 'Pick the supplier and write the amount.'; return; }
+  var b = this; b.disabled = true;
+  var r = await db.rpc('supplier_payment_save', {p_payment: x, p_request_id: vpReq || (vpReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('vpErr').textContent = errText(r); return; }
+  $('vpErr').textContent = ''; ['vpAmt', 'vpRef'].forEach(function(id){ $(id).value = ''; });
+  vpReq = uuid(); toast('Payment recorded'); loadPayables();
+});
+$('pyCsv').addEventListener('click', function(){
+  if (!AP) return;
+  var rows = [['supplier', 'invoice', 'date', 'due_date', 'total', 'open']];
+  AP.vendors.forEach(function(v){ v.invoices.forEach(function(i){ if (Number(i.open) > 0) rows.push([v.name, i.number, i.date, i.due_date, i.total, i.open]); }); });
+  download('cuentas-por-pagar-' + AP.as_of + '.csv', rows);
 });
 
 /* ---------- accounts and mappings ---------- */

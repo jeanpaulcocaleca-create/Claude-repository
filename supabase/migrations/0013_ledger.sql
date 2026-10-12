@@ -216,8 +216,9 @@ drop trigger if exists lines_immutable on acct.lines;
 create trigger lines_immutable before update or delete on acct.lines for each row execute function acct._immutable();
 
 -- every entry balances, with at least two lines (checked when the transaction commits)
+-- checked at commit, when the session is back to the caller's role: definer, so the check can read the lines
 create or replace function acct._balanced()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = acct as $$
 declare d numeric; c numeric; n int;
 begin
   select coalesce(sum(debit), 0), coalesce(sum(credit), 0), count(*) into d, c, n from acct.lines where entry_id = new.entry_id;
@@ -230,7 +231,7 @@ drop trigger if exists lines_balanced on acct.lines;
 create constraint trigger lines_balanced after insert on acct.lines deferrable initially deferred
   for each row execute function acct._balanced();
 create or replace function acct._entry_has_lines()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = acct as $$
 begin
   if not exists (select 1 from acct.lines where entry_id = new.id) then
     raise exception 'ledger_unbalanced: el asiento % no tiene líneas', new.id using errcode = 'P0001';

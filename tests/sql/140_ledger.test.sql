@@ -65,6 +65,9 @@ select test.eq((select count(*)::int from acct.entries where source = 'day'), 0,
 
 select test.login('accountant'); set role authenticated;
 select test.eq(public.acct_post_days(public.cr_today(), public.cr_today())->>'entries', '1', 'the accountant posts the day');
+-- the balance check runs at commit as the caller (here: forced now, still as the accountant)
+select test.lives('set constraints all immediate', 'the commit-time balance check runs with the accountant''s rights');
+set constraints all deferred;
 reset role;
 set constraints all immediate; set constraints all deferred;   -- check the pending entries now, then back to normal
 create temp table t_day as
