@@ -8,6 +8,7 @@
 <link rel="icon" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400;600&family=Dancing+Script:wght@600&display=swap">
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <style>
 :root{
@@ -143,8 +144,8 @@ label{display:block;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
 </div>
 
 <script>
-var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
-var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var SUPA_URL = HG_CONFIG.url;
+var SUPA_KEY = HG_CONFIG.key;
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 var SKIP_CATS = {'Extras & Combos': 1};
 var CODE = new URLSearchParams(location.search).get('r') || '';

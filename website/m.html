@@ -165,6 +165,7 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
   </div>
 </div>
 
+<script src="config.js"></script>
 <script src="lang.js"></script>
 <script>
 /* The menu at the tables: the QR code opens https://hanginggardencafe.com/m. It reads the menu the Menu Manager
@@ -173,8 +174,8 @@ footer .pv{font-family:'Dancing Script',cursive;font-size:1.3rem;color:var(--gol
    phone, so a weak signal still shows something. */
 (function(){
   'use strict';
-  var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
-  var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+  var SUPA_URL = HG_CONFIG.url;
+  var SUPA_KEY = HG_CONFIG.key;
   var CACHE = 'hg-menu-m';
   var EVERY = 60000;                          /* look for changes once a minute while the page is open */
   var SKIP = {'Extras & Combos': 1};          /* till helpers and the combo discount line, as on the TV board */

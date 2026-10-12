@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="assets/logo-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Figtree:wght@400;600&display=swap">
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="login.js"></script>
 <style>
@@ -72,8 +73,8 @@ a.btn{display:inline-block;margin-top:1rem;background:var(--accent);color:#fff;t
   </div>
 </div>
 <script>
-var SUPA_URL = 'https://nbvczarfweanoxvdqplk.supabase.co';
-var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU';
+var SUPA_URL = HG_CONFIG.url;
+var SUPA_KEY = HG_CONFIG.key;
 /* its own session: opening the link on the café tablet never replaces (or signs out) the till's session */
 var RESET_AUTH = {auth: {storageKey: 'sb-hg-reset-auth'}};
 var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(RESET_AUTH) : RESET_AUTH);
