@@ -13,6 +13,9 @@ insert into public.app_accounts (user_id, kind, label) values
   ('c0000000-0000-4000-8000-000000000001', 'cafe', 'cafe@test.local'),
   ('0e000000-0000-4000-8000-000000000002', 'owner', 'owner@test.local')
 on conflict (user_id) do update set kind = excluded.kind;
+-- the accountant login (kind added by migration 0013)
+insert into public.app_accounts (user_id, kind, label) values ('ac000000-0000-4000-8000-000000000003', 'accountant', 'contador@test.local')
+on conflict (user_id) do update set kind = excluded.kind;
 
 insert into public.staff (id, name, role, active, pin_hash) values
   ('a1000000-0000-4000-8000-000000000001', 'Ana', 'manager', true, extensions.crypt('4826', extensions.gen_salt('bf'))),
