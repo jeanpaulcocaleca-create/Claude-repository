@@ -31,10 +31,17 @@ if mode == 'after':
     ca, rc = load('consistency-after.json'), load('release-check.json')
     n = len([f for f in os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../supabase/migrations')) if f.endswith('.sql')])
     check(sa['migrations_applied'] == list(range(n)), f"migrations applied: {sa['migrations_applied']}")
-    sc = sa['schema']
-    for k in ('functions_unknown', 'functions_changed', 'tables_missing', 'live_pages_rpc_missing'):
+    sc, sb_sc = sa['schema'], sb['schema']
+    # production may differ from the repository before the window (found by the snapshot, e.g. a function body or an
+    # extra column): that is allowed only if the migrations leave it exactly as it was; anything new is an error
+    for k in ('functions_unknown', 'functions_changed'):
+        new = sorted(set(sc[k]) - set(sb_sc[k]))
+        check(not new, f'{k} after the migrations (not there before): {new}')
+    for k in ('tables_missing', 'live_pages_rpc_missing'):
         check(sc[k] == [], f'{k}: {sc[k]}')
-    check(sc['tables_columns_differ'] == {}, f"original tables changed type or lost columns: {sc['tables_columns_differ']}")
+    moved = {t: c for t, c in sc['tables_columns_differ'].items() if sb_sc['tables_columns_differ'].get(t) != c}
+    check(not moved, f"original tables changed type or lost columns: {moved}")
+    drift = sorted(set(sb_sc['functions_changed']) | set(sb_sc['functions_unknown'])) + sorted(sb_sc['tables_columns_differ'])
     sec = sa['security']
     check(sec['tables_without_rls'] == [], f"tables without RLS: {sec['tables_without_rls']}")
     extra = sorted(set(sec['policies_without_account_check']) - OPEN_POLICIES)
@@ -63,6 +70,8 @@ if mode == 'after':
         check(st.get(k) == v, f'setting {k} should be {v!r} after the window, is {st.get(k)!r}')
     check(rc['confirmations'] == [], f"no confirmation may exist before the owner/accountant gives it: {rc['confirmations']}")
     if not errors:
+        if drift:
+            print(f"    already different from the repository before the window, left as it was: {', '.join(drift)}")
         print(f"    unchanged: {len(fb)} original tables (every original column, md5), {len(before_c['kept'])} business checks; "
               f"open rules {len(sec['policies_without_account_check'])} (all reviewed); functions: {sc['functions_by_version']}")
         if af.get('orders_business_date_not_sale_day') not in (None, '0'):

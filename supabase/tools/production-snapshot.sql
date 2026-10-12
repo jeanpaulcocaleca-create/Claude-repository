@@ -454,8 +454,9 @@ select jsonb_pretty(jsonb_build_object(
   'schema', jsonb_build_object(
       'functions_total', (select count(*) from fns),
       'functions_by_version', (select coalesce(jsonb_object_agg(v, n), '{}') from (select coalesce(ver, '?') as v, count(*) as n from fn_match group by 1) q),
-      'functions_changed', (select coalesce(jsonb_agg(fn order by fn), '[]') from fn_match where known and ver is null),
-      'functions_unknown', (select coalesce(jsonb_agg(fn order by fn), '[]') from fn_match where not known),
+      -- with the body's md5 (12 characters) so a difference can be matched with a version later
+      'functions_changed', (select coalesce(jsonb_agg(m.fn || ' · ' || f.h order by m.fn), '[]') from fn_match m join fns f on f.fn = m.fn where m.known and m.ver is null),
+      'functions_unknown', (select coalesce(jsonb_agg(m.fn || ' · ' || f.h order by m.fn), '[]') from fn_match m join fns f on f.fn = m.fn where not m.known),
       'functions_missing_legacy', (select coalesce(jsonb_agg(k.fn order by k.fn), '[]') from (select distinct fn from known_fn where ver = 'legacy') k
                                     where not exists (select 1 from fns f where f.fn = k.fn)),
       'tables_missing', (select coalesce(jsonb_agg(k.t order by k.t), '[]') from known_tab k where k.t <> '' and not exists (select 1 from tab_sig s where s.relname = k.t)),

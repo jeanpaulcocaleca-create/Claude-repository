@@ -4,7 +4,7 @@
 -- Quita lo que identifica personas y lo que da acceso; deja intactos montos, productos, fechas y cantidades,
 -- que es lo que el ensayo necesita.
 --   * personal: nombre "Persona N", todos con el PIN de pruebas (secreto STAGING_PIN); sin bloqueos
---   * huéspedes: sin nombre real ni teléfono; notas de habitación borradas
+--   * huéspedes: sin nombre real ni teléfono; notas de habitación y la columna libre "note" borradas
 --   * proveedores: "Proveedor N", sin contacto
 --   * bitácora, caja, inventario, compras, descuentos: quién lo hizo → "Persona"
 --   * preguntas del chat del sitio: texto genérico
@@ -48,6 +48,9 @@ begin
   end loop;
   select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'expenses' and column_name = 'notes') into has;
   if has then update public.expenses set notes = null where notes is not null; end if;
+  -- production's orders has an extra free-text column "note" (snapshot 2026-10-12) whose content is unknown
+  select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'note') into has;
+  if has then execute 'update public.orders set note = null where note is not null'; end if;
 end $$;
 select set_config('canopy.staging_pin', '', false);
 set session_replication_role = origin;
