@@ -22,7 +22,7 @@
   };
   /* staff pages (sales, money, people): they only run on a known address. Public pages (menu, website, room
      ordering, TV) fall back to production elsewhere, e.g. when a visitor uses a translation proxy. */
-  var STAFF = /\/(pos|kitchen|time|home|sales|inventory|admin|reset|accounting|contabilidad)(\.html)?$/;
+  var STAFF = /\/(pos|kitchen|time|home|sales|insights|inventory|admin|reset|accounting|contabilidad)(\.html)?$/;
   var host = location.hostname, env = HOSTS[host] || 'unknown';
   var staffPage = STAFF.test(location.pathname);
   var cfg = ENVS[env] || ENVS.production;

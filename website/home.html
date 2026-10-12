@@ -135,7 +135,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   </header>
 
   <div class="kpis">
-    <div class="kpi"><div class="l">Revenue today</div><div class="v" id="kRev">–</div></div>
+    <div class="kpi"><div class="l">Revenue today</div><div class="v" id="kRev">–</div><div class="s" id="kRevSub"></div></div>
     <div class="kpi"><div class="l">Orders today</div><div class="v" id="kOrders">–</div></div>
     <div class="kpi"><div class="l">On the clock</div><div class="v names" id="kClock">–</div><div class="s" id="kClockSub"></div></div>
     <div class="kpi"><div class="l">Sold out</div><div class="v" id="kSoldOut">–</div><div class="s" id="kSoldOutSub"></div></div>
@@ -162,6 +162,11 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-9M21 20H3"/></svg>
       <span class="t">Sales</span>
       <span class="d">What you sold today, this week, this month — best sellers and CSV for the accountant.</span>
+    </a>
+    <a class="tile" href="insights.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 17l5-5 4 3 7-8M15 7h4v4"/></svg>
+      <span class="t">Insights</span>
+      <span class="d">Trends month by month, busy hours, what each product leaves, suppliers and what to order soon.</span>
     </a>
     <a class="tile" href="admin.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.2"/></svg>
@@ -550,6 +555,15 @@ async function loadStats(){
     document.getElementById('kRev').textContent = fmt(total);
     document.getElementById('kOrders').textContent = rows.filter(function(o){ return !o.part_of; }).length;   /* split payments are part of one bill */
   }
+
+  /* estimate while the register is open, final once closed; against the same weekday last week (migration 0023) */
+  db.rpc('dashboard_today').then(function(d){
+    if (d.error || !d.data || !d.data.ok) return;
+    var T = d.data.today, L = d.data.last_week, fin = d.data.state === 'final', lw = Number(fin ? L.gross_day : L.gross_so_far);
+    var ch = lw > 0 ? Math.round(100 * (Number(T.gross) - lw) / lw) : null;
+    document.getElementById('kRevSub').textContent = (fin ? 'Final' : 'Estimate') + ' · without IVA ' + fmt(Math.round(T.net)) +
+      (ch == null ? '' : ' · ' + (ch >= 0 ? '▲ ' : '▼ ') + Math.abs(ch) + ' % vs last week');
+  });
 
   var sold = rs[1];
   if (!sold.error){

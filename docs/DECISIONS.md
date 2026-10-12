@@ -187,3 +187,23 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   withholding and advances are typed per person with a note. The accountant marks it reviewed; only then is
   it posted (gross and employer charges against salaries, charges and withholdings payable) and paid.
 - **Why:** CCSS, INS and income-tax rules (A-08) are not confirmed; the system must not invent them.
+
+## D-020 · 2026-10-12 · Insights are computed from the operational records, labelled estimate or final
+- **Decision:** the owner's numbers (today, months, patterns, products, suppliers, stock forecast) come from
+  read-only functions over the sales, stock moves, receipts, invoices and shifts — not from the ledger — so
+  they work before the accountant switches the books on. Today is an "estimate" while the register is open
+  (tablets may still send sales, bills may be unpaid) and "final" once it is closed. Sales without IVA use
+  each line's stamped IVA; older sales are estimated at 13 % and labelled so. Labor needs the pay rates, so
+  only the owner (with the phone code) and the accountant see it.
+- **Charts:** plain SVG, no library; one hue for magnitude (sales bars, the busy-hours heatmap), three
+  fixed, checked colors for the cost percentages (food #A07629, labor #1E4B33, prime #3B6EA8: each pair
+  ≥ 16 OKLab ΔE under protan/deutan/tritan simulation, each ≥ 3.6:1 on the page), legend + labels, tooltips,
+  and the numbers in a table and CSV.
+
+## D-021 · 2026-10-12 · One café today; the data is ready for a second one
+- **Decision:** `locations` holds today's café; the main tables carry `location_id` with today's café as the
+  default, so nothing changes for the pages. A second location will need (as a later, separate migration):
+  one register per location per day (today `register_days.business_date` is unique), stock per location,
+  each device saying its location, and reports filtered by it.
+- **Why:** adding the column now, with a default, is cheap and safe; the larger changes depend on how a
+  second location would actually run.
