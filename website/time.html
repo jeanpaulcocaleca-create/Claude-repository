@@ -437,7 +437,8 @@ async function refreshAuth(){
   ACCESS = await HG_ACCESS.load(db);
   if (ACCESS.level) HG_ACCESS.pill(db);
   document.getElementById('logCard').hidden = !canManage();
-  document.getElementById('setupView').hidden = true; loadClock();
+  /* a tap on Hours while the page was still starting is answered now */
+  document.getElementById('setupView').hidden = true; if (curTab === 'hours') loadHours(); else loadClock();
 }
 document.getElementById('codeForm').addEventListener('submit', async function(e){
   e.preventDefault();
