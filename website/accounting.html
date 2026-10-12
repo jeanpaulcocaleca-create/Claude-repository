@@ -138,6 +138,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
     <button type="button" data-view="expenses">Expenses</button>
     <button type="button" data-view="payables">Suppliers</button>
     <button type="button" data-view="einvoice">E-invoices</button>
+    <button type="button" data-view="cash">Cash</button>
     <button type="button" data-view="accounts">Accounts</button>
     <button type="button" data-view="periods">Periods</button>
   </div>
@@ -208,7 +209,8 @@ tr.head td{font-weight:700;background:var(--canvas)}
         <div><label for="xAcct">Account</label><select id="xAcct"></select></div>
         <div><label for="xAmt">Total paid, IVA included (₡)</label><input id="xAmt" data-keypad="amount" type="number" min="0" step="any"></div>
         <div><label for="xIva">Creditable IVA (₡)</label><input id="xIva" data-keypad="amount" type="number" min="0" step="any" value="0"></div>
-        <div><label for="xFrom">Paid from</label><select id="xFrom"><option value="cash">The register (colones)</option><option value="petty">Petty cash</option><option value="bank">Bank or company card</option><option value="credit">On credit (to pay later)</option></select></div>
+        <div><label for="xFrom">Paid from</label><select id="xFrom"><option value="payout">Money taken from the register (recorded at the POS)</option><option value="petty">Petty cash</option><option value="bank">Bank or company card</option><option value="credit">On credit (to pay later)</option><option value="cash">Cash from the safe (not the register drawer)</option></select></div>
+        <div id="xPayoutBox"><label for="xPayout">Which payout</label><select id="xPayout"></select></div>
         <div><label for="xInv">Invoice Nº</label><input id="xInv" maxlength="40"></div>
         <div><label for="xInvDate">Invoice date</label><input id="xInvDate" type="date"></div>
         <div><label for="xFile">Photo or PDF of the invoice</label><input id="xFile" type="file" accept="image/*,application/pdf" capture="environment"></div>
@@ -257,7 +259,8 @@ tr.head td{font-weight:700;background:var(--canvas)}
       <div class="grid2">
         <div><label for="vpVendor">Supplier</label><select id="vpVendor"></select></div>
         <div><label for="vpAmt">Amount (₡)</label><input id="vpAmt" data-keypad="amount" type="number" min="0" step="any"></div>
-        <div><label for="vpFrom">Paid from</label><select id="vpFrom"><option value="bank">Bank transfer or SINPE</option><option value="cash">The register (colones)</option><option value="petty">Petty cash</option></select></div>
+        <div><label for="vpFrom">Paid from</label><select id="vpFrom"><option value="bank">Bank transfer or SINPE</option><option value="payout">Money taken from the register (recorded at the POS)</option><option value="petty">Petty cash</option><option value="cash">Cash from the safe (not the register drawer)</option></select></div>
+        <div id="vpPayoutBox" hidden><label for="vpPayout">Which payout</label><select id="vpPayout"></select></div>
         <div><label for="vpDate">Date</label><input id="vpDate" type="date"></div>
         <div><label for="vpRef">Reference</label><input id="vpRef" maxlength="80"></div>
         <div><label for="vpInv">Invoice to pay first</label><select id="vpInv"></select></div>
@@ -287,6 +290,24 @@ tr.head td{font-weight:700;background:var(--canvas)}
       <p class="hint mono" id="eCounts"></p>
       <details id="eCabys" hidden><summary class="err" id="eCabysN"></summary><p class="hint" id="eCabysList" data-no-translate></p></details>
       <div class="tablewrap"><table id="eTable"><thead><tr><th>Nº</th><th>Date</th><th>Receipt</th><th>Document</th><th class="num">Total</th><th class="num">IVA</th><th>Status</th><th>Missing</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- CASH: the drawer by day in colones and dollars; payouts waiting for their invoice (0019) -->
+  <section class="view" id="view-cash" hidden>
+    <div class="card">
+      <h2>Cash by day <span class="sp"></span><button type="button" class="small ghost" id="cCsv">Download CSV</button></h2>
+      <div class="tools">
+        <div><label for="cFrom">From</label><input id="cFrom" type="date"></div>
+        <div><label for="cTo">To</label><input id="cTo" type="date"></div>
+        <div><button type="button" id="cGo">Show</button></div>
+      </div>
+      <div class="tablewrap"><table id="cTable"><thead><tr><th>Day</th><th></th><th class="num">Float</th><th class="num">Cash sales</th><th class="num">Money in</th><th class="num">Money out</th><th class="num">Expected</th><th class="num">Counted</th><th class="num">Difference</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Payouts from the register waiting for their invoice</h2>
+      <p class="hint">Money a manager took from the drawer to pay a purchase. File its invoice as an expense or a supplier payment "paid with money taken from the register".</p>
+      <div class="tablewrap"><table id="poTable"><thead><tr><th>Day</th><th>What for</th><th>Who</th><th class="num">Amount</th><th class="num">Filed</th><th></th></tr></thead><tbody></tbody></table></div>
     </div>
   </section>
 
@@ -351,7 +372,7 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   owner_only: 'Only the owner can switch this on.', missing_reference: 'Write who approved it and the document.', bad_range: 'Pick at most three months.',
   missing_reason: 'Write the reason.', already_voided: 'Already voided.', no_vendor: 'Pick the supplier.',
   bad_receipts: 'One of those deliveries is of another supplier or already has its invoice. Refresh and try again.',
-  more_than_owed: 'That is more than is owed to this supplier.', has_payments: 'This invoice has payments: void the payments first.'};
+  more_than_owed: 'That is more than is owed to this supplier.', bad_payout: 'That payout is not available: refresh and pick it again.', has_payments: 'This invoice has payments: void the payments first.'};
 function errText(r){ return r.error ? 'Could not save. Check the connection and try again.' : (ERR[r.data && r.data.error] || 'Could not save. Try again.'); }
 
 /* ---------- sign in: the owner (phone code) or the accountant ---------- */
@@ -439,6 +460,7 @@ function showView(v){
   if (v === 'expenses') loadExpenses();
   if (v === 'payables') loadPayables();
   if (v === 'einvoice') loadEDocs();
+  if (v === 'cash') loadCash();
   if (v === 'periods' || v === 'accounts') reloadOverview();   /* months appear as entries are posted */
 }
 document.querySelectorAll('#tabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.view); }); });
@@ -717,6 +739,7 @@ var xReq = null, EXPENSES = [];
 async function loadExpenses(){
   if (!$('xlFrom').value){ $('xlFrom').value = monthStart(today()); $('xlTo').value = today(); }
   if (!$('xDate').value){ $('xDate').value = today(); xReq = uuid(); }
+  loadPayouts().then(payoutBoxes);
   var r = await db.rpc('expense_list', {p_from: $('xlFrom').value, p_to: $('xlTo').value});
   var tb = $('xTable').querySelector('tbody'); tb.replaceChildren();
   if (r.error || !r.data || !r.data.ok) return;
@@ -764,7 +787,8 @@ $('xlGo').addEventListener('click', loadExpenses);
 $('xGo').addEventListener('click', async function(){
   var x = {date: $('xDate').value, vendor_name: $('xVendor').value.trim(), description: $('xDesc').value.trim(), account: $('xAcct').value,
            amount_crc: Number($('xAmt').value), iva_crc: Number($('xIva').value) || 0, paid_from: $('xFrom').value,
-           invoice_no: $('xInv').value.trim() || null, invoice_date: $('xInvDate').value || null};
+           invoice_no: $('xInv').value.trim() || null, invoice_date: $('xInvDate').value || null,
+           payout_id: $('xFrom').value === 'payout' ? ($('xPayout').value || null) : null};
   if (!x.description || !(x.amount_crc > 0)){ $('xErr').textContent = 'Write what it was and the total.'; return; }
   var b = this; b.disabled = true;
   var r = await db.rpc('expense_save', {p_expense: x, p_request_id: xReq || (xReq = uuid())});
@@ -787,10 +811,11 @@ $('xCsv').addEventListener('click', function(){
 });
 
 /* ---------- suppliers: invoices linked to deliveries, payments, what is owed ---------- */
-var AP = null, viReq = null, vpReq = null, PAID_FROM = {cash: 'Register', petty: 'Petty cash', bank: 'Bank'};
+var AP = null, viReq = null, vpReq = null, PAID_FROM = {cash: 'Safe', petty: 'Petty cash', bank: 'Bank', payout: 'Register payout'};
 async function loadPayables(){
   if (!$('viDate').value){ $('viDate').value = today(); $('vpDate').value = today(); }
   viReq = viReq || uuid(); vpReq = vpReq || uuid();
+  loadPayouts().then(payoutBoxes);
   var r = await db.rpc('ap_aging', {p_as_of: null});
   if (r.error || !r.data || !r.data.ok){ toast(r.error && /ap_aging|Could not find/i.test(r.error.message || '') ? 'Suppliers need a database update (migration 0016).' : errText(r)); return; }
   AP = r.data;
@@ -890,7 +915,8 @@ function renderPayForm(){
 $('vpVendor').addEventListener('change', renderPayForm);
 $('vpGo').addEventListener('click', async function(){
   var x = {vendor_id: $('vpVendor').value, amount_crc: Number($('vpAmt').value), paid_from: $('vpFrom').value, date: $('vpDate').value,
-           reference: $('vpRef').value.trim() || null, invoice_ids: $('vpInv').value ? [$('vpInv').value] : []};
+           reference: $('vpRef').value.trim() || null, invoice_ids: $('vpInv').value ? [$('vpInv').value] : [],
+           payout_id: $('vpFrom').value === 'payout' ? ($('vpPayout').value || null) : null};
   if (!x.vendor_id || !(x.amount_crc > 0)){ $('vpErr').textContent = 'Pick the supplier and write the amount.'; return; }
   var b = this; b.disabled = true;
   var r = await db.rpc('supplier_payment_save', {p_payment: x, p_request_id: vpReq || (vpReq = uuid())});
@@ -904,6 +930,64 @@ $('pyCsv').addEventListener('click', function(){
   var rows = [['supplier', 'invoice', 'date', 'due_date', 'total', 'open']];
   AP.vendors.forEach(function(v){ v.invoices.forEach(function(i){ if (Number(i.open) > 0) rows.push([v.name, i.number, i.date, i.due_date, i.total, i.open]); }); });
   download('cuentas-por-pagar-' + AP.as_of + '.csv', rows);
+});
+
+/* ---------- cash: the drawer by day, and payouts to file ---------- */
+var CASH = null, PAYOUTS = [];
+async function loadPayouts(){
+  var r = await db.rpc('cash_payouts', {p_from: null, p_to: null});
+  PAYOUTS = (!r.error && r.data && r.data.ok) ? r.data.payouts : [];
+  var open = PAYOUTS.filter(function(p){ return Number(p.amount_crc) - Number(p.documented_crc) > 0.5; });
+  var opts = open.map(function(p){ return '<option value="' + esc(p.id) + '">' + esc(p.date + ' · ' + p.reason + ' · ' + fmt(Number(p.amount_crc) - Number(p.documented_crc))) + '</option>'; }).join('');
+  ['xPayout', 'vpPayout'].forEach(function(id){ var keep = $(id).value; $(id).innerHTML = '<option value="">' + esc('Not recorded at the POS') + '</option>' + opts; if (keep) $(id).value = keep; });
+  return open;
+}
+function payoutBoxes(){ $('xPayoutBox').hidden = $('xFrom').value !== 'payout'; $('vpPayoutBox').hidden = $('vpFrom').value !== 'payout'; }
+$('xFrom').addEventListener('change', payoutBoxes); $('vpFrom').addEventListener('change', payoutBoxes);
+async function loadCash(){
+  if (!$('cFrom').value){ $('cFrom').value = monthStart(today()); $('cTo').value = today(); }
+  var r = await db.rpc('cash_reconciliation', {p_from: $('cFrom').value, p_to: $('cTo').value});
+  var tb = $('cTable').querySelector('tbody'); tb.replaceChildren();
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /cash_reconciliation|Could not find/i.test(r.error.message || '') ? 'Cash needs a database update (migration 0019).' : errText(r)); return; }
+  CASH = r.data.days;
+  function num(v, money){ return v == null ? '<td></td>' : '<td class="num">' + (money ? fmt(v) : esc('$' + Number(v).toFixed(2))) + '</td>'; }
+  function diff(v, money){ if (v == null) return '<td class="num">' + esc('not counted') + '</td>'; var x = Number(v);
+    return '<td class="num"' + (Math.abs(x) >= (money ? 1 : 0.01) ? ' style="color:var(--bad)"' : '') + '>' + (money ? fmt(x) : esc((x < 0 ? '−$' : '$') + Math.abs(x).toFixed(2))) + '</td>'; }
+  CASH.forEach(function(d){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(d.date) + (d.closed ? '' : ' <span class="tag">' + esc('Still open') + '</span>') + '</td><td>₡</td>' + num(d.float_crc, 1) + num(d.sales_crc, 1) + num(d.in_crc, 1) + num(d.out_crc, 1) +
+      num(d.expected_crc, 1) + num(d.counted_crc, 1) + (d.closed ? diff(d.diff_crc, 1) : '<td></td>');
+    tb.appendChild(t);
+    if (Number(d.float_usd) || Number(d.sales_usd) || Number(d.in_usd) || Number(d.out_usd) || d.counted_usd != null){
+      var u = document.createElement('tr');
+      u.innerHTML = '<td></td><td>$</td>' + num(d.float_usd) + num(d.sales_usd) + num(d.in_usd) + num(d.out_usd) + num(d.expected_usd) + num(d.counted_usd) +
+        (d.closed ? diff(d.diff_usd) : '<td></td>');
+      tb.appendChild(u);
+    }
+  });
+  var open = await loadPayouts(), pb = $('poTable').querySelector('tbody'); pb.replaceChildren();
+  PAYOUTS.forEach(function(p){
+    var left = Number(p.amount_crc) - Number(p.documented_crc), t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(p.date) + '</td><td>' + esc(p.reason) + '</td><td>' + esc(p.staff_name) + '</td><td class="num">' +
+      (p.currency === 'USD' ? esc('$' + Number(p.amount).toFixed(2)) + ' · ' : '') + fmt(p.amount_crc) + '</td><td class="num">' + fmt(p.documented_crc) + '</td>';
+    var c = document.createElement('td');
+    if (left > 0.5){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'File its invoice';
+      b.addEventListener('click', function(){
+        showView('expenses'); $('xFrom').value = 'payout'; payoutBoxes(); $('xPayout').value = p.id; $('xAmt').value = Math.round(left * 100) / 100; $('xDate').value = p.date; $('xDesc').focus();
+      });
+      c.appendChild(b);
+    }
+    t.appendChild(c); pb.appendChild(t);
+  });
+}
+$('cGo').addEventListener('click', loadCash);
+$('cCsv').addEventListener('click', function(){
+  if (!CASH) return;
+  download('caja-' + $('cFrom').value + '-' + $('cTo').value + '.csv', [['day', 'closed', 'float_crc', 'cash_sales_crc', 'in_crc', 'out_crc', 'expected_crc', 'counted_crc', 'diff_crc',
+    'float_usd', 'cash_sales_usd', 'in_usd', 'out_usd', 'expected_usd', 'counted_usd', 'diff_usd', 'fx_rate']].concat(CASH.map(function(d){
+      return [d.date, d.closed ? 'yes' : 'no', d.float_crc, d.sales_crc, d.in_crc, d.out_crc, d.expected_crc, d.counted_crc, d.diff_crc,
+              d.float_usd, d.sales_usd, d.in_usd, d.out_usd, d.expected_usd, d.counted_usd, d.diff_usd, d.fx_rate]; })));
 });
 
 /* ---------- electronic documents: what would be sent, once there is a provider ---------- */

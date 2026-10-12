@@ -203,6 +203,17 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   <h2 class="section" id="setHead" hidden>System settings</h2>
   <div class="sec" id="setCard" hidden>
     <div id="setList"></div>
+    <!-- the day's dollar rate: official when it arrives on its own (E-16), typed here when it is missing -->
+    <div class="setrow" id="fxRow">
+      <b>Dollar exchange rate</b>
+      <span class="mono" id="fxNow"></span>
+      <div class="confform">
+        <input id="fxBuy" type="number" min="0" step="0.01" inputmode="decimal" data-keypad="amount" placeholder="Buy" aria-label="Buy rate">
+        <input id="fxSell" type="number" min="0" step="0.01" inputmode="decimal" data-keypad="amount" placeholder="Sell" aria-label="Sell rate">
+        <button class="small" id="fxGo">Save today's rate</button>
+      </div>
+      <div class="s">Used by the POS for payments in dollars. Type the bank's rate of the day when the official one has not arrived; it never replaces an official rate.</div>
+    </div>
     <div id="confBox" hidden>
       <p class="hint" style="margin:.8rem 0 .4rem">Settings with a lock follow a legal rule (taxes, payroll, electronic invoices). They switch on only after the rule is confirmed by your accountant or an official source. Record who confirmed it and with which document:</p>
       <div class="confform">
@@ -475,7 +486,26 @@ async function loadSettingsCard(){
   keys.forEach(function(k){ var o = document.createElement('option'); o.value = k; o.textContent = k + (guards[k] ? '' : ' ✓'); ck.appendChild(o); });
   document.getElementById('confBox').hidden = !keys.length;
   card.hidden = false; head.hidden = false;
+  loadFxRow();
 }
+async function loadFxRow(){
+  var r = await db.rpc('fx_today'), now = document.getElementById('fxNow');
+  if (r.error || !r.data || !r.data.ok){ document.getElementById('fxRow').hidden = true; return; }
+  document.getElementById('fxRow').hidden = false;
+  now.textContent = r.data.rate ? '₡' + Number(r.data.rate).toFixed(2) + ' · ' + r.data.day + ' · ' + (r.data.source === 'manual' ? 'typed' : 'official') + (r.data.stale ? ' · old' : '') : 'No rate yet';
+}
+document.getElementById('fxGo').addEventListener('click', async function(){
+  var msg = document.getElementById('setMsg'); msg.className = 'err'; msg.textContent = '';
+  var b = parseFloat(document.getElementById('fxBuy').value), se = parseFloat(document.getElementById('fxSell').value);
+  if (!(b > 0) || !(se > 0)){ msg.textContent = 'Type the buy and sell rates.'; return; }
+  var day = new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);   /* Costa Rica (UTC−6) */
+  var r = await db.rpc('fx_rate_set', {p_day: day, p_buy: b, p_sell: se});
+  var E = {official_exists: 'The official rate of today is already in: it is used as it is.', bad_value: 'Check the rates: buy is the lower one, sell the higher one.',
+           owner_only: 'Only the owner login, with the phone code, can change settings.'};
+  if (r.error || !r.data || !r.data.ok){ msg.textContent = r.error ? 'Could not save. Check the connection and try again.' : (E[r.data.error] || 'Could not save. Try again.'); return; }
+  document.getElementById('fxBuy').value = ''; document.getElementById('fxSell').value = '';
+  msg.className = 'err ok'; msg.textContent = 'Saved.'; loadFxRow();
+});
 document.getElementById('confGo').addEventListener('click', async function(){
   var msg = document.getElementById('setMsg'); msg.className = 'err'; msg.textContent = '';
   var who = document.getElementById('confWho').value.trim(), ref = document.getElementById('confRef').value.trim();

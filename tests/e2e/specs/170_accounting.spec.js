@@ -73,7 +73,7 @@ module.exports.tests = [
       await pg.fill('#xIva', '130');
       await pg.click('#xGo');
       await until(() => sql(`select string_agg(l.account || ':' || (l.debit - l.credit), ',' order by l.account) from acct.lines l join acct.entries e on e.id = l.entry_id where e.source = 'expense'`)
-                    === '1101:-1130.00,1140:130.00,6204:1000.00', 8000, 'expense posted with its IVA');
+                    === '1104:-1130.00,1140:130.00,6204:1000.00', 8000, 'expense posted with its IVA (paid with money taken from the register)');
       await pg.click('#tabs [data-view=periods]');
       await pg.locator('#pTable button', { hasText: 'Close' }).first().click();
       await until(() => sql(`select status from acct.periods limit 1`) === 'closed', 8000, 'month closed');

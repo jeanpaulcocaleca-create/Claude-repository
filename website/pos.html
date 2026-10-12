@@ -408,6 +408,36 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <h2>Today at the counter</h2>
     <p class="regstate" id="regState" hidden></p>
     <div id="dayBody"></div>
+    <!-- money put into or taken out of the drawer during the day, with a manager's PIN (migration 0019) -->
+    <div id="cmBox" hidden>
+      <div id="cmList"></div>
+      <button type="button" class="ghost" id="cmBtn" style="width:100%;margin-top:.6rem">Money in or out of the drawer</button>
+      <form class="regform" id="regMoveForm" hidden>
+        <h3>Money in or out of the drawer</h3>
+        <label for="cmKind">What is it?</label>
+        <select id="cmKind">
+          <option value="out:bank">Out: deposit at the bank</option>
+          <option value="out:payout">Out: paying a purchase or a supplier</option>
+          <option value="out:petty">Out: to petty cash</option>
+          <option value="out:owner">Out: the owner takes it</option>
+          <option value="in:bank">In: change from the bank</option>
+          <option value="in:petty">In: back from petty cash</option>
+          <option value="in:owner">In: the owner puts it in</option>
+        </select>
+        <label for="cmCur">Currency</label>
+        <select id="cmCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select>
+        <label for="cmAmt">Amount</label>
+        <input id="cmAmt" data-keypad="amount" type="number" min="0" step="any" inputmode="decimal" required>
+        <label for="cmWhy">What for (keep the receipt)</label>
+        <input id="cmWhy" maxlength="200" autocomplete="off" required>
+        <label for="cmStaff">Manager</label>
+        <select id="cmStaff"></select>
+        <label for="cmPin">Manager PIN</label>
+        <input id="cmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+        <p class="err" id="cmErr"></p>
+        <button type="submit">Record it</button>
+      </form>
+    </div>
     <!-- the register: opened in the morning with the cash float, closed in the evening against the card terminal and the drawer -->
     <form class="regform" id="regOpenForm" hidden>
       <h3>Open the register</h3>
@@ -2006,7 +2036,7 @@ async function loadStaffList(){
   var list = r.error ? [] : (r.data || []);
   staffList = r.error ? null : list;                 /* a failed load is retried next time the modal opens */
   var remembered = ''; try { remembered = localStorage.getItem('hg-pos-reg-staff') || ''; } catch (e) {}
-  ['roStaff', 'rcStaff'].forEach(function(id){
+  ['roStaff', 'rcStaff', 'cmStaff'].forEach(function(id){
     var sel = document.getElementById(id); sel.textContent = '';
     list.forEach(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; sel.appendChild(o); });
     if (!list.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = r.error ? 'Could not load the team. Reopen Today to try again.' : 'No team members yet'; sel.appendChild(o2); }
@@ -2036,7 +2066,7 @@ function regQueueState(){
   document.getElementById('rcSubmit').disabled = !!queue.length;
 }
 function hideRegisterBlocks(){
-  ['regState', 'regOpenForm', 'regCloseForm', 'countedBox', 'recloseBtn', 'rcUnpaid'].forEach(function(id){ document.getElementById(id).hidden = true; });
+  ['regState', 'regOpenForm', 'regCloseForm', 'countedBox', 'recloseBtn', 'rcUnpaid', 'cmBox'].forEach(function(id){ document.getElementById(id).hidden = true; });
   document.getElementById('rcCardDiff').textContent = ''; document.getElementById('rcCashDiff').textContent = '';
 }
 function hhmm(iso){ var d = new Date(iso); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
@@ -2093,6 +2123,7 @@ function renderRegister(body){
       state.textContent = 'Opened at ' + hhmm(REG.opened_at) + ' by ' + REG.opened_by_name + ' · float ' + fmt(REG.float_crc);
       dayRow(body, 'Expected in the drawer (float + cash)', fmt(expected));
       if (regExp && (regExp.expected_usd > 0)) dayRow(body, 'Expected dollars in the drawer', usd(regExp.expected_usd));
+      showCashMoves();
     }
     closeF.hidden = false;
     document.getElementById('rcErr').textContent = '';
@@ -2125,6 +2156,59 @@ function renderRegister(body){
   after.textContent = 'Sales rung up after closing are not in this count.';
   body.appendChild(after);
 }
+/* money in and out of the drawer: listed under the expected amount, which already counts them */
+var CM_LABEL = {'out:bank': 'Deposit at the bank', 'out:payout': 'Paid a purchase', 'out:petty': 'To petty cash', 'out:owner': 'The owner took it',
+                'in:bank': 'Change from the bank', 'in:petty': 'Back from petty cash', 'in:owner': 'The owner put it in'};
+var cmReq = null, cmSeq = 0;
+async function showCashMoves(){
+  var box = document.getElementById('cmBox'), list = document.getElementById('cmList');
+  box.hidden = false; document.getElementById('regMoveForm').hidden = true; document.getElementById('cmBtn').hidden = false;
+  var mine = ++cmSeq, r = await db.rpc('register_cash_moves');
+  if (mine !== cmSeq) return;
+  list.textContent = '';
+  if (r.error){ if (/register_cash_moves|schema cache|could not find/i.test(r.error.message || '')) box.hidden = true; return; }   /* migration 0019 not applied yet */
+  if (!r.data || !r.data.ok) return;
+  r.data.moves.forEach(function(m){
+    var amt = m.currency === 'USD' ? usd(Number(m.amount)) : fmt(Number(m.amount));
+    var row = dayRow(list, hhmm(m.at) + ' · ' + (CM_LABEL[m.direction + ':' + m.purpose] || m.purpose) + ' · ' + m.reason, (m.direction === 'in' ? '+' : '−') + amt);
+    if (m.voided){ row.parentNode.style.textDecoration = 'line-through'; row.parentNode.style.opacity = '.6'; return; }
+    var vb = document.createElement('button'); vb.type = 'button'; vb.className = 'ghost'; vb.textContent = 'Void';
+    vb.style.cssText = 'margin-left:.5rem;padding:.1em .6em;font-size:.8rem';
+    vb.addEventListener('click', async function(){
+      var pin = document.getElementById('cmPin').value.trim(), err = document.getElementById('cmErr');
+      document.getElementById('regMoveForm').hidden = false; document.getElementById('cmBtn').hidden = true;
+      if (!pin){ err.textContent = 'Pick the manager and type the PIN below, then tap Void again.'; document.getElementById('cmPin').focus(); return; }
+      var why = prompt('Why is it voided?'); if (!why) return;
+      var v = await db.rpc('register_cash_void', {p_manager_id: document.getElementById('cmStaff').value || null, p_pin: pin, p_id: m.id, p_reason: why});
+      document.getElementById('cmPin').value = '';
+      if (v.error || !v.data || !v.data.ok){ err.textContent = regErr(v); return; }
+      toast('Voided'); openDay();
+    });
+    row.parentNode.appendChild(vb);
+  });
+}
+document.getElementById('cmBtn').addEventListener('click', function(){
+  this.hidden = true; document.getElementById('regMoveForm').hidden = false; document.getElementById('cmErr').textContent = '';
+  cmReq = cmReq || uuid(); document.getElementById('cmAmt').focus();
+});
+document.getElementById('regMoveForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var err = document.getElementById('cmErr'); err.textContent = '';
+  var k = document.getElementById('cmKind').value.split(':'), amt = parseFloat(document.getElementById('cmAmt').value);
+  if (!(amt > 0)){ err.textContent = 'Type the amount.'; return; }
+  var b = this.querySelector('button[type=submit]'); b.disabled = true;
+  var r = await db.rpc('register_cash_move', {p_manager_id: document.getElementById('cmStaff').value || null, p_pin: document.getElementById('cmPin').value.trim(),
+    p_move: {direction: k[0], purpose: k[1], currency: document.getElementById('cmCur').value, amount: amt, reason: document.getElementById('cmWhy').value.trim(), station: STATION || null},
+    p_request_id: cmReq || (cmReq = uuid())});
+  b.disabled = false;
+  document.getElementById('cmPin').value = '';   /* a PIN never stays on screen, right or wrong */
+  if (r.error || !r.data || !r.data.ok){ err.textContent = r.error ? 'Could not save. Check the connection and try again.' : (CM_ERR[r.data.error] || regErr(r)); return; }
+  cmReq = null; document.getElementById('cmAmt').value = ''; document.getElementById('cmWhy').value = '';
+  toast('Recorded: the drawer expects it'); openDay();
+});
+var CM_ERR = {missing_reason: 'Write what it is for.', bad_value: 'Check the amount.', no_rate: 'There is no dollar rate yet: the owner or a manager types it on Home → System settings.',
+  closed_day: 'That day is closed: it can no longer be voided.', documented: 'Its invoice is already filed: the accountant voids it there.',
+  unknown_staff: 'Pick the manager.'};
 function liveDiffs(){
   if (!REG || staleDay() || (REG.closed_at && document.getElementById('regCloseForm').hidden)) return;
   var t = parseInt(document.getElementById('rcTerminal').value, 10);

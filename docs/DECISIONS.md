@@ -157,3 +157,15 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   connector), never by a page. A sale is never stopped by this register (errors go to the audit log).
 - **Why:** the provider, credentials and the format version (A-02, A-10) are not chosen; building the
   register now lets the owner see readiness (CABYS per product, volumes) at zero cost and with no risk.
+
+## D-017 · 2026-10-12 · Money taken from the drawer is recorded at the moment; its invoice comes later
+- **Decision:** a manager records every cash in/out of the drawer on the POS (PIN and reason): to the bank,
+  change from the bank, petty cash, a purchase paid from the drawer ("payout"), or the owner. The drawer's
+  expected cash counts them, so the close is not falsely short. In the books each goes against its
+  counterpart; a payout goes to 1104 "Pagos de caja por documentar" until the accountant files its invoice as
+  an expense or supplier payment "paid with money taken from the register", which clears 1104. The old
+  "The register (colones)" choice on expenses became "Cash from the safe (not the register drawer)".
+- **Why:** previously a purchase paid from the drawer showed as a shortage at the close *and* as an
+  expense paid in cash: the same colones were taken out of the books twice.
+- **Also fixed:** the day's dollar rate could not be typed anywhere (only the automatic job, still OFF);
+  Home → System settings now has the owner/manager field (never over an official rate).
