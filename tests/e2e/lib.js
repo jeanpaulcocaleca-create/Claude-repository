@@ -6,9 +6,9 @@ const { spawnSync } = require('child_process');
 const gw = require('./gateway');
 
 const ROOT = path.resolve(__dirname, '../..');
-const SITE = 'http://127.0.0.1:8090';
+const SITE = 'http://127.0.0.1:' + (process.env.E2E_SITE_PORT || 8090);
 const SBJS = fs.readFileSync(require.resolve('@supabase/supabase-js/dist/umd/supabase.js'), 'utf8');
-const STORAGE_KEY = 'sb-127-auth-token';   // supabase-js storage key for http://127.0.0.1:54321
+const STORAGE_KEY = 'sb-127-auth-token';   // supabase-js storage key for the local API (host 127.0.0.1)
 const STAFF = {
   ana: 'a1000000-0000-4000-8000-000000000001', luis: 'a1000000-0000-4000-8000-000000000002',
   marta: 'a1000000-0000-4000-8000-000000000003', dueno: 'a1000000-0000-4000-8000-000000000004'

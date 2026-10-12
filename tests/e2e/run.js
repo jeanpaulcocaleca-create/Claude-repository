@@ -34,18 +34,18 @@ function playwright() {
   try { return require('playwright'); } catch (e) { return require('/opt/node22/lib/node_modules/playwright'); }
 }
 
-async function startPostgrest(bin, db) {
-  const conf = path.join(os.tmpdir(), 'canopy-postgrest.conf');
-  const host = process.env.PGHOST || '127.0.0.1', port = process.env.PGPORT || '5432';
+async function startPostgrest(bin, db, port) {
+  const conf = path.join(os.tmpdir(), 'canopy-postgrest-' + port + '.conf');
+  const host = process.env.PGHOST || '127.0.0.1', pgport = process.env.PGPORT || '5432';
   fs.writeFileSync(conf, [
-    `db-uri = "postgres://authenticator:authenticator@${host}:${port}/${db}"`,
+    `db-uri = "postgres://authenticator:authenticator@${host}:${pgport}/${db}"`,
     'db-schemas = "public"', 'db-anon-role = "anon"', 'db-pool = 4',
-    `jwt-secret = "${require('./gateway').SECRET}"`, 'server-port = 3013', 'server-host = "127.0.0.1"', 'log-level = "error"'
+    `jwt-secret = "${require('./gateway').SECRET}"`, 'server-port = ' + port, 'server-host = "127.0.0.1"', 'log-level = "error"'
   ].join('\n'));
   const p = spawn(bin, [conf], { stdio: ['ignore', 'ignore', 'pipe'] });
   let err = ''; p.stderr.on('data', (d) => { err += d; });
   for (let i = 0; i < 100; i++) {
-    try { const r = await fetch('http://127.0.0.1:3013/'); if (r.status < 500) return p; } catch (e) {}
+    try { const r = await fetch('http://127.0.0.1:' + port + '/'); if (r.status < 500) return p; } catch (e) {}
     await new Promise((r) => setTimeout(r, 100));
   }
   p.kill(); throw new Error('PostgREST did not start: ' + err);
@@ -54,14 +54,16 @@ async function startPostgrest(bin, db) {
 (async () => {
   pgEnv();
   const filter = process.argv[2] || '';
-  const TPL = 'canopy_e2e_tpl', DB = 'canopy_e2e';
+  const SUFFIX = process.env.E2E_SUFFIX || '';
+  const TPL = 'canopy_e2e_tpl' + SUFFIX, DB = 'canopy_e2e' + SUFFIX;
+  const SITE_PORT = Number(process.env.E2E_SITE_PORT || 8090), PGRST_PORT = Number(process.env.E2E_PGRST_PORT || 3013);
   process.env.CANOPY_E2E_DB = DB;
   const b = spawnSync('bash', [path.join(ROOT, 'tests/build-db.sh'), TPL], { encoding: 'utf8' });
   if (b.status !== 0) { console.error(b.stdout, b.stderr); process.exit(1); }
   const bin = postgrestBin();
   const gw = require('./gateway');
   const state = { offline: false };
-  const server = await gw.start({ siteRoot: path.join(ROOT, 'website'), postgrestPort: 3013, offline: () => state.offline });
+  const server = await gw.start({ siteRoot: path.join(ROOT, 'website'), sitePort: SITE_PORT, postgrestPort: PGRST_PORT, offline: () => state.offline });
   const { chromium } = playwright();
   const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
 
@@ -72,7 +74,7 @@ async function startPostgrest(bin, db) {
     const tests = spec.tests || [{ name: f, run: spec.run }];
     for (const t of tests) {
       psql(['-d', 'postgres', '-c', `drop database if exists ${DB} with (force)`, '-c', `create database ${DB} template ${TPL}`]);
-      const pgrst = await startPostgrest(bin, DB);
+      const pgrst = await startPostgrest(bin, DB, PGRST_PORT);
       state.offline = false;
       const t0 = Date.now();
       try {

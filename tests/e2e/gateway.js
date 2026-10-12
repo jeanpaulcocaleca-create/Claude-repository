@@ -1,6 +1,6 @@
 /* Canopy OS browser tests · local stand-in for GitHub Pages + Supabase (no dependencies).
    - http://127.0.0.1:8090  serves website/ like GitHub Pages (pretty URLs: /pos -> pos.html)
-   - http://127.0.0.1:54321 answers like Supabase:
+   - http://127.0.0.1:<site port + 1000> answers like Supabase:
        /rest/v1/*  -> PostgREST on the throw-away test database
        /auth/v1/*  -> sign-in for the test logins (cafe@ / owner@ / contador@test.local, password "test"),
                       sessions signed with the TEST secret only
@@ -120,7 +120,7 @@ function start(opts) {
   const api = http.createServer(supabaseHandler(opts));
   return Promise.all([
     new Promise((ok) => site.listen(opts.sitePort || 8090, '0.0.0.0', ok)),
-    new Promise((ok) => api.listen(54321, '127.0.0.1', ok))
+    new Promise((ok) => api.listen((opts.sitePort || 8090) + 1000, '127.0.0.1', ok))
   ]).then(() => ({ close: () => { site.close(); api.close(); } }));
 }
 

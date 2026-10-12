@@ -10,8 +10,9 @@
                   key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5idmN6YXJmd2Vhbm94dmRxcGxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxNzcxMDksImV4cCI6MjEwMzc1MzEwOX0._rzaF3tRbzZT9CIDn724O_yKE8zkYENhMDd9zrZYqhU' },
     /* the free staging project: filled in once the owner has created it (docs/DEPENDENCIES.md) */
     staging: { url: '', key: '' },
-    /* automated tests only: a local stand-in for Supabase (tests/e2e/gateway.js) with a test-only key */
-    local: { url: 'http://127.0.0.1:54321',
+    /* automated tests only: a local stand-in for Supabase (tests/e2e/gateway.js) on the page's port + 1000,
+       with a test-only key */
+    local: { url: 'http://127.0.0.1:' + ((Number(location.port) || 8090) + 1000),
              key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjYW5vcHktbG9jYWwtdGVzdHMiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc2MDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.gtdnO_4eGAyZAa4lbs2BxEF-RvQRSZ_j8WLD8G-DZc4' }
   };
   var HOSTS = {

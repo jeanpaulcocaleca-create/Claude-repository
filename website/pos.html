@@ -1075,7 +1075,7 @@ function recordSale(number){
     paid: !unpaid,
     station: stationName() || null,
     guest_name: who || null,
-    items: ticket.map(function(l){return {id: uuid(), item_name:l.name, price_crc:l.price, qty:l.qty}})
+    items: ticket.map(function(l){return {id: uuid(), item_name:l.name, price_crc:l.price, qty:l.qty, menu_item_id: l.id}})
   };
   if (disc > 0){
     order.subtotal_crc = sub; order.discount_crc = disc; order.discount_id = tDisc.id;
@@ -1319,6 +1319,24 @@ async function qSteps(o){
   }
   return null;
 }
+/* pos_record_sale (supabase/migrations/0004) saves a sale and its lines in one transaction; a repeated send answers
+   "already". Until that migration is in the database, null sends the sale the older two-step way. */
+var SALE_RPC = true, saleRpcRetry = 0;
+function rpcMissing(err){ return !!err && (err.code === 'PGRST202' || /could not find the function|schema cache/i.test(err.message || '')); }
+async function qSaveRpc(o, row, extra, items){
+  if (!SALE_RPC && Date.now() < saleRpcRetry) return null;
+  var lines = items.map(function(it){ var c = Object.assign({}, it); delete c.order_id; return c; });
+  var r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, extra, {items: lines})});
+  if (r.error && rpcMissing(r.error)){ SALE_RPC = false; saleRpcRetry = Date.now() + 60000; return null; }
+  SALE_RPC = true;
+  if (r.error && o.discount_crc > 0 && /discount_(not_approved|too_big|total|no_subtotal|used|expired)|orders_discount_once/.test(r.error.message || '')){
+    /* the approval is no longer accepted (late upload, clock off): keep the money as charged, marked on the order */
+    r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, o.station ? {station: o.station} : {},
+          {notes: String(o.discount_note || 'Discount').slice(0, 180) + ' · not verified', items: lines})});
+  }
+  if (r.error) return {error: r.error, status: r.status};
+  return {had: !!(r.data && r.data.already), otherLines: !!(r.data && r.data.other_lines)};
+}
 async function uploadOne(o){
   if (!o.id){   /* a sale saved by an older version of this page */
     o.id = uuid(); (o.items || []).forEach(function(it){ if (!it.id) it.id = uuid(); }); saveQueue();
@@ -1349,8 +1367,20 @@ async function uploadOne(o){
   var extra = {};                                    /* columns from supabase/pos-stations.sql */
   if (o.station) extra.station = o.station;
   if (o.discount_crc > 0){ extra.subtotal_crc = o.subtotal_crc; extra.discount_crc = o.discount_crc; extra.discount_id = o.discount_id; }
-  var r = await db.from('orders').insert(Object.assign({}, row, extra));
-  var had = !!(r.error && isDup(r.error));   /* it was in the system already */
+  var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
+  inAdds.forEach(function(a){ a.items.forEach(function(i){ items.push({id: i.id, order_id: o.id, item_name: i.name, price_crc: i.price, qty: i.qty, menu_item_id: i.menu_item_id}); }); });
+  /* the sale and its lines in one call (supabase/migrations/0004): saved together or not at all */
+  var via = await qSaveRpc(o, row, extra, items), r, r2 = {};
+  if (via && via.error){
+    if (qSure(via) && wasNone){ o.none = true; o.sentAs = null; o.rev = (o.rev || 0) + 1; saveQueue(); }
+    return via;
+  }
+  var had = !!(via && via.had);
+  if (via && via.otherLines) r2 = {error: {message: 'order_has_lines'}};
+  if (!via){                                         /* a database without migration 0004: the two-step save */
+  items.forEach(function(it){ delete it.menu_item_id; });
+  r = await db.from('orders').insert(Object.assign({}, row, extra));
+  had = !!(r.error && isDup(r.error));       /* it was in the system already */
   if (r.error && o.discount_crc > 0 && /discount_(not_approved|too_big|total|no_subtotal|used|expired)|orders_discount_once/.test(r.error.message || '')){
     /* the database no longer accepts the approval (late upload, clock off): keep the money as charged and
        say so on the order, where Orders shows it */
@@ -1370,9 +1400,8 @@ async function uploadOne(o){
     if (qSure(r) && wasNone){ o.none = true; o.sentAs = null; o.rev = (o.rev || 0) + 1; saveQueue(); }
     return {error: r.error, status: r.status};
   }
-  var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
-  inAdds.forEach(function(a){ a.items.forEach(function(i){ items.push({id: i.id, order_id: o.id, item_name: i.name, price_crc: i.price, qty: i.qty}); }); });
-  var r2 = await db.from('order_items').insert(items);
+  r2 = await db.from('order_items').insert(items);
+  }
   /* the bill in the system already has lines (kept under other ids by an older version of this page, or added on
      another device while this sale's own lines had not gone in): its own can no longer go in, but the order is in with
      its total. Lines of its own are those as old as the order; any that are missing are named to the cashier. */
