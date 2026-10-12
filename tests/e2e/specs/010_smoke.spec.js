@@ -36,7 +36,7 @@ module.exports.tests = [
     name: 'staff pages refuse to run on an unknown address',
     run: async ({ browser }) => {
       const pg = await page(browser, { login: 'cafe', lang: 'en' });
-      await pg.goto('http://127.0.0.2:8090/pos', { waitUntil: 'domcontentloaded' });
+      await pg.goto('http://127.0.0.2:' + (process.env.E2E_SITE_PORT || 8090) + '/pos', { waitUntil: 'domcontentloaded' });
       await until(async () => (await pg.locator('text=no está autorizada').count()) > 0, 8000, 'blocked notice');
       assert.strictEqual(pg.supabaseHits, 0);
     }

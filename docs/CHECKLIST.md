@@ -17,12 +17,13 @@ Last updated: 2026-10-12.
 | Security fix 0001 (room orders, room codes, quick items, room ordering search path) | ✅ | – | 020 (16) | Urgent: E-01 | 8c6ef4d | R |
 | Production schema export tool | ✅ | – | manual run on test DB | – | 8c6ef4d | R |
 | Backups: 0002 account/log/status, backup.sh, restore.sh, private-repo workflow, computer sync (Win/Mac), runbook | ✅ | E-03, E-12 | 030 (11), backup pipeline e2e | PowerShell scripts not executable in this environment; verify on the owner PC at install | 4767760 | R |
-| Backup health card on owner Home (green/amber/red, Spanish) | ✅ | 0002 | e2e 060 (2) | – | (this commit) | R |
+| Backup health card on owner Home (green/amber/red, Spanish) | ✅ | 0002 | e2e 060 (2) | – | 4538178 | R |
 | CI workflow (lint, SQL, backup pipeline, browser tests) | ✅ | – | runs on push | – | 4767760 | – |
 | Central config.js (production/staging/local) | ✅ | E-13/E-14 for staging values | e2e smoke (3) | Staging entry empty until E-13 | 5e9ca83 | R |
 | Browser test harness (gateway, PostgREST, Playwright) | ✅ | – | e2e smoke | – | 5e9ca83 | – |
-| Device version check + safe reload (version.js, build stamp in pages.yml) | ✅ | – | e2e 050 (2) | Verify on the first real release (staging) | (this commit) | R |
-| PIN hygiene: register PINs trimmed and cleared, void PIN cleared, hours PIN never kept; hours_report retired (0007) | ✅ | – | 080_pin_hygiene (4), e2e 050 (1) | – | (this commit) | R |
+| Earlier browser suites ported (bills/tabs, open orders on the device, QR menu, kitchen) | ✅ | – | e2e 070–100 (34) | – | (this commit) | – |
+| Device version check + safe reload (version.js, build stamp in pages.yml) | ✅ | – | e2e 050 (2) | Verify on the first real release (staging) | 4538178 | R |
+| PIN hygiene: register PINs trimmed and cleared, void PIN cleared, hours PIN never kept; hours_report retired (0007) | ✅ | – | 080_pin_hygiene (4), e2e 050 (1) | – | 4538178 | R |
 | Integrity: rung_at/paid_at/business_date (0003) | ✅ | – | 040_order_times (18) | Reports still read created_at until Phase 2 switches them | 165a027 | R |
 | Integrity: atomic idempotent pos_record_sale (0004) | ✅ | – | 050_sales_save (19), e2e 020 (3) | – | 165a027 | R |
 | Integrity: menu_item_id on sale lines (0004) | ✅ | – | 050_sales_save | Older lines matched by name (best effort) | 165a027 | R |
