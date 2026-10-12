@@ -21,7 +21,7 @@ Last updated: 2026-10-12.
 | CI workflow (lint, SQL, backup pipeline, browser tests) | ✅ | – | runs on push | – | 4767760 | – |
 | Central config.js (production/staging/local) | ✅ | E-13/E-14 for staging values | e2e smoke (3) | Staging entry empty until E-13 | 5e9ca83 | R |
 | Browser test harness (gateway, PostgREST, Playwright) | ✅ | – | e2e smoke | – | 5e9ca83 | – |
-| Earlier browser suites ported (bills/tabs, open orders on the device, QR menu, kitchen) | ✅ | – | e2e 070–100 (34) | – | (this commit) | – |
+| Earlier browser suites ported (bills/tabs, open orders on the device, QR menu, kitchen) | ✅ | – | e2e 070–100 (34) | – | 2d457e9 | – |
 | Device version check + safe reload (version.js, build stamp in pages.yml) | ✅ | – | e2e 050 (2) | Verify on the first real release (staging) | 4538178 | R |
 | PIN hygiene: register PINs trimmed and cleared, void PIN cleared, hours PIN never kept; hours_report retired (0007) | ✅ | – | 080_pin_hygiene (4), e2e 050 (1) | – | 4538178 | R |
 | Integrity: rung_at/paid_at/business_date (0003) | ✅ | – | 040_order_times (18) | Reports still read created_at until Phase 2 switches them | 165a027 | R |
@@ -38,9 +38,9 @@ Last updated: 2026-10-12.
 
 | Feature | Status | Depends on | Tests | Known issues | Commit | Prod |
 |---|---|---|---|---|---|---|
-| On-screen numeric PIN keypad (all PIN fields) | ⏳ | – | – | – | – | – |
-| Amount and quantity pads; optional on-screen text keyboard | ⏳ | – | – | – | – | – |
-| Operator sessions, clock-in requirement, sale attribution (offline-safe) | ⏳ | – | – | – | – | – |
+| On-screen numeric PIN keypad (all PIN fields) | ✅ | – | e2e 110 (3) | – | b02dfbe | R |
+| Amount and quantity pads; optional on-screen text keyboard | ✅ | – | e2e 110 | Text keyboard is opt-in per device (HG_KEYPAD.setText) | b02dfbe | R |
+| Settings framework with compliance locks; operator sessions, clock-in requirement, sale attribution, offline claims (0008) | ✅ | – | 090_settings_operators (27), e2e 120 (5) | Mode starts 'off' in production; owner switches it on Home | (this commit) | R |
 | Tax engine: tax codes, CABYS, per-line IVA stored | ⏳ | – | – | – | – | – |
 | Tax-exclusive pricing (activation OFF until A-03/A-04) | ⏳ | A-03, A-04 | – | – | – | – |
 | CRC + USD totals, exchange-rate fetch, rate snapshots | ⏳ | A-06 (policy) | – | – | – | – |
@@ -50,7 +50,7 @@ Last updated: 2026-10-12.
 | Inventario → Crear Pedido (multi-supplier) | ⏳ | – | – | – | – | – |
 | PO document (print/PDF), text, WhatsApp, share, email | ⏳ | – | – | – | – | – |
 | Partial deliveries, supplier invoice refs, duplicate guard | ⏳ | – | – | – | – | – |
-| Spanish-first staff screens | ⏳ | – | – | – | – | – |
+| Spanish-first staff screens | 🟡 | – | e2e 110 (default), 060 (Spanish card) | Staff pages default to Spanish; new strings translated; a full untranslated-text sweep is still to do | b02dfbe | – |
 
 ## Phase 2 · Accounting foundation
 

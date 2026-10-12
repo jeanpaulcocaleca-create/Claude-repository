@@ -34,7 +34,14 @@ function playwright() {
   try { return require('playwright'); } catch (e) { return require('/opt/node22/lib/node_modules/playwright'); }
 }
 
+const children = new Set();
+process.on('exit', () => { for (const c of children) { try { c.kill('SIGKILL'); } catch (e) {} } });
+['SIGINT', 'SIGTERM'].forEach((sig) => process.on(sig, () => process.exit(130)));
+
 async function startPostgrest(bin, db, port) {
+  // a PostgREST left over from an interrupted run would answer with an old schema: refuse to test against it
+  try { await fetch('http://127.0.0.1:' + port + '/'); throw new Error('port ' + port + ' is already in use (a leftover PostgREST?)'); }
+  catch (e) { if (/already in use/.test(e.message)) throw e; }
   const conf = path.join(os.tmpdir(), 'canopy-postgrest-' + port + '.conf');
   const host = process.env.PGHOST || '127.0.0.1', pgport = process.env.PGPORT || '5432';
   fs.writeFileSync(conf, [
@@ -43,6 +50,7 @@ async function startPostgrest(bin, db, port) {
     `jwt-secret = "${require('./gateway').SECRET}"`, 'server-port = ' + port, 'server-host = "127.0.0.1"', 'log-level = "error"'
   ].join('\n'));
   const p = spawn(bin, [conf], { stdio: ['ignore', 'ignore', 'pipe'] });
+  children.add(p); p.on('exit', () => children.delete(p));
   let err = ''; p.stderr.on('data', (d) => { err += d; });
   for (let i = 0; i < 100; i++) {
     try { const r = await fetch('http://127.0.0.1:' + port + '/'); if (r.status < 500) return p; } catch (e) {}
@@ -85,6 +93,7 @@ async function startPostgrest(bin, db, port) {
         console.log(`  FAIL  ${f} › ${t.name}\n        ${String(e && e.stack || e).split('\n').slice(0, 6).join('\n        ')}`);
       } finally {
         pgrst.kill();
+        await new Promise((r) => { if (pgrst.exitCode !== null) r(); else pgrst.once('exit', r); });
         for (const c of browser.contexts()) await c.close().catch(() => {});
       }
     }

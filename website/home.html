@@ -70,6 +70,11 @@ h2.section{font-size:1.1rem;margin:0 0 .8rem}
 .invcard{background:var(--panel);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid #E7C7A0}
 .bkcard{display:flex;gap:.8rem;align-items:center;background:var(--panel);border-radius:16px;padding:.8rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid var(--muted)}
 .bkcard .s{font-size:.85rem;color:var(--sec);margin-top:.15rem}
+.setrow{display:grid;grid-template-columns:1fr auto;gap:.3rem 1rem;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--muted)}
+.setrow:last-child{border-bottom:0}
+.setrow .s{grid-column:1 / -1;font-size:.85rem;color:var(--sec)}
+.setrow select{min-height:44px}
+.confform{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem}
 .bkdot{flex:none;width:14px;height:14px;border-radius:50%;background:var(--muted)}
 .bkcard.green .bkdot{background:var(--ok)} .bkcard.amber .bkdot{background:var(--gold)} .bkcard.red .bkdot{background:var(--bad)}
 .bkcard.amber{border-color:var(--gold)} .bkcard.red{border-color:var(--bad)}
@@ -188,6 +193,21 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <span class="t">Website <span class="ext">↗</span></span>
       <span class="d">What your guests see — the cinematic Monteverde story with the live menu.</span>
     </a>
+  </div>
+
+  <h2 class="section" id="setHead" hidden>System settings</h2>
+  <div class="sec" id="setCard" hidden>
+    <div id="setList"></div>
+    <div id="confBox" hidden>
+      <p class="hint" style="margin:.8rem 0 .4rem">Settings with a lock follow a legal rule (taxes, payroll, electronic invoices). They switch on only after the rule is confirmed by your accountant or an official source. Record who confirmed it and with which document:</p>
+      <div class="confform">
+        <select id="confKey" aria-label="Rule"></select>
+        <input id="confWho" maxlength="80" placeholder="Confirmed by (name)">
+        <input id="confRef" maxlength="120" placeholder="Document or reference">
+        <button class="small" id="confGo">Record the confirmation</button>
+      </div>
+    </div>
+    <p class="err" id="setMsg"></p>
   </div>
 
   <h2 class="section" id="secHead">Owner login</h2>
@@ -412,9 +432,52 @@ async function loadBackupStatus(){
   }
   card.hidden = false;
 }
+/* system settings (migration 0008): the owner's decisions, regulated ones locked until confirmed */
+var SET_LABEL = {operator_mode: 'Who rings up each sale'};
+var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On'};
+var SET_ERR = {owner_only: 'Only the owner login, with the phone code, can change settings.', bad_value: 'That value is not allowed.',
+               needs_confirmation: 'Locked: record the confirmation of this rule first.'};
+async function loadSettingsCard(){
+  var r = await db.rpc('settings_get');
+  var card = document.getElementById('setCard'), head = document.getElementById('setHead');
+  if (r.error || !Array.isArray(r.data) || !r.data.length){ card.hidden = true; head.hidden = true; return; }
+  var list = document.getElementById('setList'); list.replaceChildren();
+  var guards = {};
+  r.data.forEach(function(st){
+    var row = document.createElement('div'); row.className = 'setrow';
+    var name = document.createElement('b'); name.textContent = (SET_LABEL[st.key] || st.key) + (st.locked ? ' 🔒' : '');
+    var sel = document.createElement('select'); sel.setAttribute('aria-label', SET_LABEL[st.key] || st.key);
+    (st.choices || []).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = CHOICE_LABEL[c] || c; sel.appendChild(o); });
+    sel.value = st.value;
+    sel.addEventListener('change', async function(){
+      var msg = document.getElementById('setMsg'); msg.textContent = ''; msg.className = 'err';
+      var res = await db.rpc('setting_set', {p_key: st.key, p_value: sel.value});
+      if (res.error || !res.data || !res.data.ok){ msg.textContent = res.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[res.data.error] || 'Could not save. Try again.'); sel.value = st.value; return; }
+      st.value = sel.value; msg.className = 'err ok'; msg.textContent = 'Saved.';
+    });
+    var d = document.createElement('div'); d.className = 's'; d.setAttribute('data-no-translate', ''); d.textContent = st.description;
+    row.appendChild(name); row.appendChild(sel); row.appendChild(d); list.appendChild(row);
+    if (st.guard) guards[st.guard] = st.locked;
+  });
+  var keys = Object.keys(guards), ck = document.getElementById('confKey'); ck.replaceChildren();
+  keys.forEach(function(k){ var o = document.createElement('option'); o.value = k; o.textContent = k + (guards[k] ? '' : ' ✓'); ck.appendChild(o); });
+  document.getElementById('confBox').hidden = !keys.length;
+  card.hidden = false; head.hidden = false;
+}
+document.getElementById('confGo').addEventListener('click', async function(){
+  var msg = document.getElementById('setMsg'); msg.className = 'err'; msg.textContent = '';
+  var who = document.getElementById('confWho').value.trim(), ref = document.getElementById('confRef').value.trim();
+  if (!who || !ref){ msg.textContent = 'Write who confirmed it and the document.'; return; }
+  if (!confirm('Record that "' + document.getElementById('confKey').value + '" was confirmed by ' + who + '?')) return;
+  var r = await db.rpc('compliance_confirm', {p_key: document.getElementById('confKey').value, p_confirmed_by: who, p_reference: ref});
+  if (r.error || !r.data || !r.data.ok){ msg.textContent = r.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[r.data.error] || 'Could not save. Try again.'); return; }
+  document.getElementById('confWho').value = ''; document.getElementById('confRef').value = '';
+  msg.className = 'err ok'; msg.textContent = 'Confirmation recorded.'; loadSettingsCard();
+});
 async function loadStats(){
   loadInventoryAlerts();
   loadBackupStatus();
+  loadSettingsCard();
   var start = new Date(); start.setHours(0,0,0,0);
   var rs = await Promise.all([
     db.from('orders').select('total_crc,voided_at,paid,part_of').gte('created_at', start.toISOString()),

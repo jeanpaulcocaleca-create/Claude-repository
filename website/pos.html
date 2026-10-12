@@ -199,6 +199,10 @@ button.chip:hover{background:var(--canvas)}
 .dayrow{display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px dotted var(--muted);font-size:.95rem}
 .dayrow.big{font-weight:700;font-size:1.1rem;border-bottom:none;padding-top:.6rem}
 .modal .close{width:100%;margin-top:1rem}
+.opgrid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin:.2rem 0 .9rem}
+.opgrid button{min-height:56px;font-size:1.05rem}
+.opgrid button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+#opBtn.none{color:var(--bad)}
 .regstate{font-size:.88rem;color:var(--sec);margin:0 0 .6rem}
 .regform{margin-top:.9rem;padding-top:.6rem;border-top:1px dotted var(--muted)}
 .regform h3{font-size:1rem;margin:0 0 .2rem}
@@ -327,6 +331,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <a class="navlink" href="admin.html" data-owner>Menu</a>
       <a class="navlink" href="time.html">Time</a>
       <button class="chip" id="stationBtn" title="This device">This device</button>
+      <button class="chip" id="opBtn" title="Who is ringing up" hidden>Who is ringing up?</button>
       <span class="chip on" id="netChip" role="button" tabindex="0" title="Sales saved on this device">online</span>
       <button class="ghost" id="ordersBtn">Orders</button>
       <button class="ghost" id="dayBtn">Today</button>
@@ -609,6 +614,24 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   </form>
 </div>
 
+<div class="modal" id="opModal" hidden>
+  <form class="box" id="opForm" autocomplete="off">
+    <h2>Who is ringing up?</h2>
+    <p class="hint" id="opNow" style="margin:0 0 .6rem" hidden></p>
+    <div class="opgrid" id="opWho"></div>
+    <div id="opPinBox" hidden>
+      <label for="opPin" class="hint" style="display:block;margin:0 0 .25rem">PIN</label>
+      <input id="opPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    </div>
+    <p class="err" id="opErr"></p>
+    <button type="submit" id="opGo" style="width:100%;margin-top:.4rem" disabled>Start</button>
+    <button type="button" id="opClockGo" style="width:100%;margin-top:.6rem" hidden>Clock in and start</button>
+    <button type="button" class="ghost" id="opOffline" style="width:100%;margin-top:.6rem" hidden>Start without internet (checked later)</button>
+    <button type="button" class="ghost" id="opEnd" style="width:100%;margin-top:.6rem" hidden>End my turn</button>
+    <button type="button" class="ghost" id="opSkip" style="width:100%;margin-top:.6rem">Not now</button>
+  </form>
+</div>
+
 <div class="modal" id="stationModal" hidden>
   <form class="box" id="stationForm" autocomplete="off">
     <h2>Which device is this?</h2>
@@ -628,7 +651,23 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 <script>
 var SUPA_URL = HG_CONFIG.url;
 var SUPA_KEY = HG_CONFIG.key;
-var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(window.HG_ACCESS ? HG_ACCESS.options() : undefined) : (window.HG_ACCESS ? HG_ACCESS.options() : undefined));
+/* every database request carries the operator signed in on this device (header x-hg-operator, migration 0008) */
+var OP = null, OP_MODE = 'off', OP_KEY = 'hg-pos-operator';
+function posOptions(){
+  var base = window.HG_ACCESS ? HG_ACCESS.options() : {};
+  var inner = (base.global && base.global.fetch) || function(i, n){ return fetch(i, n); };
+  base.global = Object.assign({}, base.global || {}, {fetch: function(input, init){
+    var url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (OP && OP.token && url.indexOf('/rest/v1/') > -1){
+      var h = new Headers((init && init.headers) || (input && input.headers) || {});
+      h.set('x-hg-operator', OP.token);
+      init = Object.assign({}, init || {}, {headers: h});
+    }
+    return inner(input, init);
+  }});
+  return base;
+}
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(posOptions()) : posOptions());
 /* owner login or café login: the café login only sees the POS, the clock and the kitchen */
 var ACCOUNT = null;
 async function whoami(){ var r = await db.rpc('account_kind'); ACCOUNT = r.error ? null : (r.data || 'none'); return ACCOUNT; }
@@ -664,7 +703,7 @@ async function refreshAuth(){
   document.getElementById('appView').hidden = !authed;
   /* signed out (also by itself): no window stays over the sign-in box */
   if (!authed){ document.querySelectorAll('.modal').forEach(function(m){ m.hidden = true; }); payTarget = null; pendingPay = null; }
-  if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); syncQueue(); loadSettings(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
+  if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); syncQueue(); loadSettings(); loadOperator(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
     loadRegister().then(function(){ if (STATION && STATION.main) nudgeRegister(); });
     if (!STATION) openStation(); }
 }
@@ -995,6 +1034,90 @@ function openStation(){
   document.getElementById('stationModal').hidden = false;
 }
 document.getElementById('stationBtn').addEventListener('click', openStation);
+
+/* ---------- who is ringing up (migration 0008; nothing shows while the owner keeps it off) ---------- */
+try { OP = JSON.parse(localStorage.getItem(OP_KEY) || 'null'); } catch (e) { OP = null; }
+if (OP && OP.expires_at && new Date(OP.expires_at) < new Date()) OP = null;
+var opPick = null, opStaff = [];
+function saveOp(){ try { if (OP) localStorage.setItem(OP_KEY, JSON.stringify(OP)); else localStorage.removeItem(OP_KEY); } catch (e) {} showOp(); }
+function showOp(){
+  var b = document.getElementById('opBtn');
+  b.hidden = OP_MODE === 'off';
+  b.textContent = OP ? OP.name + (OP.token ? '' : ' · not checked') : 'Who is ringing up?';
+  b.classList.toggle('none', !OP);
+}
+async function loadOperator(){
+  var r = await db.rpc('setting', {p_key: 'operator_mode'});
+  OP_MODE = (!r.error && typeof r.data === 'string') ? r.data : 'off';    /* an older database: off */
+  if (OP_MODE === 'off'){ showOp(); return; }
+  if (OP && OP.expires_at && new Date(OP.expires_at) < new Date()){ OP = null; saveOp(); }
+  showOp();
+  if (!OP) openOp();
+}
+async function openOp(){
+  opPick = null;
+  document.getElementById('opErr').textContent = ''; document.getElementById('opPin').value = '';
+  document.getElementById('opPinBox').hidden = true; document.getElementById('opGo').disabled = true;
+  document.getElementById('opClockGo').hidden = true; document.getElementById('opOffline').hidden = true;
+  document.getElementById('opNow').hidden = !OP;
+  document.getElementById('opNow').textContent = OP ? 'Ringing up now: ' + OP.name : '';
+  document.getElementById('opEnd').hidden = !OP;
+  document.getElementById('opSkip').hidden = OP_MODE === 'enforce' && !OP;
+  document.getElementById('opModal').hidden = false;
+  var r = await db.from('staff').select('id,name,role').eq('active', true).order('name');
+  if (!r.error && r.data){ opStaff = r.data; try { localStorage.setItem('hg-pos-staff', JSON.stringify(r.data)); } catch (e) {} }
+  else { try { opStaff = JSON.parse(localStorage.getItem('hg-pos-staff') || '[]'); } catch (e) { opStaff = []; } }
+  var grid = document.getElementById('opWho'); grid.replaceChildren();
+  opStaff.forEach(function(st){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.textContent = st.name; b.dataset.id = st.id;
+    b.addEventListener('click', function(){
+      opPick = st;
+      grid.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
+      document.getElementById('opPinBox').hidden = false; document.getElementById('opGo').disabled = false;
+      document.getElementById('opOffline').hidden = navigator.onLine !== false;
+      document.getElementById('opClockGo').hidden = true; document.getElementById('opErr').textContent = '';
+      document.getElementById('opPin').value = ''; document.getElementById('opPin').focus();
+    });
+    grid.appendChild(b);
+  });
+}
+var OP_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  inactive: 'That person is not active on the team.', unknown_staff: 'Pick your name.', no_account: 'This login is not connected to the café yet.'};
+async function startOp(clockIn){
+  if (!opPick) return;
+  var pin = document.getElementById('opPin').value.trim(), err = document.getElementById('opErr');
+  if (!pin){ err.textContent = 'Type the PIN.'; document.getElementById('opPin').focus(); return; }
+  document.getElementById('opGo').disabled = true;
+  var r = await db.rpc('pos_operator_start', {p_staff_id: opPick.id, p_pin: pin, p_station: stationName() || null, p_clock_in: !!clockIn});
+  document.getElementById('opPin').value = ''; document.getElementById('opGo').disabled = false;
+  if (r.error){ err.textContent = 'Could not check the PIN. Check the connection and try again.'; document.getElementById('opOffline').hidden = false; return; }
+  if (!r.data || !r.data.ok){
+    var code = r.data && r.data.error;
+    if (code === 'not_clocked_in'){ err.textContent = opPick.name + ' has not clocked in. Clock in to start.'; document.getElementById('opClockGo').hidden = false; document.getElementById('opPin').focus(); return; }
+    err.textContent = OP_ERR[code] || 'Could not start. Try again.'; document.getElementById('opPin').focus(); return;
+  }
+  if (OP && OP.token && OP.token !== r.data.token) db.rpc('pos_operator_end', {p_token: OP.token});
+  OP = {token: r.data.token, staff_id: r.data.staff_id, name: r.data.name, expires_at: r.data.expires_at};
+  saveOp();
+  document.getElementById('opModal').hidden = true;
+  toast(r.data.clocked_in ? OP.name + ' is ringing up' : OP.name + ' is ringing up · not clocked in');
+}
+document.getElementById('opForm').addEventListener('submit', function(e){ e.preventDefault(); startOp(false); });
+document.getElementById('opClockGo').addEventListener('click', function(){ startOp(true); });
+document.getElementById('opOffline').addEventListener('click', function(){
+  /* no internet: the sales go in under this name, marked "not checked" until a PIN can be checked */
+  if (!opPick) return;
+  OP = {token: null, staff_id: opPick.id, name: opPick.name, expires_at: new Date(Date.now() + 14 * 3600000).toISOString()};
+  saveOp(); document.getElementById('opModal').hidden = true;
+});
+document.getElementById('opEnd').addEventListener('click', function(){
+  if (OP && OP.token) db.rpc('pos_operator_end', {p_token: OP.token});
+  OP = null; saveOp(); openOp();
+});
+document.getElementById('opSkip').addEventListener('click', function(){ document.getElementById('opModal').hidden = true; });
+document.getElementById('opBtn').addEventListener('click', openOp);
+/* the operator of a sale, kept with it while it waits to upload */
+function saleOperator(){ return OP ? {token: OP.token || null, staff_id: OP.staff_id, name: OP.name} : null; }
 document.querySelectorAll('input[name="stMain"]').forEach(function(r){
   r.addEventListener('change', function(){
     var nm = document.getElementById('stName');
@@ -1074,6 +1197,7 @@ document.getElementById('numCancel').addEventListener('click', function(){ pendi
 function recordSale(number){
   document.getElementById('numModal').hidden = true;
   if (!pendingPay || !ticket.length) return;
+  if (OP_MODE === 'enforce' && !OP){ pendingPay = null; toast('Choose who is ringing up first.'); openOp(); return; }
   var sub = subtotal(), disc = discOf(sub), total = sub - disc;
   var unpaid = pendingPay.method === 'pending';    /* sent to the register, or to pay later */
   var needsKitchen = ticket.some(function(l){ return kitchenOf[l.id]; });
@@ -1094,6 +1218,7 @@ function recordSale(number){
     guest_name: who || null,
     items: ticket.map(function(l){return {id: uuid(), item_name:l.name, price_crc:l.price, qty:l.qty, menu_item_id: l.id}})
   };
+  if (OP_MODE !== 'off') order.operator = saleOperator();
   if (disc > 0){
     order.subtotal_crc = sub; order.discount_crc = disc; order.discount_id = tDisc.id;
     order.discount_note = 'Discount ' + discText(tDisc) + ' · ' + tDisc.reason + ' · ' + tDisc.by;
@@ -1346,12 +1471,13 @@ function rpcMissing(err){ return !!err && (err.code === 'PGRST202' || /could not
 async function qSaveRpc(o, row, extra, items){
   if (!SALE_RPC && Date.now() < saleRpcRetry) return null;
   var lines = items.map(function(it){ var c = Object.assign({}, it); delete c.order_id; return c; });
-  var r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, extra, {items: lines})});
+  var op = 'operator' in o ? {operator: o.operator} : {};
+  var r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, extra, op, {items: lines})});
   if (r.error && rpcMissing(r.error)){ SALE_RPC = false; saleRpcRetry = Date.now() + 60000; return null; }
   SALE_RPC = true;
   if (r.error && o.discount_crc > 0 && /discount_(not_approved|too_big|total|no_subtotal|used|expired)|orders_discount_once/.test(r.error.message || '')){
     /* the approval is no longer accepted (late upload, clock off): keep the money as charged, marked on the order */
-    r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, o.station ? {station: o.station} : {},
+    r = await db.rpc('pos_record_sale', {p_order: Object.assign({}, row, op, o.station ? {station: o.station} : {},
           {notes: String(o.discount_note || 'Discount').slice(0, 180) + ' · not verified', items: lines})});
   }
   if (r.error) return {error: r.error, status: r.status};

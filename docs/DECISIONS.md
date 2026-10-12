@@ -76,3 +76,20 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Limits for now:** whole-sale refunds only; partial refunds and bills paid in parts come with the order
   history search (Phase 1). Today the refund is reachable from the POS orders list (today's sales); the
   history search will reach earlier days.
+
+## D-009 · 2026-10-12 · Settings with compliance locks
+- **Decision:** owner decisions live in `public.settings`, validated against `canopy.setting_defs`. A
+  regulated setting (tax-exclusive prices, e-invoicing, payroll rates) has a *guard*: it cannot leave its
+  default until `compliance_confirm` records who confirmed the rule and with which document. Every change
+  and confirmation is in the approvals log. Only the owner login with the phone code can change settings.
+- **Why:** the owner directive forbids activating unverified tax or payroll rules. A lock in the database
+  holds even if a page or a person makes a mistake.
+
+## D-010 · 2026-10-12 · Who rang each sale: a PIN session per device, the sale carries its own operator
+- **Decision:** the cashier signs in on the POS with a PIN (`pos_operator_start`); the device sends the
+  session token in the `x-hg-operator` header, so every order and bill payment records `operator_id`. A sale
+  waiting offline carries the token of the person who rang it, so a later upload never re-assigns it. With no
+  internet the cashier picks their name without a PIN check; those sales are marked `operator_unverified`.
+  Modes: `off` (default, nothing changes), `record` (marks sales of someone not clocked in), `enforce`
+  (must be clocked in; the POS offers "Clock in and start").
+- **Why:** accountability per employee without ever refusing a sale that was already charged.
