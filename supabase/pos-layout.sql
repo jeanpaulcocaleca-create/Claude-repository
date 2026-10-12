@@ -1,3 +1,12 @@
+-- ARCHIVO HISTÓRICO · NO EJECUTAR. Desde octubre 2026 los cambios a la base van en supabase/migrations/
+-- (vea docs/MIGRACIONES.md). Si este archivo se pega en un proyecto que ya tiene el registro de migraciones,
+-- se detiene en la primera línea y no cambia nada.
+do $guard$ begin
+  if to_regclass('canopy.migrations') is not null then
+    raise exception 'Archivo histórico: NO lo ejecute. Este proyecto usa supabase/migrations (vea docs/MIGRACIONES.md). No se cambió nada.';
+  end if;
+end $guard$;
+
 -- Canopy OS · The Hanging Garden Café
 -- POS layout 2.0: run ONCE in Supabase (SQL Editor -> New query -> paste -> Run). Safe to re-run.
 -- Adds a color per category and per item (empty = automatic), a "Quick tab" setting per item

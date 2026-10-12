@@ -1,3 +1,12 @@
+-- ARCHIVO HISTÓRICO · NO EJECUTAR. Desde octubre 2026 los cambios a la base van en supabase/migrations/
+-- (vea docs/MIGRACIONES.md). Si este archivo se pega en un proyecto que ya tiene el registro de migraciones,
+-- se detiene en la primera línea y no cambia nada.
+do $guard$ begin
+  if to_regclass('canopy.migrations') is not null then
+    raise exception 'Archivo histórico: NO lo ejecute. Este proyecto usa supabase/migrations (vea docs/MIGRACIONES.md). No se cambió nada.';
+  end if;
+end $guard$;
+
 -- Hanging Garden Café · owner areas behind a PIN (manager mode), and the owner role
 -- Run ONCE in Supabase: SQL Editor -> New query -> paste -> Run. Safe to run again.
 -- Run after supabase/access.sql. If you ever re-run accounts.sql, authorization.sql, access.sql or

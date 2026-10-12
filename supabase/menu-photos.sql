@@ -1,3 +1,12 @@
+-- ARCHIVO HISTÓRICO · NO EJECUTAR. Desde octubre 2026 los cambios a la base van en supabase/migrations/
+-- (vea docs/MIGRACIONES.md). Si este archivo se pega en un proyecto que ya tiene el registro de migraciones,
+-- se detiene en la primera línea y no cambia nada.
+do $guard$ begin
+  if to_regclass('canopy.migrations') is not null then
+    raise exception 'Archivo histórico: NO lo ejecute. Este proyecto usa supabase/migrations (vea docs/MIGRACIONES.md). No se cambió nada.';
+  end if;
+end $guard$;
+
 -- Hanging Garden Café · menu photos: a bright daylight picture for every drink and every food item
 -- Run ONCE in Supabase: SQL Editor -> New query -> paste -> Run. Safe to run again.
 --   44 photos in one look (light wood, soft daylight, misty garden) so they read well on the TV behind
