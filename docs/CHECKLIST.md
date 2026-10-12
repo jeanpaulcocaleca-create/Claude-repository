@@ -23,12 +23,12 @@ Last updated: 2026-10-12.
 | Browser test harness (gateway, PostgREST, Playwright) | ✅ | – | e2e smoke | – | 5e9ca83 | – |
 | Device version check + safe reload | ⏳ | – | – | – | – | – |
 | PIN hygiene (clear after use, trim, hours PIN not kept) | ⏳ | – | – | – | – | – |
-| Integrity: rung_at/paid_at/business_date | ⏳ | – | – | – | – | – |
-| Integrity: atomic idempotent pos_record_sale | ⏳ | – | – | – | – | – |
-| Integrity: menu_item_id on sale lines | ⏳ | – | – | – | – | – |
-| Integrity: stock history protected (archive, no cascade delete) | ⏳ | – | – | – | – | – |
-| Integrity: cost stamped on every stock move | ⏳ | – | – | – | – | – |
-| Integrity: receiving guards + request ids | ⏳ | – | – | – | – | – |
+| Integrity: rung_at/paid_at/business_date (0003) | ✅ | – | 040_order_times (18) | Reports still read created_at until Phase 2 switches them | 165a027 | R |
+| Integrity: atomic idempotent pos_record_sale (0004) | ✅ | – | 050_sales_save (19), e2e 020 (3) | – | 165a027 | R |
+| Integrity: menu_item_id on sale lines (0004) | ✅ | – | 050_sales_save | Older lines matched by name (best effort) | 165a027 | R |
+| Integrity: stock history protected; items/vendors with history are deactivated, not deleted (0005) | ✅ | – | 060_inventory_integrity (40), e2e 030 (3) | – | (this commit) | R |
+| Integrity: cost stamped on every stock move; weighted-average avg_cost (0005) | ✅ | A-07 confirms the method | 060 | Stock value tile still uses last price until Phase 3 | (this commit) | R |
+| Integrity: receiving guards + request ids (0005) | ✅ | – | 060, e2e 030 | – | (this commit) | R |
 | Integrity: void limited to open day + refund dated today | ⏳ | – | – | – | – | – |
 | Integrity: sales reports without the 1000-row cap | ⏳ | – | – | – | – | – |
 | Release / rollback runbook (docs/PUBLICAR.md) | 🟡 | – | – | – | – | – |

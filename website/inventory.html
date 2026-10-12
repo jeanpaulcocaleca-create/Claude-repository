@@ -743,19 +743,29 @@ $('itemForm').addEventListener('submit', async function(e){
   else { r = await db.from('stock_items').insert(row).select('id'); }
   if (r.error || !r.data || !r.data.length){ $('itErr').textContent = 'Could not save. Check the connection and try again.'; return; }
   var start = Number($('itStart').value) || 0;
-  if (!itemTarget && start > 0){ await db.rpc('stock_receive', {p_item_id: r.data[0].id, p_qty: start, p_unit_cost: row.pack_qty ? row.cost_per_pack / row.pack_qty : null, p_expires_on: null, p_note: 'starting stock'}); }
+  if (!itemTarget && start > 0){ await stockRpc('stock_receive', {p_item_id: r.data[0].id, p_qty: start, p_unit_cost: row.pack_qty ? row.cost_per_pack / row.pack_qty : null, p_expires_on: null, p_note: 'starting stock'}, {p_request_id: uuid(), p_opening: true}); }
   $('itemModal').hidden = true; toast(row.name + ' saved'); loadAll();
 });
 $('itDelete').addEventListener('click', async function(){
   if (!itemTarget) return;
-  if (!confirm('Delete "' + itemTarget.name + '" and its history? If you only stopped buying it, untick Active instead.')) return;
+  if (!confirm('Delete "' + itemTarget.name + '"? Items with history cannot be deleted: untick Active instead.')) return;
   var r = await db.from('stock_items').delete().eq('id', itemTarget.id);
-  if (r.error){ $('itErr').textContent = 'Could not delete. Try again.'; return; }
+  if (r.error){ $('itErr').textContent = /history/.test(r.error.message || '') ? 'This item has history (sales, counts or orders), so it is kept. Untick Active to hide it.' : 'Could not delete. Try again.'; return; }
   $('itemModal').hidden = true; toast('Item deleted'); loadAll();
 });
 
 /* count / receive / waste */
-var moveKind = null, moveItem = null;
+function uuid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+/* newer database: send the extra arguments; a database not yet updated answers "function not found", so retry without them */
+async function stockRpc(name, args, extra){
+  var r = await db.rpc(name, Object.assign({}, args, extra || {}));
+  if (r.error && (r.error.code === 'PGRST202' || /Could not find the function/i.test(r.error.message || ''))) r = await db.rpc(name, args);
+  return r;
+}
+var moveKind = null, moveItem = null, moveReq = null;
 function openMove(kind, item){
   moveKind = kind; moveItem = item;
   var titles = {count: 'Count', receive: 'Receive', waste: 'Waste'};
@@ -766,6 +776,7 @@ function openMove(kind, item){
   $('moveCountBox').hidden = kind !== 'count'; $('moveQtyBox').hidden = kind === 'count'; $('moveCostRow').hidden = kind !== 'receive';
   $('mvCounted').value = ''; $('mvPacks').value = ''; $('mvQty').value = ''; $('mvNote').value = ''; $('mvErr').textContent = '';
   $('mvCost').value = item.cost_per_pack || ''; $('mvExp').value = item.shelf_life_days ? new Date(Date.now() + item.shelf_life_days * 86400000).toISOString().slice(0, 10) : '';
+  moveReq = uuid();   /* one id per form: a double tap or a retry is saved once */
   $('moveModal').hidden = false;
   (kind === 'count' ? $('mvCounted') : $('mvPacks')).focus();
 }
@@ -777,14 +788,14 @@ $('moveForm').addEventListener('submit', async function(e){
   var note = $('mvNote').value.trim() || null, r;
   if (moveKind === 'count'){
     if ($('mvCounted').value === ''){ $('mvErr').textContent = 'Type the quantity you counted.'; return; }
-    r = await db.rpc('stock_count', {p_item_id: moveItem.id, p_counted: Number($('mvCounted').value), p_note: note});
+    r = await stockRpc('stock_count', {p_item_id: moveItem.id, p_counted: Number($('mvCounted').value), p_note: note}, {p_request_id: moveReq});
   } else {
     var q = Number($('mvQty').value);
     if (!(q > 0)){ $('mvErr').textContent = 'Type a quantity above zero.'; return; }
     if (moveKind === 'receive'){
       var cpp = Number($('mvCost').value);
-      r = await db.rpc('stock_receive', {p_item_id: moveItem.id, p_qty: q, p_unit_cost: cpp > 0 ? cpp / moveItem.pack_qty : null, p_expires_on: $('mvExp').value || null, p_note: note});
-    } else r = await db.rpc('stock_waste', {p_item_id: moveItem.id, p_qty: q, p_note: note});
+      r = await stockRpc('stock_receive', {p_item_id: moveItem.id, p_qty: q, p_unit_cost: cpp > 0 ? cpp / moveItem.pack_qty : null, p_expires_on: $('mvExp').value || null, p_note: note}, {p_request_id: moveReq});
+    } else r = await stockRpc('stock_waste', {p_item_id: moveItem.id, p_qty: q, p_note: note}, {p_request_id: moveReq});
   }
   if (r.error || !r.data || !r.data.ok){ $('mvErr').textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.error === 'locked' ? 'The inventory is locked. Type a manager PIN again.' : 'Could not save. Try again.'); return; }
   $('moveModal').hidden = true;
@@ -923,7 +934,7 @@ $('recvForm').addEventListener('submit', async function(e){
     lines.push({line_id: tr.dataset.line, received_qty: Number(tr.querySelector('[data-f=qty]').value) || 0, unit_cost: cost > 0 && i ? cost / Number(i.pack_qty) : null, expires_on: tr.querySelector('[data-f=exp]').value || null});
   });
   var r = await db.rpc('po_receive', {p_po_id: recvTarget.id, p_lines: lines});
-  if (r.error || !r.data || !r.data.ok){ $('recvErr').textContent = 'Could not save. Check the connection and try again.'; return; }
+  if (r.error || !r.data || !r.data.ok){ var why = r.data && r.data.error; $('recvErr').textContent = why === 'already_received' ? 'This order was already received.' : why === 'cancelled' ? 'This order was cancelled.' : why === 'bad_qty' ? 'Quantities and costs cannot be negative.' : 'Could not save. Check the connection and try again.'; if (why === 'already_received') loadAll(); return; }
   $('recvModal').hidden = true; toast('Order received, stock updated'); loadAll();
 });
 
@@ -1026,7 +1037,7 @@ $('vendorForm').addEventListener('submit', async function(e){
 $('vDelete').addEventListener('click', async function(){
   if (!vendorTarget || !confirm('Delete "' + vendorTarget.name + '"? Its items stay, without a vendor.')) return;
   var r = await db.from('vendors').delete().eq('id', vendorTarget.id);
-  if (r.error){ $('vErr').textContent = 'Could not delete. Try again.'; return; }
+  if (r.error){ $('vErr').textContent = /history/.test(r.error.message || '') ? 'This vendor has purchase orders, so it is kept. Untick Active to hide it.' : 'Could not delete. Try again.'; return; }
   $('vendorModal').hidden = true; toast('Vendor deleted'); loadAll();
 });
 
