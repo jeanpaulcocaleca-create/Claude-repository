@@ -58,3 +58,21 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `place_room_order` finds `gen_random_bytes` in the `extensions` schema.
 - **Why:** verified on a test copy that any signed-in account could cancel or mark paid a guest's order.
   Reported to the owner immediately with the files to apply.
+
+## D-007 · 2026-10-12 · Inventory history is kept; cost travels with every movement
+- **Decision:** items and vendors with history are deactivated, never deleted. Only movements change stock.
+  Every movement stores its unit cost; purchases keep a weighted-average cost (`stock_items.avg_cost`).
+  Counts, waste and receipts carry a request id so a retry counts once.
+- **Why:** deleting an item erased its sales and purchase history (cascade), and costs were overwritten by
+  each purchase, so the cost of goods sold could not be rebuilt for the accountant.
+- **Pending:** the accountant confirms weighted average as the valuation method (A-07).
+
+## D-008 · 2026-10-12 · A counted day is never changed: voids while open, refunds after
+- **Decision:** a paid sale can be voided only while its register day is still open. After the register is
+  closed (or for an earlier day with no register), the manager records a refund: a negative sale dated today,
+  same payment method by default, optional restock, PIN and reason, linked to the original sale.
+- **Why:** voiding an old sale silently changed totals of a day already counted and closed, so the register
+  record, the sales report and (later) the ledger would disagree.
+- **Limits for now:** whole-sale refunds only; partial refunds and bills paid in parts come with the order
+  history search (Phase 1). Today the refund is reachable from the POS orders list (today's sales); the
+  history search will reach earlier days.

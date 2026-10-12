@@ -26,11 +26,11 @@ Last updated: 2026-10-12.
 | Integrity: rung_at/paid_at/business_date (0003) | ✅ | – | 040_order_times (18) | Reports still read created_at until Phase 2 switches them | 165a027 | R |
 | Integrity: atomic idempotent pos_record_sale (0004) | ✅ | – | 050_sales_save (19), e2e 020 (3) | – | 165a027 | R |
 | Integrity: menu_item_id on sale lines (0004) | ✅ | – | 050_sales_save | Older lines matched by name (best effort) | 165a027 | R |
-| Integrity: stock history protected; items/vendors with history are deactivated, not deleted (0005) | ✅ | – | 060_inventory_integrity (40), e2e 030 (3) | – | (this commit) | R |
-| Integrity: cost stamped on every stock move; weighted-average avg_cost (0005) | ✅ | A-07 confirms the method | 060 | Stock value tile still uses last price until Phase 3 | (this commit) | R |
-| Integrity: receiving guards + request ids (0005) | ✅ | – | 060, e2e 030 | – | (this commit) | R |
-| Integrity: void limited to open day + refund dated today | ⏳ | – | – | – | – | – |
-| Integrity: sales reports without the 1000-row cap | ⏳ | – | – | – | – | – |
+| Integrity: stock history protected; items/vendors with history are deactivated, not deleted (0005) | ✅ | – | 060_inventory_integrity (40), e2e 030 (3) | – | bd7126e | R |
+| Integrity: cost stamped on every stock move; weighted-average avg_cost (0005) | ✅ | A-07 confirms the method | 060 | Stock value tile still uses last price until Phase 3 | bd7126e | R |
+| Integrity: receiving guards + request ids (0005) | ✅ | – | 060, e2e 030 | – | bd7126e | R |
+| Integrity: void limited to open day + refund dated today (0006, D-008) | ✅ | – | 070_voids_refunds (27), e2e 040 | Whole-sale refunds only; earlier days reachable once history search ships (Phase 1) | (this commit) | R |
+| Integrity: sales reports without the 1000-row cap | ✅ | – | e2e 040 (fails on the old page) | Single-day lists (Home, POS) keep one request: a day stays far below 1000 sales | (this commit) | R |
 | Release / rollback runbook (docs/PUBLICAR.md) | 🟡 | – | – | – | – | – |
 
 ## Phase 1 · POS and operations

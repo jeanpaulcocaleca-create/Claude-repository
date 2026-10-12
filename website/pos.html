@@ -50,6 +50,8 @@ input,select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid va
 .orow .vtag{grid-column:2/4;font-size:.8rem;color:var(--bad)}
 .voidbox{margin-top:.9rem;padding:.9rem;border:1.5px dashed var(--muted);border-radius:12px;background:var(--canvas)}
 .voidbox label{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
+.voidbox label.chk{display:flex;gap:.6rem;align-items:center;min-height:44px}
+.voidbox label.chk input{width:22px;height:22px}
 .voidbox .row{display:flex;gap:.6rem;margin-top:.9rem}
 .voidbox .row button{flex:1}
 input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
@@ -422,6 +424,11 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <select id="vMgr"></select>
       <label for="vPin">Manager PIN</label>
       <input id="vPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <div id="vRefundBox" hidden>
+        <label for="vMethod">Money goes back as</label>
+        <select id="vMethod"><option value="cash_crc">Cash ₡</option><option value="cash_usd">Cash $</option><option value="card">Card</option><option value="sinpe">SINPE</option><option value="other">Other</option></select>
+        <label class="chk"><input type="checkbox" id="vRestock"> Put the items back in stock (unopened, still good)</label>
+      </div>
       <p class="err" id="voidErr"></p>
       <div class="row">
         <button id="vGo">Void this order</button>
@@ -1872,6 +1879,9 @@ var ERR = {bad_pin:'That PIN is not right.', locked:'Too many wrong PINs. Wait 1
   not_manager:'That person is not a manager.', inactive:'That person is not active on the team.',
   unknown_staff:'Pick the manager who is approving this.', missing_reason:'Write the reason for the void.',
   not_found:'That order no longer exists.', already_voided:'That order was already voided.',
+  refunded:'That sale was already refunded.', is_refund:'A refund cannot be voided. Ring up a new sale instead.',
+  void_instead:'This day is still open: void the sale instead.', has_parts:'This bill was paid in parts: give each payment back from the bill.',
+  not_paid:'That bill was not paid.', bad_method:'Pick how the money goes back.',
   already_paid:'That bill was already paid.', cancelled:'That order was cancelled.', no_account:'This login is not connected to the café yet.'};
 var voidTarget = null;
 var managersList = null;
@@ -1992,6 +2002,10 @@ async function openOrders(){
       var vt = document.createElement('span'); vt.className = 'vtag';
       vt.textContent = 'Voided · ' + (o.void_reason || '');
       row.appendChild(vt);
+    } else if (!o.part_of && o.total_crc < 0){
+      /* a refund of a sale from a day already closed (migration 0006) */
+      var rt = document.createElement('span'); rt.className = 'dtag'; rt.textContent = 'Refund · money given back';
+      row.appendChild(rt);
     } else if (o.given_back_at || (o.part_of && o.total_crc < 0)){
       /* a payment from an earlier day given back today, and the give-back itself */
       var gt = document.createElement('span'); gt.className = 'dtag';
@@ -2008,7 +2022,8 @@ async function openOrders(){
       var back = !!(o.part_of && new Date(o.created_at) < start);
       var b = document.createElement('button'); b.textContent = back ? 'Give back' : 'Void';
       b.addEventListener('click', function(){
-        voidTarget = o; voidTarget.giveBack = back;
+        voidTarget = o; voidTarget.giveBack = back; voidTarget.refund = false;
+        document.getElementById('vRefundBox').hidden = true;
         document.getElementById('voidWhich').textContent = (back ? 'Give back ' : 'Void ') + when.textContent + ' · ' + fmt(o.total_crc) + ' · ' + items.textContent;
         document.getElementById('vGo').textContent = back ? 'Give it back' : 'Void this order';
         document.getElementById('vReason').value = ''; document.getElementById('vPin').value = '';
@@ -2033,6 +2048,15 @@ document.getElementById('vGo').addEventListener('click', async function(){
     p_reason: document.getElementById('vReason').value.trim(),
     p_station: stationName() || null
   });
+  else if (voidTarget.refund) r = await db.rpc('manager_refund_order', {
+    p_manager_id: document.getElementById('vMgr').value || null,
+    p_manager_pin: document.getElementById('vPin').value.trim(),
+    p_order_id: voidTarget.id,
+    p_reason: document.getElementById('vReason').value.trim(),
+    p_restock: document.getElementById('vRestock').checked,
+    p_method: document.getElementById('vMethod').value,
+    p_station: stationName() || null
+  });
   else r = await db.rpc('manager_void_order', {
     p_manager_id: document.getElementById('vMgr').value || null,
     p_manager_pin: document.getElementById('vPin').value.trim(),
@@ -2042,12 +2066,24 @@ document.getElementById('vGo').addEventListener('click', async function(){
   btn.disabled = false;
   if (r.error || !r.data || !r.data.ok){
     var code = r.data && r.data.error;
-    document.getElementById('voidErr').textContent = r.error ? 'Could not void. Check the connection and try again.' : (ERR[code] || 'Could not void. Try again.');
     document.getElementById('vPin').value = '';
+    if (code === 'closed_day' && !back){
+      /* that day was already counted at the register: the money goes back today instead (migration 0006) */
+      voidTarget.refund = true;
+      document.getElementById('vMethod').value = PAY_NAMES[voidTarget.payment_method] ? voidTarget.payment_method : 'cash_crc';
+      document.getElementById('vRestock').checked = false;
+      document.getElementById('vRefundBox').hidden = false;
+      document.getElementById('vGo').textContent = 'Refund today';
+      document.getElementById('voidErr').textContent = 'That day was already closed at the register, so the sale stays on it. The money is given back today: type the PIN again.';
+      document.getElementById('vPin').focus();
+      return;
+    }
+    document.getElementById('voidErr').textContent = r.error ? 'Could not void. Check the connection and try again.' : (ERR[code] || 'Could not void. Try again.');
     return;
   }
-  if (back) toast('Given back ' + fmt(r.data.given_back) + ' · ' + (PAY_NAMES[r.data.method] || r.data.method) + ' · it is back on the bill');
-  else toast('Order voided · ' + fmt(voidTarget.total_crc));
+  if (voidTarget.refund) toast('Refunded ' + fmt(r.data.total) + ' · ' + (PAY_NAMES[r.data.method] || r.data.method) + (r.data.restocked ? ' · items back in stock' : ''));
+  else if (back) toast('Given back ' + fmt(r.data.given_back) + ' · ' + (PAY_NAMES[r.data.method] || r.data.method) + ' · it is back on the bill');
+  if (!back && !voidTarget.refund) toast('Order voided · ' + fmt(voidTarget.total_crc));
   voidTarget = null;
   openOrders();
   if (back){ pollLive(); if (tab) reloadTab(); }

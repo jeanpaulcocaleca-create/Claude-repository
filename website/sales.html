@@ -370,38 +370,39 @@ function rangeStart(){
   return d;
 }
 
+/* every row of a range: the server sends at most 1000 rows per request, so ask page by page (oldest first, so a
+   sale arriving meanwhile lands on the last page), drop any row seen twice, newest first for the page */
+async function allRows(make){
+  var out = [], seen = {}, from = 0, r;
+  for (var guard = 0; guard < 500; guard++){
+    r = await make().order('created_at', {ascending: true}).order('id', {ascending: true}).range(from, from + 999);
+    if (r.error) return r;
+    (r.data || []).forEach(function(o){ if (!seen[o.id]){ seen[o.id] = 1; out.push(o); } });
+    if (!r.data || r.data.length < 1000) break;
+    from += 1000;
+  }
+  out.sort(function(a, b){ return a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0; });
+  return {data: out, error: null};
+}
+
 /* ---- load & render ---- */
 async function load(){
   var start = rangeStart();
   var scols = 'id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,station,guest_name,subtotal_crc,discount_crc,discount_reason,discount_by,order_items(item_name,qty,price_crc)';
   /* a bill split between people: each payment is its own sale, part of the bill (supabase/pos-tabs.sql) */
-  var r = await db.from('orders').select(scols + ',part_of,parts_crc,notes')
-    .gte('created_at', start.toISOString())
-    .order('created_at', {ascending:false})
-    .limit(1000);
+  var since = start.toISOString();
+  var r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes').gte('created_at', since); });
   if (r.error && /part_of|parts_crc/.test(r.error.message || '')){ /* pos-tabs SQL not run yet */
-    r = await db.from('orders').select(scols).gte('created_at', start.toISOString()).order('created_at', {ascending:false}).limit(1000);
+    r = await allRows(function(){ return db.from('orders').select(scols).gte('created_at', since); });
   }
   if (r.error && /station|subtotal|discount/.test(r.error.message || '')){ /* pos-stations SQL not run yet */
-    r = await db.from('orders')
-      .select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,order_items(item_name,qty,price_crc)')
-      .gte('created_at', start.toISOString())
-      .order('created_at', {ascending:false})
-      .limit(1000);
+    r = await allRows(function(){ return db.from('orders').select('id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,order_items(item_name,qty,price_crc)').gte('created_at', since); });
   }
   if (r.error && /paid|status|source|pickup_number/.test(r.error.message || '')){ /* kitchen SQL not run yet */
-    r = await db.from('orders')
-      .select('id,created_at,total_crc,payment_method,voided_at,void_reason,order_items(item_name,qty,price_crc)')
-      .gte('created_at', start.toISOString())
-      .order('created_at', {ascending:false})
-      .limit(1000);
+    r = await allRows(function(){ return db.from('orders').select('id,created_at,total_crc,payment_method,voided_at,void_reason,order_items(item_name,qty,price_crc)').gte('created_at', since); });
   }
   if (r.error && /voided_at/.test(r.error.message || '')){ /* authorization SQL not run yet */
-    r = await db.from('orders')
-      .select('id,created_at,total_crc,payment_method,order_items(item_name,qty,price_crc)')
-      .gte('created_at', start.toISOString())
-      .order('created_at', {ascending:false})
-      .limit(1000);
+    r = await allRows(function(){ return db.from('orders').select('id,created_at,total_crc,payment_method,order_items(item_name,qty,price_crc)').gte('created_at', since); });
   }
   if (r.error){ return; }
   /* voided orders stay on record but never count toward revenue; room orders count once paid at the window */

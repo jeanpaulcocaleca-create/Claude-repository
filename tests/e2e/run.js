@@ -39,7 +39,7 @@ async function startPostgrest(bin, db, port) {
   const host = process.env.PGHOST || '127.0.0.1', pgport = process.env.PGPORT || '5432';
   fs.writeFileSync(conf, [
     `db-uri = "postgres://authenticator:authenticator@${host}:${pgport}/${db}"`,
-    'db-schemas = "public"', 'db-anon-role = "anon"', 'db-pool = 4',
+    'db-schemas = "public"', 'db-anon-role = "anon"', 'db-pool = 4', 'db-max-rows = 1000',   // Supabase answers at most 1000 rows
     `jwt-secret = "${require('./gateway').SECRET}"`, 'server-port = ' + port, 'server-host = "127.0.0.1"', 'log-level = "error"'
   ].join('\n'));
   const p = spawn(bin, [conf], { stdio: ['ignore', 'ignore', 'pipe'] });

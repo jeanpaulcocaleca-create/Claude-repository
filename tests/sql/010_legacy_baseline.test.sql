@@ -88,6 +88,8 @@ select test.eq((select (r->'register'->>'sales_card_crc')::int from t_close), 45
 select test.eq((select (r->'register'->>'cash_diff_crc')::int from t_close), 0, 'cash difference computed on the server');
 
 -- 6) voids need a manager PIN and a reason, and never delete ----------------------------------------
+-- (since 0006 a paid sale is voided only while its register day is open: reopen today's register)
+update public.register_days set closed_at = null where business_date = public.cr_today();
 select test.login('cafe'); set role authenticated;
 select test.eq(public.manager_void_order(test.staff('marta'), '6173', '0d000000-0000-4000-8000-000000000001', 'error')->>'error',
                'not_manager', 'a team member cannot void');
