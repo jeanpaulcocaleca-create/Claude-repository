@@ -2163,6 +2163,7 @@ var cmReq = null, cmSeq = 0;
 async function showCashMoves(){
   var box = document.getElementById('cmBox'), list = document.getElementById('cmList');
   box.hidden = false; document.getElementById('regMoveForm').hidden = true; document.getElementById('cmBtn').hidden = false;
+  document.getElementById('cmPin').value = '';   /* a PIN never stays on screen */
   var mine = ++cmSeq, r = await db.rpc('register_cash_moves');
   if (mine !== cmSeq) return;
   list.textContent = '';
@@ -2178,6 +2179,7 @@ async function showCashMoves(){
       var pin = document.getElementById('cmPin').value.trim(), err = document.getElementById('cmErr');
       document.getElementById('regMoveForm').hidden = false; document.getElementById('cmBtn').hidden = true;
       if (!pin){ err.textContent = 'Pick the manager and type the PIN below, then tap Void again.'; document.getElementById('cmPin').focus(); return; }
+      document.getElementById('cmPin').value = '';   /* taken: it does not wait on screen while the reason is asked */
       var why = prompt('Why is it voided?'); if (!why) return;
       var v = await db.rpc('register_cash_void', {p_manager_id: document.getElementById('cmStaff').value || null, p_pin: pin, p_id: m.id, p_reason: why});
       document.getElementById('cmPin').value = '';
@@ -2392,7 +2394,13 @@ async function searchHist(){
   var r = await db.rpc('order_search', args);
   if (r.error){ err.textContent = rpcMissing(r.error) || /order_search/.test(r.error.message || '') ? 'Searching earlier sales switches on with the next database update.' : 'Could not search. Check the connection and try again.'; return; }
   if (!r.data || !r.data.ok){
-    if (r.data && r.data.error === 'locked'){ err.textContent = 'Earlier days are sales history: a manager opens them with a PIN.'; document.getElementById('hUnlock').hidden = false; return; }
+    if (r.data && r.data.error === 'locked'){
+      /* a manager without the sales permission is already in: one sale is found by its receipt number (to refund it) */
+      var st = window.HG_ACCESS && HG_ACCESS.state ? HG_ACCESS.state() : null;
+      err.textContent = st && st.level ? 'This manager may not see the sales of earlier days. Type the receipt number to find one sale, or ask a manager allowed to see sales.'
+                                       : 'Earlier days are sales history: a manager opens them with a PIN.';
+      document.getElementById('hUnlock').hidden = false; return;
+    }
     err.textContent = 'Could not search. Try again.'; return;
   }
   hRows = r.data.orders || [];

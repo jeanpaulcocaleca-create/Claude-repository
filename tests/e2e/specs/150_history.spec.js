@@ -31,7 +31,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'yesterday\'s sale (register closed) is refunded today from the search, after a manager opens the history',
+    name: 'yesterday\'s sale (register closed) is refunded today: a manager without sales access finds it by its receipt number',
     run: async ({ browser }) => {
       sql(`insert into register_days (business_date, opened_by_name, float_crc, closed_at, closed_by_name) values (cr_today() - 1, 'Ana', 50000, now() - interval '10 hours', 'Ana');
            insert into orders (id, created_at, total_crc, payment_method, paid, status) values ('0d000000-0000-4000-8000-0000000e2e51', cr_day_start(cr_today() - 1) + interval '10 hours', 2500, 'card', true, 'done');
@@ -48,6 +48,10 @@ module.exports.tests = [
       await pg.selectOption('#hgaWho', STAFF.ana);
       await pg.fill('#hgaPin', PINS.ana);
       await pg.click('.hga-go');
+      // Ana may not see sales: the whole day stays closed; the receipt number finds the one sale to refund
+      await until(async () => /Type the receipt number/.test(await pg.locator('#hErr').textContent()), 8000, 'explains the receipt-number way');
+      await pg.fill('#hText', sql(`select receipt_no from orders where id = '0d000000-0000-4000-8000-0000000e2e51'`));
+      await pg.click('#hGo');
       const row = pg.locator('#hList .hrow', { hasText: 'Mocha' }).first();
       await until(async () => (await row.count()) > 0, 8000, 'yesterday listed');
       assert.strictEqual(await row.locator('button', { hasText: /^Void$/ }).count(), 0, 'no void for a closed day');

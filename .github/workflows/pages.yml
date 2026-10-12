@@ -35,12 +35,17 @@ jobs:
     environment: production
     steps:
       - name: Refuse anything that is not an approved release
+        # inputs reach the script as variables, never pasted into it (text typed in the box cannot run commands)
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "PUBLICAR" ]; then
+          if [ "$CONFIRM" != "PUBLICAR" ]; then
             echo "::error::Escriba PUBLICAR para confirmar. Nada se publicó."; exit 1
           fi
-          if [ "${{ github.ref_type }}" != "tag" ] || [[ "${{ github.ref_name }}" != v* ]]; then
-            echo "::error::Solo se publica desde una etiqueta de versión (v...). Elegida: ${{ github.ref_name }}. Nada se publicó."; exit 1
+          if [ "$REF_TYPE" != "tag" ] || ! [[ "$REF_NAME" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]+$ ]]; then
+            echo "::error::Solo se publica desde una etiqueta de versión (vAAAA.MM.DD-N). Nada se publicó."; exit 1
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Fetch the film and photos listed in website/ASSETS.md
@@ -59,9 +64,11 @@ jobs:
       - name: Stamp the release version
         # Every page carries its build; open tablets compare it with version.json and reload between sales
         # (website/version.js). Local scripts get ?v=<build> so no device keeps an old copy from its cache.
+        env:
+          REF_NAME: ${{ github.ref_name }}
         run: |
           BUILD="${GITHUB_SHA::12}"
-          printf '{"version":"%s","build":"%s","sha":"%s","built_at":"%s"}\n' "${{ github.ref_name }}" "$BUILD" "${{ github.sha }}" "$(date -u +%FT%TZ)" > website/version.json
+          printf '{"version":"%s","build":"%s","sha":"%s","built_at":"%s"}\n' "$REF_NAME" "$BUILD" "$GITHUB_SHA" "$(date -u +%FT%TZ)" > website/version.json
           sed -i "s/__BUILD__/$BUILD/g" website/*.html
           sed -i -E "s/(<script src=\"[a-z0-9_-]+\.js)\"/\1?v=$BUILD\"/g" website/*.html
           grep -q "content=\"$BUILD\"" website/pos.html || { echo "::error::build stamp missing"; exit 1; }

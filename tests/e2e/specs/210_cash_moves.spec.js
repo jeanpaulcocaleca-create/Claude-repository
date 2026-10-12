@@ -32,6 +32,13 @@ module.exports.tests = [
       await pg.click('#regMoveForm button[type=submit]');
       await until(() => sql(`select count(*) from cash_movements`) === '2', 8000, 'second saved');
       await until(async () => (await pg.locator('#cmList button', { hasText: 'Void' }).count()) === 2, 8000, 'void buttons');
+      // a PIN typed, Void tapped and the reason cancelled: the PIN does not stay on screen for the next person
+      await pg.locator('#cmList button', { hasText: 'Void' }).nth(1).click();
+      await pg.fill('#cmPin', PINS.ana);
+      pg.onDialog = (d) => d.dismiss();
+      await pg.locator('#cmList button', { hasText: 'Void' }).nth(1).click();
+      await until(async () => (await pg.locator('#cmPin').inputValue()) === '', 5000, 'the PIN is cleared');
+      pg.onDialog = null;
       await pg.locator('#cmList button', { hasText: 'Void' }).nth(1).click();
       await until(async () => /type the PIN below/.test(await pg.locator('#cmErr').textContent()), 5000, 'asks for the PIN first');
       await pg.fill('#cmPin', PINS.ana);
@@ -75,7 +82,7 @@ module.exports.tests = [
       openRegister();
       sql(`insert into cash_movements (id, business_date, direction, purpose, currency, amount, amount_crc, reason, staff_name)
              values ('7e000000-0000-4000-8000-0000000e2e21', cr_today(), 'out', 'payout', 'CRC', 4500, 4500, 'Leche en el súper', 'Ana')`);
-      const pg = await page(browser, { login: 'accountant', lang: 'en' });
+      const pg = await page(browser, { login: 'accountant', aal: 'aal2', lang: 'en' });
       await goto(pg, '/accounting');
       await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
       await pg.click('#tabs [data-view=cash]');

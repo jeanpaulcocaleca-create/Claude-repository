@@ -26,12 +26,14 @@ select test.login('cafe'); set role authenticated;
 select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-000000001903', 'total_crc', 2200, 'payment_method', 'cash_crc',
        'items', jsonb_build_array(jsonb_build_object('item_name', 'Latte', 'price_crc', 2200, 'qty', 1, 'menu_item_id', :'latte'))));
 -- the customer asks for an invoice with their ID
-select test.eq(public.einvoice_request_fe('0d000000-0000-4000-8000-000000001903', '{"name":"Ana Mora","id_type":"fisica","id_number":"1-1234-0567","email":"ana@example.com"}')->>'ok',
-               'true', 'the cashier writes down who asked for an invoice');
 select test.eq(public.einvoice_request_fe('0d000000-0000-4000-8000-000000001903', '{"name":"","id_type":"fisica","id_number":"112340567"}')->>'error',
                'bad_value', 'a name and an ID are needed');
 select test.eq(public.einvoice_request_fe('0d000000-0000-4000-8000-000000001903', '{"name":"X","id_type":"pasaporte","id_number":"112340567"}')->>'error',
                'bad_value', 'only the listed ID types');
+select test.eq(public.einvoice_request_fe('0d000000-0000-4000-8000-000000001903', '{"name":"Ana Mora","id_type":"fisica","id_number":"1-1234-0567","email":"ana@example.com"}')->>'ok',
+               'true', 'the cashier writes down who asked for an invoice');
+select test.eq(public.einvoice_request_fe('0d000000-0000-4000-8000-000000001903', '{"name":"Otra","id_type":"fisica","id_number":"999999999"}')->>'error',
+               'too_late', 'once written, the cashier cannot overwrite it');
 reset role;
 select test.eq((select kind || ':' || (receiver->>'id_number') || ':' || coalesce(array_length(missing, 1), 0) from public.e_documents
                  where order_id = '0d000000-0000-4000-8000-000000001903'), 'FE:112340567:0', 'an invoice with the ID, nothing missing once the product has its CABYS');

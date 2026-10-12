@@ -4,7 +4,7 @@ const assert = require('assert');
 const { page, goto, until, sql } = require('../lib');
 
 async function docs(browser, lang) {
-  const pg = await page(browser, { login: 'accountant', lang: lang || 'en' });
+  const pg = await page(browser, { login: 'accountant', aal: 'aal2', lang: lang || 'en' });
   await goto(pg, '/accounting');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.click('#tabs [data-view=einvoice]');

@@ -6,7 +6,7 @@ select test.eq(public.acct_overview()->>'error', 'not_allowed', 'the café login
 select test.unlock(test.staff('ana'), '4826');
 select test.eq(public.acct_overview()->>'error', 'not_allowed', 'nor a manager with a PIN');
 reset role;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.acct_overview()->>'kind', 'accountant', 'the accountant can');
 select test.eq(public.is_cafe(), false, 'and cannot open the POS');
 select test.eq(public.register_today(), null::jsonb, 'nor the register');
@@ -17,7 +17,7 @@ select test.eq(public.accountant_grant('nadie@test.local')->>'error', 'no_such_l
 reset role;
 
 -- 2) a manual entry: balanced or nothing; never edited -----------------------------------------------------------------
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.acct_entry_post(public.cr_today(), 'Aporte de capital',
         '[{"account":"1110","debit":500000},{"account":"3101","credit":400000}]', '7e000000-0000-4000-8000-000000001401')->>'error', 'unbalanced',
         'an unbalanced entry is refused');
@@ -63,7 +63,7 @@ select public.register_close(test.staff('ana'), '4826', 3300, 49300, null, 10);
 reset role;
 select test.eq((select count(*)::int from acct.entries where source = 'day'), 0, 'automatic posting is off until the accountant approves the chart');
 
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.acct_post_days(public.cr_today(), public.cr_today())->>'entries', '1', 'the accountant posts the day');
 -- the balance check runs at commit as the caller (here: forced now, still as the accountant)
 select test.lives('set constraints all immediate', 'the commit-time balance check runs with the accountant''s rights');
@@ -91,7 +91,7 @@ select test.eq((select sum(amt) from t_day), 0::numeric, 'the day balances');
 select test.login('cafe'); set role authenticated;
 select public.tab_pay('0d000000-0000-4000-8000-000000001404', 'sinpe', null, null, 'Caja', 2000);
 reset role;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.acct_post_days(public.cr_today(), public.cr_today());
 select test.eq(public.acct_post_days(public.cr_today(), public.cr_today())->>'entries', '0', 'nothing new: nothing posted');
 reset role;
@@ -103,7 +103,7 @@ select test.eq((select sum(l.debit - l.credit) from acct.lines l join acct.entri
                'SINPE went to the bank');
 
 -- 5) reports ---------------------------------------------------------------------------------------------------------
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.acct_income_statement(public.cr_today(), public.cr_today()) as pnl \gset
 select public.acct_balance_sheet(public.cr_today()) as bs \gset
 select public.acct_trial_balance(public.cr_today(), public.cr_today()) as tb \gset
@@ -131,7 +131,7 @@ select test.ok(exists (select 1 from acct.entries where source = 'day' and sourc
                'closing the register posts the day');
 
 -- 7) reversal and periods --------------------------------------------------------------------------------------------
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.acct_entry_reverse(((:'e1'::jsonb)->>'entry_id')::bigint, null, 'error de monto')->>'ok', 'true', 'a mistake is reversed');
 select test.eq(public.acct_entry_reverse(((:'e1'::jsonb)->>'entry_id')::bigint, null, 'otra vez')->>'error', 'already_reversed', 'only once');
 select test.eq(public.acct_period_set(to_char(public.cr_today(), 'YYYYMM')::int, 'closed')->>'ok', 'true', 'the month is closed');

@@ -11,7 +11,7 @@ function delivery() {
          values ('7e000000-0000-4000-8000-0000000e2e81', '9a000000-0000-4000-8000-0000000e2e81', '${VENDOR}', 'F-88', 10000, true)`);
 }
 async function suppliers(browser, lang) {
-  const pg = await page(browser, { login: 'accountant', lang: lang || 'en' });
+  const pg = await page(browser, { login: 'accountant', aal: 'aal2', lang: lang || 'en' });
   await goto(pg, '/accounting');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.click('#tabs [data-view=payables]');

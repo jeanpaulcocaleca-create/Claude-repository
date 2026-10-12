@@ -5,7 +5,7 @@ const { page, goto, until, sql, STAFF } = require('../lib');
 
 function crDay(offset) { return new Date(Date.now() - 6 * 3600000 + offset * 86400000).toISOString().slice(0, 10); }
 async function payroll(browser, who) {
-  const pg = await page(browser, { login: who, aal: who === 'owner' ? 'aal2' : 'aal1', lang: 'en' });
+  const pg = await page(browser, { login: who, aal: 'aal2', lang: 'en' });
   await goto(pg, '/accounting');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.click('#tabs [data-view=payroll]');

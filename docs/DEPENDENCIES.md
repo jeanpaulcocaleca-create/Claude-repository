@@ -33,7 +33,7 @@ Status: **OPEN** (waiting), **DONE**.
 | A-02 | Does the café issue electronic tiquetes today? With which tool? | E-invoicing priority and provider | OPEN |
 | A-03 | Price display: MEIC requires final IVA-inclusive prices on menus (press reports, Feb 2026). Confirm whether tax-exclusive menu display is lawful. | Activation of tax-exclusive pricing (built, OFF) | OPEN |
 | A-04 | IVA rate and CABYS code for each product | Per-product tax configuration (built, defaults pending) | OPEN |
-| A-05 | 10% service charge: any table service? | Service-charge setting (default OFF) | OPEN |
+| A-05 | 10% service charge: any table service? | A service charge is **not built** (not in the approved scope); built only if table service is confirmed | OPEN |
 | A-06 | USD: which rate (BCCR buy, sell, house rate) and accounting of exchange differences | FX policy setting | OPEN |
 | A-07 | Chart of accounts, inventory costing method (weighted average proposed), revenue timing for pay-later bills | Ledger activation | OPEN |
 | A-08 | Payroll: pay frequency, contracts, CCSS/INS/income-tax rates and rules, who runs payroll | Payroll: periods, approval, rates and the review/post flow are built (0021, 0022); each deduction/charge is entered with who confirmed it; until then the payroll computes gross pay only | OPEN |

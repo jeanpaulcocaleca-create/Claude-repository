@@ -61,7 +61,7 @@ select test.eq((select (x->>'recipe_cost_crc')::numeric || '|' || (x->>'unit_mar
                '380.00|1620.00', 'recipe cost today and the margin at today''s price net of IVA');
 select test.ok((select bool_and((x->>'has_recipe')::boolean = false) from jsonb_array_elements((:'pp'::jsonb)->'rows') x where x->>'name' = 'Tea'), 'products without a recipe are flagged');
 reset role;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.inventory_valuation()->>'ok', 'true', 'the accountant sees the valuation');
 reset role;
 select test.done();

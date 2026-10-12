@@ -485,6 +485,7 @@ function fmt(n){ return '₡' + Math.round(Number(n) || 0).toLocaleString('fr-FR
 function num(n, d){ n = Number(n) || 0; return n.toLocaleString('fr-FR', {maximumFractionDigits: d === undefined ? 1 : d}); }
 function qtyU(n, unit){ return num(n, unit === 'unit' ? 0 : 1) + ' ' + unitLabel(unit); }
 var UNITS = {unit: 'units', g: 'g', kg: 'kg', ml: 'ml', L: 'L'};
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
 function unitLabel(u){ return UNITS[u] || u; }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(function(){ t.classList.remove('on'); }, 2600); }
@@ -495,7 +496,7 @@ function statusLabel(s){ return {out: 'Out of stock', low: 'Low', soon: 'Running
 var CATS = {coffee: 'Coffee', dairy: 'Dairy', bakery: 'Bakery', sandwich: 'Sandwich', produce: 'Produce', drinks: 'Drinks', packaging: 'Packaging', cleaning: 'Cleaning', other: 'Other'};
 function catLabel(c){ return CATS[c] || c; }
 function download(name, rows){
-  var csv = rows.map(function(r){ return r.map(function(v){ return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+  var csv = rows.map(function(r){ return r.map(function(v){ return '"' + csvSafe(String(v == null ? '' : v)).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
   var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'})); a.download = name; a.click();
 }
 
@@ -1126,7 +1127,7 @@ async function loadHistory(){
   HIST.forEach(function(m){
     var i = byId[m.item_id]; var tr = document.createElement('tr');
     tr.innerHTML = '<td class="mono-small">' + esc(fmtDT(m.at)) + '</td><td>' + esc(i ? i.name : '?') + '</td><td>' + esc(KIND_LABEL[m.kind] || m.kind) + '</td>' +
-      '<td class="num" style="color:' + (Number(m.qty) < 0 ? 'var(--bad)' : 'var(--ok)') + '">' + (Number(m.qty) > 0 ? '+' : '') + num(m.qty, 1) + (i ? ' ' + unitLabel(i.unit) : '') + '</td>' +
+      '<td class="num" style="color:' + (Number(m.qty) < 0 ? 'var(--bad)' : 'var(--ok)') + '">' + (Number(m.qty) > 0 ? '+' : '') + num(m.qty, 1) + (i ? ' ' + esc(unitLabel(i.unit)) : '') + '</td>' +
       '<td class="num">' + (m.unit_cost != null ? fmt(Number(m.unit_cost) * (i ? Number(i.pack_qty) : 1)) + '<span class="sub">per pack</span>' : '') + '</td><td>' + esc(m.note || '') + (m.expires_on ? '<span class="sub">expires ' + esc(fmtD(m.expires_on)) + '</span>' : '') + '</td><td>' + esc(m.by_name || (m.order_id ? 'POS' : '')) + '</td>';
     tb.appendChild(tr);
   });

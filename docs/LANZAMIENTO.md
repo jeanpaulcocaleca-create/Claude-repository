@@ -21,10 +21,28 @@ Documentos relacionados:
 5. **Comprobar**: `supabase/tools/release-check.sql` (solo lectura). Debe mostrar:
    - `migrations_missing` vacío hasta la ola aplicada;
    - `functions_missing` vacío (después de la ola 5);
+   - `migrations_applied` hasta la 25;
    - `anon_can_run` solo `canopy_schema_version`, `order_status`, `place_room_order` y `room_lookup`;
    - `tables_without_rls` vacío;
    - `ledger.unbalanced` en 0.
 6. **Observar 1 a 3 días** antes de la ola siguiente.
+
+## Recomendación: la base en una sola ventana, el uso por olas
+
+La migración **0025** corrige lo que encontró la revisión de seguridad en todas las fases. Depende de todas las
+anteriores, así que va de última.
+
+Para que no quede ningún periodo con una corrección pendiente:
+- **Ola 0** (urgente) se aplica ya, sola.
+- **Las migraciones 0003 a 0025** se aplican juntas, en **una sola ventana** fuera de horario, después del ensayo
+  completo en pruebas (staging).
+- Todo lo regulado queda **apagado**. Las páginas se publican en esa misma ventana.
+- Las olas 1 a 5 de abajo se convierten en **activación y capacitación**: qué se revisa, qué se enciende y qué
+  aprende el personal, una ola por semana.
+
+Si prefiere aplicar la base por olas, aplique **0025 junto con la ola 5**. Hasta entonces:
+- no dé acceso de contador;
+- no escriba el PIN del dueño en la tableta.
 
 ## Ola 0 · Seguridad y respaldos (urgente, ya se puede)
 
@@ -110,9 +128,13 @@ Documentos relacionados:
   - quitar las funciones nuevas;
   - quitar el candado de horas (`drop trigger time_entries_period_lock`).
 
-## Ola 5 · Información del negocio (Fase 5)
+## Ola 5 · Información del negocio (Fase 5) y endurecimiento de seguridad
 
-- **Migraciones**: 0023 y 0024, más la página Información.
+- **Migraciones**: 0023, 0024 y **0025** (endurecimiento de seguridad, D-022), más la página Información.
+- **Después de 0025**:
+  - el dueño entra a Contabilidad e Información con **su** ingreso y el código del teléfono;
+  - el contador activa su código del teléfono en su primer ingreso;
+  - un encargado necesita el permiso de ventas para ver Información.
 - Solo lectura; 0024 agrega una columna con valor fijo (el local de hoy).
 - **Comprobar**:
   - Información carga;
@@ -148,6 +170,7 @@ Documentos relacionados:
 | 0015 | `drop policy "expense receipts read" / "expense receipts add"` |
 | 0018 | `einvoice_mode = off; drop trigger order_e_document` |
 | 0021 | `drop trigger time_entries_period_lock` |
+| 0025 | Volver a aplicar la migración anterior de cada función (no toca datos). Nunca quitarla por comodidad: corrige fallas de seguridad |
 
 ## Capacitación recomendada
 

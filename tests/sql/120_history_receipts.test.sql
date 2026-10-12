@@ -30,8 +30,19 @@ select test.eq((public.order_search(public.cr_today(), public.cr_today()))->'ord
 -- earlier days need a manager
 select test.eq(public.order_search(public.cr_today() - 1, public.cr_today())->>'error', 'locked', 'yesterday needs a manager''s PIN');
 select test.unlock(test.staff('ana'), '4826');
+-- a manager without the sales permission finds one receipt by its number (to refund it), not the whole day
+select test.eq(public.order_search(public.cr_today() - 1, public.cr_today() - 1)->>'error', 'locked', 'a manager PIN alone does not open earlier days');
+reset role;
+select receipt_no as yrec from public.orders where business_date = public.cr_today() - 1 limit 1 \gset
+select test.login('cafe'); set role authenticated;
+select test.unlock(test.staff('ana'), '4826');
+select test.eq(jsonb_array_length((public.order_search(public.cr_today() - 1, public.cr_today() - 1, null, :'yrec'))->'orders'), 1, 'one receipt by its number');
+reset role;
+update public.staff set can_see_sales = true where id = test.staff('ana');
+select test.login('cafe'); set role authenticated;
+select test.unlock(test.staff('ana'), '4826');
 select public.order_search(public.cr_today() - 1, public.cr_today() - 1) as y \gset
-select test.eq(jsonb_array_length((:'y'::jsonb)->'orders'), 1, 'with it: yesterday''s sale');
+select test.eq(jsonb_array_length((:'y'::jsonb)->'orders'), 1, 'with the sales permission: yesterday''s sale');
 select test.eq((:'y'::jsonb)->'orders'->0->>'can_refund', 'true', 'a closed day''s sale is offered for refund, not void');
 select test.eq((:'y'::jsonb)->'orders'->0->>'can_void', 'false', 'and cannot be voided');
 select test.eq(public.order_search(public.cr_today() - 200, public.cr_today())->>'error', 'bad_range', 'at most three months at a time');

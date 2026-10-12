@@ -14,7 +14,7 @@ function seed() {
          values ('7e000000-0000-4000-8000-0000000e2e91', cr_today(), 'Jabón', '6204', 1130, 130, 'cash', 'Súper', 'E-9', 'prueba')`);
 }
 async function reports(browser, lang) {
-  const pg = await page(browser, { login: 'accountant', lang: lang || 'en' });
+  const pg = await page(browser, { login: 'accountant', aal: 'aal2', lang: lang || 'en' });
   await goto(pg, '/accounting');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.click('#tabs [data-view=reports]');

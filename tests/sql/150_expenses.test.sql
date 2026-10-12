@@ -25,7 +25,7 @@ select test.login('cafe'); set role authenticated;
 select test.unlock(test.staff('ana'), '4826');
 select test.eq(public.expense_void('7e000000-0000-4000-8000-000000001501', 'error')->>'error', 'not_allowed', 'a manager cannot void it');
 reset role;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.expense_void('7e000000-0000-4000-8000-000000001501', '')->>'error', 'missing_reason', 'a void needs a reason');
 select test.eq(public.expense_void('7e000000-0000-4000-8000-000000001501', 'factura duplicada')->>'ok', 'true', 'the accountant voids it');
 select test.eq(jsonb_array_length(public.expense_list(public.cr_today(), public.cr_today())->'expenses'), 1, 'it stays on the list, voided');

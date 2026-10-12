@@ -1,6 +1,6 @@
 -- Migration 0015: expense receipt files (private), the accountant's IVA summary.
 begin;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Cloro', 'account', '6204', 'amount_crc', 1130, 'iva_crc', 130, 'paid_from', 'cash'),
                            '7e000000-0000-4000-8000-000000001601');
 select test.lives($$insert into storage.objects (bucket_id, name) values ('expense-receipts', '7e000000-0000-4000-8000-000000001601/factura.jpg')$$, 'the accountant uploads a receipt');

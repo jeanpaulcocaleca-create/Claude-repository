@@ -207,3 +207,41 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   each device saying its location, and reports filtered by it.
 - **Why:** adding the column now, with a default, is cheap and safe; the larger changes depend on how a
   second location would actually run.
+
+## D-022 · 2026-10-12 · Pre-release security review: what changed (migration 0025 and the pages)
+- **How:** four independent read-only reviews, by area: Phase 1 migrations, books and IVA, cash/bank/payroll/insights,
+  and the pages. Each finding was confirmed against the code (most by running the attack on a test database),
+  fixed, and is now an automated test (`tests/sql/250_security_hardening`, browser 170 and 210).
+- **The owner's phone code, not the owner's PIN, opens the books.** The owner's PIN typed on the café tablet
+  still opens the owner areas it always did (Menu, Sales, Inventory, team), but the books, payroll, pay rates,
+  the bank, legal confirmations, switches, tax rates and accountant access need the owner's own login with the
+  phone code. The accountant always signs in with the phone code too; Accounting offers to turn it on.
+- **Sales numbers need the sales permission.** Insights, profit by product, the period's IVA, cash by day and
+  the history of earlier days follow the same rule as the Sales page; a manager without it can still find one
+  receipt by its number to refund it.
+- **Money is a number.** NaN and infinity are refused in every money and quantity column (they had passed every
+  check and made the books unreadable for good).
+- **Integrity:**
+  - nothing is dated into a month before one already closed;
+  - a supplier's invoices and payments are saved one at a time (no overpaying with two clicks);
+  - a bank movement posted again after an undo gets its own entry;
+  - payroll is reviewed and posted only if it was prepared from the hours as approved now, and no net pay is
+    below zero;
+  - wrong-PIN tries sent at the same moment are counted one by one;
+  - an exchange rate typed by hand stays between 100 and 2 000, and within 5 % of the last rate unless the
+    owner with the code types it;
+  - an "opening balance" never rewrites the cost of an item with history;
+  - received purchase lines can't be edited;
+  - a receipt file can only go into the folder of an expense without one;
+  - the tablet sees earlier days' cash only with the sales permission;
+  - an invoice request (customer ID) is written once, for a sale of today;
+  - dollar bank accounts wait until their movements are valued in colones.
+- **Pages:**
+  - an inventory unit can no longer carry HTML;
+  - every CSV export neutralizes cells that would start a spreadsheet formula;
+  - the manager PIN never stays in the cash in/out form;
+  - the publish workflow reads its inputs as variables, and only a tag `vAAAA.MM.DD-N` publishes;
+  - translations never treat `$` in user text as a pattern.
+- **Accepted (low, documented):**
+  - the till's internal tender function stays callable by the café login (a wrong tender is flagged as a mismatch);
+  - inventory cost-edit log rows can be written by an unlocked manager (attributed to them).

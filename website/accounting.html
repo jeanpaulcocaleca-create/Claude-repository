@@ -105,6 +105,20 @@ tr.head td{font-weight:700;background:var(--canvas)}
 <div id="noView" class="login" hidden>
   <h1>Accounting</h1>
   <p class="hint" id="noWhy">This page is for the owner (with the phone code) and the accountant.</p>
+  <!-- the books always need the phone code: a login without one turns it on here -->
+  <div id="enrollWrap" hidden>
+    <button type="button" id="enrollStart">Turn on the phone code</button>
+    <div id="enrollBox" hidden>
+      <p class="hint">Scan this with Google Authenticator, Microsoft Authenticator or 1Password on your phone, then type the 6-digit code it shows.</p>
+      <img id="enrollQr" alt="QR code for the authenticator app" width="180" height="180" style="display:block;margin:.6rem auto;background:#fff;border-radius:10px">
+      <p class="hint">Or type this key by hand: <code id="enrollSecret" class="mono"></code></p>
+      <form id="enrollForm">
+        <input id="enrollCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit code" aria-label="6-digit code" required>
+        <button type="submit">Confirm</button>
+      </form>
+    </div>
+    <p class="err" id="enrollErr"></p>
+  </div>
   <button type="button" class="ghost" id="noOut">Sign out</button>
 </div>
 
@@ -323,7 +337,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
       <div class="grid2" id="bkForm" hidden>
         <div><label for="bkName">Name</label><input id="bkName" maxlength="60" placeholder="BCR colones"></div>
         <div><label for="bkBank">Bank</label><input id="bkBank" maxlength="60"></div>
-        <div><label for="bkCur">Currency</label><select id="bkCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div>
+        <div><label for="bkCur">Currency</label><select id="bkCur"><option value="CRC">Colones (₡)</option></select></div>
         <div><label for="bkLast4">Last 4 digits</label><input id="bkLast4" inputmode="numeric" maxlength="4"></div>
         <div><label for="bkGl">Account in the books</label><select id="bkGl"></select></div>
         <div style="align-self:end"><button type="button" id="bkSave">Save</button> <button type="button" class="ghost" id="bkCancel">Cancel</button></div>
@@ -473,8 +487,9 @@ function uuid(){
 function today(){ var d = new Date(Date.now() - 6 * 3600000); return d.toISOString().slice(0, 10); }   /* Costa Rica (UTC−6) */
 function monthStart(d){ return d.slice(0, 8) + '01'; }
 function monthEnd(d){ var x = new Date(d.slice(0, 7) + '-01T12:00:00'); x.setMonth(x.getMonth() + 1); x.setDate(0); return x.toISOString().slice(0, 10); }
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
 function download(name, rows){
-  var csv = rows.map(function(r){ return r.map(function(c){ var s = c == null ? '' : String(c); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(','); }).join('\r\n');
+  var csv = rows.map(function(r){ return r.map(function(c){ var s = csvSafe(c == null ? '' : String(c)); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(','); }).join('\r\n');
   var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv;charset=utf-8'})); a.download = name; a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
 }
@@ -494,7 +509,9 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   not_approved: 'The owner approves the hours first.', not_draft: 'This payroll is no longer a draft.', accountant_only: 'Only the accountant marks it as reviewed.',
   missing_rates: 'Someone has no pay rate: set it in Pay rates and prepare the payroll again.', empty: 'Nobody to pay in this period.', not_reviewed: 'The accountant reviews it first.',
   not_posted: 'Post it first.', payroll_posted: 'Its payroll is already posted: the hours stay.', used_by_payroll: 'A posted payroll used this rate: the change starts after that period.',
-  bad_rows: 'Some rows could not be read: check the date format and the columns.', has_payments: 'This invoice has payments: void the payments first.'};
+  bad_rows: 'Some rows could not be read: check the date format and the columns.', usd_not_supported: 'Dollar accounts come later: their movements must be valued in colones first.',
+  prepare_again: 'The hours changed since this payroll was prepared: prepare it again.', negative_net: 'Someone would be paid less than zero: check the deductions.',
+  is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.', big_change: 'That rate is far from the last one: the owner with the phone code can set it.', has_payments: 'This invoice has payments: void the payments first.'};
 function errText(r){ return r.error ? 'Could not save. Check the connection and try again.' : (ERR[r.data && r.data.error] || 'Could not save. Try again.'); }
 
 /* ---------- sign in: the owner (phone code) or the accountant ---------- */
@@ -513,8 +530,11 @@ async function refreshAuth(){
   var k = await db.rpc('account_kind'); KIND = k.error ? null : k.data;
   var r = await db.rpc('acct_overview');
   if (r.error || !r.data || !r.data.ok){
+    var needs = KIND === 'accountant_needs_code' || KIND === 'owner' || KIND === 'owner_needs_code';
     $('noWhy').textContent = r.error && /acct_overview|Could not find/i.test(r.error.message || '') ? 'The accounting needs a database update: apply the pending migrations (docs/MIGRACIONES.md).'
+      : needs ? 'The books open only with the code from your phone. Turn it on once; then every sign-in asks for the code.'
       : 'This page is for the owner (with the phone code) and the accountant.';
+    $('enrollWrap').hidden = !(needs && !r.error);
     $('noView').hidden = false; return;
   }
   OV = r.data; $('appView').hidden = false;
@@ -530,6 +550,24 @@ $('codeForm').addEventListener('submit', async function(e){
   $('codeIn').value = '';
   if (r.error){ $('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; return; }
   refreshAuth();
+});
+var enrollId = null;
+$('enrollStart').addEventListener('click', async function(){
+  $('enrollErr').textContent = '';
+  var f = await db.auth.mfa.listFactors(), all = (f.data && f.data.all) || [];
+  for (var i = 0; i < all.length; i++){ if (all[i].factor_type === 'totp' && all[i].status !== 'verified') await db.auth.mfa.unenroll({factorId: all[i].id}); }
+  var e = await db.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Phone'});
+  if (e.error || !e.data || !e.data.totp){ $('enrollErr').textContent = 'Could not start the phone code. Ask the owner to check that Supabase → Authentication → Multi-Factor → TOTP is on.'; return; }
+  enrollId = e.data.id; $('enrollQr').src = e.data.totp.qr_code; $('enrollSecret').textContent = e.data.totp.secret;
+  $('enrollBox').hidden = false; $('enrollStart').hidden = true; $('enrollCode').focus();
+});
+$('enrollForm').addEventListener('submit', async function(ev){
+  ev.preventDefault();
+  if (!enrollId) return;
+  var r = await db.auth.mfa.challengeAndVerify({factorId: enrollId, code: $('enrollCode').value.trim()});
+  $('enrollCode').value = '';
+  if (r.error){ $('enrollErr').textContent = 'That code did not match. Wait for the next code and try again.'; return; }
+  enrollId = null; $('enrollBox').hidden = true; $('enrollStart').hidden = false; refreshAuth();
 });
 ['outBtn', 'noOut'].forEach(function(id){ $(id).addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }); });
 db.auth.onAuthStateChange(function(ev){ if (ev === 'SIGNED_OUT') refreshAuth(); });
@@ -820,7 +858,7 @@ $('rPrint').addEventListener('click', function(){ window.print(); });
 /* the month for the accountant in one file: journal, trial balance, income statement, balance sheet, cash flow,
    expenses, sales IVA by rate, purchase IVA documents and today's inventory valuation, each a CSV inside a ZIP
    (built here, nothing is sent anywhere) */
-function csvText(rows){ return '\ufeff' + rows.map(function(r){ return r.map(function(c){ var t = c == null ? '' : String(c); return /[",\n;]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(','); }).join('\r\n'); }
+function csvText(rows){ return '\ufeff' + rows.map(function(r){ return r.map(function(c){ var t = csvSafe(c == null ? '' : String(c)); return /[",\n;]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(','); }).join('\r\n'); }
 var CRC_T = (function(){ var t = []; for (var n = 0; n < 256; n++){ var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function crc32(b){ var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
 function zip(files){   /* store-only ZIP: [{name, text}] */

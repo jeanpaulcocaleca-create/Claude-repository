@@ -14,7 +14,7 @@ select test.login('cafe'); set role authenticated;
 select test.eq(public.pay_period_save(:'p0', :'p1')->>'error', 'not_allowed', 'a café device does not create pay periods');
 select test.eq(public.timesheet(null)->>'error', 'not_allowed', 'nor sees the timesheets');
 reset role;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.pay_period_save(:'p0', :'p1') as pp \gset
 select test.eq((:'pp'::jsonb)->>'ok', 'true', 'the accountant creates the period');
 select (:'pp'::jsonb)->>'id' as period \gset
@@ -46,7 +46,7 @@ reset role;
 select test.eq((select hours from public.pay_period_hours where staff_id = test.staff('luis')), 16::numeric, 'the approved copy: Luis 16 h');
 
 -- pay: rates, rules only with a confirmation, the payroll
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.staff_pay_set(test.staff('ana'), 'hourly', 2500, :'p0')->>'ok', 'true', 'Ana by the hour');
 select test.eq(public.staff_pay_set(test.staff('luis'), 'hourly', 2000, :'p0')->>'ok', 'true', 'Luis by the hour');
 select public.payroll_prepare(:'period') as pr \gset
@@ -69,7 +69,14 @@ select test.login('owner', 'aal2'); set role authenticated;
 select test.eq(public.payroll_review(:'run')->>'error', 'accountant_only', 'the accountant reviews it');
 select test.eq(public.payroll_post(:'run')->>'error', 'not_reviewed', 'nothing is posted before the review');
 reset role;
-select test.login('accountant'); set role authenticated;
+-- hours reopened and approved again: the payroll is prepared again before anyone reviews it
+select test.eq(public.timesheet_reopen(:'period', 'corregir un turno')->>'ok', 'true', 'the owner reopens the hours');
+select test.eq(public.timesheet_approve(:'period')->>'ok', 'true', 'and approves them again');
+reset role;
+select test.login('accountant', 'aal2'); set role authenticated;
+select test.eq(public.payroll_review(:'run')->>'error', 'prepare_again', 'a payroll prepared before the last approval is not reviewed');
+select test.eq(public.payroll_prepare(:'period')->>'ok', 'true', 'prepared again from the approved hours');
+select test.eq(public.payroll_adjust(:'run', test.staff('ana'), 1000, 'adelanto')->>'ok', 'true', 'the advance again');
 select test.eq(public.payroll_review(:'run')->>'ok', 'true', 'reviewed');
 select test.eq(public.payroll_adjust(:'run', test.staff('ana'), 0, null)->>'error', 'not_draft', 'a reviewed payroll does not change');
 select test.eq(public.payroll_post(:'run')->>'ok', 'true', 'posted');

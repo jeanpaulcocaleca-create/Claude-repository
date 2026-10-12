@@ -499,6 +499,7 @@ function approvalNeeded(r){
   return !r.error && (code === 'unknown_staff' || code === 'not_manager' || code === 'bad_pin');
 }
 function toggleApprove(box, show){ box.hidden = !show; }
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
 function errMsg(r){
   if (r.error){
     if (/period_locked/.test(r.error.message || '')) return 'That pay period is approved: its hours can no longer change. Ask the owner to reopen it.';
@@ -1054,7 +1055,7 @@ document.getElementById('csvBtn').addEventListener('click', function(){
     var inD = new Date(e.clock_in);
     var outD = e.clock_out ? new Date(e.clock_out) : null;
     lines.push([
-      '"' + staffName(e.staff_id).replace(/"/g,'""') + '"',
+      '"' + csvSafe(staffName(e.staff_id)).replace(/"/g,'""') + '"',
       inD.getFullYear() + '-' + p2(inD.getMonth()+1) + '-' + p2(inD.getDate()),
       fmtTime(inD),
       outD ? fmtTime(outD) : '',

@@ -60,7 +60,7 @@ select test.eq((select string_agg(coalesce(invoice_id::text, '-'), ',' order by 
                '7e000000-0000-4000-8000-000000001711,7e000000-0000-4000-8000-000000001712,-', 'deliveries point to their invoice');
 
 -- aging: S-77 (2 260) is 65 days late; A-1 (11 865) and A-2 (5 000, due in 25 days by default) are current
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.ap_aging() as ag \gset
 select test.eq((:'ag'::jsonb)#>>'{vendors,0,name}', 'Café de Altura', 'the supplier with open invoices');
 select test.eq(((:'ag'::jsonb)#>>'{vendors,0,current}')::numeric, 16865::numeric, 'current: A-1 + A-2');
@@ -97,7 +97,7 @@ select test.login('cafe'); set role authenticated;
 select test.unlock(test.staff('ana'), '4826');
 select test.eq(public.supplier_payment_void('7e000000-0000-4000-8000-000000001721', 'error')->>'error', 'not_allowed', 'a manager cannot void a payment');
 reset role;
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.supplier_invoice_void('7e000000-0000-4000-8000-000000001713', 'duplicada')->>'error', 'has_payments', 'a paid invoice is not voided');
 select test.eq(public.supplier_payment_void('7e000000-0000-4000-8000-000000001721', '')->>'error', 'missing_reason', 'a void needs a reason');
 select test.eq(public.supplier_payment_void('7e000000-0000-4000-8000-000000001721', 'transferencia rechazada')->>'ok', 'true', 'the accountant voids a payment');

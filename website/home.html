@@ -506,6 +506,7 @@ document.getElementById('fxGo').addEventListener('click', async function(){
   var day = new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);   /* Costa Rica (UTC−6) */
   var r = await db.rpc('fx_rate_set', {p_day: day, p_buy: b, p_sell: se});
   var E = {official_exists: 'The official rate of today is already in: it is used as it is.', bad_value: 'Check the rates: buy is the lower one, sell the higher one.',
+           big_change: 'That rate is far from the last one: the owner with the phone code can set it.',
            owner_only: 'Only the owner login, with the phone code, can change settings.'};
   if (r.error || !r.data || !r.data.ok){ msg.textContent = r.error ? 'Could not save. Check the connection and try again.' : (E[r.data.error] || 'Could not save. Try again.'); return; }
   document.getElementById('fxBuy').value = ''; document.getElementById('fxSell').value = '';
@@ -525,7 +526,8 @@ document.getElementById('acctGrant').addEventListener('click', async function(){
   var em = document.getElementById('acctEmail').value.trim(), hint = document.getElementById('acctHint');
   if (!em) return;
   var r = await db.rpc('accountant_grant', {p_email: em});
-  var E = {no_such_login: 'There is no login with that email yet: create it in Supabase → Authentication first.', is_owner: 'That is an owner login.', owner_only: 'Only the owner login can do this.'};
+  var E = {no_such_login: 'There is no login with that email yet: create it in Supabase → Authentication first.', is_owner: 'That is an owner login.', owner_only: 'Only the owner login can do this.',
+           is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.'};
   hint.textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.ok ? 'Done: ' + em + ' can open the accounting.' : (E[r.data && r.data.error] || 'Could not save. Try again.'));
 });
 async function loadStats(){

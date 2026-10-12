@@ -12,14 +12,14 @@ select test.unlock(test.staff('ana'), '4826');
 select test.eq(public.bank_overview(null, null, null)->>'error', 'not_allowed', 'nor a manager with a PIN');
 reset role;
 
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.bank_account_save('{"name":"BCR colones","gl_account":"6208"}')->>'error', 'bad_account', 'a bank account goes to a cash or bank account of the books');
 select public.bank_account_save('{"name":"BCR colones","bank":"BCR","gl_account":"1110","last4":"1234-5678-9012-3456"}') as ba \gset
 select test.eq((:'ba'::jsonb)->>'ok', 'true', 'the accountant adds the account');
 select (:'ba'::jsonb)->>'id' as acc \gset
 reset role;
 select test.eq((select last4 from public.bank_accounts), '3456', 'only the last 4 digits are kept');
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.bank_import(:'acc', 'octubre.csv', jsonb_build_array(
   jsonb_build_object('date', public.cr_today() - 2, 'description', 'DEPOSITO EFECTIVO', 'amount', 30000, 'balance', 130000),
   jsonb_build_object('date', public.cr_today() - 1, 'description', 'TRANSF  PROVEEDOR', 'reference', '991', 'amount', -5000, 'balance', 125000),
@@ -43,7 +43,7 @@ select id as fee from public.bank_lines where description = 'COMISION MANTENIMIE
 select id as card from public.bank_lines where description = 'LIQUIDACION TARJETAS' \gset
 select min(id) as s1 from public.bank_lines where description = 'SINPE MOVIL' \gset
 select id as dep_line from acct.lines where account = '1110' and debit = 30000 \gset
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.bank_post(:'fee', '[{"account":"6208","amount":-300}]', null)->>'error', 'parts_differ', 'the parts must add up to the bank''s amount');
 select test.eq(public.bank_post(:'fee', '[{"account":"1110","amount":-350}]', null)->>'error', 'bad_account', 'never against the bank''s own account');
 select test.eq(public.bank_post(:'fee', '[{"account":"6208","amount":-350}]', null)->>'ok', 'true', 'a bank charge the books did not have');

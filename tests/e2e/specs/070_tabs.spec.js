@@ -58,6 +58,10 @@ async function till(browser, opts) {
   await goto(pg, '/pos');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.waitForFunction(() => document.querySelectorAll('.pbtn').length > 0, null, { timeout: 15000 });
+  /* diagnostics: a navigation of the page after it loaded is printed (a test that sees "execution context was
+     destroyed" then says where the page went) */
+  pg.on('framenavigated', (f) => { if (f === pg.mainFrame() && pg.__loaded) console.log('        [page navigated to ' + f.url() + ']'); });
+  pg.__loaded = true;
   if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
   if (await pg.isVisible('#stationModal')) await pg.click('#stationForm button[type=submit]');
   await pg.evaluate(() => {

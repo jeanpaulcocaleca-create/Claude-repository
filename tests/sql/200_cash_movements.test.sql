@@ -39,7 +39,7 @@ select test.eq(public.register_cash_void(test.staff('ana'), '4826', '7e000000-00
 reset role;
 
 -- the books: each movement against where the money went
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.acct_post_days(public.cr_today(), public.cr_today())->>'entries', '1', 'the day is posted');
 reset role;
 set constraints all immediate; set constraints all deferred;
@@ -49,7 +49,7 @@ select test.eq((select string_agg(l.account || ':' || (l.debit - l.credit), ',' 
                'cash: +10 000 sale − 4 500 − 30 000 + 20 000; bank +10 000; payout to document; owner $10 at ₡500');
 
 -- the accountant documents the payout with the supermarket invoice
-select test.login('accountant'); set role authenticated;
+select test.login('accountant', 'aal2'); set role authenticated;
 select public.cash_payouts(public.cr_today(), public.cr_today()) as po \gset
 select test.eq(((:'po'::jsonb)#>>'{payouts,0,documented_crc}')::numeric, 0::numeric, 'the payout waits for its document');
 select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Leche', 'vendor_name', 'Súper', 'account', '6299',

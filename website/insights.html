@@ -209,8 +209,9 @@ function fmt(n){ return (Number(n) < 0 ? '−' : '') + '₡' + Math.abs(Math.rou
 function esc(s){ var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
 function pct(v){ return v == null ? '–' : String(v).replace('.', ',') + ' %'; }
 function crToday(offset){ return new Date(Date.now() - 6 * 3600000 + (offset || 0) * 86400000).toISOString().slice(0, 10); }
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
 function download(name, rows){
-  var t = '﻿' + rows.map(function(r){ return r.map(function(c){ var x = c == null ? '' : String(c); return /[",\n;]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(','); }).join('\r\n');
+  var t = '﻿' + rows.map(function(r){ return r.map(function(c){ var x = csvSafe(c == null ? '' : String(c)); return /[",\n;]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(','); }).join('\r\n');
   var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], {type: 'text/csv'})); a.download = name; a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
 }

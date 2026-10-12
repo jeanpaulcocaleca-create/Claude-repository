@@ -10,7 +10,7 @@
 --     del menú y los pedidos de habitación);
 --   * tablas expuestas sin RLS (debe estar vacío).
 -- =====================================================================================================
-with expected as (select generate_series(0, 24) as v),
+with expected as (select generate_series(0, 25) as v),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),

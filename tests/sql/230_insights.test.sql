@@ -49,7 +49,12 @@ select test.eq((:'tm'::jsonb)->>'labor_visible', 'true', 'the owner sees labor')
 reset role;
 select test.login('cafe'); set role authenticated;
 select test.unlock(test.staff('ana'), '4826');
-select test.eq(public.trends_monthly(3)->>'labor_visible', 'false', 'a manager sees the trends without labor (pay rates are the owner''s)');
+select test.eq(public.trends_monthly(3)->>'error', 'not_allowed', 'a manager PIN alone does not open the numbers');
+reset role;
+update public.staff set can_see_sales = true where id = test.staff('ana');
+select test.login('cafe'); set role authenticated;
+select test.unlock(test.staff('ana'), '4826');
+select test.eq(public.trends_monthly(3)->>'labor_visible', 'false', 'a manager allowed to see sales sees the trends, without labor (pay rates are the owner''s)');
 reset role;
 
 -- stock forecast: milk used 1 000 ml a day for a week; 3 000 left; vendor delivers in 2 days

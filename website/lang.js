@@ -394,6 +394,19 @@
     'without IVA {x}': 'sin IVA {x}', '{x} on average': '{x} en promedio', 'no sales': 'sin ventas', '{x} without IVA': '{x} sin IVA',
     'Food cost {x}': 'Costo de alimentos {x}', 'Labor {x}': 'Mano de obra {x}', 'Prime cost (food + labor) {x}': 'Costo primo (alimentos + mano de obra) {x}',
     'Below zero: count it': 'Bajo cero: cuéntelo', 'Mon': 'lun', 'Tue': 'mar', 'Wed': 'mié', 'Thu': 'jue', 'Fri': 'vie', 'Sat': 'sáb', 'Sun': 'dom',
+    /* security hardening (0025) */
+    'This manager may not see the sales of earlier days. Type the receipt number to find one sale, or ask a manager allowed to see sales.':
+      'Este encargado no puede ver las ventas de días anteriores. Escriba el número de recibo para encontrar una venta, o pida a un encargado con permiso de ventas.',
+    'Turn on the phone code': 'Activar el código del teléfono',
+    'The books open only with the code from your phone. Turn it on once; then every sign-in asks for the code.':
+      'Los libros solo se abren con el código de su teléfono. Actívelo una vez; después cada ingreso pide el código.',
+    'Could not start the phone code. Ask the owner to check that Supabase → Authentication → Multi-Factor → TOTP is on.':
+      'No se pudo activar el código del teléfono. Pida al dueño revisar que Supabase → Authentication → Multi-Factor → TOTP esté activo.',
+    'Dollar accounts come later: their movements must be valued in colones first.': 'Las cuentas en dólares vienen después: primero hay que valorar sus movimientos en colones.',
+    'The hours changed since this payroll was prepared: prepare it again.': 'Las horas cambiaron desde que se preparó esta planilla: prepárela otra vez.',
+    'Someone would be paid less than zero: check the deductions.': 'A alguien le quedaría un pago menor que cero: revise las deducciones.',
+    "That is the café tablet's login: create a separate login for the accountant.": 'Ese es el ingreso de la tableta del café: cree un ingreso aparte para el contador.',
+    'That rate is far from the last one: the owner with the phone code can set it.': 'Ese tipo de cambio está lejos del anterior: el dueño con el código del teléfono puede ponerlo.',
     /* accounting: payroll (0021, 0022) */
     'Pay periods': 'Periodos de pago', '+ Period': '+ Periodo', 'Create': 'Crear', 'Period': 'Periodo', 'No pay periods yet': 'Todavía no hay periodos de pago',
     'Hours of the period': 'Horas del periodo', 'Approve the hours': 'Aprobar las horas', 'Person': 'Persona', 'Shifts': 'Turnos', 'To check': 'Para revisar',
@@ -1223,7 +1236,7 @@
       if (m && !PAT[i].sep && ((PAT[i].head && m[1].indexOf(' · ') > -1) || (PAT[i].tail && m[m.length - 1].indexOf(' · ') > -1))) continue;
       if (m) {
         var out = PAT[i].es;
-        PAT[i].names.forEach(function (n, j) { out = out.replace('{' + n + '}', m[j + 1]); });
+        PAT[i].names.forEach(function (n, j) { out = out.replace('{' + n + '}', function () { return m[j + 1]; }); });
         return out;
       }
     }

@@ -11,7 +11,7 @@ module.exports.tests = [
     name: 'a Costa Rican bank CSV (semicolons, day/month/year, 1.234,56) is imported once; the deposit matches; the fee is posted',
     run: async ({ browser }) => {
       sql(`select acct.post(cr_today() - 1, 'Depósito de la caja', 'manual', 'e2e:dep', '[{"account":"1110","debit":30000},{"account":"1101","credit":30000}]'::jsonb, null, 'prueba')`);
-      const pg = await page(browser, { login: 'accountant', lang: 'es' });
+      const pg = await page(browser, { login: 'accountant', aal: 'aal2', lang: 'es' });
       await goto(pg, '/accounting');
       await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
       await pg.click('#tabs [data-view=bank]');
