@@ -26,7 +26,7 @@ die() { echo "::error::$*"; exit 1; }
 SCRATCH_DB="${SCRATCH_DB:-canopy_ensayo}"   # the throw-away database on SCRATCH_URL (tests give each run its own)
 # a malformed address would make psql quote it, password included, in its error: check the shape first, never echo it.
 # The password may hold letters, digits and - . _ ~ ! $ & ( ) * + , ; = or %XX escapes (a raw @ / ? # % breaks the address)
-URL_RE='^postgres(ql)?://[A-Za-z0-9._-]+(:([A-Za-z0-9._~!$&()*+,;=-]|%[0-9A-Fa-f]{2})+)?@[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_]+(\?[A-Za-z0-9_=&.-]*)?$'
+URL_RE='^postgres(ql)?://[A-Za-z0-9._-]+(:([A-Za-z0-9._~!$&()*+,;=-]|%(0[1-9A-Fa-f]|[1-9A-Fa-f][0-9A-Fa-f]))+)?@[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_]+(\?[A-Za-z0-9_=&.-]*)?$'
 for v in CANOPY_DB_URL STAGING_DB_URL SCRATCH_URL; do
   [[ "${!v}" =~ $URL_RE ]] || die "$v no es una dirección postgresql://usuario:contraseña@servidor:puerto/base de una sola línea (en la contraseña: letras, números o %XX). No se hizo nada."
 done

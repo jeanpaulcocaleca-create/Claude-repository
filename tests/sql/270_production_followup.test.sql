@@ -22,17 +22,17 @@ alter table auth.users add column if not exists last_sign_in_at timestamptz;
 insert into auth.users (id, email, created_at, last_sign_in_at) values
   ('b2700000-0000-4000-8000-000000000001', 'Tablet.Cafe@Example.com', '2026-08-20 12:00+00', '2026-09-04 13:00+00'),   -- the café devices' login, owner kind today
   ('b2700000-0000-4000-8000-000000000002', 'dueno.personal@example.com', '2026-08-21 12:00+00', '2026-10-13 02:00+00'), -- the owner's own login, with a phone code
-  ('b2700000-0000-4000-8000-000000000003', 'jh.nadie+cafe@example.com', '2026-09-16 13:00+00', null),                  -- never signed in; a +label stays visible
+  ('b2700000-0000-4000-8000-000000000003', 'jh.nadie+cafe@example.com', '2026-09-17 13:00+00', null),                  -- never signed in; a +label stays visible
   ('b2700000-0000-4000-8000-000000000004', 'muchas@example.com', '2026-08-22 12:00+00', '2026-09-11 05:00+00'),        -- more sessions than the list shows
-  -- like production: two logins whose masks are the same (je***@...), told apart only by their dates
-  ('b2700000-0000-4000-8000-000000000005', 'je.uno@example.com', '2026-08-31 12:00+00', '2026-09-29 12:00+00'),        -- café devices: PINs, iPad, kitchen tablet
-  ('b2700000-0000-4000-8000-000000000006', 'je.dos@example.com', '2026-09-16 12:00+00', '2026-10-12 12:00+00');        -- personal: a Mac and an iPhone
+  -- two logins whose masks are the same (jo***@...), told apart only by their dates
+  ('b2700000-0000-4000-8000-000000000005', 'jo.uno@example.com', '2026-08-30 12:00+00', '2026-09-28 12:00+00'),        -- café devices: PINs, iPad, kitchen tablet
+  ('b2700000-0000-4000-8000-000000000006', 'jo.dos@example.com', '2026-09-17 12:00+00', '2026-10-12 12:00+00');        -- personal: a Mac and an iPhone
 insert into public.app_accounts (user_id, kind, label) values
   ('b2700000-0000-4000-8000-000000000001', 'owner', 'tablet.cafe@example.com'),
   ('b2700000-0000-4000-8000-000000000002', 'owner', 'dueno.personal@example.com'),
   ('b2700000-0000-4000-8000-000000000003', 'owner', 'jh.nadie+cafe@example.com'),
-  ('b2700000-0000-4000-8000-000000000005', 'owner', 'je.uno@example.com'),
-  ('b2700000-0000-4000-8000-000000000006', 'owner', 'je.dos@example.com');
+  ('b2700000-0000-4000-8000-000000000005', 'owner', 'jo.uno@example.com'),
+  ('b2700000-0000-4000-8000-000000000006', 'owner', 'jo.dos@example.com');
 insert into auth.mfa_factors (user_id, status, factor_type) values ('b2700000-0000-4000-8000-000000000002', 'verified', 'totp');
 -- PINs typed on the café devices' login (access_unlock, sales_unlock and inventory_unlock log target_id = the login)
 insert into public.audit_log (at, action, manager_name, target_id) values
@@ -58,10 +58,10 @@ insert into auth.sessions (id, user_id, created_at, updated_at, refreshed_at, no
   ('51270000-0000-4000-8000-000000000004', 'b2700000-0000-4000-8000-000000000001', '2026-09-04 13:00+00', '2026-09-04 13:00+00', '2026-10-10 16:00:00', null, 'aal1',
    'Mozilla/5.0 (Linux; Android 14; SM-X200) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0.0.0 Safari/537.36', '190.10.20.31', null, null),
   -- an expired session (a timeboxed one past its not_after): listed, not valid
-  ('51270000-0000-4000-8000-000000000005', 'b2700000-0000-4000-8000-000000000001', '2026-08-31 16:00+00', '2026-08-31 16:00+00', '2026-09-01 16:00:00', now() - interval '1 day', 'aal1',
+  ('51270000-0000-4000-8000-000000000005', 'b2700000-0000-4000-8000-000000000001', '2026-08-30 16:00+00', '2026-08-30 16:00+00', '2026-09-01 16:00:00', now() - interval '1 day', 'aal1',
    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.2792.79', '10.0.0.7', null, null),
   -- the owner's iPhone: Safari earlier, then Chrome signed in with the phone code (aal2); signed in at 20:00 Costa Rica time
-  ('51270000-0000-4000-8000-000000000006', 'b2700000-0000-4000-8000-000000000002', '2026-08-31 18:00+00', '2026-08-31 18:00+00', '2026-09-29 22:00:00', null, 'aal1',
+  ('51270000-0000-4000-8000-000000000006', 'b2700000-0000-4000-8000-000000000002', '2026-08-30 18:00+00', '2026-08-30 18:00+00', '2026-09-28 22:00:00', null, 'aal1',
    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1', '186.15.1.1', null, null),
   ('51270000-0000-4000-8000-000000000007', 'b2700000-0000-4000-8000-000000000002', '2026-10-13 02:00+00', '2026-10-13 02:30+00', null, now() + interval '30 days', 'aal2',
    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/129.0.6668.69 Mobile/15E148 Safari/604.1', '186.15.1.2', null, null),
@@ -72,7 +72,7 @@ insert into auth.sessions (id, user_id, created_at, updated_at, refreshed_at, no
   ('51270000-0000-4000-8000-000000000009', 'b2700000-0000-4000-8000-000000000005', '2026-09-01 12:30+00', '2026-09-01 12:30+00', '2026-10-05 17:00:00', null, 'aal1',
    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36', '190.10.20.41', null, null),
   -- personal: Chrome on the owner's Mac (Blink: AppleWebKit/537.36, never an iPad) and Safari on an iPhone
-  ('51270000-0000-4000-8000-000000000010', 'b2700000-0000-4000-8000-000000000006', '2026-09-16 12:00+00', '2026-09-16 12:00+00', '2026-10-12 20:00:00', null, 'aal1',
+  ('51270000-0000-4000-8000-000000000010', 'b2700000-0000-4000-8000-000000000006', '2026-09-17 12:00+00', '2026-09-17 12:00+00', '2026-10-12 20:00:00', null, 'aal1',
    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36', '186.15.1.40', null, null),
   ('51270000-0000-4000-8000-000000000011', 'b2700000-0000-4000-8000-000000000006', '2026-10-12 12:00+00', '2026-10-12 12:00+00', '2026-10-12 15:00:00', null, 'aal1',
    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1', '186.15.1.41', null, null);
@@ -121,7 +121,7 @@ create temp table t270 as select :'rc'::jsonb as rc;
 -- the logins, most recent activity first; masked; created, last sign-in, kind and phone code as in the logins section
 select test.eq((select string_agg((d ->> 'login') || ' ' || (d ->> 'created'), ', ' order by o)
                   from t270, jsonb_array_elements(rc -> 'devices') with ordinality x(d, o) where o <= 6),
-               'du***@example.com 2026-08-21, je***@example.com 2026-09-16, Ta***@Example.com 2026-08-20, je***@example.com 2026-08-31, mu***@example.com 2026-08-22, jh***+cafe@example.com 2026-09-16',
+               'du***@example.com 2026-08-21, jo***@example.com 2026-09-17, Ta***@Example.com 2026-08-20, jo***@example.com 2026-08-30, mu***@example.com 2026-08-22, jh***+cafe@example.com 2026-09-17',
                'devices: logins masked like the logins section, most recent activity first');
 select test.eq((select jsonb_agg(k order by k) from t270, jsonb_array_elements(rc -> 'devices') d, jsonb_object_keys(d) k where d ->> 'login' = 'Ta***@Example.com'),
                '["created", "kind", "last_sign_in", "login", "more_sessions", "phone_code_verified", "sessions", "valid_sessions"]'::jsonb, 'devices: the fields of a login');
@@ -140,13 +140,13 @@ select test.eq((select d -> 'sessions' -> 0 from t270, jsonb_array_elements(rc -
 select test.eq((select string_agg((s ->> 'signed_in') || ' → ' || (s ->> 'last_active'), ', ' order by o)
                   from t270, jsonb_array_elements(rc -> 'devices') d, jsonb_array_elements(d -> 'sessions') with ordinality y(s, o)
                  where d ->> 'login' = 'Ta***@Example.com'),
-               '2026-09-01 → 2026-10-11 21h, 2026-09-02 → 2026-10-11 14h, 2026-09-03 → 2026-10-11 12h, 2026-09-04 → 2026-10-10 10h, 2026-08-31 → 2026-09-01 10h',
+               '2026-09-01 → 2026-10-11 21h, 2026-09-02 → 2026-10-11 14h, 2026-09-03 → 2026-10-11 12h, 2026-09-04 → 2026-10-10 10h, 2026-08-30 → 2026-09-01 10h',
                'devices: last active is the later of refreshed_at and updated_at');
 select test.eq((select d from t270, jsonb_array_elements(rc -> 'devices') d where d ->> 'login' = 'du***@example.com'),
                '{"login": "du***@example.com", "created": "2026-08-21", "last_sign_in": "2026-10-13", "kind": "owner", "phone_code_verified": true,
                  "valid_sessions": 2, "more_sessions": 0, "sessions": [
                   {"device": "iPhone", "browser": "Chrome", "valid": true, "with_phone_code": true, "signed_in": "2026-10-12", "last_active": "2026-10-12 20h"},
-                  {"device": "iPhone", "browser": "Safari", "valid": true, "with_phone_code": false, "signed_in": "2026-08-31", "last_active": "2026-09-29 16h"}]}'::jsonb,
+                  {"device": "iPhone", "browser": "Safari", "valid": true, "with_phone_code": false, "signed_in": "2026-08-30", "last_active": "2026-09-28 16h"}]}'::jsonb,
                'devices: a personal login on a phone only, one session with the phone code (aal2)');
 select test.eq((select d -> 'sessions' from t270, jsonb_array_elements(rc -> 'devices') d where d ->> 'login' = 'jh***+cafe@example.com'), '[]'::jsonb,
                'devices: a login that never signed in has no sessions');
@@ -159,21 +159,21 @@ select test.eq((select string_agg(k, ', ' order by k collate "C") from (select d
                'Mac · Edge, Mac · Firefox, iPad · Chrome, iPad · Safari, other · in-app/other',
                'devices: the other device and browser kinds (Chrome of an iPad in desktop mode is an iPad, Firefox and Edge of a Mac are a Mac; '
                'an app''s own browser and a missing device text are in-app/other)');
--- two logins with the same mask (production has two je***@gmail.com): created tells them apart, and it is the same
+-- two logins with the same mask: created tells them apart, and it is the same
 -- date as in the logins section, so the one PINs were typed on is the one with the café's devices
 select test.eq((select string_agg((d ->> 'created') || ' ' || (d ->> 'last_sign_in') || ': ' ||
                                   (select string_agg((s ->> 'device') || ' · ' || (s ->> 'browser'), ', ' order by o) from jsonb_array_elements(d -> 'sessions') with ordinality y(s, o)),
                                   '; ' order by d ->> 'created')
-                  from t270, jsonb_array_elements(rc -> 'devices') d where d ->> 'login' = 'je***@example.com'),
-               '2026-08-31 2026-09-29: iPad · Chrome, Linux or Android tablet · Chrome; 2026-09-16 2026-10-12: Mac · Chrome, iPhone · Safari',
+                  from t270, jsonb_array_elements(rc -> 'devices') d where d ->> 'login' = 'jo***@example.com'),
+               '2026-08-30 2026-09-28: iPad · Chrome, Linux or Android tablet · Chrome; 2026-09-17 2026-10-12: Mac · Chrome, iPhone · Safari',
                'devices: two logins with the same mask differ in created and last sign-in (café iPad and Android tablet; the owner''s Mac and iPhone)');
 select test.eq((select string_agg(l ->> 'created' || ' → ' ||
                                   (select string_agg(s ->> 'device', ', ' order by o) from jsonb_array_elements(d -> 'sessions') with ordinality y(s, o)), '; ')
                   from t270, jsonb_array_elements(rc -> 'logins_that_typed_pins') l
                   join jsonb_array_elements(rc -> 'devices') d on d ->> 'login' = l ->> 'login' and d ->> 'created' = l ->> 'created'
-                 where l ->> 'login' = 'je***@example.com' and l -> 'pins' <> '{}'),
-               '2026-08-31 → iPad, Linux or Android tablet',
-               'devices: matched by login and created, the je*** login PINs were typed on is the one on the café iPad and tablet');
+                 where l ->> 'login' = 'jo***@example.com' and l -> 'pins' <> '{}'),
+               '2026-08-30 → iPad, Linux or Android tablet',
+               'devices: matched by login and created, the jo*** login PINs were typed on is the one on the café iPad and tablet');
 select test.eq((select jsonb_agg(x order by x) from t270, jsonb_array_elements(rc -> 'devices') d, lateral (select d - 'sessions' - 'valid_sessions' - 'more_sessions' as x) y),
                (select jsonb_agg(x order by x) from t270, jsonb_array_elements(rc -> 'logins_that_typed_pins') l, lateral (select l - 'pins' as x) y
                  where l ->> 'login' <> '(deleted login)'),

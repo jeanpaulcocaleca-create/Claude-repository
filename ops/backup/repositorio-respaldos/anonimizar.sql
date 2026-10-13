@@ -94,8 +94,8 @@ begin
       from pg_attribute a join pg_class c on c.oid = a.attrelid join pg_namespace n on n.oid = c.relnamespace
       join pg_type ty on ty.oid = a.atttypid left join pg_type el on el.oid = ty.typelem and ty.typcategory = 'A'
      where n.nspname in ('public', 'canopy', 'acct') and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
-       -- text, json, xml, binary, and network addresses (an IP is personal): a new one must be classified above
-       and (coalesce(el.typcategory, ty.typcategory) in ('S', 'I') or coalesce(el.typname, ty.typname) in ('json', 'jsonb', 'xml', 'bytea'));
+       -- text, json, xml, binary, and network or device addresses (an IP or a MAC is personal): a new one must be classified above
+       and (coalesce(el.typcategory, ty.typcategory) in ('S', 'I') or coalesce(el.typname, ty.typname) in ('json', 'jsonb', 'xml', 'bytea', 'macaddr', 'macaddr8'));
   select string_agg(q, ', ' order by q) into unknown from _cols
    where not (q = any (keep || special) or (is_text and q = any (free)) or q = any (cleared)
               or (s <> 'canopy' and is_text and (col = any (who) or col = 'station')) or (s = 'public' and tb = any (emptied)));

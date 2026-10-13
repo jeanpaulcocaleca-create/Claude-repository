@@ -2,7 +2,8 @@
 -- Canopy OS · INGRESO DEL CAFÉ: el correo con el que entran la caja, el iPad y la pantalla de cocina pasa a ser un
 -- ingreso de tipo café ("cafe"). Para el SQL Editor de PRODUCCIÓN.
 -- Supabase → SQL Editor → New query → pegar TODO → en la línea "▶ PARTE 1" (al final) cambie correo@ejemplo.com por
--- ese correo → Run. Resultado: una celda, por ejemplo "ca***@gmail.com (creado 2026-09-16) → cafe".
+-- ese correo y AAAA-MM-DD por su fecha "created" del seguimiento (supabase/tools/production-followup.sql) → Run.
+-- Resultado: una celda, por ejemplo "ca***@gmail.com (creado 2026-09-20) → cafe".
 --
 -- Por qué: hoy esos aparatos entran con un ingreso de tipo dueño ("owner") sin código del teléfono. Mientras nadie
 -- escriba un PIN, eso funciona igual que un ingreso del café (probado: mismas reglas, mismas pantallas), pero deja
@@ -22,7 +23,8 @@
 -- las páginas nuevas. Nunca active el código del teléfono en un ingreso que use un aparato del café: actívelo solo
 -- en su ingreso personal, desde su teléfono.
 --
--- Se niega y no cambia nada si: falta escribir el correo; no hay ningún ingreso con ese correo; ese ingreso tiene el
+-- Se niega y no cambia nada si: falta escribir el correo o la fecha; la fecha no es la de ese ingreso (dos correos
+-- enmascarados se ven iguales: la fecha confirma cuál es); no hay ningún ingreso con ese correo; ese ingreso tiene el
 -- código del teléfono activado (es el ingreso personal de alguien); es el ingreso del contador; o no quedaría ningún
 -- otro ingreso de tipo dueño. Si ya era del café, no cambia nada. Si cambia, deja una línea en el registro de
 -- aprobaciones ("login_kind_change", por "SQL Editor", con el tipo anterior y el nuevo).
@@ -34,9 +36,9 @@
 -- correo que no es suyo, por ejemplo uno que nunca entró. Borra solo ese permiso (public.app_accounts) y deja una
 -- línea "login_access_revoked" en el registro; el ingreso mismo (Authentication → Users) no se toca. Se niega si es
 -- el último ingreso de tipo dueño. Para usarla: ponga -- delante de la línea de la PARTE 1, quite el -- del comienzo
--- de la línea de la PARTE 2, escriba el correo y Run. Reversión: select public.make_owner('el correo');
+-- de la línea de la PARTE 2, escriba el correo y su fecha "created", y Run. Reversión: select public.make_owner('el correo');
 -- =====================================================================================================
-create or replace function pg_temp.canopy_cafe_login(p_email text)
+create or replace function pg_temp.canopy_cafe_login(p_email text, p_created text)
 returns text language plpgsql as $$
 declare
   em text := lower(btrim(coalesce(p_email, '')));
@@ -53,8 +55,15 @@ begin
     from auth.users u where lower(u.email) = em;
   if n = 0 then raise exception 'No hay ningún ingreso con el correo % (Authentication → Users). No se cambió nada.', masked; end if;
   if n > 1 then raise exception 'Hay % ingresos con el correo %. No se cambió nada.', n, masked; end if;
-  -- the creation date tells apart two logins whose masks look the same (the follow-up shows the same date)
+  -- the creation date tells apart two logins whose masks look the same: it must be the one the follow-up showed
+  -- ("created") for the login meant, checked before anything changes
   masked := masked || coalesce(' (creado ' || made || ')', '');
+  if coalesce(btrim(p_created), '') in ('', 'AAAA-MM-DD') then
+    raise exception 'Falta la fecha: después del correo escriba la fecha "created" que el seguimiento muestra para ese ingreso (AAAA-MM-DD). No se cambió nada.';
+  end if;
+  if made is distinct from btrim(p_created) then
+    raise exception '% no es el ingreso creado el %: revise el correo. No se cambió nada.', masked, btrim(p_created);
+  end if;
   if to_regclass('auth.mfa_factors') is not null then
     begin
       select exists (select 1 from auth.mfa_factors f where f.user_id = uid and f.status::text = 'verified') into has_code;
@@ -79,7 +88,7 @@ begin
   return masked || ' → cafe';
 end $$;
 
-create or replace function pg_temp.canopy_revoke_login(p_email text)
+create or replace function pg_temp.canopy_revoke_login(p_email text, p_created text)
 returns text language plpgsql as $$
 declare
   em text := lower(btrim(coalesce(p_email, '')));
@@ -96,8 +105,15 @@ begin
     from auth.users u where lower(u.email) = em;
   if n = 0 then raise exception 'No hay ningún ingreso con el correo % (Authentication → Users). No se cambió nada.', masked; end if;
   if n > 1 then raise exception 'Hay % ingresos con el correo %. No se cambió nada.', n, masked; end if;
-  -- the creation date tells apart two logins whose masks look the same (the follow-up shows the same date)
+  -- the creation date tells apart two logins whose masks look the same: it must be the one the follow-up showed
+  -- ("created") for the login meant, checked before anything changes
   masked := masked || coalesce(' (creado ' || made || ')', '');
+  if coalesce(btrim(p_created), '') in ('', 'AAAA-MM-DD') then
+    raise exception 'Falta la fecha: después del correo escriba la fecha "created" que el seguimiento muestra para ese ingreso (AAAA-MM-DD). No se cambió nada.';
+  end if;
+  if made is distinct from btrim(p_created) then
+    raise exception '% no es el ingreso creado el %: revise el correo. No se cambió nada.', masked, btrim(p_created);
+  end if;
   select a.kind into old_kind from public.app_accounts a where a.user_id = uid;
   if old_kind is distinct from 'owner' then
     raise exception '% no tiene acceso de dueño (tipo: %): aquí no se quita. No se cambió nada.', masked, coalesce(old_kind, 'ninguno');
@@ -113,8 +129,8 @@ begin
   return masked || ' → sin acceso de dueño';
 end $$;
 
--- ▶ PARTE 1 · escriba entre las comillas el correo con el que entran los aparatos del café:
-select pg_temp.canopy_cafe_login('correo@ejemplo.com') as ingreso_del_cafe;
+-- ▶ PARTE 1 · entre las comillas: el correo con el que entran los aparatos del café, y su fecha "created" del seguimiento:
+select pg_temp.canopy_cafe_login('correo@ejemplo.com', 'AAAA-MM-DD') as ingreso_del_cafe;
 
 -- ▶ PARTE 2 · SOLO SI ESE CORREO NO ES SUYO (lea arriba):
--- select pg_temp.canopy_revoke_login('correo@ejemplo.com') as acceso_quitado;
+-- select pg_temp.canopy_revoke_login('correo@ejemplo.com', 'AAAA-MM-DD') as acceso_quitado;

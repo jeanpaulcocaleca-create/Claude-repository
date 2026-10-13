@@ -38,9 +38,13 @@ python3 -m http.server "$WWW_PORT" --bind 127.0.0.1 --directory "$T/www" >/dev/n
 trap 'kill "$WWW_PID" 2>/dev/null || true; rm -rf "$T"' EXIT
 for _ in $(seq 1 50); do curl -fsS -o /dev/null "http://127.0.0.1:$WWW_PORT/storage/v1/object/public/menu-photos/latte.png" 2>/dev/null && break; sleep 0.1; done
 LEGACY_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/canopy_legacysim"
-CANOPY_DB_URL="$LEGACY_URL" AGE_RECIPIENTS="$RECIPIENTS" RESTORE_TEST_URL="$URL_BASE/postgres" UPLOAD_DIR="$T/offsite0" \
+mkdir -p "$T/work0"
+CANOPY_DB_URL="$LEGACY_URL" AGE_RECIPIENTS="$RECIPIENTS" RESTORE_TEST_URL="$URL_BASE/postgres" UPLOAD_DIR="$T/offsite0" WORK_DIR="$T/work0" \
   SUPABASE_URL="http://127.0.0.1:$WWW_PORT" BACKUP_SOURCE=manual bash "$ROOT/ops/backup/backup.sh" > "$T/backup0.log" 2>&1 \
   || { cat "$T/backup0.log"; echo "  FAIL  backup before migration 0000"; exit 1; }
+# the nightly restore test restored postgres's own default rights and none of the other role's
+grep -q ' DEFAULT ACL public DEFAULT PRIVILEGES FOR TABLES postgres$' "$T/work0/toc.list" && ! grep -q ' DEFAULT ACL .* canopy_test_dacl$' "$T/work0/toc.list" \
+  || { grep 'DEFAULT ACL' "$T/work0/toc.list"; echo "  FAIL  the nightly restore test keeps default rights of other roles or drops postgres's own"; exit 1; }
 grep -q 'restauración: passed' "$T/backup0.log" && grep -q 'contenido idéntico en' "$T/backup0.log" && grep -q '2 archivos verificados' "$T/backup0.log" \
   || { cat "$T/backup0.log"; echo "  FAIL  backup before 0000: restore, content or photos not verified"; exit 1; }
 F0="$(find "$T/offsite0" -name '*.tar.age' | head -1)"

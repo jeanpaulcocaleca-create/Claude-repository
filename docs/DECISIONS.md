@@ -392,7 +392,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   - Every restore (backup test, `restore.sh`, both steps of `ensayo.sh`) now keeps only `postgres`'s own default
     rights.
   - The backup pipeline test reproduces it: default rights held by a role that is gone when the backup is restored.
-    It failed before the fix and passes after.
+    `restore.sh` failed before the fix and passes after. The test also checks the list the nightly restore test
+    restores (postgres's own default rights kept, the other role's dropped). The two `ensayo.sh` steps use the same
+    filter line, enforced by lint check 9.
 - **Restore stubs:** they now also have `uuid-ossp` in `extensions`, as production does.
 - **Backup account password:** generated inside the database (a DO block, shown once). Supabase logs DDL
   (`log_statement = 'ddl'`), so a typed `ALTER ROLE … PASSWORD` would sit in clear in the project's logs; tested
@@ -410,14 +412,14 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   database refuses any change inside it. It also shows, per login, its sessions by device kind and browser, its last
   use (Costa Rica time) and the PINs typed on it. It never shows an IP, the full device text, a session id or a
   token.
-  - Masks keep a `+label`, and the creation date tells apart the two `je***@gmail.com` logins.
+  - Masks keep a `+label`, and the creation date tells apart two logins whose masks look the same.
   - Studio sends a paste as one implicit transaction and shows the last result (postgres-meta source).
 - **Recommended path:** `docs/INGRESOS.md`.
   - Case A (the login is used only by café devices): `cafe-login.sql` converts it in place. Nothing on the devices
     changes; tested on the live and the new pages, including a sale queued offline before the change.
   - Case B (the café devices use the owner's own login): the owner gets a new personal login (`+dueno`,
-    `make_owner`), and the shared login becomes the café login in place. No device is touched, no session ends, and
-    no email is needed.
+    `make_owner`), and the shared login becomes the café login in place. No device is touched, no café-device
+    session ends, and no email is needed.
 - **Why not switch devices to a new login:** it has to be done after closing, device by device. A password change
   ends that login's other sessions (`LogoutAllExceptMe`). Supabase's dashboard has no per-user sign-out, and «Cerrar
   sesión» does nothing offline.
@@ -425,4 +427,6 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `pos_record_sale` answers `{ok:false, error:'no_account'}` with HTTP 200, and the page took that as saved. Fixed:
   the sale stays on the device, the queue window says why, and it goes in once the login is connected. The e2e test
   fails without the fix. The live pages already kept such a sale.
-- **`cafe-login.sql`:** its confirmations show the creation date and any `+label`.
+- **`cafe-login.sql`:** it now requires the follow-up's creation date next to the email and refuses, changing
+  nothing, when the date is another login's. Without that check, typing the other look-alike email converted the
+  wrong login. Its confirmations show the creation date and any `+label`.

@@ -43,7 +43,8 @@ Requisito: el repositorio privado `canopy-respaldos` instalado y su primer respa
 1. Vea el plan de la organización del café (Supabase → la organización → **Billing**; E-10):
    - **Free**: el plan gratis da **dos proyectos gratis activos**, sumando todas las organizaciones donde usted es
      Owner o Administrator (los pausados no cuentan). Pruebas es el segundo: si ya tiene otro proyecto gratis
-     activo, páuselo antes o Supabase no deja crear este.
+     activo (que no sea el del café), páuselo antes o Supabase no deja crear este. **Nunca pause el proyecto del café**:
+     la caja dejaría de guardar ventas en el sistema.
    - **Pro** (u otro de pago): cada proyecto de esa organización se cobra aparte (unos US$10 al mes). Cree primero
      una organización nueva en plan **Free** (por ejemplo `canopy-pruebas`) y el proyecto dentro de ella.
 2. **New project** → nombre `canopy-pruebas`, la **misma región** que producción (la muestra el proyecto de

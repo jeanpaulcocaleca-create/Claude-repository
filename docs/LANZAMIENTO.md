@@ -75,10 +75,10 @@ En este orden. Cada paso es de solo lectura o se puede deshacer.
 |---|---|---|---|
 | 1 | **Foto de producción**: `supabase/tools/production-snapshot.sql` (solo lectura) y pegar el resultado. **Hecho el 2026-10-12** (D-027) | No | Usted (E-00) |
 | 2 | Apagar **Allow new users to sign up** (y revisar que los ingresos anónimos estén apagados). Los ingresos de la foto ya se revisaron: ninguno ajeno. **Hecho el 2026-10-12** | Ajuste reversible, sin datos | Usted (E-02) |
-| 3 | **Seguimiento** (solo lectura): `supabase/tools/production-followup.sql`, pegar el resultado y decir qué correo usa cada aparato del café y de quién es el ingreso que nunca entró | No | Usted (E-04) |
+| 3 | **Seguimiento** (solo lectura): `supabase/tools/production-followup.sql`, pegar el resultado (muestra qué ingreso usa cada aparato del café) y decir de quién es el ingreso que nunca entró | No | Usted (E-04) |
 | 4 | **Respaldo verificado** antes de cualquier migración: `supabase/tools/backup-account.sql`, repositorio privado, primer respaldo y descarga (docs/RESPALDOS.md) | Solo crea la cuenta de lectura | Usted (E-03) |
 | 5 | Guardar el sitio de hoy como `sitio-2026-10-09` (docs/PUBLICAR.md) | No | Usted (E-19) |
-| 6 | **Ingreso del café** para los aparatos del café, separado del suyo: `docs/INGRESOS.md` (caso A o B; y, si un correo no es suyo, la parte 2 de `cafe-login.sql`) | Una fila de permisos, anotada en el registro; se revierte con `make_owner` | Usted (E-05) |
+| 6 | **Ingreso del café** para los aparatos del café, separado del suyo: `docs/INGRESOS.md` (caso A o B; y, si un correo no es suyo, la parte 2 de `cafe-login.sql`) | Caso A: una fila de permisos, anotada en el registro. Caso B: además un ingreso nuevo suyo (+dueno) con acceso de dueño (`make_owner`, sin anotación) | Usted (E-05) |
 | 7 | Migraciones **0000**, **0001** y **0002**, una por una, con la foto antes y después | Sí (solo agrega revisiones) | Usted (E-01) |
 
 - **Qué cierra la 0001**: un ingreso ajeno ya no puede cancelar o marcar pagados los pedidos de habitación,
@@ -87,10 +87,11 @@ En este orden. Cada paso es de solo lectura o se puede deshacer.
   del menú: la foto mostró que en producción ese hueco no existe; la 0001 lo cierra donde exista, D-027.)
 - **Qué NO cambia para el personal**: nada. Probado con las páginas que están hoy en el sitio (ensayo, D-023).
 - **Comprobar después del paso 2**: la tableta sigue con su sesión; usted puede entrar; "olvidé mi contraseña"
-  sigue enviando el correo; el pedido de habitación funciona.
+  sigue enviando el correo. **Después del paso 7**: el pedido de habitación funciona (lo repara la 0001).
 - **Comprobar después del paso 6**: la tableta sigue con su sesión y vende; el reloj marca con PIN; las áreas del
   dueño piden un PIN. El código del teléfono va **solo** en su ingreso personal, desde su teléfono (E-06).
-- **Volver atrás**: paso 2, volver a encender el ajuste. Paso 6: `select public.make_owner('el correo');`. Paso 7:
+- **Volver atrás**: paso 2, volver a encender el ajuste. Paso 6: `select public.make_owner('el correo');` (en el caso B
+  el +dueno sigue como dueño; si hiciera falta quitárselo: parte 2 de `cafe-login.sql`). Paso 7:
   no hace falta (solo agrega revisiones); si algo fallara, restaurar el respaldo del paso 4 en PRUEBAS para
   investigar, nunca encima de producción (después: «Ensayo en pruebas» con vaciar = `si` y `staging-logins.sql`, para
   que pruebas vuelva a la copia anonimizada).

@@ -4,11 +4,11 @@
 begin;
 -- logins for this test (the seed has cafe@, owner@ and contador@test.local)
 insert into auth.users (id, email, created_at) values
-  ('b2600000-0000-4000-8000-000000000001', 'Tablet.Cafe@Example.com', '2026-09-16 12:00+00'),   -- the café devices' login, of kind owner today
-  ('b2600000-0000-4000-8000-000000000002', 'personal@example.com', '2026-08-31 12:00+00'),      -- someone's own login, with a phone code
-  ('b2600000-0000-4000-8000-000000000003', 'jh.nadie@example.com', '2026-09-16 12:00+00'),      -- an owner grant nobody uses
+  ('b2600000-0000-4000-8000-000000000001', 'Tablet.Cafe@Example.com', '2026-09-20 12:00+00'),   -- the café devices' login, of kind owner today
+  ('b2600000-0000-4000-8000-000000000002', 'personal@example.com', '2026-08-25 12:00+00'),      -- someone's own login, with a phone code
+  ('b2600000-0000-4000-8000-000000000003', 'jh.nadie@example.com', '2026-09-21 12:00+00'),      -- an owner grant nobody uses
   ('b2600000-0000-4000-8000-000000000004', 'nueva.tablet@example.com', '2026-10-13 12:00+00'),  -- a new login, no kind yet
-  ('b2600000-0000-4000-8000-000000000005', 'solo@example.com', '2026-08-31 12:00+00'),
+  ('b2600000-0000-4000-8000-000000000005', 'solo@example.com', '2026-08-26 12:00+00'),
   ('b2600000-0000-4000-8000-000000000006', 'Ta+Cafe@example.com', '2026-10-13 12:00+00');       -- a new café login with a +label
 insert into public.app_accounts (user_id, kind, label) values
   ('b2600000-0000-4000-8000-000000000001', 'owner', 'tablet.cafe@example.com'),
@@ -34,13 +34,13 @@ reset role;
 select test.ok(:'LAST_ERROR_MESSAGE' ~ '^Falta el correo', 'the file as shipped stops until the email is written');
 
 -- part 1 refuses, and changes nothing
-select test.throws($$select pg_temp.canopy_cafe_login('correo@ejemplo.com')$$, '^Falta el correo', 'part 1: the example address is refused');
-select test.throws($$select pg_temp.canopy_cafe_login('  ')$$, '^Falta el correo', 'part 1: an empty address is refused');
-select test.throws($$select pg_temp.canopy_cafe_login('nadie@example.com')$$, 'ningún ingreso con el correo na\*\*\*@example\.com',
+select test.throws($$select pg_temp.canopy_cafe_login('correo@ejemplo.com', 'AAAA-MM-DD')$$, '^Falta el correo', 'part 1: the example address is refused');
+select test.throws($$select pg_temp.canopy_cafe_login('  ', '2026-09-20')$$, '^Falta el correo', 'part 1: an empty address is refused');
+select test.throws($$select pg_temp.canopy_cafe_login('nadie@example.com', '2026-09-20')$$, 'ningún ingreso con el correo na\*\*\*@example\.com',
                    'part 1: an email without a login is refused (shown masked)');
-select test.throws($$select pg_temp.canopy_cafe_login('personal@example.com')$$, 'pe\*\*\*@example\.com \(creado 2026-08-31\) tiene el código del teléfono',
+select test.throws($$select pg_temp.canopy_cafe_login('personal@example.com', '2026-08-25')$$, 'pe\*\*\*@example\.com \(creado 2026-08-25\) tiene el código del teléfono',
                    'part 1: a login with a verified phone code is refused');
-select test.throws($$select pg_temp.canopy_cafe_login('contador@test.local')$$, 'ingreso del contador', 'part 1: the accountant login is refused');
+select test.throws($$select pg_temp.canopy_cafe_login('contador@test.local', (select left(to_jsonb(u) ->> 'created_at', 10) from auth.users u where u.email = 'contador@test.local'))$$, 'ingreso del contador', 'part 1: the accountant login is refused');
 select test.eq((select string_agg(a.kind, ',' order by u.id) from public.app_accounts a join auth.users u on u.id = a.user_id
                  where u.id::text like 'b2600000%' or u.email = 'contador@test.local'),
                'accountant,owner,owner,owner,owner', 'the refusals changed no login');
@@ -48,16 +48,24 @@ select test.eq((select count(*)::int from public.audit_log where action in ('log
                'the refusals logged nothing');
 
 -- part 1: the café devices' login (case and spaces do not matter)
-select test.eq(pg_temp.canopy_cafe_login(' Tablet.Cafe@example.COM '), 'ta***@example.com (creado 2026-09-16) → cafe', 'part 1: masked confirmation, with the creation date');
+-- the follow-up's creation date is required, and must be the login's own: two masked emails can look the same
+select test.throws($$select pg_temp.canopy_cafe_login('tablet.cafe@example.com', 'AAAA-MM-DD')$$, '^Falta la fecha', 'part 1: the date placeholder is refused');
+select test.throws($$select pg_temp.canopy_cafe_login('tablet.cafe@example.com', '')$$, '^Falta la fecha', 'part 1: a missing date is refused');
+select test.throws($$select pg_temp.canopy_cafe_login('tablet.cafe@example.com', '2026-08-25')$$,
+                   'ta\*\*\*@example\.com \(creado 2026-09-20\) no es el ingreso creado el 2026-08-25', 'part 1: another login''s date is refused');
+select test.throws($$select pg_temp.canopy_revoke_login('jh.nadie@example.com', '2026-09-20')$$, 'no es el ingreso creado el 2026-09-20', 'part 2: another login''s date is refused');
+select test.eq((select string_agg(kind, ',' order by user_id) from public.app_accounts where user_id in
+                  ('b2600000-0000-4000-8000-000000000001', 'b2600000-0000-4000-8000-000000000003')), 'owner,owner', 'a refused date changes nothing');
+select test.eq(pg_temp.canopy_cafe_login(' Tablet.Cafe@example.COM ', ' 2026-09-20 '), 'ta***@example.com (creado 2026-09-20) → cafe', 'part 1: masked confirmation, with the creation date');
 select test.eq((select kind from public.app_accounts where user_id = 'b2600000-0000-4000-8000-000000000001'), 'cafe', 'part 1: the login is now a café login');
 select test.eq((select manager_name || ' · ' || target_id || ' · ' || (details ->> 'old_kind') || ' → ' || (details ->> 'new_kind')
                   from public.audit_log where action = 'login_kind_change'),
                'SQL Editor · b2600000-0000-4000-8000-000000000001 · owner → cafe', 'part 1: one line in the approvals log, old and new kind');
-select test.eq(pg_temp.canopy_cafe_login('tablet.cafe@example.com'), 'ta***@example.com (creado 2026-09-16) ya era del café: no se cambió nada', 'part 1 again: nothing to do');
+select test.eq(pg_temp.canopy_cafe_login('tablet.cafe@example.com', '2026-09-20'), 'ta***@example.com (creado 2026-09-20) ya era del café: no se cambió nada', 'part 1 again: nothing to do');
 select test.eq((select count(*)::int from public.audit_log where action = 'login_kind_change'), 1, 'part 1 again: nothing logged');
 -- a new login without a kind yet gets its café row (so the POS takes sales from its first sign-in)
-select test.eq(pg_temp.canopy_cafe_login('nueva.tablet@example.com'), 'nu***@example.com (creado 2026-10-13) → cafe', 'part 1: a new login becomes a café login');
-select test.eq(pg_temp.canopy_cafe_login('ta+cafe@example.com'), 'ta***+cafe@example.com (creado 2026-10-13) → cafe',
+select test.eq(pg_temp.canopy_cafe_login('nueva.tablet@example.com', '2026-10-13'), 'nu***@example.com (creado 2026-10-13) → cafe', 'part 1: a new login becomes a café login');
+select test.eq(pg_temp.canopy_cafe_login('ta+cafe@example.com', '2026-10-13'), 'ta***+cafe@example.com (creado 2026-10-13) → cafe',
                'part 1: a +label stays visible, so a new café login is not taken for the personal one');
 select test.ok((select details ? 'old_kind' and details ->> 'old_kind' is null from public.audit_log
                  where action = 'login_kind_change' and target_id = 'b2600000-0000-4000-8000-000000000004'), 'part 1: logged with no previous kind');
@@ -91,12 +99,12 @@ update public.staff set active = true, role = 'staff' where id in (test.staff('d
 update public.staff set role = 'owner' where id = test.staff('dueno');
 
 -- part 2 refuses, and changes nothing
-select test.throws($$select pg_temp.canopy_revoke_login('correo@ejemplo.com')$$, '^Falta el correo', 'part 2: the example address is refused');
-select test.throws($$select pg_temp.canopy_revoke_login('nadie@example.com')$$, 'ningún ingreso con el correo', 'part 2: an email without a login is refused');
-select test.throws($$select pg_temp.canopy_revoke_login('tablet.cafe@example.com')$$, 'no tiene acceso de dueño \(tipo: cafe\)',
+select test.throws($$select pg_temp.canopy_revoke_login('correo@ejemplo.com', 'AAAA-MM-DD')$$, '^Falta el correo', 'part 2: the example address is refused');
+select test.throws($$select pg_temp.canopy_revoke_login('nadie@example.com', '2026-09-21')$$, 'ningún ingreso con el correo', 'part 2: an email without a login is refused');
+select test.throws($$select pg_temp.canopy_revoke_login('tablet.cafe@example.com', '2026-09-20')$$, 'no tiene acceso de dueño \(tipo: cafe\)',
                    'part 2: only an owner grant is taken away (never the café login)');
 -- part 2: the grant nobody uses
-select test.eq(pg_temp.canopy_revoke_login('JH.nadie@example.com'), 'jh***@example.com (creado 2026-09-16) → sin acceso de dueño', 'part 2: masked confirmation');
+select test.eq(pg_temp.canopy_revoke_login('JH.nadie@example.com', '2026-09-21'), 'jh***@example.com (creado 2026-09-21) → sin acceso de dueño', 'part 2: masked confirmation');
 select test.ok(not exists (select 1 from public.app_accounts where user_id = 'b2600000-0000-4000-8000-000000000003'), 'part 2: the grant is gone');
 select test.ok(exists (select 1 from auth.users where id = 'b2600000-0000-4000-8000-000000000003' and email = 'jh.nadie@example.com'),
                'part 2: the login itself is not touched');
@@ -111,8 +119,8 @@ reset role;
 -- the last owner login stays (a grant whose login no longer exists does not count)
 update public.app_accounts set kind = 'cafe' where kind = 'owner' and user_id <> 'b2600000-0000-4000-8000-000000000005';
 insert into public.app_accounts (user_id, kind, label) values ('b2600000-0000-4000-8000-0000000000ff', 'owner', 'borrado@example.com');
-select test.throws($$select pg_temp.canopy_cafe_login('solo@example.com')$$, 'ningún otro ingreso de tipo dueño', 'part 1 never leaves no owner login');
-select test.throws($$select pg_temp.canopy_revoke_login('solo@example.com')$$, 'último ingreso de tipo dueño', 'part 2 never removes the last owner login');
+select test.throws($$select pg_temp.canopy_cafe_login('solo@example.com', '2026-08-26')$$, 'ningún otro ingreso de tipo dueño', 'part 1 never leaves no owner login');
+select test.throws($$select pg_temp.canopy_revoke_login('solo@example.com', '2026-08-26')$$, 'último ingreso de tipo dueño', 'part 2 never removes the last owner login');
 select test.eq((select kind from public.app_accounts where user_id = 'b2600000-0000-4000-8000-000000000005'), 'owner', 'the last owner login is unchanged');
 select test.eq((select string_agg(action, ',' order by id) from public.audit_log where action in ('login_kind_change', 'login_access_revoked')),
                'login_kind_change,login_kind_change,login_kind_change,login_access_revoked', 'only the four changes were logged');
