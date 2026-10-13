@@ -473,3 +473,24 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Storage rights confirmed:** `postgres` can insert buckets, is not a member of the storage owner, and has
   `policy_grants` on `storage.objects`; the privileged role is `supabase_privileged_role`. 0015's and 0025's storage
   statements will run.
+
+## D-032 · 2026-10-13 · A new employee on today's pages; "who rings each sale" waits for the window
+- **Proven on the live pages** (gh-pages `8950054` in a browser, against a copy shaped like production: no
+  migration, managers but no owner-role staff, every login owner kind without a phone code; again after
+  `cafe-login.sql` Part 1): a manager creates the profile and PIN with their own PIN (Time clock → Hours and team →
+  Team), and the person clocks in and out with that PIN. No login can add a person without a manager's PIN today,
+  the owners' personal logins included (owner level needs the phone code). The conversion changes none of this.
+- **Today a sale records the device, not the person** (`orders.station`, free text per device). Per-person
+  attribution is migration 0008 with the new pages: the earliest is the full window (0003-0025; a 0000-0008-only
+  window breaks the register's dollar float and dollar close), and switching it on needs the owner's phone code
+  (E-06). It is not reachable by 2026-10-15 without skipping a safety step, so it waits. It must not be switched on
+  while the old POS is live: every old-POS sale would be flagged `no_operator`.
+- **Interim (no migration, no publish):** `docs/PERSONAL-NUEVO.md`, the staff guide, and
+  `supabase/tools/ventas-por-turno.sql`, a read-only report of each sale with who was clocked in. Optionally, one
+  cashier per device per shift with the device named after them (the owner decides, E-21).
+- **Risks found and kept in view:** on today's owner-kind login a manager PIN can create an owner (the café-login
+  conversion closes it on café devices; the guide says «Miembro del equipo» only); PINs are not checked for
+  uniqueness; an owner page left open in another tab of the POS browser signs the POS out after 30 idle minutes
+  until the conversion.
+- **0008 follow-ups (before the window):** a pay-later bill closed in one payment keeps who rang it, not who took the
+  money; no page lists sales by cashier; «Terminar mi turno» does not clock out (the guide says so).

@@ -255,6 +255,8 @@ In order of preference (docs/LANZAMIENTO.md, docs/PUBLICAR.md):
   connection strings in a chat: they go only into Supabase and GitHub settings.
 - **Logins (D-027, D-031):** the phone code only on each owner's own personal login, from their own phone; never on
   a login a café device uses (E-06).
+- **New employee from 2026-10-15 (D-032, E-21):** a manager creates the profile and PIN on today's pages
+  (`docs/PERSONAL-NUEVO.md`); "who rings each sale" waits for the full window and the phone code.
 - **Settings only the owner can see or change:**
   - Supabase plan and Backups page (E-10);
   - Pages source;
