@@ -122,7 +122,10 @@ ATTRS_SQL="select rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolreplicati
              (select count(*) from pg_auth_members where member = a.oid) from pg_authid a where rolname = 'canopy_backup'"
 # the placeholder setting of case (a) and the scratch editor of case (d) must not outlive a run that stops early
 reset_pw() { psql -X -q -d postgres -c "alter database canopy_legacysim reset pgaudit.log" -c "alter database canopy_legacysim reset log_lock_waits" \
-               -c "alter database canopy_legacysim reset deadlock_timeout" -c "drop role if exists canopy_test_editor" >/dev/null 2>&1 || true; }
+               -c "alter database canopy_legacysim reset deadlock_timeout" -c "drop role if exists canopy_test_editor" >/dev/null 2>&1 || true
+             # case (a2)'s stand-in for pg_tle, dropped only when it is the test's own (its comment says so)
+             psql -X -q -d canopy_legacysim -c "do \$\$ begin if obj_description(to_regnamespace('pgtle'), 'pg_namespace') = 'canopy test stand-in'
+               then drop schema pgtle cascade; end if; end \$\$" >/dev/null 2>&1 || true; }
 trap 'reset_6i; reset_pw; rm -rf "$T"' EXIT
 login_as_backup() { PGPASSWORD="$1" psql -X -At -h "$PGHOST" -p "$PGPORT" -U canopy_backup -d canopy_legacysim -c 'select 1' 2>/dev/null; }
 scram_ok() {  # verifier password -> true when the stored SCRAM-SHA-256 verifier is this password's (RFC 7677)
@@ -153,6 +156,37 @@ grep -q 'NO SE CAMBIÓ NADA' "$T/password-refused.log" && grep -q 'pgaudit.log =
 [ "$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")" = "$authid_before" ] \
   || { echo "  FAIL  the refused password tool changed the account's login or password"; exit 1; }
 psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim reset pgaudit.log"
+# a2) a password checker (pg_tle "passcheck") would receive the new password. pg_tle is not installed here: a
+#     database-level placeholder stands in for its switch and a table for its list of registered functions. The tool
+#     refuses and says why, the account's login and password stay as they are, and the check tool predicts the refusal
+[ "$(psql -X -At -d canopy_legacysim -c "select to_regnamespace('pgtle') is null")" = "t" ] \
+  || { echo "  FAIL  the test database has a pgtle schema (pg_tle installed?): update case (a2)"; exit 1; }
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set pgtle.enable_password_check = 'on'"
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "create schema pgtle" -c "comment on schema pgtle is 'canopy test stand-in'" \
+  -c "create table pgtle.feature_info (feature text, proname text)" -c "insert into pgtle.feature_info values ('passcheck', 'test_only_checker')"
+if psql -X -q -At -d canopy_legacysim -c "$PW_SQL" > "$T/password-passcheck.log" 2>&1; then
+  sed -E 's/[0-9a-f]{64}/<64-hex>/g' "$T/password-passcheck.log"; echo "  FAIL  the password tool ran while a pg_tle passcheck function would receive the password"; exit 1; fi
+grep -q 'NO SE CAMBIÓ NADA' "$T/password-passcheck.log" && grep -q 'pg_tle passcheck' "$T/password-passcheck.log" && ! grep -qE '[0-9a-f]{64}' "$T/password-passcheck.log" \
+  || { cat "$T/password-passcheck.log"; echo "  FAIL  the password tool's pg_tle refusal does not say why (or shows a value)"; exit 1; }
+[ "$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")" = "$authid_before" ] \
+  || { echo "  FAIL  the password tool's pg_tle refusal changed the account's login or password"; exit 1; }
+[ "$(psql -X -q -At -d canopy_legacysim -c "$(cat "$ROOT/supabase/tools/backup-account-check.sql")" \
+     | python3 -I -c 'import json, sys; d = json.load(sys.stdin)["logging"]; print(d["pgtle_passcheck_functions"], d["backup_password_would_refuse"])')" = "1 True" ] \
+  || { echo "  FAIL  backup-account-check.sql does not count the pg_tle checker or does not predict the refusal"; exit 1; }
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "drop schema pgtle cascade"
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim reset pgtle.enable_password_check"
+# a3) the account does not exist (step 2 not done): the tool refuses, names step 2 and creates nothing. canopy_backup
+#     exists by now, so a copy of the tool names an account that does not
+ABSENT=canopy_backup_absent_test
+[ "$(psql -X -At -d postgres -c "select count(*) from pg_roles where rolname = '$ABSENT'")" = "0" ] \
+  || { echo "  FAIL  the test server has a role $ABSENT: case (a3) needs an account that does not exist"; exit 1; }
+if psql -X -q -At -d canopy_legacysim -c "${PW_SQL//canopy_backup/$ABSENT}" > "$T/password-absent.log" 2>&1; then
+  sed -E 's/[0-9a-f]{64}/<64-hex>/g' "$T/password-absent.log"; echo "  FAIL  the password tool ran without the account"; exit 1; fi
+grep -q "NO SE CAMBIÓ NADA: la cuenta $ABSENT no existe; primero el paso 2" "$T/password-absent.log" && ! grep -qE '[0-9a-f]{64}' "$T/password-absent.log" \
+  || { cat "$T/password-absent.log"; echo "  FAIL  without the account the password tool does not say so (or shows a value)"; exit 1; }
+[ "$(psql -X -At -d postgres -c "select count(*) from pg_roles where rolname = '$ABSENT'")" = "0" ] \
+  && [ "$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")" = "$authid_before" ] \
+  || { echo "  FAIL  without the account the password tool created one, or changed canopy_backup"; exit 1; }
 # b) the normal run: one row of 64 hexadecimal characters, stored as the SCRAM verifier of exactly that value, and the
 #    account logs in with it; a second run replaces it (the first no longer matches, and no longer logs in where the
 #    server checks passwords: a local test server trusts local connections, CI's checks them)
@@ -371,4 +405,4 @@ done
 psql -X -q -d postgres -c "drop database if exists canopy_restored with (force)" -c "drop database if exists canopy_prodsim with (force)" \
   -c "drop database if exists canopy_restored0 with (force)" -c "drop database if exists canopy_legacysim with (force)" \
   -c "drop database if exists canopy_restored_busy with (force)" >/dev/null
-echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), password tool (refused with nothing changed, 64-hex row and login, replaced on a second run, REVISAR statement by statement, a failure carries no password, gives up on a lock before the server would log it) and read-only check, backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"
+echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), password tool (refused with nothing changed: a setting that would record it, a pg_tle checker, no account; 64-hex row and login, replaced on a second run, REVISAR statement by statement, a failure carries no password, gives up on a lock before the server would log it) and read-only check, backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"
