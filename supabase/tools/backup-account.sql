@@ -265,13 +265,31 @@ begin
   end if;
   -- 6i. a key kept where every login can read it (a custom setting of a database or an account, e.g. an old
   --     app.settings.jwt_secret): this account's password would then be enough to act as anyone. Names only.
+  --     Only a setting that can hold text and is not empty can hold a key: a switch, a number or a choice from a list
+  --     (an extension's on/off setting like pgtle.enable_password_check on Supabase) cannot, whatever its name says.
+  --     A database or account setting that nothing defines is text, so it is always judged; one the server knows as
+  --     a switch, number or list choice is skipped only when its stored value is a valid one of those (a superuser
+  --     could store any text under such a name while the extension is not loaded). A server-file setting that nothing
+  --     defines is not listed in pg_settings and cannot be found from SQL: Supabase's configuration sets none.
   probs := probs || array(select distinct format('la base guarda, a la vista de toda cuenta que entra, un ajuste que parece una clave: %s (%s)',
                                                  split_part(x.cfg, '=', 1),
                                                  case when s.setrole = 0 then 'para todas las cuentas' else 'de la cuenta ' || coalesce(pg_get_userbyid(s.setrole), '?') end)
-                            from pg_db_role_setting s cross join lateral unnest(s.setconfig) as x(cfg)
-                           where split_part(x.cfg, '=', 1) like '%.%' and split_part(x.cfg, '=', 1) ~* secret_re);
-  probs := probs || array(select format('el servidor tiene, a la vista de toda cuenta, un ajuste que parece una clave: %s', name)
-                            from pg_settings where name like '%.%' and name ~* secret_re order by 1);
+                            from pg_catalog.pg_db_role_setting s cross join lateral unnest(s.setconfig) as x(cfg)
+                           where split_part(x.cfg, '=', 1) like '%.%' and split_part(x.cfg, '=', 1) ~* secret_re
+                             and substr(x.cfg, strpos(x.cfg, '=') + 1) <> ''
+                             and not exists (select 1 from pg_catalog.pg_settings ps
+                                              cross join lateral (select lower(btrim(substr(x.cfg, strpos(x.cfg, '=') + 1))) as v) val
+                                              where lower(ps.name) = lower(split_part(x.cfg, '=', 1))
+                                                and case ps.vartype
+                                                      when 'bool' then val.v in ('on', 'off', 'true', 'false', 'yes', 'no', '1', '0', 't', 'f', 'y', 'n')
+                                                      when 'enum' then val.v = any (select lower(e) from unnest(ps.enumvals) e)
+                                                      when 'integer' then val.v ~ '^[-+]?[0-9]+ *[a-z]*$'
+                                                      when 'real' then val.v ~ '^[-+]?[0-9.]+(e[-+]?[0-9]+)? *[a-z]*$'
+                                                      else false end));
+  probs := probs || array(select format('el servidor tiene, a la vista de toda cuenta, un ajuste que parece una clave: %s', ps.name)
+                            from pg_catalog.pg_settings ps
+                           where ps.name like '%.%' and ps.name ~* secret_re
+                             and ps.vartype = 'string' and coalesce(ps.setting, '') <> '' order by 1);
 
   if cardinality(probs) > 0 then
     raise exception '%NO SE CREÓ NI SE CAMBIÓ NADA. La cuenta canopy_backup: %',

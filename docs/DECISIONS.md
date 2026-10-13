@@ -518,7 +518,11 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     operator, cast or view), belong to a role, own an object, read `auth`, a view on it at any depth or
     `pg_authid.rolpassword`, read through a view of the café something it cannot read itself (system catalogs found
     by name: they are never in `pg_depend`), read anything else PUBLIC cannot, hold an unexpected grant, or lacks
-    anything the backup copies; also if a secret-like setting is visible to every login. A view of the café is an
+    anything the backup copies; also if a secret-like setting that can hold text and is not empty is visible to every
+    login (a database or account setting no extension defines is text, so it is always judged; a switch, number or
+    list choice is not, unless its stored value is not a valid one:
+    the owner's first paste, 2026-10-13, stopped on Supabase's `pgtle.enable_password_check`, pg_tle's on/off
+    setting, and nothing was kept; the backup pipeline test covers both sides). A view of the café is an
     expected grant (0002's default privileges give it one). The result row says `lista` only when that block
     finished (`REVISAR` under `psql -f` after an error).
   - Re-run it after each migration window as a check.

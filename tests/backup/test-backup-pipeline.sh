@@ -7,7 +7,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=/dev/null
 source "$ROOT/tests/pg.sh"
 command -v age >/dev/null || { echo "  skip  backup pipeline (age not installed)"; exit 0; }
-T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+T="$(mktemp -d)"
+# check 6i's cases below store key-like settings on canopy_legacysim; 6i reads every database's settings, so a run that
+# stops early must not leave them behind (every later paste on this server would stop on them)
+reset_6i() { psql -X -q -d postgres -c "alter database canopy_legacysim reset app.settings.jwt_secret" \
+               -c "alter database canopy_legacysim reset pgtle.enable_password_check" >/dev/null 2>&1 || true; }
+trap 'reset_6i; rm -rf "$T"' EXIT
 URL_BASE="postgresql://postgres@${PGHOST}:${PGPORT}"
 [ -n "${PGPASSWORD:-}" ] && URL_BASE="postgresql://postgres:${PGPASSWORD}@${PGHOST}:${PGPORT}"
 
@@ -45,6 +50,57 @@ grep -q '^REVISAR: la revisión de arriba no terminó bien' "$T/account-refused2
 [ "$(psql -X -At -d canopy_legacysim -c "$ACL_SQL")" = "$acl_before" ] \
   || { echo "  FAIL  the refused paste left permissions for the backup account"; exit 1; }
 psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "drop function public.canopy_test_evil(), public.canopy_test_evil_trg()"
+# check 6i: a key kept in a setting every login can read stops the paste and is named, never shown; a setting the server
+# does not know is text, so it is always judged; an empty one holds nothing
+acl_before="$(psql -X -At -d canopy_legacysim -c "$ACL_SQL")"; fn_before="$(psql -X -At -d canopy_legacysim -c "$FN_SQL")"
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set app.settings.jwt_secret = 'test-only-not-a-key'"
+if psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$ROOT/supabase/tools/backup-account.sql" > "$T/account-key.log" 2>&1; then
+  cat "$T/account-key.log"; echo "  FAIL  the backup account paste accepted a key-like setting every login can read"; exit 1; fi
+grep -q 'NO SE CREÓ NI SE CAMBIÓ NADA' "$T/account-key.log" && grep -qF 'parece una clave: app.settings.jwt_secret' "$T/account-key.log" \
+  && ! grep -qF 'test-only-not-a-key' "$T/account-key.log" \
+  || { cat "$T/account-key.log"; echo "  FAIL  the refused paste does not name the key-like setting, or shows its value"; exit 1; }
+[ "$(psql -X -At -d canopy_legacysim -c "$ACL_SQL")" = "$acl_before" ] && [ "$(psql -X -At -d canopy_legacysim -c "$FN_SQL")" = "$fn_before" ] \
+  || { echo "  FAIL  the paste refused for a key-like setting changed permissions"; exit 1; }
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set app.settings.jwt_secret = ''"
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$ROOT/supabase/tools/backup-account.sql" > "$T/account-key-empty.log" 2>&1 \
+  && grep -q '^ *lista: la cuenta canopy_backup' "$T/account-key-empty.log" \
+  || { cat "$T/account-key-empty.log"; echo "  FAIL  an empty key-like setting stopped the paste"; exit 1; }
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim reset app.settings.jwt_secret"
+# ...but a switch, a number or a choice from a list cannot hold a key, whatever its name. On Supabase pg_tle defines
+# pgtle.enable_password_check (on/off/require): the owner's first paste stopped on it (2026-10-13). pg_tle is not
+# installed here, so a copy of the paste reads a stand-in for pg_catalog.pg_settings with that setting as pg_tle defines
+# it; only check 6i's two "pg_catalog.pg_settings ps" are swapped, and a text setting with a value still stops the copy
+[ "$(grep -c 'pg_catalog\.pg_settings ps' "$ROOT/supabase/tools/backup-account.sql")" = "2" ] \
+  || { echo "  FAIL  check 6i no longer reads pg_catalog.pg_settings in exactly two places (update this test)"; exit 1; }
+sed 's/pg_catalog\.pg_settings ps/canopy_test_guc.pg_settings ps/g' "$ROOT/supabase/tools/backup-account.sql" > "$T/account-guc.sql"
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "create schema canopy_test_guc" -c "create view canopy_test_guc.pg_settings as
+  select name, vartype, setting, enumvals from pg_catalog.pg_settings where name <> 'pgtle.enable_password_check'
+  union all select 'pgtle.enable_password_check', 'enum', 'on', '{on,off,require}'::text[]"
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set pgtle.enable_password_check = 'on'"
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$T/account-guc.sql" > "$T/account-guc.log" 2>&1 \
+  && grep -q '^ *lista: la cuenta canopy_backup' "$T/account-guc.log" \
+  || { cat "$T/account-guc.log"; echo "  FAIL  pg_tle's on/off setting pgtle.enable_password_check stopped the paste"; exit 1; }
+# a database-level value under that name that is not one of its choices could only be text a superuser stored while
+# pg_tle was not loaded: it is judged, named, and its value never shown
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set pgtle.enable_password_check = 'test-only-not-a-choice'"
+if psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$T/account-guc.sql" > "$T/account-guc1.log" 2>&1 \
+   || ! grep -qF 'parece una clave: pgtle.enable_password_check' "$T/account-guc1.log" || grep -qF 'test-only-not-a-choice' "$T/account-guc1.log"; then
+  cat "$T/account-guc1.log"; echo "  FAIL  a stored value that is not one of the setting's choices did not stop the paste, or was shown"; exit 1; fi
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set pgtle.enable_password_check = 'on'"
+# without pg_tle the same name is text the server does not know: the shipped paste judges it and stops
+if psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$ROOT/supabase/tools/backup-account.sql" > "$T/account-guc2.log" 2>&1 \
+   || ! grep -qF 'parece una clave: pgtle.enable_password_check' "$T/account-guc2.log"; then
+  cat "$T/account-guc2.log"; echo "  FAIL  a setting nothing defines (text) named like a key did not stop the paste"; exit 1; fi
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim reset pgtle.enable_password_check"
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "create or replace view canopy_test_guc.pg_settings as
+  select name, vartype, setting, enumvals from pg_catalog.pg_settings
+  union all select 'pgtle.enable_password_check', 'enum', 'on', '{on,off,require}'::text[]
+  union all select 'pgtle.example_token', 'string', 'not-empty', null"
+if psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$T/account-guc.sql" > "$T/account-guc3.log" 2>&1 \
+   || ! grep -qF 'el servidor tiene, a la vista de toda cuenta, un ajuste que parece una clave: pgtle.example_token' "$T/account-guc3.log" \
+   || grep -qF 'pgtle.enable_password_check' "$T/account-guc3.log"; then
+  cat "$T/account-guc3.log"; echo "  FAIL  check 6i: a key-like text setting with a value must stop the paste, the on/off one must not"; exit 1; fi
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "drop schema canopy_test_guc cascade"
 psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -f "$ROOT/supabase/tools/backup-account.sql" > "$T/account.log"
 grep -q 'lista: la cuenta canopy_backup' "$T/account.log" || { cat "$T/account.log"; echo "  FAIL  backup account (before 0000)"; exit 1; }
 # it reads the café's tables and the photo list, never the logins
@@ -72,7 +128,7 @@ PHOTOS="$T/www/storage/v1/object/public/menu-photos"; mkdir -p "$PHOTOS/desayuno
 printf 'gallo pinto' > "$PHOTOS/desayunos/gallo-pinto.jpg"; printf 'latte' > "$PHOTOS/latte.png"
 WWW_PORT=18431
 python3 -m http.server "$WWW_PORT" --bind 127.0.0.1 --directory "$T/www" >/dev/null 2>&1 & WWW_PID=$!
-trap 'kill "$WWW_PID" 2>/dev/null || true; rm -rf "$T"' EXIT
+trap 'kill "$WWW_PID" 2>/dev/null || true; reset_6i; rm -rf "$T"' EXIT
 for _ in $(seq 1 50); do curl -fsS -o /dev/null "http://127.0.0.1:$WWW_PORT/storage/v1/object/public/menu-photos/latte.png" 2>/dev/null && break; sleep 0.1; done
 LEGACY_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/canopy_legacysim"
 mkdir -p "$T/work0"
