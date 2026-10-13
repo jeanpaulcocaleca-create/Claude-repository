@@ -44,8 +44,8 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
-    env:
-      OUT: ${{ runner.temp }}/ensayo
+    # (no job-level env here: GitHub does not allow the "runner" context there, only inside steps; the OUT folder is
+    # set on each step that uses it)
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -74,10 +74,13 @@ jobs:
           SCRATCH_URL: postgresql://postgres:desechable@127.0.0.1:5432/postgres
           PUBLIC_DIR: ${{ github.workspace }}/publico
           EMPTY_STAGING: ${{ github.event.inputs.vaciar }}
+          OUT: ${{ runner.temp }}/ensayo
         run: bash ./ensayo.sh
       - name: Comparar antes y después (este paso no tiene contraseñas)
         # "shell: bash" adds pipefail: without it a failed comparison would end green behind tee
         shell: bash
+        env:
+          OUT: ${{ runner.temp }}/ensayo
         run: python3 publico/tests/rehearsal/compare.py "$OUT" after | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Guardar los resultados (solo cantidades y huellas, sin datos)
         if: always()

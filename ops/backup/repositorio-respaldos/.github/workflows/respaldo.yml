@@ -51,6 +51,8 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false   # the repository token is not needed after the checkout: do not leave it on disk
       - name: Instalar herramientas (cliente de PostgreSQL 17, age, rclone)
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg

@@ -104,5 +104,10 @@ priv_sql() { awk '/^PRIV_SQL="/ { f = 1 } f { print } f && /q"$/ { exit }' "$1" 
   && [ "$(priv_sql ops/backup/backup.sh)" = "$(priv_sql ops/backup/repositorio-respaldos/ensayo.sh)" ] \
   && grep -q 'order by x collate \\"C\\"' ops/backup/backup.sh \
   || bad "PRIV_SQL differs between backup.sh, restore.sh and repositorio-respaldos/ensayo.sh, or does not sort with collate \"C\""
+# 12) GitHub Actions workflows: every ${{ … }} uses only the contexts GitHub allows at that place. GitHub checks this
+#     only when the file is pushed to a .github/workflows folder, which the private backup repository's files never
+#     are from here (2026-10-13: a job-level env with runner.temp was rejected when the owner uploaded it)
+python3 "$(dirname "$0")/tools/workflow-contexts.py" .github/workflows/*.yml ops/backup/repositorio-respaldos/.github/workflows/*.yml \
+  || bad "a workflow uses a context where GitHub does not allow it (see above)"
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

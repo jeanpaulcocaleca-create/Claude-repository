@@ -18,7 +18,7 @@ Last updated: 2026-10-13.
 | Production schema export tool | ✅ | – | manual run on test DB | – | 8c6ef4d | R |
 | Backups: 0002 account/log/status, backup.sh, restore.sh, private-repo workflow, computer sync (Win/Mac), runbook | ✅ | E-03, E-12 | 030 (22), backup pipeline e2e | PowerShell scripts not executable in this environment; verify on the owner PC at install | 4767760 | R |
 | Backup health card on owner Home (green/amber/red, Spanish) | ✅ | 0002 | e2e 060 (2) | – | 4538178 | R |
-| CI workflow (lint, SQL, backup pipeline, browser tests) | ✅ | – | runs on push | – | 4767760 | – |
+| CI workflow (lint, SQL, backup pipeline, browser tests); lint 12 checks every `${{ }}` in the four workflow files against GitHub's context-availability table (`tests/tools/workflow-contexts.py`; GitHub only checks the private repository's files when the owner uploads them) | ✅ | – | runs on push; lint 12 fails on the rejected 2026-10-13 file | – | 4767760 | – |
 | Central config.js (production/staging/local) | ✅ | E-13/E-14 for staging values | e2e smoke (3) | Staging entry empty until E-13 | 5e9ca83 | R |
 | Browser test harness (gateway, PostgREST, Playwright) | ✅ | – | e2e smoke | – | 5e9ca83 | – |
 | Earlier browser suites ported (bills/tabs, open orders on the device, QR menu, kitchen) | ✅ | – | e2e 070–100 (34) | – | 2d457e9 | – |
