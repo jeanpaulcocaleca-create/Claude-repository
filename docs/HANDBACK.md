@@ -67,7 +67,7 @@ From `docs/DEPENDENCIES.md`.
 
 **Before release:**
 - **E-10:** Supabase plan and version.
-- **E-11:** export the production schema.
+- **E-11 (optional):** export the production schema (the two differences are explained, D-031).
 - **E-12:** owner computer OS for the backup installer.
 - **E-13, E-14:** staging project and DNS.
 - **E-15:** front-register hardware.

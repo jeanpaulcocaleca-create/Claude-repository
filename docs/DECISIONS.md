@@ -320,7 +320,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   absent there (only the owner rule exists). 0001 still drops it where it exists, and the rehearsal keeps covering
   that case.
 - **Logins.** There are three logins, all of the owner kind and none with a phone code; every login has an app
-  account, so nobody has signed themselves up. One was created on 2026-09-16 and has never signed in.
+  account, so nobody has signed themselves up. One has never signed in.
   - Tested: an owner-kind login without a phone code behaves like a café login until a PIN is typed, on today's
     schema and after 0025.
   - It still carries three exposures on a café device:
@@ -430,3 +430,46 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **`cafe-login.sql`:** it now requires the follow-up's creation date next to the email and refuses, changing
   nothing, when the date is another login's. Without that check, typing the other look-alike email converted the
   wrong login. Its confirmations show the creation date and any `+label`.
+
+## D-031 · 2026-10-13 · What the follow-up showed
+- **Follow-up:** read-only `production-followup.sql`, run by the owner on 2026-10-13.
+- **The café devices' login is identified: case B** (`docs/INGRESOS.md`). The café devices use an owner-kind login
+  with no phone code. Manager PINs are typed on it, and its sessions are several Android tablets plus a Windows PC
+  and a Mac that were in use while the owner ran the query. The owner's older owner-kind login has no sessions and
+  no PINs. The never-used login still has none.
+  - **Account structure decided by the owner (2026-10-13):** two owners, each with a personal login that no café
+    device uses, and both stay owners: the owner's older owner-kind login and the co-owner's existing login. The
+    shared login becomes the restricted café login in place (`cafe-login.sql` Part 1); the POS and tablets are for
+    employees only, each with an individual staff profile and PIN. No device is touched and no café-device session
+    ends.
+  - **Order:** the verified backup first (E-03); then each owner's sign-in test in a private window, and each
+    owner signs out of the shared login on their own computers and phones (the top «Cerrar sesión», which is
+    local; never «en todos lados»); then the conversion, with the owner's approval. A new `+dueno` login is only the
+    fallback for an owner who cannot sign in to their own.
+  - **The never-used login:** the owner says the co-owner signs in with an existing login. If it is this one, it
+    stays an owner and Part 2 of `cafe-login.sql` is never used on it; the follow-up shows a session on it once the
+    co-owner has signed in (E-04).
+  - **No owner-role team member exists** (2 managers, 1 inactive staff). Today a manager PIN on the café devices
+    can create one, which is another reason to convert soon (E-05).
+- **`audit_menu()` is accepted as is; no migration.** Production's body is `supabase/accounts.sql`'s without the
+  inline comment after `return new;`. The proof is three hashes, all checked on a scratch copy built from the
+  pasted definition:
+  - `h` `4807ea7301cd`: the exact text, now known to the snapshot;
+  - `h_ws` `1670eab5ce1f`: spaces normalized, still different, because the comment is still there;
+  - `h_code` `559f340e7bbd`: comments removed, the same as the repository's.
+
+  The trigger, `security definer`, `search_path` and owner are also the same, so its behaviour is identical.
+  `tests/tools/snapshot-known.sh` lists the text under `ACCEPTED` (full md5, label `legacy`, date, reason), and the
+  snapshot no longer reports it in `functions_changed`. Proven on scratch legacy builds with and without
+  production's body: `functions_changed` `[]`, every function `legacy`. A body changed in code is still reported.
+  The rehearsal now starts from production's text (`tests/rehearsal/production-drift.sql`), so CI checks on every
+  run that the text stays accepted (BEFORE) and that no migration changes its text, settings or owner (compared
+  right after the migrations).
+- **`orders.note` is mirrored.** It is column 5 (`text`, nullable, no default, no constraint), and none of the 32
+  orders has text in it. `tests/db/01_base_tables.sql` now has it, so production's `tables_columns_differ` is `{}`
+  by construction (`orders` signature `219567007705…`, the one production computes). The rehearsal seeds a name and
+  a phone in it, and checks that the staging copy carries none.
+- **Triggers on the original tables:** identical to the legacy build's 12.
+- **Storage rights confirmed:** `postgres` can insert buckets, is not a member of the storage owner, and has
+  `policy_grants` on `storage.objects`; the privileged role is `supabase_privileged_role`. 0015's and 0025's storage
+  statements will run.

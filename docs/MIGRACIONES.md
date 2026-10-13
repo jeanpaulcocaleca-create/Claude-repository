@@ -59,8 +59,11 @@ estructura exacta:
 
 Primero, la foto (`supabase/tools/production-snapshot.sql`) dice si hace falta: si `functions_changed`,
 `functions_unknown`, `tables_columns_differ` y `triggers_differ` salen vacíos, producción es igual a la
-reconstrucción. (La foto del 2026-10-12 mostró `audit_menu()` distinta y la columna `orders.note` de más: hace
-falta, D-027.)
+reconstrucción. (La foto del 2026-10-12 mostró `audit_menu()` distinta y la columna `orders.note` de más, D-027.
+El seguimiento del 2026-10-13 explicó las dos, D-031: `audit_menu()` es la del repositorio sin un comentario, y
+quedó aceptada sin migración; `orders.note` nunca se usó, y ya está en la reconstrucción. Con eso la foto debe
+salir vacía, y la exportación de abajo es opcional: sirve solo para tener las definiciones exactas de las cuatro
+tablas.)
 
 1. Supabase → SQL Editor → pegue `supabase/tools/catalog-export.sql` → **Run**.
    Es solo lectura: no muestra ventas, nombres, PINs ni contraseñas.
@@ -68,7 +71,7 @@ falta, D-027.)
 3. En GitHub, en la rama de desarrollo: **Add file → Create new file** →
    `supabase/baseline/production-schema.sql` → pegue → **Commit**.
 
-Con ese archivo comparo la estructura real contra lo esperado y preparo la migración de conciliación.
+Con ese archivo comparo la estructura real contra la reconstrucción.
 
 ## Plantilla de una migración nueva
 

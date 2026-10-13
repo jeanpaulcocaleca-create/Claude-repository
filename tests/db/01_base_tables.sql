@@ -26,7 +26,10 @@ create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   total_crc int not null default 0,
-  payment_method text not null default 'cash_crc'
+  payment_method text not null default 'cash_crc',
+  -- production has this column (attnum 5: text, nullable, no default) from before the repository; no page, function
+  -- or migration uses it and it was never written (follow-up 2026-10-13). Mirrored here 2026-10-13 (D-031).
+  note text
 );
 
 create table if not exists public.order_items (

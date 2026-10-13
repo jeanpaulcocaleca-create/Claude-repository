@@ -3,7 +3,8 @@
 #   * every function body (md5) as of the historical scripts and after each migration, labelled legacy/0000/0001/...;
 #   * the columns of each original table (before any migration);
 #   * the columns migrations add to those tables (left out of the data fingerprints);
-#   * the triggers on those tables, with the version that creates each one and the one that removes it, if any.
+#   * the triggers on those tables, with the version that creates each one and the one that removes it, if any;
+#   * the production texts accepted as a known version (ACCEPTED below).
 # Run it after changing anything in supabase/migrations (the rehearsal, tests/rehearsal/run.sh, fails when the function
 # or table lists are out of date).
 # Local test cluster only (it rebuilds the throwaway database canopy_chain).
@@ -14,6 +15,13 @@ ROOT="$(cd "$HERE/.." && pwd)"
 source "$HERE/pg.sh"
 case "$PGHOST" in 127.0.0.1|localhost|/*|postgres) ;; *) echo "only on a local/CI test server"; exit 2;; esac
 DB=canopy_chain
+# Production texts accepted as a known version: a function body found in production that is none of this repository's,
+# proven to differ only where it cannot change what the function does, so the snapshot counts it under that version
+# instead of reporting it in functions_changed. Only with the proof written down (docs/DECISIONS.md); never for a
+# difference in code. One line each: function|full md5 of its prosrc|version label|date|reason
+ACCEPTED="
+public.audit_menu()|4807ea7301cd2ae6fe56052d3a165352|legacy|2026-10-13|supabase/accounts.sql's body without the inline comment after 'return new;' (same code: h_code 559f340e7bbd; D-031)
+"
 OUT="$(mktemp -d)"
 psql -q -X -d postgres -v ON_ERROR_STOP=1 -c "drop database if exists $DB with (force)" -c "create database $DB"
 run() { psql -q -X -d "$DB" -v ON_ERROR_STOP=1 ${2:-} -f "$1" > "$OUT/log" 2>&1 || { echo "FAILED: $1"; cat "$OUT/log"; exit 1; }; }
@@ -48,7 +56,7 @@ for m in $(ls "$ROOT/supabase/migrations"/*.sql | sort); do
 done
 psql -X -At -F'|' -d "$DB" -c "$COLS" > "$OUT/cols_final"
 
-python3 - "$ROOT/supabase/tools/production-snapshot.sql" "$OUT" <<'PY'
+python3 - "$ROOT/supabase/tools/production-snapshot.sql" "$OUT" "$ACCEPTED" <<'PY'
 import sys, hashlib, collections
 path, out = sys.argv[1], sys.argv[2]
 seen, fn = set(), []
@@ -56,6 +64,17 @@ for line in open(out + '/fn', encoding='utf-8'):
     name, h, ver = line.rstrip('\n').split('|')
     if (name, h) not in seen:            # earliest version that produced this body
         seen.add((name, h)); fn.append((name, h, ver))
+accepted, built = {}, {n for n, _, _ in fn}
+for line in sys.argv[3].strip().splitlines():
+    name, full, ver, date, why = line.split('|', 4)
+    assert len(full) == 32 and all(c in '0123456789abcdef' for c in full), f'ACCEPTED {name}: the md5 must be 32 hex characters'
+    assert name in built, f'ACCEPTED {name}: no such function in this repository'
+    assert ver in {v for _, _, v in fn}, f'ACCEPTED {name}: unknown version {ver}'
+    if (name, full[:12]) not in seen:     # the snapshot compares the first 12 characters
+        seen.add((name, full[:12])); fn.append((name, full[:12], ver)); accepted[(name, full[:12])] = (date, why)
+def fn_row(a, b, c):
+    row = f'  ({q(a)}, {q(b)}, {q(c)})'
+    return f'  -- accepted production text ({accepted[(a, b)][0]}): {accepted[(a, b)][1]}\n' + row if (a, b) in accepted else row
 legacy = collections.defaultdict(list)
 for line in open(out + '/cols_legacy', encoding='utf-8'):
     t, c = line.rstrip('\n').split('|', 1); legacy[t].append(c)
@@ -78,7 +97,7 @@ for ver in states:
     for k in sorted(present[ver] - set(since)): since[k] = ver
 trig += [(k, v, None) for k, v in since.items()]
 blocks = {
-  'KNOWN FUNCTIONS': 'known_fn(fn, h, ver) as (values\n' + ',\n'.join(f'  ({q(a)}, {q(b)}, {q(c)})' for a, b, c in sorted(fn)) + '),',
+  'KNOWN FUNCTIONS': 'known_fn(fn, h, ver) as (values\n' + ',\n'.join(fn_row(a, b, c) for a, b, c in sorted(fn)) + '),',
   'KNOWN TABLES': 'known_tab(t, sig) as (values\n' + ',\n'.join(f'  ({q(t)}, {q(sig(legacy[t]))})' for t in sorted(legacy)) + '),',
   'ADDED COLUMNS': 'added_col(t, c) as (values\n' + ',\n'.join(f'  ({q(t)}, {q(c)})' for t, c in added) + '),',
   'KNOWN TRIGGERS': 'known_trig(t, since, till) as (values\n' + ',\n'.join(
@@ -90,6 +109,6 @@ for k, body in blocks.items():
     i, j = src.index(a) + len(a), src.index(b)
     src = src[:i] + body + '\n' + src[j:]
 open(path, 'w', encoding='utf-8').write(src)
-print(f'{len(fn)} function versions, {len(legacy)} original tables, {len(added)} added columns, {len(trig)} triggers on them')
+print(f'{len(fn)} function versions ({len(accepted)} accepted from production), {len(legacy)} original tables, {len(added)} added columns, {len(trig)} triggers on them')
 PY
 rm -rf "$OUT"

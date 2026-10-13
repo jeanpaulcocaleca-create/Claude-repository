@@ -130,6 +130,15 @@ update public.orders o set created_at = o.created_at + interval '1 day', payment
   from seed_orders s where s.id = o.id and s.r_kind between 0.085 and 0.09 and s.d > 1 and o.part_of is null and o.parts_crc = 0
    and o.voided_at is null and o.discount_crc = 0 and o.source = 'front';
 
+-- orders.note: production's free-text column from before the repository (tests/db/01_base_tables.sql), empty there
+-- today; here three orders carry what someone could type in it, a name and a phone, so the staging copy proves it
+-- never takes them along
+update public.orders o set note = x.note
+  from (select s.id, (array['Rosa Méndez, tel. 8800-1201, recoge a las 3', 'para Tom Becker · +1 555 0142',
+                            'llamar a Carlos Vargas 8800-1203'])[t.k] as note
+          from unnest(array[2, 30, 90]) with ordinality as t(d, k) join seed_orders s on s.d = t.d and s.n = 1) x
+ where x.id = o.id;
+
 -- counts and waste
 insert into public.stock_moves (item_id, at, kind, qty, note, by_name)
 select s.id, public.cr_day_start(public.cr_today() - d) + interval '18 hours', 'waste', -(s.pack_qty * 0.05), 'vencido', 'Luis'
@@ -223,5 +232,6 @@ do $$ begin
   if (select voided_at from public.orders where id = '0d000000-0000-4000-8000-0000000000b3') is null then raise exception 'seed: void failed'; end if;
   if not (select paid from public.orders where id = '0d000000-0000-4000-8000-0000000000b4') then raise exception 'seed: room order not paid'; end if;
   if (select count(*) from public.time_entries where clock_in >= public.cr_today_start()) <> 2 then raise exception 'seed: punches missing'; end if;
+  if (select count(nullif(btrim(note), '')) from public.orders) <> 3 then raise exception 'seed: order notes missing'; end if;
 end $$;
 analyze;

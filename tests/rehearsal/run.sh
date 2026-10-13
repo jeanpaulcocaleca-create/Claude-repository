@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =====================================================================================================
 # Canopy OS · migration rehearsal on a representative copy of production as it is BEFORE migration 0000.
-#   1. builds the schema production has (the historical scripts) and fills it with ~4 months of café history
+#   1. builds the schema production has (the historical scripts, plus production's own audit_menu() text:
+#      tests/rehearsal/production-drift.sql) and fills it with ~4 months of café history
 #      (tests/rehearsal/seed-legacy.sql)
 #   2. read-only snapshot + consistency check (the same files the owner runs in production)
 #   3. a backup with its restore test (content fingerprints), like the owner's first backup
@@ -28,6 +29,7 @@ die() { echo "  FAIL  rehearsal: $*"; exit 1; }
 
 step "legacy schema + representative history"
 CANOPY_LEGACY_ONLY=1 "$ROOT/tests/build-db.sh" "$DB" >/dev/null
+q -f "$HERE/production-drift.sql" > "$OUT/drift.log" 2>&1 || { cat "$OUT/drift.log"; die "production's audit_menu text"; }
 t0=$(date +%s)
 q -f "$HERE/seed-legacy.sql" > "$OUT/seed.log" 2>&1 || { cat "$OUT/seed.log"; die "seed"; }
 q -f "$HERE/as-supabase.sql" > /dev/null
@@ -69,6 +71,13 @@ if command -v age >/dev/null; then
   echo "    $(grep -o 'restauración verificada[^;]*; contenido idéntico en [0-9]* tablas' "$OUT/backup-before.log") ($(( $(date +%s) - t0 ))s)"
 fi
 
+# production's audit_menu() (D-031): accepted as it is, so no migration may touch its text, settings or owner. The
+# snapshot cannot see that (a rewrite to another known body would still read 'legacy'): compared here
+AUDIT_MENU="select md5(prosrc) || ' definer=' || prosecdef || ' ' || coalesce(array_to_string(proconfig, ','), '-') || ' owner=' || pg_get_userbyid(proowner) from pg_proc where oid = 'public.audit_menu()'::regprocedure"
+audit_menu_before=$(q -c "$AUDIT_MENU")
+[[ "$audit_menu_before" == "4807ea7301cd2ae6fe56052d3a165352 definer=true search_path=public owner="* ]] \
+  || die "audit_menu() before the migrations is not production's: $audit_menu_before"
+
 step "migrations 0000-$(ls "$ROOT/supabase/migrations"/*.sql | tail -1 | xargs basename | cut -c1-4), each in one transaction, as the SQL Editor account (not a superuser)"
 : > "$OUT/timings.txt"
 for m in $(ls "$ROOT/supabase/migrations"/*.sql | sort); do
@@ -79,6 +88,8 @@ for m in $(ls "$ROOT/supabase/migrations"/*.sql | sort); do
   printf '%s %s ms\n' "$(basename "$m" .sql)" "$(( ($(date +%s%N) - s) / 1000000 ))" >> "$OUT/timings.txt"
 done
 echo "    applied $(wc -l < "$OUT/timings.txt") migrations in $(awk '{s+=$2} END {printf "%.1f", s/1000}' "$OUT/timings.txt")s; slowest: $(sort -k2 -n -r "$OUT/timings.txt" | head -3 | awk '{printf "%s %s ms; ", $1, $2}')"
+audit_menu_after=$(q -c "$AUDIT_MENU")
+[ "$audit_menu_after" = "$audit_menu_before" ] || die "a migration changed audit_menu() (production's, D-031): $audit_menu_before -> $audit_menu_after"
 
 step "snapshot and consistency AFTER"
 q -f "$ROOT/supabase/tools/production-snapshot.sql" > "$OUT/snapshot-after.json"
@@ -120,6 +131,7 @@ ensayo "$OUT/staging" > "$OUT/staging.log" 2>&1 || { cat "$OUT/staging.log"; die
 python3 "$HERE/compare.py" "$OUT/staging" after || die "staging copy: differences after the migrations"
 [ "$(psql -X -At -d "${DB}_staging" -c "select count(*) from public.staff where name !~ '^Persona [0-9]+$'")" = "0" ] || die "staging copy: names not anonymized"
 [ "$(psql -X -At -d "${DB}_staging" -c "select count(*) from public.orders where guest_phone is not null")" = "0" ] || die "staging copy: guest phones kept"
+[ "$(psql -X -At -d "${DB}_staging" -c "select count(nullif(btrim(note), '')) from public.orders")" = "0" ] || die "staging copy: order notes (orders.note) kept"
 # a migration that adds a text column must classify it in anonimizar.sql (which refuses an unknown one): run it on a
 # copy of the migrated database, which has every table of the window
 psql -X -q -d postgres -c "drop database if exists ${DB}_anon with (force)" -c "create database ${DB}_anon template $DB" >/dev/null

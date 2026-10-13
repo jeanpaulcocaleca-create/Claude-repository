@@ -147,6 +147,8 @@ known_fn(fn, h, ver) as (values
   ('public.ap_aging(p_as_of date)', 'e53345ffd77f', '0016'),
   ('public.approve_discount(p_staff_id uuid, p_pin text, p_kind text, p_value integer, p_subtotal integer, p_reason text, p_station text)', '259bc8afa7ef', 'legacy'),
   ('public.audit_menu()', '206861a3c597', 'legacy'),
+  -- accepted production text (2026-10-13): supabase/accounts.sql's body without the inline comment after 'return new;' (same code: h_code 559f340e7bbd; D-031)
+  ('public.audit_menu()', '4807ea7301cd', 'legacy'),
   ('public.backup_status()', '1e0867662a23', '0002'),
   ('public.bank_account_save(p_account jsonb)', '64fb23f70c0e', '0020'),
   ('public.bank_account_save(p_account jsonb)', '8c16d422623d', '0025'),
@@ -322,7 +324,7 @@ known_tab(t, sig) as (values
   ('menu_items', '6d5cfa57b420d683399a60e8f52602a5'),
   ('order_items', 'f34b1c1960bf5cf8085b543a47ad565d'),
   ('order_part_lines', '8bab5e7cdef01c051ddba57866dfdcd5'),
-  ('orders', '5d73c3328bbf30b423fa7d51153ed1a9'),
+  ('orders', '219567007705bc11045f4f7c5d89e412'),
   ('purchase_lines', '7b947d84bf01ae224cafd92f763fd22d'),
   ('purchase_orders', 'ae3cb493e5e4aaef5fd417d05221ae97'),
   ('recipes', '18603165bda3a08b763271c27b584261'),
