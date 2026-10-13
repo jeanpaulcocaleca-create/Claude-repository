@@ -4,8 +4,10 @@
 # proyecto de PRUEBAS y ensaya ahí las migraciones de la versión elegida del repositorio de desarrollo.
 # Producción nunca recibe ningún cambio: la cuenta canopy_backup no puede escribir y ensayo.sh se niega si la
 # dirección de PRUEBAS es la de producción.
-# Secretos (además de los del respaldo): STAGING_DB_URL (pruebas: Connect → Session pooler, usuario postgres,
-#   ?sslmode=require) y STAGING_PIN (4 a 8 dígitos: el PIN de todas las personas en la copia de pruebas).
+# Secretos (además de los del respaldo): STAGING_DB_URL (pruebas: Connect → Session pooler, usuario
+#   postgres.<ref-de-pruebas>, puerto 5432, ?sslmode=require) y STAGING_PIN (4 a 8 dígitos: el PIN de todas las
+#   personas en la copia de pruebas). Producción se lee con CANOPY_DB_URL (canopy_backup.<ref>, la del respaldo).
+# El registro del trabajo no muestra datos, el PIN ni contraseñas; los archivos guardados son solo cantidades y huellas.
 # =====================================================================================================
 name: Ensayo en pruebas
 
@@ -17,8 +19,10 @@ on:
         required: true
         default: 'claude/hanging-garden-coffee-proposal-1m8zd4'
       vaciar:
-        description: 'Escriba si para vaciar PRUEBAS antes de cargar la copia'
+        description: 'Vaciar PRUEBAS antes de cargar la copia (si = repetir desde cero; solo vacía pruebas)'
         required: true
+        type: choice
+        options: ['no', 'si']
         default: 'no'
 
 permissions:
@@ -44,6 +48,8 @@ jobs:
       OUT: ${{ runner.temp }}/ensayo
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Traer la versión a ensayar del repositorio de desarrollo (solo lectura)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -70,6 +76,8 @@ jobs:
           EMPTY_STAGING: ${{ github.event.inputs.vaciar }}
         run: bash ./ensayo.sh
       - name: Comparar antes y después (este paso no tiene contraseñas)
+        # "shell: bash" adds pipefail: without it a failed comparison would end green behind tee
+        shell: bash
         run: python3 publico/tests/rehearsal/compare.py "$OUT" after | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Guardar los resultados (solo cantidades y huellas, sin datos)
         if: always()

@@ -1730,6 +1730,10 @@ async function qSaveRpc(o, row, extra, items){
           {notes: String(o.discount_note || 'Discount').slice(0, 180) + ' · not verified', items: lines})});
   }
   if (r.error) return {error: r.error, status: r.status};
+  /* refused without an HTTP error ({ok: false, error: 'no_account'}: this login has no café grant yet): surely not
+     saved, so the sale stays on this device and goes in once the owner connects the login */
+  if (r.data && r.data.ok === false) return {error: {code: r.data.error === 'no_account' ? '42501' : 'sale_' + (r.data.error || 'refused'),
+                                                     message: String(r.data.error || 'refused')}, status: 403};
   return {had: !!(r.data && r.data.already), otherLines: !!(r.data && r.data.other_lines)};
 }
 async function uploadOne(o){

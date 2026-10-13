@@ -15,6 +15,8 @@ grant anon, authenticated, service_role to authenticator;
 
 create schema if not exists extensions;
 create extension if not exists pgcrypto schema extensions;
+-- production also has uuid-ossp there (snapshot 2026-10-12): a column default may call extensions.uuid_generate_v4()
+create extension if not exists "uuid-ossp" schema extensions;
 grant usage on schema extensions to anon, authenticated, service_role;
 -- Supabase sessions see the extensions schema on the search path (gen_salt, crypt, digest...).
 do $$ begin

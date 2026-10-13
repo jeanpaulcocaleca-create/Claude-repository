@@ -5,9 +5,21 @@
 --
 -- Contesta lo que dejó abierto la foto del 2026-10-12 (supabase/tools/production-snapshot.sql). No muestra
 -- contraseñas, PINs, claves, montos ni nombres del personal, ni el texto de ninguna nota:
---   * logins_that_typed_pins: cada ingreso (correo enmascarado, jo***@gmail.com), su tipo, si tiene el código del
+--   * logins_that_typed_pins: cada ingreso (correo enmascarado, jo***@gmail.com; una etiqueta como +cafe se ve:
+--     jo***+cafe@gmail.com), su tipo, si tiene el código del
 --     teléfono, y cuántas veces y entre qué fechas se escribió en él un PIN para abrir las áreas del dueño, las
 --     ventas o el inventario: así se sabe qué ingreso usan los aparatos del café;
+--   * devices: en qué aparatos tiene sesión cada ingreso (Supabase Auth), del uso más reciente al más antiguo: tipo de
+--     aparato y navegador, el día que entró y el día y la hora de su último uso (hora de Costa Rica), si entró con el
+--     código del teléfono, y cuántas sesiones siguen válidas. "iPad or Mac" es Safari en un iPad o en una Mac: se ven
+--     iguales (Firefox del iPad también); "iPad" es Chrome o Edge en un iPad; "Mac" es una computadora Mac; "Android
+--     phone" es un teléfono y "Android tablet" una tablet; "Linux or Android tablet" suele ser una tablet Android
+--     grande (Chrome la presenta como computadora); "TV" es un televisor o un Fire TV. Nunca muestra la IP, el texto completo del aparato, el número de la sesión ni sus claves.
+--     Cómo leerlo: el ingreso con sesiones en los aparatos del café (tablet, caja, pantalla de cocina) y en el que se
+--     escriben PINs es el de los aparatos del café; un ingreso con sesiones solo en un teléfono es personal. Dos
+--     ingresos con el mismo correo enmascarado se distinguen por "created", la misma fecha que en
+--     logins_that_typed_pins ("created" y "last_sign_in" son fechas en hora UTC; en Supabase → Authentication →
+--     Users, columna "Created at", puede verse un día antes por la diferencia de hora);
 --   * team_roles: cuántas personas tiene el equipo por rol, activas o no;
 --   * orders_note: la columna "note" de los pedidos (solo existe en producción): posición, tipo, si es obligatoria,
 --     su valor por defecto, comentario, reglas y disparadores, y cuántos pedidos tienen algo escrito ahí, el largo
@@ -20,6 +32,9 @@
 -- Sirve antes y después de las migraciones, y también en una base sin Supabase. Las partes que dependen de tablas
 -- opcionales usan query_to_xml solo para leer.
 -- =====================================================================================================
+-- Primero: la base misma rechaza cualquier cambio dentro de esta consulta (todo lo pegado corre como una sola
+-- transacción de solo lectura).
+set transaction read only;
 select jsonb_pretty(jsonb_build_object(
   'checked_at', now(),
   -- access_unlock, sales_unlock and inventory_unlock write these actions with target_id = the signed-in login's id
@@ -37,7 +52,10 @@ select jsonb_pretty(jsonb_build_object(
         select coalesce(jsonb_agg(x order by last_at desc nulls last, x ->> 'created'), '[]')::text as j from (
           select jsonb_build_object(
                    'login', case when position('@' in coalesce(u.email, '')) > 0
-                                 then left(split_part(u.email, '@', 1), 2) || '***@' || split_part(u.email, '@', 2) else '(no email)' end,
+                                 then left(split_part(split_part(u.email, '@', 1), '+', 1), 2) || '***' ||
+                                      case when position('+' in split_part(u.email, '@', 1)) > 0
+                                           then '+' || split_part(split_part(u.email, '@', 1), '+', 2) else '' end ||
+                                      '@' || split_part(u.email, '@', 2) else '(no email)' end,
                    'created', left(to_jsonb(u) ->> 'created_at', 10),
                    'last_sign_in', left(to_jsonb(u) ->> 'last_sign_in_at', 10),
                    'kind', %s,
@@ -53,6 +71,92 @@ select jsonb_pretty(jsonb_build_object(
                    where not exists (select 1 from auth.users u where u.id::text = pins.target_id) group by action) d
           having count(*) > 0
         ) s $q$,
+        case when to_regclass('public.app_accounts') is null then 'null'
+             else '(select a.kind from public.app_accounts a where a.user_id = u.id)' end,
+        case when to_regclass('auth.mfa_factors') is null then 'null'
+             else 'exists (select 1 from auth.mfa_factors f where f.user_id = u.id and f.status::text = ''verified'')' end),
+        false, true, '')))[1]::text, '&lt;', '<'), '&gt;', '>'), '&amp;', '&')::jsonb end,
+  -- Supabase Auth's sessions, read through to_jsonb (a missing column is null, never an error). Only the device and
+  -- browser kinds leave this section: never the IP, the user agent, the session id or its token key. refreshed_at is
+  -- a timestamp WITHOUT time zone written in UTC (auth migration 20231027141322, models/sessions.go:170-175).
+  'devices', case when to_regclass('auth.sessions') is null or to_regclass('auth.users') is null then null
+      when not has_table_privilege(to_regclass('auth.sessions'), 'SELECT') or not has_table_privilege(to_regclass('auth.users'), 'SELECT')
+        then to_jsonb('not readable'::text)
+      when row_security_active(to_regclass('auth.sessions')) or row_security_active(to_regclass('auth.users'))
+        then to_jsonb('hidden by row security'::text) else
+      replace(replace(replace((xpath('/row/j/text()', query_to_xml(format($q$
+        with s as (
+          select r.j ->> 'user_id' as user_id, ts.created, ts.last_active,
+                 ts.not_after is null or ts.not_after > now() as valid,
+                 coalesce(r.j ->> 'aal', '') in ('aal2', 'aal3') as with_code,
+                 -- Fire TV models are AFT... An iPad asks for the desktop site by default and then says Macintosh:
+                 -- Chrome and Edge keep CriOS/EdgiOS (uap-core regexes.yaml:1625-1627), Safari and Firefox
+                 -- (firefox-ios UserAgent.swift:89-95,204-210) send exactly what Safari on a Mac sends. Every iPad
+                 -- browser is WebKit (AppleWebKit/605.1.15): Blink or Gecko, or Chrome/ or Firefox/, is a real Mac.
+                 -- An iPhone set to "desktop site" looks like an iPad. A large Android tablet asks for the desktop
+                 -- site too and says X11; Linux x86_64 (Chromium embedder_support/user_agent_utils.cc:287-292).
+                 case when ua ~ '; ?AFT[A-Za-z0-9]*[);/ _]|FIRETVSTICK|SMART-?TV|SmartTV|Web0S|webOS\.TV|CrKey|GoogleTV|Android ?TV|BRAVIA|AppleTV|tvOS|Roku|HbbTV' then 'TV'
+                      when ua ~ 'iPad' then 'iPad'
+                      when ua ~ 'iPhone|iPod' then 'iPhone'
+                      -- phones say Mobile (Chrome, Samsung, WebView: "Mobile Safari"; Firefox: "Mobile;"), tablets do not
+                     when ua ~ 'Android' and ua ~ 'Mobile' then 'Android phone'
+                     when ua ~ 'Android' then 'Android tablet'
+                      when ua ~ 'CrOS' then 'ChromeOS'
+                      when ua ~ 'Windows' then 'Windows'
+                      when ua ~ 'Macintosh' and ua ~ 'CriOS/|EdgiOS/|FxiOS/' then 'iPad'
+                      when ua ~ 'Macintosh' and ua ~ 'AppleWebKit/537\.36|Gecko/20|Chrome/|Firefox/' then 'Mac'
+                      when ua ~ 'Macintosh' then 'iPad or Mac'
+                      when ua ~ 'Linux|X11' then 'Linux or Android tablet'
+                      else 'other' end as device,
+                 -- most specific first: these browsers also say Chrome or Safari
+                 case when ua ~ 'SamsungBrowser/' then 'Samsung Internet'
+                      when ua ~ 'Silk/' then 'Silk'
+                      when ua ~ 'Edg(e|A|iOS)?/' then 'Edge'
+                      when ua ~ 'Firefox/|FxiOS/' then 'Firefox'
+                      when ua ~ '; wv\)|FBA[NV]/|Instagram|WhatsApp|GSA/|OPR/|OPiOS/|Ddg/|YaBrowser/' then 'in-app/other'
+                      when ua ~ 'Chrome/|CriOS/|Chromium/' then 'Chrome'
+                      when ua ~ 'Version/[0-9.]+ (Mobile/[0-9A-Za-z]+ )?Safari/' then 'Safari'
+                      else 'in-app/other' end as browser
+            from (select to_jsonb(t) as j from auth.sessions t) r
+           cross join lateral (select coalesce(r.j ->> 'user_agent', '') as ua) a
+           cross join lateral (
+             select max(v) filter (where k = 'created_at') as created,
+                    max(v) filter (where k in ('updated_at', 'refreshed_at')) as last_active,
+                    max(v) filter (where k = 'not_after') as not_after
+               from (select e.key as k,
+                            case when e.value ~ '[+-][0-9]{2}(:[0-9]{2}){0,2}$' then e.value::timestamptz
+                                 else e.value::timestamp at time zone 'UTC' end as v
+                       from jsonb_each_text(r.j) e
+                      where e.key in ('created_at', 'updated_at', 'refreshed_at', 'not_after') and e.value is not null) x) ts
+        ), n as (
+          select s.*, row_number() over (partition by user_id order by last_active desc nulls last, created desc nulls last) as i from s
+        ), per_login as (
+          select user_id, count(*) as total, count(*) filter (where valid) as valid_n, max(last_active) as last_active,
+                 jsonb_agg(jsonb_build_object(
+                     'device', device, 'browser', browser, 'valid', valid, 'with_phone_code', with_code,
+                     'signed_in', to_char(created at time zone 'America/Costa_Rica', 'YYYY-MM-DD'),
+                     'last_active', to_char(last_active at time zone 'America/Costa_Rica', 'YYYY-MM-DD HH24"h"'))
+                   order by i) filter (where i <= 15) as sessions
+            from n group by user_id
+        )
+        select coalesce(jsonb_agg(x order by last_active desc nulls last, created), '[]')::text as j from (
+          select jsonb_build_object(
+                   'login', case when position('@' in coalesce(u.email, '')) > 0
+                                 then left(split_part(split_part(u.email, '@', 1), '+', 1), 2) || '***' ||
+                                      case when position('+' in split_part(u.email, '@', 1)) > 0
+                                           then '+' || split_part(split_part(u.email, '@', 1), '+', 2) else '' end ||
+                                      '@' || split_part(u.email, '@', 2) else '(no email)' end,
+                   -- the same two dates as the logins section: two logins with the same mask are told apart by them
+                   'created', left(to_jsonb(u) ->> 'created_at', 10),
+                   'last_sign_in', left(to_jsonb(u) ->> 'last_sign_in_at', 10),
+                   'kind', %s,
+                   'phone_code_verified', %s,
+                   'valid_sessions', coalesce(p.valid_n, 0),
+                   'sessions', coalesce(p.sessions, '[]'),
+                   'more_sessions', greatest(coalesce(p.total, 0) - 15, 0)) as x,
+                 p.last_active, u.created_at as created
+            from (select * from auth.users order by created_at limit 40) u left join per_login p on p.user_id = u.id::text
+        ) l $q$,
         case when to_regclass('public.app_accounts') is null then 'null'
              else '(select a.kind from public.app_accounts a where a.user_id = u.id)' end,
         case when to_regclass('auth.mfa_factors') is null then 'null'

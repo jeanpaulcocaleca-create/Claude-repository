@@ -56,5 +56,28 @@ module.exports.tests = [
       await until(() => sql(`select count(*) from orders o join order_items i on i.order_id = o.id where o.payment_method = 'sinpe'`) === '1', 10000, 'sale saved the old way');
       assert.deepStrictEqual(pg.errors, []);
     }
+  },
+  {
+    name: 'a login not connected to the café keeps the sale on the device until the owner connects it (never lost)',
+    run: async ({ browser }) => {
+      sql(`delete from app_accounts where user_id = 'c0000000-0000-4000-8000-000000000001'`);   // a new login before cafe-login.sql
+      const pg = await pos(browser);
+      // without a grant the POS cannot see today's register, so the register window opens by itself: close it
+      await until(async () => (await pg.locator('#dayModal:not([hidden])').count()) > 0, 10000, 'the register window');
+      await pg.click('#dayClose');
+      await ringFirstItem(pg, 1, 'card');
+      await pg.evaluate(() => syncQueue());
+      await new Promise((r) => setTimeout(r, 1500));
+      assert.strictEqual(sql(`select count(*) from orders`), '0', 'not in the system');
+      assert.strictEqual(await pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-queue') || '[]').length), 1, 'still on the device');
+      await pg.click('#netChip');
+      await until(async () => /not connected to the café/.test(await pg.textContent('#queueList')), 5000, 'the reason shown');
+      sql(`insert into app_accounts (user_id, kind, label) values ('c0000000-0000-4000-8000-000000000001', 'cafe', 'cafe@test.local')`);
+      await pg.evaluate(() => syncQueue());
+      // a sync asked for while a refused round is still running waits for the next round (every 20 s)
+      await until(() => sql(`select count(*) from orders o join order_items i on i.order_id = o.id`) === '1', 25000, 'saved once connected');
+      await until(async () => (await pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-queue') || '[]').length)) === 0, 8000, 'queue emptied');
+      assert.deepStrictEqual(pg.errors, []);
+    }
   }
 ];

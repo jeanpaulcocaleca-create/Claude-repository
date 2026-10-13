@@ -27,6 +27,10 @@ insert into public.order_items (order_id, item_name, price_crc, qty) select id, 
 insert into storage.objects (bucket_id, name, metadata) values
   ('menu-photos', 'desayunos/gallo-pinto.jpg', '{"size": 11}'), ('menu-photos', 'latte.png', '{"size": 5}');
 SQL
+# like Supabase's supabase_admin: default rights in public held by a role that the server restored into does not
+# have (it is dropped below, before the restore): only postgres's own default rights may be restored
+psql -X -q -d postgres -c "drop role if exists canopy_test_dacl" -c "create role canopy_test_dacl nologin" >/dev/null
+psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 -c "alter default privileges for role canopy_test_dacl in schema public grant select on tables to anon" >/dev/null
 PHOTOS="$T/www/storage/v1/object/public/menu-photos"; mkdir -p "$PHOTOS/desayunos"
 printf 'gallo pinto' > "$PHOTOS/desayunos/gallo-pinto.jpg"; printf 'latte' > "$PHOTOS/latte.png"
 WWW_PORT=18431
@@ -40,6 +44,9 @@ CANOPY_DB_URL="$LEGACY_URL" AGE_RECIPIENTS="$RECIPIENTS" RESTORE_TEST_URL="$URL_
 grep -q 'restauración: passed' "$T/backup0.log" && grep -q 'contenido idéntico en' "$T/backup0.log" && grep -q '2 archivos verificados' "$T/backup0.log" \
   || { cat "$T/backup0.log"; echo "  FAIL  backup before 0000: restore, content or photos not verified"; exit 1; }
 F0="$(find "$T/offsite0" -name '*.tar.age' | head -1)"
+psql -X -q -d canopy_legacysim -c "alter default privileges for role canopy_test_dacl in schema public revoke select on tables from anon" >/dev/null
+psql -X -q -d postgres -c "drop role canopy_test_dacl" >/dev/null
+[ "$(psql -X -At -d postgres -c "select count(*) from pg_roles where rolname = 'canopy_test_dacl'")" = "0" ] || { echo "  FAIL  test setup: the default-rights role is still there"; exit 1; }
 psql -X -q -d postgres -c "drop database if exists canopy_restored0 with (force)" -c "create database canopy_restored0"
 psql -X -q -d canopy_restored0 -f "$ROOT/ops/backup/restore-stub.sql" >/dev/null
 KEEP_STORAGE_TO="$T/photos0" bash "$ROOT/ops/backup/restore.sh" "$F0" "$T/recovery.key" "$URL_BASE/canopy_restored0" --yes > "$T/restore0.log" 2>&1 \

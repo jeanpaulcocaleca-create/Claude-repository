@@ -25,6 +25,12 @@ if not prod:
     fail('no se encontró la dirección de producción en config.js')
 if ref == prod.group(1):
     fail('ESA ES LA BASE DE PRODUCCIÓN. El sitio de pruebas nunca se conecta a producción. No se publicó nada.')
+# Supabase's newer keys: a secret one must never reach a page; these pages (supabase-js 2.49) use the anon key
+if key.startswith('sb_secret_'):
+    fail('ESA ES UNA LLAVE SECRETA (sb_secret_…): nunca va en una página. Ponga la llave anon en su lugar. No se publicó nada.')
+if key.startswith('sb_publishable_'):
+    fail('STAGING_SUPABASE_ANON_KEY: use la llave "anon" (empieza con eyJ): Project Settings → API Keys, '
+         'pestaña Legacy → anon public')
 try:
     payload = json.loads(base64.urlsafe_b64decode(key.split('.')[1] + '=' * (-len(key.split('.')[1]) % 4)))
 except Exception:  # noqa: BLE001

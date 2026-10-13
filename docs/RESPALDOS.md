@@ -31,15 +31,20 @@ Sin una de esas llaves **nadie** puede leer un respaldo, ni GitHub, ni el almace
 
 - Toda la información del negocio: ventas, cuentas abiertas, pagos, caja, inventario, compras,
   horas, personal, contabilidad y bitácora de aprobaciones.
-- La estructura de la base.
-- Las cuentas de acceso.
-- Las fotos del menú.
+- La estructura de la base (esquema `public`; también `canopy` y `acct` cuando existan).
+- Las cuentas de acceso (correo y contraseña cifrada), en un archivo aparte que la prueba nocturna **no** comprueba.
+  El código del teléfono y las sesiones abiertas no van.
+- Las fotos del menú (depósito público `menu-photos`; hoy 8), cada una comprobada.
+- Las facturas de gastos todavía no existen (llegan con la migración 0015); para copiarlas harán falta llaves S3 de
+  Storage (E-17). Sin ellas no se copian y la corrida lo avisa.
 
 **Qué no se respalda (está en otro lado o se vuelve a poner a mano):**
 
 - el código del sitio (está en GitHub);
 - los secretos de Vault (token del BCCR y otros);
-- la configuración de inicio de sesión de Supabase.
+- la configuración de Supabase: inicio de sesión, y el depósito `menu-photos` con sus reglas (vea "Después de restaurar");
+- las fotos del menú guardadas fuera de Supabase (una dirección de foto que no es la de su proyecto): siguen donde
+  están, pero no van en el respaldo.
 
 ## Primer respaldo: ANTES de aplicar cualquier migración
 
@@ -56,6 +61,8 @@ Qué se verifica en cada respaldo (si algo no coincide, la corrida queda en **ro
   md5 de cada fila; las tablas que cambiaron durante la copia se revisan por cantidad de filas);
 - **los mismos permisos**: quién puede ejecutar cada función y leer cada tabla, qué tablas tienen reglas de filas;
 - **cada foto del menú** listada en Storage está en la copia, con el mismo tamaño.
+
+Lo ve en el **resumen** de cada corrida (paso 3.6).
 
 ## Instalación (una sola vez, aprox. 1 hora)
 
@@ -77,45 +84,66 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
 1. SQL Editor → New query → pegue **todo** `supabase/tools/backup-account.sql` → Run. Debe decir
    **"lista: la cuenta canopy_backup puede leer todo y no puede cambiar nada"**. No necesita ninguna migración y
    no toca datos del negocio. (Si ya aplicó la 0002, la cuenta ya existe: el script no cambia nada.)
-2. Invente una contraseña larga (por ejemplo, 30 letras y números al azar de su gestor de contraseñas) y
-   ejecute en el SQL Editor:
-   ```sql
-   alter role canopy_backup with login password 'LA-CONTRASEÑA-LARGA';
-   ```
-   La cuenta `canopy_backup` **solo puede leer**. No puede cambiar ni borrar nada.
-   Después de ejecutarla, **borre esa consulta** de la lista de consultas guardadas del SQL Editor (tiene la
-   contraseña).
-3. Ejecute `select version();` y anote el número (por ejemplo 17.x).
-4. Supabase → **Connect** → **Session pooler**. Copie la dirección y cambie:
-   - el usuario `postgres.<proyecto>` por `canopy_backup.<proyecto>`;
-   - la contraseña por la del punto 2.
-
-   Agregue al final `?sslmode=require`. Eso es `CANOPY_DB_URL`. **No la pegue en ningún chat.**
+   La cuenta queda sin contraseña y sin poder entrar hasta el paso 3.4.
 
 ### Paso 3 · Repositorio privado de respaldos (GitHub, gratis)
 
 1. GitHub → **New repository** → nombre `canopy-respaldos` → **Private**.
    No lo conecte a sesiones de asistentes de IA.
-2. Suba el contenido de la carpeta `ops/backup/repositorio-respaldos/` de este repositorio.
-   Incluye la carpeta `.github`.
-3. En su computadora, instale `age` (https://age-encryption.org) y cree las dos llaves:
+2. En el repositorio vacío, el enlace **uploading an existing file** (después: **Add file → Upload files**): suba el contenido de la carpeta `ops/backup/repositorio-respaldos/` de este
+   repositorio, **con la carpeta `.github`** (en Mac está oculta: Cmd+Shift+. la muestra). En **Actions** debe
+   aparecer "Respaldo nocturno". (Si corre esa noche antes del punto 4, falla con "Falta …": no pasa nada.)
+3. En su computadora, instale `age`: **Windows**, en PowerShell `winget install --id FiloSottile.age` (luego abra
+   otra ventana); **Mac**, `brew install age`. Cree las dos llaves:
    ```
    age-keygen -o llave-dueno.txt
    age-keygen -o llave-recuperacion.txt
    ```
+   - Cada una muestra `Public key: age1…` (unos 60 caracteres; no use la opción `-pq`).
    - Guarde `llave-dueno.txt` en su gestor de contraseñas.
    - **Imprima** `llave-recuperacion.txt`, guárdela en un lugar seguro, y luego **borre ese archivo de la
      computadora**.
-   - Cada archivo muestra una línea `public key: age1...`.
 4. `canopy-respaldos` → **Settings → Secrets and variables → Actions**:
-   - Secreto `CANOPY_DB_URL`: la dirección del paso 2.
-   - Secreto `AGE_RECIPIENTS`: las **dos** llaves públicas `age1...`, separadas por un espacio.
-   - Secreto `RCLONE_CONF`: la configuración de rclone con la llave de **escritura** (plantilla abajo).
-     *(Opcional para el primer respaldo.)*
-   - Secreto `RCLONE_REMOTE`: `offsite:canopy-respaldos` *(opcional para el primer respaldo)*
-   - Variable `SUPABASE_URL`: `https://<proyecto>.supabase.co`
-5. **Actions → Respaldo nocturno → Run workflow**. Debe terminar en verde. Abra la corrida y, abajo, en
-   **Artifacts**, descargue `respaldo-cifrado`: guárdelo en su computadora (es el respaldo cifrado).
+   - Pestaña **Secrets** → **New repository secret**:
+     - `AGE_RECIPIENTS`: las **dos** llaves públicas `age1…`, separadas por un espacio. Nunca la línea
+       `AGE-SECRET-KEY-…`.
+     - `CANOPY_DB_URL`, armada directamente en la casilla del secreto (nunca en un chat, un correo ni un archivo):
+       1. Supabase → **Connect** (arriba) → en la conexión por dirección (URI), **Method: Session pooler**: copie la
+          dirección y péguela en la casilla. No pulse «Reset database password»: cambia la contraseña de `postgres`,
+          no la de esta cuenta.
+       2. Cambie `postgres.` (justo después de `postgresql://`) por `canopy_backup.`.
+       3. Supabase → SQL Editor → New query → pegue esto → Run:
+          ```sql
+          do $$ begin
+            perform set_config('canopy.clave', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), true);
+            execute format('alter role canopy_backup with login password %L', current_setting('canopy.clave'));
+          end $$;
+          select current_setting('canopy.clave') as contrasena;
+          ```
+          El resultado es la contraseña nueva (64 números y letras): cópiela en lugar de `[YOUR-PASSWORD]`, corchetes
+          incluidos. No queda en la consulta guardada ni en los registros de Supabase, y no hace falta guardarla en
+          otro lado: si se pierde, repita este punto.
+       4. Agregue al final `?sslmode=require` (si la dirección ya trae un `?`: `&sslmode=require`) → **Add secret**.
+     - `RCLONE_CONF` y `RCLONE_REMOTE`: solo con el almacenamiento externo (paso 1; plantilla abajo).
+   - Pestaña **Variables** → **New repository variable**: `SUPABASE_URL` = la dirección `production` de
+     `website/config.js` (hoy `https://nbvczarfweanoxvdqplk.supabase.co`; es pública).
+
+   Por qué el Session pooler: GitHub solo tiene IPv4 y la conexión directa de Supabase es IPv6 (salvo con el
+   complemento IPv4, que se paga). El Session pooler es gratis, usa IPv4 y, en modo sesión, admite `pg_dump`.
+5. **Actions → Respaldo nocturno → Run workflow → Run workflow**. Tarda unos 2 minutos; debe terminar en verde.
+6. Abra la corrida:
+   - El **resumen** debe decir `restauración verificada: … tablas, …; contenido idéntico en …` (hoy 26 tablas),
+     `8 archivos verificados` y `listo: … restauración: passed`. Esas líneas no tienen datos privados: puede
+     copiarlas en el chat. Un "aviso" no hace fallar la corrida, pero cópielo también.
+   - Abajo, en **Artifacts**, descargue `respaldo-cifrado` (un .zip). Descomprímalo: dentro, en la carpeta del año y
+     el mes (por ejemplo `2026/10/`), están el `canopy-respaldo-….tar.age` y su `.sha256`. Guárdelos en `Documentos/HangingGarden-Respaldos/antes-de-migraciones/`
+     (fuera de `archivo`, así nunca se retira).
+   - Compruebe que su llave lo abre: en la ventana del punto 3 escriba `age -d -i llave-dueno.txt -o NUL ` (Mac:
+     `-o /dev/null `), arrastre el archivo `.tar.age` a la ventana y pulse Enter. Sin mensaje = bien. "no identity
+     matched" = esa llave no es la de `AGE_RECIPIENTS`. Después borre `llave-dueno.txt` de la computadora (queda en
+     su gestor de contraseñas).
+   - Si la corrida dice "password authentication failed", vuelva a armar `CANOPY_DB_URL` (punto 4).
+
    Cuando ya esté aplicada la migración 0002, la tarjeta Respaldos de Inicio también queda verde.
 
 Plantilla `RCLONE_CONF` para Cloudflare R2:
@@ -174,6 +202,9 @@ Cada noche el respaldo se restaura solo en una base desechable. Además, cada 3 
    ```
    Escriba **RESTAURAR** cuando lo pida. Al final debe decir **OK: … filas iguales al respaldo**.
 3. Abra el sitio de pruebas y revise las ventas de ayer y el inventario.
+4. Esta prueba deja datos **reales** en pruebas. Al terminar: `canopy-respaldos` → **Ensayo en pruebas** con
+   vaciar = `si`, y `supabase/tools/staging-logins.sql` en el SQL Editor de PRUEBAS, para que pruebas vuelva a la
+   copia anonimizada (docs/PRUEBAS.md).
 
 **Una vez al año, haga la prueba con la llave de recuperación impresa**, para comprobar que sirve.
 
@@ -184,22 +215,48 @@ Cada noche el respaldo se restaura solo en una base desechable. Además, cada 3 
    ```
    bash ops/backup/restore.sh <archivo> <llave> "<conexión del proyecto NUEVO>" --auth
    ```
-   - `--auth` intenta recuperar las cuentas de acceso.
+   - `--auth` intenta recuperar las cuentas de acceso (vea "Cuentas de acceso").
    - El script **se niega** a restaurar encima de una base que ya tenga datos.
-3. Suba las fotos del menú: carpeta `storage/menu-photos` del respaldo → Storage → bucket `menu-photos`
-   (público).
-4. Vuelva a poner los secretos de Vault (token del BCCR) y la configuración de Authentication: dirección del
-   sitio y código del teléfono.
-5. Si no se pudieron recuperar las cuentas de acceso, créelas de nuevo en Authentication → Users (la del café,
-   la suya y la del contador). Luego ejecute:
-   ```sql
-   select public.make_owner('su-correo');
-   ```
-   El personal **no** pierde sus PIN: están en la base.
-6. Cambie la dirección del proyecto en `website/config.js` y publique la versión (`docs/PUBLICAR.md`).
+3. Haga lo de "Después de restaurar" y "Cuentas de acceso".
+4. Cambie la dirección del proyecto en `website/config.js` y publique la versión (`docs/PUBLICAR.md`).
 
 Tiempo estimado: **menos de 2 horas**. Las ventas del día que quedaron en las tabletas sin internet se suben
 solas cuando vuelven a conectarse.
+
+### Después de restaurar
+
+- **Authentication**: apague otra vez "Allow new users to sign up" y los ingresos anónimos; ponga la dirección del
+  sitio (URL Configuration).
+- **Fotos**: el depósito y sus reglas no van en el respaldo. SQL Editor del proyecto NUEVO:
+  ```sql
+  insert into storage.buckets (id, name, public) values ('menu-photos', 'menu-photos', true) on conflict do nothing;
+  create policy "menu photos read" on storage.objects for select to anon, authenticated using (bucket_id = 'menu-photos');
+  create policy "menu photos owner write" on storage.objects for all to authenticated
+    using (bucket_id = 'menu-photos' and ((select public.is_owner()) or (select public._unlocked_any_device())))
+    with check (bucket_id = 'menu-photos' and ((select public.is_owner()) or (select public._unlocked_any_device())));
+  ```
+  Luego suba la carpeta `storage/menu-photos` del respaldo a Storage → `menu-photos`. Las fotos subidas guardan la
+  dirección del proyecto viejo; en el SQL Editor del proyecto NUEVO (cambie `<viejo>` y `<nuevo>` por las dos
+  direcciones de proyecto):
+  ```sql
+  update public.menu_items set photo_url = replace(photo_url, 'https://<viejo>.supabase.co/', 'https://<nuevo>.supabase.co/')
+   where photo_url like 'https://<viejo>.supabase.co/%';
+  ```
+- **Facturas de gastos** (solo si ya aplicó la 0015): cree también el depósito `expense-receipts` y sus reglas con
+  las líneas de `storage.` de las migraciones 0015 y 0025; los archivos se suben igual que las fotos.
+- **Vault**: vuelva a poner los secretos (token del BCCR).
+- **Respaldos**: en el proyecto nuevo, paso 2 y una contraseña nueva (paso 3.4); actualice `CANOPY_DB_URL` y
+  `SUPABASE_URL` en `canopy-respaldos`.
+
+### Cuentas de acceso
+
+- Si `--auth` las cargó, cada una entra con su misma contraseña y conserva su acceso. El código del teléfono se
+  vuelve a activar, solo en su ingreso personal.
+- Si no: créelas en Authentication → Users (la suya, la de los aparatos del café y la del contador). En el SQL
+  Editor ejecute `select public.make_owner('su-correo');` y luego `supabase/tools/cafe-login.sql` con el correo de
+  los aparatos del café. El contador (después de la 0025, primero active el código del teléfono en su ingreso
+  personal): Inicio → Ingreso del propietario → Ingreso del contador → Dar acceso.
+- El personal **no** pierde sus PIN: están en la base.
 
 ## Cuánto se guarda
 
@@ -218,19 +275,17 @@ con su contador. Los respaldos anuales y la base misma cubren ese período.
 
 | Concepto | Costo |
 |---|---|
-| GitHub Actions en el repositorio privado (unos 5–8 min por noche de 2 000 gratis al mes) | $0 |
+| GitHub Actions en el repositorio privado: 1–3 min por corrida, unos 90 al mes de los 2 000 gratis; las copias de 14 días ocupan unos 60 MB de los 500 MB gratis. Sin tarjeta registrada GitHub no cobra: si se acabaran, detiene las corridas | $0 |
 | Cloudflare R2 (dentro de los 10 GB gratis) | $0 |
 | age, rclone, PostgreSQL | $0 (gratuitos) |
-| Supabase Pro (opcional: agrega copias propias de Supabase por 7 días) | US$25/mes |
+| Supabase Free: no da copias propias (por eso este respaldo); pausa solo proyectos sin uso por 7 días, no el del café | $0 |
+| Supabase Pro (opcional: agrega copias propias de Supabase por 7 días, sin las fotos) | US$25/mes |
 
 ## Seguridad
 
-- **`canopy_backup` solo lee.** Si alguien robara su contraseña, no podría cambiar ni borrar nada.
-  Igual cámbiela si sospecha algo:
-  ```sql
-  alter role canopy_backup with password '...';
-  ```
-  Y actualice el secreto en GitHub.
+- **`canopy_backup` no puede cambiar ni borrar nada, pero lee todo**, también los datos de inicio de sesión (con
+  ellos alguien podría entrar como cualquier ingreso). Su contraseña vale tanto como la del dueño: solo vive en el
+  secreto de GitHub. Si sospecha algo, genere otra (paso 3.4, punto 3) y actualice el secreto.
 - **GitHub y el almacenamiento solo tienen llaves públicas** (`age1…`). Pueden cifrar, nunca descifrar.
 - **La llave de escritura del almacenamiento no puede borrar** respaldos bloqueados.
 - **Con la contraseña de respaldos solo corre código del repositorio privado.** El "Ensayo en pruebas"

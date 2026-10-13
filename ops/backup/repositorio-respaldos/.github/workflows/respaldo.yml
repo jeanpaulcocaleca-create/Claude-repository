@@ -6,17 +6,21 @@
 # Todo lo que ejecuta está en ESTE repositorio privado: nunca descarga scripts del repositorio público,
 # para que nadie pueda cambiar lo que corre con la contraseña de respaldos.
 #
-# Secretos (Settings → Secrets and variables → Actions → New repository secret):
-#   CANOPY_DB_URL      conexión de la cuenta canopy_backup por el "Session pooler" (puerto 5432, ?sslmode=require)
+# Secretos (Settings → Secrets and variables → Actions → pestaña Secrets → New repository secret):
+#   CANOPY_DB_URL      conexión de la cuenta canopy_backup por el "Session pooler" (Connect → Session pooler): usuario
+#                      canopy_backup.<proyecto>, puerto 5432, ?sslmode=require (docs/RESPALDOS.md, paso 3.4). Los
+#                      ejecutores de GitHub solo tienen IPv4; la conexión directa db.<proyecto>.supabase.co es IPv6.
 #   AGE_RECIPIENTS     las DOS llaves públicas age1... (del dueño y la de recuperación), separadas por un espacio
 #   RCLONE_CONF        (opcional) la configuración de rclone del almacenamiento externo (solo permiso de ESCRIBIR)
 #   RCLONE_REMOTE      (opcional) por ejemplo  offsite:canopy-respaldos
 #                      Sin estos dos, la copia CIFRADA queda solo como archivo descargable de la corrida
 #                      ("Artifacts", 14 días): descárguela a su computadora. Con ellos, además va al almacenamiento externo.
-#   STORAGE_S3_KEY_ID, STORAGE_S3_SECRET   llaves S3 de Supabase Storage (Storage → S3 Connection → New access key),
-#                      para copiar las facturas de gastos (depósito privado). Sin ellas, las facturas no se copian.
-# Variables (no secretas):  SUPABASE_URL = https://<proyecto>.supabase.co
-#                           STORAGE_S3_ENDPOINT = https://<proyecto>.supabase.co/storage/v1/s3 ; STORAGE_S3_REGION (la que muestra Supabase)
+#   STORAGE_S3_KEY_ID, STORAGE_S3_SECRET   (cuando exista el depósito de facturas, migración 0015; E-17) llaves S3 de
+#                      Supabase (Storage → S3 → Access keys → New access key), para copiar las facturas de gastos.
+#                      OJO: dan acceso COMPLETO a Storage (leer, escribir y borrar). Sin ellas no se copian (la corrida avisa).
+# Variables (pestaña Variables, no secretas):
+#   SUPABASE_URL       https://<proyecto>.supabase.co (la de website/config.js). Obligatoria: con ella se copian las fotos.
+#   STORAGE_S3_ENDPOINT, STORAGE_S3_REGION   el "Endpoint" y la "Region" de Storage → S3 (solo con las llaves S3)
 # =====================================================================================================
 name: Respaldo nocturno
 
@@ -76,7 +80,24 @@ jobs:
           RESTORE_TEST_URL: postgresql://postgres:prueba-desechable@127.0.0.1:5432/postgres
           UPLOAD_DIR: ${{ runner.temp }}/respaldo-cifrado
           BACKUP_SOURCE: cloud
-        run: bash ./backup.sh
+        run: |
+          set -o pipefail
+          # without it backup.sh skips the menu photos silently
+          : "${SUPABASE_URL:?Falta la variable SUPABASE_URL (Settings → Secrets and variables → Actions → pestaña Variables)}"
+          export SUPABASE_URL="${SUPABASE_URL%/}"
+          bash ./backup.sh 2>&1 | tee "$RUNNER_TEMP/respaldo.log"
+      - name: Resumen de lo verificado
+        if: always()
+        run: |
+          {
+            echo '### Respaldo: lo que se verificó'
+            if [ -s "$RUNNER_TEMP/respaldo.log" ]; then
+              grep -E 'restauración verificada|tablas que no coinciden|archivos verificados|faltan [0-9]+ y difieren|listo: |ERROR en el paso|aviso|Falta ' \
+                "$RUNNER_TEMP/respaldo.log" | sed -E 's/^\[[0-9:]+\] //; s/^/- /'
+            else
+              echo '- (no llegó a empezar: abra el paso en rojo)'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Guardar la copia cifrada como archivo descargable (14 días)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

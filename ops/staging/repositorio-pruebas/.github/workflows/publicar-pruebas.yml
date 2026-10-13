@@ -4,9 +4,11 @@
 # de ESTE repositorio: https://jeanpaulcocaleca-create.github.io/canopy-pruebas/
 # Las páginas usan el proyecto de PRUEBAS de Supabase. poner-pruebas.py se niega a publicar si la dirección o la
 # llave son las de producción, o si la llave no es la pública "anon".
-# Variables (Settings → Secrets and variables → Actions → Variables; no son secretas):
-#   STAGING_SUPABASE_URL        https://<proyecto-de-pruebas>.supabase.co
-#   STAGING_SUPABASE_ANON_KEY   la llave pública "anon" del proyecto de PRUEBAS
+# Settings → Secrets and variables → Actions:
+#   variable STAGING_SUPABASE_URL      https://<proyecto-de-pruebas>.supabase.co
+#   secreto  STAGING_SUPABASE_ANON_KEY la llave pública "anon" del proyecto de PRUEBAS. Es pública (va en las páginas),
+#            pero como secreto no aparece en el registro, que en un repositorio público ve cualquiera: si por error
+#            se pega otra llave, no queda a la vista.
 # Nunca publica en hanginggardencafe.com: solo escribe la rama gh-pages de este repositorio.
 # =====================================================================================================
 name: Publicar el sitio de PRUEBAS
@@ -41,7 +43,7 @@ jobs:
       - name: Conectar las páginas con el proyecto de PRUEBAS (nunca producción)
         env:
           URL: ${{ vars.STAGING_SUPABASE_URL }}
-          KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}
+          KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
         run: python3 ./poner-pruebas.py fuente/website/config.js "$URL" "$KEY"
       - name: Marcar la versión
         env:

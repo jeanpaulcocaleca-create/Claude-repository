@@ -3,13 +3,16 @@
 -- Supabase → SQL Editor → New query → pegar TODO → Run.
 --
 -- Qué hace: crea la cuenta "canopy_backup", que solo puede LEER la base para copiarla. No puede cambiar ni
--- borrar nada. Se crea SIN contraseña y sin poder entrar; la contraseña se la pone usted después (una línea,
--- docs/RESPALDOS.md). No toca ventas, inventario, personal ni ningún otro dato del negocio.
+-- borrar nada, pero lee TODO, también los datos de inicio de sesión: su contraseña vale tanto como la del dueño.
+-- Se crea SIN contraseña y sin poder entrar; la contraseña la genera la base en docs/RESPALDOS.md, paso 3.4 (no
+-- queda escrita en la consulta ni en los registros). No toca ventas, inventario, personal ni ningún otro dato del negocio.
 -- Es lo mismo que hace la migración 0002 con esa cuenta: cuando aplique la 0002, no cambia nada aquí.
 -- Se puede ejecutar dos veces sin problema. Si algún día el respaldo dice "permission denied" después de una
 -- migración, vuelva a ejecutarlo.
 -- Reversión: drop role canopy_backup;
 -- =====================================================================================================
+-- On Supabase the SQL Editor's postgres has CREATEROLE, BYPASSRLS and ADMIN on pg_read_all_data (snapshot 2026-10-12),
+-- and supautils lets all three statements through: neither name is a reserved role or reserved membership.
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'canopy_backup') then

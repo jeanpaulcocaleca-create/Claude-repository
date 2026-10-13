@@ -5,9 +5,10 @@
 #   2. la carga en una base desechable del trabajo y la ANONIMIZA (anonimizar.sql)
 #   3. vacía el proyecto de PRUEBAS (solo si se pidió) y carga la copia anonimizada
 #   4. foto + consistencia ANTES, aplica las migraciones del repositorio público, foto + consistencia DESPUÉS
-# Nunca escribe en producción: la cuenta de producción no puede escribir, y el paso 3 se niega si la dirección de
-# pruebas es la de producción. Los archivos SQL del repositorio público se envían con "psql -c" (el servidor
-# ejecuta solo SQL; ningún comando de psql ni de la terminal escrito en esos archivos se ejecuta aquí).
+# Nunca escribe en producción: se niega si la cuenta de producción podría escribir o si la dirección de pruebas es
+# la de producción, y anonimiza solo en el Postgres desechable del trabajo. Los archivos SQL del repositorio público
+# se envían con "psql -c" (el servidor ejecuta solo SQL; ningún comando de psql ni de la terminal escrito en esos
+# archivos se ejecuta aquí). El registro muestra solo pasos, cantidades y tiempos: ni datos, ni el PIN, ni contraseñas.
 #
 # Variables: CANOPY_DB_URL (producción, solo lectura) · STAGING_DB_URL (pruebas) · STAGING_PIN · PROD_URL
 #            (https://<proyecto>.supabase.co de producción) · SCRATCH_URL (Postgres desechable del trabajo)
@@ -23,10 +24,21 @@ mkdir -p "$OUT"
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 die() { echo "::error::$*"; exit 1; }
 SCRATCH_DB="${SCRATCH_DB:-canopy_ensayo}"   # the throw-away database on SCRATCH_URL (tests give each run its own)
+# a malformed address would make psql quote it, password included, in its error: check the shape first, never echo it.
+# The password may hold letters, digits and - . _ ~ ! $ & ( ) * + , ; = or %XX escapes (a raw @ / ? # % breaks the address)
+URL_RE='^postgres(ql)?://[A-Za-z0-9._-]+(:([A-Za-z0-9._~!$&()*+,;=-]|%[0-9A-Fa-f]{2})+)?@[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_]+(\?[A-Za-z0-9_=&.-]*)?$'
+for v in CANOPY_DB_URL STAGING_DB_URL SCRATCH_URL; do
+  [[ "${!v}" =~ $URL_RE ]] || die "$v no es una dirección postgresql://usuario:contraseña@servidor:puerto/base de una sola línea (en la contraseña: letras, números o %XX). No se hizo nada."
+done
+[[ "$STAGING_PIN" =~ ^[0-9]{4,8}$ ]] || die "STAGING_PIN debe tener de 4 a 8 dígitos. No se hizo nada."
 PROD_REF="$(printf '%s' "$PROD_URL" | sed -E 's#https://([a-z0-9]+)\.supabase\.co.*#\1#')"
 [ -n "$PROD_REF" ] && [ "$PROD_REF" != "$PROD_URL" ] || die "PROD_URL no parece una dirección de Supabase"
 case "$STAGING_DB_URL" in *"$PROD_REF"*) die "La dirección de PRUEBAS contiene el proyecto de PRODUCCIÓN ($PROD_REF). No se hizo nada.";; esac
 [ "$STAGING_DB_URL" != "$CANOPY_DB_URL" ] || die "PRUEBAS y producción son la misma dirección. No se hizo nada."
+# the copy is anonymized (and its database dropped and created) only on the job's own throw-away server
+case "$SCRATCH_URL" in *supabase*) die "SCRATCH_URL debe ser la base desechable del trabajo, nunca un proyecto de Supabase. No se hizo nada.";; esac
+# copies with real data never outlive the job's step, also when a step fails
+trap 'rm -f "$OUT/produccion.dump" "$OUT/anonimizada.dump" "$OUT/toc.list"' EXIT
 # public SQL goes to the server as-is: refuse a file that would start with a psql command
 run_public() {  # url file [extra psql flags]
   local url="$1" f="$2"; shift 2
@@ -71,7 +83,17 @@ PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x), '')) from (
 # "COPY orders, line 3: …"): keep only its own one-line messages in the log
 restore_quiet() { pg_restore "$@" 2> >(grep --line-buffered '^pg_restore:' >&2 || true); }
 
+# staging must be empty, or emptied on request: known before production is read
+HAS="$(psql -X -At "$STAGING_DB_URL" -c "select count(*) from information_schema.tables where table_schema in ('public','canopy','acct')")"
+if [ "$HAS" != "0" ]; then
+  case "${EMPTY_STAGING:-no}" in si|sí|Si|Sí|SI|SÍ) ;; *) die "PRUEBAS ya tiene $HAS tablas. Corra otra vez con «vaciar pruebas» = si.";; esac
+fi
+
 log "1/4 copiando producción (solo lectura)…"
+# production is read only with the backup account: refuse an account that could change it (the owner's, for example)
+[ "$(psql -X -At "$CANOPY_DB_URL" -c "select not (r.rolsuper or coalesce(has_table_privilege('public.orders', 'insert') or has_table_privilege('public.orders', 'update')
+          or has_table_privilege('public.orders', 'delete'), false)) from pg_roles r where r.rolname = current_user")" = "t" ] \
+  || die "No se pudo comprobar que CANOPY_DB_URL sea la cuenta de solo lectura canopy_backup. No se copió nada."
 SCHEMAS="$(psql -X -At "$CANOPY_DB_URL" -c "select string_agg('--schema=' || nspname, ' ') from pg_namespace where nspname in ('public','canopy','acct')")"
 # shellcheck disable=SC2086
 pg_dump "$CANOPY_DB_URL" --format=custom --no-owner $SCHEMAS --file="$OUT/produccion.dump"
@@ -86,7 +108,10 @@ p = u.urlsplit(sys.argv[1]); print(u.urlunsplit(p._replace(path='/' + sys.argv[2
 PY
 )"
 psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -f "$HERE/restore-stub.sql" >/dev/null
-pg_restore -l "$OUT/produccion.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' > "$OUT/toc.list"
+# Supabase keeps default rights for its own admin role in public (ALTER DEFAULT PRIVILEGES FOR ROLE
+# supabase_admin): that role is not on a throw-away server and postgres may not act for it on Supabase, so only
+# postgres's own default rights are restored
+pg_restore -l "$OUT/produccion.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' | awk '!(/ DEFAULT ACL / && $NF != "postgres")' > "$OUT/toc.list"
 psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -c "$DEFAULTS_OFF" >/dev/null
 restore_quiet --no-owner --exit-on-error -L "$OUT/toc.list" -d "$TMP_URL" "$OUT/produccion.dump"
 psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -c "$DEFAULTS_ON" >/dev/null
@@ -98,9 +123,7 @@ pg_dump "$TMP_URL" --format=custom --no-owner $SCHEMAS --file="$OUT/anonimizada.
 psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" >/dev/null
 
 log "3/4 cargando la copia anonimizada en PRUEBAS…"
-HAS="$(psql -X -At "$STAGING_DB_URL" -c "select count(*) from information_schema.tables where table_schema in ('public','canopy','acct')")"
 if [ "$HAS" != "0" ]; then
-  [ "${EMPTY_STAGING:-no}" = "si" ] || die "PRUEBAS ya tiene $HAS tablas. Corra otra vez con «vaciar pruebas» = si."
   # staging only: drop what the café's schema put there, keep the public schema itself (and Supabase's grants on it)
   psql -X -q -v ON_ERROR_STOP=1 "$STAGING_DB_URL" <<'SQL'
 do $$
@@ -127,7 +150,10 @@ begin
 end $$;
 SQL
 fi
-pg_restore -l "$OUT/anonimizada.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' > "$OUT/toc.list"
+# Supabase keeps default rights for its own admin role in public (ALTER DEFAULT PRIVILEGES FOR ROLE
+# supabase_admin): that role is not on a throw-away server and postgres may not act for it on Supabase, so only
+# postgres's own default rights are restored
+pg_restore -l "$OUT/anonimizada.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' | awk '!(/ DEFAULT ACL / && $NF != "postgres")' > "$OUT/toc.list"
 # production's rights mention the backup account: it must exist in staging too (never able to log in there)
 psql -X -q -v ON_ERROR_STOP=1 "$STAGING_DB_URL" -c "do \$\$ begin if not exists (select 1 from pg_roles where rolname = 'canopy_backup') then create role canopy_backup nologin; end if; end \$\$;" >/dev/null
 psql -X -q -v ON_ERROR_STOP=1 "$STAGING_DB_URL" -c "$DEFAULTS_OFF" >/dev/null

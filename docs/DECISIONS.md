@@ -352,3 +352,77 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     bucket, its rules and the current upload rule.
   - A lint guard refuses any other storage DDL in a migration, which the local rehearsal could not catch.
   - The staging reset sets `storage.allow_delete_query` (storage-api 0055 forbids direct deletes otherwise).
+
+## D-028 · 2026-10-13 · The staging copy carries no personal text, and stops on a column it does not know
+- **Decision:** `anonimizar.sql` classifies every text, json, binary and network column of `public`, `canopy` and
+  `acct`: today's legacy schema with production's `orders.note`, and after 0025. Each column is one of:
+  - **replaced:** people and suppliers, "who did it", device names → `Aparato N`, free text → `texto`, the e-invoice
+    receiver, bank last digits, invoice file names, who confirmed each payroll rule;
+  - **regenerated:** order-tracking links, room QR codes, bank-line hashes;
+  - **emptied:** logins, unlock tokens;
+  - **kept as business data:** menu, stock, chart of accounts, settings, codes and statuses.
+
+  A column in no list stops the script before anything changes. It runs only where its account is a superuser, so
+  never on Supabase. Visitor questions keep their language and answer code only when they look like codes. The
+  rehearsal runs it on the migrated copy, so a migration that adds an unclassified column fails CI.
+- **Evidence:** personal-looking text was seeded into every such column of a legacy copy and of a copy with every
+  migration and every table filled.
+  - Afterwards, a scan of every text, json and array column found none outside the kept business columns.
+  - Amounts, quantities, dates and ids were identical in every table.
+  - The whole pipeline into a staging-like database found none either.
+- **`ensayo.sh`:**
+  - reads production only with an account that cannot write;
+  - refuses a malformed address before using it, because psql would quote it, password included; the password may
+    hold letters, digits, `-._~!$&()*+,;=` or `%XX`;
+  - checks the staging PIN first;
+  - never anonymizes on Supabase, and deletes its dumps on any exit;
+  - a failed restore prints no data row.
+
+  The workflow's comparison step now fails the run (pipefail). The staging site's anon key is a secret, masked in
+  the public log. Each staging copy arrives without logins, so `staging-logins.sql` runs after every copy, and after
+  a quarterly restore test, which puts real data in staging.
+
+## D-029 · 2026-10-13 · The first backup, checked against production
+- **Blocking defect found and fixed:**
+  - Supabase stores default rights for its own `supabase_admin` in `public`, and a dump of `public` carries them.
+    The nightly restore test runs on a throw-away server that has no such role. On Supabase, postgres may not act
+    for that role.
+  - The first real backup would therefore have failed its restore test, and so would `restore.sh` and the staging
+    copy.
+  - Every restore (backup test, `restore.sh`, both steps of `ensayo.sh`) now keeps only `postgres`'s own default
+    rights.
+  - The backup pipeline test reproduces it: default rights held by a role that is gone when the backup is restored.
+    It failed before the fix and passes after.
+- **Restore stubs:** they now also have `uuid-ossp` in `extensions`, as production does.
+- **Backup account password:** generated inside the database (a DO block, shown once). Supabase logs DDL
+  (`log_statement = 'ddl'`), so a typed `ALTER ROLE … PASSWORD` would sit in clear in the project's logs; tested
+  locally.
+- **That password is owner-level:** `canopy_backup` reads everything, the `auth` schema included (refresh tokens).
+  It lives only in the private repository's secret. Narrowing it needs a later contract migration.
+- **Logins in the backup:** `auth.users` and `auth.identities` are in it as a separate file that the nightly test
+  does not check. Phone codes and sessions are not.
+- **Storage after a restore:** the `menu-photos` bucket and its rules are not in the dump. RESPALDOS has the SQL to
+  recreate them, and to repoint photo addresses at a new project.
+- **Run summary:** it lists what was verified.
+
+## D-030 · 2026-10-13 · Separating the café devices' login from the owner's
+- **Identify first (read-only):** `production-followup.sql` now starts with `set transaction read only`, so the
+  database refuses any change inside it. It also shows, per login, its sessions by device kind and browser, its last
+  use (Costa Rica time) and the PINs typed on it. It never shows an IP, the full device text, a session id or a
+  token.
+  - Masks keep a `+label`, and the creation date tells apart the two `je***@gmail.com` logins.
+  - Studio sends a paste as one implicit transaction and shows the last result (postgres-meta source).
+- **Recommended path:** `docs/INGRESOS.md`.
+  - Case A (the login is used only by café devices): `cafe-login.sql` converts it in place. Nothing on the devices
+    changes; tested on the live and the new pages, including a sale queued offline before the change.
+  - Case B (the café devices use the owner's own login): the owner gets a new personal login (`+dueno`,
+    `make_owner`), and the shared login becomes the café login in place. No device is touched, no session ends, and
+    no email is needed.
+- **Why not switch devices to a new login:** it has to be done after closing, device by device. A password change
+  ends that login's other sessions (`LogoutAllExceptMe`). Supabase's dashboard has no per-user sign-out, and «Cerrar
+  sesión» does nothing offline.
+- **Found by testing that path:** the new POS (not yet published) lost a sale rung on a login with no café grant.
+  `pos_record_sale` answers `{ok:false, error:'no_account'}` with HTTP 200, and the page took that as saved. Fixed:
+  the sale stays on the device, the queue window says why, and it goes in once the login is connected. The e2e test
+  fails without the fix. The live pages already kept such a sale.
+- **`cafe-login.sql`:** its confirmations show the creation date and any `+label`.

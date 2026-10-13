@@ -91,7 +91,10 @@ fi
 
 echo "4/6 Cargando la estructura y los datos…"
 psql -X -q "$TARGET" -c "do \$\$ begin if not exists (select 1 from pg_roles where rolname = 'canopy_backup') then create role canopy_backup nologin; end if; end \$\$;" >/dev/null
-pg_restore -l "$PACK/app.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' > "$WORK/toc.list"
+# Supabase keeps default rights for its own admin role in public (ALTER DEFAULT PRIVILEGES FOR ROLE
+# supabase_admin): that role is not on a throw-away server and postgres may not act for it on Supabase, so only
+# postgres's own default rights are restored
+pg_restore -l "$PACK/app.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' | awk '!(/ DEFAULT ACL / && $NF != "postgres")' > "$WORK/toc.list"
 psql -X -q -v ON_ERROR_STOP=1 "$TARGET" -c "$DEFAULTS_OFF" >/dev/null
 pg_restore --no-owner --exit-on-error --single-transaction -L "$WORK/toc.list" -d "$TARGET" "$PACK/app.dump"
 psql -X -q -v ON_ERROR_STOP=1 "$TARGET" -c "$DEFAULTS_ON" >/dev/null

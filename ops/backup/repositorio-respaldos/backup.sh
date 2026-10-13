@@ -17,7 +17,8 @@
 #   STORAGE_BUCKETS    public buckets to copy (default: menu-photos)
 #   PRIVATE_BUCKETS    private buckets to copy with Storage's S3 access (default: expense-receipts)
 #   STORAGE_S3_ENDPOINT, STORAGE_S3_REGION, STORAGE_S3_KEY_ID, STORAGE_S3_SECRET
-#                      Supabase → Storage → S3 access keys (read is enough); without them private buckets are skipped
+#                      Supabase → Storage → S3 access keys (they open every bucket, read and write: keep them only
+#                      in the private repository); without them private buckets are skipped
 #   RESTORE_TEST_URL   optional: a THROW-AWAY Postgres server (never Supabase) for the nightly restore test
 #   RCLONE_REMOTE      optional: rclone destination, e.g. offsite:canopy-respaldos   (or)
 #   UPLOAD_DIR         optional: copy the encrypted file to this folder instead
@@ -145,7 +146,10 @@ p = u.urlsplit(sys.argv[1]); print(u.urlunsplit(p._replace(path='/' + sys.argv[2
 PY
 )"
   psql -X -q -v ON_ERROR_STOP=1 "$TURL" -f "$HERE/restore-stub.sql" >/dev/null
-  pg_restore -l "$PACK/app.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' > "$WORK/toc.list"
+  # Supabase keeps default rights for its own admin role in public (ALTER DEFAULT PRIVILEGES FOR ROLE
+  # supabase_admin): that role is not on a throw-away server and postgres may not act for it on Supabase, so only
+  # postgres's own default rights are restored
+  pg_restore -l "$PACK/app.dump" | grep -v -E 'SCHEMA - public |COMMENT - SCHEMA public ' | awk '!(/ DEFAULT ACL / && $NF != "postgres")' > "$WORK/toc.list"
   psql -X -q -v ON_ERROR_STOP=1 "$TURL" -c "$DEFAULTS_OFF" >/dev/null
   pg_restore --no-owner --exit-on-error -L "$WORK/toc.list" -d "$TURL" "$PACK/app.dump"
   psql -X -q -v ON_ERROR_STOP=1 "$TURL" -c "$DEFAULTS_ON" >/dev/null

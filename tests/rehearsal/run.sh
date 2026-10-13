@@ -120,6 +120,13 @@ ensayo "$OUT/staging" > "$OUT/staging.log" 2>&1 || { cat "$OUT/staging.log"; die
 python3 "$HERE/compare.py" "$OUT/staging" after || die "staging copy: differences after the migrations"
 [ "$(psql -X -At -d "${DB}_staging" -c "select count(*) from public.staff where name !~ '^Persona [0-9]+$'")" = "0" ] || die "staging copy: names not anonymized"
 [ "$(psql -X -At -d "${DB}_staging" -c "select count(*) from public.orders where guest_phone is not null")" = "0" ] || die "staging copy: guest phones kept"
+# a migration that adds a text column must classify it in anonimizar.sql (which refuses an unknown one): run it on a
+# copy of the migrated database, which has every table of the window
+psql -X -q -d postgres -c "drop database if exists ${DB}_anon with (force)" -c "create database ${DB}_anon template $DB" >/dev/null
+psql -X -q -At -v ON_ERROR_STOP=1 -v VERBOSITY=terse -v pin=2468 -d "${DB}_anon" -f "$ROOT/ops/backup/repositorio-respaldos/anonimizar.sql" > "$OUT/anon-migrated.log" 2>&1 \
+  || { cat "$OUT/anon-migrated.log"; die "anonimizar.sql does not know every text column after the migrations"; }
+[ "$(psql -X -At -d "${DB}_anon" -c "select count(*) from acct.entries where created_by ~ '@'")" = "0" ] || die "anonymized migrated copy: emails kept"
+psql -X -q -d postgres -c "drop database if exists ${DB}_anon with (force)" >/dev/null
 
 step "staging copy again into the same project (emptied first), under Supabase Storage's delete guard"
 # storage-api migration 0055: a statement-level trigger refuses any direct delete from the Storage tables, even one

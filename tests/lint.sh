@@ -74,5 +74,15 @@ if ! out="$(storage_ddl supabase/migrations/*.sql)"; then
   bad "a migration changes the Storage tables beyond what production allows (only policies on storage.objects and a bucket insert):"
   echo "$out" | sed 's/^/        /'
 fi
+# 9) every restore keeps only postgres's own default rights: Supabase's supabase_admin ones are in a dump of public,
+#    and neither the throw-away test server nor postgres on Supabase can restore them (D-029)
+for f in ops/backup/*.sh ops/backup/repositorio-respaldos/*.sh; do
+  grep -n 'pg_restore -l' "$f" | grep -v "DEFAULT ACL" | sed "s#^#$f:#" | while read -r l; do echo "$l"; done
+done > /tmp/canopy-lint-toc.$$
+if [ -s /tmp/canopy-lint-toc.$$ ]; then
+  bad "a restore keeps every default right from the dump (filter ' DEFAULT ACL ' entries not owned by postgres):"
+  sed 's/^/        /' /tmp/canopy-lint-toc.$$
+fi
+rm -f /tmp/canopy-lint-toc.$$
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

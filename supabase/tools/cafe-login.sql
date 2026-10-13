@@ -2,7 +2,7 @@
 -- Canopy OS · INGRESO DEL CAFÉ: el correo con el que entran la caja, el iPad y la pantalla de cocina pasa a ser un
 -- ingreso de tipo café ("cafe"). Para el SQL Editor de PRODUCCIÓN.
 -- Supabase → SQL Editor → New query → pegar TODO → en la línea "▶ PARTE 1" (al final) cambie correo@ejemplo.com por
--- ese correo → Run. Resultado: una celda, por ejemplo "ca***@gmail.com → cafe".
+-- ese correo → Run. Resultado: una celda, por ejemplo "ca***@gmail.com (creado 2026-09-16) → cafe".
 --
 -- Por qué: hoy esos aparatos entran con un ingreso de tipo dueño ("owner") sin código del teléfono. Mientras nadie
 -- escriba un PIN, eso funciona igual que un ingreso del café (probado: mismas reglas, mismas pantallas), pero deja
@@ -40,15 +40,21 @@ create or replace function pg_temp.canopy_cafe_login(p_email text)
 returns text language plpgsql as $$
 declare
   em text := lower(btrim(coalesce(p_email, '')));
-  masked text := left(split_part(em, '@', 1), 2) || '***@' || split_part(em, '@', 2);
-  uid uuid; n int; old_kind text; has_code boolean := false;
+  -- jo***@gmail.com; a +label stays visible (jo***+cafe@gmail.com) so a new café login is not mistaken for yours
+  masked text := left(split_part(split_part(em, '@', 1), '+', 1), 2) || '***' ||
+                 case when position('+' in split_part(em, '@', 1)) > 0 then '+' || split_part(split_part(em, '@', 1), '+', 2) else '' end ||
+                 '@' || split_part(em, '@', 2);
+  uid uuid; n int; made text; old_kind text; has_code boolean := false;
 begin
   if em in ('', 'correo@ejemplo.com') then
     raise exception 'Falta el correo: en la línea ▶ PARTE 1 cambie correo@ejemplo.com por el correo de los aparatos del café. No se cambió nada.';
   end if;
-  select count(*), (array_agg(u.id))[1] into n, uid from auth.users u where lower(u.email) = em;
+  select count(*), (array_agg(u.id))[1], (array_agg(left(to_jsonb(u) ->> 'created_at', 10)))[1] into n, uid, made
+    from auth.users u where lower(u.email) = em;
   if n = 0 then raise exception 'No hay ningún ingreso con el correo % (Authentication → Users). No se cambió nada.', masked; end if;
   if n > 1 then raise exception 'Hay % ingresos con el correo %. No se cambió nada.', n, masked; end if;
+  -- the creation date tells apart two logins whose masks look the same (the follow-up shows the same date)
+  masked := masked || coalesce(' (creado ' || made || ')', '');
   if to_regclass('auth.mfa_factors') is not null then
     begin
       select exists (select 1 from auth.mfa_factors f where f.user_id = uid and f.status::text = 'verified') into has_code;
@@ -77,15 +83,21 @@ create or replace function pg_temp.canopy_revoke_login(p_email text)
 returns text language plpgsql as $$
 declare
   em text := lower(btrim(coalesce(p_email, '')));
-  masked text := left(split_part(em, '@', 1), 2) || '***@' || split_part(em, '@', 2);
-  uid uuid; n int; old_kind text;
+  -- jo***@gmail.com; a +label stays visible (jo***+cafe@gmail.com) so a new café login is not mistaken for yours
+  masked text := left(split_part(split_part(em, '@', 1), '+', 1), 2) || '***' ||
+                 case when position('+' in split_part(em, '@', 1)) > 0 then '+' || split_part(split_part(em, '@', 1), '+', 2) else '' end ||
+                 '@' || split_part(em, '@', 2);
+  uid uuid; n int; made text; old_kind text;
 begin
   if em in ('', 'correo@ejemplo.com') then
     raise exception 'Falta el correo: en la línea ▶ PARTE 2 cambie correo@ejemplo.com por el correo que no es suyo. No se cambió nada.';
   end if;
-  select count(*), (array_agg(u.id))[1] into n, uid from auth.users u where lower(u.email) = em;
+  select count(*), (array_agg(u.id))[1], (array_agg(left(to_jsonb(u) ->> 'created_at', 10)))[1] into n, uid, made
+    from auth.users u where lower(u.email) = em;
   if n = 0 then raise exception 'No hay ningún ingreso con el correo % (Authentication → Users). No se cambió nada.', masked; end if;
   if n > 1 then raise exception 'Hay % ingresos con el correo %. No se cambió nada.', n, masked; end if;
+  -- the creation date tells apart two logins whose masks look the same (the follow-up shows the same date)
+  masked := masked || coalesce(' (creado ' || made || ')', '');
   select a.kind into old_kind from public.app_accounts a where a.user_id = uid;
   if old_kind is distinct from 'owner' then
     raise exception '% no tiene acceso de dueño (tipo: %): aquí no se quita. No se cambió nada.', masked, coalesce(old_kind, 'ninguno');

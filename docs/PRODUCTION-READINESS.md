@@ -21,7 +21,7 @@ read-only step that verifies it.
 | Database server | **Verified.** PostgreSQL 17.6, 13 MB; the SQL Editor's account is not a superuser (as rehearsed) and holds `pg_read_all_data` with admin, so 0002 takes its main path | Snapshot |
 | Migrations installed | **Verified: none.** `canopy.migrations` does not exist; every function the live pages call exists | Snapshot |
 | Security configuration (rules, grants, logins) | **Verified.** Rules and grants are as rebuilt from the 18 historical scripts (the same functions without an account check, the same visitor functions); no table without row security; `make_owner` not callable from the pages. The menu-category hole (S-3) is **not** present. **Logins:** 3, all owner kind, none with a phone code, none self-made (every login has an app account); one, created 2026-09-16, never signed in | Snapshot; section 3 |
-| Sign-ups, anonymous sign-ins | **Not verifiable from SQL** (dashboard settings). Supabase's default is on. No self-made login exists so far | Owner: E-02 |
+| Sign-ups, anonymous sign-ins | **Off** (turned off by the owner on 2026-10-12; a dashboard setting, not visible from SQL). No self-made login existed | Owner: E-02 |
 | Supabase backups / PITR | **Partly verified.** WAL archiving is on and working (no failures), so Supabase keeps its own copies; whether the owner can restore or download them depends on the plan. Our own backup does not depend on it | Snapshot; owner: Database → Backups page (E-10) |
 | Storage | **Verified.** One public bucket, `menu-photos` (8 files, 3.5 MB, fingerprinted); the storage tables belong to Supabase's storage account. The SQL Editor's storage rights are shown by the follow-up query (E-04) | Snapshot |
 | Schema matches what the repository expects | **Verified, with two differences.** 85 of 86 functions are the legacy versions; `audit_menu()` has a body the repository never had; `orders` has an extra unused column `note`. Indexes and every other original column match. Neither difference is touched by any migration (tested); E-11 exports them for reconciliation (D-027) | Snapshot |
@@ -59,7 +59,7 @@ No production backup exists yet (E-03). What is ready and proven on test copies:
 
 | # | Finding (production today, if sign-ups are on) | Severity | Remediation | Status |
 |---|---|---|---|---|
-| S-1 | Anyone can create a login with the public key (Supabase default) | High (entry point for S-2 and S-4) | Turn off "Allow new users to sign up". No page uses sign-up. Existing logins, sessions, password reset, phone code and "Add user" keep working. The snapshot's login list was reviewed: no self-made login exists | Ready: the owner's next step (E-02) |
+| S-1 | Anyone could create a login with the public key (Supabase default) | High (entry point for S-2 and S-4) | "Allow new users to sign up" and anonymous sign-ins turned off. No page uses sign-up; existing logins, password reset, phone code and "Add user" keep working. No self-made login existed | **Closed 2026-10-12** (owner) |
 | S-2 | A self-made login can cancel or mark paid any unpaid room order, change a room's QR code, read sales by product | High | Migration 0001 | Ready, rehearsed |
 | S-3 | A self-made login could rename, reorder or recolor menu categories where the legacy "color" rule exists | – | **Not present in production** (the snapshot shows only the owner rule). 0001 still drops it where it exists | Not live |
 | S-4 | **New:** the time clock and void functions accept PIN tries from any login (5 tries per 10 min lockout); a stranger could guess PINs or lock staff out | Medium | 0001: café or owner login only | Ready, rehearsed |
@@ -72,6 +72,10 @@ No production backup exists yet (E-03). What is ready and proven on test copies:
 | L-2 | **New (snapshot):** a login created 2026-09-16 has never signed in. Whoever controls that mailbox can set a password through "forgot password" | Medium until identified | The owner says whose it is (E-04); if not theirs, `cafe-login.sql` Part 2 revokes its grant (audited) | Owner |
 | ST-1 | 0015 and 0025 create storage rules as the SQL Editor's account; production relies on Supabase's `policy_grants` for that | Release risk (low) | Kept strict: a failure applies nothing and the window stops at 0014, where the live pages work (tested). Rights shown by the follow-up query before the window; `release-check.sql` checks the receipt bucket and rules; a lint guard refuses any other storage DDL | Ready |
 | ST-2 | Staging re-runs that empty staging failed on current Supabase (direct deletes from storage tables are refused) | Staging only | The staging reset allows that one delete; rehearsed against an emulation of Supabase's guard | Fixed, rehearsed |
+| B-1 | **New (2026-10-13):** the first real backup would have failed its restore test. Supabase's default rights for its own `supabase_admin` in `public` are in the dump, and the throw-away test server has no such role (restore on Supabase and the staging copy too) | Blocked E-03 | Every restore keeps only `postgres`'s own default rights; the backup pipeline test reproduces it (fails before, passes after) (D-029) | Fixed, tested |
+| B-2 | **New:** typing the backup account's password in the SQL Editor would leave it in clear in Supabase's logs (DDL is logged) | Secret exposure | The database generates the password and shows it once (RESPALDOS 3.4) (D-029) | Fixed, tested locally |
+| P-1 | **New:** the new POS (not yet published) lost a sale rung on a login with no café grant (`no_account` answered with HTTP 200 was taken as saved) | High, before publishing | The sale stays on the device and goes in once the login is connected; e2e test fails without the fix (D-030) | Fixed, tested |
+| PR-1 | **New:** the staging copy kept free text in several columns (order notes, void and discount reasons, room codes, device names; after the migrations also "who did it" emails and bank descriptions) | Privacy (staging) | Every text/json/network column classified; an unknown one stops the copy; seeded scan finds nothing (D-028) | Fixed, tested |
 | R-1 | Residual release risk: older workflow files in history publish on push to `main`, `claude/festive-galileo-0twc1p` or the development branch. `gh-pages` accepts direct pushes. None of this happens through normal development | Low | Environment reviewers (E-20), save today's site (E-19), CI tripwire (added) | Owner settings |
 | R-2 | Accepted lows from D-022 (`_tender_insert`, `_stock_cost_edit_log`) and helper functions that need an order's UUID | Low | Documented | Accepted |
 
@@ -183,19 +187,23 @@ Each step is the owner's. I give them one at a time and check each result before
 **A. Verify and protect (any time; only step 6 changes a row, an audited access grant)**
 
 1. ~~Snapshot → paste.~~ **Done 2026-10-12** (section 1, D-027).
-2. **Next:** Authentication → turn off "Allow new users to sign up" and check anonymous sign-ins are off. Check:
-   the tablet is still signed in; the owner can sign in; "forgot password" still sends the email.
-3. Follow-up query `production-followup.sql` (read-only) → paste, and say which email each café device uses,
+2. ~~Authentication → turn off "Allow new users to sign up"; anonymous sign-ins off.~~ **Done 2026-10-12** (owner).
+3. **Next:** follow-up query `production-followup.sql` (read-only) → paste, and say which email each café device uses,
    whose mailbox the never-used login is, and whether a team member has the role "owner" (E-04).
 4. Verified backup (docs/RESPALDOS.md):
-   - `backup-account.sql`, then its password (delete the saved query afterwards);
+   - `backup-account.sql`; the account's password is generated by the database while building the `CANOPY_DB_URL`
+     secret (RESPALDOS 3.4), so it never appears in a saved query or in the Postgres log (Supabase logs DDL);
    - private repository `canopy-respaldos` with the files of `ops/backup/repositorio-respaldos/`;
    - age keys; secrets `CANOPY_DB_URL` and `AGE_RECIPIENTS`; variable `SUPABASE_URL`;
-   - Run workflow → green → download `respaldo-cifrado`.
+   - Run workflow → green; the run summary shows `restauración verificada: … tablas`, `8 archivos verificados`,
+     `listo: … restauración: passed` → download `respaldo-cifrado` and check it opens with the owner key (RESPALDOS
+     3.6).
 5. Save today's site: release `sitio-2026-10-09` targeting `gh-pages`. Also set environment `production`:
    required reviewer = owner, tags `v*`.
-6. `cafe-login.sql` on the café devices' login, and Part 2 for a login that is not the owner's (E-05). Check: the
-   tablet keeps its session and sells; the time clock punches; owner areas ask for a PIN.
+6. Separate the café devices' login from the owner's (`docs/INGRESOS.md`, E-05): case A converts it in place; case B
+   gives the owner a new personal login and converts the shared one. No device is touched in either. Part 2 of
+   `cafe-login.sql` for a login that is not the owner's. Check: the tablet keeps its session and sells; the time
+   clock punches; owner areas ask for a PIN.
 7. Catalog export (E-11), read-only, for the two differences.
 
 **B. Wave 0 (after closing, about 10 minutes)**
@@ -239,7 +247,7 @@ In order of preference (docs/LANZAMIENTO.md, docs/PUBLICAR.md):
 
 ## 10. Actions the owner must perform personally
 
-- **Now:** steps 2–7 of section 8, one at a time (step 2 first). Never paste passwords, keys or connection
+- **Now:** steps 3–7 of section 8, one at a time (step 3 next). Never paste passwords, keys or connection
   strings in a chat: they go only into Supabase and GitHub settings.
 - **Logins (D-027):** the phone code only on your own personal login, from your own phone; never on a login a
   café device uses (E-06).
