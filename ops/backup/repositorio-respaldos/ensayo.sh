@@ -56,7 +56,7 @@ DEFAULTS_ON="alter default privileges in schema public grant all on tables to an
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;"
 # what visitors, logins, the service and the backup account may run, read or write; row security; rules (md5)
-PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x), '')) from (
+PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x collate \"C\"), '')) from (
   select 'f|' || n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')|' || coalesce(g.rolname, 'PUBLIC') || '|' || a.privilege_type || '|' || p.prosecdef as x
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a left join pg_roles g on g.oid = a.grantee

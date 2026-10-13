@@ -8,6 +8,9 @@
 #   7. uploads the encrypted file            8. records the result in canopy.backup_runs (owner's Home tile)
 # Works before migration 0000 too (account from supabase/tools/backup-account.sql). Until migration 0002 exists
 # nothing is recorded in the database: the GitHub run is the record.
+# The logins (auth: emails, password hashes, sessions) are NOT copied: the backup account cannot read them, so a
+# stolen backup password or file can never sign anyone in. After a disaster they are created again by hand
+# (docs/RESPALDOS.md → Cuentas de acceso).
 # Nothing unencrypted is ever uploaded or kept. The script can encrypt but can never decrypt a backup.
 #
 # Settings (environment variables; in GitHub they come from the PRIVATE backup repository's secrets):
@@ -70,7 +73,7 @@ COUNT_SQL="select coalesce(jsonb_object_agg(t, n), '{}'::jsonb) from (
 # per table: "rows:md5 of every row" (the content itself never leaves the database in this check)
 FP_SQL="select coalesce(jsonb_object_agg(t, f), '{}'::jsonb) from (
   select format('%s.%s', schemaname, relname) as t,
-         (xpath('/row/f/text()', query_to_xml(format('select count(*)::text || '':'' || coalesce(md5(string_agg(x::text, E''\\n'' order by x::text)), ''-'') as f from %I.%I x', schemaname, relname), false, true, '')))[1]::text as f
+         (xpath('/row/f/text()', query_to_xml(format('select count(*)::text || '':'' || coalesce(md5(string_agg(x::text, E''\\n'' order by x::text collate \"C\")), ''-'') as f from %I.%I x', schemaname, relname), false, true, '')))[1]::text as f
     from pg_stat_user_tables where schemaname in ('public','canopy','acct')) s"
 
 # Supabase gives anonymous visitors and logins every new table and function in "public" (default privileges). A dump
@@ -83,7 +86,7 @@ DEFAULTS_ON="alter default privileges in schema public grant all on tables to an
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;"
 # what visitors, logins, the service and the backup account may run, read or write; row security; rules (md5)
-PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x), '')) from (
+PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x collate \"C\"), '')) from (
   select 'f|' || n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')|' || coalesce(g.rolname, 'PUBLIC') || '|' || a.privilege_type || '|' || p.prosecdef as x
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a left join pg_roles g on g.oid = a.grantee
@@ -115,6 +118,12 @@ if [ "$CLIENT_MAJOR" -lt "$SERVER_MAJOR" ]; then
   STEP="pg_dump $CLIENT_MAJOR es más viejo que el servidor $SERVER_MAJOR: actualice postgresql-client"; false
 fi
 SCHEMAS="$(sql -c "select string_agg(nspname, ' ') from pg_namespace where nspname in ('public','canopy','acct')")"
+# the old account (supabase/tools/backup-account.sql version 1) could read the logins too: say so, keep going
+[ "$(sql -c "select pg_has_role('pg_read_all_data', 'member')
+                     or coalesce((select has_schema_privilege(n.oid, 'usage') and has_table_privilege(c.oid, 'select')
+                                    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                                   where n.nspname = 'auth' and c.relname = 'users'), false)")" = "f" ] \
+  || log "aviso: la cuenta de respaldo todavía puede leer las cuentas de acceso: ejecute otra vez supabase/tools/backup-account.sql"
 
 STEP="contar filas (antes)"
 sql -c "$COUNT_SQL" > "$PACK/counts-before.json"
@@ -125,9 +134,6 @@ log "volcando esquemas: $SCHEMAS"
 SCHEMA_ARGS=(); for s in $SCHEMAS; do SCHEMA_ARGS+=(--schema="$s"); done
 pg_dump "$CANOPY_DB_URL" --format=custom --no-owner --compress=6 "${SCHEMA_ARGS[@]}" --file="$PACK/app.dump"
 pg_dump "$CANOPY_DB_URL" --schema-only --no-owner "${SCHEMA_ARGS[@]}" --file="$PACK/schema.sql"
-# logins (emails + password hashes) so the café/owner/accountant logins can be restored; best effort
-pg_dump "$CANOPY_DB_URL" --format=custom --data-only --table='auth.users' --table='auth.identities' --file="$PACK/auth-users.dump" 2>/dev/null \
-  || log "aviso: no se pudieron copiar las cuentas de acceso (auth); vea RESPALDOS.md → Cuentas"
 
 STEP="contar filas (después)"
 sql -c "$COUNT_SQL" > "$PACK/counts-after.json"
@@ -237,11 +243,18 @@ for root, _, names in os.walk(pack):
     for n in names:
         p = os.path.join(root, n); rel = os.path.relpath(p, pack)
         files[rel] = hashlib.sha256(open(p, 'rb').read()).hexdigest()
-fb = json.load(open(os.path.join(pack, 'fingerprints-before.json')))
-fa = json.load(open(os.path.join(pack, 'fingerprints-after.json')))
+load = lambda n: json.load(open(os.path.join(pack, n)))
+if restore == 'passed':
+    # what the dump holds, measured on its restored copy: every table's rows and content, also a table that was
+    # written to during the copy (its count after the copy is not the dump's)
+    counts, fps = load('counts-restored.json'), load('fingerprints-restored.json')
+else:
+    # no restore test: the rows after the copy, and the content of the tables nobody wrote to during it
+    fb, fa = load('fingerprints-before.json'), load('fingerprints-after.json')
+    counts, fps = load('counts-after.json'), {t: f for t, f in fa.items() if fb.get(t) == f}
 json.dump({'started_at': started, 'server_version': server, 'pg_dump': client, 'restore_test': restore,
-           'source': source, 'row_counts': json.load(open(os.path.join(pack, 'counts-after.json'))),
-           'fingerprints': {t: f for t, f in fa.items() if fb.get(t) == f},
+           'source': source, 'row_counts': counts,
+           'fingerprints': fps,
            'privileges_md5': open(os.path.join(pack, 'privileges.md5')).read().strip(),
            'files': files}, open(os.path.join(pack, 'manifest.json'), 'w'), indent=1)
 PY

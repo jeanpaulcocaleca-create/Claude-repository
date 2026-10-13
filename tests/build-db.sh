@@ -23,6 +23,13 @@ run() {  # file, label, [extra psql flags]
   fi
 }
 run "$HERE/db/00_supabase_stub.sql" "supabase stub"
+# roles are shared by every database of a test server: older runs (backup-account.sql version 1, the old 0002) left
+# the shared backup account a member of pg_read_all_data. Neither does that any more (D-033); take it away here, as
+# the superuser, so a reused local server tests what production gets (a fresh CI server never has it)
+psql -q -X -d "$DB" -v ON_ERROR_STOP=1 -c "do \$\$ declare g text; begin
+  for g in select grantor::regrole::text from pg_auth_members where member = to_regrole('canopy_backup') and roleid = 'pg_read_all_data'::regrole loop
+    execute format('revoke pg_read_all_data from canopy_backup granted by %s', g);
+  end loop; end \$\$;" >/dev/null
 run "$HERE/db/01_base_tables.sql" "base tables"
 while read -r f; do
   f="${f%%#*}"; f="$(echo "$f" | xargs)"; [ -z "$f" ] && continue

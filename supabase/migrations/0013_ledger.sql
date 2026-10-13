@@ -62,6 +62,7 @@ begin
 end $$;
 grant usage on schema acct to authenticated;
 grant execute on function acct.can_read(), acct.actor() to authenticated;
+revoke execute on function acct.can_read(), acct.actor() from public;   -- owner-rights functions: signed-in only
 
 -- the owner gives an existing login (created in Supabase → Authentication) the accountant role
 create or replace function public.accountant_grant(p_email text, p_on boolean default true)
@@ -641,6 +642,13 @@ begin
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
 end $g$;
+
+-- the backup account reads the books too (tables and sequences, also those later migrations add to acct)
+grant usage on schema acct to canopy_backup;
+grant select on all tables in schema acct to canopy_backup;
+grant select on all sequences in schema acct to canopy_backup;
+alter default privileges in schema acct grant select on tables to canopy_backup;
+alter default privileges in schema acct grant select on sequences to canopy_backup;
 
 select canopy.migration_end(13, 'ledger');
 notify pgrst, 'reload schema';

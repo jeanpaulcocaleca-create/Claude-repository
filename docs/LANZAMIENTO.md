@@ -191,12 +191,14 @@ En este orden. Cada paso es de solo lectura o se puede deshacer.
 3. **Migración de corrección**: la siguiente en número. Yo la preparo con el mensaje de error; nunca se
    borran ventas ni asientos.
 4. **Restaurar un respaldo** (docs/RESPALDOS.md → "Desastre"). Solo con su autorización expresa. Se pierden los
-   cambios posteriores al respaldo; por eso se aplica cada ola justo después de un respaldo verificado.
+   cambios posteriores al respaldo; por eso se aplica cada ola justo después de un respaldo verificado. (Las cuentas
+   de acceso no van en el respaldo: se crean otra vez a mano, RESPALDOS → Cuentas de acceso, y cada aparato vuelve a
+   iniciar sesión.)
 
 | Migración | Reversión (también al inicio de cada archivo) |
 |---|---|
 | 0000, 0001, 0024 | No hace falta |
-| 0002 | `drop role canopy_backup; drop table canopy.backup_runs` |
+| 0002 | `supabase/tools/backup-account-rollback.sql` (no borrar `canopy.backup_runs`) |
 | 0003 | `drop trigger order_times_ins / order_times_upd` |
 | 0004 | `drop function pos_record_sale` (la caja vuelve sola al guardado en dos pasos) |
 | 0005 | `drop trigger stock_item_history_guard / stock_items_protect / stock_move_cost / purchase_order_status` |

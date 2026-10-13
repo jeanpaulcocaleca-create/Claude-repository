@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
 # =====================================================================================================
 # Canopy OS · restore a backup
-#   ops/backup/restore.sh <canopy-respaldo-....tar.age> <age-identity-file> <target-database-url> [--auth] [--yes]
+#   ops/backup/restore.sh <canopy-respaldo-....tar.age> <age-identity-file> <target-database-url> [--yes]
 #
 # The target must be an EMPTY project: a new Supabase project (disaster) or the staging project after it
 # was emptied (drill, docs/RESPALDOS.md). The script refuses a database that already has café data.
 # It never touches the production database unless you point it there yourself, and even then it refuses
 # because production is not empty.
-#   --auth   also restores the logins (emails + password hashes) into auth.users (best effort)
+# The logins (auth) are not in the backup: create them again by hand (docs/RESPALDOS.md → Cuentas de acceso).
 #   --yes    do not ask for the typed confirmation (for the automated drill only)
 # =====================================================================================================
 set -euo pipefail
 umask 077
 export PGTZ=UTC   # fingerprints compare text: the same time zone as the backup
-ARCHIVE="${1:?Uso: restore.sh <archivo.tar.age> <llave-age> <url-de-la-base-destino> [--auth] [--yes]}"
+ARCHIVE="${1:?Uso: restore.sh <archivo.tar.age> <llave-age> <url-de-la-base-destino> [--yes]}"
 IDENTITY="${2:?Falta el archivo de la llave privada age}"
 TARGET="${3:?Falta la URL de la base de destino}"
 shift 3
-WITH_AUTH=0; ASSUME_YES=0
-for a in "$@"; do case "$a" in --auth) WITH_AUTH=1;; --yes) ASSUME_YES=1;; esac; done
+ASSUME_YES=0
+for a in "$@"; do case "$a" in --yes) ASSUME_YES=1;;
+  --auth) echo "Las cuentas de acceso no van en el respaldo: créelas a mano (docs/RESPALDOS.md → Cuentas de acceso).";; esac; done
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 
@@ -32,7 +33,7 @@ DEFAULTS_ON="alter default privileges in schema public grant all on tables to an
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;"
 # what visitors, logins, the service and the backup account may run, read or write; row security; rules (md5)
-PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x), '')) from (
+PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x collate \"C\"), '')) from (
   select 'f|' || n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')|' || coalesce(g.rolname, 'PUBLIC') || '|' || a.privilege_type || '|' || p.prosecdef as x
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a left join pg_roles g on g.oid = a.grantee
@@ -99,11 +100,6 @@ psql -X -q -v ON_ERROR_STOP=1 "$TARGET" -c "$DEFAULTS_OFF" >/dev/null
 pg_restore --no-owner --exit-on-error --single-transaction -L "$WORK/toc.list" -d "$TARGET" "$PACK/app.dump"
 psql -X -q -v ON_ERROR_STOP=1 "$TARGET" -c "$DEFAULTS_ON" >/dev/null
 
-if [ "$WITH_AUTH" = "1" ] && [ -f "$PACK/auth-users.dump" ]; then
-  echo "   Restaurando las cuentas de acceso…"
-  pg_restore --data-only --no-owner -d "$TARGET" "$PACK/auth-users.dump" || echo "   Aviso: las cuentas no se pudieron cargar; créelas a mano (docs/RESPALDOS.md → Cuentas)."
-fi
-
 echo "5/6 Comparando filas y contenido…"
 COUNT_SQL="select coalesce(jsonb_object_agg(t, n), '{}'::jsonb) from (
   select format('%s.%s', schemaname, relname) as t,
@@ -111,7 +107,7 @@ COUNT_SQL="select coalesce(jsonb_object_agg(t, n), '{}'::jsonb) from (
     from pg_stat_user_tables where schemaname in ('public','canopy','acct')) s"
 FP_SQL="select coalesce(jsonb_object_agg(t, f), '{}'::jsonb) from (
   select format('%s.%s', schemaname, relname) as t,
-         (xpath('/row/f/text()', query_to_xml(format('select count(*)::text || '':'' || coalesce(md5(string_agg(x::text, E''\\n'' order by x::text)), ''-'') as f from %I.%I x', schemaname, relname), false, true, '')))[1]::text as f
+         (xpath('/row/f/text()', query_to_xml(format('select count(*)::text || '':'' || coalesce(md5(string_agg(x::text, E''\\n'' order by x::text collate \"C\")), ''-'') as f from %I.%I x', schemaname, relname), false, true, '')))[1]::text as f
     from pg_stat_user_tables where schemaname in ('public','canopy','acct')) s"
 psql -X -At "$TARGET" -c "$COUNT_SQL" > "$WORK/restored.json"
 psql -X -At "$TARGET" -c "$FP_SQL" > "$WORK/restored-fp.json"
@@ -131,12 +127,20 @@ if diff: print('   El contenido NO coincide en:', ', '.join(diff[:20])); sys.exi
 print(f'   OK: {len(got)} tablas y {sum(got.values())} filas iguales al respaldo; contenido idéntico en {len(m.get("fingerprints", {}))} tablas')
 PY
 
-echo "6/6 Fotos del menú: están en $PACK/storage (copie la carpeta si va a subirlas)."
-if [ -d "$PACK/storage" ] && [ -n "${KEEP_STORAGE_TO:-}" ]; then cp -R "$PACK/storage" "$KEEP_STORAGE_TO"; fi
+# the temporary folder is deleted when this script ends: the photos are copied next to the backup file first
+PHOTOS="${KEEP_STORAGE_TO:-$(cd "$(dirname "$ARCHIVE")" && pwd)/fotos-restauradas-$(date -u +%Y%m%d-%H%M%SZ)}"
+if [ -d "$PACK/storage" ] && [ -n "$(find "$PACK/storage" -type f | head -1)" ]; then
+  mkdir -p "$PHOTOS" && cp -R "$PACK/storage/." "$PHOTOS/"
+  echo "6/6 Fotos del menú ($(find "$PHOTOS" -type f | wc -l) archivos, ya comprobados en el paso 2) copiadas a: $PHOTOS"
+  echo "    Esa carpeta NO está cifrada (puede traer facturas de gastos): bórrela cuando haya subido las fotos, y antes de"
+  echo "    copiar la carpeta de respaldos a la memoria USB."
+else
+  echo "6/6 Este respaldo no trae fotos del menú."
+fi
 cat <<'TXT'
 
 Restauración terminada. Falta, a mano (docs/RESPALDOS.md → "Después de restaurar"):
-  · Subir las fotos del menú (carpeta storage/menu-photos) al bucket menu-photos.
+  · Subir las fotos del menú (la carpeta menu-photos dentro de la carpeta de fotos de arriba) al bucket menu-photos.
   · Volver a poner los secretos de Vault (token del BCCR y otros), que nunca van en el respaldo.
   · Revisar Authentication → URL Configuration y volver a inscribir el código del teléfono (2FA).
   · Si el proyecto es nuevo: cambiar la dirección en website/config.js y publicar con aprobación del dueño.

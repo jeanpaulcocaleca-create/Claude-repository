@@ -264,7 +264,8 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     "categories color for signed-in" rule covered every column on Supabase), guess PINs on the time clock, and
     on voids; the old pages' Menu Manager keeps working through the owner rule;
   - 0002 failed on PostgreSQL 16+ when the backup account already existed (it altered a role it did not own);
-    it now alters only when needed and has a table-by-table fallback if `pg_read_all_data` cannot be granted;
+    it now alters only when needed and has a table-by-table fallback if `pg_read_all_data` cannot be granted
+    (*superseded by D-033: 0002 no longer grants `pg_read_all_data`*);
   - 0003's backfill looked up each order's lines one by one (no index on `order_items.order_id`): 42 s on 14 500
     orders, minutes on a larger history and the 300 s limit; now one pass plus that index: 0.3 s, same result
     (checked row by row).
@@ -401,8 +402,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   locally.
 - **That password is owner-level:** `canopy_backup` reads everything, the `auth` schema included (refresh tokens).
   It lives only in the private repository's secret. Narrowing it needs a later contract migration.
+  *Superseded by D-033: the account no longer reads `auth` or the database's passwords.*
 - **Logins in the backup:** `auth.users` and `auth.identities` are in it as a separate file that the nightly test
-  does not check. Phone codes and sessions are not.
+  does not check. Phone codes and sessions are not. *Superseded by D-033: logins are no longer copied.*
 - **Storage after a restore:** the `menu-photos` bucket and its rules are not in the dump. RESPALDOS has the SQL to
   recreate them, and to repoint photo addresses at a new project.
 - **Run summary:** it lists what was verified.
@@ -494,3 +496,97 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   until the conversion.
 - **0008 follow-ups (before the window):** a pay-later bill closed in one payment keeps who rang it, not who took the
   money; no page lists sales by cashier; «Terminar mi turno» does not clock out (the guide says so).
+
+## D-033 · 2026-10-13 · The backup account reads the business, not the logins
+- **Found in review, before the first paste:** version 1 of `supabase/tools/backup-account.sql` (and migration 0002)
+  gave `canopy_backup` `pg_read_all_data`. On a test copy the account read every `auth` table (refresh tokens,
+  sessions, pending recovery and magic-link token hashes, MFA secrets) and every role's password hash
+  (`pg_authid`). Supabase Auth accepts a refresh token or a stored token hash to start a session
+  (supabase/auth `internal/api/token_refresh.go`, `verify.go`), so a leaked backup password could have signed in as
+  the owner, Jorge or the café login (all owner kind, none with a phone code). The backup needs none of it.
+- **Version 2 (one paste, all or nothing):**
+  - BYPASSRLS stays: it is required. Without it `pg_dump` stops on row security, and with
+    `--enable-row-security` it silently dumps 0 of 14 534 orders. It grants no access by itself.
+  - SELECT on the café's base tables and sequences (`public`; `canopy` and `acct` once they exist), USAGE on
+    `storage` and SELECT on `storage.objects` (the photo list). No membership, nothing in `auth`, not
+    `storage.buckets`. Today that is 1 role (no login, no password) and 30 grants. The account's dump of `public` is
+    byte-identical to a superuser's.
+  - If a version 1 account exists, it takes `pg_read_all_data` away. After 0002 it also grants `backup_report` and
+    the default SELECT privileges, so an account made again after a rollback reads the tables later migrations add.
+  - It ends with a self-check and raises (nothing is kept) if the account could write, create, run an owner-rights
+    function other than `canopy.backup_report` (by name, a trigger function included, or through an aggregate,
+    operator, cast or view), belong to a role, own an object, read `auth`, a view on it at any depth or
+    `pg_authid.rolpassword`, read through a view of the café something it cannot read itself (system catalogs found
+    by name: they are never in `pg_depend`), read anything else PUBLIC cannot, hold an unexpected grant, or lacks
+    anything the backup copies; also if a secret-like setting is visible to every login. A view of the café is an
+    expected grant (0002's default privileges give it one). The result row says `lista` only when that block
+    finished (`REVISAR` under `psql -f` after an error).
+  - Re-run it after each migration window as a check.
+  - It touches no login, no `app_accounts` row and no device: the owner and Jorge stay owners.
+  - Its one change outside the account: it takes PUBLIC's EXECUTE on the café's owner-rights trigger functions
+    (3 today: `audit_menu()`, `_order_discount_check()`, `_order_tab_voided()`; `authenticated` keeps its named
+    grant). PostgreSQL checks EXECUTE only when a trigger is created, never when it fires, so the café's triggers
+    work as before. With it, any SQL login (this account included) could attach one to a temporary table of its own
+    and run it with its owner's rights: in review, through `_order_tab_voided()` the account raised an open bill's
+    total from 13 500 to 1 013 500 and cleared its parts, and through `audit_menu()` it wrote an `audit_log` row
+    under a name it chose, while direct writes were denied. The rollback does not give the permission back.
+- **Migrations (not applied in production yet, so changed in place):** 0002 no longer grants `pg_read_all_data`
+  (production's postgres holds it with admin, so the old 0002 would have widened the account again): SELECT on what
+  exists plus default privileges in `public` and `canopy`, and its rollback line points to the rollback tool. 0013
+  does the same for `acct` and revokes PUBLIC EXECUTE on `acct.actor()` and `acct.can_read()`: both run with their
+  owner's rights, and any SQL login can fake the app's login claims. 0025 revokes PUBLIC EXECUTE on every
+  owner-rights trigger function in `public`, `canopy` and `acct` it owns (24 after 0025, 13 of them open to every
+  login without it; the ones 0003-0024 add are also closed by re-running the paste after each window).
+- **Rollback:** `supabase/tools/backup-account-rollback.sql`: no login and no password, ends the account's
+  sessions, revokes every grant, membership and default privilege, then drops the role. It never uses DROP OWNED or
+  CASCADE and keeps `canopy.backup_runs` and `backup_status()`. `drop role canopy_backup` alone fails once the
+  account has grants and leaves open sessions running. When the account is already gone it still ends sessions a
+  deleted account left open, found without `backend_type` (the SQL Editor's account, not a superuser, sees it empty
+  on another account's sessions), and says `REVISAR`, not `listo`, while any remain. Order: disable both workflows,
+  paste it, delete `CANOPY_DB_URL`; never delete an encrypted copy or the age keys.
+- **Logins are not copied:** `backup.sh` no longer dumps `auth.users` and `auth.identities`; `restore.sh --auth`
+  only says they are created by hand (RESPALDOS → Cuentas de acceso: both owners with `make_owner`, the café login
+  with `cafe-login.sql`, in the new project only; today's café login is never touched). Staff PINs are in
+  `public.staff` and travel. `backup.sh` warns (`aviso`, the run goes on) if the account can still read the logins
+  (`pg_read_all_data`, or USAGE on `auth` and SELECT on `auth.users`).
+- **Fixed in the same review:**
+  - Collation: the row and rights fingerprints now sort with `collate "C"` (`backup.sh`, `restore.sh`, `ensayo.sh`).
+    A restore database that sorts like glibc `en_US` failed with `public.audit_log, public.stock_moves`.
+  - The archive describes the dump: when the nightly restore test ran, its row counts and fingerprints are the ones
+    measured on the restored dump, for every table. Before, a table written to during the copy carried the count
+    after the copy, and `restore.sh` failed on that backup.
+  - `restore.sh` keeps the photos in `fotos-restauradas-<fecha>` next to the archive (its temporary folder, where it
+    said they were, was deleted on exit). That folder is not encrypted and may hold expense receipts: `restore.sh`
+    says so, and the drill and disaster steps say to delete it (otherwise it could go to the monthly USB copy).
+  - Step 3.4 (the password): the block refuses, changing nothing, when `pg_stat_statements.track = all` (nested
+    statements are then recorded, the one with the password included; measured in review) or when `pgaudit.log`
+    covers roles. The owner copies the message into the chat and changes no setting.
+- **What the account can still do:** read all business data (sales, staff and their PIN hashes, guest phones), and
+  what every login can: temporary objects and large objects (disk space), NOTIFY, advisory locks while connected,
+  change its own password or settings. After 0002 it can record a fake "ok" run, so the Home tile is what the backup
+  says about itself; the proof is the GitHub run summary or the owner's own restore.
+- **Rejected:** keeping `pg_read_all_data` (Supabase's troubleshooting recipe); copying `auth.users` through a column
+  or table grant (pending recovery and magic-link token hashes are live credentials); `default_transaction_read_only`
+  (`BEGIN READ WRITE` undoes it and it breaks `backup_report`); `statement_timeout` (`pg_dump` resets it);
+  `CONNECTION LIMIT` (the pooler can make a legitimate run fail); `VALID UNTIL` (optional later: a forgotten renewal
+  silently stops the backups); Supabase's own backups as the off-site copy (Free has none; Pro's are physical, not
+  downloadable, without Storage files, restored in place).
+- **Tests:** 030 (22 assertions; 6 fail on the old migrations; the trigger-function one fails without 0025's
+  revoke). Backup pipeline: the paste refuses an owner-rights function and a trigger function given to the account
+  by name, leaves no grant and changes no function's rights, closes the café's trigger functions to every login
+  (not to `authenticated`), its row says `REVISAR` under `psql -f`, the archive holds no `auth` file, the restore
+  goes into an ICU `en-US` database, a sale saved during the copy; each case fails on the old code. Rehearsal: the
+  paste as the non-superuser editor before 0000 (`lista`), the backup after 0025 (58 tables), the staging copy.
+  Lint, by whole statement (comments removed, lines joined): no grant of `pg_read_all_data` in migrations or tools,
+  no `pg_dump` or `copy` of `auth` in `ops/backup`; the three rights fingerprints identical. Scratch (not in CI): the
+  account's temporary-table trigger attack fails after the paste and the café's trigger still fires; a view on a
+  view on `auth`, a café view on `storage.buckets`, `pg_authid` or `pg_statistic` are refused, a café view on its
+  own tables or on `pg_roles` is accepted (all as the emulated non-superuser editor, with the review's 20 injected
+  risks still refused and nothing changed); the rollback of an already-deleted account with a session left open
+  says `REVISAR` without `pg_signal_backend` and `listo` with it. Shared local test servers: `tests/build-db.sh`
+  takes `pg_read_all_data` away from the shared `canopy_backup` that older runs left.
+- **Not proven:** the final version ran on PostgreSQL 16.13 (an earlier one on 17.6); Supabase's SQL Editor,
+  supautils and the pooler were read in source, not emulated; ending sessions in the rollback needs postgres to
+  hold `pg_signal_backend` (likely, not observed). If production's Storage has an owner-rights trigger function
+  every login may run, the paste refuses and names it (nothing changed): the paste cannot take that right from a
+  function Storage owns.

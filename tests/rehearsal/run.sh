@@ -35,9 +35,6 @@ q -f "$HERE/seed-legacy.sql" > "$OUT/seed.log" 2>&1 || { cat "$OUT/seed.log"; di
 q -f "$HERE/as-supabase.sql" > /dev/null
 echo "    seeded in $(( $(date +%s) - t0 ))s: $(q -c "select count(*) || ' orders, ' || (select count(*) from public.order_items) || ' items, ' || (select count(*) from public.stock_moves) || ' stock moves, ' || (select count(*) from public.time_entries) || ' shifts' from public.orders")"
 
-# a frozen copy of "production before the window", for the staging-copy rehearsal at the end
-psql -X -q -d postgres -c "drop database if exists ${DB}_src with (force)" -c "create database ${DB}_src template $DB" >/dev/null
-
 step "snapshot and consistency BEFORE"
 q -f "$ROOT/supabase/tools/production-snapshot.sql" > "$OUT/snapshot-before.json"
 q -f "$ROOT/supabase/tools/consistency-check.sql" > "$OUT/consistency-before.json"
@@ -54,13 +51,18 @@ assert sc['functions_by_version'] == {'legacy': sc['functions_total']}, sc['func
 assert any('categories color for signed-in' in p for p in s['security']['policies_without_account_check']), 'the open menu rule should exist before 0001'
 PY
 
+step "backup account (supabase/tools/backup-account.sql) as the SQL Editor account (not a superuser)"
+# as the owner does it, once, before the window; it reads only what it was given in THIS database (D-033)
+PGPASSWORD=rehearsal-only psql -X -q -At -v ON_ERROR_STOP=1 -h "$PGHOST" -p "$PGPORT" -U rehearsal_editor -d "$DB" \
+  -f "$ROOT/supabase/tools/backup-account.sql" -c "alter role canopy_backup login password 'test-only-backup'" > "$OUT/account.log" 2>&1 \
+  || { cat "$OUT/account.log"; die "backup account as the SQL Editor account"; }
+grep -q '^lista: la cuenta canopy_backup' "$OUT/account.log" || { cat "$OUT/account.log"; die "backup account not ready"; }
+echo "    $(grep '^lista' "$OUT/account.log")"
+# a frozen copy of "production before the window" (backup account included), for the staging-copy rehearsal at the end
+psql -X -q -d postgres -c "drop database if exists ${DB}_src with (force)" -c "create database ${DB}_src template $DB" >/dev/null
+
 if command -v age >/dev/null; then
-  step "backup BEFORE the migrations (account from supabase/tools/backup-account.sql, restore test)"
-  # as the owner does it: in the SQL Editor (not a superuser)
-  PGPASSWORD=rehearsal-only psql -X -q -At -v ON_ERROR_STOP=1 -h "$PGHOST" -p "$PGPORT" -U rehearsal_editor -d "$DB" \
-    -f "$ROOT/supabase/tools/backup-account.sql" -c "alter role canopy_backup login password 'test-only-backup'" > "$OUT/account.log" 2>&1 \
-    || { cat "$OUT/account.log"; die "backup account as the SQL Editor account"; }
-  grep -q '^lista' "$OUT/account.log" || { cat "$OUT/account.log"; die "backup account not ready"; }
+  step "backup BEFORE the migrations (restore test)"
   age-keygen -o "$OUT/k" 2>/dev/null
   URL_BASE="postgresql://postgres@${PGHOST}:${PGPORT}"; [ -n "${PGPASSWORD:-}" ] && URL_BASE="postgresql://postgres:${PGPASSWORD}@${PGHOST}:${PGPORT}"
   t0=$(date +%s)
@@ -107,7 +109,7 @@ q -f "$HERE/books.sql" > "$OUT/books.log" 2>&1 || { cat "$OUT/books.log"; die "b
 echo "    $(grep -o 'books: .*' "$OUT/books.log" | head -1)"
 
 if command -v age >/dev/null; then
-  step "backup + restore test of the migrated copy (the backup account still reads everything)"
+  step "backup + restore test of the migrated copy (the backup account reads the tables 0002-0025 added too)"
   CANOPY_DB_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/$DB" AGE_RECIPIENTS="$(age-keygen -y "$OUT/k")" \
     RESTORE_TEST_URL="$URL_BASE/postgres" UPLOAD_DIR="$OUT/backup-after" BACKUP_SOURCE=manual \
     bash "$ROOT/ops/backup/backup.sh" > "$OUT/backup-after.log" 2>&1 || { cat "$OUT/backup-after.log"; die "backup after"; }

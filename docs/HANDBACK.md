@@ -110,7 +110,7 @@ Everything is rebuilt from scratch on every run (`tests/run.sh`).
 |---|---|---|---|
 | 0000 | Migration ledger; legacy scripts refuse to run | none | not needed |
 | 0001 | Security fix: room orders, room codes, quick items | none | not needed |
-| 0002 | Backup role (read-only) and backup log | none | drop role/table |
+| 0002 | Backup role (reads the café's tables, never the logins) and backup log | none | `supabase/tools/backup-account-rollback.sql` (keep `canopy.backup_runs`) |
 | 0003 | Sale times: rung, paid, business day | none | drop triggers |
 | 0004 | Save a whole sale at once; lines linked to products | none | drop function (POS falls back) |
 | 0005 | Inventory history protected; cost on every move | "delete" an item with history → deactivate | drop triggers |

@@ -3,18 +3,21 @@
 -- Pegar TODO en Supabase → SQL Editor → New query → Run.  Requiere: 0001.
 --
 -- Qué hace
---   * Crea la cuenta "canopy_backup": puede LEER toda la base para respaldarla y no puede cambiar nada,
---     salvo anotar "respaldo hecho" en el registro. Se crea SIN contraseña y sin poder entrar: el dueño le
---     pone contraseña después con una sola línea (docs/RESPALDOS.md, paso 2). La contraseña nunca va en GitHub.
+--   * La cuenta "canopy_backup" (la crea antes supabase/tools/backup-account.sql; si no existe, la crea aquí sin
+--     contraseña y sin poder entrar): puede LEER las tablas del café (public y canopy, también las que creen las
+--     migraciones siguientes) para respaldarlas, nunca las cuentas de acceso (auth), y no puede cambiar nada salvo
+--     anotar "respaldo hecho" en el registro.
 --   * canopy.backup_runs: cada respaldo (de la nube o de la computadora) anota cuándo, tamaño, filas por
 --     tabla y si la prueba de restauración pasó.
 --   * public.backup_status(): la tarjeta "Respaldos" del Inicio del dueño lee esto (solo áreas del dueño).
 -- Qué cambia para el personal: nada.
--- Reversión: drop role canopy_backup; drop table canopy.backup_runs; (no toca datos del negocio).
+-- Reversión: supabase/tools/backup-account-rollback.sql quita la cuenta y sus permisos. NO borre canopy.backup_runs ni
+-- las funciones: la tarjeta Respaldos de Inicio las usa y el registro de migraciones ya cuenta la 0002.
 -- =====================================================================================================
 select canopy.migration_begin(2, 'backup_support');
 
--- the backup account: reads everything (bypassing row rules, so the dump is complete), writes nothing
+-- the backup account (supabase/tools/backup-account.sql makes it before 0000): reads the café's tables past row rules
+-- (bypassrls, so the dump is complete), never auth and never pg_read_all_data (which would read auth); writes nothing
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'canopy_backup') then
     create role canopy_backup nologin bypassrls;
@@ -22,22 +25,21 @@ do $$ begin
     alter role canopy_backup bypassrls;   -- only when needed: altering a role needs ADMIN on it (PostgreSQL 16+)
   end if;
 end $$;
+grant usage on schema public, canopy to canopy_backup;
+-- what 0000 and 0001 created (base tables and sequences; no views)...
 do $$
+declare r record;
 begin
-  grant pg_read_all_data to canopy_backup;
-exception when others then
-  -- servers that do not let this account hand out pg_read_all_data: read access table by table, also for later tables
-  -- (same as supabase/tools/backup-account.sql)
-  raise notice 'pg_read_all_data no disponible (%); lectura tabla por tabla', sqlerrm;
-  grant usage on schema public, canopy, storage to canopy_backup;
-  grant select on all tables in schema public to canopy_backup;
-  grant select on all sequences in schema public to canopy_backup;
-  alter default privileges in schema public grant select on tables to canopy_backup;
-  alter default privileges in schema public grant select on sequences to canopy_backup;
-  alter default privileges in schema canopy grant select on tables to canopy_backup;
-  grant select on storage.objects, storage.buckets to canopy_backup;
+  for r in select c.oid::regclass as rel, c.relkind from pg_class c
+            where c.relnamespace in ('public'::regnamespace, 'canopy'::regnamespace) and c.relkind in ('r', 'p', 'S') loop
+    execute format('grant select on %s %s to canopy_backup', case r.relkind when 'S' then 'sequence' else 'table' end, r.rel);
+  end loop;
 end $$;
-grant usage on schema canopy to canopy_backup;
+-- ...and what later migrations create (they run as this same SQL Editor account); acct gets the same in 0013
+alter default privileges in schema public grant select on tables to canopy_backup;
+alter default privileges in schema public grant select on sequences to canopy_backup;
+alter default privileges in schema canopy grant select on tables to canopy_backup;
+alter default privileges in schema canopy grant select on sequences to canopy_backup;
 
 create table if not exists canopy.backup_runs (
   id           bigint generated always as identity primary key,

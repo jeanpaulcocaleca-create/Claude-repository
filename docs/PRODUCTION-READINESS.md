@@ -18,7 +18,7 @@ owner's paste of the read-only snapshot (2026-10-12 21:48 UTC, D-027) and of the
 | Release tags, releases | None exist | GitHub API |
 | Pages / environment / branch-protection settings | **Not verifiable from here** (the GitHub proxy refuses those API paths). Inferred: Pages source = `gh-pages` branch. Environment `production` protection unknown | Owner checks: section 10 |
 | Live site reachable | **Not verifiable from here** (the domain is blocked by this environment's network policy) | – |
-| Database server | **Verified.** PostgreSQL 17.6, 13 MB; the SQL Editor's account is not a superuser (as rehearsed) and holds `pg_read_all_data` with admin, so 0002 takes its main path | Snapshot |
+| Database server | **Verified.** PostgreSQL 17.6, 13 MB; the SQL Editor's account is not a superuser (as rehearsed) and holds `pg_read_all_data` with admin (the backup account no longer uses it: D-033) | Snapshot |
 | Migrations installed | **Verified: none.** `canopy.migrations` does not exist; every function the live pages call exists | Snapshot |
 | Security configuration (rules, grants, logins) | **Verified.** Rules and grants are as rebuilt from the 18 historical scripts (the same functions without an account check, the same visitor functions); no table without row security; `make_owner` not callable from the pages. The menu-category hole (S-3) is **not** present. **Logins:** 3, all owner kind, none with a phone code, none self-made (every login has an app account); one has never signed in | Snapshot; section 3 |
 | Sign-ups, anonymous sign-ins | **Off** (turned off by the owner on 2026-10-12; a dashboard setting, not visible from SQL). No self-made login existed | Owner: E-02 |
@@ -30,8 +30,11 @@ owner's paste of the read-only snapshot (2026-10-12 21:48 UTC, D-027) and of the
 
 No production backup exists yet (E-03). What is ready and proven on test copies:
 
-- **Works before any migration:** `supabase/tools/backup-account.sql` creates the read-only `canopy_backup`
-  account on today's schema (no migration needed). It is what migration 0002 does, so 0002 changes nothing later.
+- **Works before any migration:** `supabase/tools/backup-account.sql` creates the `canopy_backup` account on
+  today's schema (no migration needed). It reads the café's tables and the photo list, never the logins (`auth`) or
+  the database's passwords, and cannot change the café's data; the paste checks itself and changes nothing on an
+  error (D-033). Migration 0002 keeps it that narrow and lets it read the tables later migrations add (0013 for
+  `acct`). Logins are not in the backup: they are created again by hand.
 - **What each backup proves** (it fails, red in GitHub, otherwise):
   - the dump is restored into a throw-away database;
   - every table has the same rows **and the same content** (md5 of every row);
@@ -73,7 +76,9 @@ No production backup exists yet (E-03). What is ready and proven on test copies:
 | ST-1 | 0015 and 0025 create storage rules as the SQL Editor's account; production relies on Supabase's `policy_grants` for that | Release risk (low) | Kept strict: a failure applies nothing and the window stops at 0014, where the live pages work (tested). Rights shown by the follow-up query before the window; `release-check.sql` checks the receipt bucket and rules; a lint guard refuses any other storage DDL | Ready; **rights confirmed** by the follow-up (2026-10-13, D-031): can insert buckets, `policy_grants` on `storage.objects` |
 | ST-2 | Staging re-runs that empty staging failed on current Supabase (direct deletes from storage tables are refused) | Staging only | The staging reset allows that one delete; rehearsed against an emulation of Supabase's guard | Fixed, rehearsed |
 | B-1 | **New (2026-10-13):** the first real backup would have failed its restore test. Supabase's default rights for its own `supabase_admin` in `public` are in the dump, and the throw-away test server has no such role (restore on Supabase and the staging copy too) | Blocked E-03 | Every restore keeps only `postgres`'s own default rights; the backup pipeline test reproduces it (fails before, passes after) (D-029) | Fixed, tested |
-| B-2 | **New:** typing the backup account's password in the SQL Editor would leave it in clear in Supabase's logs (DDL is logged) | Secret exposure | The database generates the password and shows it once (RESPALDOS 3.4) (D-029) | Fixed, tested locally |
+| B-2 | **New:** typing the backup account's password in the SQL Editor would leave it in clear in Supabase's logs (DDL is logged) | Secret exposure | The database generates the password and shows it once (RESPALDOS 3.4) (D-029); that step now refuses, changing nothing, if `pg_stat_statements.track = all` or `pgaudit.log` covers roles (the password would be recorded) (D-033) | Fixed, tested locally |
+| B-3 | **New (2026-10-13, before the first paste):** the backup account (`backup-account.sql` version 1 and the old 0002, `pg_read_all_data`) could read every login table (sessions, refresh tokens, recovery links, MFA secrets) and the database's password hashes: a leaked backup password could have signed in as an owner | Secret exposure (high) | Version 2: SELECT on the café's tables and the photo list only, a self-check that changes nothing on a problem, a rollback tool; 0002/0013 keep it narrow; logins no longer copied; the café's owner-rights trigger functions no longer run for every login (the account could otherwise change a bill through a trigger on a temporary table; the paste and 0025) (D-033) | Fixed, tested; not yet pasted (E-03) |
+| B-4 | **New:** the restore checks sorted rows by the server's language (a restore database sorting like glibc `en_US` failed the nightly test), and a backup taken while a sale was saved failed `restore.sh` (the archive held the count after the copy) | Could block E-03 / a restore | `collate "C"` in every fingerprint; the archive keeps the counts and fingerprints of the restored dump (D-033) | Fixed, tested (each case fails on the old code) |
 | P-1 | **New:** the new POS (not yet published) lost a sale rung on a login with no café grant (`no_account` answered with HTTP 200 was taken as saved) | High, before publishing | The sale stays on the device and goes in once the login is connected; e2e test fails without the fix (D-030) | Fixed, tested |
 | PR-1 | **New:** the staging copy kept free text in several columns (order notes, void and discount reasons, room codes, device names; after the migrations also "who did it" emails and bank descriptions) | Privacy (staging) | Every text/json/network column classified; an unknown one stops the copy; seeded scan finds nothing (D-028) | Fixed, tested |
 | R-1 | Residual release risk: older workflow files in history publish on push to `main`, `claude/festive-galileo-0twc1p` or the development branch. `gh-pages` accepts direct pushes. None of this happens through normal development | Low | Environment reviewers (E-20), save today's site (E-19), CI tripwire (added) | Owner settings |
@@ -191,8 +196,12 @@ Each step is the owner's. I give them one at a time and check each result before
    storage rights confirmed; both schema differences explained. The owner decided the account structure (D-031):
    two owners on their own personal logins, the shared login restricted to the café devices, staff on PINs.
 4. **Next:** verified backup (docs/RESPALDOS.md):
-   - `backup-account.sql`; the account's password is generated by the database while building the `CANOPY_DB_URL`
-     secret (RESPALDOS 3.4), so it never appears in a saved query or in the Postgres log (Supabase logs DDL);
+   - `backup-account.sql` (version 2, D-033); expected row `lista: la cuenta canopy_backup puede leer 26 tablas del
+     café y la lista de fotos; no puede cambiar los datos del café ni leer las cuentas de acceso (aún no puede entrar:
+     paso 3.4)`; an ERROR changed nothing;
+   - the account's password is generated by the database while building the `CANOPY_DB_URL` secret (RESPALDOS 3.4),
+     so it never appears in a saved query or in the Postgres log (Supabase logs DDL); the step refuses if the
+     database would record it;
    - private repository `canopy-respaldos` with the files of `ops/backup/repositorio-respaldos/`;
    - age keys; secrets `CANOPY_DB_URL` and `AGE_RECIPIENTS`; variable `SUPABASE_URL`;
    - Run workflow → green; the run summary shows `restauración verificada: … tablas`, `8 archivos verificados`,

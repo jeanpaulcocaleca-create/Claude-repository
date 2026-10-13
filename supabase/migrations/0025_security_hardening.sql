@@ -15,6 +15,8 @@
 --     cambio escrito a mano queda entre 100 y 2 000 y cerca del anterior; un inventario inicial no cambia el costo de
 --     un insumo con historial; las líneas de compra recibidas no se editan; la foto de una factura solo entra en la
 --     carpeta de un gasto sin foto; la tableta solo ve el efectivo de días anteriores con permiso de ventas.
+--   * Las funciones internas de los disparadores que corren con permisos del dueño ya no las puede usar cualquier
+--     cuenta (PUBLIC) para un disparador propio; los disparadores del café siguen funcionando igual (D-033).
 -- Qué cambia para el personal: nada en la caja. El dueño entra a Contabilidad e Información con el código del
 --   teléfono; un encargado necesita el permiso de ventas para ver Información.
 -- Reversión: cada función vuelve a su versión anterior aplicando de nuevo su migración; no toca datos.
@@ -758,6 +760,18 @@ alter table public.stock_items add constraint stock_items_unit_known check (unit
 drop policy if exists "tenders read" on public.cash_tenders;
 create policy "tenders read" on public.cash_tenders for select to authenticated
   using ((select public.is_cafe()) and (recorded_at >= public.cr_today_start() or (select public.sales_open())));
+
+-- owner-rights trigger functions: EXECUTE is checked only when a trigger is created, never when it fires. With it,
+-- any SQL login could attach one to a temporary table of its own and run it with the owner's rights (D-033); the
+-- café's own triggers keep firing for every account
+do $$ declare f regprocedure; begin
+  for f in select p.oid::regprocedure from pg_proc p
+            where p.pronamespace in (select oid from pg_namespace where nspname in ('public', 'canopy', 'acct'))
+              and p.prosecdef and p.prorettype = 'trigger'::regtype
+              and pg_has_role(p.proowner, 'USAGE') loop      -- ours (another owner's would only warn)
+    execute format('revoke execute on function %s from public', f);
+  end loop;
+end $$;
 
 select canopy.migration_end(25, 'security_hardening');
 notify pgrst, 'reload schema';

@@ -2,8 +2,9 @@
 -- On Supabase the SQL Editor runs as "postgres", which is NOT a superuser: it owns the café's tables and functions,
 -- can create roles and bypass row rules, but cannot do superuser-only things. Here "rehearsal_editor" plays that
 -- part, so a migration that would need a superuser fails in the rehearsal instead of in production.
--- It does not hold ADMIN on pg_read_all_data, so the rehearsal deliberately exercises migration 0002's fallback;
--- production's postgres HAS ADMIN on pg_read_all_data (snapshot 2026-10-12) and takes 0002's main path.
+-- Like production's postgres (snapshot 2026-10-12) it holds pg_read_all_data with ADMIN. Neither
+-- supabase/tools/backup-account.sql nor migration 0002 uses it any more: the backup account gets SELECT on the café's
+-- tables only (D-033), and the paste has to work for an editor that could hand pg_read_all_data out.
 -- Local test databases only.
 do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'rehearsal_editor') then
@@ -14,6 +15,7 @@ do $$ begin
   end if;
 end $$;
 grant anon, authenticated, service_role to rehearsal_editor;
+grant pg_read_all_data to rehearsal_editor with admin option;
 -- Storage: this membership stands in for Supabase's supautils policy_grants (postgres -> storage.objects,
 -- storage.buckets: create and drop policies) plus storage-api's ALL WITH GRANT OPTION grants on both tables, but it
 -- allows more than production. Production's postgres is not a member of supabase_storage_admin (and cannot become
@@ -46,6 +48,9 @@ end $$;
 alter table storage.objects owner to rehearsal_storage_admin;
 alter table storage.buckets owner to rehearsal_storage_admin;
 grant usage on schema storage, auth, extensions to rehearsal_editor;
+-- production's postgres may pass on USAGE on storage (storage-api's grants, supabase/postgres 20250709135250): the
+-- backup account's photo list (supabase/tools/backup-account.sql) needs it
+grant usage on schema storage to rehearsal_editor with grant option;
 grant select on all tables in schema auth to rehearsal_editor;
 -- Supabase's default grants also cover what the SQL Editor account creates later
 alter default privileges for role rehearsal_editor in schema public grant all on tables to anon, authenticated, service_role;

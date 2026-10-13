@@ -51,8 +51,7 @@ node "$(dirname "$0")/tools/lang-check.js" || bad "website/lang.js has conflicti
 #    one-line "insert into storage.buckets ... on conflict ...", "drop policy if exists ... on storage.objects;",
 #    "create policy ... on storage.objects ...", a comment, or read Storage inside a rule or function
 #    (storage.foldername/filename/extension(...), from/join storage.objects|buckets); direct deletes are refused too
-#    (Storage's own trigger stops them). One exception, already released: 0002's read grant for the backup account,
-#    in a fallback production does not take (its postgres can grant pg_read_all_data).
+#    (Storage's own trigger stops them).
 storage_ddl() {  # files... -> prints the offending lines, fails if any
   awk '
     { t = " " tolower($0) " "; sub(/--.*/, " ", t); gsub(/"storage"\./, "storage.", t) }
@@ -60,7 +59,6 @@ storage_ddl() {  # files... -> prints the offending lines, fails if any
     t ~ /^ [ \t]*insert into storage\.buckets[ (][^;]* on conflict [^;]*;?[ \t]*$/ { next }
     t ~ /^ [ \t]*drop policy if exists [^;]* on storage\.objects[ \t]*;[ \t]*$/ { next }
     t ~ /^ [ \t]*create policy [^;]* on storage\.objects [^;]*;?[ \t]*$/ { next }
-    FILENAME ~ /\/0002_backup_support\.sql$/ && t ~ /^ [ \t]*grant select on storage\.objects, storage\.buckets to canopy_backup;[ \t]*$/ { next }
     {
       if (t !~ /delete[ \t]+from[ \t]+storage\./) {
         gsub(/[^a-z0-9_]storage\.(foldername|filename|extension)[ \t]*\(/, " (", t)
@@ -84,5 +82,27 @@ if [ -s /tmp/canopy-lint-toc.$$ ]; then
   sed 's/^/        /' /tmp/canopy-lint-toc.$$
 fi
 rm -f /tmp/canopy-lint-toc.$$
+# 10) the backup account reads the café's tables, never the logins (D-033): nothing hands it (or anyone)
+#     pg_read_all_data, which reads auth (sessions, tokens) and the database's passwords, and no backup copies auth
+#     Whole statements, not lines: comments removed, lines joined, quotes dropped, any case (a grant split over two
+#     lines, a role list, "pg_read_all_data", execute format('grant %I ...', 'pg_read_all_data'); pg_dump or copy of
+#     auth on a continued line, -nauth, --table=auth.users, auth in the schema list)
+prad=""; for f in supabase/migrations/*.sql supabase/tools/*.sql; do
+  awk '{ sub(/--.*/, ""); printf "%s ", tolower($0) }' "$f" | tr -d '"' \
+    | grep -qE "(^|[^a-z_])grant[[:space:]][^;]*(pg_read_all_data[^;]*[[:space:]]to[[:space:]]|[[:space:]]to[[:space:]][^;]*pg_read_all_data)|(^|[^a-z_])create[[:space:]]+(role|user|group)[[:space:]][^;]*[[:space:]]in[[:space:]]+(role|group)[[:space:]][^;]*pg_read_all_data|(^|[^a-z_])alter[[:space:]]+group[[:space:]]+pg_read_all_data[[:space:]]+add[[:space:]]+user" && prad="$prad $f"
+done
+[ -n "$prad" ] && bad "pg_read_all_data is granted (it reads the logins; give SELECT on the café's tables instead):$prad"
+adump=""; for f in ops/backup/*.sh ops/backup/repositorio-respaldos/*.sh; do
+  sed -e 's/^[[:space:]]*#.*//' "$f" | sed -e ':a' -e '/\\$/N; s/\\\n/ /; ta' \
+    | grep -qiE "(pg_dump|copy)[^|;&]*([^a-z_]auth\.|schema[= ]+['\"]?auth([^a-z_]|$)|-n *['\"]?auth([^a-z_]|$))|nspname in \([^)]*'auth'" && adump="$adump $f"
+done
+[ -n "$adump" ] && bad "a backup script copies the logins (auth); they are created again by hand (docs/RESPALDOS.md):$adump"
+# 11) the rights fingerprint is computed the same way by the nightly backup, restore.sh and the staging copy (a
+#     sort that depends on the server's language once made a restore fail): the three PRIV_SQL blocks are identical
+priv_sql() { awk '/^PRIV_SQL="/ { f = 1 } f { print } f && /q"$/ { exit }' "$1" | md5sum; }
+[ "$(priv_sql ops/backup/backup.sh)" = "$(priv_sql ops/backup/restore.sh)" ] \
+  && [ "$(priv_sql ops/backup/backup.sh)" = "$(priv_sql ops/backup/repositorio-respaldos/ensayo.sh)" ] \
+  && grep -q 'order by x collate \\"C\\"' ops/backup/backup.sh \
+  || bad "PRIV_SQL differs between backup.sh, restore.sh and repositorio-respaldos/ensayo.sh, or does not sort with collate \"C\""
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

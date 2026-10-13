@@ -4,7 +4,7 @@
 
 1. **Todas las noches a las 2:17 a. m.** un trabajo automático en un repositorio **privado** suyo de
    GitHub hace lo siguiente:
-   - copia la base de datos completa y las fotos del menú;
+   - copia los datos del café y las fotos del menú (las cuentas de acceso no: vea "Qué no se respalda");
    - **la restaura en una base de prueba desechable** y verifica tabla por tabla que no falte nada;
    - la **cifra**;
    - la sube a un almacenamiento externo **protegido contra borrado**.
@@ -17,6 +17,9 @@
    - **verde**: respaldo verificado en las últimas 26 h;
    - **ámbar**: respaldo atrasado o con la prueba fallida;
    - **rojo**: más de 50 h sin respaldo.
+
+   La tarjeta muestra lo que el respaldo anota de sí mismo. La prueba es el resumen verde de la corrida en GitHub
+   o una restauración hecha por usted (vea "Prueba de restauración").
 5. Si un respaldo falla, GitHub le envía un correo.
 
 **Cifrado.** Los respaldos se cifran con `age` (gratuito) para **dos llaves**:
@@ -32,14 +35,16 @@ Sin una de esas llaves **nadie** puede leer un respaldo, ni GitHub, ni el almace
 - Toda la información del negocio: ventas, cuentas abiertas, pagos, caja, inventario, compras,
   horas, personal, contabilidad y bitácora de aprobaciones.
 - La estructura de la base (esquema `public`; también `canopy` y `acct` cuando existan).
-- Las cuentas de acceso (correo y contraseña cifrada), en un archivo aparte que la prueba nocturna **no** comprueba.
-  El código del teléfono y las sesiones abiertas no van.
+- Los PIN del personal (cifrados, en la tabla del personal).
 - Las fotos del menú (depósito público `menu-photos`; hoy 8), cada una comprobada.
 - Las facturas de gastos todavía no existen (llegan con la migración 0015); para copiarlas harán falta llaves S3 de
   Storage (E-17). Sin ellas no se copian y la corrida lo avisa.
 
 **Qué no se respalda (está en otro lado o se vuelve a poner a mano):**
 
+- **las cuentas de acceso** (correos, contraseñas cifradas, sesiones, enlaces de recuperación, código del teléfono):
+  la cuenta de respaldo no puede leerlas, así que ni una contraseña de respaldo robada ni un respaldo robado sirven
+  para entrar como nadie. Después de un desastre se crean otra vez a mano (vea "Cuentas de acceso");
 - el código del sitio (está en GitHub);
 - los secretos de Vault (token del BCCR y otros);
 - la configuración de Supabase: inicio de sesión, y el depósito `menu-photos` con sus reglas (vea "Después de restaurar");
@@ -58,7 +63,8 @@ Orden: paso 2 (cuenta de respaldo) → paso 3 (repositorio privado, sin los secr
 Qué se verifica en cada respaldo (si algo no coincide, la corrida queda en **rojo**):
 
 - la copia se restaura en una base desechable y **cada tabla tiene las mismas filas y el mismo contenido** (huella
-  md5 de cada fila; las tablas que cambiaron durante la copia se revisan por cantidad de filas);
+  md5 de cada fila; las tablas que cambiaron durante la copia se revisan por cantidad de filas). El archivo guarda las
+  filas y la huella de lo que la copia trae, y `restore.sh` las compara todas;
 - **los mismos permisos**: quién puede ejecutar cada función y leer cada tabla, qué tablas tienen reglas de filas;
 - **cada foto del menú** listada en Storage está en la copia, con el mismo tamaño.
 
@@ -81,10 +87,18 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
 
 ### Paso 2 · Base de datos (Supabase)
 
-1. SQL Editor → New query → pegue **todo** `supabase/tools/backup-account.sql` → Run. Debe decir
-   **"lista: la cuenta canopy_backup puede leer todo y no puede cambiar nada"**. No necesita ninguna migración y
-   no toca datos del negocio. (Si ya aplicó la 0002, la cuenta ya existe: el script no cambia nada.)
-   La cuenta queda sin contraseña y sin poder entrar hasta el paso 3.4.
+1. SQL Editor → New query → pegue **todo** `supabase/tools/backup-account.sql` → Run. Debe mostrar UNA fila:
+   **"lista: la cuenta canopy_backup puede leer 26 tablas del café y la lista de fotos; no puede cambiar los datos
+   del café ni leer las cuentas de acceso (aún no puede entrar: paso 3.4)"**.
+   - Si sale un **ERROR**, no se cambió nada: copie el mensaje en el chat.
+   - No necesita ninguna migración. No toca ventas, inventario, personal ni fotos, ni ningún ingreso: usted y Jorge
+     siguen siendo dueños y el ingreso de los aparatos del café queda igual.
+   - Quita a todas las cuentas (PUBLIC) el permiso de ejecutar las funciones internas de los disparadores del café
+     (hoy 3); siguen funcionando igual. Con ese permiso, cualquier cuenta que entra a la base (también la de
+     respaldo) podía usarlas para cambiar una venta.
+   - La cuenta queda sin contraseña y sin poder entrar hasta el paso 3.4.
+2. Después de cada tanda de migraciones, vuelva a ejecutarlo como revisión: debe decir otra vez "lista" (con más
+   tablas, y sin "aún no puede entrar" si ya hizo el paso 3.4). Así la cuenta también lee las tablas nuevas.
 
 ### Paso 3 · Repositorio privado de respaldos (GitHub, gratis)
 
@@ -115,6 +129,11 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
        3. Supabase → SQL Editor → New query → pegue esto → Run:
           ```sql
           do $$ begin
+            if current_setting('pg_stat_statements.track', true) = 'all'
+               or coalesce(current_setting('pgaudit.log', true), 'none') ~* '(^|[ ,])(all|role)([ ,]|$)' then
+              raise exception 'NO SE CAMBIÓ NADA: esta base anotaría la contraseña (pg_stat_statements.track = %, pgaudit.log = %). Copie este mensaje en el chat.',
+                current_setting('pg_stat_statements.track', true), coalesce(current_setting('pgaudit.log', true), 'none');
+            end if;
             perform set_config('canopy.clave', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), true);
             execute format('alter role canopy_backup with login password %L', current_setting('canopy.clave'));
           end $$;
@@ -123,6 +142,10 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
           El resultado es la contraseña nueva (64 números y letras): cópiela en lugar de `[YOUR-PASSWORD]`, corchetes
           incluidos. No queda en la consulta guardada ni en los registros de Supabase, y no hace falta guardarla en
           otro lado: si se pierde, repita este punto.
+          - Si sale un **ERROR** con "NO SE CAMBIÓ NADA": la base está configurada para anotar el texto de cada
+            consulta interna (`pg_stat_statements.track = all`, o la auditoría `pgaudit.log` con las cuentas) y la
+            contraseña quedaría escrita. No se creó ninguna contraseña. **No cambie ningún ajuste**: copie el mensaje
+            en el chat.
        4. Agregue al final `?sslmode=require` (si la dirección ya trae un `?`: `&sslmode=require`) → **Add secret**.
      - `RCLONE_CONF` y `RCLONE_REMOTE`: solo con el almacenamiento externo (paso 1; plantilla abajo).
    - Pestaña **Variables** → **New repository variable**: `SUPABASE_URL` = la dirección `production` de
@@ -200,11 +223,13 @@ Cada noche el respaldo se restaura solo en una base desechable. Además, cada 3 
    ```
    bash ops/backup/restore.sh <archivo.tar.age> llave-dueno.txt "<conexión del proyecto de PRUEBAS>"
    ```
-   Escriba **RESTAURAR** cuando lo pida. Al final debe decir **OK: … filas iguales al respaldo**.
+   Escriba **RESTAURAR** cuando lo pida. Al final debe decir **OK: … filas iguales al respaldo**. Las fotos del
+   menú quedan en la carpeta `fotos-restauradas-<fecha>`, junto al archivo del respaldo.
 3. Abra el sitio de pruebas y revise las ventas de ayer y el inventario.
 4. Esta prueba deja datos **reales** en pruebas. Al terminar: `canopy-respaldos` → **Ensayo en pruebas** con
    vaciar = `si`, y `supabase/tools/staging-logins.sql` en el SQL Editor de PRUEBAS, para que pruebas vuelva a la
-   copia anonimizada (docs/PRUEBAS.md).
+   copia anonimizada (docs/PRUEBAS.md). Borre también la carpeta `fotos-restauradas-<fecha>`: no está cifrada y
+   puede traer facturas (si quedó dentro de `archivo`, se iría sin cifrar a la memoria USB del paso 5).
 
 **Una vez al año, haga la prueba con la llave de recuperación impresa**, para comprobar que sirve.
 
@@ -213,10 +238,12 @@ Cada noche el respaldo se restaura solo en una base desechable. Además, cada 3 
 1. Cree un proyecto nuevo de Supabase.
 2. Use `restore.sh` con el respaldo más reciente:
    ```
-   bash ops/backup/restore.sh <archivo> <llave> "<conexión del proyecto NUEVO>" --auth
+   bash ops/backup/restore.sh <archivo> <llave> "<conexión del proyecto NUEVO>"
    ```
-   - `--auth` intenta recuperar las cuentas de acceso (vea "Cuentas de acceso").
    - El script **se niega** a restaurar encima de una base que ya tenga datos.
+   - Las fotos del menú quedan en la carpeta `fotos-restauradas-<fecha>`, junto al archivo del respaldo. No está
+     cifrada: bórrela cuando haya subido las fotos (vea "Después de restaurar").
+   - Las cuentas de acceso no van en el respaldo: se crean a mano (vea "Cuentas de acceso").
 3. Haga lo de "Después de restaurar" y "Cuentas de acceso".
 4. Cambie la dirección del proyecto en `website/config.js` y publique la versión (`docs/PUBLICAR.md`).
 
@@ -235,9 +262,10 @@ solas cuando vuelven a conectarse.
     using (bucket_id = 'menu-photos' and ((select public.is_owner()) or (select public._unlocked_any_device())))
     with check (bucket_id = 'menu-photos' and ((select public.is_owner()) or (select public._unlocked_any_device())));
   ```
-  Luego suba la carpeta `storage/menu-photos` del respaldo a Storage → `menu-photos`. Las fotos subidas guardan la
-  dirección del proyecto viejo; en el SQL Editor del proyecto NUEVO (cambie `<viejo>` y `<nuevo>` por las dos
-  direcciones de proyecto):
+  Luego suba la carpeta `menu-photos` (dentro de `fotos-restauradas-<fecha>`) a Storage → `menu-photos`, y después
+  borre `fotos-restauradas-<fecha>` de la computadora (no está cifrada). Las fotos subidas guardan la dirección del
+  proyecto viejo; en el SQL Editor del proyecto NUEVO (cambie `<viejo>` y `<nuevo>`
+  por las dos direcciones de proyecto):
   ```sql
   update public.menu_items set photo_url = replace(photo_url, 'https://<viejo>.supabase.co/', 'https://<nuevo>.supabase.co/')
    where photo_url like 'https://<viejo>.supabase.co/%';
@@ -250,13 +278,40 @@ solas cuando vuelven a conectarse.
 
 ### Cuentas de acceso
 
-- Si `--auth` las cargó, cada una entra con su misma contraseña y conserva su acceso. El código del teléfono se
-  vuelve a activar, solo en su ingreso personal.
-- Si no: créelas en Authentication → Users (la suya, la de los aparatos del café y la del contador). En el SQL
-  Editor ejecute `select public.make_owner('su-correo');` y luego `supabase/tools/cafe-login.sql` con el correo de
-  los aparatos del café. El contador (después de la 0025, primero active el código del teléfono en su ingreso
-  personal): Inicio → Ingreso del propietario → Ingreso del contador → Dar acceso.
-- El personal **no** pierde sus PIN: están en la base.
+No van en el respaldo. En el proyecto NUEVO, en este orden:
+
+1. Authentication → Users → **Add user**: su ingreso personal, el de Jorge y el de los aparatos del café, cada uno
+   con una contraseña nueva.
+2. SQL Editor: `select public.make_owner('<su correo>');` y `select public.make_owner('<correo de Jorge>');`. Los dos
+   son dueños.
+3. El ingreso de los aparatos del café: `supabase/tools/cafe-login.sql` con su correo y su fecha de creación en UTC
+   (el día de la restauración; si lo creó después de las 6 p. m., es el día siguiente). Si responde «… (creado
+   AAAA-MM-DD) no es el ingreso creado el …» y el correo que muestra es el de los aparatos, use la fecha entre
+   paréntesis. Se niega si no hay otro dueño. Esto es solo para el proyecto NUEVO: el ingreso de hoy no se toca.
+4. Cada aparato vuelve a iniciar sesión (en un proyecto nuevo pasa de todos modos: las sesiones nunca viajan).
+5. El código del teléfono (2FA) se vuelve a activar, solo en el ingreso personal de cada dueño.
+6. El contador (después de la 0025, primero active el código del teléfono en su ingreso personal): Inicio →
+   Ingreso del propietario → Ingreso del contador → Dar acceso.
+
+El personal **no** pierde sus PIN: están en la base.
+
+## Quitar la cuenta de respaldo
+
+Solo si deja de usar estos respaldos o sospecha de la cuenta (para una contraseña sospechosa basta el paso 3.4,
+punto 3):
+
+1. GitHub → `canopy-respaldos` → **Actions**: desactive "Respaldo nocturno" y "Ensayo en pruebas" (**Disable
+   workflow**).
+2. SQL Editor → New query → pegue **todo** `supabase/tools/backup-account-rollback.sql` → Run. Debe decir
+   **"listo: la cuenta canopy_backup ya no existe (…)"**. Si dice "REVISAR" o sale un **ERROR**, copie la fila o el
+   mensaje en el chat; ejecutarlo otra vez no hace daño.
+3. Borre el secreto `CANOPY_DB_URL` (ya no sirve).
+4. **Nunca** borre la copia cifrada guardada ni las llaves age: sin ellas esa copia no se puede abrir.
+
+No sirve `drop role canopy_backup` solo: falla en cuanto la cuenta tiene permisos y no cierra sus conexiones. El
+historial de respaldos (la tarjeta de Inicio) no se borra. Para volver a tenerla: paso 2 y paso 3.4.
+Tampoco devuelve a todas las cuentas el permiso de ejecutar las funciones internas de los disparadores que quitó el
+paso 2: no hace falta, el café sigue funcionando igual.
 
 ## Cuánto se guarda
 
@@ -283,9 +338,16 @@ con su contador. Los respaldos anuales y la base misma cubren ese período.
 
 ## Seguridad
 
-- **`canopy_backup` no puede cambiar ni borrar nada, pero lee todo**, también los datos de inicio de sesión (con
-  ellos alguien podría entrar como cualquier ingreso). Su contraseña vale tanto como la del dueño: solo vive en el
-  secreto de GitHub. Si sospecha algo, genere otra (paso 3.4, punto 3) y actualice el secreto.
+- **`canopy_backup` no puede cambiar ni borrar los datos del café ni entrar como nadie**: no lee las cuentas de
+  acceso (correos, contraseñas cifradas, sesiones, enlaces de recuperación) ni las contraseñas de la base. **Sí lee
+  todos los datos del negocio** (ventas, personal y PIN cifrados, teléfonos de huéspedes): su contraseña solo vive en
+  el secreto de GitHub. Si sospecha algo, genere otra (paso 3.4, punto 3) y actualice el secreto.
+- Como toda cuenta que entra a la base, con esa contraseña alguien también podría guardar objetos temporales (llenar
+  el espacio de la base), enviar avisos internos o cambiar la contraseña de la propia cuenta (eso solo deja sin
+  respaldo; el remedio es "Quitar la cuenta de respaldo"). Desde la 0002 anota sus respaldos, así que también
+  podría poner verde la tarjeta de Inicio: la prueba es el resumen de la corrida en GitHub o su propia restauración.
+- **Mantenga privado el repositorio `canopy-respaldos` y active el código del teléfono (2FA) en su cuenta de
+  GitHub**: quien pueda cambiar ese repositorio puede usar el secreto.
 - **GitHub y el almacenamiento solo tienen llaves públicas** (`age1…`). Pueden cifrar, nunca descifrar.
 - **La llave de escritura del almacenamiento no puede borrar** respaldos bloqueados.
 - **Con la contraseña de respaldos solo corre código del repositorio privado.** El "Ensayo en pruebas"
