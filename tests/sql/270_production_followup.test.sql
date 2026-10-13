@@ -153,8 +153,8 @@ select test.eq((select d -> 'sessions' from t270, jsonb_array_elements(rc -> 'de
 select test.eq((select jsonb_array_length(d -> 'sessions') || ' listed, ' || (d ->> 'more_sessions') || ' more, ' || (d ->> 'valid_sessions') || ' valid'
                   from t270, jsonb_array_elements(rc -> 'devices') d where d ->> 'login' = 'mu***@example.com'),
                '15 listed, 2 more, 17 valid', 'devices: at most 15 sessions per login, and how many more');
-select test.eq((select string_agg(distinct (s ->> 'device') || ' · ' || (s ->> 'browser'), ', ')
-                  from t270, jsonb_array_elements(rc -> 'devices') d, jsonb_array_elements(d -> 'sessions') s where d ->> 'login' = 'mu***@example.com'),
+select test.eq((select string_agg(k, ', ' order by k collate "C") from (select distinct (s ->> 'device') || ' · ' || (s ->> 'browser') as k   -- byte order: CI sorts case-insensitively
+                  from t270, jsonb_array_elements(rc -> 'devices') d, jsonb_array_elements(d -> 'sessions') s where d ->> 'login' = 'mu***@example.com') q),
                'Android phone · Chrome, Android phone · in-app/other, ChromeOS · Chrome, Linux or Android tablet · Firefox, Linux or Android tablet · Samsung Internet, '
                'Mac · Edge, Mac · Firefox, iPad · Chrome, iPad · Safari, other · in-app/other',
                'devices: the other device and browser kinds (Chrome of an iPad in desktop mode is an iPad, Firefox and Edge of a Mac are a Mac; '
