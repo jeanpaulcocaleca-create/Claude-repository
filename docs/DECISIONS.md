@@ -594,3 +594,65 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   hold `pg_signal_backend` (likely, not observed). If production's Storage has an owner-rights trigger function
   every login may run, the paste refuses and names it (nothing changed): the paste cannot take that right from a
   function Storage owns.
+- **Addendum 2026-10-13 · step 3.4 reviewed; the password block ships as `supabase/tools/backup-password.sql`:**
+  two independent reviews of the block that gives `canopy_backup` LOGIN and a database-generated password, measured
+  on PostgreSQL 16 and 17.6 as a non-superuser editor with `log_statement = ddl` and `pg_stat_statements.track = top`
+  (production's settings).
+  - **The success path leaks nothing:** the password is in no server log line, not in `pg_stat_statements` (only
+    the `DO` text and `select current_setting($1)`), not in Studio's saved query (text only), not in
+    `pg_stat_activity`; the transaction-local `set_config` hand-off dies with the paste. `gen_random_uuid()` is core
+    PostgreSQL fed by the OS CSPRNG: two UUIDs without dashes are 64 hexadecimal characters (digits 0-9 and letters
+    a-f, about 244 random bits), not "números y letras"; nothing in it needs URL-encoding.
+  - **Found and fixed:** if the inner `ALTER ROLE` fails (no ADMIN on the role, a missing role, a lock wait, any
+    error) PL/pgSQL adds `CONTEXT: SQL statement "alter role … password '…'"`, which PostgreSQL writes to the server
+    log (`log_min_error_statement = error`, the default) and postgres-meta returns in the error Studio shows. A
+    `log_lock_waits` message or a `debug_print_*` dump during the nested statement carries the same CONTEXT line.
+    The hardened block catches the exception and re-raises only `sqlstate` and `sqlerrm` (the value replaced if it
+    appeared), refuses up front when the role does not exist, turns `debug_print_*` off and sets `lock_timeout` for
+    the paste to less than `deadlock_timeout` (100 ms under it, at most 900 ms, never 0: with `log_lock_waits` on the
+    server logs a wait that reaches `deadlock_timeout`, with the same CONTEXT line; a fixed 900 ms leaked it when
+    `deadlock_timeout` was 200 ms. Both are superuser settings; Supabase's defaults are off and 1 s), and stores the
+    password with `password_encryption = scram-sha-256` (Supavisor rejects an MD5 secret). Measured: the failure
+    without ADMIN with `debug_print_parse` on, and a 4 s row lock on `pg_authid`, write 0 hex strings (the original
+    block: 2 and 3); the row lock with `log_lock_waits` on and `deadlock_timeout` 200 ms: 0 (the fixed 900 ms: 1).
+  - **Refusals kept and widened:** `pg_stat_statements.track = all` stores the nested statement verbatim on 16 and
+    17 (the refusal is necessary); pgaudit itself redacts everything after `password` and classifies `ALTER ROLE`
+    as ROLE, not DDL (measured with REL_16_STABLE), so the `all`/`role` refusal is belt and braces; also refused:
+    `log_min_messages = debug*` (every DEBUG line would carry the CONTEXT) and a registered pg_tle `passcheck`
+    function (`pgtle.enable_password_check` on with a row in `pgtle.feature_info`: the function receives the
+    plaintext; pg_tle grants USAGE on `pgtle` and SELECT on that table to PUBLIC, so the check runs as postgres).
+  - **Not one transaction:** if Studio ran the paste in parts (a selection), the `ALTER` committed, the cell came
+    back empty and a password nobody saw was set. The row now says `REVISAR …` and the steps say to run it again
+    whole (a partial run may also have set nothing, as when only the final `select` runs: the steps say "puede que",
+    not that a password was set).
+  - **Any ERROR changed nothing:** the paste is one transaction and the `DO` block is atomic even statement by
+    statement, so the steps say so for every ERROR, not only those starting with `NO SE CAMBIÓ NADA` (a `pgtle`
+    schema the editor cannot use makes 1b raise `permission denied for schema pgtle`, nothing changed; pg_tle grants
+    USAGE to PUBLIC, so this is theoretical and the tool keeps failing closed there).
+  - **Rotation:** Supavisor caches a role's secret for about a day and refreshes it on a wrong-password attempt,
+    and an upstream connection already open survives a password change. A suspicious password is handled with the
+    rollback (ends the sessions, drops the account), then step 2 and the password tool again.
+  - **Shipped:** `supabase/tools/backup-password.sql` (the reviewed block verbatim under a Spanish header: what it
+    changes, what it refuses, the expected row, ERROR and REVISAR, clipboard hygiene) and
+    `supabase/tools/backup-account-check.sql` (read-only, `set transaction read only` first: the account's
+    attributes and memberships, what it reads and what it must not, the logging settings the password tool looks
+    at plus `log_lock_waits` and `deadlock_timeout` as information; names only; before and after the password the only difference is `can_login false → true`; works before
+    0000, after 0025 and with the account absent, and needs no USAGE on `storage` or `pgtle`, its lookups go through
+    the catalogs). RESPALDOS 3.4 points to the tool; CHECKLIST and DEPENDENCIES updated.
+  - **Tests:** backup pipeline, the tool sent as one query string like Studio: refused with a placeholder
+    `pgaudit.log = role` and `rolcanlogin`/`rolpassword` unchanged; a 64-hex row whose SCRAM verifier is checked in
+    Python (RFC 7677) and that logs in, with every other attribute unchanged; a second run replaces it (the first no
+    longer matches, and no longer logs in where the server checks passwords); `REVISAR` under `psql -f`; a
+    CREATEROLE editor without ADMIN gets `no se pudo poner la contraseña` with no 64-hex string in the error (the
+    block without its handler fails this case with the CONTEXT line; the original block fails the `REVISAR` case);
+    another session holding the account's `pg_authid` row with `log_lock_waits` on and `deadlock_timeout` 200 ms:
+    refused with `55P03` in about 100 ms, no 64-hex string in the error (the fixed 900 ms writes one to the server
+    log); no 64-hex string added to a local server's log; the check's JSON as the superuser and as that editor (26 tables
+    readable, 0 writable, 0 in `auth`, `rolpassword` false, the photo list, 0 memberships) and after the migrations
+    (every table, `backup_report`). Scratch: both tools as the non-superuser editor on a production-like legacy copy
+    with 14 534 orders (`lista`; the check before; the 64-hex row; the check after differing only in `can_login`; a
+    login with it reads the orders and is denied an insert, `auth` and `pg_authid`; the ERROR, REVISAR and failure
+    cases; the account absent; after 0025: 58/58 tables).
+  - **Not proven:** Supabase Studio itself (`psql -c` emulates its single-string paste; postgres-meta read in
+    source), its result persistence and the platform's logging of response bodies; the pooler's cache in practice;
+    pgaudit measured on 16 only; production's settings (the tool refuses or neutralises each one it depends on).

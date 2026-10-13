@@ -126,26 +126,32 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
           dirección y péguela en la casilla. No pulse «Reset database password»: cambia la contraseña de `postgres`,
           no la de esta cuenta.
        2. Cambie `postgres.` (justo después de `postgresql://`) por `canopy_backup.`.
-       3. Supabase → SQL Editor → New query → pegue esto → Run:
-          ```sql
-          do $$ begin
-            if current_setting('pg_stat_statements.track', true) = 'all'
-               or coalesce(current_setting('pgaudit.log', true), 'none') ~* '(^|[ ,])(all|role)([ ,]|$)' then
-              raise exception 'NO SE CAMBIÓ NADA: esta base anotaría la contraseña (pg_stat_statements.track = %, pgaudit.log = %). Copie este mensaje en el chat.',
-                current_setting('pg_stat_statements.track', true), coalesce(current_setting('pgaudit.log', true), 'none');
-            end if;
-            perform set_config('canopy.clave', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), true);
-            execute format('alter role canopy_backup with login password %L', current_setting('canopy.clave'));
-          end $$;
-          select current_setting('canopy.clave') as contrasena;
-          ```
-          El resultado es la contraseña nueva (64 números y letras): cópiela en lugar de `[YOUR-PASSWORD]`, corchetes
-          incluidos. No queda en la consulta guardada ni en los registros de Supabase, y no hace falta guardarla en
-          otro lado: si se pierde, repita este punto.
-          - Si sale un **ERROR** con "NO SE CAMBIÓ NADA": la base está configurada para anotar el texto de cada
-            consulta interna (`pg_stat_statements.track = all`, o la auditoría `pgaudit.log` con las cuentas) y la
-            contraseña quedaría escrita. No se creó ninguna contraseña. **No cambie ningún ajuste**: copie el mensaje
-            en el chat.
+       3. Supabase → SQL Editor → **New query** (pestaña nueva y vacía) → pegue **todo**
+          `supabase/tools/backup-password.sql` → **Run**, sin nada seleccionado. Debe mostrar UNA fila con la celda
+          **`contrasena`**: 64 caracteres hexadecimales (cifras 0-9 y letras a-f), generados por la base a partir de
+          dos UUID aleatorios. Cópiela en lugar de `[YOUR-PASSWORD]`, corchetes incluidos (no trae caracteres que
+          haya que cambiar).
+          - Solo cambia dos cosas, y solo de `canopy_backup`: puede entrar, y su contraseña. Nada más.
+          - No hace falta guardarla en otro lado: si se pierde, repita este punto (cada ejecución reemplaza la
+            contraseña anterior) y actualice el secreto.
+          - No queda escrita en Supabase: no está en el texto de la consulta guardada, no la escribe el registro del
+            servidor ni las estadísticas de consultas, y si algo falla el mensaje de error no la lleva (vea
+            "Seguridad").
+          - Si sale un **ERROR** (empiece o no con "NO SE CAMBIÓ NADA"): no se cambió nada; todo el pegado es una sola
+            transacción. **No cambie ningún ajuste**: copie el mensaje en el chat. Las causas que el script mismo
+            detecta y nombra: la cuenta no existe (paso 2); la base anotaría el texto de las órdenes internas y, con
+            él, la contraseña (`pg_stat_statements.track = all`, `pgaudit.log` con `all` o `role`, `log_min_messages`
+            en `debug`); una función de revisión de contraseñas (pg_tle); o no se pudo poner la contraseña (un
+            bloqueo, un permiso que falta).
+          - Si la fila empieza con **REVISAR**: no corrió como una sola ejecución (por ejemplo, con una parte
+            seleccionada) y puede que se haya puesto una contraseña sin mostrarla. No pasa nada: ejecútelo otra vez,
+            completo, sin seleccionar nada.
+          - Después de pegarla en el secreto (punto 4): copie cualquier otra cosa para que salga del portapapeles y,
+            en Windows con el historial del portapapeles (Win+V) activado, bórrelo. Nunca la pegue en el chat, en un
+            correo ni en un archivo. Cierre la pestaña del SQL Editor.
+          - Opcional, para comprobar la cuenta: `supabase/tools/backup-account-check.sql` (solo lectura; la celda no
+            trae contraseñas, correos ni valores, puede copiarla en el chat) antes y después de este punto: la única
+            diferencia debe ser `can_login`, de `false` a `true`.
        4. Agregue al final `?sslmode=require` (si la dirección ya trae un `?`: `&sslmode=require`) → **Add secret**.
      - `RCLONE_CONF` y `RCLONE_REMOTE`: solo con el almacenamiento externo (paso 1; plantilla abajo).
    - Pestaña **Variables** → **New repository variable**: `SUPABASE_URL` = la dirección `production` de
@@ -297,8 +303,10 @@ El personal **no** pierde sus PIN: están en la base.
 
 ## Quitar la cuenta de respaldo
 
-Solo si deja de usar estos respaldos o sospecha de la cuenta (para una contraseña sospechosa basta el paso 3.4,
-punto 3):
+Solo si deja de usar estos respaldos o sospecha de la cuenta. **Para una contraseña sospechosa no basta con generar
+otra** (paso 3.4, punto 3): el pooler de Supabase guarda la contraseña anterior hasta un día y una conexión que ya
+estaba abierta sigue viva. Haga esta reversión completa (cierra sus conexiones y quita la cuenta) y luego el paso 2, el
+paso 3.4 y el secreto nuevo:
 
 1. GitHub → `canopy-respaldos` → **Actions**: desactive "Respaldo nocturno" y "Ensayo en pruebas" (**Disable
    workflow**).
@@ -341,7 +349,13 @@ con su contador. Los respaldos anuales y la base misma cubren ese período.
 - **`canopy_backup` no puede cambiar ni borrar los datos del café ni entrar como nadie**: no lee las cuentas de
   acceso (correos, contraseñas cifradas, sesiones, enlaces de recuperación) ni las contraseñas de la base. **Sí lee
   todos los datos del negocio** (ventas, personal y PIN cifrados, teléfonos de huéspedes): su contraseña solo vive en
-  el secreto de GitHub. Si sospecha algo, genere otra (paso 3.4, punto 3) y actualice el secreto.
+  el secreto de GitHub. Si sospecha algo: "Quitar la cuenta de respaldo" (cierra sus conexiones), paso 2, paso 3.4 y
+  el secreto nuevo.
+- **La contraseña de respaldo no queda escrita en Supabase.** La genera la base dentro del pegado
+  (`supabase/tools/backup-password.sql`) y se muestra una sola vez: no está en el texto de la consulta guardada, no la
+  escribe el registro del servidor ni las estadísticas de consultas (medido en PostgreSQL 16 y 17 con los ajustes de
+  Supabase; el script se niega, sin cambiar nada, si un ajuste sí la anotaría), y si algo falla el mensaje de error no
+  la lleva. Queda solo en el secreto de GitHub (y en su portapapeles hasta que copie otra cosa).
 - Como toda cuenta que entra a la base, con esa contraseña alguien también podría guardar objetos temporales (llenar
   el espacio de la base), enviar avisos internos o cambiar la contraseña de la propia cuenta (eso solo deja sin
   respaldo; el remedio es "Quitar la cuenta de respaldo"). Desde la 0002 anota sus respaldos, así que también

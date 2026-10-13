@@ -112,6 +112,129 @@ grep -q 'lista: la cuenta canopy_backup' "$T/account.log" || { cat "$T/account.l
        and p.prorettype = 'trigger'::regtype and has_function_privilege('canopy_backup', p.oid, 'execute')")" = "0" ] \
   && [ "$(psql -X -At -d canopy_legacysim -c "select has_function_privilege('authenticated', 'public._order_tab_voided()', 'execute')")" = "t" ] \
   || { echo "  FAIL  the paste left the café's trigger functions to every login, or took a right from another account"; exit 1; }
+# the password tool (supabase/tools/backup-password.sql, RESPALDOS 3.4), sent as ONE query string the way Supabase's
+# SQL Editor sends a paste (psql -c: one implicit transaction, the result is the last statement's row). It may change
+# only LOGIN and the password of canopy_backup, and the password may reach nothing but the result row
+PW_SQL="$(cat "$ROOT/supabase/tools/backup-password.sql")"
+HEX64='^[0-9a-f]{64}$'
+AUTHID_SQL="select rolcanlogin || ' ' || md5(coalesce(rolpassword, '')) from pg_authid where rolname = 'canopy_backup'"
+ATTRS_SQL="select rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls, rolconnlimit, rolvaliduntil,
+             (select count(*) from pg_auth_members where member = a.oid) from pg_authid a where rolname = 'canopy_backup'"
+# the placeholder setting of case (a) and the scratch editor of case (d) must not outlive a run that stops early
+reset_pw() { psql -X -q -d postgres -c "alter database canopy_legacysim reset pgaudit.log" -c "alter database canopy_legacysim reset log_lock_waits" \
+               -c "alter database canopy_legacysim reset deadlock_timeout" -c "drop role if exists canopy_test_editor" >/dev/null 2>&1 || true; }
+trap 'reset_6i; reset_pw; rm -rf "$T"' EXIT
+login_as_backup() { PGPASSWORD="$1" psql -X -At -h "$PGHOST" -p "$PGPORT" -U canopy_backup -d canopy_legacysim -c 'select 1' 2>/dev/null; }
+scram_ok() {  # verifier password -> true when the stored SCRAM-SHA-256 verifier is this password's (RFC 7677)
+  python3 -I - "$1" "$2" <<'PY'
+import base64, hashlib, hmac, sys
+v, pw = sys.argv[1], sys.argv[2]
+sys.exit(1) if not v.startswith('SCRAM-SHA-256$') else None
+params, keys = v[len('SCRAM-SHA-256$'):].split('$')
+iters, salt = params.split(':'); stored, server = keys.split(':')
+salted = hashlib.pbkdf2_hmac('sha256', pw.encode(), base64.b64decode(salt), int(iters))
+ok = hashlib.sha256(hmac.new(salted, b'Client Key', hashlib.sha256).digest()).digest() == base64.b64decode(stored) \
+     and hmac.new(salted, b'Server Key', hashlib.sha256).digest() == base64.b64decode(server)
+sys.exit(0 if ok else 1)
+PY
+}
+verifier() { psql -X -At -d canopy_legacysim -c "select rolpassword from pg_authid where rolname = 'canopy_backup'"; }
+# a local test server's log is readable: no run below may write a 64-hex string into it (CI's server has none)
+SERVER_LOG="${CANOPY_PG_DIR:-/tmp/canopy-test-pg}/server.log"
+[ -r "$SERVER_LOG" ] && log_mark="$(wc -l < "$SERVER_LOG")" || log_mark=""
+# a) a setting that would record the nested statement (pgaudit.log = role; pgaudit is not loaded here, so a
+#    database-level placeholder stands in for it) stops the tool, and the account's login and password stay as they are
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set pgaudit.log = 'role'"
+authid_before="$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")"
+if psql -X -q -At -d canopy_legacysim -c "$PW_SQL" > "$T/password-refused.log" 2>&1; then
+  cat "$T/password-refused.log"; echo "  FAIL  the password tool ran while the database would record the password (pgaudit.log = role)"; exit 1; fi
+grep -q 'NO SE CAMBIÓ NADA' "$T/password-refused.log" && grep -q 'pgaudit.log = role' "$T/password-refused.log" && ! grep -qE '[0-9a-f]{64}' "$T/password-refused.log" \
+  || { cat "$T/password-refused.log"; echo "  FAIL  the refused password tool does not say why (or shows a value)"; exit 1; }
+[ "$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")" = "$authid_before" ] \
+  || { echo "  FAIL  the refused password tool changed the account's login or password"; exit 1; }
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim reset pgaudit.log"
+# b) the normal run: one row of 64 hexadecimal characters, stored as the SCRAM verifier of exactly that value, and the
+#    account logs in with it; a second run replaces it (the first no longer matches, and no longer logs in where the
+#    server checks passwords: a local test server trusts local connections, CI's checks them)
+attrs_before="$(psql -X -At -d canopy_legacysim -c "$ATTRS_SQL")"
+pw1="$(psql -X -q -At -v ON_ERROR_STOP=1 -d canopy_legacysim -c "$PW_SQL" 2> "$T/password1.err")" \
+  || { cat "$T/password1.err"; echo "  FAIL  the password tool failed"; exit 1; }
+[[ "$pw1" =~ $HEX64 ]] || { echo "$pw1" | sed -E 's/[0-9a-f]{64}/<64-hex>/g' | head -3; echo "  FAIL  the password tool did not answer one row of 64 hexadecimal characters"; exit 1; }
+[ "$(psql -X -At -d canopy_legacysim -c "select rolcanlogin from pg_roles where rolname = 'canopy_backup'")" = "t" ] \
+  || { echo "  FAIL  the password tool did not let the account log in"; exit 1; }
+scram_ok "$(verifier)" "$pw1" || { echo "  FAIL  the stored SCRAM verifier is not the shown password's"; exit 1; }
+[ "$(login_as_backup "$pw1")" = "1" ] || { echo "  FAIL  the backup account cannot log in with the generated password"; exit 1; }
+[ "$(psql -X -At -d canopy_legacysim -c "$ATTRS_SQL")" = "$attrs_before" ] \
+  || { echo "  FAIL  the password tool changed something other than LOGIN and the password"; exit 1; }
+pw2="$(psql -X -q -At -v ON_ERROR_STOP=1 -d canopy_legacysim -c "$PW_SQL" 2> "$T/password2.err")" \
+  || { cat "$T/password2.err"; echo "  FAIL  the password tool failed on a second run"; exit 1; }
+[[ "$pw2" =~ $HEX64 ]] && [ "$pw2" != "$pw1" ] || { echo "  FAIL  a second run did not give a different 64-hex password"; exit 1; }
+scram_ok "$(verifier)" "$pw2" && ! scram_ok "$(verifier)" "$pw1" || { echo "  FAIL  a second run did not replace the password"; exit 1; }
+[ "$(login_as_backup "$pw2")" = "1" ] || { echo "  FAIL  the backup account cannot log in with the second password"; exit 1; }
+if [ "$(login_as_backup 'test-only-wrong')" != "1" ]; then   # the server checks passwords
+  [ "$(login_as_backup "$pw1")" != "1" ] || { echo "  FAIL  the first password still logs in after a second run"; exit 1; }
+fi
+# c) statement by statement (psql -f, not one transaction): the password is set but never shown; the row says REVISAR
+psql -X -q -At -d canopy_legacysim -f "$ROOT/supabase/tools/backup-password.sql" > "$T/password-f.log" 2>&1 || true
+grep -q '^REVISAR: la contraseña no llegó a esta fila' "$T/password-f.log" && ! grep -qE '[0-9a-f]{64}' "$T/password-f.log" \
+  || { cat "$T/password-f.log"; echo "  FAIL  run statement by statement, the password tool did not say REVISAR (or showed a value)"; exit 1; }
+# d) when the inner ALTER ROLE fails (here: an editor with CREATEROLE but no ADMIN on the account; PostgreSQL 16+
+#    refuses that), the error names the cause and carries no password: PostgreSQL would otherwise put the nested
+#    statement, password included, in the error's CONTEXT line (shown by the SQL Editor and written to the server log)
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "drop role if exists canopy_test_editor" \
+  -c "create role canopy_test_editor login password 'test-only-editor' nosuperuser createrole nobypassrls"
+as_editor() { PGPASSWORD=test-only-editor psql -X -q -At -h "$PGHOST" -p "$PGPORT" -U canopy_test_editor -d canopy_legacysim "$@"; }
+if [ "$(psql -X -At -c "select current_setting('server_version_num')::int >= 160000")" = "t" ]; then
+  authid_before="$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")"
+  if as_editor -c "$PW_SQL" > "$T/password-noadmin.log" 2>&1; then
+    cat "$T/password-noadmin.log"; echo "  FAIL  an editor without ADMIN on the account set its password"; exit 1; fi
+  grep -q 'NO SE CAMBIÓ NADA: no se pudo poner la contraseña a canopy_backup' "$T/password-noadmin.log" && ! grep -qE '[0-9a-f]{64}' "$T/password-noadmin.log" \
+    || { sed -E 's/[0-9a-f]{64}/<64-hex>/g' "$T/password-noadmin.log"; echo "  FAIL  the failed password tool does not name the cause, or its error carries the password"; exit 1; }
+  [ "$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")" = "$authid_before" ] || { echo "  FAIL  the failed password tool changed the account"; exit 1; }
+else
+  echo "  skip  password tool failure path (PostgreSQL 16+ only)"
+fi
+# d2) another session holds the account's catalog row while log_lock_waits is on and deadlock_timeout is below the 900 ms
+#     the tool used to wait: with those settings the server logs a wait that reaches deadlock_timeout, and that LOG line
+#     carries the nested statement, password included. The tool must give up first (lock_timeout under deadlock_timeout),
+#     name the lock timeout without the password and change nothing. Both are superuser settings (Supabase: off and 1 s)
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim set log_lock_waits = on" -c "alter database canopy_legacysim set deadlock_timeout = '200ms'"
+authid_before="$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")"
+PGAPPNAME=canopy_test_lock psql -X -q -d canopy_legacysim -c "begin; alter role canopy_backup connection limit -1; select pg_sleep(20); rollback" >/dev/null 2>&1 & LOCK_PID=$!
+for _ in $(seq 1 100); do   # until that session holds its lock on pg_authid
+  [ "$(psql -X -At -d canopy_legacysim -c "select count(*) from pg_locks l join pg_stat_activity a on a.pid = l.pid where a.application_name = 'canopy_test_lock'
+         and l.locktype = 'relation' and l.relation = 'pg_catalog.pg_authid'::regclass and l.mode = 'RowExclusiveLock' and l.granted")" = "1" ] && break; sleep 0.1; done
+if psql -X -q -At -d canopy_legacysim -c "$PW_SQL" > "$T/password-locked.log" 2>&1; then
+  sed -E 's/[0-9a-f]{64}/<64-hex>/g' "$T/password-locked.log"; echo "  FAIL  the password tool set the password through a lock another session held"; exit 1; fi
+psql -X -q -d canopy_legacysim -c "select pg_cancel_backend(pid) from pg_stat_activity where application_name = 'canopy_test_lock'" >/dev/null; wait "$LOCK_PID" 2>/dev/null || true
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "alter database canopy_legacysim reset log_lock_waits" -c "alter database canopy_legacysim reset deadlock_timeout"
+grep -q 'NO SE CAMBIÓ NADA: no se pudo poner la contraseña a canopy_backup (55P03' "$T/password-locked.log" && ! grep -qE '[0-9a-f]{64}' "$T/password-locked.log" \
+  || { sed -E 's/[0-9a-f]{64}/<64-hex>/g' "$T/password-locked.log"; echo "  FAIL  behind a lock, the password tool did not give up with the lock timeout, or its error carries the password"; exit 1; }
+[ "$(psql -X -At -d canopy_legacysim -c "$AUTHID_SQL")" = "$authid_before" ] || { echo "  FAIL  the password tool changed the account while giving up on a lock"; exit 1; }
+if [ -n "$log_mark" ] && tail -n +"$((log_mark + 1))" "$SERVER_LOG" | grep -qE '[0-9a-f]{64}'; then
+  echo "  FAIL  a run of the password tool wrote a 64-hex string into the server log"; exit 1; fi
+# e) the read-only check (supabase/tools/backup-account-check.sql) as the superuser and as a non-superuser editor:
+#    the same answer, with what the owner must see after the paste and the password
+CHECK_SQL="$(cat "$ROOT/supabase/tools/backup-account-check.sql")"
+psql -X -q -At -v ON_ERROR_STOP=1 -d canopy_legacysim -c "$CHECK_SQL" > "$T/check.json" || { cat "$T/check.json"; echo "  FAIL  backup-account-check.sql"; exit 1; }
+as_editor -v ON_ERROR_STOP=1 -c "$CHECK_SQL" > "$T/check-editor.json" || { cat "$T/check-editor.json"; echo "  FAIL  backup-account-check.sql as a non-superuser editor"; exit 1; }
+python3 -I - "$T/check.json" "$T/check-editor.json" <<'PY' || { cat "$T/check.json"; echo "  FAIL  backup-account-check.sql does not show the account as it must be"; exit 1; }
+import json, sys
+j, e = (json.load(open(f)) for f in sys.argv[1:3])
+want = {'account': {'exists': True, 'can_login': True, 'bypassrls': True, 'superuser': False, 'memberships': 0, 'pg_read_all_data_member': False, 'owns_objects': 0},
+        'reads': {'app_tables_readable': 26, 'app_tables_total': 26, 'app_tables_not_readable': [], 'storage_objects_readable': True},
+        'must_not': {'writable_relations': 0, 'writable_names': [], 'auth_schema_usage': False, 'auth_relations_readable': 0,
+                     'can_read_pg_authid_rolpassword': False, 'owner_rights_functions_executable': [], 'set_role_targets': []},
+        'logging': {'backup_password_would_refuse': False}}
+bad = {(s, k): j[s][k] for s in want for k in want[s] if j[s][k] != want[s][k]}
+assert not bad, bad
+for s in ('account', 'reads', 'must_not', 'logging'):
+    assert j[s] == e[s], (s, j[s], e[s])
+assert '@' not in json.dumps(j), 'an email in the check'
+PY
+grep -qE '[0-9a-f]{64}' "$T/check.json" "$T/check-editor.json" && { echo "  FAIL  the check shows a password"; exit 1; }
+psql -X -q -d postgres -c "drop role canopy_test_editor" >/dev/null
+# the test's own password for the steps below
 psql -X -q -d canopy_legacysim -v ON_ERROR_STOP=1 <<'SQL'
 alter role canopy_backup login password 'test-only-backup';
 insert into public.orders (id, total_crc, payment_method, paid, status)
@@ -128,7 +251,7 @@ PHOTOS="$T/www/storage/v1/object/public/menu-photos"; mkdir -p "$PHOTOS/desayuno
 printf 'gallo pinto' > "$PHOTOS/desayunos/gallo-pinto.jpg"; printf 'latte' > "$PHOTOS/latte.png"
 WWW_PORT=18431
 python3 -m http.server "$WWW_PORT" --bind 127.0.0.1 --directory "$T/www" >/dev/null 2>&1 & WWW_PID=$!
-trap 'kill "$WWW_PID" 2>/dev/null || true; reset_6i; rm -rf "$T"' EXIT
+trap 'kill "$WWW_PID" 2>/dev/null || true; reset_6i; reset_pw; rm -rf "$T"' EXIT
 for _ in $(seq 1 50); do curl -fsS -o /dev/null "http://127.0.0.1:$WWW_PORT/storage/v1/object/public/menu-photos/latte.png" 2>/dev/null && break; sleep 0.1; done
 LEGACY_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/canopy_legacysim"
 mkdir -p "$T/work0"
@@ -163,6 +286,16 @@ grep -q 'faltan 1 ' "$T/backup0b.log" || { cat "$T/backup0b.log"; echo "  FAIL  
 kill "$WWW_PID" 2>/dev/null || true
 
 "$ROOT/tests/build-db.sh" canopy_prodsim >/dev/null
+# after every migration the read-only check still reads the account's rights (0002 and 0013 give it the new tables)
+psql -X -q -At -v ON_ERROR_STOP=1 -d canopy_prodsim -c "$(cat "$ROOT/supabase/tools/backup-account-check.sql")" > "$T/check-migrated.json" \
+  || { cat "$T/check-migrated.json"; echo "  FAIL  backup-account-check.sql after the migrations"; exit 1; }
+python3 -I - "$T/check-migrated.json" <<'PY' || { cat "$T/check-migrated.json"; echo "  FAIL  after the migrations the check does not show every table of the café readable, or something it must not"; exit 1; }
+import json, sys
+j = json.load(open(sys.argv[1]))
+assert j['reads']['app_tables_readable'] == j['reads']['app_tables_total'] > 26 and j['reads']['app_tables_not_readable'] == [], j['reads']
+assert j['must_not']['backup_report_executable'] is True and j['must_not']['owner_rights_functions_executable'] == [], j['must_not']
+assert j['must_not']['writable_relations'] == 0 and j['must_not']['auth_relations_readable'] == 0 and j['account']['memberships'] == 0, j['must_not']
+PY
 psql -X -q -d canopy_prodsim -v ON_ERROR_STOP=1 <<'SQL'
 alter role canopy_backup login password 'test-only-backup';
 insert into public.orders (id, total_crc, payment_method, paid, status)
@@ -238,4 +371,4 @@ done
 psql -X -q -d postgres -c "drop database if exists canopy_restored with (force)" -c "drop database if exists canopy_prodsim with (force)" \
   -c "drop database if exists canopy_restored0 with (force)" -c "drop database if exists canopy_legacysim with (force)" \
   -c "drop database if exists canopy_restored_busy with (force)" >/dev/null
-echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"
+echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), password tool (refused with nothing changed, 64-hex row and login, replaced on a second run, REVISAR statement by statement, a failure carries no password, gives up on a lock before the server would log it) and read-only check, backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"
