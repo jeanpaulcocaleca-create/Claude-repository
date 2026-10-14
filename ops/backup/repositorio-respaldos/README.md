@@ -7,6 +7,9 @@ Contenido (copiado de `ops/backup/` del repositorio de desarrollo; actualícelo 
 `docs/RESPALDOS.md` o `docs/PRUEBAS.md` lo indiquen):
 
 - `.github/workflows/respaldo.yml`: respaldo todas las noches y con el botón "Run workflow".
+- `.github/workflows/comprobar-conexion.yml`: "Comprobar la conexión (sin respaldo)": revisa los secretos sin
+  mostrarlos y entra como `canopy_backup` para mirar sus permisos; no copia nada. Úselo después de cambiar
+  `CANOPY_DB_URL`.
 - `backup.sh`: respaldo, prueba de restauración (filas, contenido y permisos), cifrado y subida.
 - `restore-stub.sql`: imitación mínima de Supabase para la prueba de restauración.
 - `.github/workflows/ensayo-pruebas.yml`, `ensayo.sh`, `anonimizar.sql`: copia anonimizada de producción en el

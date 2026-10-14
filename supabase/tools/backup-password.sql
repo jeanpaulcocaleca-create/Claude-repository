@@ -19,8 +19,10 @@
 --   Cualquier ERROR, empiece o no con "NO SE CAMBIÓ NADA", deja todo como estaba: el pegado entero es una sola
 --   transacción y la base deshace lo que hubiera hecho. NO cambie ningún ajuste: copie el mensaje en el chat.
 -- Resultado esperado: UNA fila con una celda "contrasena" de 64 caracteres. Cópiela desde la celda y péguela en el
---   secreto CANOPY_DB_URL de GitHub en lugar de [YOUR-PASSWORD], corchetes incluidos (docs/RESPALDOS.md, paso 3.4,
---   punto 4). No trae caracteres que haya que cambiar.
+--   secreto CANOPY_DB_URL de GitHub en lugar de [YOUR-PASSWORD], de modo que no quede ningún corchete
+--   (docs/RESPALDOS.md, paso 3.4, punto 3). No trae caracteres que haya que cambiar. La dirección del secreto debe
+--   empezar con postgresql://canopy_backup. y no con postgresql://postgres. (punto 2): con postgres. el respaldo
+--   entra como la cuenta del dueño y falla ("password authentication failed for user postgres").
 --   * Si la fila empieza con "REVISAR": el pegado no corrió como una sola ejecución (por ejemplo, con una parte
 --     seleccionada) y puede que se haya puesto una contraseña sin mostrarla. No pasa nada: ejecútelo otra vez,
 --     completo, sin seleccionar.

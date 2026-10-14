@@ -122,7 +122,8 @@ ATTRS_SQL="select rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolreplicati
              (select count(*) from pg_auth_members where member = a.oid) from pg_authid a where rolname = 'canopy_backup'"
 # the placeholder setting of case (a) and the scratch editor of case (d) must not outlive a run that stops early
 reset_pw() { psql -X -q -d postgres -c "alter database canopy_legacysim reset pgaudit.log" -c "alter database canopy_legacysim reset log_lock_waits" \
-               -c "alter database canopy_legacysim reset deadlock_timeout" -c "drop role if exists canopy_test_editor" >/dev/null 2>&1 || true
+               -c "alter database canopy_legacysim reset deadlock_timeout" -c "drop role if exists canopy_test_editor" \
+               -c "drop role if exists canopy_test_ident" >/dev/null 2>&1 || true
              # case (a2)'s stand-in for pg_tle, dropped only when it is the test's own (its comment says so)
              psql -X -q -d canopy_legacysim -c "do \$\$ begin if obj_description(to_regnamespace('pgtle'), 'pg_namespace') = 'canopy test stand-in'
                then drop schema pgtle cascade; end if; end \$\$" >/dev/null 2>&1 || true; }
@@ -338,6 +339,85 @@ insert into public.order_items (order_id, item_name, price_crc, qty) select id, 
 SQL
 DBURL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/canopy_prodsim"
 
+# 0) the secrets are checked before any connection (BACKUP_CHECK_ONLY=url stops right after): the owner's postgres
+#    account (the first production run, 2026-10-13: "password authentication failed for user postgres"), brackets, the
+#    transaction port, the direct host, a missing project or sslmode, another project, a password that is not the
+#    64-hex one, a line break, a parameter after the "?" that could replace the account (libpq lets ?user= win), a
+#    private age key. A refused run connects to nothing (not even to record the failure),
+#    and no message shows the password or the key
+PW64=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+THROWAWAY_KEY="$(age-keygen 2>/dev/null | grep -E '^AGE-SECRET')"   # a private key made for this check only
+POOL=aws-0-us-east-2.pooler.supabase.com; TREF=abcdefghijklmnopqrst; GOOD="postgresql://canopy_backup.$TREF:$PW64@$POOL:5432/postgres?sslmode=require"
+url_case() {  # what the message must say, the address, [recipients]
+  local out
+  if out="$(CANOPY_DB_URL="$2" AGE_RECIPIENTS="${3:-$RECIPIENTS}" SUPABASE_URL="https://$TREF.supabase.co" BACKUP_CHECK_ONLY=url \
+              bash "$ROOT/ops/backup/backup.sh" 2>&1)"; then
+    echo "$out" | sed "s/$PW64/<64-hex>/g"; echo "  FAIL  a wrong secret passed the check (expected: $1)"; exit 1; fi
+  echo "$out" | grep -qF "$1" && ! echo "$out" | grep -qE "$PW64|${THROWAWAY_KEY: -20}|psql:|no se pudo anotar" \
+    || { echo "$out" | sed "s/$PW64/<64-hex>/g"; echo "  FAIL  a refused secret: wrong message, a connection was tried, or a value was shown (expected: $1)"; exit 1; }
+}
+url_case 'la cuenta es postgres, la del dueño' "postgresql://postgres.$TREF:$PW64@$POOL:5432/postgres?sslmode=require"
+url_case 'la cuenta es postgres, la del dueño' "postgresql://postgres.$TREF:$PW64@$POOL:5432/canopy_backup.?sslmode=require"
+url_case 'la cuenta es postgres, la del dueño' "postgresql://postgres:test-only@127.0.0.1:1/canopy_prodsim"
+url_case 'la cuenta no es canopy_backup (no se muestra' "postgresql://$PW64@$POOL:5432/postgres?sslmode=require"
+url_case 'quedó entre corchetes' "postgresql://canopy_backup.$TREF:[YOUR-PASSWORD]@$POOL:5432/postgres?sslmode=require"
+url_case 'quedó entre corchetes' "postgresql://canopy_backup.$TREF:[$PW64]@$POOL:5432/postgres?sslmode=require"
+url_case 'el puerto es 6543' "postgresql://canopy_backup.$TREF:$PW64@$POOL:6543/postgres?sslmode=require"
+url_case 'es la conexión directa' "postgresql://canopy_backup.$TREF:$PW64@db.$TREF.supabase.co:5432/postgres?sslmode=require"
+url_case 'le falta el proyecto' "postgresql://canopy_backup:$PW64@$POOL:5432/postgres?sslmode=require"
+url_case 'de otro proyecto que el de SUPABASE_URL' "postgresql://canopy_backup.zyxwvutsrqponmlkjihg:$PW64@$POOL:5432/postgres?sslmode=require"
+url_case 'no es la de 64 caracteres' "postgresql://canopy_backup.$TREF:${PW64:0:60}@$POOL:5432/postgres?sslmode=require"
+url_case 'falta ?sslmode=require' "postgresql://canopy_backup.$TREF:$PW64@$POOL:5432/postgres"
+url_case 'solo puede ir sslmode=require' "$GOOD&user=postgres.$TREF"
+url_case 'el puerto es 6543' "postgresql://canopy_backup.$TREF:$PW64@${POOL^^}.:6543/postgres?sslmode=require"   # the host in upper case with a trailing dot is still the pooler
+url_case 'solo puede ir sslmode=require' "postgresql://canopy_backup.$TREF:$PW64@$POOL:5432/postgres?options=-c%20role%3Dpostgres&sslmode=require"
+url_case 'solo puede ir sslmode=require' "postgresql://canopy_backup:test-only-backup@127.0.0.1:1/canopy_prodsim?user=postgres"
+url_case 'un espacio o un salto de línea' "$GOOD
+"
+url_case 'trae una llave PRIVADA' "$GOOD" "$RECIPIENTS $THROWAWAY_KEY"
+url_case 'no es una pública age1' "$GOOD" "$RECIPIENTS age1short"
+CANOPY_DB_URL="$GOOD" AGE_RECIPIENTS="$RECIPIENTS" SUPABASE_URL="https://$TREF.supabase.co" BACKUP_CHECK_ONLY=url \
+  bash "$ROOT/ops/backup/backup.sh" > "$T/url-ok.log" 2>&1 && grep -q 'secretos en orden' "$T/url-ok.log" && ! grep -q "$PW64" "$T/url-ok.log" \
+  || { sed "s/$PW64/<64-hex>/g" "$T/url-ok.log"; echo "  FAIL  the right secrets did not pass the check"; exit 1; }
+# the connection check (BACKUP_CHECK_ONLY=1, the private repository's "Comprobar la conexión"): logs in as
+# canopy_backup, reads its rights and stops; nothing copied, uploaded or recorded in canopy.backup_runs
+runs_before="$(psql -X -At -d canopy_prodsim -c "select count(*) from canopy.backup_runs")"
+CANOPY_DB_URL="$DBURL" AGE_RECIPIENTS="$RECIPIENTS" UPLOAD_DIR="$T/offsite-check" BACKUP_SOURCE=cloud BACKUP_CHECK_ONLY=1 \
+  bash "$ROOT/ops/backup/backup.sh" > "$T/check-only.log" 2>&1 \
+  && grep -q 'conexión verificada: entró canopy_backup' "$T/check-only.log" && grep -qE 'lee ([0-9]+) de \1 tablas del café y no puede cambiar ninguna' "$T/check-only.log" \
+  && [ ! -e "$T/offsite-check" ] && [ "$(psql -X -At -d canopy_prodsim -c "select count(*) from canopy.backup_runs")" = "$runs_before" ] \
+  || { cat "$T/check-only.log"; echo "  FAIL  the connection check did not verify the account, or copied or recorded something"; exit 1; }
+# ...a connection check never records anything, not even a failure between the login and its own checks (here: an
+# older pg_dump than the server, through a fake pg_dump on PATH)
+mkdir -p "$T/oldbin"; printf '#!/bin/sh\necho "pg_dump (PostgreSQL) 9.0"\n' > "$T/oldbin/pg_dump"; chmod +x "$T/oldbin/pg_dump"
+if PATH="$T/oldbin:$PATH" CANOPY_DB_URL="$DBURL" AGE_RECIPIENTS="$RECIPIENTS" BACKUP_SOURCE=cloud BACKUP_CHECK_ONLY=1 bash "$ROOT/ops/backup/backup.sh" > "$T/check-oldpg.log" 2>&1 \
+   || ! grep -q 'es más viejo que el servidor' "$T/check-oldpg.log" \
+   || [ "$(psql -X -At -d canopy_prodsim -c "select count(*) from canopy.backup_runs")" != "$runs_before" ]; then
+  cat "$T/check-oldpg.log"; echo "  FAIL  the connection check did not stop on an old pg_dump, or recorded that failure"; exit 1; fi
+# ...a refused first connection says why in the step line (the summary shows it), without the password, and records
+# nothing (a closed port here: the message is libpq's)
+if CANOPY_DB_URL="postgresql://canopy_backup:$PW64@127.0.0.1:1/canopy_prodsim" AGE_RECIPIENTS="$RECIPIENTS" BACKUP_SOURCE=cloud bash "$ROOT/ops/backup/backup.sh" > "$T/refused.log" 2>&1 \
+   || ! grep -qE 'ERROR en el paso: conectar con la base: .*(refused|rechaz).*No se copió nada' "$T/refused.log" \
+   || grep -q "$PW64" "$T/refused.log" || grep -q 'no se pudo anotar' "$T/refused.log"; then
+  sed "s/$PW64/<64-hex>/g" "$T/refused.log"; echo "  FAIL  a refused first connection: no cause in the step line, the password shown, or a second login tried"; exit 1; fi
+# ...and it refuses an account that can change the café's data (and records nothing)
+psql -X -q -d canopy_prodsim -c "grant insert on public.orders to canopy_backup" >/dev/null
+if CANOPY_DB_URL="$DBURL" AGE_RECIPIENTS="$RECIPIENTS" BACKUP_SOURCE=cloud BACKUP_CHECK_ONLY=1 bash "$ROOT/ops/backup/backup.sh" > "$T/check-write.log" 2>&1 \
+   || ! grep -q 'canopy_backup puede cambiar 1 tablas' "$T/check-write.log" \
+   || [ "$(psql -X -At -d canopy_prodsim -c "select count(*) from canopy.backup_runs")" != "$runs_before" ]; then
+  psql -X -q -d canopy_prodsim -c "revoke insert on public.orders from canopy_backup" >/dev/null
+  cat "$T/check-write.log"; echo "  FAIL  the connection check passed an account that can change an order, or recorded the failure"; exit 1; fi
+psql -X -q -d canopy_prodsim -v ON_ERROR_STOP=1 -c "revoke insert on public.orders from canopy_backup" >/dev/null
+# a login that is not canopy_backup is refused after connecting too (here: the right address, but a role switched in
+# through the connection options), before anything is read or recorded
+psql -X -q -d postgres -c "drop role if exists canopy_test_ident" -c "create role canopy_test_ident nologin" -c "grant canopy_test_ident to canopy_backup" >/dev/null
+if PGOPTIONS='-c role=canopy_test_ident' CANOPY_DB_URL="$DBURL" AGE_RECIPIENTS="$RECIPIENTS" BACKUP_SOURCE=cloud bash "$ROOT/ops/backup/backup.sh" > "$T/ident.log" 2>&1 \
+   || ! grep -q 'entró la cuenta canopy_test_ident, no canopy_backup' "$T/ident.log" \
+   || [ "$(psql -X -At -d canopy_prodsim -c "select count(*) from canopy.backup_runs")" != "$runs_before" ]; then
+  psql -X -q -d postgres -c "drop role if exists canopy_test_ident" >/dev/null
+  cat "$T/ident.log"; echo "  FAIL  a run that logged in as another role was not refused, or recorded something"; exit 1; fi
+psql -X -q -d postgres -v ON_ERROR_STOP=1 -c "drop role canopy_test_ident" >/dev/null
+
 # 1) nightly backup
 CANOPY_DB_URL="$DBURL" AGE_RECIPIENTS="$RECIPIENTS" RESTORE_TEST_URL="$URL_BASE/postgres" UPLOAD_DIR="$T/offsite" \
   BACKUP_SOURCE=cloud bash "$ROOT/ops/backup/backup.sh" > "$T/backup.log" 2>&1 || { cat "$T/backup.log"; echo "  FAIL  backup run"; exit 1; }
@@ -405,4 +485,4 @@ done
 psql -X -q -d postgres -c "drop database if exists canopy_restored with (force)" -c "drop database if exists canopy_prodsim with (force)" \
   -c "drop database if exists canopy_restored0 with (force)" -c "drop database if exists canopy_legacysim with (force)" \
   -c "drop database if exists canopy_restored_busy with (force)" >/dev/null
-echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), password tool (refused with nothing changed: a setting that would record it, a pg_tle checker, no account; 64-hex row and login, replaced on a second run, REVISAR statement by statement, a failure carries no password, gives up on a lock before the server would log it) and read-only check, backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"
+echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), password tool (refused with nothing changed: a setting that would record it, a pg_tle checker, no account; 64-hex row and login, replaced on a second run, REVISAR statement by statement, a failure carries no password, gives up on a lock before the server would log it) and read-only check, the secrets checked before connecting (the owner's postgres account refused), the connection check, backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"

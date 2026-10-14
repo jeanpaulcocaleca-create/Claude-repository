@@ -656,3 +656,35 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   - **Not proven:** Supabase Studio itself (`psql -c` emulates its single-string paste; postgres-meta read in
     source), its result persistence and the platform's logging of response bodies; the pooler's cache in practice;
     pgaudit measured on 16 only; production's settings (the tool refuses or neutralises each one it depends on).
+
+## D-034 · 2026-10-14 · The first backup run logged in as postgres: the secret is checked before connecting
+- **What happened (2026-10-13 22:45 UTC, `canopy-respaldos` run 38479782418):** the first manual "Respaldo nocturno"
+  stopped at its first connection with `FATAL: password authentication failed for user "postgres"` from
+  `aws-0-us-east-2.pooler.supabase.com:5432`. Nothing was copied, uploaded or recorded; the café was not affected.
+- **Cause: the `CANOPY_DB_URL` secret kept Supabase's default user `postgres.<ref>`** instead of
+  `canopy_backup.<ref>` (RESPALDOS 3.4, point 2). Evidence: the private repository's 7 files are byte-identical to
+  the tested copies; `respaldo.yml` passes the secret unchanged and `backup.sh` hands it to `psql` as is (no `PGUSER`,
+  no rewriting; a user in the URI wins over `PGUSER` in libpq). Supavisor splits the startup user at the last dot and
+  names the parsed role in that error (`WrongPasswordError`, `user: context.db_user`), so the role sent was exactly
+  `postgres`; a bare `postgres` or an unknown project would have given a tenant error, and `canopy_backup` with a
+  wrong password would have named `canopy_backup`. The password in the secret was not postgres's (it failed). The
+  `***` over the restore-test address in the log is GitHub's automatic connection-string redaction and says nothing
+  about the secret. A GitHub secret cannot be read back, so the fix is a whole new value, with the password.
+- **Decision:** `backup.sh` now checks both secrets before any connection and stops with a message that names the
+  wrong part (the owner's `postgres` account, brackets left, the transaction port 6543, the direct IPv6 host, a
+  missing project or `sslmode`, another project than `SUPABASE_URL`, a password that is not the 64-hex one, a space
+  or line break, a private age key) without printing anything taken from a secret (GitHub hides only a whole secret).
+  After connecting it requires `current_user = canopy_backup`. A refused or failed login is no longer tried a second
+  time just to record the failure. New workflow "Comprobar la conexión (sin respaldo)" (`comprobar-conexion.yml`,
+  `BACKUP_CHECK_ONLY=1`) logs in, checks the account's rights and stops: the owner verifies a corrected secret
+  without running a backup. From the independent review: a parameter after the `?` (libpq lets `?user=` replace the
+  account written before it) is refused, only `sslmode` may follow; the host is compared in lower case; a refused
+  first connection puts the server's answer, without the password, into the step line the summary shows, with
+  what to do (a wrong `canopy_backup` password, an account that cannot log in, a wrong project, the pooler's
+  temporary block); the check records nothing even when it fails between the login and its own checks; the
+  messages avoid `<…>` placeholders, which GitHub's summary drops as HTML tags.
+- **Proof:** backup pipeline test (19 wrong secrets refused with the right message, no connection attempt and no
+  value shown; the right one passes; the connection check verifies the account and copies and records nothing; an
+  account with a write grant, and a role switched in through the connection options, are refused); each fails on
+  the previous `backup.sh`; actionlint and lint check 12 on the new workflow.
+- **Not proven:** the run against production itself (it waits for the owner's corrected secret and go-ahead).

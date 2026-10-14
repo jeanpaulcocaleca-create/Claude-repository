@@ -125,11 +125,13 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
        1. Supabase → **Connect** (arriba) → en la conexión por dirección (URI), **Method: Session pooler**: copie la
           dirección y péguela en la casilla. No pulse «Reset database password»: cambia la contraseña de `postgres`,
           no la de esta cuenta.
-       2. Cambie `postgres.` (justo después de `postgresql://`) por `canopy_backup.`.
+       2. **Cambie la cuenta:** `postgres.` (justo después de `postgresql://`) por `canopy_backup.`. La casilla debe
+          empezar con `postgresql://canopy_backup.nbvczarfweanoxvdqplk:`. Deje igual el resto, también `/postgres` al
+          final (es el nombre de la base, no la cuenta). Si vuelve a pegar la dirección de Supabase, repita este punto.
        3. Supabase → SQL Editor → **New query** (pestaña nueva y vacía) → pegue **todo**
           `supabase/tools/backup-password.sql` → **Run**, sin nada seleccionado. Debe mostrar UNA fila con la celda
           **`contrasena`**: 64 caracteres hexadecimales (cifras 0-9 y letras a-f), generados por la base a partir de
-          dos UUID aleatorios. Cópiela en lugar de `[YOUR-PASSWORD]`, corchetes incluidos (no trae caracteres que
+          dos UUID aleatorios. Cópiela en lugar de `[YOUR-PASSWORD]`, sin dejar ningún corchete (no trae caracteres que
           haya que cambiar).
           - Solo cambia dos cosas, y solo de `canopy_backup`: puede entrar, y su contraseña. Nada más.
           - No hace falta guardarla en otro lado: si se pierde, repita este punto (cada ejecución reemplaza la
@@ -152,14 +154,30 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
           - Opcional, para comprobar la cuenta: `supabase/tools/backup-account-check.sql` (solo lectura; la celda no
             trae contraseñas, correos ni valores, puede copiarla en el chat) antes y después de este punto: la única
             diferencia debe ser `can_login`, de `false` a `true`.
-       4. Agregue al final `?sslmode=require` (si la dirección ya trae un `?`: `&sslmode=require`) → **Add secret**.
+       4. Agregue al final `?sslmode=require` (la dirección del Session pooler no trae `?`; si trajera algo después
+          de un `?`, bórrelo: después del `?` solo puede ir `sslmode=require`). Antes de
+          **Add secret**, mire el comienzo de la casilla: debe decir `postgresql://canopy_backup.` y **no**
+          `postgresql://postgres.` (con `postgres.` el respaldo entra como la cuenta del dueño y falla con
+          `password authentication failed for user "postgres"`, como el 2026-10-13). → **Add secret**.
      - `RCLONE_CONF` y `RCLONE_REMOTE`: solo con el almacenamiento externo (paso 1; plantilla abajo).
    - Pestaña **Variables** → **New repository variable**: `SUPABASE_URL` = la dirección `production` de
      `website/config.js` (hoy `https://nbvczarfweanoxvdqplk.supabase.co`; es pública).
 
    Por qué el Session pooler: GitHub solo tiene IPv4 y la conexión directa de Supabase es IPv6 (salvo con el
    complemento IPv4, que se paga). El Session pooler es gratis, usa IPv4 y, en modo sesión, admite `pg_dump`.
-5. **Actions → Respaldo nocturno → Run workflow → Run workflow**. Tarda unos 2 minutos; debe terminar en verde.
+5. Primero, sin respaldar. Si el repositorio privado todavía tiene los archivos de antes del 2026-10-14, suba
+   (**Add file → Upload files**, reemplazando) `backup.sh` y, dentro de `.github/workflows/`,
+   `comprobar-conexion.yml`, los dos de `ops/backup/repositorio-respaldos/`. Luego **Actions → Comprobar la
+   conexión (sin respaldo) → Run workflow → Run workflow**.
+   Revisa los secretos sin mostrarlos, entra como `canopy_backup` y mira solo sus permisos; no copia nada. El
+   resumen debe decir `conexión verificada: entró canopy_backup (PostgreSQL 17.…); lee 26 de 26 tablas del café y
+   no puede cambiar ninguna. No se copió nada`. Si dice `ERROR en el paso: revisar el secreto …`, el mensaje nombra
+   la parte de `CANOPY_DB_URL` (o de `AGE_RECIPIENTS`) que hay que corregir, sin mostrar valores: corríjala
+   (punto 4) y vuelva a comprobar. Si dice `ERROR en el paso: conectar con la base: …`, la línea trae la respuesta
+   del servidor y qué hacer: `password authentication failed for user "canopy_backup"` es una contraseña que no es la
+   de la cuenta (o la anterior, que el pooler guarda hasta un día): paso 3.4, punto 3, y arme el secreto otra vez.
+   Con el verde, **Actions → Respaldo nocturno → Run workflow → Run workflow**.
+   Tarda unos 2 minutos; debe terminar en verde.
 6. Abra la corrida:
    - El **resumen** debe decir `restauración verificada: … tablas, …; contenido idéntico en …` (hoy 26 tablas),
      `8 archivos verificados` y `listo: … restauración: passed`. Esas líneas no tienen datos privados: puede
@@ -171,7 +189,11 @@ Pide una tarjeta para abrir la cuenta. Alternativa: Backblaze B2.
      `-o /dev/null `), arrastre el archivo `.tar.age` a la ventana y pulse Enter. Sin mensaje = bien. "no identity
      matched" = esa llave no es la de `AGE_RECIPIENTS`. Después borre `llave-dueno.txt` de la computadora (queda en
      su gestor de contraseñas).
-   - Si la corrida dice "password authentication failed", vuelva a armar `CANOPY_DB_URL` (punto 4).
+   - Si la corrida dice "password authentication failed", vuelva a armar `CANOPY_DB_URL` (punto 4). Con
+     `for user "postgres"`, la dirección quedó con la cuenta del dueño: cambie `postgres.` por `canopy_backup.`.
+     Desde 2026-10-14 `backup.sh` revisa la dirección antes de conectar y lo dice así, sin intentar entrar. Un
+     secreto no se puede leer: para armarlo otra vez hace falta la contraseña; si ya no la tiene, el paso 3.4
+     (punto 3) genera otra.
 
    Cuando ya esté aplicada la migración 0002, la tarjeta Respaldos de Inicio también queda verde.
 
@@ -308,8 +330,8 @@ otra** (paso 3.4, punto 3): el pooler de Supabase guarda la contraseña anterior
 estaba abierta sigue viva. Haga esta reversión completa (cierra sus conexiones y quita la cuenta) y luego el paso 2, el
 paso 3.4 y el secreto nuevo:
 
-1. GitHub → `canopy-respaldos` → **Actions**: desactive "Respaldo nocturno" y "Ensayo en pruebas" (**Disable
-   workflow**).
+1. GitHub → `canopy-respaldos` → **Actions**: desactive "Respaldo nocturno", "Comprobar la conexión (sin respaldo)" y
+   "Ensayo en pruebas" (**Disable workflow**).
 2. SQL Editor → New query → pegue **todo** `supabase/tools/backup-account-rollback.sql` → Run. Debe decir
    **"listo: la cuenta canopy_backup ya no existe (…)"**. Si dice "REVISAR" o sale un **ERROR**, copie la fila o el
    mensaje en el chat; ejecutarlo otra vez no hace daño.
