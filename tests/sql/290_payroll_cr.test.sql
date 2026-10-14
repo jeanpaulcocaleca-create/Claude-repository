@@ -49,7 +49,7 @@ select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": 922000
 select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": 922000, "pct": 0}, {"upto": 900000, "pct": 10}, {"upto": null, "pct": 15}]}', 'Contadora', 'prueba')->>'error', 'bad_value', 'brackets go up');
 select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": 922000, "pct": 0}, {"upto": 1352000, "pct": 10}]}', 'Contadora', 'prueba')->>'error', 'bad_value', 'the last bracket has no upper limit');
 select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": 922000, "pct": 0}, {"upto": null, "pct": 10}, {"upto": 2000000, "pct": 15}]}', 'Contadora', 'prueba')->>'error', 'bad_value', 'nothing after the open bracket');
-select test.eq(public.payroll_param_save('impuesto', '{}', 'Contadora', 'prueba')->>'error', 'bad_value', 'only the three parameters');
+select test.eq(public.payroll_param_save('impuesto', '{}', 'Contadora', 'prueba')->>'error', 'bad_value', 'only the four parameters (renta, vacation, severance, ccss)');
 select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": "NaN", "pct": 0}, {"upto": null, "pct": 10}]}', 'Contadora', 'prueba')->>'error', 'bad_value', 'NaN is not a limit');
 select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": 922000, "pct": 0}, {"upto": null, "pct": 10}], "credit_child": "Infinity"}', 'Contadora', 'prueba')->>'error', 'bad_value', 'nor infinity a credit');
 select test.eq(public.payroll_param_save('vacation', '{"days_per_month": 0}', 'Contadora', 'prueba')->>'error', 'bad_value', 'vacation days per month above zero');
@@ -233,7 +233,12 @@ select test.eq(public.severance_estimate(test.staff('ana'), public.cr_today(), '
 select public.severance_estimate(test.staff('marta'), public.cr_today() + 400, 'despido_sin_causa') as se3 \gset
 select test.eq((select x->>'amount_crc' is null from jsonb_array_elements((:'se3'::jsonb)->'items') x where x->>'key' = 'cesantia'), true, 'no posted payroll in the six months before that date: the severance amount is blank');
 select test.eq((:'se3'::jsonb)->>'total_crc', null::text, 'and so is the total, never a misleading number');
--- the CCSS minimum contribution base: Luis (32 000 in 14 days) is below a 200 000 monthly base (93 333.33 for 14 days)
+-- exactly one year of service: fifteen days of notice (art. 28: "up to a year"), the table of art. 29 from a year on
+select public.severance_estimate(test.staff('ana'), (public.cr_today() - 400 + interval '1 year')::date, 'despido_sin_causa') as se4 \gset
+select test.eq((:'se4'::jsonb)->>'months', '12', 'twelve months to the day');
+select test.eq((select x->>'days' from jsonb_array_elements((:'se4'::jsonb)->'items') x where x->>'key' = 'preaviso'), '15', 'notice at exactly one year: fifteen days, not a month');
+select test.eq((select x->>'days' from jsonb_array_elements((:'se4'::jsonb)->'items') x where x->>'key' = 'cesantia'), '19.50', 'severance at exactly one year: the first year of the table');
+-- the CCSS minimum contribution base (a monthly amount): saved with its confirmation, applied to the payrolls prepared from then on
 select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": "NaN"}', 'Contadora', 'prueba')->>'error', 'bad_value', 'a real amount');
 select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 200000}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'the base is saved with its confirmation');
 select test.eq(public.pay_period_save(public.cr_today() - 6, public.cr_today() - 1)->>'ok', 'true', 'a second period');
@@ -251,6 +256,22 @@ reset role;
 select test.eq((select deductions_crc || '|' || employer_crc || '|' || (select bool_or((e->>'floor')::boolean) from jsonb_array_elements(deductions) e)
                   from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), '4200.00|10652.00|true', 'the CCSS rules take the minimum base; the INS stays on the pay; the line is flagged');
 select test.eq((select renta_crc from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), 0::numeric, 'no income tax on 8 000');
+-- an empty parameter is refused; 0 is written on purpose and means "no minimum base"
+select test.login('accountant', 'aal2'); set role authenticated;
+select test.eq(public.payroll_param_save('ccss', '{}', 'Contadora', 'prueba')->>'error', 'bad_value', 'the amount must be written');
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 0}', 'Contadora M. Rojas', 'sin base (prueba)')->>'ok', 'true', '0 is accepted: no minimum base');
+reset role;
+select test.eq((public._payroll_params_now()->>'ccss_min_base') is null, true, 'a base of 0 is no base');
+-- a base far above the pay (a few hours in the period): the review names the cause, not just a negative net
+select test.login('accountant', 'aal2'); set role authenticated;
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 1000000}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'a base of a million');
+select test.eq(public.payroll_review(:'run2')->>'error', 'prepare_again', 'the parameter changed after the draft: it is prepared again first');
+select test.eq(public.payroll_prepare(:'period2')->>'ok', 'true', 'prepared again');
+select test.eq(public.payroll_review(:'run2')->>'error', 'floor_over_pay', 'Luis: 10,5 % of 200 000 is more than his 8 000: the review says why');
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 200000}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'back to 200 000');
+select test.eq(public.payroll_prepare(:'period2')->>'ok', 'true', 'prepared again');
+reset role;
+select test.eq((select deductions_crc from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), 4200.00, 'and the line is as before');
 select test.login('accountant', 'aal2'); set role authenticated;
 -- payroll_staff carries the state the page needs
 select public.payroll_staff() as st \gset

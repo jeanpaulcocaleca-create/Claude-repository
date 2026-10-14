@@ -246,8 +246,9 @@ begin
   elsif p_key = 'vacation' then
     v := coalesce((p_value->>'days_per_month')::numeric, 0);
     if not public._payroll_finite(v) or v <= 0 or v > 5 then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
-  elsif p_key = 'ccss' then          -- the minimum contribution base, a monthly amount the CCSS publishes
-    v := coalesce((p_value->>'min_base_crc')::numeric, 0);
+  elsif p_key = 'ccss' then          -- the minimum contribution base, a monthly amount the CCSS publishes; 0 means "no minimum base"
+    if (p_value->>'min_base_crc') is null then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+    v := (p_value->>'min_base_crc')::numeric;
     if not public._payroll_finite(v) or v < 0 then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
   else
     if jsonb_typeof(p_value->'per_year') <> 'object' or jsonb_typeof(p_value->'notice') <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
@@ -353,10 +354,11 @@ begin
   select * into prof from public.staff_profile where staff_id = p_staff_id;
   base := l.gross_crc + l.extra_crc; days := p.ends_on - p.starts_on + 1;
   rj := public._payroll_renta(base, days, coalesce(prof.children, 0), coalesce(prof.spouse, false), r.params);
-  -- the CCSS rules take the greater of the pay and the confirmed minimum base (a monthly amount, taken to the period's days)
+  -- the CCSS rules take the greater of the pay and the confirmed minimum base: a monthly amount; a period of 28 to 31 days is a
+  -- month (as for the tax table), a shorter or a longer one takes its days over 30
   ccss_base := base;
   if (r.params->>'ccss_min_base') is not null and days > 0 then
-    ccss_base := greatest(base, round((r.params->>'ccss_min_base')::numeric * least(days, 30) / 30, 2));
+    ccss_base := greatest(base, round((r.params->>'ccss_min_base')::numeric * case when days between 28 and 31 then 1 else days / 30.0 end, 2));
     floor_hit := ccss_base > base;
   end if;
   update public.payroll_lines set
@@ -393,7 +395,7 @@ begin
                             'accrue_aguinaldo', public.setting('payroll_accrue_aguinaldo') = 'true'::jsonb and public._payroll_cr_confirmed(),
                             'cr_confirmed', public._payroll_cr_confirmed(),
                             -- the CCSS minimum contribution base, only when confirmed (a monthly amount)
-                            'ccss_min_base', (select (value->>'min_base_crc')::numeric from public.payroll_params where key = 'ccss' and confirmed_by is not null and public._payroll_cr_confirmed()));
+                            'ccss_min_base', (select nullif((value->>'min_base_crc')::numeric, 0) from public.payroll_params where key = 'ccss' and confirmed_by is not null and public._payroll_cr_confirmed()));
 end $$;
 revoke all on function public._payroll_params_now() from public, anon, authenticated;
 
@@ -495,6 +497,10 @@ begin
   -- the rules, the settings, the confirmation or a parameter changed since it was prepared: it is worked out again first
   if r.params is distinct from public._payroll_params_now() then return jsonb_build_object('ok', false, 'error', 'prepare_again'); end if;
   if r.params->>'renta_status' = 'no_table' then return jsonb_build_object('ok', false, 'error', 'renta_table_missing'); end if;
+  -- the minimum base above someone's pay (a few hours in the period): the accountant decides how that person is reported (A-08)
+  if exists (select 1 from public.payroll_lines l where l.run_id = r.id and l.net_crc < 0
+               and exists (select 1 from jsonb_array_elements(l.deductions) e where (e->>'floor')::boolean)) then
+    return jsonb_build_object('ok', false, 'error', 'floor_over_pay'); end if;
   if exists (select 1 from public.payroll_lines where run_id = r.id and net_crc < 0) then return jsonb_build_object('ok', false, 'error', 'negative_net'); end if;
   if exists (select 1 from public.payroll_lines where run_id = r.id and gross_crc is null) then return jsonb_build_object('ok', false, 'error', 'missing_rates'); end if;
   -- nobody to pay, or nothing to pay (every line at zero would make an entry without lines)
@@ -816,9 +822,10 @@ begin
   daily := (avg->>'daily_crc')::numeric;
   owes_severance := p_reason = 'despido_sin_causa';
   if owes_severance then
-    -- art. 28/29 bands: more than 3 months up to 6; more than 6 months up to a year; a year or more
+    -- art. 28 (notice): from three months up to six, a week; more than six months up to a year, fifteen days; more than a year, a month.
+    -- art. 29 (severance): more than six months but less than a year, 14 days; from a year, the table by years
     notice_days := case when months < 3 then 0 when months <= 6 then coalesce((par.value->'notice'->>'3')::numeric, 7)
-                        when months < 12 then coalesce((par.value->'notice'->>'6')::numeric, 15) else coalesce((par.value->'notice'->>'12')::numeric, 30) end;
+                        when months <= 12 then coalesce((par.value->'notice'->>'6')::numeric, 15) else coalesce((par.value->'notice'->>'12')::numeric, 30) end;
     if months < 3 then sev_days := 0;
     elsif months <= 6 then sev_days := coalesce((par.value->>'under_6_months_days')::numeric, 7);
     elsif months < 12 then sev_days := coalesce((par.value->>'under_1_year_days')::numeric, 14);
@@ -877,15 +884,15 @@ begin
                'other_crc', round(x.other, 2), 'net_crc', round(x.net, 2), 'employer_ccss_crc', round(x.er_ccss, 2), 'employer_ins_crc', round(x.er_ins, 2), 'employer_other_crc', round(x.er_other, 2))
                order by x.staff_name), '[]')
         from x left join public.staff_profile sp on sp.staff_id = x.staff_id),
-    'rules', (            -- each rule's total in the month, as the payrolls applied it
-      select coalesce(jsonb_agg(jsonb_build_object('code', code, 'name', name, 'kind', kind, 'category', category, 'pct', pct, 'amount_crc', round(amount, 2)) order by kind, code), '[]') from (
-        select e->>'code' as code, max(e->>'name') as name, 'employee' as kind, max(coalesce(e->>'category', 'other')) as category, max((e->>'pct')::numeric) as pct, sum((e->>'amount')::numeric) as amount
+    'rules', (            -- each rule's total in the month, as the payrolls applied it (a percentage changed within the month: one row per percentage)
+      select coalesce(jsonb_agg(jsonb_build_object('code', code, 'name', name, 'kind', kind, 'category', category, 'pct', pct, 'amount_crc', round(amount, 2)) order by kind, code, pct), '[]') from (
+        select e->>'code' as code, max(e->>'name') as name, 'employee' as kind, max(coalesce(e->>'category', 'other')) as category, (e->>'pct')::numeric as pct, sum((e->>'amount')::numeric) as amount
           from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id, jsonb_array_elements(l.deductions) e
-         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by e->>'code'
+         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by e->>'code', (e->>'pct')::numeric
         union all
-        select e->>'code', max(e->>'name'), 'employer', max(coalesce(e->>'category', 'other')), max((e->>'pct')::numeric), sum((e->>'amount')::numeric)
+        select e->>'code', max(e->>'name'), 'employer', max(coalesce(e->>'category', 'other')), (e->>'pct')::numeric, sum((e->>'amount')::numeric)
           from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id, jsonb_array_elements(l.employer) e
-         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by e->>'code') q),
+         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by e->>'code', (e->>'pct')::numeric) q),
     'floor_lines', (select count(*) from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id
                      where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 and exists (select 1 from jsonb_array_elements(l.deductions || l.employer) e where (e->>'floor')::boolean)),
     'attribution', 'Cada periodo de pago cuenta en el mes en que termina; los días trabajados son los del mes calendario.',

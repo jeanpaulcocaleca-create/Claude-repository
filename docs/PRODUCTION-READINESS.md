@@ -1,6 +1,6 @@
 # Canopy OS · Production Readiness Report
 
-Date: 2026-10-12, updated 2026-10-13 · Branch `claude/hanging-garden-coffee-proposal-1m8zd4` · PR #1 (draft)
+Date: 2026-10-12, updated 2026-10-14 · Branch `claude/hanging-garden-coffee-proposal-1m8zd4` · PR #1 (draft)
 
 Nothing was published, no production setting was changed, and the production database was not connected to,
 queried or changed from here. Every "production" fact below is either read from GitHub (read-only), read from the
@@ -106,16 +106,16 @@ rehearsal compares them with the reviewed list after the migrations.
 - **The owner's real-data staging rehearsal is not done:** it needs the staging project (E-13).
   It is one button in the private repository ("Ensayo en pruebas").
 
-**Full automated run** (`tests/run.sh`, 2026-10-13, also in CI on every push), all passed:
+**Full automated run** (`tests/run.sh`, 2026-10-14, also in CI on every push), all passed:
 
 | Stage | Result |
 |---|---|
 | Lint (no secrets, release rules, plain-SQL migrations, environments incl. "staging never on production", no storage DDL beyond bucket inserts and storage policies) | ok |
-| SQL tests | 27 files (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows) |
+| SQL tests | 31 files, 924 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (139), who took the money `300`, the review fixes `310`) |
 | Backup pipeline (before 0000 and after; content, rights, photos, encryption, offline-key restore, computer sync) | ok |
-| Migration rehearsal (sections 4 and 5, with the staging-copy flow) | ok |
+| Migration rehearsal 0000 → 0028 (sections 4 and 5, with the staging-copy flow; both payroll settings arrive OFF) | ok |
 | Live pages on the migrated copy | 5/5 |
-| Browser tests of the new pages | 93/93 (incl. the supplier XML import, the phone-code warning in English and Spanish, and a sale on a login without café grant kept on the device) |
+| Browser tests of the new pages | 102/102 (incl. the supplier XML import, the phone-code warning in English and Spanish, a sale on a login without café grant kept on the device, the payroll screens, the clock-out from the POS, the Menu Manager in tax-exclusive mode, and a café morning on two devices with three people) |
 | Database consistency and security checks | inside the rehearsal: identical "kept" values, no new problems, reviewed rules only, ledger balanced |
 | Backup restoration | before and after the migrations: rows, content and rights identical |
 
@@ -206,9 +206,11 @@ Each step is the owner's. I give them one at a time and check each result before
      carries no password;
    - private repository `canopy-respaldos` with the files of `ops/backup/repositorio-respaldos/`;
    - age keys; secrets `CANOPY_DB_URL` and `AGE_RECIPIENTS`; variable `SUPABASE_URL`;
-   - Run workflow → green; the run summary shows `restauración verificada: … tablas`, `8 archivos verificados`,
-     `listo: … restauración: passed` → download `respaldo-cifrado` and check it opens with the owner key (RESPALDOS
-     3.6).
+   - ~~"Comprobar la conexión (sin respaldo)" → green~~ **Done 2026-10-14** (owner): the corrected `CANOPY_DB_URL`
+     signs in as `canopy_backup` with the expected rights; nothing was copied (D-034);
+   - **Next:** Run workflow (`Respaldo`) → green; the run summary shows `restauración verificada: … tablas`,
+     `8 archivos verificados`, `listo: … restauración: passed` → download `respaldo-cifrado` and check it opens with
+     the owner key (RESPALDOS 3.6). The owner has set this aside for now; nothing in waves 0–5 may start before it.
 5. Save today's site: release `sitio-2026-10-09` targeting `gh-pages`. Also set environment `production`:
    required reviewer = owner, tags `v*`.
 6. Separate the café devices' login from the owners' (`docs/INGRESOS.md`, E-05): **case B** (D-031), after step 4.

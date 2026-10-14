@@ -724,7 +724,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   period of 28 to 31 days is a month for the tax table (only a shorter period is taken to a month); the aguinaldo is
   posted before 30 November only with a written reason kept on the run, never while a period of the year has no
   posted payroll, and a run posted early leaves the rest to a later complementary run that discounts what was paid.
-- **Proof:** `tests/sql/290_payroll_cr.test.sql` (126 assertions: categories, the profile and its log, the table
+- **Proof:** `tests/sql/290_payroll_cr.test.sql` (139 assertions: categories, the profile and its log, the table
   validation with NaN and infinity, the withholding off → no table → on, the prorated tax and the calendar month,
   extra pay and its log, a stale draft, extras kept on re-prepare, the split entry, the payslip, the month, the
   aguinaldo run blocked without the confirmation and without a reason before 30 November, nothing left after it,
@@ -747,6 +747,15 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   written reason; the aguinaldo card opens on the current year. Overtime, paid holidays (feriados) and the minimum
   wage by occupation are not modelled: the hours come from the time clock at one rate, and a holiday worked is paid
   as extra pay typed by the manager; A-08 lists them for the accountant.
+- **From the third review (the round-3 diff itself):** a period of 28 to 31 days takes the whole monthly minimum base,
+  as the tax table already treats it as a month (a shorter or longer period takes its days over 30); a minimum base
+  above someone's pay for the period (a few hours) makes the review answer `floor_over_pay` instead of a bare
+  negative net, and the page says what to do: ask the accountant how a part-time worker is reported and, to prepare
+  that payroll meanwhile, save the base as 0 (which means "no minimum base" and is shown as such, never as a
+  confirmed base); an empty amount is refused on the page and on the server; the "CCSS minimum base" tag also appears
+  when only the employer's rules were floored, and the payslip prints the base the CCSS contributions were taken on;
+  at exactly one year of service the notice is fifteen days (art. 28: "up to a year") while the severance takes the
+  table's first year (art. 29).
 - **Not proven:** the real percentages, brackets, minimum base and tables (they come from the accountant, A-08); the
   prorating method against Hacienda's practice; a browser print of the payslip (checked by hand in a screenshot only).
 
