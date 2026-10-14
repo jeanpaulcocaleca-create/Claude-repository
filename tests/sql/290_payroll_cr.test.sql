@@ -252,9 +252,13 @@ select test.login('accountant', 'aal2'); set role authenticated;
 select public.payroll_prepare(:'period2') as pr2 \gset
 select (:'pr2'::jsonb)->>'run_id' as run2 \gset
 reset role;
--- Luis: 4 h × 2 000 = 8 000 in a 6-day period; the base taken to 6 days is 40 000: CCSS 10,5 % of 40 000 = 4 200, INS 1,5 % of 8 000 = 120
+-- Luis: 4 h × 2 000 = 8 000 in a 6-day period; the base taken to 6 days is 40 000. The worker's quota stays on his pay (10,5 % of 8 000 = 840);
+-- the business pays its own 26,33 % on 40 000 = 10 532, the INS 1,5 % on 8 000 = 120, and the worker's quota on the difference, 10,5 % of 32 000 = 3 360
 select test.eq((select deductions_crc || '|' || employer_crc || '|' || (select bool_or((e->>'floor')::boolean) from jsonb_array_elements(deductions) e)
-                  from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), '4200.00|10652.00|true', 'the CCSS rules take the minimum base; the INS stays on the pay; the line is flagged');
+                  from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), '840.00|14012.00|false', 'the worker is deducted on his pay; the business carries the base; the deduction is not the floored one');
+select test.eq((select e->>'amount' || '|' || (e->>'base') || '|' || (e->>'diff') || '|' || (e->>'floor') from public.payroll_lines, jsonb_array_elements(employer) e
+                  where run_id = :'run2' and staff_id = test.staff('luis') and (e->>'absorbed')::boolean), '3360.00|40000.00|32000.00|true', 'the quota the business assumes: its own entry, flagged, with the base and the difference');
+select test.eq((select count(*) from public.payroll_lines, jsonb_array_elements(employer) e where run_id = :'run2' and staff_id = test.staff('ana') and (e->>'absorbed')::boolean), 0::bigint, 'Ana is above the base: nothing assumed');
 select test.eq((select renta_crc from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), 0::numeric, 'no income tax on 8 000');
 -- an empty parameter is refused; 0 is written on purpose and means "no minimum base"
 select test.login('accountant', 'aal2'); set role authenticated;
@@ -264,14 +268,19 @@ reset role;
 select test.eq((public._payroll_params_now()->>'ccss_min_base') is null, true, 'a base of 0 is no base');
 -- a base far above the pay (a few hours in the period): the review names the cause, not just a negative net
 select test.login('accountant', 'aal2'); set role authenticated;
-select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 1000000}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'a base of a million');
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 1000000, "worker_share": "otro"}', 'Contadora M. Rojas', 'prueba')->>'error', 'bad_value', 'the worker''s share is one of the two');
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 1000000, "worker_share": "on_base"}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'a base of a million, the worker''s quota on the base');
 select test.eq(public.payroll_review(:'run2')->>'error', 'prepare_again', 'the parameter changed after the draft: it is prepared again first');
 select test.eq(public.payroll_prepare(:'period2')->>'ok', 'true', 'prepared again');
-select test.eq(public.payroll_review(:'run2')->>'error', 'floor_over_pay', 'Luis: 10,5 % of 200 000 is more than his 8 000: the review says why');
+reset role;
+select test.eq((select deductions_crc || '|' || (select bool_or((e->>'floor')::boolean) from jsonb_array_elements(deductions) e) from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')),
+               '21000.00|true', 'on the base: 10,5 % of 200 000, the deduction flagged');
+select test.login('accountant', 'aal2'); set role authenticated;
+select test.eq(public.payroll_review(:'run2')->>'error', 'floor_over_pay', 'Luis: 21 000 is more than his 8 000: the review says why');
 select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 200000}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'back to 200 000');
 select test.eq(public.payroll_prepare(:'period2')->>'ok', 'true', 'prepared again');
 reset role;
-select test.eq((select deductions_crc from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), 4200.00, 'and the line is as before');
+select test.eq((select deductions_crc from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), 840.00, 'and the line is as before');
 select test.login('accountant', 'aal2'); set role authenticated;
 -- payroll_staff carries the state the page needs
 select public.payroll_staff() as st \gset

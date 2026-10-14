@@ -494,6 +494,7 @@ td.edit{white-space:normal;min-width:17rem}td.edit .row{display:flex;gap:.25rem;
       <div class="grid2">
         <div><label for="ccMin">Minimum base (₡ a month; 0 = none)</label><input id="ccMin" type="number" min="0" step="1"></div>
         <div><label for="ccWho">Confirmed by</label><input id="ccWho" maxlength="80"></div>
+        <div><label for="ccShare">Worker's quota on the part of the base above the pay</label><select id="ccShare"><option value="on_pay">Paid by the business on top</option><option value="on_base">Deducted from the worker</option></select></div>
         <div><label for="ccRef">Document or reference</label><input id="ccRef" maxlength="120"></div>
         <div style="align-self:end"><button type="button" id="ccSave">Save the CCSS base</button></div>
       </div>
@@ -633,7 +634,7 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   not_posted: 'Post it first.', payroll_posted: 'Its payroll is already posted: the hours stay.', used_by_payroll: 'A posted payroll used this rate: the change starts after that period.',
   bad_rows: 'Some rows could not be read: check the date format and the columns.', usd_not_supported: 'Dollar accounts come later: their movements must be valued in colones first.',
   prepare_again: 'The hours changed since this payroll was prepared: prepare it again.', negative_net: 'Someone would be paid less than zero: check the deductions.',
-  floor_over_pay: 'The CCSS minimum base is above someone\'s pay for this period (their net would be below zero): ask the accountant how a part-time worker is reported; to prepare this payroll without the base, save the CCSS base as 0 in Costa Rican rules and prepare it again.',
+  floor_over_pay: 'The worker\'s CCSS quota on the minimum base is more than someone\'s pay for this period (their net would be below zero): in Costa Rican rules, set the worker\'s quota above the pay as paid by the business, or save the base as 0, and prepare the payroll again.',
   renta_table_missing: 'Income tax withholding is on but there is no confirmed tax table: enter it in Costa Rican rules, or switch it off in Home → Settings, then prepare the payroll again.',
   not_found: 'Not found. Refresh the page.', unknown_setting: 'That setting does not exist.',
   too_early: 'Before 30 November the aguinaldo is posted only with a written reason.',
@@ -1760,7 +1761,7 @@ function renderCr(){
   if (r){ $('rbChild').value = r.value.credit_child || 0; $('rbSpouse').value = r.value.credit_spouse || 0; $('rbMethod').value = r.value.method || 'prorate'; $('rbFrom').value = r.value.valid_from || ''; }
   var v = P.vacation; $('vpDays').value = v ? v.value.days_per_month : 1;
   $('vpState').textContent = v && v.confirmed_by ? 'Confirmed by ' + v.confirmed_by + ' · ' + v.reference : 'Not confirmed: the law as written, for the estimates';
-  var cc = P.ccss; $('ccMin').value = cc && cc.confirmed_by ? Number(cc.value.min_base_crc) || 0 : '';
+  var cc = P.ccss; $('ccMin').value = cc && cc.confirmed_by ? Number(cc.value.min_base_crc) || 0 : ''; $('ccShare').value = cc && cc.value.worker_share === 'on_base' ? 'on_base' : 'on_pay';
   $('ccState').textContent = !(cc && cc.confirmed_by) ? 'Not confirmed: contributions are taken on the pay as it is (no minimum base)' :
     Number(cc.value.min_base_crc) > 0 ? 'Confirmed by ' + cc.confirmed_by + ' · ' + cc.reference : 'No minimum base, saved by ' + cc.confirmed_by + ' · ' + cc.reference + ' · contributions are taken on the pay as it is';
   var sv = P.severance;
@@ -1802,7 +1803,7 @@ $('svSave').addEventListener('click', function(){
 $('ccSave').addEventListener('click', function(){
   var m = $('ccMin').value.trim();   /* an empty field is not a base: 0 is written on purpose and means "no minimum base" */
   if (m === '' || !(Number(m) >= 0)){ $('vacErr').textContent = 'Write the minimum base in colones (0 = no minimum base).'; return; }
-  paramSave('ccss', {min_base_crc: Number(m)}, $('ccWho').value, $('ccRef').value, 'vacErr', 'CCSS base saved');
+  paramSave('ccss', {min_base_crc: Number(m), worker_share: $('ccShare').value === 'on_base' ? 'on_base' : 'on_pay'}, $('ccWho').value, $('ccRef').value, 'vacErr', 'CCSS base saved');
 });
 
 /* the payslip: a document for the person, in Spanish, printed from the page */
@@ -1820,7 +1821,7 @@ async function showPayslip(runId, staffId){
   row('Salario bruto', fmt(p.gross_crc));
   if (Number(p.extra_crc)) row('Pago extra' + (p.extra_note ? ' · ' + p.extra_note : ''), fmt(p.extra_crc));
   var floorEntry = (p.deductions || []).concat(p.employer || []).filter(function(d){ return !!d && d.floor === true; })[0];
-  if (floorEntry) row('Cuotas de la CCSS calculadas sobre la base mínima de', fmt(floorEntry.base));
+  if (floorEntry) row('Cuotas de la CCSS calculadas sobre la base mínima de', fmt(floorEntry.base));   /* every floored entry carries the base itself; an absorbed one adds the difference */
   (p.deductions || []).forEach(function(d){ row(d.name + ' (' + String(d.pct).replace('.', ',') + ' %)', '−' + fmt(d.amount)); });
   if (Number(p.renta_crc)) row('Retención del impuesto sobre la renta', '−' + fmt(p.renta_crc));
   if (Number(p.other_crc)) row('Otras deducciones' + (p.other_note ? ' · ' + p.other_note : ''), '−' + fmt(p.other_crc));

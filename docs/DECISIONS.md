@@ -724,7 +724,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   period of 28 to 31 days is a month for the tax table (only a shorter period is taken to a month); the aguinaldo is
   posted before 30 November only with a written reason kept on the run, never while a period of the year has no
   posted payroll, and a run posted early leaves the rest to a later complementary run that discounts what was paid.
-- **Proof:** `tests/sql/290_payroll_cr.test.sql` (139 assertions: categories, the profile and its log, the table
+- **Proof:** `tests/sql/290_payroll_cr.test.sql` (143 assertions: categories, the profile and its log, the table
   validation with NaN and infinity, the withholding off → no table → on, the prorated tax and the calendar month,
   extra pay and its log, a stale draft, extras kept on re-prepare, the split entry, the payslip, the month, the
   aguinaldo run blocked without the confirmation and without a reason before 30 November, nothing left after it,
@@ -756,6 +756,15 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   when only the employer's rules were floored, and the payslip prints the base the CCSS contributions were taken on;
   at exactly one year of service the notice is fifteen days (art. 28: "up to a year") while the severance takes the
   table's first year (art. 29).
+- **The worker's quota below the minimum base (the one finding that review confirmed after the fixes):** a worker is
+  never deducted more than their own pay bears. By default the worker's CCSS quota is taken on the pay, and the quota
+  on the difference up to the base is the business's own entry on the line ("diferencia asumida por el patrono",
+  flagged, posted with the employer's charges to 6102/2131, shown on the payslip and in the month by rule), so the
+  CCSS receives both quotas on the base and no net goes below zero. The accountant can choose the other reading in
+  the same form ("deducted from the worker", `worker_share = on_base`); then a pay too small for the quota answers
+  `floor_over_pay` and the page says what to do. A-08 item 7 asks the accountant which reading applies. Chosen
+  because a wrong default costs the business a small amount it can deduct later, while the other wrong default takes
+  money from a worker.
 - **Not proven:** the real percentages, brackets, minimum base and tables (they come from the accountant, A-08); the
   prorating method against Hacienda's practice; a browser print of the payslip (checked by hand in a screenshot only).
 

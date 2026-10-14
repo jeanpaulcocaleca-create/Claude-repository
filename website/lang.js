@@ -523,9 +523,10 @@
     'Paying days instead of taking them is the exception (Código de Trabajo art. 156): write the reason.': 'Pagar los días en vez de disfrutarlos es la excepción (Código de Trabajo art. 156): escriba el motivo.',
     'CCSS minimum contribution base': 'Base mínima contributiva de la CCSS', 'Minimum base (₡ a month; 0 = none)': 'Base mínima (₡ al mes; 0 = ninguna)',
     'Write the minimum base in colones (0 = no minimum base).': 'Escriba la base mínima en colones (0 = sin base mínima).',
+    'Worker\'s quota on the part of the base above the pay': 'Cuota obrera sobre la parte de la base que supera el salario', 'Deducted from the worker': 'Se deduce al trabajador',
     'No minimum base, saved by {x}': 'Sin base mínima, guardado por {x}', 'contributions are taken on the pay as it is': 'las cuotas se toman sobre el salario tal cual',
-    'The CCSS minimum base is above someone\'s pay for this period (their net would be below zero): ask the accountant how a part-time worker is reported; to prepare this payroll without the base, save the CCSS base as 0 in Costa Rican rules and prepare it again.':
-      'La base mínima de la CCSS supera el salario de alguien en este periodo (su neto quedaría bajo cero): consulte al contador cómo se reporta a una persona de tiempo parcial; para preparar esta planilla sin la base, guarde la base de la CCSS en 0 en Reglas de Costa Rica y prepárela de nuevo.',
+    'The worker\'s CCSS quota on the minimum base is more than someone\'s pay for this period (their net would be below zero): in Costa Rican rules, set the worker\'s quota above the pay as paid by the business, or save the base as 0, and prepare the payroll again.':
+      'La cuota obrera de la CCSS sobre la base mínima supera el salario de alguien en este periodo (su neto quedaría bajo cero): en Reglas de Costa Rica, ponga la cuota obrera que supera el salario como pagada por el negocio, o guarde la base en 0, y prepare la planilla de nuevo.',
     'Save the CCSS base': 'Guardar la base de la CCSS', 'CCSS base saved': 'Base de la CCSS guardada', 'CCSS minimum base': 'base mínima CCSS',
     '{n} line(s) on the CCSS minimum base': '{n} línea(s) sobre la base mínima de la CCSS',
     'Not confirmed: contributions are taken on the pay as it is (no minimum base)': 'Sin confirmar: las cuotas se toman sobre el salario tal cual (sin base mínima)',

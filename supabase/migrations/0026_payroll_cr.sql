@@ -250,6 +250,9 @@ begin
     if (p_value->>'min_base_crc') is null then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
     v := (p_value->>'min_base_crc')::numeric;
     if not public._payroll_finite(v) or v < 0 then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+    -- the worker's quota on the part of the base above the pay: paid by the business (the default: a worker is never deducted
+    -- more than their own pay bears) or deducted from the worker, as the accountant decides (A-08)
+    if coalesce(p_value->>'worker_share', 'on_pay') not in ('on_pay', 'on_base') then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
   else
     if jsonb_typeof(p_value->'per_year') <> 'object' or jsonb_typeof(p_value->'notice') <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
     for v in select value::numeric from jsonb_each_text(p_value->'per_year') union all select value::numeric from jsonb_each_text(p_value->'notice')
@@ -341,6 +344,7 @@ revoke all on function public._payroll_renta(numeric, int, int, boolean, jsonb) 
 create or replace function public._payroll_line_recalc(p_run_id uuid, p_staff_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
 declare r public.payroll_runs; l public.payroll_lines; p public.pay_periods; prof public.staff_profile; base numeric; days int; rj jsonb; ccss_base numeric; floor_hit boolean := false;
+        share text; emp_base numeric;
 begin
   select * into r from public.payroll_runs where id = p_run_id;
   select * into l from public.payroll_lines where run_id = p_run_id and staff_id = p_staff_id;
@@ -361,21 +365,33 @@ begin
     ccss_base := greatest(base, round((r.params->>'ccss_min_base')::numeric * case when days between 28 and 31 then 1 else days / 30.0 end, 2));
     floor_hit := ccss_base > base;
   end if;
+  -- the worker's CCSS quota: on the pay (the business pays the quota on the difference up to the base, as its own entry) or on the base
+  share := coalesce(r.params->>'ccss_worker_share', 'on_pay');
+  emp_base := case when share = 'on_base' then ccss_base else base end;
   update public.payroll_lines set
     deductions = coalesce((select jsonb_agg(jsonb_build_object('code', x->>'code', 'name', x->>'name', 'pct', (x->>'pct')::numeric, 'category', coalesce(x->>'category', 'other'),
-                                                               'base', case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end,
-                                                               'floor', coalesce(x->>'category', 'other') = 'ccss' and floor_hit,
-                                                               'amount', round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
+                                                               'base', case when coalesce(x->>'category', 'other') = 'ccss' then emp_base else base end,
+                                                               'floor', coalesce(x->>'category', 'other') = 'ccss' and floor_hit and share = 'on_base',
+                                                               'amount', round(case when coalesce(x->>'category', 'other') = 'ccss' then emp_base else base end * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
                              from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee'), '[]'),
-    deductions_crc = coalesce((select sum(round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2))
+    deductions_crc = coalesce((select sum(round(case when coalesce(x->>'category', 'other') = 'ccss' then emp_base else base end * (x->>'pct')::numeric / 100, 2))
                                  from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee'), 0),
-    employer = coalesce((select jsonb_agg(jsonb_build_object('code', x->>'code', 'name', x->>'name', 'pct', (x->>'pct')::numeric, 'category', coalesce(x->>'category', 'other'),
-                                                             'base', case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end,
-                                                             'floor', coalesce(x->>'category', 'other') = 'ccss' and floor_hit,
-                                                             'amount', round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
-                           from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'), '[]'),
+    employer = coalesce((select jsonb_agg(e order by (e->>'absorbed')::boolean, e->>'code') from (
+                  select jsonb_build_object('code', x->>'code', 'name', x->>'name', 'pct', (x->>'pct')::numeric, 'category', coalesce(x->>'category', 'other'),
+                                            'base', case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end,
+                                            'floor', coalesce(x->>'category', 'other') = 'ccss' and floor_hit, 'absorbed', false,
+                                            'amount', round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2)) as e
+                    from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'
+                  union all
+                  -- the worker's quota on the difference between the pay and the base, paid by the business
+                  select jsonb_build_object('code', x->>'code', 'name', (x->>'name') || ' · diferencia asumida por el patrono', 'pct', (x->>'pct')::numeric, 'category', 'ccss',
+                                            'base', ccss_base, 'diff', ccss_base - base, 'floor', true, 'absorbed', true,
+                                            'amount', round((ccss_base - base) * (x->>'pct')::numeric / 100, 2))
+                    from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee' and coalesce(x->>'category', 'other') = 'ccss' and floor_hit and share = 'on_pay') q), '[]'),
     employer_crc = coalesce((select sum(round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2))
-                               from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'), 0),
+                               from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'), 0)
+                   + case when floor_hit and share = 'on_pay' then coalesce((select sum(round((ccss_base - base) * (x->>'pct')::numeric / 100, 2))
+                               from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee' and coalesce(x->>'category', 'other') = 'ccss'), 0) else 0 end,
     renta_crc = coalesce((rj->>'amount')::numeric, 0), renta_detail = rj,
     aguinaldo_accrual_crc = case when coalesce((r.params->>'accrue_aguinaldo')::boolean, false) then round(base / 12, 2) else 0 end
    where run_id = p_run_id and staff_id = p_staff_id;
@@ -395,7 +411,8 @@ begin
                             'accrue_aguinaldo', public.setting('payroll_accrue_aguinaldo') = 'true'::jsonb and public._payroll_cr_confirmed(),
                             'cr_confirmed', public._payroll_cr_confirmed(),
                             -- the CCSS minimum contribution base, only when confirmed (a monthly amount)
-                            'ccss_min_base', (select nullif((value->>'min_base_crc')::numeric, 0) from public.payroll_params where key = 'ccss' and confirmed_by is not null and public._payroll_cr_confirmed()));
+                            'ccss_min_base', (select nullif((value->>'min_base_crc')::numeric, 0) from public.payroll_params where key = 'ccss' and confirmed_by is not null and public._payroll_cr_confirmed()),
+                            'ccss_worker_share', (select coalesce(value->>'worker_share', 'on_pay') from public.payroll_params where key = 'ccss' and confirmed_by is not null and public._payroll_cr_confirmed()));
 end $$;
 revoke all on function public._payroll_params_now() from public, anon, authenticated;
 
@@ -497,7 +514,7 @@ begin
   -- the rules, the settings, the confirmation or a parameter changed since it was prepared: it is worked out again first
   if r.params is distinct from public._payroll_params_now() then return jsonb_build_object('ok', false, 'error', 'prepare_again'); end if;
   if r.params->>'renta_status' = 'no_table' then return jsonb_build_object('ok', false, 'error', 'renta_table_missing'); end if;
-  -- the minimum base above someone's pay (a few hours in the period): the accountant decides how that person is reported (A-08)
+  -- the minimum base above someone's pay (a few hours in the period) with the worker's quota taken on the base: the accountant decides (A-08)
   if exists (select 1 from public.payroll_lines l where l.run_id = r.id and l.net_crc < 0
                and exists (select 1 from jsonb_array_elements(l.deductions) e where (e->>'floor')::boolean)) then
     return jsonb_build_object('ok', false, 'error', 'floor_over_pay'); end if;

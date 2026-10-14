@@ -111,7 +111,7 @@ rehearsal compares them with the reviewed list after the migrations.
 | Stage | Result |
 |---|---|
 | Lint (no secrets, release rules, plain-SQL migrations, environments incl. "staging never on production", no storage DDL beyond bucket inserts and storage policies) | ok |
-| SQL tests | 31 files, 924 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (139), who took the money `300`, the review fixes `310`) |
+| SQL tests | 31 files, 928 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (143), who took the money `300`, the review fixes `310`) |
 | Backup pipeline (before 0000 and after; content, rights, photos, encryption, offline-key restore, computer sync) | ok |
 | Migration rehearsal 0000 → 0028 (sections 4 and 5, with the staging-copy flow; both payroll settings arrive OFF) | ok |
 | Live pages on the migrated copy | 5/5 |

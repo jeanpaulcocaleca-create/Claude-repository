@@ -122,8 +122,10 @@ module.exports.tests = [
       await own.click('#prPrepare');
       await until(async () => /no tax table/.test(await own.locator('#prTable').innerText()), 8000, 'the line is flagged');
       assert.match(await own.locator('#prState').textContent(), /withholding is on but there is no tax table/);
-      // 500 000 in 14 days is under the minimum base (1 500 000 × 14/30 = 700 000): the CCSS rule is taken on the base and the line says so
-      assert.match(await own.locator('#prTable').innerText(), /₡73\s500\s*CCSS minimum base/, 'deductions on the minimum base, flagged');
+      // 500 000 in 14 days is under the minimum base (1 500 000 × 14/30 = 700 000): the worker is deducted on her pay (10,5 % = 52 500) and the
+      // business carries the quota on the difference as its own entry; the line says the base applied
+      assert.match(await own.locator('#prTable').innerText(), /₡52\s500\s*CCSS minimum base/, 'deductions on the pay, the line flagged');
+      assert.strictEqual(sql(`select e->>'amount' from payroll_lines, jsonb_array_elements(employer) e where (e->>'absorbed')::boolean`), '21000.00', 'the business assumes 10,5 % of 200 000');
       assert.match(await own.locator('#ccState').textContent(), /^Confirmed by Contadora · BMC 2026$/);
       // the owner fills Marta's profile
       await until(async () => (await own.locator('#rtTable tr', { hasText: 'Marta' }).count()) === 1, 8000, 'rates listed');
