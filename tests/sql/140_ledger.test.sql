@@ -132,8 +132,8 @@ select test.ok(exists (select 1 from acct.entries where source = 'day' and sourc
 
 -- 7) reversal and periods --------------------------------------------------------------------------------------------
 select test.login('accountant', 'aal2'); set role authenticated;
-select test.eq(public.acct_entry_reverse(((:'e1'::jsonb)->>'entry_id')::bigint, null, 'error de monto')->>'ok', 'true', 'a mistake is reversed');
-select test.eq(public.acct_entry_reverse(((:'e1'::jsonb)->>'entry_id')::bigint, null, 'otra vez')->>'error', 'already_reversed', 'only once');
+select test.eq(public.acct_journal_reverse(((:'e1'::jsonb)->>'entry_id')::bigint, null, 'error de monto')->>'ok', 'true', 'a mistake is reversed');
+select test.eq(public.acct_journal_reverse(((:'e1'::jsonb)->>'entry_id')::bigint, null, 'otra vez')->>'error', 'already_reversed', 'only once');
 select test.eq(public.acct_period_set(to_char(public.cr_today(), 'YYYYMM')::int, 'closed')->>'ok', 'true', 'the month is closed');
 select test.eq(public.acct_entry_post(public.cr_today(), 'tarde', '[{"account":"1101","debit":1},{"account":"4201","credit":1}]', gen_random_uuid())->>'error',
                'period_closed', 'nothing more is dated in a closed month');

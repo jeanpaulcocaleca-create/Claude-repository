@@ -400,7 +400,9 @@
     '{n} sold without a recipe: their cost is unknown.': '{n} vendidos sin receta: su costo es desconocido.',
     'Insights need a database update (migration 0023).': 'Información necesita una actualización de la base de datos (migración 0023).',
     'This page is for the owner and managers with access to the sales.': 'Esta página es para el dueño y los encargados con acceso a las ventas.',
-    '{x} · without IVA {y}': '{x} · sin IVA {y}', 'Estimate · without IVA {x}': 'Estimado · sin IVA {x}', 'Final · without IVA {x}': 'Final · sin IVA {x}',
+    /* the Home subtitle, whole and in its shorter forms, before the generic pattern (a pattern listed earlier wins) */
+    'Estimate · without IVA {x} · {y} vs last week': 'Estimado · sin IVA {x} · {y} contra la semana pasada', 'Final · without IVA {x} · {y} vs last week': 'Final · sin IVA {x} · {y} contra la semana pasada',
+    'Estimate · without IVA {x}': 'Estimado · sin IVA {x}', 'Final · without IVA {x}': 'Final · sin IVA {x}', '{x} · without IVA {y}': '{x} · sin IVA {y}',
     '▲ {n} % vs last week': '▲ {n} % contra la semana pasada', '▼ {n} % vs last week': '▼ {n} % contra la semana pasada', '{n} late': '{n} tarde',
     'without IVA {x}': 'sin IVA {x}', '{x} on average': '{x} en promedio', 'no sales': 'sin ventas', '{x} without IVA': '{x} sin IVA',
     'Food cost {x}': 'Costo de alimentos {x}', 'Labor {x}': 'Mano de obra {x}', 'Prime cost (food + labor) {x}': 'Costo primo (alimentos + mano de obra) {x}',
@@ -521,6 +523,16 @@
     'Sales by cashier': 'Ventas por cajero', 'Nobody signed in': 'Nadie con sesión', '{n} sales · {x}': '{n} ventas · {x}',
     'Who took the money: a bill paid later counts for the person who closed it, not who opened it. Sales rung with nobody signed in on the device are listed as such.':
       'Quién cobró: una cuenta pagada después cuenta para quien la cerró, no para quien la abrió. Las ventas hechas sin nadie con sesión en el aparato se listan así.',
+    /* review fixes (0028): Home switches and sales tiles, Insights for the accountant, the journal and the cash by day */
+    'Income tax withheld from pay': 'Retención de renta en la planilla', 'Aguinaldo provisioned every payroll': 'Aguinaldo provisionado en cada planilla',
+    'Insights open only with the code from your phone. Turn it on once in Accounting; then every sign-in asks for the code.':
+      'Información se abre solo con el código de su teléfono. Actívelo una vez en Contabilidad; después cada ingreso pide el código.',
+    "Labor % and prime cost need the owner's phone code or the accountant login.": 'El % de mano de obra y el costo primo necesitan el código del teléfono del dueño o el ingreso del contador.',
+    'undo from its document': 'se deshace desde su documento',
+    'This entry came from a document (expense, supplier, bank, payroll, day): undo it from that document.': 'Este asiento vino de un documento (gasto, proveedor, banco, planilla, día): deshágalo desde ese documento.',
+    'Only an asset account can be cash or bank.': 'Solo una cuenta de activo puede ser caja o banco.', 'IVA payable (net)': 'IVA por pagar (neto)',
+    'register not opened': 'caja sin abrir',
+    'Days with sales and no register: {x}. They are posted from the sales alone.': 'Días con ventas y sin caja: {x}. Se asientan solo con las ventas.',
     /* POS: money in or out of the drawer (0019) */
     'Money in or out of the drawer': 'Entrada o salida de dinero de la caja', 'What is it?': '¿Qué es?',
     'Out: deposit at the bank': 'Sale: depósito en el banco', 'Out: paying a purchase or a supplier': 'Sale: pago de una compra o a un proveedor',
@@ -785,6 +797,10 @@
     'Photo upload failed. Try again.': 'No se pudo subir la foto. Intente de nuevo.',
     'Photo saved but the menu did not update. Try again.': 'La foto se guardó pero el menú no se actualizó. Intente de nuevo.',
     'Photo updated': 'Foto actualizada',
+    /* menu manager with price_mode 'exclusive' (0009): the editor and the new-item prompt ask for the price before IVA
+       and show the final price that is stored */
+    'Price before IVA (numbers only)': 'Precio sin IVA (solo números)', 'Price before IVA (numbers only):': 'Precio sin IVA (solo números):',
+    '= {x} with IVA': '= {x} con IVA',
 
     /* POS */
     'Hanging Garden POS': 'Caja Hanging Garden', 'POS · Hanging Garden': 'Caja · Hanging Garden',
@@ -1219,6 +1235,10 @@
     'This device’s storage is full or blocked, so these sales are only on this page. Do not close or reload it until they are saved.': 'El almacenamiento de este dispositivo está lleno o bloqueado, así que estas ventas solo están en esta página. No la cierre ni la recargue hasta que se guarden.',
     'Could not update the list. Check the internet, or sign out and sign in again.': 'No se pudo actualizar la lista. Revise el internet, o cierre sesión y vuelva a ingresar.',
     'Could not load the open orders. Check the internet, or sign out and sign in again.': 'No se pudieron cargar las órdenes abiertas. Revise el internet, o cierre sesión y vuelva a ingresar.',
+    /* POS · review fixes (migration 0028): a negative total, the dollars at closing */
+    'The total cannot be negative.': 'El total no puede ser negativo.',
+    'This sale has a negative total and was not accepted.': 'Esta venta tiene un total negativo y no se aceptó.',
+    'Type the dollars in the drawer: the day expects {x}.': 'Escriba los dólares que hay en la caja: el día espera {x}.',
     /* faq:start */
     "Where is the best coffee in Monteverde?": "¿Dónde está el mejor café de Monteverde?",
     "Ask ten guides in Santa Elena and you get ten answers, so here is ours: the best coffee in Monteverde is grown here, roasted here and brewed slowly. At Hanging Garden Café we pour coffee from El Trapiche, a family farm on this mountain, roasted locally and ground for each cup. Read how we choose it on our coffee page.": "Pregunte a diez guías en Santa Elena y tendrá diez respuestas, así que aquí va la nuestra: el mejor café de Monteverde se cultiva aquí, se tuesta aquí y se prepara sin prisa. En Hanging Garden Café servimos café de El Trapiche, una finca familiar de esta montaña, tostado localmente y molido para cada taza. Lea cómo lo elegimos en nuestra página del café.",

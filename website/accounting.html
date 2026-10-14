@@ -149,6 +149,7 @@ td.edit{white-space:normal;min-width:17rem}td.edit .row{display:flex;gap:.25rem;
   <div class="card" id="pendingCard" hidden>
     <h2>Closed days not in the books yet <span class="sp"></span><button type="button" class="small" id="pendingGo">Post these days</button></h2>
     <p class="hint mono" id="pendingList"></p>
+    <p class="hint" id="pendingNoReg" hidden></p>
   </div>
 
   <div class="tabs" id="tabs">
@@ -173,7 +174,7 @@ td.edit{white-space:normal;min-width:17rem}td.edit .row{display:flex;gap:.25rem;
       <div class="kpi"><div class="l">Costs and expenses</div><div class="v" id="kExp">–</div></div>
       <div class="kpi"><div class="l">Net income</div><div class="v" id="kNet">–</div></div>
       <div class="kpi"><div class="l">Cash and bank</div><div class="v" id="kCash">–</div></div>
-      <div class="kpi"><div class="l">IVA payable</div><div class="v" id="kIva">–</div></div>
+      <div class="kpi"><div class="l">IVA payable (net)</div><div class="v" id="kIva">–</div></div>
     </div>
     <p class="hint">From the entries in the books. Days not posted yet are not included.</p>
   </section>
@@ -626,11 +627,20 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   not_found: 'Not found. Refresh the page.', unknown_setting: 'That setting does not exist.',
   too_early: 'Before 30 November the aguinaldo is posted only with a written reason.',
   pending_payrolls: 'A pay period of the year has no posted payroll yet: post it first (or prepare the aguinaldo again after).',
-  is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.', big_change: 'That rate is far from the last one: the owner with the phone code can set it.', has_payments: 'This invoice has payments: void the payments first.'};
+  is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.', big_change: 'That rate is far from the last one: the owner with the phone code can set it.', has_payments: 'This invoice has payments: void the payments first.',
+  use_document: 'This entry came from a document (expense, supplier, bank, payroll, day): undo it from that document.', cash_not_asset: 'Only an asset account can be cash or bank.'};
 function errText(r){ return r.error ? 'Could not save. Check the connection and try again.' : (ERR[r.data && r.data.error] || 'Could not save. Try again.'); }
 
 /* ---------- sign in: the owner (phone code) or the accountant ---------- */
 var KIND = null, OV = null;
+/* the owner's and the accountant's logins sign out by themselves after 30 minutes without a touch */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (!/^(owner|accountant)/.test(KIND || '')) return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
 async function codeNeeded(){
   try { var r = await db.auth.mfa.getAuthenticatorAssuranceLevel(); return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2'; }
   catch (e){ return false; }
@@ -643,6 +653,7 @@ async function refreshAuth(){
   if (needCode){ $('codeIn').focus(); return; }
   if (!authed) return;
   var k = await db.rpc('account_kind'); KIND = k.error ? null : k.data;
+  armIdle();
   var r = await db.rpc('acct_overview');
   if (r.error || !r.data || !r.data.ok){
     var needs = KIND === 'accountant_needs_code' || KIND === 'owner' || KIND === 'owner_needs_code';
@@ -700,6 +711,9 @@ function renderOverview(){
   var pend = OV.pending_days || [];
   $('pendingCard').hidden = !pend.length;
   $('pendingList').textContent = pend.join(' · ');
+  var noReg = OV.days_without_register || [];   /* 0028: days with paid sales and no register opened */
+  $('pendingNoReg').hidden = !noReg.length;
+  $('pendingNoReg').textContent = noReg.length ? 'Days with sales and no register: ' + noReg.join(', ') + '. They are posted from the sales alone.' : '';
   var opts = ACCOUNTS.filter(function(a){ return a.active; }).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
   $('jAcct').innerHTML = '<option value="">All accounts</option>' + opts;
   $('xAcct').innerHTML = ACCOUNTS.filter(function(a){ return a.active && a.type === 'expense'; }).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
@@ -755,9 +769,13 @@ async function loadSummary(){
   if (!is || !is.ok) return;
   $('kRev').textContent = fmt(is.revenue); $('kExp').textContent = fmt(is.expenses); $('kNet').textContent = fmt(is.net_income);
   $('kCash').textContent = cf && cf.ok ? fmt(cf.closing) : '–';
-  var iva = bs && bs.ok ? (bs.rows || []).filter(function(x){ return x.code === '2110'; })[0] : null;
-  $('kIva').textContent = fmt(iva ? iva.amount : 0);
+  /* IVA payable net of the IVA credit: the mapped accounts (Accounts tab), 2110 and 1140 when the mappings are missing.
+     The balance sheet gives an asset as its debit balance and a liability as its credit balance: both read as credit here */
+  var rows = bs && bs.ok ? (bs.rows || []) : [];
+  function credit(code){ var x = rows.filter(function(r){ return r.code === code; })[0]; return x ? (x.type === 'asset' ? -Number(x.amount) : Number(x.amount)) : 0; }
+  $('kIva').textContent = fmt(credit(mapped('iva_out', '2110')) + credit(mapped('iva_in', '1140')));
 }
+function mapped(key, fallback){ var m = (OV && OV.mappings || []).filter(function(x){ return x.key === key; })[0]; return (m && m.account) || fallback; }
 $('sMonth').addEventListener('change', loadSummary);
 
 /* ---------- journal ---------- */
@@ -776,9 +794,11 @@ async function loadJournal(){
     var head = document.createElement('div'); head.className = 'eh';
     head.innerHTML = '<b class="mono">Nº ' + e.entry_no + '</b><span class="mono">' + esc(e.date) + '</span><span>' + esc(e.memo) + '</span>' +
       '<span class="tag">' + esc(SRC[e.source] || e.source) + '</span>' + (e.reversed ? '<span class="tag rev">Reversed</span>' : '') + '<span class="sp"></span>';
-    if (!e.reversed && e.source !== 'reversal'){
+    if (!e.reversed && (e.source === 'manual' || e.source === 'opening')){
       var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'ghost small noprint'; rb.textContent = 'Reverse';
       rb.addEventListener('click', function(){ reverse(e); }); head.appendChild(rb);
+    } else if (!e.reversed && e.source !== 'reversal'){
+      var ud = document.createElement('span'); ud.className = 'tag'; ud.textContent = 'undo from its document'; head.appendChild(ud);
     }
     var t = document.createElement('table');
     t.innerHTML = '<tbody>' + (e.lines || []).map(function(l){ return '<tr><td>' + esc(l.account + ' · ' + l.name) + (l.memo ? '<br><small class="hint">' + esc(l.memo) + '</small>' : '') +
@@ -796,7 +816,8 @@ $('jCsv').addEventListener('click', function(){
 async function reverse(e){
   var why = prompt('Why is entry Nº ' + e.entry_no + ' reversed?');
   if (!why) return;
-  var r = await db.rpc('acct_entry_reverse', {p_entry_id: e.id, p_date: today(), p_memo: why});
+  var r = await db.rpc('acct_journal_reverse', {p_entry_id: e.id, p_date: today(), p_memo: why});
+  if (r.error && /acct_journal_reverse|Could not find/i.test(r.error.message || '')) r = await db.rpc('acct_entry_reverse', {p_entry_id: e.id, p_date: today(), p_memo: why});   /* before 0028 */
   if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; }
   toast('Reversal posted'); loadJournal();
 }
@@ -1288,13 +1309,14 @@ async function loadCash(){
     return '<td class="num"' + (Math.abs(x) >= (money ? 1 : 0.01) ? ' style="color:var(--bad)"' : '') + '>' + (money ? fmt(x) : esc((x < 0 ? '−$' : '$') + Math.abs(x).toFixed(2))) + '</td>'; }
   CASH.forEach(function(d){
     var t = document.createElement('tr');
-    t.innerHTML = '<td class="mono">' + esc(d.date) + (d.closed ? '' : ' <span class="tag">' + esc('Still open') + '</span>') + '</td><td>₡</td>' + num(d.float_crc, 1) + num(d.sales_crc, 1) + num(d.in_crc, 1) + num(d.out_crc, 1) +
-      num(d.expected_crc, 1) + num(d.counted_crc, 1) + (d.closed ? diff(d.diff_crc, 1) : '<td></td>');
+    var noReg = d.opened === false;   /* sales (or drawer movements) that day, no register opened: nothing counted, no difference */
+    t.innerHTML = '<td class="mono">' + esc(d.date) + (noReg ? ' <span class="tag">' + esc('register not opened') + '</span>' : d.closed ? '' : ' <span class="tag">' + esc('Still open') + '</span>') + '</td><td>₡</td>' + num(d.float_crc, 1) + num(d.sales_crc, 1) + num(d.in_crc, 1) + num(d.out_crc, 1) +
+      num(d.expected_crc, 1) + (noReg ? '<td></td><td></td>' : num(d.counted_crc, 1) + (d.closed ? diff(d.diff_crc, 1) : '<td></td>'));
     tb.appendChild(t);
     if (Number(d.float_usd) || Number(d.sales_usd) || Number(d.in_usd) || Number(d.out_usd) || d.counted_usd != null){
       var u = document.createElement('tr');
-      u.innerHTML = '<td></td><td>$</td>' + num(d.float_usd) + num(d.sales_usd) + num(d.in_usd) + num(d.out_usd) + num(d.expected_usd) + num(d.counted_usd) +
-        (d.closed ? diff(d.diff_usd) : '<td></td>');
+      u.innerHTML = '<td></td><td>$</td>' + num(d.float_usd) + num(d.sales_usd) + num(d.in_usd) + num(d.out_usd) + num(d.expected_usd) +
+        (noReg ? '<td></td><td></td>' : num(d.counted_usd) + (d.closed ? diff(d.diff_usd) : '<td></td>'));
       tb.appendChild(u);
     }
   });
@@ -1998,8 +2020,10 @@ function renderAccounts(){
 function openAccount(a){
   $('aForm').hidden = false; $('aErr').textContent = '';
   $('aCode').value = a ? a.code : ''; $('aCode').disabled = !!a; $('aName').value = a ? a.name : ''; $('aType').value = a ? a.type : 'expense';
-  $('aCash').checked = !!(a && a.cash); $('aActive').checked = a ? a.active : true; $('aName').focus();
+  $('aCash').checked = !!(a && a.cash); $('aActive').checked = a ? a.active : true; cashOnlyAsset(); $('aName').focus();
 }
+function cashOnlyAsset(){ var asset = $('aType').value === 'asset'; $('aCash').disabled = !asset; if (!asset) $('aCash').checked = false; }
+$('aType').addEventListener('change', cashOnlyAsset);
 $('aNew').addEventListener('click', function(){ openAccount(null); });
 $('aCancel').addEventListener('click', function(){ $('aForm').hidden = true; });
 $('aGo').addEventListener('click', async function(){

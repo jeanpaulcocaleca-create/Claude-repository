@@ -23,7 +23,7 @@ Documentos relacionados:
 5. **Comprobar**: `supabase/tools/release-check.sql` (solo lectura). Debe mostrar:
    - `migrations_missing` vacío hasta la ola aplicada;
    - `functions_missing` vacío (después de la ola 5);
-   - `migrations_applied` hasta la 27;
+   - `migrations_applied` hasta la 28;
    - `anon_can_run` solo `canopy_schema_version`, `order_status`, `place_room_order` y `room_lookup`;
    - `tables_without_rls` vacío;
    - `ledger.unbalanced` en 0;
@@ -36,7 +36,7 @@ Documentos relacionados:
 `tests/run.sh rehearsal` (también en cada cambio, en GitHub): base igual a producción hoy (los 18 archivos
 históricos) con unos 4 meses de historia (14 534 ventas, 38 280 líneas, 60 548 movimientos de inventario, 250
 pagos parciales, 208 anulaciones, 420 descuentos, 291 pedidos de habitación, 121 días de caja), migraciones
-0000 → 0027 aplicadas como la cuenta del SQL Editor (no superusuario):
+0000 → 0028 aplicadas como la cuenta del SQL Editor (no superusuario):
 
 - **2,1 segundos en total** (la más lenta, 0004: 0,5 s);
 - **nada de lo que existía cambió**: las 26 tablas originales (cada columna original, huella md5) y 27 revisiones
@@ -57,13 +57,13 @@ anteriores, así que va de última.
 
 Para que no quede ningún periodo con una corrección pendiente:
 - **Ola 0** (urgente) se aplica ya, sola.
-- **Las migraciones 0003 a 0027** se aplican juntas, en **una sola ventana** fuera de horario, después del ensayo
+- **Las migraciones 0003 a 0028** se aplican juntas, en **una sola ventana** fuera de horario, después del ensayo
   completo en pruebas (staging).
 - Todo lo regulado queda **apagado**. Las páginas se publican en esa misma ventana.
 - Las olas 1 a 5 de abajo se convierten en **activación y capacitación**: qué se revisa, qué se enciende y qué
   aprende el personal, una ola por semana.
 
-Si prefiere aplicar la base por olas, aplique **0025, 0026 y 0027 junto con la ola 5**. Hasta entonces:
+Si prefiere aplicar la base por olas, aplique **0025 a 0028 junto con la ola 5**. Hasta entonces:
 - no dé acceso de contador;
 - no escriba el PIN del dueño en la tableta.
 
@@ -172,7 +172,7 @@ En este orden. Cada paso es de solo lectura o se puede deshacer.
 
 ## Ola 5 · Información del negocio (Fase 5) y endurecimiento de seguridad
 
-- **Migraciones**: 0023, 0024, **0025** (endurecimiento de seguridad, D-022), **0026** (planilla de Costa Rica, D-035: todo apagado hasta la confirmación `payroll_cr_rules`) y **0027** (quién cobra una cuenta abierta, «Terminar mi turno» marca la salida, D-036), más la página Información.
+- **Migraciones**: 0023, 0024, **0025** (endurecimiento de seguridad, D-022), **0026** (planilla de Costa Rica, D-035: todo apagado hasta la confirmación `payroll_cr_rules`) **0027** (quién cobra una cuenta abierta, «Terminar mi turno» marca la salida, D-036) y **0028** (correcciones de la revisión: total negativo, pedidos de habitación pagados otro día, días sin caja, reversiones del diario, PIN repetido, puesto de dueño con código, D-037), más la página Información.
 - **Después de 0025**:
   - el dueño entra a Contabilidad e Información con **su** ingreso y el código del teléfono;
   - el contador activa su código del teléfono en su primer ingreso;
@@ -217,6 +217,7 @@ En este orden. Cada paso es de solo lectura o se puede deshacer.
 | 0025 | Volver a aplicar la migración anterior de cada función (no toca datos). Nunca quitarla por comodidad: corrige fallas de seguridad |
 | 0026 | `drop function` de las funciones nuevas y volver a crear las de planilla de la 0025 (no toca datos; las tablas nuevas y los asientos quedan) |
 | 0027 | `drop trigger order_zz_operator_upd`; volver a crear `tab_pay` de pos-tabs.sql y `pos_operator_end` de la 0008 (las columnas quedan) |
+| 0028 | `drop trigger order_zz_till_guard, chat_questions_guard`; volver a crear las funciones anteriores (0001, 0013, 0018, 0019, 0022, manager-mode.sql); no toca datos |
 
 ## Capacitación recomendada
 

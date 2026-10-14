@@ -16,6 +16,8 @@ concurrency:
 
 jobs:
   tests:
+    # a push to a branch of this repository already runs the suite: the pull_request event runs it only for a fork
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     services:

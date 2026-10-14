@@ -13,13 +13,13 @@
 --     true): el depósito de facturas de gastos y sus dos reglas (desde la 0015), la regla de subida de la 0025, y las
 --     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene).
 -- =====================================================================================================
-with expected as (select generate_series(0, 27) as v),
+with expected as (select generate_series(0, 28) as v),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),
   ('manager_void_order'), ('manager_refund_order'), ('order_search'), ('order_reprint'), ('pos_operator_start'), ('fx_today'), ('fx_rate_set'),
   ('settings_get'), ('setting_set'), ('compliance_confirm'), ('po_receive_delivery'), ('stock_count'), ('stock_waste'),
-  ('acct_overview'), ('acct_post_days'), ('acct_entry_post'), ('acct_entry_reverse'), ('acct_trial_balance'), ('acct_income_statement'),
+  ('acct_overview'), ('acct_post_days'), ('acct_entry_post'), ('acct_entry_reverse'), ('acct_journal_reverse'), ('acct_trial_balance'), ('acct_income_statement'),
   ('acct_balance_sheet'), ('acct_cash_flow'), ('acct_journal'), ('expense_save'), ('expense_attach'), ('expense_list'), ('tax_summary'),
   ('supplier_invoice_save'), ('supplier_payment_save'), ('ap_aging'), ('iva_report'), ('inventory_valuation'), ('product_profitability'),
   ('einvoice_list'), ('register_cash_move'), ('register_cash_moves'), ('cash_reconciliation'), ('cash_payouts'),

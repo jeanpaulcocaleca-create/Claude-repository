@@ -109,7 +109,7 @@ q -f "$HERE/books.sql" > "$OUT/books.log" 2>&1 || { cat "$OUT/books.log"; die "b
 echo "    $(grep -o 'books: .*' "$OUT/books.log" | head -1)"
 
 if command -v age >/dev/null; then
-  step "backup + restore test of the migrated copy (the backup account reads the tables 0002-0027 added too)"
+  step "backup + restore test of the migrated copy (the backup account reads the tables 0002-0028 added too)"
   CANOPY_DB_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/$DB" AGE_RECIPIENTS="$(age-keygen -y "$OUT/k")" \
     RESTORE_TEST_URL="$URL_BASE/postgres" UPLOAD_DIR="$OUT/backup-after" BACKUP_SOURCE=manual \
     bash "$ROOT/ops/backup/backup.sh" > "$OUT/backup-after.log" 2>&1 || { cat "$OUT/backup-after.log"; die "backup after"; }

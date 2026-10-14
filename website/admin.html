@@ -56,6 +56,7 @@ input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--gold);ou
 .editbox{grid-column:1/-1;background:#fff;border:1.5px solid var(--muted);border-radius:12px;padding:.9rem;display:grid;gap:.6rem}
 .editbox label{font-size:.8rem;color:var(--sec)}
 .editbox .row{display:flex;gap:.6rem}
+.editbox .finalprice{display:block;margin-top:.25rem;color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
 .hint{font-size:.85rem;color:var(--sec)}
@@ -407,6 +408,11 @@ var colorsReady = false;  /* true once the POS layout SQL has been run */
 var esReady = false;      /* true once supabase/menu-spanish.sql has been run: Spanish name and description per item */
 var taxReady = false;     /* migration 0009: IVA rate and CABYS code per item */
 var taxRates = [], priceMode = 'inclusive';
+function rateFor(code){ var t = taxRates.filter(function(x){ return x.code === code; })[0]; return t ? Number(t.rate) : 0.13; }
+/* price_crc is stored with IVA (what the guest pays); with price_mode 'exclusive' the Menu Manager shows and asks for the
+   price before IVA, like the POS buttons (migration 0009) */
+function showsNet(){ return taxReady && priceMode === 'exclusive'; }
+function netOf(it){ return Math.round(it.price_crc / (1 + rateFor(it.tax_code))); }
 var PALETTE = ['#5A3A1E','#1B5F67','#7E3160','#8F4E12','#93392A','#9E4560','#1E4B33','#285F8A','#6B3FA0','#4A5A46','#7D5A1A','#2F6B3A'];
 var CAT_DEFAULT = {'Coffee':'#5A3A1E','Other Drinks':'#1B5F67','Smoothies':'#7E3160','Sandwiches':'#8F4E12','Savory':'#93392A','Pastries & Cake':'#9E4560','Costa Rican Favorites':'#1E4B33','Adventure Box':'#285F8A','Extras & Combos':'#4A5A46'};
 function catColor(cat, i){ return cat.color || CAT_DEFAULT[cat.name] || PALETTE[i % PALETTE.length]; }
@@ -791,7 +797,7 @@ function itemRow(it){
   var mid = document.createElement('div');
   var nm = document.createElement('div'); nm.className='nm'; nm.textContent = it.name;
   var pr = document.createElement('div'); pr.className='pr';
-  pr.textContent = fmt(it.price_crc) + (it.description ? ' · ' + it.description : '');
+  pr.textContent = (showsNet() ? fmt(netOf(it)) + ' + IVA' : fmt(it.price_crc)) + (it.description ? ' · ' + it.description : '');
   mid.appendChild(nm); mid.appendChild(pr);
   row.appendChild(mid);
 
@@ -831,8 +837,9 @@ function openEditor(row, it){
   var box = document.createElement('form'); box.className='editbox';
   box.innerHTML =
     '<label>Name<input name="name" required></label>' +
-    (taxReady && priceMode === 'exclusive'
-      ? '<label>Price before IVA, in colones (the menu, website and TV show it with IVA)<input name="price" type="number" min="0" step="1" required></label>'
+    (showsNet()
+      ? '<label>Price before IVA, in colones (the menu, website and TV show it with IVA)<input name="price" type="number" min="0" step="1" required>' +
+        '<span class="hint finalprice" data-final></span></label>'
       : '<label>Price in colones (numbers only)<input name="price" type="number" min="0" step="50" required></label>') +
     (taxReady ?
       '<div class="swatchrow"><label>IVA rate <select name="tax_code"></select></label>' +
@@ -851,11 +858,26 @@ function openEditor(row, it){
     '<button type="button" class="ghost" data-x>Cancel</button>' +
     '<button type="button" class="danger" data-del style="margin-left:auto">Delete item</button></div>';
   box.name.value = it.name; box.price.value = it.price_crc; box.desc.value = it.description || '';
-  function rateFor(code){ var t = taxRates.filter(function(x){ return x.code === code; })[0]; return t ? Number(t.rate) : 0.13; }
+  /* exclusive mode: the field shows the rounded price before IVA. Saving it untouched keeps the stored price_crc
+     (1300 → 1150 → 1299.5 would drift on every save); the final price is derived only from a changed price or rate */
+  var origNet = null, origCode = it.tax_code || 'IVA13';
+  function finalPrice(){
+    var typed = parseInt(box.price.value, 10);
+    if (!showsNet()) return typed;
+    if (typed === origNet && box.tax_code.value === origCode) return it.price_crc;
+    return Math.round(typed * (1 + rateFor(box.tax_code.value)));
+  }
+  function showFinal(){
+    var el = box.querySelector('[data-final]'); if (!el) return;
+    var f = finalPrice(); el.textContent = isNaN(f) ? '' : '= ' + fmt(f) + ' with IVA';
+  }
   if (taxReady){
     taxRates.forEach(function(t){ var o = document.createElement('option'); o.value = t.code; o.textContent = t.name; box.tax_code.appendChild(o); });
-    box.tax_code.value = it.tax_code || 'IVA13'; box.cabys.value = it.cabys || '';
-    if (priceMode === 'exclusive') box.price.value = Math.round(it.price_crc / (1 + rateFor(box.tax_code.value)));
+    box.tax_code.value = origCode; box.cabys.value = it.cabys || '';
+    if (showsNet()){
+      origNet = netOf(it); box.price.value = origNet;
+      box.price.addEventListener('input', showFinal); box.tax_code.addEventListener('change', showFinal); showFinal();
+    }
   }
   if (esReady){ box.name_es.value = it.name_es || ''; box.desc_es.value = it.description_es || ''; }
   if (colorsReady){ box.color.value = it._color || '#5A3A1E'; box.quick.value = it.quick || 'auto'; }
@@ -874,7 +896,7 @@ function openEditor(row, it){
       if (cab && !/^[0-9]{13}$/.test(cab)){ toast('The CABYS code has 13 digits.'); return; }
       patch.tax_code = box.tax_code.value; patch.cabys = cab || null;
       /* prices are always stored with IVA: what the guest pays and every screen shows */
-      if (priceMode === 'exclusive') patch.price_crc = Math.round(parseInt(box.price.value, 10) * (1 + rateFor(box.tax_code.value)));
+      if (showsNet()) patch.price_crc = finalPrice();
     }
     var r = await db.from('menu_items').update(patch).eq('id', it.id);
     if (r.error){ toast('Could not save. Try again.'); return; }
@@ -893,10 +915,12 @@ function openEditor(row, it){
 async function addItem(cat){
   var name = prompt('Name of the new item in ' + cat.name + ':');
   if (!name) return;
-  var price = prompt('Price in colones (numbers only):');
+  var price = prompt(showsNet() ? 'Price before IVA (numbers only):' : 'Price in colones (numbers only):');
   if (price === null) return;
   var p = parseInt(price, 10);
   if (isNaN(p) || p < 0){ toast('That price did not look like a number.'); return; }
+  /* stored with IVA, like every price; a new item starts at the general rate (IVA13) until its rate is edited */
+  if (showsNet()) p = Math.round(p * (1 + rateFor('IVA13')));
   var r = await db.from('menu_items').insert({category_id: cat.id, name: name.trim(), price_crc: p, sort: 99});
   if (r.error){ toast('Could not add it. Try again.'); return; }
   toast(name + ' added'); loadMenu();

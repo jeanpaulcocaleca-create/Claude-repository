@@ -157,6 +157,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:.85rem;margin-top:.
     <h2>Month by month <span class="sp"></span><button class="ghost" id="mCsv">CSV</button></h2>
     <svg class="chart" id="mSales" height="190" role="img" aria-label="Sales without IVA by month"></svg>
     <div class="legend" id="mLegend"></div>
+    <p class="hint" id="mLaborHint" style="color:var(--sec);font-size:.85rem;margin:0 0 .4rem" hidden>Labor % and prime cost need the owner's phone code or the accountant login.</p>
     <svg class="chart" id="mPct" height="200" role="img" aria-label="Food cost, labor and prime cost as a percent of sales, by month"></svg>
     <details><summary>See the numbers</summary><div style="overflow-x:auto"><table id="mTable"></table></div></details>
   </div>
@@ -219,7 +220,16 @@ var tip = $('tip');
 function showTip(e, text){ tip.textContent = text; tip.hidden = false; tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
 function hideTip(){ tip.hidden = true; }
 
-/* ---------- sign in: the owner login, or the café login once a manager with sales access opened it ---------- */
+/* ---------- sign in: the owner login, the accountant, or the café login once a manager with sales access opened it ---------- */
+var KIND = null;   /* account_kind: 'owner' | 'owner_needs_code' | 'accountant' | 'accountant_needs_code' | 'cafe' | 'none'; null before the accounts SQL */
+/* the owner's and the accountant's logins sign out by themselves after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (!/^(owner|accountant)/.test(KIND || '')) return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
 async function codeNeeded(){
   try { var r = await db.auth.mfa.getAuthenticatorAssuranceLevel(); return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2'; }
   catch (e){ return false; }
@@ -231,10 +241,19 @@ async function refreshAuth(){
   if (needCode){ $('codeIn').focus(); return; }
   if (!authed) return;
   var k = await db.rpc('account_kind');
-  if (!k.error && k.data === 'cafe') document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+  KIND = k.error ? null : (k.data || 'none');
+  if (KIND === 'cafe') document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+  armIdle();
   checkGate();
 }
 async function checkGate(){
+  /* the accountant: allowed by every insights function (0025), never a PIN; without the phone code, say so like the books do */
+  if (KIND === 'accountant'){ loadAll(); return; }
+  if (KIND === 'accountant_needs_code'){
+    $('content').hidden = true; $('noAccess').hidden = false;
+    $('noAccess').textContent = 'Insights open only with the code from your phone. Turn it on once in Accounting; then every sign-in asks for the code.';
+    return;
+  }
   var st = await HG_ACCESS.load(db);
   if (!st.missing && !st.error && !st.sales){
     $('content').hidden = true;
@@ -311,6 +330,7 @@ async function loadMonths(){
   svg.querySelectorAll('.bar').forEach(function(b){ var m = M[+b.dataset.i];
     b.addEventListener('mousemove', function(e){ showTip(e, m.month + ' · ' + fmt(m.net) + ' without IVA · ' + m.orders + ' orders'); }); b.addEventListener('mouseleave', hideTip); });
   var series = SERIES.filter(function(s){ return s.k === 'food_cost_pct' || r.data.labor_visible; });
+  $('mLaborHint').hidden = !!r.data.labor_visible;
   $('mLegend').innerHTML = series.map(function(s){ return '<span><i style="background:' + s.color + '"></i>' + esc(s.label) + '</span>'; }).join('');
   var ps = $('mPct'), PH = 200, pmax = 10;
   M.forEach(function(m){ series.forEach(function(s){ if (m[s.k] != null) pmax = Math.max(pmax, Number(m[s.k])); }); });

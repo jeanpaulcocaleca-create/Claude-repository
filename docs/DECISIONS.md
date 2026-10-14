@@ -751,3 +751,40 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   clock-in from the POS, end of turn with the clock-out accepted and declined, the sales card), the 0008 tests
   unchanged (27 and 5).
 - **Not proven:** nothing changes on today's site until `operator_mode` is switched on after the window (E-06).
+
+## D-037 · 2026-10-14 · The independent review of the whole build: what was fixed now, what waits for its wave
+- **Method:** ten reviewers, one per area (POS, staff and payroll, inventory and suppliers, cash and bank, accounting,
+  dashboard and insights, the tax rule, test coverage and scenarios, security and launch readiness, requirements
+  against the documents), each reading the code and running the area's tests on a fresh build; their findings are
+  kept in the session's review file and summarized here.
+- **Fixed in migration 0028 and the pages (this commit):** the till can no longer record a sale with a negative
+  total (the live menu holds a negative-priced "combo discount" item: the POS hides negative prices from the grid and
+  refuses a negative ticket; the discount feature is the way to discount); an unknown payment method or status from an
+  older page is flagged, never refused; a room order paid at the window on a later day moves to that day like a bill
+  does, so the register and the books count it once; Cash by day and the ledger's pending days list the days that had
+  sales but no register; the journal reverses only manual and opening entries (a document is undone from its own
+  screen, so document and ledger never separate); posting a range of days answers `period_closed`; only an asset
+  account can be marked cash; a record-only e-document follows a bill cancelled by status; labor cost no longer counts
+  an old hourly rate after a switch to a fixed pay; a PIN already used by an active person is refused; the owner role
+  is given or taken only by the owner with the phone code (the first-owner exception on a login without a code, kept
+  open in D-027 for today's shared login, is closed: the café devices get their own login first, E-05, and the owner
+  enrols the code, E-06); visitors' questions are capped (500 characters, 20 per visit per hour); the accountant
+  reaches Insights; the owner's Home no longer scrolls sideways on a phone; the Home revenue tiles come from the same
+  figures as Insights; the Menu Manager in tax-exclusive mode keeps an untouched price and prices a new item correctly;
+  the receipt in that mode prints before-IVA lines and the ticket's lines add up to its "Before IVA" row; a payroll
+  with every line at zero is not reviewed; Home → Settings now shows the boolean switches (the two payroll ones with
+  labels, so the `payroll_cr_rules` confirmation can be recorded there as the pages say); the page reverses a journal
+  entry through `acct_journal_reverse` (manual and opening entries only) while the documents keep the unrestricted
+  function the page can no longer call; books pages sign out when idle; CI runs once per commit.
+- **Not fixed now, with its place:** before `ledger_auto_post` (A-07): walk-in receipts (`stock_receive`) owe the
+  supplier in the books with no receipt row to invoice, and an invoice "without deliveries" may be posted to inventory
+  or cost accounts (the accountant's choice of accounts is the control until then); before the 2027 books: year-end
+  closing entries and a trial balance that foots across years; expenses on credit cannot be paid from their screen
+  (a manual entry settles them); the Sales and Home pages group by the sale's clock time while Insights and the books
+  use the business day (after-midnight sales); the Inventory page's stock value is at the last price while the books
+  value at average cost; reprints of a bill paid in parts print the last part's total; the static `/menu` pages carry
+  typed prices; dollar bank accounts and exchange differences (A-06); fixed assets, budgets, recurring entries; a
+  general ledger with running balances; a read-only accountant; the 10 % service charge (A-05); tips; order notes and
+  modifiers; change given in dollars; a second location's registers and stock.
+- **Proof:** `tests/sql/310_review_fixes.test.sql` (37), the 260 test updated for the owner role, e2e 130 and the new
+  135 (Menu Manager in exclusive mode), the whole suite green; the known-functions inventory refreshed.

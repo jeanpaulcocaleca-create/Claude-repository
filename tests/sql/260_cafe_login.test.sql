@@ -92,8 +92,11 @@ select test.eq(public.manager_save_staff(null, null, test.staff('luis'), 'Luis',
                'café login: a manager PIN cannot make the first owner');
 select test.login('b2600000-0000-4000-8000-000000000003');
 select test.unlock(test.staff('ana'), '4826');
-select test.eq(public.manager_save_staff(null, null, test.staff('luis'), 'Luis', null, true, 'owner') ->> 'ok', 'true',
-               'an owner-kind login without a code can (why café devices need a café login)');
+select test.eq(public.manager_save_staff(null, null, test.staff('luis'), 'Luis', null, true, 'owner') ->> 'error', 'owner_role_only',
+               'an owner-kind login without a code cannot either (closed by 0028, D-037): the owner role needs the phone code');
+reset role;
+select test.login('owner', 'aal2'); set role authenticated;
+select test.eq(public.manager_save_staff(null, null, test.staff('luis'), 'Luis', null, true, 'owner') ->> 'ok', 'true', 'the owner with the phone code gives the owner role');
 reset role;
 update public.staff set active = true, role = 'staff' where id in (test.staff('dueno'), test.staff('luis'));
 update public.staff set role = 'owner' where id = test.staff('dueno');

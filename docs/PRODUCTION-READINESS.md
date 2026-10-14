@@ -121,7 +121,7 @@ rehearsal compares them with the reviewed list after the migrations.
 
 ## 5. Migration results (rehearsal)
 
-- **0000 → 0025**, each file as one transaction, applied as a non-superuser account like Supabase's SQL Editor:
+- **0000 → 0028**, each file as one transaction, applied as a non-superuser account like Supabase's SQL Editor:
   - **2.1 s in total**; the slowest is 0004 (0.5 s);
   - no file failed after the fixes above.
 - **Nothing that existed changed.** All 26 original tables (every original column, md5) and 27 business checks
@@ -238,7 +238,7 @@ Each step is the owner's. I give them one at a time and check each result before
 **D. The window (after closing, no pending sales on any tablet, about 30 minutes)**
 
 14. Backup (green) + download. Snapshot and `consistency-check.sql` → save both results.
-15. Paste **0003 … 0025** one by one (each under a second in the rehearsal). Stop at the first error and send it
+15. Paste **0003 … 0028** one by one (each under a second in the rehearsal). Stop at the first error and send it
     to me; that file applied nothing.
 16. `release-check.sql` + `consistency-check.sql` → paste. The "kept" values must equal step 14's.
 17. Release: tag `vAAAA.MM.DD-1` on the approved commit → Actions → Publish website → PUBLICAR → approve →

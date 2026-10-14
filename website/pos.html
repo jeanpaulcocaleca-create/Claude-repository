@@ -165,6 +165,7 @@ button.chip:hover{background:var(--canvas)}
 .ticket .payrow button{min-height:54px;font-size:1rem;border:2px solid var(--pc);background:var(--pc);color:#fff}
 .ticket .payrow button.alt{background:#fff;color:var(--pc)}
 .ticket .payrow button:hover{filter:brightness(.95)}
+.ticket .payrow button:disabled,.ticket .util #sendBtn:disabled{opacity:.45;cursor:default;filter:none}
 .util{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;padding:0 1rem 1rem}
 .util button{min-width:0;padding:.45em .6em;font-size:.9rem;line-height:1.2}
 .forwho{padding:0 1rem .5rem}
@@ -898,6 +899,8 @@ function ivaGroups(lines, disc){
   return Object.keys(by).map(Number).sort(function(a, b){ return b - a; }).map(function(r){ return {rate: r, tax: by[r]}; });
 }
 function pct(r){ return (Math.round(r * 1000) / 10) + '%'; }
+/* a line before IVA, by the server's rule (_order_tax): the IVA is rounded on the line total, not per unit, so the lines add up to the Before IVA row */
+function lineNet(l){ var amt = l.price * l.qty, r = rateOf(l); return amt - Math.round(amt * r / (1 + r)); }
 function shownPrice(it){ var r = rateOf({id: it.id, name: it.name}); return PRICE_MODE === 'exclusive' ? Math.round(it.price_crc / (1 + r)) : it.price_crc; }
 var itemMeta = {};    /* item id -> {color, catColor, catName, quick} */
 var menuCats = [];    /* categories with their available items, in order */
@@ -912,7 +915,8 @@ function renderMenu(cats){
   menuCats = [];
   cats.forEach(function(cat, ci){
     var cc = cat.color || CAT_DEFAULT[cat.name] || PALETTE[ci % PALETTE.length];
-    var items = (cat.menu_items||[]).filter(function(i){return i.available})
+    /* a negative price is the combo discount line (see m.html, comboOf): never a button, never on the Quick tab */
+    var items = (cat.menu_items||[]).filter(function(i){return i.available && !(Number(i.price_crc) < 0)})
       .sort(function(a,b){return a.sort-b.sort||a.name.localeCompare(b.name)});
     (cat.menu_items || []).forEach(function(i){ kitchenOf[i.id] = !!cat.kitchen; taxOf[i.id] = i.tax_code || 'IVA13'; taxByName[String(i.name).toLowerCase()] = i.tax_code || 'IVA13'; });
     items.forEach(function(it, ii){
@@ -1007,7 +1011,7 @@ function renderTicket(){
     q.appendChild(minus); q.appendChild(qn); q.appendChild(plus);
     left.appendChild(nm); left.appendChild(q);
     var amt = document.createElement('div'); amt.className='amt';
-    amt.textContent = fmt(PRICE_MODE === 'exclusive' ? Math.round(l.price / (1 + rateOf(l))) * l.qty : l.price * l.qty);
+    amt.textContent = fmt(PRICE_MODE === 'exclusive' ? lineNet(l) : l.price * l.qty);
     row.appendChild(left); row.appendChild(amt);
     box.appendChild(row);
   });
@@ -1023,6 +1027,10 @@ function renderTicket(){
     document.getElementById('discAmt').textContent = '−' + fmt(disc);
   }
   document.getElementById('totalAmt').textContent = fmt(total);
+  /* a negative total is never charged or sent: the server refuses it too (migration 0028, negative_total) */
+  var neg = total < 0;
+  document.querySelectorAll('#payRow [data-pay]').forEach(function(b){ b.disabled = neg; });
+  document.getElementById('sendBtn').disabled = neg;
   var groups = ivaGroups(ticket, disc), tax = groups.reduce(function(t, g){ return t + g.tax; }, 0);
   var rates = groups.map(function(g){ return pct(g.rate); }).join(' · ') || '13%';
   document.getElementById('ivaLbl').textContent = (PRICE_MODE === 'exclusive' ? 'IVA ' : 'Includes IVA ') + rates;
@@ -1036,6 +1044,12 @@ function renderTicket(){
 }
 document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; tDisc = null; document.getElementById('forWho').value = ''; renderTicket(); });
 function subtotal(){ return ticket.reduce(function(s,l){ return s + l.price*l.qty; }, 0); }
+/* true (and says so) when the order's total is below zero: it is not charged, sent or recorded */
+function negTotal(){
+  var sub = subtotal();
+  if (sub - discOf(sub) >= 0) return false;
+  toast('The total cannot be negative.'); return true;
+}
 
 /* ---------- discounts: a reason and the PIN of an owner, GM or manager ----------
    The database checks the PIN, logs the approval and lets it cover one order only (supabase/pos-stations.sql).
@@ -1308,7 +1322,7 @@ document.getElementById('stationForm').addEventListener('submit', function(e){
 });
 document.getElementById('sendBtn').addEventListener('click', async function(){
   if (!ticket.length){ toast('The order is empty.'); return; }
-  if (discExpired()) return;
+  if (discExpired() || negTotal()) return;
   if (STATIONS_READY !== true) await checkStations();
   if (STATIONS_READY === false){ toast('This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.'); return; }
   if (STATIONS_READY !== true){ toast('Sending to the register needs the internet. Charge it here or try again.'); return; }
@@ -1392,7 +1406,7 @@ function isCash(m){ return m === 'cash_crc' || m === 'cash_usd'; }
 document.querySelectorAll('[data-pay]').forEach(function(b){
   b.addEventListener('click', function(){
     if (!ticket.length){ toast('The order is empty.'); return; }
-    if (discExpired()) return;
+    if (discExpired() || negTotal()) return;
     pendingPay = {method: b.dataset.pay, label: b.textContent.trim()};
     var go = function(){ if (!settings){ recordSale(null); return; } openNumbers(); };   /* number stands switch on after the kitchen SQL */
     if (CASH_TENDER && isCash(pendingPay.method)){
@@ -1435,6 +1449,7 @@ document.getElementById('numCancel').addEventListener('click', function(){ pendi
 function recordSale(number){
   document.getElementById('numModal').hidden = true;
   if (!pendingPay || !ticket.length) return;
+  if (negTotal()){ pendingPay = null; return; }
   if (OP_MODE === 'enforce' && !OP){ pendingPay = null; toast('Choose who is ringing up first.'); openOp(); return; }
   var sub = subtotal(), disc = discOf(sub), total = sub - disc;
   var unpaid = pendingPay.method === 'pending';    /* sent to the register, or to pay later */
@@ -1503,21 +1518,31 @@ function receiptHtml(lastOrder){
     (lastOrder.note ? '<div class="rsub">' + esc(lastOrder.note) + '</div>' : '') +
     (lastOrder.number ? '<div class="rnum"><small>YOUR NUMBER · SU NÚMERO</small>' + lastOrder.number + '</div>' : '') +
     '<div class="rrule"></div>';
+  /* price mode 'exclusive' (migration 0009): the lines before IVA (lineNet, the server's rule), a Before IVA row and the IVA by rate
+     before the total; the money charged is the same. Inclusive mode prints as it always did. */
+  var excl = PRICE_MODE === 'exclusive';
+  var groups = lastOrder.taxGroups || ivaGroups(lastOrder.items, lastOrder.disc || 0);
+  var tax = groups.reduce(function(t, g){ return t + g.tax; }, 0), net = 0, gross = 0;
   lastOrder.items.forEach(function(l){
-    html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + rfmt(l.price * l.qty) + '</span></div>';
+    var amt = excl ? lineNet(l) : l.price * l.qty; net += amt; gross += l.price * l.qty;
+    html += '<div class="rrow"><span>' + esc(l.qty + '× ' + l.name) + '</span><span>' + rfmt(amt) + '</span></div>';
   });
   html += '<div class="rrule"></div>';
   var extra = lastOrder.extra || [];
   if (lastOrder.disc > 0 || extra.length){
-    html += '<div class="rrow"><span>Subtotal</span><span>' + rfmt(lastOrder.sub) + '</span></div>';
+    /* before IVA the discount is shown at its value before IVA too (the IVA on it is not charged), so the rows add up */
+    var disc = excl ? net - (gross - lastOrder.disc - tax) : lastOrder.disc;
+    html += '<div class="rrow"><span>Subtotal</span><span>' + rfmt(excl ? net : lastOrder.sub) + '</span></div>';
     if (lastOrder.disc > 0)
-      html += '<div class="rrow"><span>' + esc('Descuento · Discount' + (lastOrder.discText ? ' ' + lastOrder.discText : '')).replace(/\u202f|\u00a0/g, ' ') + '</span><span>−' + rfmt(lastOrder.disc) + '</span></div>';
+      html += '<div class="rrow"><span>' + esc('Descuento · Discount' + (lastOrder.discText ? ' ' + lastOrder.discText : '')).replace(/\u202f|\u00a0/g, ' ') + '</span><span>−' + rfmt(disc) + '</span></div>';
     extra.forEach(function(x){ html += '<div class="rrow"><span>' + esc(x.label) + '</span><span>−' + rfmt(x.amount) + '</span></div>'; });
   }
+  var ivaRows = groups.map(function(g){
+    return '<div class="rrow"><span>' + (excl ? 'IVA ' + pct(g.rate) : 'Incluye IVA ' + pct(g.rate) + ' · Includes VAT') + '</span><span>' + rfmt(g.tax) + '</span></div>'; }).join('');
   html +=
+    (excl ? '<div class="rrow"><span>Antes de IVA · Before IVA</span><span>' + rfmt(lastOrder.total - tax) + '</span></div>' + ivaRows : '') +
     '<div class="rtot"><span>TOTAL</span><span>' + rfmt(lastOrder.total) + '</span></div>' +
-    (lastOrder.taxGroups || ivaGroups(lastOrder.items, lastOrder.disc || 0)).map(function(g){
-      return '<div class="rrow"><span>Incluye IVA ' + pct(g.rate) + ' · Includes VAT</span><span>' + rfmt(g.tax) + '</span></div>'; }).join('') +
+    (excl ? '' : ivaRows) +
     '<div class="rrow"><span>Pago · Paid by</span><span>' + esc(PAY_RECEIPT[lastOrder.method] || lastOrder.label) + '</span></div>' +
     tenderHtml(lastOrder.tender) +
     '<div class="rfoot">¡Pura vida! · Gracias</div>';
@@ -1908,7 +1933,13 @@ var QMSG = {offline: 'No internet on this device. It saves by itself when the in
   auth: 'The sign-in must be renewed. If it does not save within a minute, tap Sign out and sign in again.',
   account: 'This login is not connected to the café in the system. The owner must connect it in Supabase.',
   server: 'The system is not answering right now. It saves by itself when it is back: do not ring the sale again.',
-  refused: 'The system refused this sale.'};
+  refused: 'The system refused this sale.',
+  negative_total: 'This sale has a negative total and was not accepted.'};
+/* why a sale is not in the system, in the cashier's words; the server's own reason when it is one the till knows (migration 0028) */
+function qWhy(err){
+  if (err.kind === 'refused' && /negative_total/.test(err.msg || '')) return QMSG.negative_total;
+  return QMSG[err.kind] || QMSG.refused;
+}
 var qTried = null;   /* the last "Try again now": when, and how it went */
 function openQueue(){
   document.getElementById('queueErr').textContent = '';
@@ -1946,7 +1977,7 @@ function renderQueue(){
       row.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); } });
     }
     if (o.err){
-      var e = document.createElement('div'); e.className = 'qe'; e.textContent = QMSG[o.err.kind] || QMSG.refused;
+      var e = document.createElement('div'); e.className = 'qe'; e.textContent = qWhy(o.err);
       var sm = document.createElement('small'); sm.setAttribute('data-no-translate', '');
       sm.textContent = '(' + [o.err.code, o.err.msg].filter(Boolean).join(' · ') + ')';
       e.appendChild(sm); row.appendChild(e);
@@ -2133,6 +2164,7 @@ function renderRegister(body){
       showCashMoves();
     }
     closeF.hidden = false;
+    document.getElementById('rcCashUsd').setAttribute('aria-required', regExp && regExp.expected_usd > 0 ? 'true' : 'false');
     document.getElementById('rcErr').textContent = '';
     document.getElementById('rcPin').value = '';
     regQueueState();
@@ -2207,7 +2239,7 @@ document.getElementById('regMoveForm').addEventListener('submit', async function
   if (!(amt > 0)){ err.textContent = 'Type the amount.'; return; }
   var b = this.querySelector('button[type=submit]'); b.disabled = true;
   var r = await db.rpc('register_cash_move', {p_manager_id: document.getElementById('cmStaff').value || null, p_pin: document.getElementById('cmPin').value.trim(),
-    p_move: {direction: k[0], purpose: k[1], currency: document.getElementById('cmCur').value, amount: amt, reason: document.getElementById('cmWhy').value.trim(), station: STATION || null},
+    p_move: {direction: k[0], purpose: k[1], currency: document.getElementById('cmCur').value, amount: amt, reason: document.getElementById('cmWhy').value.trim(), station: stationName() || null},
     p_request_id: cmReq || (cmReq = uuid())});
   b.disabled = false;
   document.getElementById('cmPin').value = '';   /* a PIN never stays on screen, right or wrong */
@@ -2253,6 +2285,11 @@ document.getElementById('regCloseForm').addEventListener('submit', async functio
   if (queue.length){ err.textContent = queueMsg(); return; }
   var staff = document.getElementById('rcStaff').value;
   var cu = parseFloat(document.getElementById('rcCashUsd').value);
+  /* the day took dollars: the drawer is counted in both currencies (0 is an answer); a database without the expected dollars closes as before */
+  if (regExp && regExp.expected_usd > 0 && isNaN(cu)){
+    err.textContent = 'Type the dollars in the drawer: the day expects ' + usd(regExp.expected_usd) + '.';
+    document.getElementById('rcCashUsd').focus(); return;
+  }
   var cargs = {p_staff_id: staff || null, p_pin: document.getElementById('rcPin').value.trim(),
     p_terminal_crc: parseInt(document.getElementById('rcTerminal').value, 10), p_cash_counted_crc: parseInt(document.getElementById('rcCash').value, 10),
     p_notes: document.getElementById('rcNotes').value};
@@ -2276,7 +2313,7 @@ document.getElementById('recloseBtn').addEventListener('click', function(){
   document.getElementById('rcPin').focus();
 });
 async function openDay(){
-  var start = new Date(); start.setHours(0,0,0,0);
+  var start = crDayStart();
   var body = document.getElementById('dayBody');
   body.innerHTML = '<p style="color:var(--sec)">Adding it up…</p>';
   hideRegisterBlocks();
@@ -2379,6 +2416,9 @@ document.getElementById('ordersBtn').addEventListener('click', openOrders);
 /* ---------- earlier sales (migration 0011): search, reprint (COPIA), void while the day is open, refund after ---------- */
 var hRows = [], hTarget = null;
 function crTodayStr(){ var d = new Date(Date.now() - 6 * 3600000); return d.toISOString().slice(0, 10); }   /* Costa Rica is UTC−6 */
+/* the first instant of today's Costa Rica day (supabase/register.sql, cr_day_start): Today, the orders list and the live bar
+   start there, as the register does, whatever time zone this device's clock is set to */
+function crDayStart(){ return new Date(crTodayStr() + 'T00:00:00-06:00'); }
 function openHist(){
   document.getElementById('ordersModal').hidden = true;
   if (!document.getElementById('hDay').value) document.getElementById('hDay').value = crTodayStr();
@@ -2495,7 +2535,7 @@ async function openOrders(){
   document.getElementById('voidBox').hidden = true;
   document.getElementById('ordersModal').hidden = false;
   loadManagers();
-  var start = new Date(); start.setHours(0,0,0,0);
+  var start = crDayStart();
   var ocols = 'id,created_at,total_crc,payment_method,voided_at,void_reason,status,pickup_number,source,paid,guest_name,station,discount_crc,discount_reason,discount_by,notes,rooms(number),order_items(item_name,qty)';
   /* today's orders, and a bill left open from the last days with the payments made on it */
   var old = new Date(start.getTime() - OPEN_DAYS * 86400000);
@@ -2702,7 +2742,7 @@ var OPEN_DAYS = 30;       /* a bill not paid yet stays readable this many days (
 async function pollLive(){
   if (!navigator.onLine){ liveOk = false; renderOpen(); return; }
   if ((!LIVE_FULL || !TABS_READY) && Date.now() > liveRetry){ LIVE_FULL = true; TABS_READY = true; }
-  var start = new Date(); start.setHours(0,0,0,0);
+  var start = crDayStart();
   var r = null;
   if (LIVE_FULL){
     /* open orders, plus orders delivered but not paid yet, from every device; a bill left open past

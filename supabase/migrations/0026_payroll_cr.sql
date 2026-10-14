@@ -479,7 +479,8 @@ begin
   if r.params is distinct from public._payroll_params_now() then return jsonb_build_object('ok', false, 'error', 'prepare_again'); end if;
   if exists (select 1 from public.payroll_lines where run_id = r.id and net_crc < 0) then return jsonb_build_object('ok', false, 'error', 'negative_net'); end if;
   if exists (select 1 from public.payroll_lines where run_id = r.id and gross_crc is null) then return jsonb_build_object('ok', false, 'error', 'missing_rates'); end if;
-  if not exists (select 1 from public.payroll_lines where run_id = r.id) then return jsonb_build_object('ok', false, 'error', 'empty'); end if;
+  -- nobody to pay, or nothing to pay (every line at zero would make an entry without lines)
+  if coalesce((select sum(gross_crc + extra_crc) from public.payroll_lines where run_id = r.id), 0) <= 0 then return jsonb_build_object('ok', false, 'error', 'empty'); end if;
   update public.payroll_runs set status = 'reviewed', reviewed_by = acct.actor(), reviewed_at = now() where id = r.id;
   return jsonb_build_object('ok', true);
 end $$;

@@ -70,10 +70,12 @@ h2.section{font-size:1.1rem;margin:0 0 .8rem}
 .invcard{background:var(--panel);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid #E7C7A0}
 .bkcard{display:flex;gap:.8rem;align-items:center;background:var(--panel);border-radius:16px;padding:.8rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid var(--muted)}
 .bkcard .s{font-size:.85rem;color:var(--sec);margin-top:.15rem}
-.setrow{display:grid;grid-template-columns:1fr auto;gap:.3rem 1rem;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--muted)}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);gap:.3rem 1rem;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--muted)}
 .setrow:last-child{border-bottom:0}
 .setrow .s{grid-column:1 / -1;font-size:.85rem;color:var(--sec)}
-.setrow select{min-height:44px}
+.setrow select{min-height:44px;min-width:0;max-width:100%}
+/* a phone: the long choices of a select would otherwise set the width of the whole page */
+@media(max-width:480px){.setrow{grid-template-columns:minmax(0,1fr)} .setrow select{width:100%}}
 .confform{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem}
 .bkdot{flex:none;width:14px;height:14px;border-radius:50%;background:var(--muted)}
 .bkcard.green .bkdot{background:var(--ok)} .bkcard.amber .bkdot{background:var(--gold)} .bkcard.red .bkdot{background:var(--bad)}
@@ -135,8 +137,8 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   </header>
 
   <div class="kpis">
-    <div class="kpi"><div class="l">Revenue today</div><div class="v" id="kRev">–</div><div class="s" id="kRevSub"></div></div>
-    <div class="kpi"><div class="l">Orders today</div><div class="v" id="kOrders">–</div></div>
+    <div class="kpi" id="kRevTile"><div class="l">Revenue today</div><div class="v" id="kRev">–</div><div class="s" id="kRevSub"></div></div>
+    <div class="kpi" id="kOrdersTile"><div class="l">Orders today</div><div class="v" id="kOrders">–</div></div>
     <div class="kpi"><div class="l">On the clock</div><div class="v names" id="kClock">–</div><div class="s" id="kClockSub"></div></div>
     <div class="kpi"><div class="l">Sold out</div><div class="v" id="kSoldOut">–</div><div class="s" id="kSoldOutSub"></div></div>
   </div>
@@ -319,6 +321,7 @@ async function refreshAuth(){
     HG_ACCESS.gate(db, {title: 'Home · owners and managers'}).then(refreshAuth);
     return;
   } else HG_ACCESS.pill(db);
+  SALES_OK = !!(st.missing || st.error || st.sales);
   var ownerLogin = !isCafeLogin();
   document.getElementById('secHead').hidden = !ownerLogin;
   document.getElementById('secCard').hidden = !ownerLogin;
@@ -459,7 +462,8 @@ async function loadBackupStatus(){
 }
 /* system settings (migration 0008): the owner's decisions, regulated ones locked until confirmed */
 var SET_LABEL = {operator_mode: 'Who rings up each sale', fx_rate_kind: 'Exchange rate for dollars', price_mode: 'Prices at the POS',
-                 einvoice_mode: 'Electronic invoices (Hacienda)'};
+                 einvoice_mode: 'Electronic invoices (Hacienda)', payroll_renta_withhold: 'Income tax withheld from pay',
+                 payroll_accrue_aguinaldo: 'Aguinaldo provisioned every payroll'};
 var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On',
                     buy: 'Buy rate of the day', sell: 'Sell rate of the day', inclusive: 'IVA included (as today)', exclusive: 'Before IVA, IVA added at checkout',
                     shadow: 'Record only, send nothing (to check the data)'};
@@ -472,18 +476,21 @@ async function loadSettingsCard(){
   var list = document.getElementById('setList'); list.replaceChildren();
   var guards = {};
   r.data.forEach(function(st){
-    if (st.kind !== 'choice') return;       /* the books' switches live on the Accounting page, with their approval */
+    /* choices and on/off switches (the payroll's, 0026); the books' switches live on the Accounting page, with their approval */
+    var bool = st.kind === 'boolean';
+    if (!(st.kind === 'choice' || bool) || /^ledger_/.test(st.key)) return;
     var row = document.createElement('div'); row.className = 'setrow';
     var name = document.createElement('b'); name.textContent = SET_LABEL[st.key] || st.key;
     if (st.locked){ var lk = document.createElement('span'); lk.textContent = ' 🔒'; lk.title = 'Locked until the rule is confirmed'; name.appendChild(lk); }
     var sel = document.createElement('select'); sel.setAttribute('aria-label', SET_LABEL[st.key] || st.key);
-    (st.choices || []).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = CHOICE_LABEL[c] || c; sel.appendChild(o); });
-    sel.value = st.value;
+    (bool ? ['off', 'on'] : (st.choices || [])).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = CHOICE_LABEL[c] || c; sel.appendChild(o); });
+    var cur = bool ? ((st.value === true || st.value === 'true') ? 'on' : 'off') : st.value;
+    sel.value = cur;
     sel.addEventListener('change', async function(){
       var msg = document.getElementById('setMsg'); msg.textContent = ''; msg.className = 'err';
-      var res = await db.rpc('setting_set', {p_key: st.key, p_value: sel.value});
-      if (res.error || !res.data || !res.data.ok){ msg.textContent = res.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[res.data.error] || 'Could not save. Try again.'); sel.value = st.value; return; }
-      st.value = sel.value; msg.className = 'err ok'; msg.textContent = 'Saved.';
+      var res = await db.rpc('setting_set', {p_key: st.key, p_value: bool ? sel.value === 'on' : sel.value});
+      if (res.error || !res.data || !res.data.ok){ msg.textContent = res.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[res.data.error] || 'Could not save. Try again.'); sel.value = cur; return; }
+      cur = sel.value; msg.className = 'err ok'; msg.textContent = 'Saved.';
     });
     var d = document.createElement('div'); d.className = 's'; d.setAttribute('data-no-translate', ''); d.textContent = st.description;
     row.appendChild(name); row.appendChild(sel); row.appendChild(d); list.appendChild(row);
@@ -532,42 +539,33 @@ document.getElementById('acctGrant').addEventListener('click', async function(){
            is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.'};
   hint.textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.ok ? 'Done: ' + em + ' can open the accounting.' : (E[r.data && r.data.error] || 'Could not save. Try again.'));
 });
+/* this device may see the sales numbers: the owner, or a manager whose PIN carries the sales permission (manager-mode.sql) */
+var SALES_OK = true;
 async function loadStats(){
   loadInventoryAlerts();
   loadBackupStatus();
   loadSettingsCard();
-  var start = new Date(); start.setHours(0,0,0,0);
+  document.getElementById('kRevTile').hidden = !SALES_OK;
+  document.getElementById('kOrdersTile').hidden = !SALES_OK;
   var rs = await Promise.all([
-    db.from('orders').select('total_crc,voided_at,paid,part_of').gte('created_at', start.toISOString()),
+    SALES_OK ? db.rpc('dashboard_today') : Promise.resolve(null),
     db.from('menu_items').select('id,name').eq('available', false),
     db.from('time_entries').select('clock_in, staff(name)').is('clock_out', null)
   ]);
 
-  var orders = rs[0];
-  if (orders.error && /part_of/.test(orders.error.message || '')){ /* pos-tabs SQL not run yet */
-    orders = await db.from('orders').select('total_crc,voided_at,paid').gte('created_at', start.toISOString());
-  }
-  if (orders.error && /paid/.test(orders.error.message || '')){ /* kitchen SQL not run yet */
-    orders = await db.from('orders').select('total_crc,voided_at').gte('created_at', start.toISOString());
-  }
-  if (orders.error && /voided_at/.test(orders.error.message || '')){ /* authorization SQL not run yet */
-    orders = await db.from('orders').select('total_crc').gte('created_at', start.toISOString());
-  }
-  if (!orders.error){
-    var rows = (orders.data || []).filter(function(o){ return !o.voided_at && o.paid !== false; });
-    var total = rows.reduce(function(s,o){ return s + o.total_crc; }, 0);
-    document.getElementById('kRev').textContent = fmt(total);
-    document.getElementById('kOrders').textContent = rows.filter(function(o){ return !o.part_of; }).length;   /* split payments are part of one bill */
-  }
-
-  /* estimate while the register is open, final once closed; against the same weekday last week (migration 0023) */
-  db.rpc('dashboard_today').then(function(d){
-    if (d.error || !d.data || !d.data.ok) return;
+  /* today's sales from the same function as Insights (migration 0023): Costa Rica's day, refunds taken off, a bill paid in
+     parts counted once; an estimate while the register is open, final once closed, against the same weekday last week */
+  var d = rs[0];
+  if (d && !d.error && d.data && d.data.ok){
     var T = d.data.today, L = d.data.last_week, fin = d.data.state === 'final', lw = Number(fin ? L.gross_day : L.gross_so_far);
     var ch = lw > 0 ? Math.round(100 * (Number(T.gross) - lw) / lw) : null;
+    document.getElementById('kRev').textContent = fmt(T.gross);
+    document.getElementById('kOrders').textContent = T.orders;
     document.getElementById('kRevSub').textContent = (fin ? 'Final' : 'Estimate') + ' · without IVA ' + fmt(Math.round(T.net)) +
       (ch == null ? '' : ' · ' + (ch >= 0 ? '▲ ' : '▼ ') + Math.abs(ch) + ' % vs last week');
-  });
+  } else if (d && d.error){
+    await loadTodayLegacy();   /* a database without migration 0023 */
+  }
 
   var sold = rs[1];
   if (!sold.error){
@@ -596,6 +594,26 @@ async function loadStats(){
         : people.length + ' people working';
     }
   }
+}
+
+/* before migration 0023: this device's day, straight from the orders */
+async function loadTodayLegacy(){
+  var start = new Date(); start.setHours(0,0,0,0);
+  var orders = await db.from('orders').select('total_crc,voided_at,paid,part_of').gte('created_at', start.toISOString());
+  if (orders.error && /part_of/.test(orders.error.message || '')){ /* pos-tabs SQL not run yet */
+    orders = await db.from('orders').select('total_crc,voided_at,paid').gte('created_at', start.toISOString());
+  }
+  if (orders.error && /paid/.test(orders.error.message || '')){ /* kitchen SQL not run yet */
+    orders = await db.from('orders').select('total_crc,voided_at').gte('created_at', start.toISOString());
+  }
+  if (orders.error && /voided_at/.test(orders.error.message || '')){ /* authorization SQL not run yet */
+    orders = await db.from('orders').select('total_crc').gte('created_at', start.toISOString());
+  }
+  if (orders.error) return;
+  var rows = (orders.data || []).filter(function(o){ return !o.voided_at && o.paid !== false; });
+  var total = rows.reduce(function(s,o){ return s + o.total_crc; }, 0);
+  document.getElementById('kRev').textContent = fmt(total);
+  document.getElementById('kOrders').textContent = rows.filter(function(o){ return !o.part_of; }).length;   /* split payments are part of one bill */
 }
 
 setInterval(function(){

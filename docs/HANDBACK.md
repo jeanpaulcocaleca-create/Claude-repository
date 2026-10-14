@@ -18,7 +18,7 @@ Status vocabulary used throughout:
 ## 1. Executive summary
 
 All five phases are built on the development branch:
-- 28 database migrations (`supabase/migrations/0000`–`0027`);
+- 29 database migrations (`supabase/migrations/0000`–`0028`);
 - the existing pages, extended;
 - two new pages (Accounting, Insights);
 - a test suite that rebuilds a Supabase look-alike database from scratch and exercises the database and the
@@ -51,7 +51,7 @@ Full table with tests and commits: `docs/CHECKLIST.md`.
 | 0 Safety foundation | Manual-only publishing; migration ledger; legacy guards; security fix 0001; backups (scripts, encrypted, restore test, Home card); CI; config per environment; device version check; PIN hygiene; atomic idempotent sales; protected stock history | Staging values (E-13/E-14); exact production base schema (E-11) | — |
 | 1 POS and operations | PIN/amount keypad, text keyboard; who rings each sale (off/record/enforce); per-product IVA with CABYS fields; CRC+USD with cash window, change, denominations, mixed currency; register counted in ₡ and $; manual exchange rate; receipt numbers, history search, reprint COPIA, refunds of closed days; purchase orders with numbers, PDF/print, WhatsApp/email, partial deliveries with supplier invoice; Spanish everywhere; who took the money on a bill paid later, "End my turn" clocks out, sales by cashier (0027) | Tax-exclusive pricing (A-03/A-04); automatic exchange rate (E-16, A-06) | — |
 | 2 Accounting | Double-entry ledger (balanced, immutable, reversals); periods open/closed/locked; expenses with creditable IVA and invoice photo; accountant login; trial balance, income statement, balance sheet, cash flow; CSV and monthly ZIP package | Chart of accounts and automatic daily posting (A-07) | — |
-| 3 CR tax and suppliers | Supplier invoices linked to deliveries, AP, payments, aging; the period's IVA draft with every document and tie-out; inventory valuation; weighted-average COGS; profit by product | CABYS per product (A-04); e-invoice document register in record-only mode (A-02/A-10); costing method (A-07) | E-invoice provider connection, XML, signing, sending, contingency; POS "invoice with ID" button; supplier e-invoice XML import; filing the IVA return |
+| 3 CR tax and suppliers | Supplier invoices linked to deliveries, AP, payments, aging; the period's IVA draft with every document and tie-out; inventory valuation; weighted-average COGS; profit by product | CABYS per product (A-04); e-invoice document register in record-only mode (A-02/A-10); costing method (A-07) | E-invoice provider connection, XML, signing, sending, contingency; POS "invoice with ID" button; filing the IVA return |
 | 4 Cash, bank, payroll | Register cash in/out with manager PIN; payouts documented later; ₡/$ cash reconciliation; bank accounts, CSV statement import, matching, posting, undo; pay periods, timesheet approval and lock; pay rates; payroll prepare → accountant review → post → pay; labor cost | Payroll deductions/charges (A-08: none built in, gross only until confirmed); Costa Rican payroll: CCSS/INS categories, income-tax table and withholding, aguinaldo provision and run, vacations, settlement estimate, the month for the CCSS and the INS (A-08, 0026) | Dollar bank accounts (A-06); CCSS/INS/Hacienda filing files (the month's report and CSV are the input) |
 | 5 Insights | Today estimate vs final on Home and Insights; months (sales, food cost %, labor %, prime cost %); weekday × hour heatmap; products; categories; suppliers (delivery days, price changes); stock forecast; leaks; multi-location-ready columns | — | Operating a second location (registers and stock per location) |
 | Release | Security review and hardening (0025); wave plan; read-only release check; rollback per migration; training plan | Staging dress rehearsal (E-13/E-14) | — |
@@ -136,6 +136,7 @@ Everything is rebuilt from scratch on every run (`tests/run.sh`).
 | 0025 | Security hardening (D-022) | owner uses own login with phone code for the books | previous functions |
 | 0026 | Costa Rican payroll: CCSS/INS categories, employee profile, income-tax table, extra pay, payslip, aguinaldo, vacations, settlement estimate, the month for the CCSS and the INS (all OFF behind `payroll_cr_rules`) | none | drop the new functions; previous payroll functions |
 | 0027 | Who took the money on a bill paid later; the till cannot rewrite who rang or who took the money; "End my turn" can clock out | the POS asks about the clock when a turn ends | drop trigger; previous `tab_pay` and `pos_operator_end` |
+| 0028 | Review fixes (D-037): the till never records a negative total; a room order paid later counts on the day the money came in; days with sales and no register are listed and posted; the journal reverses only its own entries; a PIN in use is refused and the owner role needs the phone code; visitors' questions capped | a repeated PIN is refused when adding someone; the owner role needs the phone code | drop the two triggers; previous functions |
 
 Each file states its purpose, staff impact and reversal in Spanish at the top. Every migration is one
 transaction and only adds; nothing deletes business records.
@@ -257,7 +258,7 @@ See `docs/LANZAMIENTO.md` (Spanish).
 2. **Staging dress rehearsal** of the whole set.
 3. **One evening maintenance window:**
    - verified backup;
-   - migrations 0003–0025;
+   - migrations 0003–0028;
    - publish the release tag (you run the workflow);
    - `release-check.sql`.
 4. **Switch-on waves:** one area per week, with training and checks:
@@ -292,7 +293,7 @@ Details: `docs/LANZAMIENTO.md`.
 
 **Ready for production** (after your approval, in this order):
 - Wave 0 (0000–0002 with backups) immediately.
-- Then, after a staging dress rehearsal, migrations 0003–0025 with the pages from the approved tag, regulated
+- Then, after a staging dress rehearsal, migrations 0003–0028 with the pages from the approved tag, regulated
   features OFF.
 
 **Not ready / not requested:**
@@ -304,4 +305,4 @@ Details: `docs/LANZAMIENTO.md`.
 1. Approve Wave 0 now (E-01, E-02, E-03).
 2. Create the staging project (E-13/E-14) so the full rehearsal can be done.
 3. After the rehearsal evidence (release-check output, test run, checklist), approve the production window for
-   0003–0025 and the release tag.
+   0003–0028 and the release tag.
