@@ -175,6 +175,12 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <div id="payBars"></div>
   </div>
 
+  <div class="card" id="cashierCard" hidden>
+    <h2>Sales by cashier</h2>
+    <p class="hint" style="margin:0 0 .6rem;font-size:.85rem;color:var(--sec)">Who took the money: a bill paid later counts for the person who closed it, not who opened it. Sales rung with nobody signed in on the device are listed as such.</p>
+    <div id="cashierBars"></div>
+  </div>
+
   <div class="card" id="regCard" hidden>
     <h2>Register closings</h2>
     <p class="hint" style="margin:0 0 .6rem;font-size:.85rem;color:var(--sec)">Float handed over in the morning, cash and card terminal typed at closing, and the differences against what the POS recorded.</p>
@@ -395,7 +401,11 @@ async function load(){
   var scols = 'id,created_at,total_crc,payment_method,voided_at,void_reason,paid,status,source,pickup_number,station,guest_name,subtotal_crc,discount_crc,discount_reason,discount_by,order_items(item_name,qty,price_crc)';
   /* a bill split between people: each payment is its own sale, part of the bill (supabase/pos-tabs.sql) */
   var since = start.toISOString();
-  var r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes').gte('created_at', since); });
+  /* who rang each sale (0008) and who took the money on a bill paid later (0027) */
+  var r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes,operator_name,paid_operator_name').gte('created_at', since); });
+  if (r.error && /operator/.test(r.error.message || '')){ /* migrations 0008 / 0027 not applied yet */
+    r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes').gte('created_at', since); });
+  }
   if (r.error && /part_of|parts_crc/.test(r.error.message || '')){ /* pos-tabs SQL not run yet */
     r = await allRows(function(){ return db.from('orders').select(scols).gte('created_at', since); });
   }
@@ -412,7 +422,7 @@ async function load(){
   /* voided orders stay on record but never count toward revenue; room orders count once paid at the window */
   allOrders = (r.data || []).filter(function(o){ return o.paid !== false; });
   lastOrders = allOrders.filter(function(o){ return !o.voided_at; });
-  renderKpis(); renderDayChart(start); renderPay(); renderTop(); renderTx();
+  renderKpis(); renderDayChart(start); renderPay(); renderCashier(); renderTop(); renderTx();
   loadRegisters(start);
 }
 /* register openings and closings in the period (supabase/register.sql) */
@@ -542,6 +552,22 @@ function renderPay(){
     .map(function(k){ return {label: PAY_LABELS[k], v: by[k]}; })
     .sort(function(a,b){return b.v-a.v});
   hbars('payBars', rows, function(r){ return fmt(r.v); });
+}
+
+/* who took the money: the person signed in on the device (a bill paid later: whoever closed it; a part payment: its own sale) */
+function renderCashier(){
+  var card = document.getElementById('cashierCard');
+  var any = lastOrders.some(function(o){ return o.operator_name || o.paid_operator_name; });
+  card.hidden = !any;
+  if (!any) return;
+  var by = {};
+  lastOrders.forEach(function(o){
+    var who = o.paid_operator_name || o.operator_name || 'Nobody signed in';
+    if (!by[who]) by[who] = {v: 0, n: 0};
+    by[who].v += o.total_crc; by[who].n += 1;
+  });
+  var rows = Object.keys(by).map(function(k){ return {label: k, v: by[k].v, n: by[k].n}; }).sort(function(a,b){ return b.v - a.v; });
+  hbars('cashierBars', rows, function(r){ return r.n + ' sales · ' + fmt(r.v); });
 }
 
 function renderTop(){

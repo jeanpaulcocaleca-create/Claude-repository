@@ -33,7 +33,7 @@ declare
   t record;
   pin text := current_setting('canopy.staging_pin');
   -- who did it: a text column with one of these names, in any table of public or acct, becomes "Persona"
-  who text[] := array['manager_name', 'opened_by_name', 'closed_by_name', 'by_name', 'approved_name', 'discount_by', 'operator_name',
+  who text[] := array['manager_name', 'opened_by_name', 'closed_by_name', 'by_name', 'approved_name', 'discount_by', 'operator_name', 'paid_operator_name',
                       'staff_name', 'created_by', 'confirmed_by', 'entered_by', 'imported_by', 'done_by', 'prepared_by', 'reviewed_by',
                       'approved_by', 'updated_by', 'changed_by', 'voided_by'];
   -- typed by people: becomes "texto" (never empty, so "it has a reason" stays true)
@@ -44,7 +44,9 @@ declare
                        'public.supplier_payments.reference', 'public.supplier_payments.void_reason', 'public.bank_accounts.name',
                        'public.bank_lines.description', 'public.bank_lines.reference', 'public.bank_lines.note', 'public.bank_imports.file_name',
                        'public.compliance_confirmations.reference', 'public.compliance_confirmations.note', 'public.tax_rates.reference',
-                       'public.payroll_rules.reference', 'public.payroll_lines.other_note', 'public.e_documents.last_error',
+                       'public.payroll_rules.reference', 'public.payroll_lines.other_note', 'public.payroll_lines.extra_note',
+                       'public.payroll_params.reference', 'public.staff_profile.notes', 'public.vacations.note', 'public.vacations.void_reason',
+                       'public.payroll_special_runs.note', 'public.e_documents.last_error',
                        'acct.entries.memo', 'acct.lines.memo'];
   -- emptied (nullable): a bank account's last digits, the e-invoice receiver and Hacienda's answer about it
   cleared text[] := array['public.bank_accounts.last4', 'public.e_documents.receiver', 'public.e_documents.response'];
@@ -54,7 +56,7 @@ declare
                           'public.orders.note', 'public.orders.track_token', 'public.rooms.code', 'public.chat_questions.message',
                           'public.chat_questions.session', 'public.audit_log.summary', 'public.audit_log.details', 'public.audit_log.target_id',
                           'public.expenses.vendor_name', 'public.expenses.receipt_path', 'public.bank_lines.fingerprint',
-                          'public.payroll_runs.rules'];
+                          'public.payroll_runs.rules', 'public.staff_profile.id_number', 'public.payroll_special_runs.lines'];
   -- logins and unlock tokens belong to production only: these tables are emptied
   emptied text[] := array['app_accounts', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'operator_sessions'];
   -- about the business, not about anyone: menu, stock, chart of accounts, settings, codes, kinds and statuses
@@ -78,6 +80,9 @@ declare
                        'public.menu_items.tax_code', 'public.order_items.item_name', 'public.order_items.tax_code', 'public.orders.flags',
                        'public.orders.guest_lang', 'public.orders.payment_method', 'public.orders.source', 'public.orders.status',
                        'public.pay_periods.status', 'public.payroll_lines.deductions', 'public.payroll_lines.employer', 'public.payroll_lines.pay_kind',
+                       'public.payroll_lines.renta_detail', 'public.payroll_params.key', 'public.payroll_params.value', 'public.payroll_runs.params',
+                       'public.payroll_rules.category', 'public.staff_profile.contract', 'public.vacations.kind', 'public.payroll_special_runs.kind',
+                       'public.payroll_special_runs.status',
                        'public.payroll_rules.code', 'public.payroll_rules.kind', 'public.payroll_rules.name', 'public.payroll_runs.status',
                        'public.purchase_orders.status', 'public.purchase_receipts.invoice_no', 'public.settings.key', 'public.settings.value',
                        'public.staff.role', 'public.staff_pay.kind', 'public.stock_items.category', 'public.stock_items.name',
@@ -112,6 +117,15 @@ begin
                            notes = case when source = 'room' then null else notes end
    where guest_name is not null or guest_phone is not null or source = 'room';
   update public.orders set track_token = md5(random()::text || id::text) where track_token is not null;
+  -- ID numbers (cédula, DIMEX) and the names and ID numbers copied into an aguinaldo run (0026)
+  if exists (select 1 from _cols where q = 'public.staff_profile.id_number') then
+    execute $q$update public.staff_profile p set id_number = '0-0000-' || lpad(x.n::text, 4, '0'), notes = case when notes is not null then 'texto' end
+               from (select staff_id, row_number() over (order by staff_id) as n from public.staff_profile) x where x.staff_id = p.staff_id$q$;
+  end if;
+  if exists (select 1 from _cols where q = 'public.payroll_special_runs.lines') then
+    execute $q$update public.payroll_special_runs set lines = (select coalesce(jsonb_agg((e - 'id_number') || jsonb_build_object('staff_name', 'Persona')), '[]') from jsonb_array_elements(lines) e)
+               where jsonb_array_length(lines) > 0$q$;
+  end if;
   update public.rooms set code = coalesce(number::text, 'h') || '-' || left(md5(random()::text || id::text), 6);
   -- visitors write this table directly (anyone may insert): keep lang and matched only when they look like codes
   update public.chat_questions set message = 'pregunta', session = null,

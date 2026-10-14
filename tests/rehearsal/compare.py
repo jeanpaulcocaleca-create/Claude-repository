@@ -72,7 +72,8 @@ if mode == 'after':
     # regulated features arrive switched OFF (CLAUDE.md): prices as today, no automatic books, no e-invoices,
     # nobody's confirmation recorded on their behalf
     st = rc['settings']
-    for k, v in (('price_mode', 'inclusive'), ('ledger_auto_post', False), ('einvoice_mode', 'off'), ('operator_mode', 'off')):
+    for k, v in (('price_mode', 'inclusive'), ('ledger_auto_post', False), ('einvoice_mode', 'off'), ('operator_mode', 'off'),
+                 ('payroll_renta_withhold', False), ('payroll_accrue_aguinaldo', False)):
         check(st.get(k) == v, f'setting {k} should be {v!r} after the window, is {st.get(k)!r}')
     check(rc['confirmations'] == [], f"no confirmation may exist before the owner/accountant gives it: {rc['confirmations']}")
     # Storage: the receipts bucket and its two rules (0015), the upload rule of 0025; the menu photos rules are

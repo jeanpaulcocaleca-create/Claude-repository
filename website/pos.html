@@ -1278,7 +1278,10 @@ document.getElementById('opOffline').addEventListener('click', function(){
   saveOp(); document.getElementById('opModal').hidden = true;
 });
 document.getElementById('opEnd').addEventListener('click', function(){
-  if (OP && OP.token) db.rpc('pos_operator_end', {p_token: OP.token}).then(function(){});
+  var op = OP, out = !!(op && op.token) && confirm('End your turn. Also clock out of the time clock?');
+  if (op && op.token) db.rpc('pos_operator_end', {p_token: op.token, p_clock_out: out}).then(function(r){
+    if (out) toast(r && r.data && r.data.clocked_out ? op.name + ': clocked out' : op.name + ': turn ended · not clocked out: use the Time clock');
+  });
   OP = null; saveOp(); openOp();
 });
 document.getElementById('opSkip').addEventListener('click', function(){ document.getElementById('opModal').hidden = true; });

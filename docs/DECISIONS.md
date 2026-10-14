@@ -688,3 +688,66 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   account with a write grant, and a role switched in through the connection options, are refused); each fails on
   the previous `backup.sh`; actionlint and lint check 12 on the new workflow.
 - **Not proven:** the run against production itself (it waits for the owner's corrected secret and go-ahead).
+
+## D-035 · 2026-10-14 · Costa Rican payroll: the arithmetic is built, the law is entered and confirmed
+- **Decision:** migration 0026 separates what is arithmetic from what the law sets. Arithmetic always runs: hours × rate,
+  gross + extra pay, a percentage of the pay, salaries ÷ 12, averages over the posted payrolls. What the law sets
+  (the CCSS and INS percentages, the income-tax brackets and credits, the vacation days per month, the notice and
+  severance table) is never assumed: the accountant enters each with their name and the document, and the owner
+  records the confirmation `payroll_cr_rules` in Home → Settings. Until then nothing is withheld, provisioned or
+  posted, and every aguinaldo, vacation and settlement figure is labelled an estimate that is not confirmed.
+- **What is built (all OFF):** rule categories `ccss | ins | other` (the INS policy posts apart, 6105 against 2133;
+  CCSS stays 6102/2131); `staff_profile` (ID number, hire and end dates, contract, children, spouse) for the tax
+  credits, the CCSS report and the balances; `payroll_params` (`renta`, `vacation`, `severance`), saved only with a
+  confirmation, the last two seeded with the text of the law and `confirmed_by = null`; income-tax withholding to 2140
+  behind the setting `payroll_renta_withhold`, with the monthly table taken to the period (pay × 30 ÷ days, taxed,
+  tax × days ÷ 30: the usual employer practice, flagged on the line and to be confirmed); the aguinaldo provision
+  (1/12 of the pay, 6103 against 2150) behind `payroll_accrue_aguinaldo`; extra pay per line under the same rules;
+  the payslip in Spanish, printed from the page; the aguinaldo run (salaries posted from 1 December to 30 November
+  over twelve; prepared, reviewed by the accountant, posted for what the provisions did not cover, paid); vacation
+  records with voids by reason, the balance from the hire date (or the first payroll or punch) and the average daily
+  pay of the last 50 weeks of posted payrolls; the settlement estimate by reason (notice and severance only in a
+  dismissal without cause, proportional aguinaldo and unused vacations always); the month for the CCSS and the INS
+  by person and by rule, with the people without an ID number flagged.
+- **Why this shape:** the directive forbids activating unverified payroll rules; the accountant needs the inputs
+  the CCSS and INS forms ask for (salary, days, hours, ID number) and a payslip the staff can keep; the business
+  needs the aguinaldo and vacation liabilities visible before December. Filing files are not produced: the CCSS and
+  INS portals take the figures by hand, and a file format guessed today would be wrong in a way the owner could not
+  see.
+- **From the independent review (fixed before the commit):** the log of a profile change names the fields that
+  changed and the hire and end dates, never the ID number, the family or the notes (any manager with a PIN reads the
+  café log); a vacation record's note stays out of the log too; `NaN` and infinity are refused in the tables and the
+  new money columns carry the 0025 finite check; the extra pay and another deduction are logged with before and
+  after and lock the run against a review happening at the same time; a draft prepared before the settings, the
+  confirmation or the tax table changed is prepared again before the review (`prepare_again`); extra pay and other
+  deductions typed on a draft survive a new preparation; a profile sent with one field changes only that field; a
+  period of 28 to 31 days is a month for the tax table (only a shorter period is taken to a month); the aguinaldo is
+  posted before 30 November only with a written reason kept on the run, never while a period of the year has no
+  posted payroll, and a run posted early leaves the rest to a later complementary run that discounts what was paid.
+- **Proof:** `tests/sql/290_payroll_cr.test.sql` (113 assertions: categories, the profile and its log, the table
+  validation with NaN and infinity, the withholding off → no table → on, the prorated tax and the calendar month,
+  extra pay and its log, a stale draft, extras kept on re-prepare, the split entry, the payslip, the month, the
+  aguinaldo run blocked without the confirmation and without a reason before 30 November, nothing left after it,
+  vacations, the settlement by reason); `tests/e2e/specs/260_payroll_cr.spec.js` (the accountant's screens, the
+  owner's profile form, the review refused without a table); the 0022/0025 payroll test unchanged (44). The
+  rehearsal checks that both settings arrive OFF and that the staging copy anonymizes the ID numbers.
+- **Not proven:** the real percentages, brackets and tables (they come from the accountant, A-08); the prorating
+  method against Hacienda's practice; a browser print of the payslip (checked by hand in a screenshot only).
+
+## D-036 · 2026-10-14 · The three attribution gaps of D-032 are closed (migration 0027)
+- **Decision:** (1) a bill paid later records who took the money in its own columns (`orders.paid_operator_*`), set by
+  `tab_pay` from the session signed in on the device at the moment of the last payment, apart from who rang it; a part
+  payment was already its own sale of whoever took it. With `operator_mode` on, a bill closed with nobody signed in is
+  flagged `no_paid_operator`, and one closed under an unverified (offline) name `paid_operator_unverified`. (2) A trigger
+  keeps both names as the server set them on any update from the till (the till has no update right on sales since
+  0025; the trigger is the second lock). (3) `pos_operator_end(p_token, p_clock_out)` ends the device session and, when
+  asked, closes the same person's open shift through the session (no second PIN: the session was opened with it); the
+  old call with the token alone keeps working. The POS asks «¿Marcar también la salida en el reloj?» when a turn ends.
+  (4) Sales → "Sales by cashier": the money by the person who took it.
+- **Why:** the guide told staff that ending the turn did not clock out, the sales page could not show cashiers, and a
+  bill closed by a different person was credited to whoever opened it: three things the owner asked for in the
+  attribution work and that a payroll from approved hours makes matter.
+- **Proof:** `tests/sql/300_operator_followups.test.sql` (19), `tests/e2e/specs/270_operator_followups.spec.js` (2:
+  clock-in from the POS, end of turn with the clock-out accepted and declined, the sales card), the 0008 tests
+  unchanged (27 and 5).
+- **Not proven:** nothing changes on today's site until `operator_mode` is switched on after the window (E-06).

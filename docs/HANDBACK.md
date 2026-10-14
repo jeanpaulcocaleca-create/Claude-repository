@@ -18,7 +18,7 @@ Status vocabulary used throughout:
 ## 1. Executive summary
 
 All five phases are built on the development branch:
-- 26 database migrations (`supabase/migrations/0000`–`0025`);
+- 28 database migrations (`supabase/migrations/0000`–`0027`);
 - the existing pages, extended;
 - two new pages (Accounting, Insights);
 - a test suite that rebuilds a Supabase look-alike database from scratch and exercises the database and the
@@ -49,10 +49,10 @@ Full table with tests and commits: `docs/CHECKLIST.md`.
 | Phase | Implemented and tested | Awaiting external verification (built, OFF) | Not implemented |
 |---|---|---|---|
 | 0 Safety foundation | Manual-only publishing; migration ledger; legacy guards; security fix 0001; backups (scripts, encrypted, restore test, Home card); CI; config per environment; device version check; PIN hygiene; atomic idempotent sales; protected stock history | Staging values (E-13/E-14); exact production base schema (E-11) | — |
-| 1 POS and operations | PIN/amount keypad, text keyboard; who rings each sale (off/record/enforce); per-product IVA with CABYS fields; CRC+USD with cash window, change, denominations, mixed currency; register counted in ₡ and $; manual exchange rate; receipt numbers, history search, reprint COPIA, refunds of closed days; purchase orders with numbers, PDF/print, WhatsApp/email, partial deliveries with supplier invoice; Spanish everywhere | Tax-exclusive pricing (A-03/A-04); automatic exchange rate (E-16, A-06) | — |
+| 1 POS and operations | PIN/amount keypad, text keyboard; who rings each sale (off/record/enforce); per-product IVA with CABYS fields; CRC+USD with cash window, change, denominations, mixed currency; register counted in ₡ and $; manual exchange rate; receipt numbers, history search, reprint COPIA, refunds of closed days; purchase orders with numbers, PDF/print, WhatsApp/email, partial deliveries with supplier invoice; Spanish everywhere; who took the money on a bill paid later, "End my turn" clocks out, sales by cashier (0027) | Tax-exclusive pricing (A-03/A-04); automatic exchange rate (E-16, A-06) | — |
 | 2 Accounting | Double-entry ledger (balanced, immutable, reversals); periods open/closed/locked; expenses with creditable IVA and invoice photo; accountant login; trial balance, income statement, balance sheet, cash flow; CSV and monthly ZIP package | Chart of accounts and automatic daily posting (A-07) | — |
 | 3 CR tax and suppliers | Supplier invoices linked to deliveries, AP, payments, aging; the period's IVA draft with every document and tie-out; inventory valuation; weighted-average COGS; profit by product | CABYS per product (A-04); e-invoice document register in record-only mode (A-02/A-10); costing method (A-07) | E-invoice provider connection, XML, signing, sending, contingency; POS "invoice with ID" button; supplier e-invoice XML import; filing the IVA return |
-| 4 Cash, bank, payroll | Register cash in/out with manager PIN; payouts documented later; ₡/$ cash reconciliation; bank accounts, CSV statement import, matching, posting, undo; pay periods, timesheet approval and lock; pay rates; payroll prepare → accountant review → post → pay; labor cost | Payroll deductions/charges (A-08: none built in, gross only until confirmed) | Dollar bank accounts (A-06); CCSS/INS filing files; aguinaldo and vacation accruals; income-tax withholding calculation (typed by the accountant) |
+| 4 Cash, bank, payroll | Register cash in/out with manager PIN; payouts documented later; ₡/$ cash reconciliation; bank accounts, CSV statement import, matching, posting, undo; pay periods, timesheet approval and lock; pay rates; payroll prepare → accountant review → post → pay; labor cost | Payroll deductions/charges (A-08: none built in, gross only until confirmed); Costa Rican payroll: CCSS/INS categories, income-tax table and withholding, aguinaldo provision and run, vacations, settlement estimate, the month for the CCSS and the INS (A-08, 0026) | Dollar bank accounts (A-06); CCSS/INS/Hacienda filing files (the month's report and CSV are the input) |
 | 5 Insights | Today estimate vs final on Home and Insights; months (sales, food cost %, labor %, prime cost %); weekday × hour heatmap; products; categories; suppliers (delivery days, price changes); stock forecast; leaks; multi-location-ready columns | — | Operating a second location (registers and stock per location) |
 | Release | Security review and hardening (0025); wave plan; read-only release check; rollback per migration; training plan | Staging dress rehearsal (E-13/E-14) | — |
 
@@ -134,6 +134,8 @@ Everything is rebuilt from scratch on every run (`tests/run.sh`).
 | 0023 | Insights (read-only) | none | drop functions |
 | 0024 | Locations (one today) | none | not needed |
 | 0025 | Security hardening (D-022) | owner uses own login with phone code for the books | previous functions |
+| 0026 | Costa Rican payroll: CCSS/INS categories, employee profile, income-tax table, extra pay, payslip, aguinaldo, vacations, settlement estimate, the month for the CCSS and the INS (all OFF behind `payroll_cr_rules`) | none | drop the new functions; previous payroll functions |
+| 0027 | Who took the money on a bill paid later; the till cannot rewrite who rang or who took the money; "End my turn" can clock out | the POS asks about the clock when a turn ends | drop trigger; previous `tab_pay` and `pos_operator_end` |
 
 Each file states its purpose, staff impact and reversal in Spanish at the top. Every migration is one
 transaction and only adds; nothing deletes business records.
@@ -228,7 +230,7 @@ are for the local test database only.
 | Prices on menus | final prices as today | A-03: whether tax-exclusive display is lawful (built, OFF) |
 | Period IVA | draft with every document | A-01: regime and proportionality; the accountant files |
 | Electronic invoicing | document register only (OFF / record-only) | A-02, A-10: provider, credentials, format version. Sending is **not implemented** |
-| Payroll | gross from approved hours; review and posting flow | A-08: CCSS/INS/income-tax rules and amounts (none built in) |
+| Payroll | gross from approved hours; review and posting flow; CCSS and INS by category, income-tax table, extra pay, payslip, aguinaldo, vacations, settlement estimate, the month for the CCSS and the INS (0026) | A-08: the percentages, the year's tax table and the vacation/severance rules confirmed by the accountant; the owner records `payroll_cr_rules`. Nothing is withheld, provisioned or posted before that; no filing files are produced |
 | Record retention | backups keep yearly copies indefinitely | A-09: confirm 10 years |
 
 No Costa Rican tax or payroll rule was invented. Anything regulated is either a confirmed rate entered with

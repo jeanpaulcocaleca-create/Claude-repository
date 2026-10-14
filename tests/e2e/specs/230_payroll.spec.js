@@ -31,7 +31,7 @@ module.exports.tests = [
       await until(() => sql(`select status from pay_periods`) === 'approved', 8000, 'approved');
       // Ana's rate
       await until(async () => (await own.locator('#rtTable tr', { hasText: 'Ana' }).count()) === 1, 8000, 'rates listed');
-      await own.locator('#rtTable tr', { hasText: 'Ana' }).locator('button').click();
+      await own.locator('#rtTable tr', { hasText: 'Ana' }).locator('button', { hasText: 'Edit' }).click();
       await own.fill('#rtRate', '2500');
       await own.fill('#rtFrom', crDay(-30));
       await own.click('#rtSave');

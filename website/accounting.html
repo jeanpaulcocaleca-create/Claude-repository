@@ -73,6 +73,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
 .tag{font-size:.75rem;padding:.1em .55em;border-radius:99px;border:1px solid var(--muted);color:var(--sec)}
 .tag.rev{border-color:var(--bad);color:var(--bad)}
 #bkTable td:last-child{min-width:15rem}
+td.edit{white-space:normal;min-width:17rem}td.edit .row{display:flex;gap:.25rem;align-items:center}td.edit input{width:auto;min-height:36px;padding:.3em .5em}
 #bkTable td:last-child button{white-space:normal;text-align:left}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem}
 .grid2 label{display:block;font-size:.8rem;color:var(--sec);margin-bottom:.2rem}
@@ -80,6 +81,9 @@ tr.head td{font-weight:700;background:var(--canvas)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6rem 1rem;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
 .toast.on{opacity:1}
 @media print{.tabs,.tools,header.top button,.nav,.noprint{display:none !important}.card{background:#fff}}
+.card h3{font-size:1.05rem;margin:1rem 0 .3rem}
+#slip table{max-width:34rem}#slip .who{display:flex;flex-wrap:wrap;gap:.3rem 1.5rem;font-size:.9rem;margin:.4rem 0 .8rem}
+@media print{body.slip-print *{visibility:hidden}body.slip-print #slip,body.slip-print #slip *{visibility:visible}body.slip-print #slip{position:absolute;left:0;top:0;width:100%;border:0;box-shadow:none}body.slip-print #slip .noprint{display:none}}
 </style>
 </head>
 <body>
@@ -401,7 +405,7 @@ tr.head td{font-weight:700;background:var(--canvas)}
     <div class="card" id="prCard" hidden>
       <h2>Payroll <span class="sp"></span><button type="button" class="small ghost" id="prCsv">Download CSV</button><button type="button" class="small" id="prPrepare">Prepare the payroll</button></h2>
       <p class="hint" id="prState"></p>
-      <div class="tablewrap"><table id="prTable"><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Gross</th><th class="num">Deductions</th><th class="num">Other deductions</th><th class="num">Employer charges</th><th class="num">Net</th></tr></thead><tbody></tbody></table></div>
+      <div class="tablewrap"><table id="prTable"><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Gross</th><th class="num">Extra pay</th><th class="num">Deductions</th><th class="num">Income tax</th><th class="num">Other deductions</th><th class="num">Employer charges</th><th class="num">Net</th><th></th></tr></thead><tbody></tbody></table></div>
       <div class="tools" style="margin-top:.6rem">
         <button type="button" id="prReview" hidden>Mark as reviewed (accountant)</button>
         <button type="button" class="ghost" id="prBack" hidden>Back to draft</button>
@@ -411,6 +415,10 @@ tr.head td{font-weight:700;background:var(--canvas)}
         <button type="button" id="prPay" hidden>Record the payment</button>
       </div>
       <p class="err" id="prErr"></p>
+    </div>
+    <div class="card" id="slip" hidden>
+      <h2>Colilla de pago <span class="sp"></span><button type="button" class="small ghost noprint" id="slipPrint">Print</button><button type="button" class="small ghost noprint" id="slipClose">Close</button></h2>
+      <div id="slipBody" data-no-translate></div>
     </div>
     <div class="card">
       <h2>Pay rates</h2>
@@ -423,15 +431,28 @@ tr.head td{font-weight:700;background:var(--canvas)}
         <div style="align-self:end"><button type="button" id="rtSave">Save</button> <button type="button" class="ghost" id="rtCancel">Cancel</button></div>
       </div>
       <p class="err" id="rtErr"></p>
+      <div class="grid2" id="pfForm" hidden>
+        <div><label for="pfWho">Person</label><input id="pfWho" disabled></div>
+        <div><label for="pfId">ID number (cédula or DIMEX)</label><input id="pfId" maxlength="20"></div>
+        <div><label for="pfHired">Hired on</label><input id="pfHired" type="date"></div>
+        <div><label for="pfEnded">Last day (if they left)</label><input id="pfEnded" type="date"></div>
+        <div><label for="pfContract">Contract</label><select id="pfContract"><option value="">—</option><option value="indefinido">Open-ended</option><option value="plazo_fijo">Fixed term</option><option value="por_horas">By the hour</option></select></div>
+        <div><label for="pfChildren">Children (tax credit)</label><input id="pfChildren" type="number" min="0" max="20" step="1"></div>
+        <div style="align-self:end"><label><input type="checkbox" id="pfSpouse" style="width:auto;min-height:0"> Spouse (tax credit)</label></div>
+        <div><label for="pfNotes">Notes</label><input id="pfNotes" maxlength="300"></div>
+        <div style="align-self:end"><button type="button" id="pfSave">Save the profile</button> <button type="button" class="ghost" id="pfCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="pfErr"></p>
     </div>
     <div class="card">
       <h2>Deductions and employer charges <span class="sp"></span><button type="button" class="small" id="ruNew">+ Rule</button></h2>
       <p class="hint">None come built in. Each one is entered with who confirmed it (your accountant) and the document. Until then the payroll only works out the gross pay.</p>
-      <div class="tablewrap"><table id="ruTable"><thead><tr><th>Rule</th><th>Who pays it</th><th class="num">%</th><th>Confirmed by</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="tablewrap"><table id="ruTable"><thead><tr><th>Rule</th><th>Who pays it</th><th>Category</th><th class="num">%</th><th>Confirmed by</th><th></th></tr></thead><tbody></tbody></table></div>
       <div class="grid2" id="ruForm" hidden>
         <div><label for="ruCode">Code</label><input id="ruCode" maxlength="30" placeholder="ccss_trabajador"></div>
         <div><label for="ruName">Name</label><input id="ruName" maxlength="80"></div>
         <div><label for="ruKind">Who pays it</label><select id="ruKind"><option value="employee">Taken from the pay</option><option value="employer">Paid by the business on top</option></select></div>
+        <div><label for="ruCat">Category</label><select id="ruCat"><option value="ccss">CCSS</option><option value="ins">INS (occupational risk policy)</option><option value="other">Other</option></select></div>
         <div><label for="ruPct">Percent of the gross pay</label><input id="ruPct" type="number" min="0" max="49.999" step="0.001"></div>
         <div><label for="ruWho">Confirmed by</label><input id="ruWho" maxlength="80"></div>
         <div><label for="ruRef">Document or reference</label><input id="ruRef" maxlength="120"></div>
@@ -439,6 +460,94 @@ tr.head td{font-weight:700;background:var(--canvas)}
         <div style="align-self:end"><button type="button" id="ruSave">Save</button> <button type="button" class="ghost" id="ruCancel">Cancel</button></div>
       </div>
       <p class="err" id="ruErr"></p>
+    </div>
+    <div class="card" id="crCard">
+      <h2>Costa Rican rules: CCSS, INS, income tax, aguinaldo, vacations</h2>
+      <p class="hint">What is arithmetic (hours × rate, salaries ÷ 12, averages) is always worked out. What the law sets (percentages, the tax table, vacation days, notice and severance) is entered by your accountant with the document, and the owner records the confirmation "payroll_cr_rules" in Home → Settings. Until then everything here is an estimate marked as not confirmed, and nothing is withheld, provisioned or posted.</p>
+      <p class="hint" id="crState"></p>
+      <h3>Income tax table (monthly brackets)</h3>
+      <p class="hint" id="crRentaState"></p>
+      <div class="tablewrap"><table id="rbTable"><thead><tr><th>Up to (₡ a month; empty = no limit)</th><th class="num">%</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="grid2">
+        <div style="align-self:end"><button type="button" class="small ghost" id="rbAdd">+ Bracket</button></div>
+        <div><label for="rbChild">Credit per child (₡ a month)</label><input id="rbChild" type="number" min="0" step="any"></div>
+        <div><label for="rbSpouse">Credit for the spouse (₡ a month)</label><input id="rbSpouse" type="number" min="0" step="any"></div>
+        <div><label for="rbMethod">Periods shorter than a month</label><select id="rbMethod"><option value="prorate">Take the pay to a month, tax it, bring the tax back to the period</option><option value="monthly">Apply the table to the pay as it is</option></select></div>
+        <div><label for="rbFrom">Valid from</label><input id="rbFrom" type="date"></div>
+        <div><label for="rbWho">Confirmed by</label><input id="rbWho" maxlength="80"></div>
+        <div><label for="rbRef">Document or reference</label><input id="rbRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="rbSave">Save the tax table</button></div>
+      </div>
+      <p class="err" id="rbErr"></p>
+      <h3>Vacation days</h3>
+      <p class="hint" id="vpState"></p>
+      <div class="grid2">
+        <div><label for="vpDays">Days earned per month worked</label><input id="vpDays" type="number" min="0.1" max="5" step="0.01"></div>
+        <div><label for="vpWho">Confirmed by</label><input id="vpWho" maxlength="80"></div>
+        <div><label for="vacRef">Document or reference</label><input id="vacRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="vpSave">Save the vacation rule</button></div>
+      </div>
+      <h3>Notice and severance table</h3>
+      <p class="hint" id="svText" data-no-translate></p>
+      <p class="hint" id="svState"></p>
+      <div class="grid2">
+        <div><label for="svWho">Confirmed by</label><input id="svWho" maxlength="80"></div>
+        <div><label for="svRef">Document or reference</label><input id="svRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="svSave">Confirm the table as written</button></div>
+      </div>
+      <p class="err" id="vacErr"></p>
+    </div>
+    <div class="card" id="agCard">
+      <h2>Aguinaldo <span class="sp"></span><button type="button" class="small ghost" id="agCsv">Download CSV</button></h2>
+      <div class="tools"><div><label for="agYear">Year</label><input id="agYear" type="number" min="2020" max="2100"></div><div style="align-self:end"><button type="button" class="small" id="agGo">Estimate</button></div><div style="align-self:end"><span class="tag" id="agStatus"></span></div></div>
+      <p class="hint" id="agHint"></p>
+      <div class="tablewrap"><table id="aguTable"><thead><tr><th>Person</th><th>ID number</th><th class="num">Months</th><th class="num">Salaries</th><th class="num">Aguinaldo</th><th class="num">Provisioned</th></tr></thead><tbody></tbody></table></div>
+      <div class="tools" style="margin-top:.6rem">
+        <button type="button" id="agPrepare" hidden>Prepare the aguinaldo</button>
+        <button type="button" id="agReview" hidden>Mark as reviewed (accountant)</button>
+        <button type="button" class="ghost" id="agBack" hidden>Back to draft</button>
+        <div id="agPostBox" hidden><label for="agPostDate">Date</label><input id="agPostDate" type="date"></div>
+        <button type="button" id="agPost" hidden>Post to the books</button>
+        <div id="agPayBox" hidden><label for="agFrom">Paid from</label><select id="agFrom"><option value="bank">Bank</option><option value="cash">Cash from the safe (not the register drawer)</option><option value="petty">Petty cash</option></select></div>
+        <div id="agPayDateBox" hidden><label for="agPayDate">Date</label><input id="agPayDate" type="date"></div>
+        <button type="button" id="agPay" hidden>Record the payment</button>
+      </div>
+      <p class="err" id="agErr"></p>
+    </div>
+    <div class="card" id="vcCard">
+      <h2>Vacations</h2>
+      <div class="tools"><div><label for="vcWho">Person</label><select id="vcWho"></select></div><div style="align-self:end"><button type="button" class="small" id="vcGo">See the balance</button></div></div>
+      <p class="hint" id="vcBalance"></p>
+      <div class="grid2">
+        <div><label for="vcFrom">From</label><input id="vcFrom" type="date"></div>
+        <div><label for="vcTo">To</label><input id="vcTo" type="date"></div>
+        <div><label for="vcDays">Days</label><input id="vcDays" type="number" min="0.5" max="60" step="0.5"></div>
+        <div><label for="vcKind">What</label><select id="vcKind"><option value="taken">Days taken</option><option value="paid_out">Days paid instead of taken</option></select></div>
+        <div><label for="vcNote">Note</label><input id="vcNote" maxlength="200"></div>
+        <div style="align-self:end"><button type="button" id="vcSave">Record</button></div>
+      </div>
+      <div class="tablewrap"><table id="vcTable"><thead><tr><th>From</th><th>To</th><th class="num">Days</th><th>What</th><th>Note</th><th></th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="vcErr"></p>
+    </div>
+    <div class="card" id="lqCard">
+      <h2>Settlement estimate (when someone leaves)</h2>
+      <div class="tools">
+        <div><label for="lqWho">Person</label><select id="lqWho"></select></div>
+        <div><label for="lqDate">Last day</label><input id="lqDate" type="date"></div>
+        <div><label for="lqReason">Reason</label><select id="lqReason"><option value="despido_sin_causa">Dismissal without cause (notice and severance owed)</option><option value="despido_con_causa">Dismissal with cause</option><option value="renuncia">Resignation</option><option value="fin_contrato">End of a fixed-term contract</option></select></div>
+        <div style="align-self:end"><button type="button" class="small" id="lqGo">Estimate</button></div>
+      </div>
+      <p class="hint" id="lqHint"></p>
+      <div class="tablewrap"><table id="lqTable"><thead><tr><th>Concept</th><th class="num">Days</th><th class="num">Amount</th><th>Legal basis</th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="lqErr"></p>
+    </div>
+    <div class="card" id="mrCard">
+      <h2>Month for the CCSS and the INS <span class="sp"></span><button type="button" class="small ghost" id="mrCsv">Download CSV</button></h2>
+      <div class="tools"><div><label for="mrMonth">Month</label><input id="mrMonth" type="month"></div><div style="align-self:end"><button type="button" class="small" id="mrGo">Show</button></div></div>
+      <p class="hint" id="mrHint"></p>
+      <div class="tablewrap"><table id="mrTable"><thead><tr><th>Person</th><th>ID number</th><th class="num">Days</th><th class="num">Hours</th><th class="num">Salary</th><th class="num">CCSS (employee)</th><th class="num">Income tax</th><th class="num">Other</th><th class="num">Net</th><th class="num">CCSS (employer)</th><th class="num">INS</th><th class="num">Other charges</th></tr></thead><tbody></tbody></table></div>
+      <div class="tablewrap"><table id="mrRules"><thead><tr><th>Rule</th><th>Who pays it</th><th>Category</th><th class="num">%</th><th class="num">Total</th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="mrErr"></p>
     </div>
   </section>
 
@@ -513,6 +622,10 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   not_posted: 'Post it first.', payroll_posted: 'Its payroll is already posted: the hours stay.', used_by_payroll: 'A posted payroll used this rate: the change starts after that period.',
   bad_rows: 'Some rows could not be read: check the date format and the columns.', usd_not_supported: 'Dollar accounts come later: their movements must be valued in colones first.',
   prepare_again: 'The hours changed since this payroll was prepared: prepare it again.', negative_net: 'Someone would be paid less than zero: check the deductions.',
+  renta_table_missing: 'Income tax withholding is on but there is no confirmed tax table: enter it in Costa Rican rules, or switch it off in Home → Settings.',
+  not_found: 'Not found. Refresh the page.', unknown_setting: 'That setting does not exist.',
+  too_early: 'Before 30 November the aguinaldo is posted only with a written reason.',
+  pending_payrolls: 'A pay period of the year has no posted payroll yet: post it first (or prepare the aguinaldo again after).',
   is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.', big_change: 'That rate is far from the last one: the owner with the phone code can set it.', has_payments: 'This invoice has payments: void the payments first.'};
 function errText(r){ return r.error ? 'Could not save. Check the connection and try again.' : (ERR[r.data && r.data.error] || 'Could not save. Try again.'); }
 
@@ -1447,35 +1560,50 @@ async function loadPayrun(){
   $('prPost').hidden = st !== 'reviewed';
   ['prPayBox', 'prPayDateBox', 'prPay'].forEach(function(id){ $(id).hidden = st !== 'posted'; });
   if (!$('prDate').value) $('prDate').value = today();
+  var ps = (run && run.params) || {};
   $('prState').textContent = PAYP.status === 'open' ? 'The payroll is prepared once the owner approves the hours.'
     : !run ? 'Not prepared yet.' : PR_STATUS[st] + (run.reviewed_by ? ' · reviewed by ' + run.reviewed_by : '') +
-      (run.rules && run.rules.length ? '' : ' · no deductions or charges confirmed: gross pay only');
+      (run.rules && run.rules.length ? '' : ' · no deductions or charges confirmed: gross pay only') +
+      (ps.renta_status === 'no_table' ? ' · income tax withholding is on but there is no tax table: enter it in Costa Rican rules, or switch it off' : ps.renta_status === 'on' ? ' · income tax withheld' : '') +
+      (ps.accrue_aguinaldo ? ' · aguinaldo provisioned' : '');
   if (!run) return;
   PAYRUN.lines.forEach(function(l){
-    var t = document.createElement('tr');
+    var t = document.createElement('tr'), rd = l.renta_detail || {};
     t.innerHTML = '<td>' + esc(l.staff_name) + (l.gross_crc == null ? ' <span class="tag rev">' + esc('No pay rate') + '</span>' : '') + '</td><td class="num">' + esc(Number(l.hours).toLocaleString('fr-FR')) +
-      '</td><td class="num">' + (l.rate_crc == null ? '' : fmt(l.rate_crc) + (l.pay_kind === 'hourly' ? ' /h' : '')) + '</td><td class="num">' + (l.gross_crc == null ? '' : fmt(l.gross_crc)) +
-      '</td><td class="num">' + fmt(l.deductions_crc) + '</td>';
-    var oc = document.createElement('td'); oc.className = 'num';
-    if (st === 'draft' && l.gross_crc != null){
-      var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = 'any'; inp.value = l.other_crc; inp.style.maxWidth = '7rem'; inp.setAttribute('aria-label', 'Other deductions');
-      var note = document.createElement('input'); note.maxLength = 120; note.value = l.other_note || ''; note.placeholder = 'What for'; note.style.maxWidth = '9rem'; note.setAttribute('aria-label', 'What for');
-      var sv = document.createElement('button'); sv.type = 'button'; sv.className = 'ghost small'; sv.textContent = 'Save';
-      sv.addEventListener('click', async function(){
-        var a = await db.rpc('payroll_adjust', {p_run_id: run.id, p_staff_id: l.staff_id, p_other: Number(inp.value) || 0, p_note: note.value.trim() || null});
-        if (a.error || !a.data || !a.data.ok){ $('prErr').textContent = errText(a); return; }
-        loadPayrun();
-      });
-      oc.appendChild(inp); oc.appendChild(note); oc.appendChild(sv);
-    } else oc.textContent = fmt(l.other_crc) + (l.other_note ? ' · ' + l.other_note : '');
-    t.appendChild(oc);
+      '</td><td class="num">' + (l.rate_crc == null ? '' : fmt(l.rate_crc) + (l.pay_kind === 'hourly' ? ' /h' : '')) + '</td><td class="num">' + (l.gross_crc == null ? '' : fmt(l.gross_crc)) + '</td>';
+    t.appendChild(lineInput(l, st, l.extra_crc, l.extra_note, 'payroll_extra', 'p_extra', 'Extra pay', 'What for'));
+    t.insertAdjacentHTML('beforeend', '<td class="num">' + fmt(l.deductions_crc) + '</td><td class="num">' + fmt(l.renta_crc) +
+      (rd.status && rd.status !== 'on' ? ' <span class="tag">' + esc(RENTA_ST[rd.status] || rd.status) + '</span>' : rd.status === 'on' && rd.method === 'prorate' && Number(rd.days) !== 30 ? ' <span class="tag" title="' + esc('Pay taken to a month of 30 days, taxed, brought back to the period of ' + rd.days + ' days') + '">×30/' + esc(rd.days) + '</span>' : '') + '</td>');
+    t.appendChild(lineInput(l, st, l.other_crc, l.other_note, 'payroll_adjust', 'p_other', 'Other deductions', 'What for'));
     t.insertAdjacentHTML('beforeend', '<td class="num">' + fmt(l.employer_crc) + '</td><td class="num">' + (l.net_crc == null ? '' : fmt(l.net_crc)) + '</td>');
+    var pc = document.createElement('td');
+    if (l.gross_crc != null){ var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghost small'; pb.textContent = 'Payslip'; pb.addEventListener('click', function(){ showPayslip(run.id, l.staff_id); }); pc.appendChild(pb); }
+    t.appendChild(pc);
     tb.appendChild(t);
   });
   var T = PAYRUN.totals || {}, f = document.createElement('tr'); f.className = 'total';
-  f.innerHTML = '<td>Total</td><td class="num">' + esc(Number(T.hours || 0).toLocaleString('fr-FR')) + '</td><td></td><td class="num">' + fmt(T.gross || 0) + '</td><td class="num">' + fmt(T.deductions || 0) +
-    '</td><td class="num">' + fmt(T.other || 0) + '</td><td class="num">' + fmt(T.employer || 0) + '</td><td class="num">' + fmt(T.net || 0) + '</td>';
+  f.innerHTML = '<td>Total</td><td class="num">' + esc(Number(T.hours || 0).toLocaleString('fr-FR')) + '</td><td></td><td class="num">' + fmt(T.gross || 0) + '</td><td class="num">' + fmt(T.extra || 0) + '</td><td class="num">' + fmt(T.deductions || 0) +
+    '</td><td class="num">' + fmt(T.renta || 0) + '</td><td class="num">' + fmt(T.other || 0) + '</td><td class="num">' + fmt(T.employer || 0) + '</td><td class="num">' + fmt(T.net || 0) + '</td><td></td>';
   tb.appendChild(f);
+}
+var RENTA_ST = {off: 'tax off', no_table: 'no tax table', unconfirmed: 'not confirmed'};
+/* an amount with its note on a draft line (extra pay or another deduction); read-only once reviewed */
+function lineInput(l, st, amount, note, fn, argName, label, noteLabel){
+  var c = document.createElement('td'); c.className = 'num';
+  if (st === 'draft' && l.gross_crc != null){
+    c.className = 'num edit'; var row = document.createElement('div'); row.className = 'row';
+    var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = 'any'; inp.value = amount; inp.style.width = '5.5rem'; inp.setAttribute('aria-label', label);
+    var nt = document.createElement('input'); nt.maxLength = 120; nt.value = note || ''; nt.placeholder = noteLabel; nt.style.width = '7rem'; nt.setAttribute('aria-label', noteLabel);
+    var sv = document.createElement('button'); sv.type = 'button'; sv.className = 'ghost small'; sv.textContent = 'Save';
+    sv.addEventListener('click', async function(){
+      var args = {p_run_id: PAYRUN.run.id, p_staff_id: l.staff_id, p_note: nt.value.trim() || null}; args[argName] = Number(inp.value) || 0;
+      var a = await db.rpc(fn, args);
+      if (a.error || !a.data || !a.data.ok){ $('prErr').textContent = errText(a); return; }
+      loadPayrun();
+    });
+    row.appendChild(inp); row.appendChild(nt); row.appendChild(sv); c.appendChild(row);
+  } else c.textContent = fmt(amount) + (note ? ' · ' + note : '');
+  return c;
 }
 function payAct(id, fn, done){
   $(id).addEventListener('click', async function(){
@@ -1502,9 +1630,10 @@ $('ppSave').addEventListener('click', async function(){
 });
 $('prCsv').addEventListener('click', function(){
   if (!PAYRUN || !PAYRUN.run) return;
-  download('planilla-' + PAYP.starts_on + '-' + PAYP.ends_on + '.csv', [['person', 'hours', 'pay_kind', 'rate_crc', 'gross_crc', 'deductions_crc', 'deductions', 'other_crc', 'other_note', 'employer_crc', 'net_crc']].concat(
-    PAYRUN.lines.map(function(l){ return [l.staff_name, l.hours, l.pay_kind, l.rate_crc, l.gross_crc, l.deductions_crc,
-      (l.deductions || []).map(function(x){ return x.name + ' ' + x.pct + '% ' + x.amount; }).join(' | '), l.other_crc, l.other_note, l.employer_crc, l.net_crc]; })));
+  download('planilla-' + PAYP.starts_on + '-' + PAYP.ends_on + '.csv', [['person', 'id_number', 'hours', 'pay_kind', 'rate_crc', 'gross_crc', 'extra_crc', 'extra_note', 'deductions_crc', 'deductions', 'renta_crc', 'other_crc', 'other_note', 'employer_crc', 'employer', 'net_crc', 'aguinaldo_accrual_crc']].concat(
+    PAYRUN.lines.map(function(l){ var sp = PAYSTAFF && PAYSTAFF.staff.filter(function(x){ return x.id === l.staff_id; })[0]; return [l.staff_name, sp && sp.profile ? sp.profile.id_number : '', l.hours, l.pay_kind, l.rate_crc, l.gross_crc, l.extra_crc, l.extra_note, l.deductions_crc,
+      (l.deductions || []).map(function(x){ return x.name + ' ' + x.pct + '% ' + x.amount; }).join(' | '), l.renta_crc, l.other_crc, l.other_note, l.employer_crc,
+      (l.employer || []).map(function(x){ return x.name + ' ' + x.pct + '% ' + x.amount; }).join(' | '), l.net_crc, l.aguinaldo_accrual_crc]; })));
 });
 var rtStaff = null;
 async function loadPayStaff(){
@@ -1514,21 +1643,29 @@ async function loadPayStaff(){
   var tb = $('rtTable').querySelector('tbody'); tb.replaceChildren();
   PAYSTAFF.staff.filter(function(x){ return x.active || x.pay; }).forEach(function(x){
     var t = document.createElement('tr'), p = x.pay;
-    t.innerHTML = '<td>' + esc(x.name) + '</td><td>' + (p ? fmt(p.rate_crc) + esc(p.kind === 'hourly' ? ' per hour' : ' per pay period') : '<span style="color:var(--bad)">' + esc('No pay rate') + '</span>') +
+    t.innerHTML = '<td>' + esc(x.name) + (x.active && !(x.profile && x.profile.id_number) ? ' <span class="tag rev">' + esc('No ID number') + '</span>' : '') + '</td><td>' + (p ? fmt(p.rate_crc) + esc(p.kind === 'hourly' ? ' per hour' : ' per pay period') : '<span style="color:var(--bad)">' + esc('No pay rate') + '</span>') +
       (x.next ? ' · ' + esc('from ' + x.next.effective_from + ': ') + fmt(x.next.rate_crc) : '') + '</td><td class="mono">' + esc(p ? p.effective_from : '') + '</td>';
     var c = document.createElement('td'), b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
     b.addEventListener('click', function(){ rtStaff = x; $('rtWho').value = x.name; $('rtKind').value = p ? p.kind : 'hourly'; $('rtRate').value = ''; $('rtFrom').value = today();
-      $('rtForm').hidden = false; $('rtErr').textContent = ''; $('rtRate').focus(); });
-    c.appendChild(b); t.appendChild(c); tb.appendChild(t);
+      $('rtForm').hidden = false; $('pfForm').hidden = true; $('rtErr').textContent = ''; $('rtRate').focus(); });
+    var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghost small'; pb.textContent = 'Profile'; pb.style.marginLeft = '.3rem';
+    pb.addEventListener('click', function(){ openProfile(x); });
+    c.appendChild(b); c.appendChild(pb); t.appendChild(c); tb.appendChild(t);
   });
+  ['vcWho', 'lqWho'].forEach(function(id){
+    var sel = $(id), keep = sel.value; sel.replaceChildren();
+    PAYSTAFF.staff.filter(function(x){ return x.active || x.pay; }).forEach(function(x){ var o = document.createElement('option'); o.value = x.id; o.textContent = x.name; sel.appendChild(o); });
+    if (keep) sel.value = keep;
+  });
+  renderCr();
   var rb = $('ruTable').querySelector('tbody'); rb.replaceChildren();
-  if (!PAYSTAFF.rules.length) rb.innerHTML = '<tr><td colspan="5" class="hint">' + esc('No rules confirmed yet.') + '</td></tr>';
+  if (!PAYSTAFF.rules.length) rb.innerHTML = '<tr><td colspan="6" class="hint">' + esc('No rules confirmed yet.') + '</td></tr>';
   PAYSTAFF.rules.forEach(function(x){
     var t = document.createElement('tr');
     t.innerHTML = '<td>' + esc(x.name) + (x.active ? '' : ' <span class="tag">' + esc('Inactive') + '</span>') + '</td><td>' + esc(x.kind === 'employee' ? 'Taken from the pay' : 'Paid by the business on top') +
-      '</td><td class="num">' + esc(String(x.pct).replace('.', ',')) + '</td><td>' + esc(x.confirmed_by + ' · ' + x.reference) + '</td>';
+      '</td><td>' + esc(CAT[x.category] || x.category || 'Other') + '</td><td class="num">' + esc(String(x.pct).replace('.', ',')) + '</td><td>' + esc(x.confirmed_by + ' · ' + x.reference) + '</td>';
     var c = document.createElement('td'), b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
-    b.addEventListener('click', function(){ $('ruCode').value = x.code; $('ruName').value = x.name; $('ruKind').value = x.kind; $('ruPct').value = x.pct; $('ruWho').value = ''; $('ruRef').value = '';
+    b.addEventListener('click', function(){ $('ruCode').value = x.code; $('ruName').value = x.name; $('ruKind').value = x.kind; $('ruCat').value = x.category || 'other'; $('ruPct').value = x.pct; $('ruWho').value = ''; $('ruRef').value = '';
       $('ruActive').checked = x.active; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
     c.appendChild(b); t.appendChild(c); rb.appendChild(t);
   });
@@ -1540,13 +1677,272 @@ $('rtSave').addEventListener('click', async function(){
   if (r.error || !r.data || !r.data.ok){ $('rtErr').textContent = errText(r); return; }
   $('rtForm').hidden = true; toast('Pay rate saved'); loadPayStaff();
 });
-$('ruNew').addEventListener('click', function(){ ['ruCode', 'ruName', 'ruPct', 'ruWho', 'ruRef'].forEach(function(id){ $(id).value = ''; }); $('ruActive').checked = true; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
+$('ruNew').addEventListener('click', function(){ ['ruCode', 'ruName', 'ruPct', 'ruWho', 'ruRef'].forEach(function(id){ $(id).value = ''; }); $('ruActive').checked = true; $('ruCat').value = 'ccss'; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
 $('ruCancel').addEventListener('click', function(){ $('ruForm').hidden = true; });
 $('ruSave').addEventListener('click', async function(){
-  var r = await db.rpc('payroll_rule_save', {p_rule: {code: $('ruCode').value.trim(), name: $('ruName').value.trim(), kind: $('ruKind').value, pct: $('ruPct').value,
+  var r = await db.rpc('payroll_rule_save', {p_rule: {code: $('ruCode').value.trim(), name: $('ruName').value.trim(), kind: $('ruKind').value, category: $('ruCat').value, pct: $('ruPct').value,
                                                       active: $('ruActive').checked, confirmed_by: $('ruWho').value.trim(), reference: $('ruRef').value.trim()}});
   if (r.error || !r.data || !r.data.ok){ $('ruErr').textContent = errText(r); return; }
   $('ruForm').hidden = true; toast('Rule saved'); loadPayStaff();
+});
+
+/* ---------- Costa Rican rules (0026): profile, tax table and parameters, payslip, aguinaldo, vacations, settlement, the month ---------- */
+var CAT = {ccss: 'CCSS', ins: 'INS (occupational risk policy)', other: 'Other'};
+var pfStaff = null;
+function openProfile(x){
+  pfStaff = x; var p = x.profile || {};
+  $('pfWho').value = x.name; $('pfId').value = p.id_number || ''; $('pfHired').value = p.hired_on || ''; $('pfEnded').value = p.ended_on || ''; $('pfContract').value = p.contract || '';
+  $('pfChildren').value = p.children || 0; $('pfSpouse').checked = !!p.spouse; $('pfNotes').value = p.notes || '';
+  $('pfForm').hidden = false; $('rtForm').hidden = true; $('pfErr').textContent = ''; $('pfId').focus();
+}
+$('pfCancel').addEventListener('click', function(){ $('pfForm').hidden = true; });
+$('pfSave').addEventListener('click', async function(){
+  if (!pfStaff) return;
+  var r = await db.rpc('staff_profile_set', {p_staff_id: pfStaff.id, p_profile: {id_number: $('pfId').value.trim() || null, hired_on: $('pfHired').value || null, ended_on: $('pfEnded').value || null,
+    contract: $('pfContract').value || null, children: Number($('pfChildren').value) || 0, spouse: $('pfSpouse').checked, notes: $('pfNotes').value.trim() || null}});
+  if (r.error || !r.data || !r.data.ok){ $('pfErr').textContent = errText(r); return; }
+  $('pfForm').hidden = true; toast('Profile saved'); loadPayStaff();
+});
+
+var RB = [];
+function renderCr(){
+  if (!PAYSTAFF) return;
+  var cr = PAYSTAFF.cr || {}, P = PAYSTAFF.params || {};
+  $('crState').textContent = (cr.confirmed ? 'Confirmation "payroll_cr_rules" recorded' : 'Confirmation "payroll_cr_rules" not recorded yet (Home → Settings): estimates only; nothing is withheld, provisioned or posted') +
+    ' · ' + (cr.renta_withhold ? 'Income tax withholding on' : 'Income tax withholding off') + ' · ' + (cr.accrue_aguinaldo ? 'Aguinaldo provision on' : 'Aguinaldo provision off');
+  var r = P.renta;
+  $('crRentaState').textContent = r ? 'Confirmed by ' + r.confirmed_by + ' · ' + r.reference + (r.value.valid_from ? ' · valid from ' + r.value.valid_from : '')
+    : 'No tax table yet: with the withholding on, the payroll cannot be reviewed until the accountant enters it here (the monthly brackets Hacienda publishes for the year)';
+  RB = r ? (r.value.brackets || []).map(function(b){ return {upto: b.upto == null ? null : Number(b.upto), pct: Number(b.pct) || 0}; }) : [];
+  if (!RB.length) RB = [{upto: null, pct: 0}];
+  renderBrackets();
+  if (r){ $('rbChild').value = r.value.credit_child || 0; $('rbSpouse').value = r.value.credit_spouse || 0; $('rbMethod').value = r.value.method || 'prorate'; $('rbFrom').value = r.value.valid_from || ''; }
+  var v = P.vacation; $('vpDays').value = v ? v.value.days_per_month : 1;
+  $('vpState').textContent = v && v.confirmed_by ? 'Confirmed by ' + v.confirmed_by + ' · ' + v.reference : 'Not confirmed: the law as written, for the estimates';
+  var sv = P.severance;
+  $('svText').textContent = sv ? sv.value.legal_basis || '' : '';
+  $('svState').textContent = sv && sv.confirmed_by ? 'Confirmed by ' + sv.confirmed_by + ' · ' + sv.reference : 'Not confirmed: the law as written, for the estimates';
+}
+function renderBrackets(){
+  var tb = $('rbTable').querySelector('tbody'); tb.replaceChildren();
+  RB.forEach(function(b, i){
+    var t = document.createElement('tr');
+    var up = document.createElement('input'); up.type = 'number'; up.min = '0'; up.step = 'any'; up.value = b.upto == null ? '' : b.upto; up.placeholder = 'no limit'; up.setAttribute('aria-label', 'Up to'); up.style.maxWidth = '11rem';
+    up.addEventListener('input', function(){ b.upto = up.value === '' ? null : Number(up.value); });
+    var pc = document.createElement('input'); pc.type = 'number'; pc.min = '0'; pc.max = '50'; pc.step = '0.01'; pc.value = b.pct; pc.setAttribute('aria-label', 'Percent'); pc.style.maxWidth = '6rem';
+    pc.addEventListener('input', function(){ b.pct = Number(pc.value) || 0; });
+    var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost small'; del.textContent = 'Remove';
+    del.addEventListener('click', function(){ RB.splice(i, 1); if (!RB.length) RB = [{upto: null, pct: 0}]; renderBrackets(); });
+    var c1 = document.createElement('td'); c1.appendChild(up); var c2 = document.createElement('td'); c2.className = 'num'; c2.appendChild(pc); var c3 = document.createElement('td'); c3.appendChild(del);
+    t.appendChild(c1); t.appendChild(c2); t.appendChild(c3); tb.appendChild(t);
+  });
+}
+$('rbAdd').addEventListener('click', function(){ RB.push({upto: null, pct: 0}); renderBrackets(); });
+async function paramSave(key, value, who, ref, errId, done){
+  var r = await db.rpc('payroll_param_save', {p_key: key, p_value: value, p_confirmed_by: who.trim(), p_reference: ref.trim()});
+  if (r.error || !r.data || !r.data.ok){ $(errId).textContent = errText(r); return; }
+  $(errId).textContent = ''; toast(done); loadPayStaff();
+}
+$('rbSave').addEventListener('click', function(){
+  paramSave('renta', {brackets: RB, credit_child: Number($('rbChild').value) || 0, credit_spouse: Number($('rbSpouse').value) || 0, method: $('rbMethod').value, valid_from: $('rbFrom').value || null},
+            $('rbWho').value, $('rbRef').value, 'rbErr', 'Tax table saved');
+});
+$('vpSave').addEventListener('click', function(){
+  var v = PAYSTAFF && PAYSTAFF.params && PAYSTAFF.params.vacation;
+  paramSave('vacation', {days_per_month: Number($('vpDays').value) || 0, legal_basis: v ? v.value.legal_basis || null : null}, $('vpWho').value, $('vacRef').value, 'vacErr', 'Vacation rule saved');
+});
+$('svSave').addEventListener('click', function(){
+  var sv = PAYSTAFF && PAYSTAFF.params && PAYSTAFF.params.severance; if (!sv) return;
+  paramSave('severance', sv.value, $('svWho').value, $('svRef').value, 'vacErr', 'Table confirmed');
+});
+
+/* the payslip: a document for the person, in Spanish, printed from the page */
+var SLIP_KIND = {indefinido: 'indefinido', plazo_fijo: 'a plazo fijo', por_horas: 'por horas'};
+async function showPayslip(runId, staffId){
+  var r = await db.rpc('payslip', {p_run_id: runId, p_staff_id: staffId});
+  if (r.error || !r.data || !r.data.ok){ $('prErr').textContent = errText(r); return; }
+  var p = r.data, h = [], st = {draft: 'borrador', reviewed: 'revisada', posted: 'asentada', paid: 'pagada'};
+  function row(k, v, cls){ h.push('<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(k) + '</td><td class="num">' + v + '</td></tr>'); }
+  h.push('<div class="who"><span><b>' + esc(p.staff.name) + '</b></span>' + (p.staff.id_number ? '<span>Cédula: ' + esc(p.staff.id_number) + '</span>' : '') + (p.staff.contract ? '<span>Contrato ' + esc(SLIP_KIND[p.staff.contract] || p.staff.contract) + '</span>' : '') +
+    '<span>Periodo: ' + esc(p.period.starts_on) + ' al ' + esc(p.period.ends_on) + ' (' + esc(p.period.days) + ' días)</span><span>Planilla ' + esc(st[p.status] || p.status) + '</span></div>');
+  h.push('<table><tbody>');
+  row('Horas', esc(Number(p.hours).toLocaleString('fr-FR')));
+  if (p.rate_crc != null) row(p.pay_kind === 'hourly' ? 'Tarifa por hora' : 'Monto fijo del periodo', fmt(p.rate_crc));
+  row('Salario bruto', fmt(p.gross_crc));
+  if (Number(p.extra_crc)) row('Pago extra' + (p.extra_note ? ' · ' + p.extra_note : ''), fmt(p.extra_crc));
+  (p.deductions || []).forEach(function(d){ row(d.name + ' (' + String(d.pct).replace('.', ',') + ' %)', '−' + fmt(d.amount)); });
+  if (Number(p.renta_crc)) row('Retención del impuesto sobre la renta', '−' + fmt(p.renta_crc));
+  if (Number(p.other_crc)) row('Otras deducciones' + (p.other_note ? ' · ' + p.other_note : ''), '−' + fmt(p.other_crc));
+  row('Salario neto', '<b>' + fmt(p.net_crc) + '</b>', 'total');
+  (p.employer || []).forEach(function(d){ row(d.name + ' (' + String(d.pct).replace('.', ',') + ' %, la paga el negocio)', fmt(d.amount)); });
+  h.push('</tbody></table>');
+  h.push('<p class="hint">' + (p.cr_confirmed ? 'Deducciones según las reglas confirmadas por el contador.' : 'Las reglas de Costa Rica no están confirmadas: deducciones según lo registrado hasta hoy.') + ' Hanging Garden Café · Monteverde</p>');
+  $('slipBody').innerHTML = h.join('');
+  $('slip').hidden = false; $('slip').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+$('slipClose').addEventListener('click', function(){ $('slip').hidden = true; });
+$('slipPrint').addEventListener('click', function(){
+  document.body.classList.add('slip-print');
+  var done = function(){ document.body.classList.remove('slip-print'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);   /* Safari (the iPads) returns from print() before laying out the page */
+  window.print();
+});
+
+/* aguinaldo */
+var AG = null, AG_STATUS = {draft: 'Draft', reviewed: 'Reviewed by the accountant', posted: 'Posted', paid: 'Paid'};
+function crAct(id, errId, reload, fn, done){
+  $(id).addEventListener('click', async function(){
+    var b = this; b.disabled = true; var r = await fn(); b.disabled = false;
+    if (!r) return;
+    if (r.error || !r.data || !r.data.ok){ $(errId).textContent = errText(r); return; }
+    $(errId).textContent = ''; toast(done); reload();
+  });
+}
+async function loadAguinaldo(){
+  if (!$('agYear').value){ var d = today(); $('agYear').value = Number(d.slice(0, 4)) + (d.slice(5, 7) === '12' ? 1 : 0); }
+  var r = await db.rpc('aguinaldo_estimate', {p_year: Number($('agYear').value)});
+  var tb = $('aguTable').querySelector('tbody'); tb.replaceChildren(); $('agErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('agErr').textContent = errText(r); AG = null; return; }
+  AG = r.data; var run = AG.run && AG.run.id ? AG.run : null, st = run ? run.status : null;
+  var open = run && st !== 'paid' ? run : null;                       /* the run in progress; a paid one is history */
+  var lines = open && st !== 'draft' ? open.lines : AG.lines;       /* a draft and the estimate show what is still owed */
+  $('agStatus').textContent = open ? AG_STATUS[st] : (Number(AG.paid_crc) > 0 ? 'Paid' : 'Estimate');
+  $('agHint').textContent = 'Salaries posted from ' + AG.from + ' to ' + AG.to + ', divided by twelve; to be paid by ' + AG.pay_by +
+    (Number(AG.paid_crc) > 0 ? ' · paid so far ' + fmt(AG.paid_crc) + ' in ' + AG.runs.filter(function(x){ return x.status === 'posted' || x.status === 'paid'; }).length + ' run(s)' : '') +
+    (AG.window_open ? ' · before 30 November it is posted only with a written reason (an advance, someone leaving); the rest comes later as a new run' : '') +
+    (Number(AG.pending_payrolls) > 0 ? ' · ' + AG.pending_payrolls + ' pay period(s) of the year without a posted payroll: their salaries are missing here' : '') +
+    (AG.confirmed ? '' : ' · Not confirmed: an estimate; nothing is posted until the owner records the confirmation') + ' · ' + AG.legal_basis;
+  var tot = {s: 0, g: 0, c: 0};
+  lines.forEach(function(x){
+    tot.s += Number(x.salary_crc); tot.g += Number(x.aguinaldo_crc); tot.c += Number(x.accrued_crc);
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.staff_name) + '</td><td class="mono">' + esc(x.id_number || '') + '</td><td class="num">' + esc(x.months) + '</td><td class="num">' + fmt(x.salary_crc) + '</td><td class="num">' + fmt(x.aguinaldo_crc) + '</td><td class="num">' + fmt(x.accrued_crc) + '</td>';
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'total';
+  f.innerHTML = '<td>Total</td><td></td><td></td><td class="num">' + fmt(tot.s) + '</td><td class="num">' + fmt(tot.g) + '</td><td class="num">' + fmt(tot.c) + '</td>'; tb.appendChild(f);
+  $('agPrepare').hidden = !(lines.length && (!open || st === 'draft'));
+  $('agReview').hidden = !(open && st === 'draft' && KIND === 'accountant');
+  $('agBack').hidden = !(open && st === 'reviewed');
+  ['agPostBox', 'agPost'].forEach(function(id){ $(id).hidden = !(open && st === 'reviewed'); });
+  ['agPayBox', 'agPayDateBox', 'agPay'].forEach(function(id){ $(id).hidden = !(open && st === 'posted'); });
+  if (!$('agPostDate').value) $('agPostDate').value = today();
+  if (!$('agPayDate').value) $('agPayDate').value = today();
+}
+crAct('agPrepare', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_prepare', {p_year: Number($('agYear').value)}); }, 'Aguinaldo prepared');
+crAct('agReview', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_review', {p_id: AG.run.id}); }, 'Reviewed');
+crAct('agBack', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_reopen', {p_id: AG.run.id}); }, 'Back to draft');
+crAct('agPost', 'agErr', loadAguinaldo, function(){
+  if (!confirm('Post the aguinaldo to the books? It can no longer change.')) return null;
+  var why = null;
+  if (AG.window_open){ why = prompt('Why is the aguinaldo posted before 30 November? (an advance, someone leaving)'); if (!why || !why.trim()) return null; }
+  return db.rpc('aguinaldo_post', {p_id: AG.run.id, p_date: $('agPostDate').value, p_note: why});
+}, 'Aguinaldo posted');
+crAct('agPay', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_pay', {p_id: AG.run.id, p_paid_from: $('agFrom').value, p_date: $('agPayDate').value}); }, 'Payment recorded');
+$('agGo').addEventListener('click', loadAguinaldo);
+$('agCsv').addEventListener('click', function(){
+  if (!AG) return; var lines = AG.run && AG.run.id && AG.run.status !== 'draft' ? AG.run.lines : AG.lines;
+  download('aguinaldo-' + AG.year + '.csv', [['person', 'id_number', 'months', 'salary_crc', 'aguinaldo_crc', 'accrued_crc']].concat(lines.map(function(x){ return [x.staff_name, x.id_number, x.months, x.salary_crc, x.aguinaldo_crc, x.accrued_crc]; })));
+});
+
+/* vacations */
+var VC_KIND = {taken: 'Days taken', paid_out: 'Days paid instead of taken'};
+async function loadVacation(){
+  var sid = $('vcWho').value; if (!sid) return;
+  var r = await db.rpc('vacation_balance', {p_staff_id: sid, p_as_of: null});
+  var tb = $('vcTable').querySelector('tbody'); tb.replaceChildren(); $('vcErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('vcErr').textContent = errText(r); return; }
+  var b = r.data;
+  $('vcBalance').textContent = (b.started_on ? 'Since ' + b.started_on + ': ' + b.months + ' months' : 'No start date: set the hire date in the profile') + ' · earned ' + b.earned_days + ' days (' + b.days_per_month + ' a month)' +
+    ' · taken ' + b.taken_days + ' · remaining ' + b.remaining_days +
+    (b.daily_crc != null ? ' · daily pay average ' + fmt(b.daily_crc) + ' (last 50 weeks of posted payrolls)' + ' · value ' + fmt(b.value_crc) : ' · no posted payroll yet for the daily pay average') +
+    (b.confirmed ? '' : ' · an estimate: rule not confirmed');
+  (b.records || []).forEach(function(v){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(v.from_on) + '</td><td class="mono">' + esc(v.to_on) + '</td><td class="num">' + esc(v.days) + '</td><td>' + esc(VC_KIND[v.kind] || v.kind) + (v.voided_at ? ' <span class="tag rev">' + esc('Voided') + '</span>' : '') +
+      '</td><td>' + esc((v.note || '') + (v.void_reason ? ' · ' + v.void_reason : '')) + '</td>';
+    var c = document.createElement('td');
+    if (!v.voided_at){
+      var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'ghost small'; bt.textContent = 'Void';
+      bt.addEventListener('click', async function(){
+        var why = prompt('Why is this record voided?'); if (!why) return;
+        var x = await db.rpc('vacation_void', {p_id: v.id, p_reason: why});
+        if (x.error || !x.data || !x.data.ok){ $('vcErr').textContent = errText(x); return; }
+        toast('Record voided'); loadVacation();
+      });
+      c.appendChild(bt);
+    }
+    t.appendChild(c); tb.appendChild(t);
+  });
+}
+$('vcGo').addEventListener('click', loadVacation);
+$('vcWho').addEventListener('change', loadVacation);
+$('vcSave').addEventListener('click', async function(){
+  var r = await db.rpc('vacation_record', {p_staff_id: $('vcWho').value, p_from: $('vcFrom').value || null, p_to: $('vcTo').value || null, p_days: Number($('vcDays').value) || null, p_kind: $('vcKind').value, p_note: $('vcNote').value.trim() || null});
+  if (r.error || !r.data || !r.data.ok){ $('vcErr').textContent = errText(r); return; }
+  $('vcDays').value = ''; $('vcNote').value = ''; toast('Vacation recorded'); loadVacation();
+});
+
+/* the settlement estimate */
+var LQ_NAME = {preaviso: 'Notice', cesantia: 'Severance', aguinaldo: 'Proportional aguinaldo', vacaciones: 'Unused vacations'};
+$('lqGo').addEventListener('click', async function(){
+  if (!$('lqDate').value) $('lqDate').value = today();
+  var r = await db.rpc('severance_estimate', {p_staff_id: $('lqWho').value, p_end_on: $('lqDate').value, p_reason: $('lqReason').value});
+  var tb = $('lqTable').querySelector('tbody'); tb.replaceChildren(); $('lqErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('lqErr').textContent = errText(r); return; }
+  var d = r.data;
+  $('lqHint').textContent = (d.started_on ? 'Since ' + d.started_on + ': ' + d.months + ' months' : 'No start date: set the hire date in the profile') +
+    (d.daily_crc != null ? ' · daily pay average of the last six months of posted payrolls ' + fmt(d.daily_crc) : ' · no posted payroll in the last six months: the amounts cannot be worked out') +
+    (d.confirmed ? '' : ' · the notice and severance table is the law as written, not confirmed') + ' · ' + d.note;
+  d.items.forEach(function(x){
+    var t = document.createElement('tr'); if (!x.applies) t.style.opacity = '.55';
+    t.innerHTML = '<td>' + esc(LQ_NAME[x.key] || x.key) + (x.applies ? '' : ' <span class="tag">' + esc('Does not apply') + '</span>') + '</td><td class="num">' + esc(x.days == null ? '' : String(x.days).replace('.', ',')) +
+      '</td><td class="num">' + (x.amount_crc == null ? '' : fmt(x.amount_crc)) + '</td><td class="hint" data-no-translate>' + esc(x.basis) + '</td>';
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'total'; f.innerHTML = '<td>Total</td><td></td><td class="num">' + (d.total_crc == null ? '' : fmt(d.total_crc)) + '</td><td></td>'; tb.appendChild(f);
+});
+
+/* the month for the CCSS and the INS */
+var MR = null;
+async function loadMonthReport(){
+  if (!$('mrMonth').value) $('mrMonth').value = today().slice(0, 7);
+  var ym = $('mrMonth').value.split('-');
+  var r = await db.rpc('payroll_month_report', {p_year: Number(ym[0]), p_month: Number(ym[1])});
+  var tb = $('mrTable').querySelector('tbody'); tb.replaceChildren(); var rb = $('mrRules').querySelector('tbody'); rb.replaceChildren(); $('mrErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('mrErr').textContent = errText(r); MR = null; return; }
+  MR = r.data;
+  var noId = MR.people.filter(function(x){ return !x.id_number; }).map(function(x){ return x.staff_name; });
+  $('mrHint').textContent = 'Payrolls posted whose period ends in the month' + (MR.pending_runs ? ' · ' + MR.pending_runs + ' payroll(s) of the month not posted yet' : '') +
+    (MR.periods_without_payroll ? ' · ' + MR.periods_without_payroll + ' period(s) without a payroll' : '') + (noId.length ? ' · no ID number on file (Pay rates → Profile): ' + noId.join(', ') : '') +
+    (MR.confirmed ? '' : ' · rules not confirmed: the figures are what the payrolls applied');
+  var T = {hours: 0, salary: 0, ccss: 0, renta: 0, other: 0, net: 0, er_ccss: 0, er_ins: 0, er_other: 0};
+  MR.people.forEach(function(x){
+    var other = Number(x.employee_other_crc) + Number(x.other_crc);
+    T.hours += Number(x.hours); T.salary += Number(x.salary_crc); T.ccss += Number(x.employee_ccss_crc); T.renta += Number(x.renta_crc); T.other += other; T.net += Number(x.net_crc);
+    T.er_ccss += Number(x.employer_ccss_crc); T.er_ins += Number(x.employer_ins_crc); T.er_other += Number(x.employer_other_crc);
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.staff_name) + '</td><td class="mono">' + esc(x.id_number || '') + '</td><td class="num">' + esc(x.days_worked) + '</td><td class="num">' + esc(Number(x.hours).toLocaleString('fr-FR')) +
+      '</td><td class="num">' + fmt(x.salary_crc) + '</td><td class="num">' + fmt(x.employee_ccss_crc) + '</td><td class="num">' + fmt(x.renta_crc) + '</td><td class="num">' + fmt(other) + '</td><td class="num">' + fmt(x.net_crc) +
+      '</td><td class="num">' + fmt(x.employer_ccss_crc) + '</td><td class="num">' + fmt(x.employer_ins_crc) + '</td><td class="num">' + fmt(x.employer_other_crc) + '</td>';
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'total';
+  f.innerHTML = '<td>Total</td><td></td><td></td><td class="num">' + esc(T.hours.toLocaleString('fr-FR')) + '</td><td class="num">' + fmt(T.salary) + '</td><td class="num">' + fmt(T.ccss) + '</td><td class="num">' + fmt(T.renta) + '</td><td class="num">' + fmt(T.other) +
+    '</td><td class="num">' + fmt(T.net) + '</td><td class="num">' + fmt(T.er_ccss) + '</td><td class="num">' + fmt(T.er_ins) + '</td><td class="num">' + fmt(T.er_other) + '</td>';
+  tb.appendChild(f);
+  MR.rules.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.name) + '</td><td>' + esc(x.kind === 'employee' ? 'Taken from the pay' : 'Paid by the business on top') + '</td><td>' + esc(CAT[x.category] || x.category) + '</td><td class="num">' + esc(String(x.pct).replace('.', ',')) + '</td><td class="num">' + fmt(x.amount_crc) + '</td>';
+    rb.appendChild(t);
+  });
+}
+$('mrGo').addEventListener('click', loadMonthReport);
+$('mrCsv').addEventListener('click', function(){
+  if (!MR) return;
+  download('planilla-mes-' + MR.year + '-' + String(MR.month).padStart(2, '0') + '.csv',
+    [['person', 'id_number', 'days_worked', 'hours', 'salary_crc', 'employee_ccss_crc', 'employee_other_crc', 'renta_crc', 'other_crc', 'net_crc', 'employer_ccss_crc', 'employer_ins_crc', 'employer_other_crc']].concat(
+      MR.people.map(function(x){ return [x.staff_name, x.id_number, x.days_worked, x.hours, x.salary_crc, x.employee_ccss_crc, x.employee_other_crc, x.renta_crc, x.other_crc, x.net_crc, x.employer_ccss_crc, x.employer_ins_crc, x.employer_other_crc]; })));
 });
 
 /* ---------- electronic documents: what would be sent, once there is a provider ---------- */

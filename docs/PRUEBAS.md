@@ -31,7 +31,7 @@ pruebas.
 
 - **Después del primer respaldo verificado** (usa el mismo repositorio privado y su cuenta de solo lectura):
   docs/PRODUCTION-READINESS.md sección 8, paso C; docs/LANZAMIENTO.md, ola 0, paso 4.
-- **Antes de la ventana 0003–0025**, obligatorio. La ola 0 (0000–0002) no lo espera: es urgente y ya se ensayó
+- **Antes de la ventana 0003–0027**, obligatorio. La ola 0 (0000–0002) no lo espera: es urgente y ya se ensayó
   con la copia representativa. Si pruebas se arma después de la ola 0, el ensayo aplica solo las que faltan.
 
 ## Instalación (una sola vez, unos 40 minutos)

@@ -108,8 +108,8 @@ Si algo sale mal:
 Llegará con la próxima actualización grande, cuando el dueño la publique y la encienda en Inicio → "Ajustes del
 sistema" → "Quién cobra cada venta". Todavía no tiene fecha.
 - La caja preguntará "¿Quién cobra?": cada persona toca su nombre, escribe **el mismo PIN del Reloj** → «Empezar». Si
-  no ha marcado, puede usar «Marcar entrada y empezar». Al irse, «Terminar mi turno» en la caja y además marque la
-  salida en el Reloj: uno no hace lo otro.
+  no ha marcado, puede usar «Marcar entrada y empezar». Al irse, «Terminar mi turno» en la caja: la caja pregunta si
+  marca también la salida en el Reloj (con la 0027; si no hay internet en ese momento, marque la salida en el Reloj).
 - Cada venta guardará quién la cobró. Ya no hará falta cambiar el nombre del aparato.
 - Sin internet: «Empezar sin internet (se revisa después)». Esas ventas quedan marcadas "sin revisar".
 - Una venta nunca se rechaza. Si falta algo (nadie eligió su nombre, o no marcó entrada), se guarda igual y queda

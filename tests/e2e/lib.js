@@ -33,6 +33,9 @@ async function page(browser, opts) {
   pg.supabaseHits = 0;
   pg.on('pageerror', (e) => pg.errors.push(e.message));
   pg.on('dialog', async (d) => { if (pg.onDialog) await pg.onDialog(d); else await d.accept(); });
+  // page.css scrolls smoothly; a button inside a wide table never settles for Playwright's stability check while the
+  // table scrolls it into view (a known Playwright gotcha), so the tests scroll instantly
+  await pg.addInitScript(() => { document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.scrollBehavior = 'auto'; }); });
   await pg.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await pg.route(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/, (r) => r.fulfill({ contentType: 'application/javascript', body: SBJS }));
   // the real Supabase must never be reached from a test
