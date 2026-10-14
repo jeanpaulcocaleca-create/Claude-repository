@@ -89,12 +89,13 @@ From `docs/DEPENDENCIES.md`.
 ## 4. Test results
 
 Everything is rebuilt from scratch on every run (`tests/run.sh`).
-- **Last full run (local, 2026-10-12, before the final commit):** ALL TESTS PASSED.
-  - **SQL:** 25 files, 595 assertions, one transaction each. Every migration is tested, plus the security attack
-    suite (`250_security_hardening`) and the release check (`240`), which pins down anonymous access, row
-    security and fixed search paths.
-  - **Browser:** 89 tests passed.
-  - **Backup pipeline:** passed.
+- **Last full run (local, 2026-10-14, before the final commit):** ALL TESTS PASSED.
+  - **SQL:** 31 files, 911 assertions, one transaction each. Every migration is tested, plus the security attack
+    suite (`250_security_hardening`), the release check (`240`), which pins down anonymous access, row
+    security and fixed search paths, the Costa Rican payroll (`290`, 126), who took the money (`300`) and the
+    review fixes (`310`).
+  - **Browser:** 102 tests passed (29 spec files), plus the 5 live-page checks of the rehearsal.
+  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0028 on the production-shaped copy: passed.
 - **What the browser tests cover:** Playwright with real supabase-js against PostgREST; staff screens in English
   and Spanish; phone, tablet and desktop sizes; offline and two-device cases.
 - **What the backup pipeline test covers:** backup, restore test, encryption, offline-key restore, computer sync.

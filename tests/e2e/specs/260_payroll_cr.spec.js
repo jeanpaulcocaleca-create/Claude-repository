@@ -66,9 +66,13 @@ module.exports.tests = [
       await acc.fill('#mrMonth', crDay(-7).slice(0, 7));
       await acc.click('#mrGo');
       await until(async () => /Marta\s+155812345678/.test(await acc.locator('#mrTable').innerText()), 8000, 'Marta in the month');
+      assert.match(await acc.locator('#mrHint').textContent(), /^Each pay period counts in the month it ends in; the days worked are the calendar month's · Payrolls posted whose period ends in the month/);
       assert.match(await acc.locator('#mrTable').innerText(), /₡1\s410\s000[\s\S]*₡148\s050[\s\S]*₡136\s124/, 'salary, CCSS, income tax');
       assert.match(await acc.locator('#mrRules').innerText(), /INS riesgos del trabajo\s+Paid by the business on top\s+INS \(occupational risk policy\)\s+1,5\s+₡21\s150/);
-      // the aguinaldo estimate: the posted salary over twelve, already provisioned
+      // the aguinaldo estimate: the posted salary over twelve, already provisioned (the window of year Y is 1 Dec Y-1 → 30 Nov Y)
+      const periodEnd = crDay(-7), agYear = Number(periodEnd.slice(0, 4)) + (periodEnd.slice(5, 7) === '12' ? 1 : 0);
+      assert.ok(await acc.locator('#agStatus').isHidden(), 'no status pill before the estimate');
+      await acc.fill('#agYear', String(agYear));
       await acc.click('#agGo');
       await until(async () => /Marta\s+155812345678\s+1\s+₡1\s410\s000\s+₡117\s500\s+₡117\s500/.test(await acc.locator('#aguTable').innerText()), 8000, 'aguinaldo line');
       assert.strictEqual(await acc.locator('#agStatus').textContent(), 'Estimate');
@@ -81,6 +85,12 @@ module.exports.tests = [
       await acc.click('#vcSave');
       await until(() => sql(`select count(*) from vacations`) === '1', 8000, 'vacation recorded');
       await until(async () => /taken 2 · remaining 11 · daily pay average ₡100\s714,29/.test(await acc.locator('#vcBalance').textContent()), 8000, 'balance: 13 months, 2 taken, 1 410 000 / 14 days');
+      // days paid instead of taken (the exception, art. 156) need the reason: the page refuses before the server does
+      await acc.selectOption('#vcKind', 'paid_out'); await acc.fill('#vcDays', '1');
+      await acc.click('#vcSave');
+      await until(async () => (await acc.locator('#toast').textContent()) === 'Write the reason.', 8000, 'reason asked');
+      assert.strictEqual(sql(`select count(*) from vacations`), '1', 'nothing recorded without the reason');
+      await acc.selectOption('#vcKind', 'taken'); await acc.fill('#vcDays', '');
       // a settlement estimate for a resignation: aguinaldo and vacations only
       await acc.selectOption('#lqWho', STAFF.marta);
       await acc.selectOption('#lqReason', 'renuncia');
@@ -88,6 +98,12 @@ module.exports.tests = [
       await until(async () => /Severance\s+Does not apply/.test(await acc.locator('#lqTable').innerText()), 8000, 'settlement table');
       assert.match(await acc.locator('#lqTable').innerText(), /Proportional aguinaldo\s+₡117\s500/);
       assert.match(await acc.locator('#lqHint').textContent(), /the notice and severance table is the law as written, not confirmed/);
+      // the CCSS minimum contribution base: saved with who confirmed it and the document
+      assert.match(await acc.locator('#ccState').textContent(), /^Not confirmed: contributions are taken on the pay as it is/);
+      await acc.fill('#ccMin', '300000'); await acc.fill('#ccWho', 'Contadora'); await acc.fill('#ccRef', 'BMC 2026');
+      await acc.click('#ccSave');
+      await until(async () => /^Confirmed by Contadora · BMC 2026$/.test(await acc.locator('#ccState').textContent()), 8000, 'CCSS base saved');
+      assert.strictEqual(sql(`select value->>'min_base_crc' from payroll_params where key = 'ccss'`), '300000');
       assert.deepStrictEqual(acc.errors, []);
     }
   },
@@ -98,12 +114,17 @@ module.exports.tests = [
              values ('ae000000-0000-4000-8000-000000002602', '${crDay(-20)}', '${crDay(-7)}', 'approved', 'Dueño', now() - interval '1 minute', 'test');
            insert into staff_pay (staff_id, kind, rate_crc, effective_from, created_by) values ('${STAFF.marta}', 'period', 500000, '${crDay(-30)}', 'test');
            insert into compliance_confirmations (key, confirmed_by, reference) values ('payroll_cr_rules', 'Contadora', 'Oficio 7-2026');
-           insert into settings (key, value, updated_by) values ('payroll_renta_withhold', 'true', 'test')`);
+           insert into settings (key, value, updated_by) values ('payroll_renta_withhold', 'true', 'test');
+           insert into payroll_rules (code, name, kind, pct, confirmed_by, reference, category) values ('ccss_obrero', 'CCSS trabajador', 'employee', 10.5, 'Contadora', 'prueba', 'ccss');
+           insert into payroll_params (key, value, confirmed_by, reference, updated_by) values ('ccss', '{"min_base_crc": 1500000}', 'Contadora', 'BMC 2026', 'test')`);
       const own = await payroll(browser, 'owner');
       await until(async () => own.locator('#prPrepare').isVisible(), 8000, 'prepare button');
       await own.click('#prPrepare');
       await until(async () => /no tax table/.test(await own.locator('#prTable').innerText()), 8000, 'the line is flagged');
       assert.match(await own.locator('#prState').textContent(), /withholding is on but there is no tax table/);
+      // 500 000 in 14 days is under the minimum base (1 500 000 × 14/30 = 700 000): the CCSS rule is taken on the base and the line says so
+      assert.match(await own.locator('#prTable').innerText(), /₡73\s500\s*CCSS minimum base/, 'deductions on the minimum base, flagged');
+      assert.match(await own.locator('#ccState').textContent(), /^Confirmed by Contadora · BMC 2026$/);
       // the owner fills Marta's profile
       await until(async () => (await own.locator('#rtTable tr', { hasText: 'Marta' }).count()) === 1, 8000, 'rates listed');
       await own.locator('#rtTable tr', { hasText: 'Marta' }).locator('button', { hasText: 'Profile' }).click();
@@ -112,6 +133,11 @@ module.exports.tests = [
       await own.selectOption('#pfContract', 'por_horas');
       await own.click('#pfSave');
       await until(() => sql(`select id_number || '|' || contract from staff_profile where staff_id = '${STAFF.marta}'`) === '1-0999-0888|por_horas', 8000, 'profile saved');
+      // a settlement estimate with no posted payroll: the amounts cannot be worked out, so there is no total
+      await own.selectOption('#lqWho', STAFF.marta);
+      await own.click('#lqGo');
+      await until(async () => /no posted payroll in the last six months: the amounts cannot be worked out/.test(await own.locator('#lqHint').textContent()), 8000, 'settlement hint');
+      assert.match(await own.locator('#lqTable tr.total').innerText(), /^Total\s+—\s*$/, 'no total');
       assert.deepStrictEqual(own.errors, []);
       const acc = await payroll(browser, 'accountant');
       await until(async () => acc.locator('#prReview').isVisible(), 8000, 'review button');

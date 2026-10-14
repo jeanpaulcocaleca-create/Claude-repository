@@ -466,8 +466,8 @@
     'Pay taken to a month of 30 days, taxed, brought back to the period of {n} days': 'Salario llevado a un mes de 30 días, gravado, devuelto al periodo de {n} días',
     'income tax withholding is on but there is no tax table: enter it in Costa Rican rules, or switch it off': 'la retención de renta está encendida pero no hay tabla: regístrela en Reglas de Costa Rica, o apáguela',
     'income tax withheld': 'con retención de renta', 'aguinaldo provisioned': 'aguinaldo provisionado',
-    'Income tax withholding is on but there is no confirmed tax table: enter it in Costa Rican rules, or switch it off in Home → Settings.':
-      'La retención de renta está encendida pero no hay una tabla confirmada: regístrela en Reglas de Costa Rica, o apáguela en Inicio → Ajustes.',
+    'Income tax withholding is on but there is no confirmed tax table: enter it in Costa Rican rules, or switch it off in Home → Settings, then prepare the payroll again.':
+      'La retención de renta está encendida pero no hay una tabla confirmada: regístrela en Reglas de Costa Rica, o apáguela en Inicio → Ajustes; luego prepare la planilla de nuevo.',
     'Not found. Refresh the page.': 'No se encontró. Actualice la página.', 'That setting does not exist.': 'Ese ajuste no existe.',
     'CCSS': 'CCSS', 'INS (occupational risk policy)': 'INS (póliza de riesgos del trabajo)', 'Other': 'Otro',
     'ID number (cédula or DIMEX)': 'Cédula o DIMEX', 'Hired on': 'Fecha de ingreso', 'Last day (if they left)': 'Último día (si ya salió)', 'Contract': 'Contrato',
@@ -517,6 +517,16 @@
     'Payrolls posted whose period ends in the month': 'Planillas asentadas cuyo periodo termina en el mes', '{n} payroll(s) of the month not posted yet': '{n} planilla(s) del mes sin asentar',
     '{n} period(s) without a payroll': '{n} periodo(s) sin planilla', 'no ID number on file (Pay rates → Profile): {x}': 'sin cédula registrada (Tarifas de pago → Perfil): {x}',
     'rules not confirmed: the figures are what the payrolls applied': 'reglas sin confirmar: las cifras son lo que aplicaron las planillas',
+    /* review fixes of the Costa Rican payroll screens (0026): the guard named in a refusal, the CCSS minimum base, days paid out, the month's attribution */
+    'Record the confirmation "payroll_cr_rules" in Home → Settings first.': 'Anote primero la confirmación «payroll_cr_rules» en Inicio → Ajustes.',
+    'Each pay period counts in the month it ends in; the days worked are the calendar month\'s': 'Cada periodo de pago cuenta en el mes en que termina; los días trabajados son los del mes calendario',
+    'Paying days instead of taking them is the exception (Código de Trabajo art. 156): write the reason.': 'Pagar los días en vez de disfrutarlos es la excepción (Código de Trabajo art. 156): escriba el motivo.',
+    'CCSS minimum contribution base': 'Base mínima contributiva de la CCSS', 'Minimum base (₡ a month)': 'Base mínima (₡ al mes)',
+    'Save the CCSS base': 'Guardar la base de la CCSS', 'CCSS base saved': 'Base de la CCSS guardada', 'CCSS minimum base': 'base mínima CCSS',
+    '{n} line(s) on the CCSS minimum base': '{n} línea(s) sobre la base mínima de la CCSS',
+    'Not confirmed: contributions are taken on the pay as it is (no minimum base)': 'Sin confirmar: las cuotas se toman sobre el salario tal cual (sin base mínima)',
+    'The CCSS takes contributions on at least a minimum monthly base: when it is confirmed here, each payroll takes the CCSS rules on the greater of the pay (taken to a month) and this base, and flags the lines below it.':
+      'La CCSS cobra las cuotas sobre al menos una base mínima mensual: cuando se confirma aquí, cada planilla toma las reglas de la CCSS sobre el mayor entre el salario (llevado a un mes) y esta base, y marca las líneas por debajo.',
     /* who took the money, End my turn clocks out (0027) */
     'End your turn. Also clock out of the time clock?': 'Termina su turno. ¿Marcar también la salida en el reloj?',
     '{x}: clocked out': '{x}: salida marcada', '{x}: turn ended · not clocked out: use the Time clock': '{x}: turno terminado · sin marcar la salida: use el Reloj de marcas',

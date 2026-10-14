@@ -15,8 +15,9 @@
 --   * public.staff_profile: cédula o DIMEX, fecha de ingreso y de salida, tipo de contrato, hijos y cónyuge
 --     (créditos del impuesto sobre la renta). Solo el dueño con el código del teléfono y el contador lo ven.
 --   * public.payroll_params: la tabla de renta (tramos mensuales, créditos, método), los días de vacaciones por
---     mes y la tabla de preaviso y cesantía. Se guardan solo con quién lo confirmó y el documento. Las dos
---     últimas traen el texto de la ley como valor SIN confirmar, para los estimados.
+--     mes, la tabla de preaviso y cesantía y la base mínima contributiva de la CCSS. Se guardan solo con quién lo
+--     confirmó y el documento. Vacaciones y cesantía traen el texto de la ley como valor SIN confirmar, para los
+--     estimados; sin base mínima confirmada las cuotas de la CCSS se toman sobre el salario tal cual.
 --   * Planilla: pago extra por persona (vacaciones pagadas, bono, ajuste) con su nota; retención del impuesto
 --     sobre la renta cuando el ajuste payroll_renta_withhold está encendido y hay tabla; provisión del aguinaldo
 --     (1/12 del salario) cuando payroll_accrue_aguinaldo está encendido. Ambos ajustes nacen apagados y exigen la
@@ -89,7 +90,7 @@ create table if not exists public.staff_profile (
   check (ended_on is null or hired_on is null or ended_on >= hired_on)
 );
 create table if not exists public.payroll_params (
-  key          text primary key check (key in ('renta', 'vacation', 'severance')),
+  key          text primary key check (key in ('renta', 'vacation', 'severance', 'ccss')),
   value        jsonb not null,
   confirmed_by text,                 -- null: the text of the law as a default, not confirmed by anyone
   reference    text,
@@ -98,7 +99,7 @@ create table if not exists public.payroll_params (
 );
 -- the defaults are the law as written (Código de Trabajo, art. 28, 29 and 153): estimates only until confirmed
 insert into public.payroll_params (key, value, updated_by) values
-  ('vacation', '{"days_per_month": 1, "legal_basis": "Código de Trabajo art. 153: dos semanas por cada cincuenta semanas de trabajo continuo (un día por mes es la práctica usual). Verificar con el contador."}', 'sistema'),
+  ('vacation', '{"days_per_month": 1, "legal_basis": "Código de Trabajo art. 153: dos semanas por cada cincuenta semanas de trabajo continuo (un día por mes es la práctica usual); art. 156: pagar los días en vez de disfrutarlos es la excepción. Verificar con el contador."}', 'sistema'),
   ('severance', '{"notice": {"3": 7, "6": 15, "12": 30}, "under_6_months_days": 7, "under_1_year_days": 14,
                   "per_year": {"1": 19.5, "2": 20, "3": 20.5, "4": 21, "5": 21.24, "6": 21.5, "7": 22, "8": 22, "9": 22, "10": 21.5, "11": 21, "12": 20.5, "13": 20},
                   "max_years": 8, "average_months": 6,
@@ -223,7 +224,7 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare b jsonb; prev numeric := 0; n int := 0; up numeric; pc numeric; last_open boolean := false; k text; v numeric;
 begin
   if not public._pay_staff_allowed() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
-  if p_key not in ('renta', 'vacation', 'severance') or p_value is null or jsonb_typeof(p_value) <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+  if p_key not in ('renta', 'vacation', 'severance', 'ccss') or p_value is null or jsonb_typeof(p_value) <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
   if coalesce(trim(p_confirmed_by), '') = '' or coalesce(trim(p_reference), '') = '' then return jsonb_build_object('ok', false, 'error', 'missing_reference'); end if;
   if p_key = 'renta' then
     if jsonb_typeof(p_value->'brackets') <> 'array' or jsonb_array_length(p_value->'brackets') = 0 then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
@@ -245,6 +246,9 @@ begin
   elsif p_key = 'vacation' then
     v := coalesce((p_value->>'days_per_month')::numeric, 0);
     if not public._payroll_finite(v) or v <= 0 or v > 5 then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+  elsif p_key = 'ccss' then          -- the minimum contribution base, a monthly amount the CCSS publishes
+    v := coalesce((p_value->>'min_base_crc')::numeric, 0);
+    if not public._payroll_finite(v) or v < 0 then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
   else
     if jsonb_typeof(p_value->'per_year') <> 'object' or jsonb_typeof(p_value->'notice') <> 'object' then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
     for v in select value::numeric from jsonb_each_text(p_value->'per_year') union all select value::numeric from jsonb_each_text(p_value->'notice')
@@ -335,7 +339,7 @@ revoke all on function public._payroll_renta(numeric, int, int, boolean, jsonb) 
 -- one line worked out again from the run's snapshot of rules and parameters: deductions and charges on gross + extra
 create or replace function public._payroll_line_recalc(p_run_id uuid, p_staff_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
-declare r public.payroll_runs; l public.payroll_lines; p public.pay_periods; prof public.staff_profile; base numeric; days int; rj jsonb;
+declare r public.payroll_runs; l public.payroll_lines; p public.pay_periods; prof public.staff_profile; base numeric; days int; rj jsonb; ccss_base numeric; floor_hit boolean := false;
 begin
   select * into r from public.payroll_runs where id = p_run_id;
   select * into l from public.payroll_lines where run_id = p_run_id and staff_id = p_staff_id;
@@ -349,15 +353,27 @@ begin
   select * into prof from public.staff_profile where staff_id = p_staff_id;
   base := l.gross_crc + l.extra_crc; days := p.ends_on - p.starts_on + 1;
   rj := public._payroll_renta(base, days, coalesce(prof.children, 0), coalesce(prof.spouse, false), r.params);
+  -- the CCSS rules take the greater of the pay and the confirmed minimum base (a monthly amount, taken to the period's days)
+  ccss_base := base;
+  if (r.params->>'ccss_min_base') is not null and days > 0 then
+    ccss_base := greatest(base, round((r.params->>'ccss_min_base')::numeric * least(days, 30) / 30, 2));
+    floor_hit := ccss_base > base;
+  end if;
   update public.payroll_lines set
     deductions = coalesce((select jsonb_agg(jsonb_build_object('code', x->>'code', 'name', x->>'name', 'pct', (x->>'pct')::numeric, 'category', coalesce(x->>'category', 'other'),
-                                                               'amount', round(base * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
+                                                               'base', case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end,
+                                                               'floor', coalesce(x->>'category', 'other') = 'ccss' and floor_hit,
+                                                               'amount', round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
                              from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee'), '[]'),
-    deductions_crc = coalesce((select sum(round(base * (x->>'pct')::numeric / 100, 2)) from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee'), 0),
+    deductions_crc = coalesce((select sum(round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2))
+                                 from jsonb_array_elements(r.rules) x where x->>'kind' = 'employee'), 0),
     employer = coalesce((select jsonb_agg(jsonb_build_object('code', x->>'code', 'name', x->>'name', 'pct', (x->>'pct')::numeric, 'category', coalesce(x->>'category', 'other'),
-                                                             'amount', round(base * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
+                                                             'base', case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end,
+                                                             'floor', coalesce(x->>'category', 'other') = 'ccss' and floor_hit,
+                                                             'amount', round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2)) order by x->>'code')
                            from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'), '[]'),
-    employer_crc = coalesce((select sum(round(base * (x->>'pct')::numeric / 100, 2)) from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'), 0),
+    employer_crc = coalesce((select sum(round(case when coalesce(x->>'category', 'other') = 'ccss' then ccss_base else base end * (x->>'pct')::numeric / 100, 2))
+                               from jsonb_array_elements(r.rules) x where x->>'kind' = 'employer'), 0),
     renta_crc = coalesce((rj->>'amount')::numeric, 0), renta_detail = rj,
     aguinaldo_accrual_crc = case when coalesce((r.params->>'accrue_aguinaldo')::boolean, false) then round(base / 12, 2) else 0 end
    where run_id = p_run_id and staff_id = p_staff_id;
@@ -375,7 +391,9 @@ begin
              when v_renta.key is null or v_renta.confirmed_by is null then 'no_table' else 'on' end;
   return jsonb_build_object('renta_status', st, 'renta', case when st = 'on' then v_renta.value end,
                             'accrue_aguinaldo', public.setting('payroll_accrue_aguinaldo') = 'true'::jsonb and public._payroll_cr_confirmed(),
-                            'cr_confirmed', public._payroll_cr_confirmed());
+                            'cr_confirmed', public._payroll_cr_confirmed(),
+                            -- the CCSS minimum contribution base, only when confirmed (a monthly amount)
+                            'ccss_min_base', (select (value->>'min_base_crc')::numeric from public.payroll_params where key = 'ccss' and confirmed_by is not null and public._payroll_cr_confirmed()));
 end $$;
 revoke all on function public._payroll_params_now() from public, anon, authenticated;
 
@@ -474,9 +492,9 @@ begin
   if r.status <> 'draft' then return jsonb_build_object('ok', false, 'error', 'not_draft'); end if;
   if not exists (select 1 from public.pay_periods p where p.id = r.period_id and p.status = 'approved' and r.prepared_at >= p.approved_at) then
     return jsonb_build_object('ok', false, 'error', 'prepare_again'); end if;
-  if r.params->>'renta_status' = 'no_table' then return jsonb_build_object('ok', false, 'error', 'renta_table_missing'); end if;
-  -- the rules, the settings or the confirmation changed since it was prepared: it is worked out again first
+  -- the rules, the settings, the confirmation or a parameter changed since it was prepared: it is worked out again first
   if r.params is distinct from public._payroll_params_now() then return jsonb_build_object('ok', false, 'error', 'prepare_again'); end if;
+  if r.params->>'renta_status' = 'no_table' then return jsonb_build_object('ok', false, 'error', 'renta_table_missing'); end if;
   if exists (select 1 from public.payroll_lines where run_id = r.id and net_crc < 0) then return jsonb_build_object('ok', false, 'error', 'negative_net'); end if;
   if exists (select 1 from public.payroll_lines where run_id = r.id and gross_crc is null) then return jsonb_build_object('ok', false, 'error', 'missing_rates'); end if;
   -- nobody to pay, or nothing to pay (every line at zero would make an entry without lines)
@@ -564,11 +582,12 @@ create or replace function public._aguinaldo_lines(p_year int, p_until date defa
 returns jsonb language sql stable security definer set search_path = public as $$
   with w as (select make_date(p_year - 1, 12, 1) as d0, least(make_date(p_year, 11, 30), coalesce(p_until, make_date(p_year, 11, 30))) as d1),
   x as (
-    select l.staff_id, l.staff_name, sum(l.gross_crc + l.extra_crc) as salary, sum(l.aguinaldo_accrual_crc) as accrued,
+    select l.staff_id, coalesce((select st.name from public.staff st where st.id = l.staff_id), max(l.staff_name)) as staff_name,
+           sum(l.gross_crc + l.extra_crc) as salary, sum(l.aguinaldo_accrual_crc) as accrued,
            count(distinct date_trunc('month', pp.ends_on)) as months, min(pp.starts_on) as first_on, max(pp.ends_on) as last_on
       from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id, w
      where r.status in ('posted', 'paid') and pp.ends_on between w.d0 and w.d1 and l.gross_crc is not null
-     group by l.staff_id, l.staff_name),
+     group by l.staff_id),
   prior as (
     select (e->>'staff_id')::uuid as staff_id, sum((e->>'salary_crc')::numeric) as salary, sum((e->>'accrued_crc')::numeric) as accrued, sum((e->>'aguinaldo_crc')::numeric) as paid
       from public.payroll_special_runs s, jsonb_array_elements(s.lines) e
@@ -738,6 +757,8 @@ begin
   if not exists (select 1 from public.staff where id = p_staff_id) then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   if p_from is null or p_to is null or p_to < p_from or p_days is null or p_days <= 0 or p_days > 60 or p_kind not in ('taken', 'paid_out') then
     return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+  -- paying days instead of giving them is the exception (Código de Trabajo art. 156): it is recorded with its reason
+  if p_kind = 'paid_out' and coalesce(trim(p_note), '') = '' then return jsonb_build_object('ok', false, 'error', 'missing_reason'); end if;
   insert into public.vacations (staff_id, from_on, to_on, days, kind, note, created_by)
     values (p_staff_id, p_from, p_to, round(p_days, 2), p_kind, nullif(left(trim(coalesce(p_note, '')), 200), ''), public._pay_actor()) returning id into vid;
   insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
@@ -783,7 +804,7 @@ end $$;
 create or replace function public.severance_estimate(p_staff_id uuid, p_end_on date, p_reason text)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare started date; months int; years_r int; par public.payroll_params; avg jsonb; daily numeric; notice_days numeric := 0; sev_days numeric := 0; per_year numeric;
-        vac jsonb; agui numeric; owes_severance boolean; items jsonb := '[]'; agui_salary numeric;
+        vac jsonb; agui numeric; owes_severance boolean; items jsonb := '[]';
 begin
   if not public._pay_staff_allowed() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
   if not exists (select 1 from public.staff where id = p_staff_id) then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
@@ -795,23 +816,23 @@ begin
   daily := (avg->>'daily_crc')::numeric;
   owes_severance := p_reason = 'despido_sin_causa';
   if owes_severance then
-    notice_days := case when months < 3 then 0 when months < 6 then coalesce((par.value->'notice'->>'3')::numeric, 7)
+    -- art. 28/29 bands: more than 3 months up to 6; more than 6 months up to a year; a year or more
+    notice_days := case when months < 3 then 0 when months <= 6 then coalesce((par.value->'notice'->>'3')::numeric, 7)
                         when months < 12 then coalesce((par.value->'notice'->>'6')::numeric, 15) else coalesce((par.value->'notice'->>'12')::numeric, 30) end;
     if months < 3 then sev_days := 0;
-    elsif months < 6 then sev_days := coalesce((par.value->>'under_6_months_days')::numeric, 7);
+    elsif months <= 6 then sev_days := coalesce((par.value->>'under_6_months_days')::numeric, 7);
     elsif months < 12 then sev_days := coalesce((par.value->>'under_1_year_days')::numeric, 14);
     else
-      years_r := months / 12 + case when months % 12 > 6 then 1 else 0 end;
+      -- the years worked; a fraction above six months (by the dates, not whole months) counts as a year
+      years_r := months / 12 + case when p_end_on > started + ((months / 12) * interval '1 year') + interval '6 months' then 1 else 0 end;
       per_year := coalesce((par.value->'per_year'->>least(years_r, 13)::text)::numeric, 20);
       sev_days := round(per_year * least(years_r, coalesce((par.value->>'max_years')::int, 8)), 2);
     end if;
   end if;
   vac := public.vacation_balance(p_staff_id, p_end_on);
-  select coalesce(sum(l.gross_crc + l.extra_crc), 0) into agui_salary
-    from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id
-   where l.staff_id = p_staff_id and r.status in ('posted', 'paid') and l.gross_crc is not null
-     and pp.ends_on between make_date(extract(year from p_end_on)::int - case when extract(month from p_end_on) = 12 then 0 else 1 end, 12, 1) and p_end_on;
-  agui := round(agui_salary / 12, 2);
+  -- the aguinaldo still owed in the window the exit falls in (posted payrolls, less what an early run already paid)
+  select coalesce((select (x->>'aguinaldo_crc')::numeric from jsonb_array_elements(public._aguinaldo_lines(extract(year from p_end_on)::int + case when extract(month from p_end_on) = 12 then 1 else 0 end, p_end_on)) x
+                    where (x->>'staff_id')::uuid = p_staff_id), 0) into agui;
   items := jsonb_build_array(
     jsonb_build_object('key', 'preaviso', 'days', notice_days, 'amount_crc', case when daily is not null then round(notice_days * daily, 2) end, 'applies', owes_severance,
                        'basis', 'Código de Trabajo art. 28: una semana (3 a 6 meses), quince días (6 meses a 1 año) o un mes (más de un año), si el patrono no lo da trabajado.'),
@@ -820,9 +841,12 @@ begin
     jsonb_build_object('key', 'aguinaldo', 'days', null, 'amount_crc', agui, 'applies', true, 'basis', 'Ley 2412: salarios desde el 1 de diciembre anterior entre doce; siempre se paga.'),
     jsonb_build_object('key', 'vacaciones', 'days', vac->'remaining_days', 'amount_crc', vac->'value_crc', 'applies', true, 'basis', 'Código de Trabajo art. 156: las vacaciones no disfrutadas se pagan; siempre se pagan.'));
   return jsonb_build_object('ok', true, 'staff_id', p_staff_id, 'end_on', p_end_on, 'reason', p_reason, 'started_on', started, 'months', months, 'average', avg, 'daily_crc', daily,
-    'items', items, 'total_crc', (select sum((x->>'amount_crc')::numeric) from jsonb_array_elements(items) x where (x->>'applies')::boolean),
+    'items', items,
+    -- a total only when every item that applies could be worked out (no posted payroll: notice and severance are blank)
+    'total_crc', (select case when bool_or(x->'amount_crc' = 'null'::jsonb or x->>'amount_crc' is null) then null else sum((x->>'amount_crc')::numeric) end
+                    from jsonb_array_elements(items) x where (x->>'applies')::boolean),
     'confirmed', par.confirmed_by is not null and public._payroll_cr_confirmed(), 'legal_basis', par.value->>'legal_basis',
-    'note', 'Estimado para conversar con el contador: la liquidación final la prepara el contador y se asienta en el diario (cuentas 6106, 6103, 6104).');
+    'note', 'Estimado para conversar con el contador: la liquidación final la prepara el contador y se asienta en el diario (cuentas 6106, 6103, 6104). El aguinaldo proporcional suma solo las planillas ya asentadas (no el periodo en curso); si la salida es en diciembre y el aguinaldo del año no se ha pagado, se suma aparte.');
 end $$;
 
 -- 8) the month for the CCSS and the INS: salaries, days, hours, deductions and charges by category ---------------------
@@ -836,7 +860,8 @@ begin
   return jsonb_build_object('ok', true, 'year', p_year, 'month', p_month, 'from', d0, 'to', d1, 'confirmed', public._payroll_cr_confirmed(),
     'people', (
       with x as (
-        select l.staff_id, l.staff_name, sum(l.hours) as hours, sum(l.gross_crc + l.extra_crc) as salary, sum(l.extra_crc) as extra, sum(l.renta_crc) as renta,
+        select l.staff_id, coalesce((select st.name from public.staff st where st.id = l.staff_id), max(l.staff_name)) as staff_name,
+               sum(l.hours) as hours, sum(l.gross_crc + l.extra_crc) as salary, sum(l.extra_crc) as extra, sum(l.renta_crc) as renta,
                sum(l.other_crc) as other, sum(l.net_crc) as net, count(*) as payrolls,
                coalesce(sum((select sum((e->>'amount')::numeric) from jsonb_array_elements(l.deductions) e where coalesce(e->>'category', 'other') = 'ccss')), 0) as emp_ccss,
                coalesce(sum((select sum((e->>'amount')::numeric) from jsonb_array_elements(l.deductions) e where coalesce(e->>'category', 'other') <> 'ccss')), 0) as emp_other,
@@ -845,7 +870,7 @@ begin
                coalesce(sum((select sum((e->>'amount')::numeric) from jsonb_array_elements(l.employer) e where coalesce(e->>'category', 'other') = 'other')), 0) as er_other
           from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id
          where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 and l.gross_crc is not null
-         group by l.staff_id, l.staff_name)
+         group by l.staff_id)
       select coalesce(jsonb_agg(jsonb_build_object('staff_id', x.staff_id, 'staff_name', x.staff_name, 'id_number', sp.id_number, 'payrolls', x.payrolls, 'hours', x.hours,
                'days_worked', (select count(distinct public._shift_day(te.clock_in)) from public.time_entries te where te.staff_id = x.staff_id and public._shift_day(te.clock_in) between d0 and d1 and te.clock_out is not null),
                'salary_crc', round(x.salary, 2), 'extra_crc', round(x.extra, 2), 'employee_ccss_crc', round(x.emp_ccss, 2), 'employee_other_crc', round(x.emp_other, 2), 'renta_crc', round(x.renta, 2),
@@ -854,13 +879,16 @@ begin
         from x left join public.staff_profile sp on sp.staff_id = x.staff_id),
     'rules', (            -- each rule's total in the month, as the payrolls applied it
       select coalesce(jsonb_agg(jsonb_build_object('code', code, 'name', name, 'kind', kind, 'category', category, 'pct', pct, 'amount_crc', round(amount, 2)) order by kind, code), '[]') from (
-        select e->>'code' as code, e->>'name' as name, 'employee' as kind, coalesce(e->>'category', 'other') as category, (e->>'pct')::numeric as pct, sum((e->>'amount')::numeric) as amount
+        select e->>'code' as code, max(e->>'name') as name, 'employee' as kind, max(coalesce(e->>'category', 'other')) as category, max((e->>'pct')::numeric) as pct, sum((e->>'amount')::numeric) as amount
           from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id, jsonb_array_elements(l.deductions) e
-         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by 1, 2, 3, 4, 5
+         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by e->>'code'
         union all
-        select e->>'code', e->>'name', 'employer', coalesce(e->>'category', 'other'), (e->>'pct')::numeric, sum((e->>'amount')::numeric)
+        select e->>'code', max(e->>'name'), 'employer', max(coalesce(e->>'category', 'other')), max((e->>'pct')::numeric), sum((e->>'amount')::numeric)
           from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id, jsonb_array_elements(l.employer) e
-         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by 1, 2, 3, 4, 5) q),
+         where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 group by e->>'code') q),
+    'floor_lines', (select count(*) from public.payroll_lines l join public.payroll_runs r on r.id = l.run_id join public.pay_periods pp on pp.id = r.period_id
+                     where r.status in ('posted', 'paid') and pp.ends_on between d0 and d1 and exists (select 1 from jsonb_array_elements(l.deductions || l.employer) e where (e->>'floor')::boolean)),
+    'attribution', 'Cada periodo de pago cuenta en el mes en que termina; los días trabajados son los del mes calendario.',
     'pending_runs', (select count(*) from public.payroll_runs r join public.pay_periods pp on pp.id = r.period_id where r.status in ('draft', 'reviewed') and pp.ends_on between d0 and d1),
     'periods_without_payroll', (select count(*) from public.pay_periods pp where pp.ends_on between d0 and d1 and not exists (select 1 from public.payroll_runs r where r.period_id = pp.id)));
 end $$;

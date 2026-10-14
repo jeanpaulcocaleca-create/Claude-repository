@@ -96,6 +96,7 @@ select test.eq(public.payroll_review(:'run')->>'error', 'renta_table_missing', '
 -- the table (example figures for the test only; the real ones come from Hacienda through the accountant, A-08)
 select test.eq(public.payroll_param_save('renta', '{"brackets": [{"upto": 922000, "pct": 0}, {"upto": 1352000, "pct": 10}, {"upto": null, "pct": 15}], "credit_child": 1720, "credit_spouse": 2600, "method": "prorate", "valid_from": "2026-01-01"}',
                                         'Contadora M. Rojas', 'Decreto de tramos 2026 (prueba)')->>'ok', 'true', 'the tax table is saved with its confirmation');
+select test.eq(public.payroll_review(:'run')->>'error', 'prepare_again', 'with the table now saved, the stale draft asks to be prepared again (not for a table it has)');
 select test.eq(public.payroll_prepare(:'period')->>'ok', 'true', 'prepared with the table');
 reset role;
 select test.eq((select r.params->>'renta_status' from public.payroll_runs r where r.id = :'run'), 'on', 'income tax on');
@@ -143,7 +144,7 @@ select test.login('accountant', 'aal2'); set role authenticated;
 select public.payslip(:'run', test.staff('marta')) as ps \gset
 select test.eq((:'ps'::jsonb)->>'ok' || '|' || ((:'ps'::jsonb)->'staff'->>'id_number') || '|' || ((:'ps'::jsonb)->>'renta_crc') || '|' || ((:'ps'::jsonb)->>'net_crc') || '|' || ((:'ps'::jsonb)->>'status'),
                'true|155812345678|134624.00|1108376.00|posted', 'Marta''s payslip');
-select test.eq(public.payslip(:'run', test.staff('dueño'))->>'error', 'not_found', 'no payslip for someone not in the payroll');
+select test.eq(public.payslip(:'run', test.staff('dueno'))->>'error', 'not_found', 'no payslip for someone not in the payroll');
 
 -- the month for the CCSS and the INS (the month the period ends in)
 select extract(year from :'p1'::date)::int as yy, extract(month from :'p1'::date)::int as mm \gset
@@ -204,6 +205,7 @@ select test.eq((select sum(credit) from acct.lines where account = '1110' and en
 
 -- vacations: the balance is an estimate until the days-per-month rule is confirmed
 select test.login('accountant', 'aal2'); set role authenticated;
+select test.eq(public.vacation_record(test.staff('ana'), public.cr_today() - 3, public.cr_today() - 3, 1, 'paid_out', '')->>'error', 'missing_reason', 'paying days out is the exception: it needs a reason');
 select public.vacation_record(test.staff('ana'), public.cr_today() - 3, public.cr_today() - 3, 1, 'taken', 'un día') as vr \gset
 select test.eq((:'vr'::jsonb)->>'ok', 'true', 'a vacation day recorded');
 select public.vacation_balance(test.staff('ana')) as vb \gset
@@ -228,6 +230,28 @@ select public.severance_estimate(test.staff('ana'), public.cr_today(), 'renuncia
 select test.eq((select x->>'applies' || '|' || (x->>'days') from jsonb_array_elements((:'se2'::jsonb)->'items') x where x->>'key' = 'cesantia'), 'false|0', 'a resignation: no severance');
 select test.eq((select x->>'applies' from jsonb_array_elements((:'se2'::jsonb)->'items') x where x->>'key' = 'aguinaldo'), 'true', 'the aguinaldo is always owed');
 select test.eq(public.severance_estimate(test.staff('ana'), public.cr_today(), 'otro')->>'error', 'bad_value', 'one of the four reasons');
+select public.severance_estimate(test.staff('marta'), public.cr_today() + 400, 'despido_sin_causa') as se3 \gset
+select test.eq((select x->>'amount_crc' is null from jsonb_array_elements((:'se3'::jsonb)->'items') x where x->>'key' = 'cesantia'), true, 'no posted payroll in the six months before that date: the severance amount is blank');
+select test.eq((:'se3'::jsonb)->>'total_crc', null::text, 'and so is the total, never a misleading number');
+-- the CCSS minimum contribution base: Luis (32 000 in 14 days) is below a 200 000 monthly base (93 333.33 for 14 days)
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": "NaN"}', 'Contadora', 'prueba')->>'error', 'bad_value', 'a real amount');
+select test.eq(public.payroll_param_save('ccss', '{"min_base_crc": 200000}', 'Contadora M. Rojas', 'CCSS base mínima 2026 (prueba)')->>'ok', 'true', 'the base is saved with its confirmation');
+select test.eq(public.pay_period_save(public.cr_today() - 6, public.cr_today() - 1)->>'ok', 'true', 'a second period');
+reset role;
+insert into public.time_entries (staff_id, clock_in, clock_out) values (test.staff('luis'), public.cr_day_start(public.cr_today() - 4) + interval '8 hours', public.cr_day_start(public.cr_today() - 4) + interval '12 hours');
+select id as period2 from public.pay_periods where starts_on = public.cr_today() - 6 \gset
+select test.login('owner', 'aal2'); set role authenticated;
+select test.eq(public.timesheet_approve(:'period2')->>'ok', 'true', 'approved');
+reset role;
+select test.login('accountant', 'aal2'); set role authenticated;
+select public.payroll_prepare(:'period2') as pr2 \gset
+select (:'pr2'::jsonb)->>'run_id' as run2 \gset
+reset role;
+-- Luis: 4 h × 2 000 = 8 000 in a 6-day period; the base taken to 6 days is 40 000: CCSS 10,5 % of 40 000 = 4 200, INS 1,5 % of 8 000 = 120
+select test.eq((select deductions_crc || '|' || employer_crc || '|' || (select bool_or((e->>'floor')::boolean) from jsonb_array_elements(deductions) e)
+                  from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), '4200.00|10652.00|true', 'the CCSS rules take the minimum base; the INS stays on the pay; the line is flagged');
+select test.eq((select renta_crc from public.payroll_lines where run_id = :'run2' and staff_id = test.staff('luis')), 0::numeric, 'no income tax on 8 000');
+select test.login('accountant', 'aal2'); set role authenticated;
 -- payroll_staff carries the state the page needs
 select public.payroll_staff() as st \gset
 select test.eq(((:'st'::jsonb)->'cr'->>'confirmed') || '|' || ((:'st'::jsonb)->'cr'->>'renta_withhold') || '|' || ((:'st'::jsonb)->'cr'->>'accrue_aguinaldo'), 'true|true|true', 'the Costa Rican rules: confirmed and on');

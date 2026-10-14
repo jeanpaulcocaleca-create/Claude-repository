@@ -724,15 +724,31 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   period of 28 to 31 days is a month for the tax table (only a shorter period is taken to a month); the aguinaldo is
   posted before 30 November only with a written reason kept on the run, never while a period of the year has no
   posted payroll, and a run posted early leaves the rest to a later complementary run that discounts what was paid.
-- **Proof:** `tests/sql/290_payroll_cr.test.sql` (113 assertions: categories, the profile and its log, the table
+- **Proof:** `tests/sql/290_payroll_cr.test.sql` (126 assertions: categories, the profile and its log, the table
   validation with NaN and infinity, the withholding off → no table → on, the prorated tax and the calendar month,
   extra pay and its log, a stale draft, extras kept on re-prepare, the split entry, the payslip, the month, the
   aguinaldo run blocked without the confirmation and without a reason before 30 November, nothing left after it,
-  vacations, the settlement by reason); `tests/e2e/specs/260_payroll_cr.spec.js` (the accountant's screens, the
+  vacations, the settlement by reason, the CCSS floor, a pay-out without a reason, a settlement without a total);
+  `tests/e2e/specs/260_payroll_cr.spec.js` (the accountant's screens, the
   owner's profile form, the review refused without a table); the 0022/0025 payroll test unchanged (44). The
   rehearsal checks that both settings arrive OFF and that the staging copy anonymizes the ID numbers.
-- **Not proven:** the real percentages, brackets and tables (they come from the accountant, A-08); the prorating
-  method against Hacienda's practice; a browser print of the payslip (checked by hand in a screenshot only).
+- **From the second review of 0026 (fixed the same day, before the push):** the CCSS contribution has a minimum base:
+  the accountant enters it (`payroll_params` key `ccss`, `min_base_crc`, with their name and the document) and each
+  CCSS line is computed on the greater of the pay and the minimum taken to the period's days (× days ÷ 30, 30 days or
+  more is the full base); the line keeps the base and whether the floor applied, the month's report counts the lines
+  at the floor, and without the parameter nothing is floored; the review of a draft prepared before the settings
+  changed asks for a new preparation before it complains about a missing tax table; the aguinaldo lines and the
+  month's report group by the person and not by the name (a renamed person or a renamed rule no longer appears
+  twice) and show the current name; the severance bands follow the law's wording (three to six months, six months to
+  a year, by years with the fraction of the year from the dates, not from the posted months); a settlement whose
+  applicable amount cannot be computed (no posted payroll in the window) has no total instead of a short one, and the
+  page prints a dash; the settlement's proportional aguinaldo comes from the same window and runs as the aguinaldo
+  itself; paying vacation days instead of giving them is the exception of Código de Trabajo art. 156 and needs a
+  written reason; the aguinaldo card opens on the current year. Overtime, paid holidays (feriados) and the minimum
+  wage by occupation are not modelled: the hours come from the time clock at one rate, and a holiday worked is paid
+  as extra pay typed by the manager; A-08 lists them for the accountant.
+- **Not proven:** the real percentages, brackets, minimum base and tables (they come from the accountant, A-08); the
+  prorating method against Hacienda's practice; a browser print of the payslip (checked by hand in a screenshot only).
 
 ## D-036 · 2026-10-14 · The three attribution gaps of D-032 are closed (migration 0027)
 - **Decision:** (1) a bill paid later records who took the money in its own columns (`orders.paid_operator_*`), set by
