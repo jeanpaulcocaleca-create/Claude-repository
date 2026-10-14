@@ -4,7 +4,9 @@
 #   1. copia producción con la cuenta de SOLO LECTURA (canopy_backup); es el único paso que la usa
 #   2. la carga en una base desechable del trabajo y la ANONIMIZA (anonimizar.sql)
 #   3. vacía el proyecto de PRUEBAS (solo si se pidió) y carga la copia anonimizada
-#   4. foto + consistencia ANTES, aplica las migraciones del repositorio público, foto + consistencia DESPUÉS
+#   4. foto + consistencia ANTES; si se pidió REINICIO=si, el reinicio operativo de prueba (D-038) en la copia de
+#      PRUEBAS (cierra el café en la copia, guarda el resumen del periodo, ejecuta reinicio-operativo.sql, foto +
+#      consistencia 'after-reset'); aplica las migraciones del repositorio público, foto + consistencia DESPUÉS
 # Nunca escribe en producción: se niega si la cuenta de producción podría escribir o si la dirección de pruebas es
 # la de producción, y anonimiza solo en el Postgres desechable del trabajo. Los archivos SQL del repositorio público
 # se envían con "psql -c" (el servidor ejecuta solo SQL; ningún comando de psql ni de la terminal escrito en esos
@@ -13,7 +15,9 @@
 # Variables: CANOPY_DB_URL (producción, solo lectura) · STAGING_DB_URL (pruebas) · STAGING_PIN · PROD_URL
 #            (https://<proyecto>.supabase.co de producción) · SCRATCH_URL (Postgres desechable del trabajo)
 #            PUBLIC_DIR (el repositorio público en la versión a ensayar) · OUT (carpeta de resultados)
-#            EMPTY_STAGING=si para vaciar pruebas antes de cargar · SCRATCH_DB (opcional; canopy_ensayo)
+#            EMPTY_STAGING=si para vaciar pruebas antes de cargar · REINICIO=si para ensayar el reinicio operativo
+#            (D-038) en PRUEBAS antes de las migraciones (independientes; lanzamiento único: los dos en si)
+#            SCRATCH_DB (opcional; canopy_ensayo)
 # =====================================================================================================
 set -euo pipefail
 umask 077
@@ -37,8 +41,11 @@ case "$STAGING_DB_URL" in *"$PROD_REF"*) die "La dirección de PRUEBAS contiene 
 [ "$STAGING_DB_URL" != "$CANOPY_DB_URL" ] || die "PRUEBAS y producción son la misma dirección. No se hizo nada."
 # the copy is anonymized (and its database dropped and created) only on the job's own throw-away server
 case "$SCRATCH_URL" in *supabase*) die "SCRATCH_URL debe ser la base desechable del trabajo, nunca un proyecto de Supabase. No se hizo nada.";; esac
-# copies with real data never outlive the job's step, also when a step fails
-trap 'rm -f "$OUT/produccion.dump" "$OUT/anonimizada.dump" "$OUT/toc.list"' EXIT
+# copies with real data never outlive the job's step, also when a step fails (the filled-in reset file holds no data
+# or secret, only the rehearsal's reference; dropped with them)
+trap 'rm -f "$OUT/produccion.dump" "$OUT/anonimizada.dump" "$OUT/toc.list" "$OUT/reinicio.sql"' EXIT
+# the one-time operational reset (D-038) is rehearsed in staging only when asked, the same way EMPTY_STAGING is asked
+case "${REINICIO:-no}" in si|sí|Si|Sí|SI|SÍ) REINICIO=si;; *) REINICIO=no;; esac
 # public SQL goes to the server as-is: refuse a file that would start with a psql command
 run_public() {  # url file [extra psql flags]
   local url="$1" f="$2"; shift 2
@@ -165,6 +172,41 @@ rm -f "$OUT/anonimizada.dump" "$OUT/toc.list"
 log "4/4 ensayo de las migraciones en PRUEBAS…"
 run_public "$STAGING_DB_URL" "$PUBLIC_DIR/supabase/tools/production-snapshot.sql" > "$OUT/snapshot-before.json"
 run_public "$STAGING_DB_URL" "$PUBLIC_DIR/supabase/tools/consistency-check.sql" > "$OUT/consistency-before.json"
+if [ "$REINICIO" = si ]; then
+  log "    reinicio operativo de prueba (D-038) en la copia de PRUEBAS, antes de las migraciones (producción no se toca)…"
+  # the reset is for the database as it is before 0000 (it refuses a migrated one): staging holds a fresh copy of
+  # production here, so a migrated copy means production already went through the window and there is nothing to rehearse
+  [ "$(psql -X -At "$STAGING_DB_URL" -c "select to_regclass('canopy.migrations') is null")" = "t" ] \
+    || die "la copia en PRUEBAS ya tiene migraciones (producción ya pasó la ventana): el reinicio operativo es solo para la base de antes de la 0000. Corra el ensayo con «reinicio» = no."
+  # "close the café" in the staging copy: production is copied while the café works, so the copy may hold a sale of
+  # the last hour and today's register still open, and the reset refuses both (it is for the launch window, after the
+  # close). Those sales are dated two hours earlier and the open register is closed, in staging only. The reset keeps
+  # its own refusals: this only makes the copy look like production will at the window. Counts only in the log.
+  psql -X -q -At -v ON_ERROR_STOP=1 -v VERBOSITY=terse "$STAGING_DB_URL" -c "with v as (update public.orders set created_at = created_at - interval '2 hours' where created_at > now() - interval '60 minutes' returning 1),
+         m as (update public.time_entries set clock_in = clock_in - interval '2 hours', clock_out = clock_out - interval '2 hours'
+                where clock_in > now() - interval '60 minutes' or clock_out > now() - interval '60 minutes' returning 1),
+         c as (update public.register_days set closed_at = now() - interval '30 minutes' where closed_at is null returning 1)
+    select '    café cerrado en la copia: ' || (select count(*) from v) || ' venta(s) de la última hora fechadas dos horas antes, ' || (select count(*) from m) || ' marca(s) del reloj también, ' || (select count(*) from c) || ' caja(s) cerrada(s)'" \
+    || die "no se pudo cerrar el café en la copia de PRUEBAS (ventas de la última hora, caja abierta): el reinicio no se ejecutó"
+  # the accountant's summary of the period, taken before the reset like the owner does (counts and totals, no names)
+  run_public "$STAGING_DB_URL" "$PUBLIC_DIR/supabase/tools/resumen-pruebas.sql" > "$OUT/resumen.json"
+  # the reset itself: the owner's file as it is, with its two placeholders filled the way the owner fills them in the SQL
+  # Editor (the backup's reference and the confirmation word), sent as one query like every public SQL file. Terse: a
+  # refusal prints its one-line reason (counts at most), never a row
+  REF="ensayo $(date -u +'%Y-%m-%d %H:%M') UTC"
+  sed "s/RESPALDO-AAAA-MM-DD HH:MM/$REF/; s/escriba BORRAR PRUEBAS/BORRAR PRUEBAS/" "$PUBLIC_DIR/supabase/tools/reinicio-operativo.sql" > "$OUT/reinicio.sql"
+  grep -qF "canopy_reinicio('$REF', 'BORRAR PRUEBAS')" "$OUT/reinicio.sql" \
+    || die "reinicio-operativo.sql no termina con la línea esperada (los dos espacios a llenar): no se ejecutó"
+  run_public "$STAGING_DB_URL" "$OUT/reinicio.sql" -v VERBOSITY=terse > "$OUT/reinicio.txt" \
+    || { rm -f "$OUT/reinicio.txt"; die "el reinicio operativo se negó en PRUEBAS (allí no cambió nada; el motivo está en la línea ERROR de arriba)"; }
+  rm -f "$OUT/reinicio.sql"
+  case "$(head -1 "$OUT/reinicio.txt")" in 'reinicio hecho'*) ;; *) die "el reinicio operativo no respondió «reinicio hecho»: revise la copia de PRUEBAS antes de seguir";; esac
+  # the first three lines: done + reference, what was cleared (rows per table), what was kept; the fourth is the summary
+  head -3 "$OUT/reinicio.txt" | sed 's/^/    /'
+  run_public "$STAGING_DB_URL" "$PUBLIC_DIR/supabase/tools/production-snapshot.sql" > "$OUT/snapshot-after-reset.json"
+  run_public "$STAGING_DB_URL" "$PUBLIC_DIR/supabase/tools/consistency-check.sql" > "$OUT/consistency-after-reset.json"
+  log "    reinicio de prueba hecho; siguen las migraciones (la comparación del paso siguiente usa el modo reset)"
+fi
 LAST=-1
 if [ "$(psql -X -At "$STAGING_DB_URL" -c "select to_regclass('canopy.migrations') is not null")" = "t" ]; then
   LAST="$(psql -X -At "$STAGING_DB_URL" -c "select coalesce(max(version), -1) from canopy.migrations")"

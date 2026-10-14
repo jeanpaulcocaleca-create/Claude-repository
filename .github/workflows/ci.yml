@@ -57,12 +57,13 @@ jobs:
         run: bash tests/run-sql.sh
       - name: Backup pipeline
         run: bash tests/backup/test-backup-pipeline.sh
-      - name: Migration rehearsal (production as it is today, every migration, the live pages)
+      - name: Migration rehearsal (production as it is today, every migration, the live pages; the one-time reset, then the pages on the empty café)
         env:
           REHEARSAL_OUT: ${{ runner.temp }}/rehearsal
         run: |
           bash tests/rehearsal/run.sh
           bash tests/rehearsal/live-pages.sh
+          bash tests/rehearsal/reset-pages.sh
       - name: Keep the rehearsal reports
         # also proves that the pinned upload action the private backup repository uses still resolves
         if: always()

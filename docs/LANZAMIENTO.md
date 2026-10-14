@@ -52,6 +52,12 @@ Con los datos reales, el mismo ensayo se repite en PRUEBAS antes de la ventana (
 
 ## Recomendación: la base en una sola ventana, el uso por olas
 
+**Decisión del dueño (2026-10-14, D-038): un solo lanzamiento con reinicio operativo.** La base de hoy se reinicia una
+vez (se borran las transacciones del periodo de prueba y se conserva todo lo demás; el inventario empieza en cero y se
+carga tras el conteo físico) y en la misma ventana se aplican 0000–0028 y se publican las páginas. El guion operativo
+es `docs/LANZAMIENTO-UNICO.md`; las olas de abajo quedan como plan de activación y capacitación, y las reglas, la tabla
+de reversión y la lista de verificación de este documento siguen valiendo.
+
 La migración **0025** corrige lo que encontró la revisión de seguridad en todas las fases. Depende de todas las
 anteriores, así que va de última.
 

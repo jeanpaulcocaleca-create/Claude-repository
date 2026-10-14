@@ -81,6 +81,8 @@ after as (select jsonb_strip_nulls(jsonb_build_object(
       (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.orders where business_date is null and paid', false, true, '')))[1]::text end,
   'orders_business_date_not_sale_day', case when exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'business_date') then
       (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.orders where business_date <> (created_at at time zone ''America/Costa_Rica'')::date', false, true, '')))[1]::text end,
+  'orders_before_reset', case when exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'flags') then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.orders where ''before_reset'' = any(flags)', false, true, '')))[1]::text end,
   'rows_without_location', case when exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'location_id') then
       (xpath('/row/j/text()', query_to_xml('select ((select count(*) from public.orders where location_id is null) + (select count(*) from public.stock_moves where location_id is null) + (select count(*) from public.time_entries where location_id is null))::text as j', false, true, '')))[1]::text end
 )) as v)

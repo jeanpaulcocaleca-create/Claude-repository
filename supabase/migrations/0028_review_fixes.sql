@@ -28,6 +28,14 @@
 select canopy.migration_begin(28, 'review_fixes');
 
 -- 1) the till's sales: never a negative total; an unknown method or status is flagged -------------------------------
+-- when the one-time operational reset ran (D-038): the log row is behind row security for the till, so a definer reads it
+create or replace function public._reinicio_at()
+returns timestamptz language sql stable security definer set search_path = public as $$
+  select max(at) from public.audit_log where action = 'reinicio_operativo';
+$$;
+revoke all on function public._reinicio_at() from public, anon;
+grant execute on function public._reinicio_at() to authenticated;   -- the till's role; a room order's definer never reaches the till branch
+
 create or replace function public._order_till_guard()
 returns trigger language plpgsql set search_path = public as $$
 begin
@@ -40,6 +48,11 @@ begin
     end if;
     if new.status is not null and new.status not in ('new', 'preparing', 'ready', 'done', 'delivered', 'cancelled') then
       new.flags := array_append(coalesce(new.flags, '{}'), 'bad_status');
+    end if;
+    -- a sale a device kept offline from before the one-time operational reset (D-038) is recorded, never refused, and
+    -- flagged for the manager to void: it belongs to the test period the reset archived
+    if new.created_at is not null and new.created_at < coalesce(public._reinicio_at(), '-infinity'::timestamptz) then
+      new.flags := array_append(coalesce(new.flags, '{}'), 'before_reset');
     end if;
   end if;
   return new;

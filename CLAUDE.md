@@ -18,6 +18,8 @@ The owner's directives (2026-10-12) are binding. In short:
   disabled behind owner/accountant-controlled settings.
 - Never delete or rewrite business records (orders, payments, stock moves, time entries,
   journal entries, audit log). Corrections are new records (reversals, refunds, adjustments).
+  Exception, once: the operational reset of the test period approved by the owner on 2026-10-14 (D-038,
+  `supabase/tools/reinicio-operativo.sql`), run only by the owner in the launch window after a verified backup.
 - Never run the files in `supabase/` root (the 18 historical scripts). They are history.
 
 ## Always

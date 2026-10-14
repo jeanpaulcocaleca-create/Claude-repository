@@ -90,12 +90,14 @@ From `docs/DEPENDENCIES.md`.
 
 Everything is rebuilt from scratch on every run (`tests/run.sh`).
 - **Last full run (local, 2026-10-14, before the final commit):** ALL TESTS PASSED.
-  - **SQL:** 31 files, 928 assertions, one transaction each. Every migration is tested, plus the security attack
+  - **SQL:** 31 files, 930 assertions, one transaction each. Every migration is tested, plus the security attack
     suite (`250_security_hardening`), the release check (`240`), which pins down anonymous access, row
     security and fixed search paths, the Costa Rican payroll (`290`, 143), who took the money (`300`) and the
     review fixes (`310`).
-  - **Browser:** 102 tests passed (29 spec files), plus the 5 live-page checks of the rehearsal.
-  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0028 on the production-shaped copy: passed.
+  - **Browser:** 102 tests passed (29 spec files), plus the 5 live-page checks of the rehearsal on the migrated copy, the same 5 on
+    the copy that went through the one-time reset, and the 2 checks of the new pages on the empty café and its first day.
+  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0028 on the production-shaped copy: passed, including the
+    one-time reset pass (six refusals, the reset, the migrations after it) and the owner's staging rehearsal with `reinicio = si`.
 - **What the browser tests cover:** Playwright with real supabase-js against PostgREST; staff screens in English
   and Spanish; phone, tablet and desktop sizes; offline and two-device cases.
 - **What the backup pipeline test covers:** backup, restore test, encryption, offline-key restore, computer sync.
@@ -253,6 +255,12 @@ Nothing paid was activated.
 ## 11. Production deployment plan
 
 See `docs/LANZAMIENTO.md` (Spanish).
+
+**Update 2026-10-14 (D-038):** the owner chose a single coordinated release with a one-time operational reset of the
+test period before migration 0000 (`supabase/tools/reinicio-operativo.sql`, after a verified backup and the
+accountant's summary; inventory restarts at zero after a physical count; regulated features stay OFF). The operative
+runbook is `docs/LANZAMIENTO-UNICO.md` (Spanish): preparation, the 45-minute window, the first day, the way back and
+the owner's eight approvals. The order below remains the activation and training plan.
 
 **Recommended order:**
 1. **Wave 0 now:** E-01, E-02, E-03.

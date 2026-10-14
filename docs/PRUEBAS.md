@@ -68,6 +68,8 @@ Requisito: el repositorio privado `canopy-respaldos` instalado y su primer respa
    nombres de los aparatos, los enlaces de seguimiento y los códigos QR de habitación; se detienen ante una columna
    de texto desconocida; leen producción solo con la cuenta de solo lectura; y un paso que falle no deja datos ni
    escribe en el registro ninguna fila, el PIN de pruebas ni contraseñas.
+   `ensayo.sh` y `.github/workflows/ensayo-pruebas.yml` cambiaron otra vez el **2026-10-14**: traen la opción
+   **reinicio** (el ensayo del lanzamiento único, más abajo). Vuelva a subir esos dos antes de ese ensayo.
 2. **Settings → Secrets and variables → Actions → New repository secret**:
    - `STAGING_DB_URL`: proyecto de **PRUEBAS** → **Connect** → **Connection String** → **Session pooler** →
      copie la dirección (empieza con `postgresql://postgres.<ref-de-pruebas>:` y termina en
@@ -81,7 +83,8 @@ Requisito: el repositorio privado `canopy-respaldos` instalado y su primer respa
 ### 3 · Primera copia y ensayo
 
 `canopy-respaldos` → **Actions → Ensayo en pruebas → Run workflow** → versión: la rama de desarrollo →
-vaciar: `no`. Al terminar (unos 5 minutos) debe estar en verde y el resumen dice **unchanged: … original tables**.
+vaciar: `no` → reinicio: `no`. Al terminar (unos 5 minutos) debe estar en verde y el resumen dice
+**unchanged: … original tables**.
 
 Qué hace: copia producción (solo lectura) → la anonimiza en una base desechable → la carga en pruebas → aplica
 las migraciones nuevas en pruebas → compara antes y después (ventas, partes de cuentas, anulaciones, descuentos,
@@ -126,3 +129,57 @@ Si queda en rojo: el mensaje en rojo dice el paso y nunca muestra datos; mándem
 - Las fotos del menú y los videos no se copian a pruebas: el menú de pruebas muestra las fotos públicas de
   producción (como cualquier visitante) y subir una foto en pruebas no funciona.
 - Pruebas no envía comprobantes ni nada a Hacienda.
+
+### Ensayo del lanzamiento único (reinicio + migraciones)
+
+El lanzamiento único (docs/LANZAMIENTO-UNICO.md, D-038) borra en producción las transacciones del periodo de prueba
+(`supabase/tools/reinicio-operativo.sql`, antes de la migración 0000) y aplica después las migraciones 0000–0028, todo
+en una ventana. Esa ventana completa se ensaya antes en PRUEBAS, con la copia anonimizada de los datos reales.
+Producción no se toca: el reinicio corre solo en la copia de PRUEBAS, con el mismo archivo que usted pegará después.
+
+1. `canopy-respaldos` → **Actions → Ensayo en pruebas → Run workflow** → versión: la etiqueta o rama a lanzar →
+   vaciar: `si` → reinicio: `si`. (Las dos opciones son independientes: `vaciar` solo vacía pruebas antes de cargar la
+   copia; `reinicio` solo ensaya el reinicio. Para el lanzamiento van las dos en `si`.)
+   Con reinicio = `si`, después de la foto y la revisión ANTES y antes de las migraciones, el ensayo:
+   - **cierra el café en la copia**: la copia se toma mientras el café trabaja, y el reinicio se niega con una venta
+     de la última hora o una caja abierta (como hará en producción); en pruebas, esas ventas se fechan dos horas
+     antes y la caja abierta se cierra. El registro dice cuántas (`café cerrado en la copia: N venta(s)…, N caja(s)`);
+   - guarda el **resumen del periodo para el contador** (`resumen-pruebas.sql` → `resumen.json`), como usted lo
+     guardará con el respaldo antes del reinicio real;
+   - ejecuta **`reinicio-operativo.sql` tal cual**, con la referencia `ensayo <fecha y hora UTC>` y la palabra
+     `BORRAR PRUEBAS` en la última línea (lo mismo que usted escribirá a mano), enviado como una sola consulta; debe
+     responder `reinicio hecho`, si no, el ensayo se detiene;
+   - toma otra foto y revisión de consistencia (`snapshot-after-reset.json`, `consistency-after-reset.json`);
+   - sigue con las migraciones 0000–0028 y la comparación. Con reinicio, lo que había antes cambia a propósito
+     (ventas, caja, inventario en cero), así que la comparación usa el modo `reset` de `compare.py`: lo que quedó
+     **justo después del reinicio** debe ser idéntico a lo que hay **después de las migraciones**, y la estructura,
+     los permisos y los ajustes (regulados apagados), los esperados.
+2. Al terminar (unos 5 minutos) debe estar en verde. En el registro del paso «Copiar, anonimizar, cargar…»:
+   - `reinicio hecho · respaldo ensayo …`;
+   - `borrado: …`: filas borradas por tabla (`orders`, `order_items`, `register_days`, `time_entries`, `stock_moves`,
+     `purchase_orders`…) y `stock_items_a_cero` (cuántos insumos tenían existencias y quedaron en 0);
+   - `conservado idéntico: …`: menú, recetas, insumos, proveedores, personal, ingresos, ajustes, pizarra,
+     habitaciones y bitácora, con huellas iguales antes y después del reinicio;
+   - luego el tiempo de cada migración y, en el paso siguiente, la comparación.
+   En **Artifacts** (`ensayo-resultados`) quedan `resumen.json` (el resumen del periodo: cantidades y totales por día y
+   por medio de pago, sin nombres), `reinicio.txt` (la respuesta completa del reinicio), las fotos y revisiones de
+   antes, de después del reinicio y de después de las migraciones, `release-check.json` y `timings.txt`. Ninguno trae
+   datos de personas: solo cantidades, totales y huellas. Las cifras de `resumen.json` son las de la copia anonimizada
+   (los montos y las fechas son los reales; los nombres no viajan).
+   Si queda en rojo con `el reinicio operativo se negó en PRUEBAS`, la línea `ERROR` de arriba dice el motivo, el mismo
+   que daría en producción (ya migrada, ya hecho, una venta reciente, una caja abierta, una tabla conservada que
+   cambiaría): en pruebas no cambió nada; mándeme el mensaje tal cual. Si dice `la copia en PRUEBAS ya tiene
+   migraciones`, producción ya pasó la ventana: corra el ensayo con reinicio = `no`.
+3. `supabase/tools/staging-logins.sql` en el SQL Editor de PRUEBAS (paso 4.2: cada copia llega sin ingresos).
+4. **Publicar el sitio de PRUEBAS** con la misma versión (paso 5.4).
+5. La lista de verificación de `docs/LANZAMIENTO.md` en el sitio de pruebas, ahora con un **café vacío**, como quedará
+   producción después del reinicio: Inicio sin ventas ni días de caja; **abrir la caja** (no hay ningún día abierto),
+   **una venta** completa (cobro, cocina, pizarra), **un conteo de inventario** (todas las existencias están en 0: el
+   conteo las carga, como hará usted después del conteo físico), el reloj (entrada y salida). Los platos, precios,
+   fotos, recetas, insumos, proveedores, habitaciones y el personal (`Persona N`, con el PIN de pruebas) están
+   completos.
+6. Si cambia la versión a lanzar, repita desde el punto 1 (vaciar = `si`, reinicio = `si`).
+
+Archivos del repositorio privado que cambiaron para este ensayo y hay que volver a subir (reemplazando):
+`ops/backup/repositorio-respaldos/ensayo.sh` y `ops/backup/repositorio-respaldos/.github/workflows/ensayo-pruebas.yml`
+(2026-10-14). `anonimizar.sql` no cambió.

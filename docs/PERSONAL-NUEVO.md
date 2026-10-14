@@ -45,6 +45,11 @@ Si sale un aviso, no se guardó nada. Corrija y toque «Guardar» otra vez:
 
 No haga marcas de prueba: la primera entrada real es la prueba.
 
+El lanzamiento único (`docs/LANZAMIENTO-UNICO.md`, D-038) borra una sola vez los turnos del periodo de prueba, también
+los reales marcados desde el 15 de octubre: antes de esa ventana el encargado anota las horas por persona (Reloj →
+«Horas y equipo»); el respaldo cifrado las conserva con detalle. Los perfiles y los PIN no se tocan: después de la
+ventana se marca igual.
+
 ## Primer día: marcar entrada y salida
 
 1. Reloj → pestaña «Entrada · salida» ("Toque su nombre y escriba su PIN. Verde significa que está en turno.").
@@ -105,8 +110,8 @@ Si algo sale mal:
 
 ## Más adelante: «Quién cobra»
 
-Llegará con la próxima actualización grande, cuando el dueño la publique y la encienda en Inicio → "Ajustes del
-sistema" → "Quién cobra cada venta". Todavía no tiene fecha.
+Llegará con el lanzamiento único (`docs/LANZAMIENTO-UNICO.md`; la fecha de la ventana es E-22), cuando el dueño lo
+publique y luego encienda el interruptor en Inicio → "Ajustes del sistema" → "Quién cobra cada venta".
 - La caja preguntará "¿Quién cobra?": cada persona toca su nombre, escribe **el mismo PIN del Reloj** → «Empezar». Si
   no ha marcado, puede usar «Marcar entrada y empezar». Al irse, «Terminar mi turno» en la caja: la caja pregunta si
   marca también la salida en el Reloj (con la 0027; si no hay internet en ese momento, marque la salida en el Reloj).

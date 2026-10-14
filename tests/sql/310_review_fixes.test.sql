@@ -13,6 +13,17 @@ reset role;
 select test.eq((select count(*) from public.orders where id = '0d000000-0000-4000-8000-000000003101'), 0::bigint, 'nothing was kept');
 select test.ok((select 'bad_method' = any(flags) and 'bad_status' = any(flags) from public.orders where id = '0d000000-0000-4000-8000-000000003102'),
                'an unknown method or status is kept and flagged (the money came in; an older page may send them)');
+-- 1b) a sale a tablet kept offline from before the one-time operational reset (D-038) is recorded and flagged, never refused
+reset role;
+insert into public.audit_log (action, manager_name, summary, details) values ('reinicio_operativo', 'SQL Editor', 'prueba', '{}');
+select test.login('cafe'); set role authenticated;
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-000000003195', 'total_crc', 1300, 'payment_method', 'cash_crc', 'created_at', (now() - interval '1 day')::text,
+       'items', jsonb_build_array(jsonb_build_object('item_name', 'Latte', 'price_crc', 1300, 'qty', 1))));
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-000000003196', 'total_crc', 1300, 'payment_method', 'cash_crc',
+       'items', jsonb_build_array(jsonb_build_object('item_name', 'Latte', 'price_crc', 1300, 'qty', 1))));
+reset role;
+select test.ok((select 'before_reset' = any(flags) from public.orders where id = '0d000000-0000-4000-8000-000000003195'), 'a sale dated before the reset is flagged before_reset');
+select test.ok((select not ('before_reset' = any(flags)) from public.orders where id = '0d000000-0000-4000-8000-000000003196'), 'a sale of today is not');
 -- a refund (the server's own negative sale) still goes through
 insert into public.orders (id, created_at, total_crc, payment_method, paid, status) values ('0d000000-0000-4000-8000-000000003103', now() - interval '1 minute', 2500, 'card', true, 'done');
 insert into public.order_items (order_id, item_name, price_crc, qty) values ('0d000000-0000-4000-8000-000000003103', 'Latte', 2500, 1);

@@ -822,3 +822,66 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   modifiers; change given in dollars; a second location's registers and stock.
 - **Proof:** `tests/sql/310_review_fixes.test.sql` (37), the 260 test updated for the owner role, e2e 130 and the new
   135 (Menu Manager in exclusive mode), the whole suite green; the known-functions inventory refreshed.
+
+## D-038 · 2026-10-14 · One coordinated release with a one-time operational reset of the test period
+- **Decision:** the owner chose one production release instead of waves: before migration 0000, a one-time operational
+  reset clears the test period's transactions from the legacy database (`supabase/tools/reinicio-operativo.sql`, pasted
+  whole in the SQL Editor by the owner, in the launch window, only after a verified encrypted backup and after saving
+  the accountant's summary); then 0000–0028, the café login (E-05), the owners' phone codes (E-06) and the approved tag
+  follow in the same window. Inventory starts at zero (the owner's clarification: the quantities of the testing period
+  are not carried forward; the real stock is entered after a physical count the morning after; products, recipes,
+  costs, suppliers and the inventory configuration are kept). Regulated features stay OFF (`price_mode` inclusive,
+  `ledger_auto_post` false, `einvoice_mode` off, `operator_mode` off, the payroll settings false, no compliance
+  confirmation). The owner approved the preparation only; nothing in production has been touched.
+- **What is built:** the reset is one transaction (two `pg_temp` functions and a final `select`). It refuses, changing
+  nothing, when `canopy.migrations` exists (a migrated database), when the log already has a `reinicio_operativo` row
+  (done once), when the backup reference is blank or the placeholder, when the confirmation word is not exactly
+  `BORRAR PRUEBAS`, when any sale is younger than 60 minutes (or dated in the future by a device's clock), when anyone
+  punched the time clock in the last 60 minutes, or when a register day is open (the café is still working),
+  when a preserved table's fingerprint would change, when a cleared table is not empty afterwards or a stock item is
+  not at zero. It clears `order_part_lines`, `tab_adds`, `order_items`, `orders`, `discount_approvals`,
+  `register_days`, `time_entries`, `stock_moves`, `purchase_lines`, `purchase_orders`, `access_unlocks`,
+  `sales_unlocks`, `inventory_unlocks` and `chat_questions`, sets `stock_items.on_hand` to 0 and clears the PIN
+  lockouts of the test period (`staff.failed_pins`, `locked_until`; the PINs do not change). It locks the tables
+  visitors and devices write to for the seconds it runs, so a sale, a question or a punch arriving then waits and lands
+  in the clean café, and a second copy of the paste running at the same time waits and then refuses. It preserves
+  byte-identical `menu_categories`, `menu_items`, `recipes`, `stock_items` (every column but `on_hand` and
+  `updated_at`), `vendors`, `staff` (but the two lockout columns), `app_accounts`, `app_settings`, `board_settings`,
+  `board_group_slides`, `rooms`, `auth.users` and `audit_log`, and appends one audit row (`reinicio_operativo`, by
+  `SQL Editor`) with the counts per table, the period's dates, the md5 of the summary, the preserved fingerprints and
+  the backup reference; the figures themselves go only to the returned text cell, which the owner saves with the
+  backup (the café log is readable by every manager). After the window, a sale a tablet kept offline from before the
+  reset is recorded and flagged `before_reset` by the till guard of 0028 (counted by the consistency check as
+  `orders_before_reset`) for the manager to void: the runbook requires no tablet with pending sales at the start.
+  `supabase/tools/resumen-pruebas.sql` is the same summary, read-only and pretty-printed (counts and totals by day and
+  by payment method, voids, discounts, bill parts, room orders, register days and cash differences, shifts and hours,
+  purchases and valued stock; never a name, a note or a phone): the owner saves it with the backup before the reset,
+  for the accountant; its `huella` (md5 of the figures, visitors' questions left out) must equal the `resumen_md5` the
+  reset writes in the log. The runbook is `docs/LANZAMIENTO-UNICO.md`
+  (Spanish): the decision, what is kept and deleted, what is kept by legal duty, the preparation list, the 45-minute
+  window minute by minute with every refusal message explained, the first day's operating test, the way back and the
+  owner's eight approvals. `CLAUDE.md` records the one-time exception to "never delete business records";
+  `docs/DEPENDENCIES.md` gets A-11 (the accountant's retention answer) and E-22 (the window and the count date).
+- **Why:** the test period's records are not the café's business history: carrying them into the new books, insights
+  and inventory would start every report from fictitious figures, and the first physical count would have to correct
+  months of test movements. One window instead of waves leaves no period with a security fix pending (0025 depends on
+  everything before it). The reset lives in the launch window, after a verified backup, because that backup is the
+  archive of the deleted period; it runs only before 0000 because it was written and rehearsed for the legacy schema,
+  not for the guards of the migrated one. The exception to the "never delete" rule is written down so that no later
+  agent treats it as precedent: once, by the owner, in the window. Rejected: deleting from the migrated database (the
+  new triggers and guards were not part of the rehearsal); keeping the test stock quantities (the owner's instruction
+  is a physical count); a summary with names (the accountant needs figures, the backup keeps the detail).
+- **Proof:** the rehearsal reset pass (`tests/run.sh rehearsal`, step 10, added with this decision by the rehearsal
+  work: on a second copy of production-before-the-window, as the SQL Editor's non-superuser account, six refusals each
+  change nothing; the real run as one query answers `reinicio hecho`; the cleared tables are empty, every stock at
+  zero, the preserved fingerprints identical, exactly one log row whose summary equals `resumen-pruebas.sql` figure
+  for figure; a second run refused; then 0000–0028 on that copy and `compare.py reset`),
+  `tests/rehearsal/reset-pages.sh` (today's live pages and the new pages on the empty, migrated café), and the staging
+  `reinicio` option (`ensayo.sh`,
+  "Ensayo en pruebas" with `reinicio = si`, docs/PRUEBAS.md), which runs the same file on the anonymized copy of the
+  real data before the window. On the seeded legacy copy the reset cleared 14 534 orders with every preserved
+  fingerprint identical and the repeat refused.
+- **Not proven:** the real production data (the reset has run only on seeded and anonymized copies; the owner's staging
+  run with `reinicio = si` waits for E-13); the owner's own window; the accountant's answer on retention and on whether
+  any test-period sale was real (A-11); whether the real shifts since 2026-10-15 need more than the backup and the
+  manager's note of hours per person before the reset.

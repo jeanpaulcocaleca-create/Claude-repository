@@ -1,7 +1,9 @@
 # =====================================================================================================
 # Canopy OS · ENSAYO EN PRUEBAS (va en el repositorio PRIVADO "canopy-respaldos", junto al respaldo nocturno)
 # Solo con el botón "Run workflow". Copia producción con la cuenta de SOLO LECTURA, la anonimiza, la carga en el
-# proyecto de PRUEBAS y ensaya ahí las migraciones de la versión elegida del repositorio de desarrollo.
+# proyecto de PRUEBAS y ensaya ahí las migraciones de la versión elegida del repositorio de desarrollo. Con
+# reinicio = si ensaya antes, en esa copia, el reinicio operativo del lanzamiento único (D-038): borra ahí las
+# transacciones del periodo de prueba y deja el inventario en cero, como quedará producción en la ventana.
 # Producción nunca recibe ningún cambio: la cuenta canopy_backup no puede escribir y ensayo.sh se niega si la
 # dirección de PRUEBAS es la de producción.
 # Secretos (además de los del respaldo): STAGING_DB_URL (pruebas: Connect → Session pooler, usuario
@@ -20,6 +22,12 @@ on:
         default: 'claude/hanging-garden-coffee-proposal-1m8zd4'
       vaciar:
         description: 'Vaciar PRUEBAS antes de cargar la copia (si = repetir desde cero; solo vacía pruebas)'
+        required: true
+        type: choice
+        options: ['no', 'si']
+        default: 'no'
+      reinicio:
+        description: 'Reinicio operativo de prueba: borra en PRUEBAS las transacciones del periodo de prueba antes de las migraciones (D-038); no toca producción'
         required: true
         type: choice
         options: ['no', 'si']
@@ -74,6 +82,7 @@ jobs:
           SCRATCH_URL: postgresql://postgres:desechable@127.0.0.1:5432/postgres
           PUBLIC_DIR: ${{ github.workspace }}/publico
           EMPTY_STAGING: ${{ github.event.inputs.vaciar }}
+          REINICIO: ${{ github.event.inputs.reinicio }}
           OUT: ${{ runner.temp }}/ensayo
         run: bash ./ensayo.sh
       - name: Comparar antes y después (este paso no tiene contraseñas)
@@ -81,7 +90,10 @@ jobs:
         shell: bash
         env:
           OUT: ${{ runner.temp }}/ensayo
-        run: python3 publico/tests/rehearsal/compare.py "$OUT" after | tee -a "$GITHUB_STEP_SUMMARY"
+          # with the reset the "kept" figures change on purpose: the "reset" mode compares the copy right after the reset
+          # (snapshot-after-reset.json, consistency-after-reset.json) with the copy after the migrations
+          MODO: ${{ github.event.inputs.reinicio == 'si' && 'reset' || 'after' }}
+        run: python3 publico/tests/rehearsal/compare.py "$OUT" "$MODO" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Guardar los resultados (solo cantidades y huellas, sin datos)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

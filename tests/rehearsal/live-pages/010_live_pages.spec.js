@@ -1,18 +1,28 @@
 /* Canopy OS rehearsal · the pages that are LIVE on hanginggardencafe.com today (the gh-pages build named in
-   tests/rehearsal/LIVE_PAGES), on the copy of production after migrations 0000-0025. Until the new pages are
-   published, the café keeps using these: they must load and work exactly as before. */
+   tests/rehearsal/LIVE_PAGES), on the copy of production after migrations 0000-0028. Until the new pages are
+   published, the café keeps using these: they must load and work exactly as before. Also run on the reset copy
+   (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql } = require('../../e2e/lib');
 
+/* the local stand-in for Supabase answers on the site port + 1000 (tests/e2e/gateway.js; live-pages.sh points the pages there) */
+const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
 function watchApi(pg) {
   pg.apiErrors = [];
   pg.on('response', (r) => {
-    if (r.url().startsWith('http://127.0.0.1:9090/') && r.status() >= 400) pg.apiErrors.push(r.status() + ' ' + r.request().method() + ' ' + r.url().replace(/^http:\/\/127\.0\.0\.1:9090/, ''));
+    if (r.url().startsWith(API + '/') && r.status() >= 400) pg.apiErrors.push(r.status() + ' ' + r.request().method() + ' ' + r.url().slice(API.length));
   });
   return pg;
 }
 const quiet = (ms) => new Promise((r) => setTimeout(r, ms));
+/* on a day with no register opened yet, the live POS opens its Today panel once by itself (a nudge to open the register)
+   over the product grid; a cashier closes it and sells, the register is opened by the manager (the empty café after
+   the reset, tests/rehearsal/reset-pages.sh) */
+async function closeDayNudge(pg) {
+  await quiet(800);
+  if (await pg.locator('#dayModal').isVisible()) await pg.click('#dayClose');
+}
 /* sales saved with their lines (the old POS writes the order, then its lines, in two requests) */
 const withLines = () => Number(sql(`select count(*) from public.orders o where exists (select 1 from public.order_items i where i.order_id = o.id)`));
 
@@ -50,6 +60,7 @@ module.exports.tests = [
       const pg = watchApi(await page(browser, { login: 'cafe' }));
       await goto(pg, '/pos.html');
       await until(async () => (await pg.locator('#menuGrid .pbtn').count()) > 1, 15000, 'the menu');
+      await closeDayNudge(pg);
       const before = withLines();
       await pg.locator('#menuGrid .pbtn').nth(0).click();
       await pg.locator('#menuGrid .pbtn').nth(1).click();
@@ -70,6 +81,7 @@ module.exports.tests = [
       const pg = watchApi(await page(browser, { login: 'cafe' }));
       await goto(pg, '/pos.html');
       await until(async () => (await pg.locator('#menuGrid .pbtn').count()) > 0, 15000, 'the menu');
+      await closeDayNudge(pg);
       const before = Number(sql(`select count(*) from public.orders`)), beforeLines = withLines();
       setOffline(true);
       await pg.locator('#menuGrid .pbtn').nth(0).click();

@@ -111,9 +111,11 @@ rehearsal compares them with the reviewed list after the migrations.
 | Stage | Result |
 |---|---|
 | Lint (no secrets, release rules, plain-SQL migrations, environments incl. "staging never on production", no storage DDL beyond bucket inserts and storage policies) | ok |
-| SQL tests | 31 files, 928 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (143), who took the money `300`, the review fixes `310`) |
+| SQL tests | 31 files, 930 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (143), who took the money `300`, the review fixes `310`) |
 | Backup pipeline (before 0000 and after; content, rights, photos, encryption, offline-key restore, computer sync) | ok |
 | Migration rehearsal 0000 → 0028 (sections 4 and 5, with the staging-copy flow; both payroll settings arrive OFF) | ok |
+| One-time reset pass (D-038): six refusals, the reset as the SQL Editor account, preserved tables identical, cleared tables empty, stock at zero, migrations after it, the staging rehearsal with `reinicio = si` | ok |
+| Live pages and new pages on the reset copy (empty café, first day) | 5/5 and 2/2 |
 | Live pages on the migrated copy | 5/5 |
 | Browser tests of the new pages | 102/102 (incl. the supplier XML import, the phone-code warning in English and Spanish, a sale on a login without café grant kept on the device, the payroll screens, the clock-out from the POS, the Menu Manager in tax-exclusive mode, and a café morning on two devices with three people) |
 | Database consistency and security checks | inside the rehearsal: identical "kept" values, no new problems, reviewed rules only, ledger balanced |
@@ -184,6 +186,13 @@ Not done, and why:
 | Automatic exchange rate | E-16 and a live check (A-06) |
 
 ## 8. Exact production deployment sequence
+
+**Note (2026-10-14, D-038):** the owner chose one coordinated release with a one-time operational reset of the test
+period before migration 0000. The exact sequence is now `docs/LANZAMIENTO-UNICO.md` (one window: verified backup →
+snapshot, consistency check and the accountant's summary saved → the reset, one paste → snapshot again → 0000…0028 →
+release check → café login → phone codes → publish the tag → device checks; regulated features stay OFF). The steps
+below are kept as reference: A (verify and protect) still applies before the window; B, C and D are replaced by that
+document (wave 0 no longer runs apart; the staging rehearsal of C runs with `reinicio = si`).
 
 Each step is the owner's. I give them one at a time and check each result before the next. "Snapshot" means
 `supabase/tools/production-snapshot.sql`; it is read-only.
@@ -264,7 +273,10 @@ In order of preference (docs/LANZAMIENTO.md, docs/PUBLICAR.md):
 
 ## 10. Actions the owner must perform personally
 
-- **Now:** steps 4–7 of section 8, one at a time (step 4 next; step 7 is optional). Never paste passwords, keys or
+- **Now:** the first verified backup (section 8, step 4), then the preparation list of `docs/LANZAMIENTO-UNICO.md` §3
+  (today's site saved as `sitio-2026-10-09`, the `production` environment, staging with the `reinicio = si` rehearsal,
+  each owner's personal login, the accountant's retention answer A-11, the window and count date E-22) and the eight
+  approvals of its §7; the window itself (its §4) only after that. Never paste passwords, keys or
   connection strings in a chat: they go only into Supabase and GitHub settings.
 - **Logins (D-027, D-031):** the phone code only on each owner's own personal login, from their own phone; never on
   a login a café device uses (E-06).
@@ -275,7 +287,8 @@ In order of preference (docs/LANZAMIENTO.md, docs/PUBLICAR.md):
   - Pages source;
   - environment `production` rules (E-20);
   - the `sitio-2026-10-09` release (E-19).
-- **Wave 0, staging and the window:** steps 8–18 (the owner applies migrations and publishes; I prepare and check).
+- **Staging and the window:** `docs/LANZAMIENTO-UNICO.md` §3–§4 (the owner runs the backup, the reset, the migrations
+  and the publication; I prepare and check each result).
 - **Accountant / lawyer:** A-01 … A-09, especially A-03 (and whether today's prices become before-IVA prices),
   A-07 before automatic books, A-08 before any payroll deduction.
 - **Optional:** offsite backup storage and computer sync (E-03 rest), invoice-photo S3 keys (E-17), the accountant's
