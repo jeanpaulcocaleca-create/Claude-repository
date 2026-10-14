@@ -1,14 +1,21 @@
 # =====================================================================================================
 # Canopy OS · ENSAYO EN PRUEBAS (va en el repositorio PRIVADO "canopy-respaldos", junto al respaldo nocturno)
-# Solo con el botón "Run workflow". Copia producción con la cuenta de SOLO LECTURA, la anonimiza, la carga en el
-# proyecto de PRUEBAS y ensaya ahí las migraciones de la versión elegida del repositorio de desarrollo. Con
-# reinicio = si ensaya antes, en esa copia, el reinicio operativo del lanzamiento único (D-038): borra ahí las
-# transacciones del periodo de prueba y deja el inventario en cero, como quedará producción en la ventana.
+# Solo con el botón "Run workflow". Copia producción con la cuenta de SOLO LECTURA, la anonimiza y ensaya en esa
+# copia las migraciones de la versión elegida del repositorio de desarrollo. Con reinicio = si ensaya antes, en la
+# copia, el reinicio operativo del lanzamiento único (D-038): borra ahí las transacciones del periodo de prueba y
+# deja el inventario en cero, como quedará producción en la ventana.
+# Dónde se ensaya (opción "destino"):
+#   desechable (lo normal; decisión del dueño del 2026-10-14: no hay segundo proyecto de Supabase): una base
+#     "pruebas" en el PostgreSQL temporal del propio trabajo, hecha parecida a Supabase con restore-stub.sql (cuentas
+#     anon/authenticated/service_role, esquemas auth y storage, permisos por defecto); desaparece al terminar el
+#     trabajo. No necesita STAGING_DB_URL ni STAGING_PIN (sin el secreto se usa el PIN 2468: en una base desechable
+#     nadie entra).
+#   proyecto-pruebas: el proyecto de Supabase de PRUEBAS, si algún día existe (docs/PRUEBAS.md, última sección).
 # Producción nunca recibe ningún cambio: la cuenta canopy_backup no puede escribir y ensayo.sh se niega si la
-# dirección de PRUEBAS es la de producción.
-# Secretos (además de los del respaldo): STAGING_DB_URL (pruebas: Connect → Session pooler, usuario
-#   postgres.<ref-de-pruebas>, puerto 5432, ?sslmode=require) y STAGING_PIN (4 a 8 dígitos: el PIN de todas las
-#   personas en la copia de pruebas). Producción se lee con CANOPY_DB_URL (canopy_backup.<ref>, la del respaldo).
+# dirección de destino es la de producción.
+# Secretos: producción se lee con CANOPY_DB_URL (canopy_backup.<ref>, la del respaldo) y la variable SUPABASE_URL.
+#   Solo para proyecto-pruebas: STAGING_DB_URL (pruebas: Connect → Session pooler, usuario postgres.<ref-de-pruebas>,
+#   puerto 5432, ?sslmode=require) y STAGING_PIN (4 a 8 dígitos: el PIN de todas las personas en la copia).
 # El registro del trabajo no muestra datos, el PIN ni contraseñas; los archivos guardados son solo cantidades y huellas.
 # =====================================================================================================
 name: Ensayo en pruebas
@@ -20,14 +27,20 @@ on:
         description: 'Rama o etiqueta del repositorio de desarrollo a ensayar'
         required: true
         default: 'claude/hanging-garden-coffee-proposal-1m8zd4'
+      destino:
+        description: 'desechable: una base temporal dentro del trabajo, que desaparece al terminar (no hace falta proyecto de pruebas); proyecto-pruebas: el proyecto de Supabase de PRUEBAS (secreto STAGING_DB_URL)'
+        required: true
+        type: choice
+        options: ['desechable', 'proyecto-pruebas']
+        default: 'desechable'
       vaciar:
-        description: 'Vaciar PRUEBAS antes de cargar la copia (si = repetir desde cero; solo vacía pruebas)'
+        description: 'Vaciar el proyecto de PRUEBAS antes de cargar la copia (si = repetir desde cero; solo vacía pruebas). Con destino desechable no hace nada: la base nace vacía'
         required: true
         type: choice
         options: ['no', 'si']
         default: 'no'
       reinicio:
-        description: 'Reinicio operativo de prueba: borra en PRUEBAS las transacciones del periodo de prueba antes de las migraciones (D-038); no toca producción'
+        description: 'Reinicio operativo de prueba: borra en la copia las transacciones del periodo de prueba antes de las migraciones (D-038); no toca producción'
         required: true
         type: choice
         options: ['no', 'si']
@@ -45,6 +58,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     services:
+      # the job's own PostgreSQL: ensayo.sh anonymizes the copy here and, with destino = desechable, the rehearsal
+      # itself runs here too. It lives as long as the job; the password protects nothing and is not a secret
       desechable:
         image: postgres:17
         env:
@@ -73,11 +88,29 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
-      - name: Copiar, anonimizar, cargar en PRUEBAS y ensayar las migraciones
+      - name: Preparar la base desechable «pruebas» en el PostgreSQL del trabajo (solo con destino desechable)
+        if: github.event.inputs.destino == 'desechable'
+        # The empty destination is made to look like a Supabase project with THIS repository's restore-stub.sql (the
+        # same file ensayo.sh applies to its scratch copy; never a file of the public checkout: those reach a database
+        # only as plain SQL through "psql -c", and psql -f would run any psql command written in them). A staging
+        # project has no menu-photos bucket, so its row goes, exactly as tests/rehearsal/run.sh prepares the empty
+        # staging database in CI. Nothing here is a secret.
+        env:
+          DESECHABLE: postgresql://postgres:desechable@127.0.0.1:5432
+        run: |
+          psql -X -q -v ON_ERROR_STOP=1 "$DESECHABLE/postgres" -c "create database pruebas"
+          psql -X -q -v ON_ERROR_STOP=1 "$DESECHABLE/pruebas" -f ./restore-stub.sql
+          psql -X -q -v ON_ERROR_STOP=1 "$DESECHABLE/pruebas" -c "delete from storage.buckets where id = 'menu-photos'"
+          echo "destino: base desechable «pruebas» en el PostgreSQL temporal del trabajo (desaparece al terminar; no hay proyecto de pruebas)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Copiar, anonimizar, cargar en el destino y ensayar las migraciones
         env:
           CANOPY_DB_URL: ${{ secrets.CANOPY_DB_URL }}
-          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
-          STAGING_PIN: ${{ secrets.STAGING_PIN }}
+          # desechable: the database the step above prepared on the job's own server; proyecto-pruebas: the staging
+          # project's secret, as before
+          STAGING_DB_URL: ${{ github.event.inputs.destino == 'desechable' && 'postgresql://postgres:desechable@127.0.0.1:5432/pruebas' || secrets.STAGING_DB_URL }}
+          # the PIN every person gets in the anonymized copy. In a throw-away database nobody signs in, so the secret
+          # is optional there (2468 when it is not set); the staging project keeps needing it
+          STAGING_PIN: ${{ github.event.inputs.destino == 'desechable' && (secrets.STAGING_PIN || '2468') || secrets.STAGING_PIN }}
           PROD_URL: ${{ vars.SUPABASE_URL }}
           SCRATCH_URL: postgresql://postgres:desechable@127.0.0.1:5432/postgres
           PUBLIC_DIR: ${{ github.workspace }}/publico
@@ -98,7 +131,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ensayo-resultados
+          name: ensayo-resultados-${{ github.event.inputs.destino }}
           path: |
             ${{ runner.temp }}/ensayo/*.json
             ${{ runner.temp }}/ensayo/*.txt

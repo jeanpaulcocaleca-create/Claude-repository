@@ -29,8 +29,10 @@
 -- proveedor, nivel deseado, punto de pedido), proveedores, personal (nombres, puestos, PINs), ingresos y permisos
 -- (los dos dueños), ajustes del café, pizarra (TV) y sus diapositivas, habitaciones y sus códigos QR, y la bitácora,
 -- que recibe UNA línea "reinicio_operativo" con las cantidades, la huella del resumen y la referencia del respaldo.
--- Los aparatos del café no se salen: las sesiones no se tocan. Una venta que una tableta tuviera guardada sin internet
--- desde antes del reinicio entra después marcada "before_reset" para que el encargado la anule.
+-- Los aparatos del café no se salen: las sesiones no se tocan. Este reinicio NO puede ver las tabletas: antes de empezar,
+-- abra la Caja en cada aparato con internet y espere a que no quede ninguna venta «sin guardar» en este dispositivo
+-- (docs/LANZAMIENTO-UNICO.md, lista previa). Una venta que aun así quedara guardada en un aparato desde antes del reinicio
+-- entra después marcada "before_reset" (migración 0028) para que el encargado la anule.
 -- Reversión: solo restaurando el respaldo en un proyecto nuevo (docs/RESPALDOS.md). Las dos funciones de abajo existen
 -- solo mientras corre esta consulta (pg_temp): no quedan en la base.
 -- =====================================================================================================
@@ -40,22 +42,29 @@
 create or replace function pg_temp.canopy_resumen_pruebas()
 returns jsonb language sql stable as $$
   with d as (select (o.created_at at time zone 'America/Costa_Rica')::date as dia, o.* from public.orders o),
-       ventas as (select * from d where paid and voided_at is null and part_of is null),                        -- bills paid, not voided
-       partes as (select * from d where part_of is not null and voided_at is null and given_back_at is null),  -- part payments that stand
-       -- the money as it was taken: a bill paid whole by its method, a bill paid in parts by each part's method
-       dinero as (select payment_method, total_crc from ventas where coalesce(parts_crc, 0) = 0 union all select payment_method, total_crc from partes)
+       ventas as (select * from d where paid and voided_at is null and part_of is null),            -- the bills closed: counts and discounts
+       -- the money as the register adds it up: every paid, not-voided row; a bill paid whole, the LAST payment of a bill paid in
+       -- parts (it stays on the bill's row, parts_crc > 0), each earlier part by its own method, a give-back as its negative twin
+       cobros as (select * from d where paid and voided_at is null),
+       partes as (select * from d where part_of is not null and voided_at is null),                 -- the parts, for information
+       caja as (select business_date from public.register_days where closed_at is not null)
   select jsonb_build_object(
     'periodo', jsonb_build_object('desde', (select min(dia) from d), 'hasta', (select max(dia) from d), 'dias_con_ventas', (select count(distinct dia) from ventas)),
-    'ventas_pagadas', jsonb_build_object('cantidad', (select count(*) from ventas), 'total_crc', (select coalesce(sum(total_crc), 0) from ventas),
+    'ventas_pagadas', jsonb_build_object('cantidad', (select count(*) from ventas), 'total_crc', (select coalesce(sum(total_crc), 0) from cobros),
                                         'descuentos_crc', (select coalesce(sum(discount_crc), 0) from ventas), 'pagadas_en_partes', (select count(*) from ventas where coalesce(parts_crc, 0) > 0)),
     'por_dia', (select coalesce(jsonb_agg(jsonb_build_object('dia', dia, 'ventas', n, 'total_crc', t) order by dia), '[]') from
-                 (select dia, count(*) n, sum(total_crc) t from ventas group by dia) q),
-    'dinero_recibido', jsonb_build_object('total_crc', (select coalesce(sum(total_crc), 0) from dinero),
+                 (select dia, count(*) filter (where part_of is null) n, sum(total_crc) t from cobros group by dia) q),
+    'dinero_recibido', jsonb_build_object('total_crc', (select coalesce(sum(total_crc), 0) from cobros),
       'por_medio_de_pago', (select coalesce(jsonb_agg(jsonb_build_object('medio', payment_method, 'pagos', n, 'total_crc', t) order by payment_method), '[]') from
-                             (select payment_method, count(*) n, sum(total_crc) t from dinero group by payment_method) q)),
-    'partes_de_cuentas', jsonb_build_object('vigentes', (select count(*) from partes), 'total_crc', (select coalesce(sum(total_crc), 0) from partes),
+                             (select payment_method, count(*) n, sum(total_crc) t from cobros group by payment_method) q)),
+    -- the same money the register closings added up: the difference must be 0 on the days with a closed register
+    'cuadre_con_caja', jsonb_build_object(
+      'diferencia_crc', (select coalesce(sum(total_crc), 0) from cobros where dia in (select business_date from caja)) - (select coalesce(sum(sales_total_crc), 0) from public.register_days where closed_at is not null),
+      'ventas_sin_caja_cerrada_crc', (select coalesce(sum(total_crc), 0) from cobros where dia not in (select business_date from caja))),
+    'partes_de_cuentas', jsonb_build_object('vigentes', (select count(*) from partes where given_back_at is null and total_crc > 0), 'total_crc', (select coalesce(sum(total_crc), 0) from partes),
                                            'anuladas', (select count(*) from d where part_of is not null and voided_at is not null),
-                                           'devueltas', (select count(*) from d where part_of is not null and voided_at is null and given_back_at is not null)),
+                                           'devueltas', (select count(*) from partes where given_back_at is not null),
+                                           'devueltas_crc', (select coalesce(sum(total_crc), 0) from partes where given_back_at is not null)),
     'anulaciones', jsonb_build_object('cantidad', (select count(*) from d where voided_at is not null and part_of is null), 'total_crc', (select coalesce(sum(total_crc), 0) from d where voided_at is not null and part_of is null)),
     'pedidos_de_habitacion', (select count(*) from d where room_id is not null),
     'cuentas_abiertas_sin_pagar', (select count(*) from d where not paid and voided_at is null and part_of is null and coalesce(status, '') <> 'cancelled'),
@@ -101,8 +110,10 @@ declare
                                    'stock_moves', 'purchase_lines', 'purchase_orders', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'chat_questions'];
   antes jsonb; despues jsonb; resumen jsonb; borrado jsonb := '{}'; k text; n bigint; v_now timestamptz := clock_timestamp(); hecho timestamptz;
 begin
-  -- 0) nobody writes while this runs (seconds): a sale, a question or a punch arriving now waits and lands in the clean café;
-  --    a second copy of this paste running at the same time waits here and then refuses
+  -- 0) one paste at a time: a second copy of this paste running at the same moment waits here until the first one has
+  --    committed (or failed), and then step 1b sees its line and refuses
+  perform pg_advisory_xact_lock(hashtext('canopy.reinicio_operativo'));
+  -- nobody writes while this runs (seconds): a sale, a question or a punch arriving now waits and lands in the clean café
   lock table public.audit_log, public.orders, public.order_items, public.chat_questions, public.time_entries, public.register_days in share row exclusive mode;
   -- 1) only the database as it is today, before any migration: after 0000 the new tables and guards exist, and this
   --    reset was neither written nor rehearsed for them
@@ -146,6 +157,10 @@ begin
     get diagnostics n = row_count;
     borrado := borrado || jsonb_build_object(k, n);
   end loop;
+  -- a run that found nothing to clear would only write a line in the log: it is not the reset (the café was already empty)
+  if (borrado->>'orders')::int = 0 and (borrado->>'register_days')::int = 0 and (borrado->>'stock_moves')::int = 0 and (borrado->>'time_entries')::int = 0 then
+    raise exception 'No había ventas, cajas, turnos ni movimientos de inventario que borrar: la base ya está vacía. No se cambió nada.';
+  end if;
   -- the stock starts at zero: the quantities are entered after the physical count (the owner's instruction)
   update public.stock_items set on_hand = 0, updated_at = v_now where on_hand <> 0;
   get diagnostics n = row_count;

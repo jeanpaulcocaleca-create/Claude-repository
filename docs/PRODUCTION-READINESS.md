@@ -28,7 +28,9 @@ owner's paste of the read-only snapshot (2026-10-12 21:48 UTC, D-027) and of the
 
 ## 2. Backup and restore evidence
 
-No production backup exists yet (E-03). What is ready and proven on test copies:
+**The first verified production backup exists (E-03 DONE 2026-10-14):** the `Respaldo` workflow ran green with its
+restore test, the encrypted file was downloaded and the owner's recovery key decrypts it; the launch window starts
+with another one. What is proven on test copies:
 
 - **Works before any migration:** `supabase/tools/backup-account.sql` creates the `canopy_backup` account on
   today's schema (no migration needed). It reads the café's tables and the photo list, never the logins (`auth`) or
@@ -103,8 +105,10 @@ rehearsal compares them with the reviewed list after the migrations.
   empty Supabase-like project → migrations. Rights identical to the source, data checks identical. Then loaded a
   second time into the same project, emptied first, under an emulation of Supabase Storage's delete guard
   (storage-api 0055): passes (D-027). A failed copy or anonymization prints no data row and no PIN to the log.
-- **The owner's real-data staging rehearsal is not done:** it needs the staging project (E-13).
-  It is one button in the private repository ("Ensayo en pruebas").
+- **The owner's real-data rehearsal runs in a temporary database, not in a staging project (D-039):** one button in
+  the private repository («Ensayo en pruebas» → destino = `desechable`, reinicio = `si`); the copy is anonymized on
+  the job's scratch server, loaded into a PostgreSQL 17 database inside the job, reset, migrated and compared, and
+  disappears with the job. CI proves the same path into an empty local database. Not yet run by the owner.
 
 **Full automated run** (`tests/run.sh`, 2026-10-14, also in CI on every push), all passed:
 
@@ -114,7 +118,7 @@ rehearsal compares them with the reviewed list after the migrations.
 | SQL tests | 31 files, 930 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (143), who took the money `300`, the review fixes `310`) |
 | Backup pipeline (before 0000 and after; content, rights, photos, encryption, offline-key restore, computer sync) | ok |
 | Migration rehearsal 0000 → 0028 (sections 4 and 5, with the staging-copy flow; both payroll settings arrive OFF) | ok |
-| One-time reset pass (D-038): six refusals, the reset as the SQL Editor account, preserved tables identical, cleared tables empty, stock at zero, migrations after it, the staging rehearsal with `reinicio = si` | ok |
+| One-time reset pass (D-038): six refusals, the reset as the SQL Editor account, preserved tables identical, cleared tables empty, stock at zero, migrations after it, the rehearsal copy with `REINICIO=si` into an empty local database (the throwaway destination) | ok |
 | Live pages and new pages on the reset copy (empty café, first day) | 5/5 and 2/2 |
 | Live pages on the migrated copy | 5/5 |
 | Browser tests of the new pages | 102/102 (incl. the supplier XML import, the phone-code warning in English and Spanish, a sale on a login without café grant kept on the device, the payroll screens, the clock-out from the POS, the Menu Manager in tax-exclusive mode, and a café morning on two devices with three people) |
@@ -187,12 +191,15 @@ Not done, and why:
 
 ## 8. Exact production deployment sequence
 
-**Note (2026-10-14, D-038):** the owner chose one coordinated release with a one-time operational reset of the test
-period before migration 0000. The exact sequence is now `docs/LANZAMIENTO-UNICO.md` (one window: verified backup →
-snapshot, consistency check and the accountant's summary saved → the reset, one paste → snapshot again → 0000…0028 →
-release check → café login → phone codes → publish the tag → device checks; regulated features stay OFF). The steps
+**Note (2026-10-14, D-038 and D-039):** the owner chose one coordinated release with a one-time operational reset of
+the test period before migration 0000, **in the same Supabase project and on the same site** (no second project, no
+staging site; E-13/E-14 withdrawn). The exact sequence is now `docs/LANZAMIENTO-UNICO.md` (one window: that night's
+backup → snapshot, consistency check and the accountant's summary saved → the reset, one paste → snapshot again →
+0000…0028 → release check → café login → phone codes → publish the tag → device checks; regulated features stay OFF),
+with a preflight checklist, a post-release verification and the table of what only Supabase can verify. The steps
 below are kept as reference: A (verify and protect) still applies before the window; B, C and D are replaced by that
-document (wave 0 no longer runs apart; the staging rehearsal of C runs with `reinicio = si`).
+document (wave 0 no longer runs apart; the real-data rehearsal of C runs in a temporary database inside the private
+repository's job, «Ensayo en pruebas» → destino = `desechable`, reinicio = `si`).
 
 Each step is the owner's. I give them one at a time and check each result before the next. "Snapshot" means
 `supabase/tools/production-snapshot.sql`; it is read-only.
@@ -217,9 +224,9 @@ Each step is the owner's. I give them one at a time and check each result before
    - age keys; secrets `CANOPY_DB_URL` and `AGE_RECIPIENTS`; variable `SUPABASE_URL`;
    - ~~"Comprobar la conexión (sin respaldo)" → green~~ **Done 2026-10-14** (owner): the corrected `CANOPY_DB_URL`
      signs in as `canopy_backup` with the expected rights; nothing was copied (D-034);
-   - **Next:** Run workflow (`Respaldo`) → green; the run summary shows `restauración verificada: … tablas`,
-     `8 archivos verificados`, `listo: … restauración: passed` → download `respaldo-cifrado` and check it opens with
-     the owner key (RESPALDOS 3.6). The owner has set this aside for now; nothing in waves 0–5 may start before it.
+   - ~~Run workflow (`Respaldo`) → green → download `respaldo-cifrado` → check it opens with the owner key~~
+     **Done 2026-10-14** (owner): the first encrypted backup, restore test passed, decrypted with the recovery key
+     (E-03 DONE). The window starts with another one (`docs/LANZAMIENTO-UNICO.md` §5, minute 0).
 5. Save today's site: release `sitio-2026-10-09` targeting `gh-pages`. Also set environment `production`:
    required reviewer = owner, tags `v*`.
 6. Separate the café devices' login from the owners' (`docs/INGRESOS.md`, E-05): **case B** (D-031), after step 4.
@@ -240,11 +247,12 @@ Each step is the owner's. I give them one at a time and check each result before
 10. Snapshot → paste. I confirm 0–2 applied, the rules closed, the data fingerprints unchanged.
 11. Checks: a room order from a phone; a sale on the tablet; a category color in the Menu Manager.
 
-**C. Staging rehearsal with the real data (docs/PRUEBAS.md)**
+**C. Rehearsal with the real data in a temporary database (docs/PRUEBAS.md; D-039: no staging project, no site)**
 
-12. Staging Supabase project; secrets `STAGING_DB_URL`, `STAGING_PIN`; "Ensayo en pruebas" → green.
-13. Staging logins + `staging-logins.sql`; staging site repository → publish → the launch checklist on
-    staging.
+12. Upload the changed private-repository files; «Ensayo en pruebas» → destino = `desechable`, reinicio = `si` →
+    green: `reinicio hecho`, `borrado`, `conservado idéntico`, every migration, the `reset` comparison clean.
+13. The pages are checked in CI on the empty café (`tests/rehearsal/reset-pages.sh`); the owner sees them with the
+    real data in the window's device checks and on the first day (`docs/LANZAMIENTO-UNICO.md` §5–§6).
 
 **D. The window (after closing, no pending sales on any tablet, about 30 minutes)**
 
@@ -266,18 +274,19 @@ In order of preference (docs/LANZAMIENTO.md, docs/PUBLICAR.md):
    on the migrated database (tested).
 3. **Database:** never by deleting. A correction migration (the next number), or the per-migration reversal
    (table in docs/LANZAMIENTO.md). Wave 0 needs none (it only adds checks).
-4. **Restore a backup:** only into a NEW or staging project, never over production, and only with the owner's
+4. **Restore a backup:** only into a NEW, temporary project, never over production, and only with the owner's
    explicit authorization. The restore keeps rights identical and is checked (section 2). Sales taken after the
    backup would be lost; this is why every step starts with a fresh backup.
 5. **Sign-ups:** can be switched back on instantly (not recommended).
 
 ## 10. Actions the owner must perform personally
 
-- **Now:** the first verified backup (section 8, step 4), then the preparation list of `docs/LANZAMIENTO-UNICO.md` §3
-  (today's site saved as `sitio-2026-10-09`, the `production` environment, staging with the `reinicio = si` rehearsal,
-  each owner's personal login, the accountant's retention answer A-11, the window and count date E-22) and the eight
-  approvals of its §7; the window itself (its §4) only after that. Never paste passwords, keys or
-  connection strings in a chat: they go only into Supabase and GitHub settings.
+- **Now:** the first verified backup is done (2026-10-14). Next, the preparation list of `docs/LANZAMIENTO-UNICO.md`
+  §4 (today's site saved as `sitio-2026-10-09`, the `production` environment, the throwaway rehearsal with the real
+  data: «Ensayo en pruebas» → destino = `desechable`, reinicio = `si`; each owner's personal login, the accountant's
+  retention answer A-11, the window and count date E-22), its preflight checklist and the seven approvals of its §8;
+  the window itself (its §5) only after that. No second Supabase project and no staging site (D-039). Never paste
+  passwords, keys or connection strings in a chat: they go only into Supabase and GitHub settings.
 - **Logins (D-027, D-031):** the phone code only on each owner's own personal login, from their own phone; never on
   a login a café device uses (E-06).
 - **New employee from 2026-10-15 (D-032, E-21):** a manager creates the profile and PIN on today's pages
@@ -287,8 +296,8 @@ In order of preference (docs/LANZAMIENTO.md, docs/PUBLICAR.md):
   - Pages source;
   - environment `production` rules (E-20);
   - the `sitio-2026-10-09` release (E-19).
-- **Staging and the window:** `docs/LANZAMIENTO-UNICO.md` §3–§4 (the owner runs the backup, the reset, the migrations
-  and the publication; I prepare and check each result).
+- **The rehearsal and the window:** `docs/LANZAMIENTO-UNICO.md` §3–§6 (the owner runs the rehearsal, the backup, the
+  reset, the migrations and the publication; I prepare and check each result).
 - **Accountant / lawyer:** A-01 … A-09, especially A-03 (and whether today's prices become before-IVA prices),
   A-07 before automatic books, A-08 before any payroll deduction.
 - **Optional:** offsite backup storage and computer sync (E-03 rest), invoice-photo S3 keys (E-17), the accountant's

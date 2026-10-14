@@ -857,7 +857,13 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   by payment method, voids, discounts, bill parts, room orders, register days and cash differences, shifts and hours,
   purchases and valued stock; never a name, a note or a phone): the owner saves it with the backup before the reset,
   for the accountant; its `huella` (md5 of the figures, visitors' questions left out) must equal the `resumen_md5` the
-  reset writes in the log. The runbook is `docs/LANZAMIENTO-UNICO.md`
+  reset writes in the log. After the independent review of the script (three lenses, 25 findings, 5 upheld after
+  refutation): the money is counted the way the register closings count it (every paid, not-voided row: a bill paid
+  whole, the last payment of a bill paid in parts, each earlier part by its own method, a give-back as its negative
+  twin), the by-day and by-method figures come from that same set, and `cuadre_con_caja` shows the difference against
+  the closed register days (0 on the rehearsal's 120 closed days) and the money of days without a closed register; the
+  bills' count and discounts still come from the closed bills; a second paste running at the same moment waits on an
+  advisory lock and is then refused, and a run that finds nothing to clear is refused (the café was already empty). The runbook is `docs/LANZAMIENTO-UNICO.md`
   (Spanish): the decision, what is kept and deleted, what is kept by legal duty, the preparation list, the 45-minute
   window minute by minute with every refusal message explained, the first day's operating test, the way back and the
   owner's eight approvals. `CLAUDE.md` records the one-time exception to "never delete business records";
@@ -885,3 +891,56 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   run with `reinicio = si` waits for E-13); the owner's own window; the accountant's answer on retention and on whether
   any test-period sale was real (A-11); whether the real shifts since 2026-10-15 need more than the backup and the
   manager's note of hours per person before the reset.
+
+## D-039 · 2026-10-14 · No second Supabase project: the real-data rehearsal runs in a temporary database; the production project and site stay
+- **Decision:** the owner's revision of D-038, the same evening: keep the existing Supabase production project (URL,
+  project ref and the public `anon` key in `website/config.js` unchanged) and the existing GitHub Pages site
+  (`hanginggardencafe.com`); create no other permanent Supabase project and migrate nothing to another database. E-13
+  (staging project) and E-14 (staging site) are withdrawn. The one-time reset and migrations 0000–0028 run inside the
+  production database in the launch window, after that night's backup; the first encrypted backup exists and the
+  owner's recovery key decrypts it (E-03 done 2026-10-14). The rehearsal with the real data runs in a temporary
+  PostgreSQL database inside the private repository's GitHub Actions job («Ensayo en pruebas» → destino =
+  `desechable`, reinicio = `si`), which disappears with the job. Regulated features stay OFF; nothing in production
+  changes and nothing is published without the owner's explicit approval. No new development phase was started.
+- **What is built:** `docs/LANZAMIENTO-UNICO.md` rewritten for this plan: the decision (same project, same site, no
+  second project); what is kept and cleared (unchanged); the two rehearsal layers (CI's synthetic realistic copy, steps
+  1–10 of `tests/rehearsal/run.sh` including the reset pass and the pages on the empty café; the owner's one-button
+  rehearsal on the real anonymized copy in the throwaway database, with what its summary must show) and the table of
+  what local PostgreSQL verifies against what only Supabase can, each Supabase-only item with its mitigation in the
+  window; the preparation list without the staging items, plus a preflight checklist for the night itself; the window
+  in the fixed order backup → three cells → reset → snapshot → migrations → release check → café login → phone codes →
+  publish → devices, with the refusal table; an explicit post-release verification (that night, the morning after
+  with `orders_before_reset = 0`, the first day); the way back with no second project, the disaster restore named as
+  the last resort the plan is designed never to need; seven approvals (the staging row removed, the decision and the
+  first backup marked done). `docs/DEPENDENCIES.md`: E-03 DONE, E-13/E-14 WITHDRAWN, E-22 reworded; `docs/CHECKLIST.md`,
+  `docs/PRODUCTION-READINESS.md` §2/§4/§8/§9/§10, `docs/HANDBACK.md` §11 and `docs/LANZAMIENTO.md` follow. The private
+  workflow's `destino = desechable` default and `docs/PRUEBAS.md` are the other agent's work of the same evening.
+- **Why:** the owner's experience with Project NORA: switching databases and environments is where the problems came
+  from; one project, one site and one window remove that class of error (a page pointed at the wrong project, a copy
+  mistaken for production, secrets and logins for two projects, a free-plan slot that pauses). For the database part a
+  second project added nothing the throwaway database does not give: `ops/backup/restore-stub.sql` already makes an
+  empty PostgreSQL look like a Supabase project (roles `anon`/`authenticated`/`service_role`, schemas `auth`,
+  `storage`, `extensions`, the default privileges), `ensayo.sh` already anonymizes on the job's scratch server and
+  loads into any empty PostgreSQL, and CI already proves exactly that path (`run.sh`'s `ensayo()` helper, twice, then
+  with `REINICIO=si`). What a real staging project would have added (GoTrue, storage-api, PostgREST, the real SQL
+  Editor account) is written down as Supabase-only and covered in the window by read-only checks (`release-check.sql`,
+  `consistency-check.sql`, `version.json`) and by stop points where today's pages are known to work (0014, 0025), not
+  by a second project. Rejected: a temporary Supabase project created only for the rehearsal (the switching the owner
+  wants to avoid; its Auth and Storage would still not carry production's account history); a staging site (no base
+  to point it at; the pages run in CI on the empty café and the owner sees them with the real data in the window and
+  on the first day); loosening the one-release plan (D-038 stands).
+- **Proof:** `tests/run.sh rehearsal` (CI, every push), unchanged by this decision: the synthetic realistic copy, the
+  migrations as a non-superuser with Supabase-like roles, the staging copy through `ensayo.sh` into an empty local
+  database (the throwaway destination), again emptied, again with `REINICIO=si`, the reset pass and
+  `tests/rehearsal/reset-pages.sh`. The private workflow's `desechable` destination is verified locally by the other
+  agent. What stays Supabase-only is listed in the runbook §3 with its mitigation: GoTrue (code enrolment signing out
+  the login's other sessions, reset mail, the real device sessions), Storage internals (storage-api, supautils
+  `policy_grants`; locally `rehearsal_storage_admin` allows more than production, so 0015/0025 are the residual risk;
+  the follow-up query of 2026-10-13 confirmed `can_insert_buckets` and `policy_grants`), PostgREST version and cache
+  reload (`notify pgrst` in all 29 migrations; the pages' version gate), the SQL Editor's execution model and timeout
+  (each paste small; a failed paste applies nothing), `supabase_admin`'s default privileges (release check after 0028),
+  Pages/CDN (`version.json`; old pages say "needs an update"), PostgreSQL 17.6 against 17 in CI and the job.
+- **Not proven:** the real production data under the reset (the owner's throwaway run is still to be made, and it needs
+  the re-uploaded private-repository files); the owner's own window; every Supabase-only item above, until the window
+  itself; A-11 and E-22 (open). `docs/RESPALDOS.md`'s quarterly restore test still names the PRUEBAS project as its
+  destination: it needs a temporary project or a local database instead (follow-up; not changed here).

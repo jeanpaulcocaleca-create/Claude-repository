@@ -14,7 +14,7 @@ Documentos relacionados:
 
 1. **Respaldo verificado del mismo día** (tarjeta Respaldos en verde, o respaldo inmediato). Sin respaldo, no
    se aplica nada (E-03).
-2. **Primero en pruebas (staging)**: la misma ola completa, con la lista de verificación de abajo (E-13, E-14). La ola 0
+2. **Primero el ensayo con la copia real**: «Ensayo en pruebas» con destino `desechable` y reinicio `si` (docs/PRUEBAS.md; sin segundo proyecto de Supabase, D-039), y la lista de verificación de abajo en el café el primer día. La ola 0
    es la excepción: es urgente, ya se ensayó con la copia representativa y puede ir antes de que exista pruebas
    (docs/PRUEBAS.md, «Cuándo»).
 3. **Fuera de horario**, después del cierre de caja. Ninguna tableta con ventas "pendientes de enviar".
@@ -48,7 +48,8 @@ pagos parciales, 208 anulaciones, 420 descuentos, 291 pedidos de habitación, 12
 - el contador asienta 30 días de la historia vieja: cuadra y coincide con las ventas colón por colón;
 - respaldo y restauración antes y después: contenido y permisos idénticos.
 
-Con los datos reales, el mismo ensayo se repite en PRUEBAS antes de la ventana (docs/PRUEBAS.md).
+Con los datos reales, el mismo ensayo se repite antes de la ventana en una base desechable del repositorio privado
+(docs/PRUEBAS.md; D-039: sin proyecto de pruebas).
 
 ## Recomendación: la base en una sola ventana, el uso por olas
 
@@ -56,7 +57,9 @@ Con los datos reales, el mismo ensayo se repite en PRUEBAS antes de la ventana (
 vez (se borran las transacciones del periodo de prueba y se conserva todo lo demás; el inventario empieza en cero y se
 carga tras el conteo físico) y en la misma ventana se aplican 0000–0028 y se publican las páginas. El guion operativo
 es `docs/LANZAMIENTO-UNICO.md`; las olas de abajo quedan como plan de activación y capacitación, y las reglas, la tabla
-de reversión y la lista de verificación de este documento siguen valiendo.
+de reversión y la lista de verificación de este documento siguen valiendo. **Revisión de esa noche (D-039):** el mismo
+proyecto de Supabase y el mismo sitio; ningún segundo proyecto (E-13 y E-14 retiradas). Donde este documento dice
+«pruebas (staging)», hoy es el ensayo con los datos reales en una base desechable (docs/PRUEBAS.md).
 
 La migración **0025** corrige lo que encontró la revisión de seguridad en todas las fases. Depende de todas las
 anteriores, así que va de última.

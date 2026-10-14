@@ -39,7 +39,7 @@ These are waiting on your accountant, your provider choice or official confirmat
 
 Production readiness depends on three things you have to do first:
 - backups installed (E-03);
-- a staging project for a dress rehearsal (E-13/E-14);
+- the owner's dress rehearsal on the real anonymized copy in a temporary database (`Ensayo en pruebas`, destino `desechable`, reinicio `si`; no staging project: E-13/E-14 withdrawn, D-039);
 - the two urgent security items E-01/E-02 (they apply to the live system today).
 
 ## 2. Completed checklist
@@ -54,7 +54,7 @@ Full table with tests and commits: `docs/CHECKLIST.md`.
 | 3 CR tax and suppliers | Supplier invoices linked to deliveries, AP, payments, aging; the period's IVA draft with every document and tie-out; inventory valuation; weighted-average COGS; profit by product | CABYS per product (A-04); e-invoice document register in record-only mode (A-02/A-10); costing method (A-07) | E-invoice provider connection, XML, signing, sending, contingency; POS "invoice with ID" button; filing the IVA return |
 | 4 Cash, bank, payroll | Register cash in/out with manager PIN; payouts documented later; ₡/$ cash reconciliation; bank accounts, CSV statement import, matching, posting, undo; pay periods, timesheet approval and lock; pay rates; payroll prepare → accountant review → post → pay; labor cost | Payroll deductions/charges (A-08: none built in, gross only until confirmed); Costa Rican payroll: CCSS/INS categories, income-tax table and withholding, aguinaldo provision and run, vacations, settlement estimate, the month for the CCSS and the INS (A-08, 0026) | Dollar bank accounts (A-06); CCSS/INS/Hacienda filing files (the month's report and CSV are the input) |
 | 5 Insights | Today estimate vs final on Home and Insights; months (sales, food cost %, labor %, prime cost %); weekday × hour heatmap; products; categories; suppliers (delivery days, price changes); stock forecast; leaks; multi-location-ready columns | — | Operating a second location (registers and stock per location) |
-| Release | Security review and hardening (0025); wave plan; read-only release check; rollback per migration; training plan | Staging dress rehearsal (E-13/E-14) | — |
+| Release | Security review and hardening (0025); wave plan; read-only release check; rollback per migration; training plan | The owner's throwaway-database rehearsal with the real copy (D-039); E-13/E-14 withdrawn | — |
 
 ## 3. Remaining external dependencies
 
@@ -69,7 +69,7 @@ From `docs/DEPENDENCIES.md`.
 - **E-10:** Supabase plan and version.
 - **E-11 (optional):** export the production schema (the two differences are explained, D-031).
 - **E-12:** owner computer OS for the backup installer.
-- **E-13, E-14:** staging project and DNS.
+- **E-13, E-14:** withdrawn (D-039): no second Supabase project; the real-data rehearsal runs in a temporary database inside the private repository's job.
 - **E-15:** front-register hardware.
 - **E-16:** http and pg_cron extensions for the automatic exchange rate.
 - **E-17:** Storage S3 keys for backing up invoice photos.
@@ -260,11 +260,17 @@ See `docs/LANZAMIENTO.md` (Spanish).
 test period before migration 0000 (`supabase/tools/reinicio-operativo.sql`, after a verified backup and the
 accountant's summary; inventory restarts at zero after a physical count; regulated features stay OFF). The operative
 runbook is `docs/LANZAMIENTO-UNICO.md` (Spanish): preparation, the 45-minute window, the first day, the way back and
-the owner's eight approvals. The order below remains the activation and training plan.
+the owner's approvals. The order below remains the activation and training plan.
+
+**Update 2026-10-14, evening (D-039):** no second Supabase project and no staging site: the production project (URL,
+project ref, `anon` key) and the GitHub Pages site stay; the real-data rehearsal runs in a temporary database inside
+the private repository's job («Ensayo en pruebas» → destino = `desechable`, reinicio = `si`). E-13 and E-14 are
+withdrawn; the first verified backup is done (E-03). `docs/LANZAMIENTO-UNICO.md` §3 says what local PostgreSQL
+verifies and what only Supabase can, with the mitigation for each; §4 has the preflight and §6 the post-release checks.
 
 **Recommended order:**
 1. **Wave 0 now:** E-01, E-02, E-03.
-2. **Staging dress rehearsal** of the whole set.
+2. **Dress rehearsal** of the whole set on the real anonymized data, in the temporary database (D-039).
 3. **One evening maintenance window:**
    - verified backup;
    - migrations 0003–0028;
@@ -312,6 +318,6 @@ Details: `docs/LANZAMIENTO.md`.
 
 **Approval asked of you:**
 1. Approve Wave 0 now (E-01, E-02, E-03).
-2. Create the staging project (E-13/E-14) so the full rehearsal can be done.
+2. Run `Ensayo en pruebas` with destino `desechable` and reinicio `si` on the version to launch (the real anonymized copy in a temporary database; no staging project, D-039).
 3. After the rehearsal evidence (release-check output, test run, checklist), approve the production window for
    0003–0028 and the release tag.

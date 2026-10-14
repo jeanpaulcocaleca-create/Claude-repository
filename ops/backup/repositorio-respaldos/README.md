@@ -1,6 +1,6 @@
 # canopy-respaldos (repositorio PRIVADO del dueño)
 
-Este repositorio existe para el respaldo nocturno de la base de datos del café y para el ensayo en PRUEBAS.
+Este repositorio existe para el respaldo nocturno de la base de datos del café y para el ensayo en pruebas.
 Debe ser **privado** y **no** debe conectarse a sesiones de asistentes de IA.
 
 Contenido (copiado de `ops/backup/` del repositorio de desarrollo; actualícelo solo cuando
@@ -12,8 +12,12 @@ Contenido (copiado de `ops/backup/` del repositorio de desarrollo; actualícelo 
   `CANOPY_DB_URL`.
 - `backup.sh`: respaldo, prueba de restauración (filas, contenido y permisos), cifrado y subida.
 - `restore-stub.sql`: imitación mínima de Supabase para la prueba de restauración.
-- `.github/workflows/ensayo-pruebas.yml`, `ensayo.sh`, `anonimizar.sql`: copia anonimizada de producción en el
-  proyecto de PRUEBAS y ensayo de las migraciones (solo con el botón).
+- `.github/workflows/ensayo-pruebas.yml`, `ensayo.sh`, `anonimizar.sql`: "Ensayo en pruebas" (solo con el botón):
+  copia anonimizada de producción y ensayo del reinicio operativo y de las migraciones sobre ella. Destino normal:
+  `desechable`, una base temporal dentro del trabajo que desaparece al terminar (no hace falta proyecto de pruebas ni
+  secretos nuevos; decisión del dueño, 2026-10-14). Destino `proyecto-pruebas`: un proyecto de Supabase de PRUEBAS, si
+  algún día existe (secretos `STAGING_DB_URL` y `STAGING_PIN`). `restore-stub.sql` también sirve aquí: hace que la
+  base desechable se parezca a Supabase.
 
 Instalación paso a paso: `docs/RESPALDOS.md` y `docs/PRUEBAS.md` del repositorio de desarrollo. Secretos y
 variables que usa el respaldo: comentario al comienzo de `respaldo.yml`. Contraseñas y llaves van solo en
