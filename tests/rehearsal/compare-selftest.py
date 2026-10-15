@@ -5,7 +5,7 @@ and runs compare.py: the owner's run passes and reports what had rows; a table p
 not a difference (2026-10-14: the first real-data rehearsal stopped on order_part_lines); the anonymizer's emptied tables
 are told apart; with 'fixture' the seeded copy must give the reset a row in every table; and what must still fail, fails
 (a cleared table left with rows, a preserved table changed, a copy with nothing to clear, the reset on a migrated
-database, the log without its new line)."""
+database, the log without its new line, a snapshot missing one of the 26 tables)."""
 import json
 import os
 import shutil
@@ -74,4 +74,7 @@ case('the reset on a migrated database is a difference', [], lambda f: f['snapsh
 case('the log without its new line is a difference', [],
      lambda f: fp(f, 'snapshot-after-reset', 'audit_log', f['snapshot-before']['data_fingerprint']['audit_log']), 1,
      'the log should have one line more:')
-print(f'    compare.py self-test: {cases} cases behave (the owner-run report, the fixture coverage, five differences still caught)')
+case('a snapshot without one of the 26 tables is a difference, not a crash', [],
+     lambda f: [f[n]['data_fingerprint'].pop('tab_adds') for n in ('snapshot-before', 'snapshot-after-reset')], 1,
+     "the original tables are not the reset's 14 cleared + 12 kept: ['tab_adds']")
+print(f'    compare.py self-test: {cases} cases behave (the owner-run report, the fixture coverage, six differences still caught)')

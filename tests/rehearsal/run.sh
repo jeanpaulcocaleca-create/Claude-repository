@@ -223,7 +223,7 @@ refused "$RDB" 'palabra de confirmación' "the wrong confirmation word" "$REF" "
 # every one of the 14 tables the reset clears has rows in this copy (seed-legacy.sql): the rehearsal proves that each one
 # is cleared, not only the busy ones (compare.py reset fixture checks the same from the snapshots)
 CLEARED="order_part_lines tab_adds order_items orders discount_approvals register_days time_entries stock_moves purchase_lines purchase_orders access_unlocks sales_unlocks inventory_unlocks chat_questions"
-for t in $CLEARED; do [ "$(rq -c "select count(*) from public.$t")" != 0 ] || die "seed: $t has no row for the reset to clear"; done
+for t in $CLEARED; do n=$(rq -c "select count(*) from public.$t"); [ "$n" -gt 0 ] || die "seed: $t has no row for the reset to clear"; done
 # the summary for the accountant (read-only), saved with the backup before the reset; the state before the reset
 editor -d "$RDB" -f "$ROOT/supabase/tools/resumen-pruebas.sql" > "$OUT/resumen.json"
 rq -f "$ROOT/supabase/tools/production-snapshot.sql" > "$OUT/reset-snapshot-before.json"

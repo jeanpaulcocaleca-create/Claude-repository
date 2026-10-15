@@ -271,5 +271,7 @@ la suya; yo no toco producción ni publico nada.
 | 7 | Publicar la etiqueta | Crear `vAAAA.MM.DD-1` y correr «Publish website» con PUBLICAR; usted aprueba la publicación (E-20) | ☐ |
 
 Pendiente de terceros: la confirmación del contador (A-11) y la fecha de la ventana y del conteo físico (E-22). El
-ensayo con los datos reales (sección 3b) lo corre usted cuando quiera: lee producción con la cuenta de solo lectura,
-como el respaldo, y no deja nada fuera del trabajo.
+ensayo con los datos reales (sección 3b) ya corrió una vez (corrida #2, 2026-10-14: el reinicio y las migraciones
+pasaron; la comparación se corrigió esa noche); lo repite usted cuando quiera, con la versión corregida y, si quiere el
+registro limpio, `ensayo.sh` subido de nuevo (E-23): lee producción con la cuenta de solo lectura, como el respaldo, y
+no deja nada fuera del trabajo.

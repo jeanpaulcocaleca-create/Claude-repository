@@ -11,6 +11,10 @@ import json
 import os
 import sys
 
+# a misspelled mode or flag must never run the lenient branch by accident: anything but the three modes, and 'fixture' only
+# with reset, stops here with the usage above
+if len(sys.argv) not in (3, 4) or sys.argv[2] not in ('after', 'day-after', 'reset') or (len(sys.argv) == 4 and (sys.argv[2], sys.argv[3]) != ('reset', 'fixture')):
+    sys.exit(__doc__)
 out, mode = sys.argv[1], sys.argv[2]
 load = lambda n: json.load(open(os.path.join(out, n)))
 errors = []
@@ -141,14 +145,19 @@ else:
     # name, never a difference. 2026-10-14, the first run on the real copy stopped only here: no bill of the test period had
     # been split by item, so order_part_lines had no row to clear (the reset itself had cleared the 14 tables, kept the 13
     # preserved ones identical, and 0000-0028 had run after it)
-    fixture = len(sys.argv) > 3 and sys.argv[3] == 'fixture'
+    fixture = len(sys.argv) == 4
     s0, s1, s2 = load(f'{pre}snapshot-before.json'), load(f'{pre}snapshot-after-reset.json'), load(f'{pre}snapshot-after.json')
     c0, c1, c2 = load(f'{pre}consistency-before.json'), load(f'{pre}consistency-after-reset.json'), load(f'{pre}consistency-after.json')
     f0, f1 = s0['data_fingerprint'], s1['data_fingerprint']
     check(s1['migrations_applied'] == 'none: 0000 not applied', f"the reset ran on a migrated database: {s1['migrations_applied']}")
     # the reset's lists and the snapshot's original tables are the same 26: a table one of them forgets is caught here
-    check(set(f0) == set(f1) == set(CLEARED) | set(PRESERVED) | {'stock_items', 'audit_log'},
-          f"the original tables are not the reset's {len(CLEARED)} cleared + {len(PRESERVED) + 2} kept: {sorted(set(f0) ^ (set(CLEARED) | set(PRESERVED) | {'stock_items', 'audit_log'}))}")
+    expected = set(CLEARED) | set(PRESERVED) | {'stock_items', 'audit_log'}
+    if not (set(f0) == set(f1) == expected):
+        # the checks below index every table by name: they would crash before the differences are printed, so stop here
+        errors.append(f"the original tables are not the reset's {len(CLEARED)} cleared + {len(PRESERVED) + 2} kept: {sorted(set(f0) ^ expected) or sorted(set(f1) ^ expected)}")
+        for e in errors:
+            print('    DIFFERENCE:', e)
+        sys.exit(1)
     # the reset refuses a café with nothing to clear (no sale, register day, shift or stock move): a copy like that is not production's
     check(any(rows(f0[t]) > 0 for t in ('orders', 'register_days', 'stock_moves', 'time_entries')),
           'nothing to clear in the copy: no sales, register days, shifts or stock moves before the reset (the reset should have refused)')

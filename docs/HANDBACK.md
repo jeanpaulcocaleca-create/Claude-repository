@@ -54,7 +54,7 @@ Full table with tests and commits: `docs/CHECKLIST.md`.
 | 3 CR tax and suppliers | Supplier invoices linked to deliveries, AP, payments, aging; the period's IVA draft with every document and tie-out; inventory valuation; weighted-average COGS; profit by product | CABYS per product (A-04); e-invoice document register in record-only mode (A-02/A-10); costing method (A-07) | E-invoice provider connection, XML, signing, sending, contingency; POS "invoice with ID" button; filing the IVA return |
 | 4 Cash, bank, payroll | Register cash in/out with manager PIN; payouts documented later; ₡/$ cash reconciliation; bank accounts, CSV statement import, matching, posting, undo; pay periods, timesheet approval and lock; pay rates; payroll prepare → accountant review → post → pay; labor cost | Payroll deductions/charges (A-08: none built in, gross only until confirmed); Costa Rican payroll: CCSS/INS categories, income-tax table and withholding, aguinaldo provision and run, vacations, settlement estimate, the month for the CCSS and the INS (A-08, 0026) | Dollar bank accounts (A-06); CCSS/INS/Hacienda filing files (the month's report and CSV are the input) |
 | 5 Insights | Today estimate vs final on Home and Insights; months (sales, food cost %, labor %, prime cost %); weekday × hour heatmap; products; categories; suppliers (delivery days, price changes); stock forecast; leaks; multi-location-ready columns | — | Operating a second location (registers and stock per location) |
-| Release | Security review and hardening (0025); wave plan; read-only release check; rollback per migration; training plan | The owner's throwaway-database rehearsal with the real copy (D-039); E-13/E-14 withdrawn | — |
+| Release | Security review and hardening (0025); wave plan; read-only release check; rollback per migration; training plan | The repeat of the owner's real-data rehearsal in the temporary database (E-23; run #2 of 2026-10-14 passed the reset and 0000–0028, red only in the since-fixed comparison check); E-13/E-14 withdrawn | — |
 
 ## 3. Remaining external dependencies
 
@@ -308,8 +308,8 @@ Details: `docs/LANZAMIENTO.md`.
 
 **Ready for production** (after your approval, in this order):
 - Wave 0 (0000–0002 with backups) immediately.
-- Then, after a staging dress rehearsal, migrations 0003–0028 with the pages from the approved tag, regulated
-  features OFF.
+- Then, after the real-data rehearsal in the temporary database (E-23), migrations 0003–0028 with the pages from the
+  approved tag, regulated features OFF.
 
 **Not ready / not requested:**
 - activation of tax-exclusive pricing, automatic ledger posting, payroll deductions and e-invoicing;

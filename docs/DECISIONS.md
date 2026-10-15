@@ -970,12 +970,19 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   cleared tables empty afterwards, the 10 preserved identical, stock at zero, one log line, the migrations changing
   nothing; it still fails on a copy with nothing to clear at all (the reset's own guard) and now reports by name the
   tables with no rows in the copy of production and the three the anonymizer empties.
-  `tests/rehearsal/compare-selftest.py` (run.sh step 10) runs nine crafted cases: the report line, the two kinds of
-  empty table, the fixture coverage, and five differences that must still be caught. `ensayo.sh`: the first-character
+  `tests/rehearsal/compare-selftest.py` (run.sh step 10) runs ten crafted cases: the report line, the two kinds of
+  empty table, the fixture coverage, and six differences that must still be caught. The independent review of this
+  fix (four lenses, three refuters per finding) added: the comparison validates its arguments (a misspelled mode or
+  flag stops with the usage instead of running the lenient branch), a snapshot without one of the 26 tables stops
+  with that difference printed instead of a traceback, and run.sh's pre-reset row check dies on a failing psql
+  instead of passing on empty output. `ensayo.sh`: the first-character
   check of each public SQL file is one awk call (the pipe into `head` printed `grep: write error: Broken pipe` for
-  every file) and the throwaway server's notices are silenced; `PRIV_SQL` and every refusal unchanged. **What the
+  every file) and the notices of the anonymization scratch database are silenced (the migrations' own `NOTICE: … does
+  not exist, skipping` lines remain: `drop … if exists` on a fresh copy; PGOPTIONS stays off the destination, which with
+  `proyecto-pruebas` would be a Supabase pooler); `PRIV_SQL` and every refusal unchanged. **What the
   owner does (E-23):** upload `ensayo.sh` again (the comparison comes from the public repository at the chosen version)
   and repeat the rehearsal; for the data of 2026-10-14 the expected line is `reset: 14 tables cleared (9 had rows;
   order_part_lines, tab_adds: no rows in the copy of production, nothing to clear; access_unlocks, inventory_unlocks,
-  sales_unlocks: unlock tokens, emptied by anonimizar.sql before the copy left the job)`. Nothing in production was
-  touched by the run (read-only account) or by this fix.
+  sales_unlocks: unlock tokens, emptied by anonimizar.sql before the copy left the job), 10 kept byte for byte, 3 stock
+  items at zero, N log lines (one new); then the migrations:` followed by the `unchanged: …` line. Nothing in production
+  was touched by the run (read-only account) or by this fix.

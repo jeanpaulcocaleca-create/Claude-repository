@@ -46,11 +46,13 @@ ningún secreto nuevo**: producción se lee con `CANOPY_DB_URL` y la variable `S
 
 1. Suba (reemplazando) al repositorio privado estos archivos de `ops/backup/repositorio-respaldos/`:
    `.github/workflows/ensayo-pruebas.yml`, `ensayo.sh`, `anonimizar.sql` y `restore-stub.sql`. El flujo y `ensayo.sh`
-   cambiaron el **2026-10-14** (la opción `reinicio` y el destino `desechable`); `anonimizar.sql` y
-   `restore-stub.sql`, el 2026-10-13 (si los subió después de esa fecha, ya están al día). `ensayo.sh` cambió otra vez
+   cambiaron el **2026-10-14** (la opción `reinicio` y el destino `desechable`); `anonimizar.sql`, también el
+   **2026-10-14** (las columnas de planilla de la 0026; la copia que usted subió esa noche, antes de la corrida #2, ya
+   es esa); `restore-stub.sql`, el 2026-10-13 (si los subió después de esas fechas, ya están al día). `ensayo.sh` cambió otra vez
    la **noche del 2026-10-14**, después del primer ensayo con los datos reales: solo su registro (sin las líneas `grep:
-   write error: Broken pipe` ni los avisos del servidor temporal); el flujo no cambió. La comparación (`compare.py`)
-   viene del repositorio público en la versión que usted elige: no hay que subirla.
+   write error: Broken pipe` ni los avisos de la base auxiliar donde se anonimiza; los `NOTICE: … does not exist,
+   skipping` de las migraciones siguen y son normales); el flujo no cambió. La comparación (`compare.py`) viene del
+   repositorio público en la versión que usted elige: no hay que subirla.
 2. Nada más. El secreto `STAGING_PIN` es opcional para este destino: sin él, todas las personas de la copia quedan con
    el PIN `2468` (en una base desechable nadie entra). `STAGING_DB_URL` solo existe para la última sección.
 
@@ -99,7 +101,9 @@ Qué leer, en el registro del paso «Copiar, anonimizar, cargar…»:
   `purchase_orders`…) y `stock_items_a_cero` (cuántos insumos tenían existencias y quedaron en 0);
 - `conservado idéntico: …`: menú, recetas, insumos, proveedores, personal, ingresos, ajustes, pizarra, habitaciones y
   bitácora, con huellas iguales antes y después del reinicio;
-- el tiempo de cada migración y, en el paso siguiente, la comparación (también en el resumen del trabajo): `reset: 14
+- el tiempo de cada migración (las líneas `NOTICE: … does not exist, skipping` entre una y otra son normales: cada
+  migración quita antes lo que va a crear, y en una copia nueva no existe) y, en el paso siguiente, la comparación
+  (también en el resumen del trabajo): `reset: 14
   tables cleared (N had rows; …), 10 kept byte for byte, N stock items at zero, N log lines (one new); then the
   migrations:` y debajo `unchanged: …`. El paréntesis dice cuántas tablas tenían filas y nombra las que no: las que el
   café nunca usó («no rows in the copy of production») y las tres de llaves que vacía `anonimizar.sql`.
@@ -152,7 +156,8 @@ Lo que un PostgreSQL local **no puede** probar; queda para la ventana y su verif
 - La versión de **PostgREST** de Supabase y el tiempo que tarda en recargar su caché del esquema (las migraciones
   envían `notify pgrst`).
 - El **SQL Editor**: cómo ejecuta un pegado y si corta por tiempo. Referencia: cada migración tardó menos de un segundo
-  en el ensayo; el reinicio, unos 9 s sobre 14 534 ventas sintéticas, y producción tiene cerca de una semana.
+  en el ensayo; el reinicio, unos 9 s sobre 14 534 ventas sintéticas y menos de un segundo con las 35 ventas reales
+  (corrida del 2026-10-14); producción tiene cerca de una semana.
 - Los permisos por defecto del rol `supabase_admin` (la copia restaura solo los de `postgres`).
 - **GitHub Pages**: el dominio hanginggardencafe.com y la caché del CDN después de publicar (la verja de versión
   `canopy_schema_version` hace que una página vieja diga que necesita actualizarse, sin romper nada).
