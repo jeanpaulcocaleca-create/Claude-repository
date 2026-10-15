@@ -31,6 +31,13 @@ Recomendado también (Settings → Environments → **production**):
 - **Required reviewers**: usted. Cada publicación espera su aprobación con un clic, aunque alguien más la inicie.
 - **Deployment branches and tags** → *Selected* → agregue la regla de etiqueta `v*`.
 
+**El flujo debe estar en la rama predeterminada.** GitHub solo muestra el botón **Run workflow** de un flujo que exista
+en la rama predeterminada del repositorio (hoy `claude/festive-galileo-0twc1p`), aunque «Use workflow from» permita
+elegir después cualquier etiqueta. La noche del lanzamiento (2026-10-15 UTC) el botón no aparecía porque esa rama no
+tenía la carpeta `.github/workflows/`; con la aprobación del dueño se subió allí solo `pages.yml`, idéntico al de la
+etiqueta (`c1ffbf1`), y el botón apareció. Si algún día cambia la rama predeterminada, el archivo debe existir también
+en la nueva.
+
 ## Publicar
 
 1. GitHub → **Releases → Draft a new release**.

@@ -136,7 +136,7 @@ de pruebas: las páginas se prueban en (a) sobre el café vacío; con los datos 
    hecho`, `borrado`, `conservado idéntico` y `reset` limpio. Si la versión cambia, se repite. No hay proyecto ni sitio
    de pruebas que crear (E-13, E-14 retiradas, D-039). **Estado:** la corrida #2 (2026-10-14 23:29 UTC) pasó el
    reinicio y las 29 migraciones sobre la copia real y quedó roja solo en la comparación, por una expectativa de la
-   copia sintética ya corregida (sección 3b): **falta repetirla** con `ensayo.sh` subido de nuevo y la versión corregida (E-23).
+   copia sintética ya corregida (sección 3b); **repetida en verde**: corrida #3, 2026-10-15 00:24 UTC, sobre 3c7e020 (E-23 hecha).
 5. **Ingresos personales** (INGRESOS, caso B, «Primero»): cada dueño entra con su propio ingreso en una ventana privada
    de su teléfono y cierra sesión del ingreso compartido en sus propios aparatos (nunca en los del café). Si uno no puede
    entrar, su `+dueno` con `make_owner` (pasos 1–2).
@@ -263,12 +263,12 @@ la suya; yo no toco producción ni publico nada.
 | # | Aprobación | Qué autoriza | Fecha |
 |---|---|---|---|
 | 1 | El reinicio operativo y la excepción a la regla «nunca borrar registros» (CLAUDE.md, D-038); el mismo proyecto y el mismo sitio, sin segundo proyecto (D-039) | Preparar y ensayar el reinicio; que usted lo ejecute una vez en la ventana, en la base de hoy | ☑ 2026-10-14 (la decisión y su revisión) |
-| 2 | Los respaldos | El primer respaldo verificado (E-03), descargado y comprobado con su llave; el respaldo de la ventana, igual, esa noche | ☑ 2026-10-14 el primero · ☐ el de la ventana |
-| 3 | El pegado del reinicio | `reinicio-operativo.sql` en producción, con la referencia del respaldo y `BORRAR PRUEBAS`, después del resumen | ☐ |
-| 4 | Las migraciones 0000–0028 | Una por una en el SQL Editor de producción, en la misma ventana | ☐ |
-| 5 | El ingreso del café | `cafe-login.sql`, caso B, sobre el ingreso compartido (E-05) | ☐ |
-| 6 | Los códigos del teléfono | Cada dueño en su ingreso personal, desde su teléfono (E-06) | ☐ |
-| 7 | Publicar la etiqueta | Crear `vAAAA.MM.DD-1` y correr «Publish website» con PUBLICAR; usted aprueba la publicación (E-20) | ☐ |
+| 2 | Los respaldos | El primer respaldo verificado (E-03), descargado y comprobado con su llave; el respaldo de la ventana, igual, esa noche | ☑ 2026-10-14 el primero · ☑ el de la ventana: «Respaldo nocturno» #4, 2026-10-15 02:50 UTC, restauración verificada; esa noche las notas del dueño solo tenían las llaves públicas: si existe una llave privada es la E-24 |
+| 3 | El pegado del reinicio | `reinicio-operativo.sql` en producción, con la referencia del respaldo y `BORRAR PRUEBAS`, después del resumen | ☑ 2026-10-15 (madrugada UTC; noche del 14 en Monteverde): «reinicio hecho» |
+| 4 | Las migraciones 0000–0028 | Una por una en el SQL Editor de producción, en la misma ventana | ☑ 2026-10-15: las 29 aplicadas; `release-check.sql` sin migraciones, funciones, tablas sin RLS ni reglas de Storage faltantes |
+| 5 | El ingreso del café | `cafe-login.sql`, caso B, sobre el ingreso compartido (E-05) | ☐ aplazado por el dueño: los dos ingresos de dueño y el de los aparatos siguen como estaban |
+| 6 | Los códigos del teléfono | Cada dueño en su ingreso personal, desde su teléfono (E-06) | ☐ aplazado por el dueño |
+| 7 | Publicar la etiqueta | Crear `vAAAA.MM.DD-1` y correr «Publish website» con PUBLICAR; usted aprueba la publicación (E-20) | ☑ 2026-10-15 04:33 UTC: `v2026.10.14-1` (3c7e020) publicada; `gh-pages` = `ab97d44`. El botón «Run workflow» exigió antes copiar `pages.yml` a la rama predeterminada (`c1ffbf1`, PUBLICAR) |
 
 Pendiente de terceros: la confirmación del contador (A-11) y la fecha de la ventana y del conteo físico (E-22). El
 ensayo con los datos reales (sección 3b) ya corrió una vez (corrida #2, 2026-10-14: el reinicio y las migraciones

@@ -986,3 +986,31 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   sales_unlocks: unlock tokens, emptied by anonimizar.sql before the copy left the job), 10 kept byte for byte, 3 stock
   items at zero, N log lines (one new); then the migrations:` followed by the `unchanged: …` line. Nothing in production
   was touched by the run (read-only account) or by this fix.
+
+## D-040 · 2026-10-15 · Launch night: the one coordinated release went live (reset, 0000–0028, v2026.10.14-1)
+- **What happened (UTC; the night of 2026-10-14 in Monteverde):** the owner ran «Respaldo nocturno» #4 (02:50, restore
+  test passed), then in the SQL Editor the three read-only cells, `reinicio-operativo.sql` (`reinicio hecho`), the
+  snapshot after, 0000–0028 one by one and `release-check.sql` (no missing migrations, functions, RLS tables or Storage
+  policies). The publish workflow showed no «Run workflow» button: GitHub offers manual dispatch only for workflows that
+  exist on the default branch, and `claude/festive-galileo-0twc1p` had no `.github/workflows/` folder at all (GitHub
+  listed "Publish website" only from the 2026-10-09 runs). With the owner's explicit approval (option 2, instead of
+  merging PR #1 that night) `pages.yml`, byte-identical to the tag's file, was pushed there as `c1ffbf1`; the push ran
+  nothing (the file triggers on manual dispatch only). The run from tag `v2026.10.14-1` (3c7e020) succeeded at 04:33 and
+  `gh-pages` is `ab97d44`, "Publish website v2026.10.14-1 3c7e020…". Approvals 5 (café login conversion) and 6 (phone
+  codes) were deferred by the owner: both Owner accounts and the café devices keep their logins and permissions.
+- **Found on the way:** (1) the owner's notes held only the public keys `age1…`: `age-keygen` prints the public key on
+  screen and writes the private line `AGE-SECRET-KEY-1…` only into the file, which the guide said to keep in the
+  password manager and to print; before the window the private keys were not found. The owner was given a search plan
+  (the Terminal's folder, Spotlight by name and by content, the Trash, iCloud Drive's Recently Deleted, Time Machine,
+  the printout, Notes' Recently Deleted; verification by `grep -c`, `age-keygen -y` and a decrypt to `/dev/null`, never
+  showing the key) and a new-keys plan, and proceeded with backup #4; whether a private key exists is E-24, urgent:
+  without one no backup is readable. (2) The CI tripwire `tests/tools/live-site-check.sh` refused the first real release
+  message: `peaceiris/actions-gh-pages` appends the SHA of the commit the workflow ran from, which the pattern did not
+  allow, so the next CI run would have gone red with "NOT published by an approved release". Fixed in this commit: the
+  appended SHA is accepted only when it equals the release tag's commit (fetched by name); a hand-written message, a
+  wrong SHA or a tag that does not exist still fail; the old format and the restore format (`· sitio-…`) still pass.
+  Verified against the live `gh-pages` and with crafted messages.
+- **Still owed:** the physical count the morning of 2026-10-15 before opening (stock at zero until then), that morning's
+  `release-check.sql` and `consistency-check.sql` (`orders_before_reset` = 0), E-24, A-11, approvals 5 and 6 another
+  night, and a `docs/RESPALDOS.md` follow-up: store the whole key file and verify a decrypt from the stored copy before
+  deleting the original.

@@ -306,18 +306,20 @@ Details: `docs/LANZAMIENTO.md`.
 
 ## 14. Final production approval request
 
-**Ready for production** (after your approval, in this order):
-- Wave 0 (0000–0002 with backups) immediately.
-- Then, after the real-data rehearsal in the temporary database (E-23), migrations 0003–0028 with the pages from the
-  approved tag, regulated features OFF.
+**Launched 2026-10-15** (UTC early hours; the night of 2026-10-14 in Monteverde; D-040): backup #4, the one-time reset
+(`reinicio hecho`), migrations 0000–0028, release check clean, `v2026.10.14-1` published at 04:33 UTC from commit
+3c7e020, regulated features OFF. Still owed: the physical count before opening, the age private keys (E-24), the
+accountant's answer (A-11), the café login conversion and the phone codes (deferred by the owner).
 
 **Not ready / not requested:**
 - activation of tax-exclusive pricing, automatic ledger posting, payroll deductions and e-invoicing;
 - the automatic exchange rate before E-16;
 - dollar bank accounts.
 
-**Approval asked of you:**
-1. Approve Wave 0 now (E-01, E-02, E-03).
-2. Run `Ensayo en pruebas` with destino `desechable` and reinicio `si` on the version to launch (the real anonymized copy in a temporary database; no staging project, D-039). The first run (2026-10-14) stopped only in the comparison, on a check meant for the seeded copy; it is fixed: upload `ensayo.sh` again and repeat (E-23).
-3. After the rehearsal evidence (release-check output, test run, checklist), approve the production window for
-   0003–0028 and the release tag.
+**Done on launch night (2026-10-15 UTC):** Wave 0, the rehearsal with the real data (run #3, green), the window
+(backup #4, reset, 0000–0028, release check) and the publish of `v2026.10.14-1`. **Still asked of you:**
+1. E-24, urgent: confirm a private age key exists, or make new keys, update `AGE_RECIPIENTS`, run «Respaldo nocturno»
+   and decrypt-test it. Until then no backup is readable.
+2. The morning of 2026-10-15 before opening: `release-check.sql`, `consistency-check.sql` (`orders_before_reset` = 0),
+   the physical count in Inventario → Existencias → Contar, the register opened with the counted float, the exchange rate.
+3. A-11 (the accountant's retention answer) and, another night, approvals 5 and 6 (`cafe-login.sql`, phone codes).
