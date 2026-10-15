@@ -18,7 +18,7 @@ Status vocabulary used throughout:
 ## 1. Executive summary
 
 All five phases are built on the development branch:
-- 29 database migrations (`supabase/migrations/0000`–`0028`);
+- 31 database migrations (`supabase/migrations/0000`–`0030`; 0029 and 0030 wait for the owner, E-25);
 - the existing pages, extended;
 - two new pages (Accounting, Insights);
 - a test suite that rebuilds a Supabase look-alike database from scratch and exercises the database and the
@@ -89,14 +89,14 @@ From `docs/DEPENDENCIES.md`.
 ## 4. Test results
 
 Everything is rebuilt from scratch on every run (`tests/run.sh`).
-- **Last full run (local, 2026-10-14, before the final commit):** ALL TESTS PASSED.
-  - **SQL:** 31 files, 930 assertions, one transaction each. Every migration is tested, plus the security attack
+- **Last full run (local, 2026-10-15, before the final commit):** ALL TESTS PASSED.
+  - **SQL:** 33 files, 1 044 assertions, one transaction each. Every migration is tested, plus the security attack
     suite (`250_security_hardening`), the release check (`240`), which pins down anonymous access, row
     security and fixed search paths, the Costa Rican payroll (`290`, 143), who took the money (`300`) and the
     review fixes (`310`).
-  - **Browser:** 102 tests passed (29 spec files), plus the 5 live-page checks of the rehearsal on the migrated copy, the same 5 on
+  - **Browser:** 106 tests passed (30 spec files), plus the 5 live-page checks of the rehearsal on the migrated copy, the same 5 on
     the copy that went through the one-time reset, and the 2 checks of the new pages on the empty café and its first day.
-  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0028 on the production-shaped copy: passed, including the
+  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0030 on the production-shaped copy: passed, including the
     one-time reset pass (six refusals, the reset, the migrations after it) and the owner's staging rehearsal with `reinicio = si`.
 - **What the browser tests cover:** Playwright with real supabase-js against PostgREST; staff screens in English
   and Spanish; phone, tablet and desktop sizes; offline and two-device cases.
@@ -140,6 +140,8 @@ Everything is rebuilt from scratch on every run (`tests/run.sh`).
 | 0026 | Costa Rican payroll: CCSS/INS categories, employee profile, income-tax table, extra pay, payslip, aguinaldo, vacations, settlement estimate, the month for the CCSS and the INS (all OFF behind `payroll_cr_rules`) | none | drop the new functions; previous payroll functions |
 | 0027 | Who took the money on a bill paid later; the till cannot rewrite who rang or who took the money; "End my turn" can clock out | the POS asks about the clock when a turn ends | drop trigger; previous `tab_pay` and `pos_operator_end` |
 | 0028 | Review fixes (D-037): the till never records a negative total; a room order paid later counts on the day the money came in; days with sales and no register are listed and posted; the journal reverses only its own entries; a PIN in use is refused and the owner role needs the phone code; visitors' questions capped | a repeated PIN is refused when adding someone; the owner role needs the phone code | drop the two triggers; previous functions |
+| 0029 | Receive a delivery with the supplier invoice and the payment (D-041): invoice pending / review / confirmed, draft kept as data, dollars with the rate, debit and credit card methods (account 2120), payouts from the register documented at confirmation, `po_receive_and_settle`, `po_receipt_settle`, `po_receipt_pay`, `po_history`, `po_pending` | the receive window gains the invoice and payment section | drop the five functions and `purchase_receipt_files`; previous `supplier_payment_save`; the new columns stay |
+| 0030 | The invoice file in the private bucket `purchase-invoices` (3 per delivery, 10 MB, never replaced); rules for the owner, the accountant and a café login with a live manager unlock; `purchase_doc_attach`. Optional: without it everything of 0029 works except attaching the file | «Tomar foto» / «Elegir archivo» | drop the two policies and the three functions; the bucket stays |
 
 Each file states its purpose, staff impact and reversal in Spanish at the top. Every migration is one
 transaction and only adds; nothing deletes business records.

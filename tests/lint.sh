@@ -109,5 +109,11 @@ priv_sql() { awk '/^PRIV_SQL="/ { f = 1 } f { print } f && /q"$/ { exit }' "$1" 
 #     are from here (2026-10-13: a job-level env with runner.temp was rejected when the owner uploaded it)
 python3 "$(dirname "$0")/tools/workflow-contexts.py" .github/workflows/*.yml ops/backup/repositorio-respaldos/.github/workflows/*.yml \
   || bad "a workflow uses a context where GitHub does not allow it (see above)"
+# 13) scripts from the internet: only these libraries, pinned to one version, from these CDNs (the pages keep working
+#     when one does not load: supabase-js is required, the invoice readers are loaded only on demand and degrade to typing)
+ALLOWED_SCRIPTS='^https://(cdn\.jsdelivr\.net/npm/@supabase/supabase-js@2\.49\.1/dist/umd/supabase\.min\.js|cdnjs\.cloudflare\.com/ajax/libs/qrcode-generator/1\.4\.4/qrcode\.min\.js|cdn\.jsdelivr\.net/npm/pdfjs-dist@3\.11\.174/build/pdf(\.worker)?\.min\.js|cdn\.jsdelivr\.net/npm/tesseract\.js@5\.1\.1/dist/tesseract\.min\.js)$'
+for u in $(grep -hoE "https://(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|unpkg\.com)/[^\"' <>]+" website/*.html website/*.js | sort -u); do
+  echo "$u" | grep -Eq "$ALLOWED_SCRIPTS" || bad "a script from the internet is not in the pinned allowlist (tests/lint.sh 13): $u"
+done
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

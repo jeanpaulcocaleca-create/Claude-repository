@@ -101,6 +101,8 @@ def migrated(sb, sa, cb, ca, rc):
     check(rc['storage_buckets_missing'] == [], f"storage buckets missing: {rc['storage_buckets_missing']}")
     check(rc['storage_policies_missing'] == [], f"storage rules missing: {rc['storage_policies_missing']}")
     check(rc['receipt_upload_rule_current'] is True, f"receipt upload rule current: {rc['receipt_upload_rule_current']}")
+    check(rc['purchase_upload_rule_current'] is True, f"purchase invoice upload rule current (0030): {rc['purchase_upload_rule_current']}")
+    check(rc['migrations_optional_missing'] == [], f"optional migrations missing: {rc['migrations_optional_missing']}")
     return dict(drift=drift, tables=len(fb), checks=len(cb['kept']), open_rules=len(sec['policies_without_account_check']),
                 functions=sc['functions_by_version'], rc=rc, rights=sb.get('storage_rights') or {}, af=af)
 
@@ -144,7 +146,7 @@ else:
     # table the café never wrote to is empty before the reset and stays empty; that is production's history, reported by
     # name, never a difference. 2026-10-14, the first run on the real copy stopped only here: no bill of the test period had
     # been split by item, so order_part_lines had no row to clear (the reset itself had cleared the 14 tables, kept the 13
-    # preserved ones identical, and 0000-0028 had run after it)
+    # preserved ones identical, and 0000-0030 had run after it)
     fixture = len(sys.argv) == 4
     s0, s1, s2 = load(f'{pre}snapshot-before.json'), load(f'{pre}snapshot-after-reset.json'), load(f'{pre}snapshot-after.json')
     c0, c1, c2 = load(f'{pre}consistency-before.json'), load(f'{pre}consistency-after-reset.json'), load(f'{pre}consistency-after.json')

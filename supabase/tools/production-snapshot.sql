@@ -56,6 +56,7 @@ known_fn(fn, h, ver) as (values
   ('public._insights_allowed()', 'dbdab2600c4c', '0025'),
   ('public._inv_actor()', 'd4077c1976c2', 'legacy'),
   ('public._invoice_open(p_id uuid)', '97ca0fa8ef47', '0016'),
+  ('public._login_unlocked()', 'cdb184720553', '0030'),
   ('public._on_the_clock(p_staff uuid, p_at timestamp with time zone)', '4ba30fe2d47e', '0008'),
   ('public._operator_resolve(p_at timestamp with time zone, OUT staff_id uuid, OUT staff_name text, OUT session_id uuid, OUT verified boolean, OUT on_clock boolean)', '26859a1af083', '0008'),
   ('public._order_after_close_log()', 'ee4bcf2ffc1f', '0003'),
@@ -103,6 +104,7 @@ known_fn(fn, h, ver) as (values
   ('public._payroll_params_now()', 'c805b306d619', '0026'),
   ('public._payroll_renta(p_base numeric, p_days integer, p_children integer, p_spouse boolean, p_params jsonb)', 'a52cca07a829', '0026'),
   ('public._po_number()', 'caa0f33968b1', '0012'),
+  ('public._purchase_doc_slot_open(p_name text)', 'ef6ffa25a9e2', '0030'),
   ('public._purchase_history_guard()', '3ca61894b294', '0005'),
   ('public._purchase_line_guard()', 'bbe77da7d1db', '0025'),
   ('public._purchase_order_status()', 'ba47bb939298', '0012'),
@@ -114,6 +116,9 @@ known_fn(fn, h, ver) as (values
   ('public._register_expected(p_day date, OUT cash_crc bigint, OUT usd numeric)', 'b1bbb8b50341', '0019'),
   ('public._reinicio_at()', '99a2392f9f51', '0028'),
   ('public._room_is_open(OUT is_open boolean, OUT opens text, OUT closes text)', '9b139d0575c0', 'legacy'),
+  ('public._settle_error(p_sqlerrm text)', 'd8544e8504a8', '0029'),
+  ('public._settle_fail(p_step text, p_result jsonb)', '8ec773a3ddf4', '0029'),
+  ('public._settle_uuid(p_base uuid, p_tag text, p_i integer)', '2b37fdadd2d6', '0029'),
   ('public._shift_day(p_at timestamp with time zone)', '41fdfa582f9a', '0021'),
   ('public._staff_started_on(p_staff_id uuid)', '8cafa18f96cf', '0026'),
   ('public._stock_cost_edit_log(p_id uuid, p_name text, p_old numeric, p_new numeric, p_old_pack numeric, p_new_pack numeric)', '8b92d59d60c0', '0005'),
@@ -275,9 +280,14 @@ known_fn(fn, h, ver) as (values
   ('public.payroll_staff()', 'ce637fc78706', '0026'),
   ('public.payslip(p_run_id uuid, p_staff_id uuid)', '9a14cbb140bc', '0026'),
   ('public.place_room_order(p_code text, p_name text, p_phone text, p_lang text, p_notes text, p_items jsonb)', '5bfa7ad315b3', 'legacy'),
+  ('public.po_history(p_po_id uuid)', '06f3b1fea1d9', '0029'),
+  ('public.po_pending()', '72ba36183fb2', '0029'),
+  ('public.po_receipt_pay(p_receipt_id uuid, p_payments jsonb, p_request_id uuid, p_manager_id uuid, p_pin text, p_station text)', '83365797cae9', '0029'),
+  ('public.po_receipt_settle(p_receipt_id uuid, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', '1a555bf622e3', '0029'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '54e0e7a8423c', 'legacy'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '877f65220db9', '0005'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '9dd7e6af2c89', '0012'),
+  ('public.po_receive_and_settle(p_po_id uuid, p_lines jsonb, p_receipt_id uuid, p_final boolean, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', '5fcc159a4322', '0029'),
   ('public.po_receive_delivery(p_po_id uuid, p_lines jsonb, p_receipt_id uuid, p_invoice_no text, p_invoice_date date, p_final boolean)', 'df03651e5f18', '0012'),
   ('public.pos_operator_end(p_token text)', 'd55484606c5a', '0008'),
   ('public.pos_operator_end(p_token text, p_clock_out boolean)', 'c53b6e6d250a', '0027'),
@@ -287,6 +297,7 @@ known_fn(fn, h, ver) as (values
   ('public.pos_record_sale(p_order jsonb)', 'bd1e22c34ce5', '0010'),
   ('public.pos_record_tender(p_order_id uuid, p_tender jsonb)', '4e77acb867f2', '0010'),
   ('public.product_profitability(p_from date, p_to date)', 'a1aba53e1bc2', '0017'),
+  ('public.purchase_doc_attach(p_receipt_id uuid, p_path text)', 'bb6104cf2d67', '0030'),
   ('public.quick_items(p_days integer, p_limit integer)', '11762e8f5921', '0001'),
   ('public.quick_items(p_days integer, p_limit integer)', 'de244c47ac56', 'legacy'),
   ('public.recipes_autolink()', '2079624d014f', 'legacy'),
@@ -330,6 +341,7 @@ known_fn(fn, h, ver) as (values
   ('public.supplier_invoice_void(p_id uuid, p_reason text)', 'e284fd9f4b05', '0016'),
   ('public.supplier_payment_save(p_payment jsonb, p_request_id uuid)', '2e5cfc5c2c4f', '0019'),
   ('public.supplier_payment_save(p_payment jsonb, p_request_id uuid)', 'ba52e19ef5bc', '0025'),
+  ('public.supplier_payment_save(p_payment jsonb, p_request_id uuid)', 'ee0b7e36a6ac', '0029'),
   ('public.supplier_payment_save(p_payment jsonb, p_request_id uuid)', 'f8038e585d58', '0016'),
   ('public.supplier_payment_void(p_id uuid, p_reason text)', '1da5f31a8139', '0016'),
   ('public.tab_add_items(p_order_id uuid, p_items jsonb, p_add_id uuid)', '490bbe32667f', 'legacy'),
@@ -545,7 +557,7 @@ open_policies as (
     from pg_policies
    where schemaname in ('public', 'storage', 'acct', 'canopy')
      and coalesce(qual, '') || coalesce(with_check, '') !~
-         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed)'
+         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed|_login_unlocked|_purchase_doc_slot_open)'
 )
 select jsonb_pretty(jsonb_build_object(
   'checked_at', now(),

@@ -1061,6 +1061,68 @@
     "Change any quantity that arrived short or long. Costs update the item's price.": 'Cambie cualquier cantidad que llegó de menos o de más. Los costos actualizan el precio del producto.',
     'Cost / pack': 'Costo / paquete', 'Add to stock': 'Agregar a existencias', 'Order received, stock updated': 'Pedido recibido, existencias actualizadas', 'per sale': 'por venta',
     'open until {t}': 'abierto hasta las {t}', '{n} units': '{n} unidades', 'received': 'recibido', 'owner': 'dueño', 'POS': 'Caja', 'about {n} days left': 'unos {n} días',
+    /* Inventory · Receive: the supplier invoice and the payment (migrations 0029/0030) */
+    'Pending with suppliers': 'Pendiente con proveedores', 'All vendors': 'Todos los proveedores', 'Invoice and payment': 'Factura y pago',
+    'Costs above are without IVA. Attach the supplier\'s invoice, read it or type it, and say how it was paid. Nothing is posted to the books until the invoice is confirmed.':
+      'Los costos de arriba son sin IVA. Adjunte la factura del proveedor, léala o escríbala, y diga cómo se pagó. Nada se asienta en los libros hasta confirmar la factura.',
+    'Not here yet · it arrives later': 'Todavía no está · llega después', 'Captured · to review before confirming': 'Capturada · se revisa antes de confirmar', 'Confirmed now': 'Confirmada ahora',
+    'Take a photo': 'Tomar foto', 'Choose a file': 'Elegir archivo', 'Read the invoice': 'Leer la factura', 'Exchange rate (₡ per $)': 'Tipo de cambio (₡ por $)',
+    'Subtotal (without IVA)': 'Subtotal (sin IVA)', 'Payments': 'Pagos', '+ Add a payment': '+ Agregar un pago', 'Manager who authorizes the payment': 'Encargado que autoriza el pago',
+    'Confirm reception': 'Confirmar recepción', 'Pick the supplier': 'Elija el proveedor', 'Reference (optional)': 'Referencia (opcional)',
+    'Cash from the register drawer': 'Efectivo de la caja registradora', 'Cash from the safe': 'Efectivo de la caja fuerte', 'SINPE or bank transfer': 'SINPE o transferencia bancaria',
+    'Debit card': 'Tarjeta de débito', 'Credit card': 'Tarjeta de crédito',
+    'Invoice pending': 'Factura pendiente', 'Invoice to review': 'Factura por revisar', 'Invoice confirmed': 'Factura confirmada',
+    'Register invoice': 'Registrar factura', 'Record payment': 'Registrar pago', 'Record a payment': 'Registrar un pago',
+    'Owed to suppliers: {x}': 'Se debe a proveedores: {x}', 'Nothing owed to suppliers': 'No se debe nada a proveedores',
+    'No invoice is waiting. Everything received has its invoice and its payment.': 'Ninguna factura en espera. Todo lo recibido tiene su factura y su pago.',
+    'received cost {x}': 'costo recibido {x}', '{x} taken from the register': '{x} sacados de la caja', 'draft Nº {n}': 'borrador Nº {n}', 'invoice Nº {n}': 'factura Nº {n}',
+    'Invoice Nº {n}': 'Factura Nº {n}', 'overdue {d}': 'vencida {d}', 'due {d}': 'vence {d}', 'in dollars': 'en dólares', 'open {x}': 'pendiente {x}', 'paid {x}': 'pagado {x}',
+    'Payment recorded': 'Pago registrado', 'Saved': 'Guardado', 'Saved · the invoice waits to be reviewed': 'Guardado · la factura queda por revisar',
+    '{n} file(s) not saved: attach them from Details': '{n} archivo(s) sin guardar: adjúntelos desde Detalles',
+    'Open before: {x}': 'Pendiente antes: {x}', 'Paying now: {x}': 'Pagando ahora: {x}', 'Left after: {x}': 'Queda después: {x}',
+    'Invoice total: {x}': 'Total de la factura: {x}', 'Received cost (without IVA): {x}': 'Costo recibido (sin IVA): {x}',
+    'Difference: {x} (goes to price variance)': 'Diferencia: {x} (va a variación de precio)',
+    'Paid: {x} ({y} already taken from the register)': 'Pagado: {x} ({y} ya sacados de la caja)', 'Paid: {x}': 'Pagado: {x}', 'Balance: {x}': 'Saldo: {x}',
+    'Type the invoice date.': 'Escriba la fecha de la factura.', 'Type the invoice subtotal and IVA.': 'Escriba el subtotal y el IVA de la factura.',
+    'Add at least one payment.': 'Agregue al menos un pago.', 'That is more than what is open on this invoice.': 'Eso es más de lo que queda pendiente en esta factura.',
+    'A manager must authorize the payment with their PIN.': 'Un encargado debe autorizar el pago con su PIN.', 'Three files is the limit for one delivery.': 'El límite es tres archivos por entrega.',
+    'Only a photo, a PDF or the XML of the invoice.': 'Solo una foto, un PDF o el XML de la factura.', 'That file is over 10 MB.': 'Ese archivo pesa más de 10 MB.',
+    'The register is not open: cash from the register cannot be used now. Pay another way or leave it pending.':
+      'La caja no está abierta: ahora no se puede usar efectivo de la caja. Pague de otra forma o déjelo pendiente.',
+    'Pick the manager who authorizes the payment.': 'Elija al encargado que autoriza el pago.', 'The payments add up to more than the invoice.': 'Los pagos suman más que la factura.',
+    'Money from the register was already taken for this delivery. Confirm the invoice to document it.': 'Ya se sacó dinero de la caja para esta entrega. Confirme la factura para documentarlo.',
+    'Bank and card payments need the invoice confirmed first. Only cash from the register can be recorded before.':
+      'Los pagos por banco y tarjeta necesitan la factura confirmada. Antes solo se puede registrar efectivo de la caja.',
+    'Pick the supplier first.': 'Primero elija el proveedor.', 'Type the exchange rate (₡ per $).': 'Escriba el tipo de cambio (₡ por $).',
+    'Check the invoice: date, subtotal and IVA.': 'Revise la factura: fecha, subtotal e IVA.',
+    'Nothing arrived? Type the quantities, or tick "Nothing more is coming" to close the order.': '¿No llegó nada? Escriba las cantidades, o marque «No llegará nada más» para cerrar el pedido.',
+    'The invoice date cannot be in the future.': 'La fecha de la factura no puede ser futura.',
+    'The accountant closed that month: ask them before recording this invoice.': 'El contador cerró ese mes: consúltele antes de registrar esta factura.',
+    'That is more than what is owed to this supplier.': 'Eso es más de lo que se le debe a este proveedor.', 'One of the deliveries is already invoiced.': 'Una de las entregas ya tiene factura.',
+    'The money taken from the register is more than the invoice: check with the owner.': 'El dinero sacado de la caja es más que la factura: revíselo con el dueño.',
+    'This invoice was already confirmed.': 'Esta factura ya se confirmó.', 'Confirm the invoice before recording payments.': 'Confirme la factura antes de registrar pagos.',
+    'That delivery was not found. Reload the page.': 'No se encontró esa entrega. Recargue la página.', 'That payout is not available: reload the page.': 'Ese retiro no está disponible: recargue la página.',
+    'Could not save. Reload the page and try again.': 'No se pudo guardar. Recargue la página e intente de nuevo.',
+    'Read from the XML: {x}': 'Leído del XML: {x}', 'Read from the PDF': 'Leído del PDF', 'Read from the photo': 'Leído de la foto', 'Not found': 'No se encontró',
+    'nothing certain': 'nada seguro', 'number': 'número', 'date': 'fecha', 'Type it.': 'Escríbalo.',
+        'It includes other taxes of {x} that are not IVA: they were left out of the IVA.': 'Incluye otros impuestos por {x} que no son IVA: se dejaron fuera del IVA.',
+    'Its total does not add up: check the invoice.': 'Su total no cuadra: revise la factura.',
+    'Check the amounts, then choose "Confirmed now" or leave it to review.': 'Revise los montos y luego elija «Confirmada ahora» o déjela por revisar.',
+    'Reading the invoice…': 'Leyendo la factura…', 'Reading the invoice… {p}%': 'Leyendo la factura… {p}%',
+    'That PDF has no text to read (a scan): type the invoice.': 'Ese PDF no tiene texto para leer (es un escaneo): escriba la factura.',
+    'Nothing could be read in the photo: type the invoice.': 'No se pudo leer nada en la foto: escriba la factura.',
+    'Reading is a help, never a decision: check every amount against the paper before confirming.': 'La lectura es una ayuda, nunca una decisión: compare cada monto con el papel antes de confirmar.',
+    'The reader could not be loaded (no internet to the library?). Type the invoice.': 'No se pudo cargar el lector (¿sin internet hacia la librería?). Escriba la factura.',
+    'Could not open that delivery. Reload the page.': 'No se pudo abrir esa entrega. Recargue la página.', 'Could not load the order. Check the connection.': 'No se pudo cargar el pedido. Revise la conexión.',
+    'Say how it was paid; a manager authorizes with their PIN.': 'Diga cómo se pagó; un encargado autoriza con su PIN.',
+    'Attach the invoice, read it or type it, and say how it was paid.': 'Adjunte la factura, léala o escríbala, y diga cómo se pagó.',
+    'Delivery on {d}': 'Entrega del {d}', 'Order Nº {n}': 'Pedido Nº {n}', 'No delivery yet.': 'Todavía no hay entregas.', '{n} lines': '{n} líneas', '1 line': '1 línea', 'closed the order': 'cerró el pedido',
+    'Total {x} at ₡{r} = {c}': 'Total {x} a ₡{r} = {c}', 'Draft: invoice Nº {n}': 'Borrador: factura Nº {n}', 'Draft: invoice (no number)': 'Borrador: factura (sin número)',
+    'from the XML': 'del XML', 'from the PDF': 'del PDF', 'from the photo': 'de la foto',
+    '{x} taken from the register on {d} (documented)': '{x} sacados de la caja el {d} (documentado)', '{x} taken from the register on {d} (voided)': '{x} sacados de la caja el {d} (anulado)',
+    '{x} taken from the register on {d} (waiting for the invoice)': '{x} sacados de la caja el {d} (en espera de la factura)',
+    'Payment on {d}': 'Pago del {d}', 'View file {n}': 'Ver archivo {n}', 'Open in a new tab': 'Abrir en otra pestaña',
+    'Nothing received in that search.': 'Nada recibido en esa búsqueda.', '{n} orders': '{n} pedidos',
     /* owner areas behind a PIN (access.js) */
     'Owners and managers only': 'Solo dueños y encargados', 'owners and managers': 'dueños y encargados', 'Owner': 'Dueño',
     'Type the PIN of an owner, GM or manager. It stays open on this device for 15 minutes, or until someone taps Lock.':
@@ -1368,8 +1430,9 @@
     if (!k || !/[A-Za-z]/.test(k)) return null;
     var t = lookup(k);
     if (t !== null) return esDates(t);
-    var dated = esDates(k);
-    if (dated !== k) { var t2 = lookup(dated); return t2 !== null ? t2 : dated; }
+    /* a line with an English date: translate the date, then try the rest of the rules on it */
+    var dated = esDates(k), hasDate = dated !== k;
+    if (hasDate) { var t2 = lookup(dated); if (t2 !== null) return t2; k = dated; }
     /* "Label:" or "Label…" */
     var m = k.match(/^(.*?)([:…]|\.\.\.)$/);
     if (m && (t = lookup(m[1].trim())) !== null) return t + m[2];
@@ -1379,7 +1442,7 @@
       var parts = k.split(' · ').map(function (p) { var x = lookup(p.trim()); if (x !== null) { any = true; return x; } return p; });
       if (any) return parts.join(' · ');
     }
-    return null;
+    return hasDate ? dated : null;
   }
 
   /* ---------- state ---------- */

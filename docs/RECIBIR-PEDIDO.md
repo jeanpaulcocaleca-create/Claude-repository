@@ -5,8 +5,9 @@ proveedor (foto, imagen o PDF, con lectura automática confirmable), el pago (ef
 transferencia, tarjeta, crédito del proveedor; parcial o combinado) y lo que queda pendiente, sin tocar el resto
 del sistema, sin duplicar asientos ni gastos, y sin activar ninguna contabilización automática global.
 
-Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado ni aplicado. Las referencias
-`archivo:línea` son del código actual (commit 415b476).
+Estado: **aprobada por el dueño el 2026-10-15 e implementada en la rama de desarrollo** (D-041; sección 5). Nada
+está aplicado en producción ni publicado: eso espera la aprobación explícita del dueño (E-25). Las referencias
+`archivo:línea` de las secciones 1–3 son del código anterior (commit 415b476).
 
 ## 1. Lo que ya existe
 
@@ -251,3 +252,52 @@ Rama `claude/hanging-garden-coffee-proposal-1m8zd4` (PR #1). Necesitan **su apro
    quien recibe? (Decide el peso aceptable de la lectura automática y las pruebas que se hacen.)
 5. ¿Sus proveedores le mandan la factura electrónica (XML) al correo del café, y qué parte son informales (feria,
    productores sin factura electrónica)? (Decide cuánto resuelve la lectura exacta y gratuita del XML.)
+
+## 5. Decisiones del dueño y lo implementado (2026-10-15)
+
+**Decisiones (mensaje de aprobación):** 1) los pagos los registra un encargado autorizado con su PIN; 2) tarjeta de
+débito y tarjeta de crédito como métodos separados; 3) facturas en colones y en dólares, con el tipo de cambio
+anotado; 4) la factura se fotografía desde cualquier teléfono o iPad autorizado; 5) el XML de Hacienda se acepta
+cuando exista, sin ser obligatorio. Además: una recepción puede quedar con la factura **pendiente** (no llegó) o
+**por revisar** (capturada, sin confirmar) sin perder la mercadería recibida; el sistema señala lo pendiente y no
+registra impuestos ni pagos sin confirmar. Las cinco opciones del pedido y el diseño se conservan.
+
+**Lo que trae esta versión (detalle en `docs/DECISIONS.md`, D-041):**
+- `supabase/migrations/0029_recibir_pago.sql` (solo agrega) y `0030_facturas_archivo.sql` (Storage, opcional).
+- `website/inventory.html`: en **Recibir**, la sección «Factura y pago» (estado de la factura, foto / archivo / XML,
+  «Leer la factura» con corrección a mano, moneda y tipo de cambio, subtotal e IVA frente al costo recibido, uno o
+  varios pagos, encargado y PIN); la tarjeta «Pendiente con proveedores»; «Detalles» en los pedidos recibidos
+  (entregas, factura, pagos, retiro de caja, archivos, adjuntar, registrar la factura, registrar un pago); búsqueda de
+  pedidos recibidos por proveedor y mes. `website/accounting.html` solo nombra los dos métodos de tarjeta;
+  `website/lang.js` trae los textos en español.
+- Pruebas: SQL `320_receive_settle` (83) y `330_purchase_docs` (31), `240_release_check` ampliada; navegador
+  `290_receive` (4 escenarios); ensayo de migraciones con 0029 y 0030; `anonimizar.sql`, `backup.sh` y `ensayo.sh`
+  del kit privado actualizados (E-26).
+
+**Cómo funciona el dinero:** un pago en efectivo de la caja es un retiro (`payout`) del día abierto, con PIN, igual
+que en el POS; si la factura todavía no está, queda anotado en la entrega y se documenta al confirmar. Bancos y
+tarjetas solo con la factura confirmada. Confirmar asienta la factura como hasta hoy (IVA a 1140, diferencia de
+precio a 5103, proveedor en 2101) y cada pago desde su cuenta (1104 caja, 1110 banco, 2120 tarjeta de crédito).
+Todo lo de una recepción se guarda en **una** transacción con el id de la entrega: un doble toque o un reintento no
+duplica nada, y un rechazo (caja cerrada, PIN malo, pago mayor que la factura, factura repetida) no guarda nada.
+
+**Límites (ver también D-041):** las versiones de las librerías de lectura se fijaron sin poder alcanzar el CDN
+desde el entorno de desarrollo (E-27 las comprueba; si una falta, solo se apaga «Leer la factura» y se escribe a
+mano); la lectura de fotos descarga su modelo en español la primera vez en cada aparato; una factura en dólares se
+paga en colones al tipo de cambio de la factura (sin diferencia cambiaria hasta A-06); desde esta página no se anula
+una entrega ni una factura confirmada (reversiones desde Contabilidad); máximo 3 archivos de 10 MB por entrega, sin
+reemplazo ni borrado.
+
+**Pasos para aprobar el despliegue (en este orden; nada de esto lo ejecuta el desarrollo):**
+1. Revisar la rama `claude/hanging-garden-coffee-proposal-1m8zd4` (PR #1) con CI en verde y responder «apruebo».
+2. «Ensayo en pruebas» con esa versión: destino `desechable`, vaciar `no`, **reinicio `no`** (producción ya pasó la
+   ventana); debe terminar en verde aplicando 0029 y 0030 (docs/PRUEBAS.md).
+3. «Respaldo inmediato» en verde (y, si ya se resolvió, la llave privada de E-24 confirmada).
+4. SQL Editor, fuera de horario: pegar `0029_recibir_pago.sql` → *Success*; luego `0030_facturas_archivo.sql` →
+   *Success* (si dice "must be owner of table objects", parar ahí: todo funciona menos adjuntar el archivo).
+5. `supabase/tools/release-check.sql`: `migrations_optional_missing` = `[]`, `purchase_upload_rule_current` = `true`,
+   `functions_missing` = `[]`.
+6. Crear la etiqueta `v…` sobre el commit aprobado y correr «Publish website (PRODUCTION · manual only)»
+   (docs/PUBLICAR.md). Recargar Inventario en una tableta: debe aparecer «Pendiente con proveedores».
+7. Subir a `canopy-respaldos` los tres archivos de `ops/backup/repositorio-respaldos/` (E-26) y comprobar las dos
+   direcciones de las librerías (E-27); pedir al contador la confirmación de las cuentas de tarjeta (A-12).

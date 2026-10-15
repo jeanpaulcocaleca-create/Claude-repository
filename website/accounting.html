@@ -1142,7 +1142,7 @@ $('xCsv').addEventListener('click', function(){
 });
 
 /* ---------- suppliers: invoices linked to deliveries, payments, what is owed ---------- */
-var AP = null, viReq = null, vpReq = null, PAID_FROM = {cash: 'Safe', petty: 'Petty cash', bank: 'Bank', payout: 'Register payout'};
+var AP = null, viReq = null, vpReq = null, PAID_FROM = {cash: 'Safe', petty: 'Petty cash', bank: 'Bank', payout: 'Register payout', card_debit: 'Debit card', card_credit: 'Credit card'};
 async function loadPayables(){
   if (!$('viDate').value){ $('viDate').value = today(); $('vpDate').value = today(); }
   viReq = viReq || uuid(); vpReq = vpReq || uuid();

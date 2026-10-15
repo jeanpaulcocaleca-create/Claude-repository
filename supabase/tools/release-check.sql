@@ -11,9 +11,12 @@
 --   * tablas expuestas sin RLS (debe estar vacío);
 --   * Storage (storage_buckets_missing y storage_policies_missing deben estar vacíos, receipt_upload_rule_current en
 --     true): el depósito de facturas de gastos y sus dos reglas (desde la 0015), la regla de subida de la 0025, y las
---     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene).
+--     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene);
+--     desde la 0030, el depósito de facturas de entregas (purchase-invoices), sus dos reglas y purchase_upload_rule_current;
+--   * migrations_optional_missing: la 0030 (Storage) puede esperar; se lista aparte y no cuenta como faltante.
 -- =====================================================================================================
-with expected as (select generate_series(0, 28) as v),
+with expected as (select generate_series(0, 29) as v),
+optional(v) as (values (30)),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),
@@ -24,13 +27,15 @@ needed(fn) as (values
   ('supplier_invoice_save'), ('supplier_payment_save'), ('ap_aging'), ('iva_report'), ('inventory_valuation'), ('product_profitability'),
   ('einvoice_list'), ('register_cash_move'), ('register_cash_moves'), ('cash_reconciliation'), ('cash_payouts'),
   ('bank_overview'), ('bank_import'), ('bank_post'), ('timesheet'), ('timesheet_approve'), ('payroll_prepare'), ('payroll_post'), ('labor_cost'), ('payroll_month_report'), ('aguinaldo_estimate'),
-  ('dashboard_today'), ('sales_patterns'), ('trends_monthly'), ('supplier_insights'), ('stock_forecast')),
+  ('dashboard_today'), ('sales_patterns'), ('trends_monthly'), ('supplier_insights'), ('stock_forecast'),
+  ('po_receive_and_settle'), ('po_receipt_settle'), ('po_receipt_pay'), ('po_history'), ('po_pending')),
 menu_photos as (select exists (select 1 from storage.buckets where id = 'menu-photos') as present),
 storage_rules(name) as (select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects')
 select jsonb_pretty(jsonb_build_object(
   'checked_at', now(),
   'migrations_applied', (select coalesce(jsonb_agg(version order by version), '[]') from applied),
   'migrations_missing', (select coalesce(jsonb_agg(v order by v), '[]') from expected where v not in (select version from applied)),
+  'migrations_optional_missing', (select coalesce(jsonb_agg(v order by v), '[]') from optional where v not in (select version from applied)),
   'settings', (select coalesce(jsonb_object_agg(d.key, coalesce(s.value, d.default_value)), '{}')
                  from canopy.setting_defs d left join public.settings s on s.key = d.key),
   'confirmations', (select coalesce(jsonb_agg(jsonb_build_object('key', key, 'by', confirmed_by, 'at', confirmed_at) order by key), '[]')
@@ -48,14 +53,19 @@ select jsonb_pretty(jsonb_build_object(
       select count(*) from (select entry_id from acct.lines group by entry_id having sum(debit) <> sum(credit)) u)),
   'backups_last_ok', (select max(finished_at) from canopy.backup_runs where status = 'ok'),
   'menu_photos_bucket', (select present from menu_photos),
-  'storage_buckets_missing', (select coalesce(jsonb_agg(b order by b), '[]') from (values ('expense-receipts')) x(b)
-                               where 15 in (select version from applied) and not exists (select 1 from storage.buckets where id = x.b)),
+  'storage_buckets_missing', (select coalesce(jsonb_agg(b order by b), '[]') from (values ('expense-receipts', 15), ('purchase-invoices', 30)) x(b, since)
+                               where since in (select version from applied) and not exists (select 1 from storage.buckets where id = x.b)),
   'storage_policies_missing', (select coalesce(jsonb_agg(p order by p), '[]') from (values
                                  ('expense receipts read', 15 in (select version from applied)), ('expense receipts add', 15 in (select version from applied)),
-                                 ('menu photos read', (select present from menu_photos)), ('menu photos owner write', (select present from menu_photos))) x(p, wanted)
+                                 ('menu photos read', (select present from menu_photos)), ('menu photos owner write', (select present from menu_photos)),
+                                 ('purchase invoices read', 30 in (select version from applied)), ('purchase invoices add', 30 in (select version from applied))) x(p, wanted)
                                 where wanted and p not in (select name from storage_rules)),
   -- 0025: uploads only into the folder of an expense that has no file yet
   'receipt_upload_rule_current', (select case when 25 in (select version from applied) then coalesce((
       select strpos(with_check, '_receipt_slot_open') > 0 from pg_policies
-       where schemaname = 'storage' and tablename = 'objects' and policyname = 'expense receipts add'), false) end)
+       where schemaname = 'storage' and tablename = 'objects' and policyname = 'expense receipts add'), false) end),
+  -- 0030: uploads only into the folder of a recent delivery with room for the file
+  'purchase_upload_rule_current', (select case when 30 in (select version from applied) then coalesce((
+      select strpos(with_check, '_purchase_doc_slot_open') > 0 from pg_policies
+       where schemaname = 'storage' and tablename = 'objects' and policyname = 'purchase invoices add'), false) end)
 )) as release_check;

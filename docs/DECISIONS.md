@@ -1023,3 +1023,58 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `release-check.sql` and `consistency-check.sql` (`orders_before_reset` = 0), E-24, A-11, approvals 5 and 6 another
   night, and a `docs/RESPALDOS.md` follow-up: store the whole key file and verify a decrypt from the stored copy before
   deleting the original.
+
+## D-041 · 2026-10-15 · Receive a delivery with the supplier invoice and the payment (0029, 0030, the Orders tab)
+- **Approved by the owner (2026-10-15)** on the audited proposal `docs/RECIBIR-PEDIDO.md`, with five decisions:
+  payments are recorded by an authorized manager with their PIN; debit card and credit card are separate methods;
+  invoices in colones or dollars, with the exchange rate typed and kept; the invoice can be photographed from any
+  authorized phone or iPad; Hacienda's XML is accepted when available, never required. A delivery may stay with its
+  invoice pending (not here yet) or to review (captured, not confirmed) without losing the goods received; nothing
+  reaches the books, the IVA credit or the payables until the invoice is confirmed. The five order options and the
+  page's design stay; no other module changed beyond the connections listed below.
+- **What this commit adds.** *Migration 0029 (`recibir_pago`, adds only):* account `2120 Tarjeta de crédito por pagar`
+  and the mappings `from_card_debit` → 1110, `from_card_credit` → 2120 (the accountant confirms them: A-12);
+  `supplier_payments.paid_from` accepts `card_debit` / `card_credit` and `supplier_payment_save` posts them;
+  `supplier_invoices` gains `currency`, `fx_rate`, `net_fx`, `iva_fx` (a dollar invoice is valued in colones at the
+  typed rate, 100–2000, and the books stay in colones); `purchase_receipts` gains `invoice_status`
+  (pending / review / confirmed; existing receipts with an invoice are backfilled as confirmed), `invoice_draft`
+  (what was captured, as data, never posted), `payout_id`, `settled_at`, `settled_by`; table
+  `purchase_receipt_files`; functions `po_receive_and_settle` (the delivery plus the invoice and the payments in ONE
+  transaction, keyed by the receipt id: a double tap or a retry never doubles anything; any refusal — register not
+  open, wrong PIN, more paid than invoiced, a duplicate invoice — rolls the whole delivery back), `po_receipt_settle`
+  (the invoice and payments of a delivery already saved; `pending` and `review` allow at most one cash payout from the
+  register, documented later at confirmation), `po_receipt_pay` (more payments on a confirmed invoice),
+  `po_history` and `po_pending`. Confirming reuses `supplier_invoice_save` (IVA to 1140, price variance to 5103,
+  AP 2101) and `supplier_payment_save`; cash from the register reuses `register_cash_move` (a `payout` on the open
+  register, PIN-checked), so the drawer count and the POS cash movements see it as before. *Migration 0030
+  (`facturas_archivo`, optional, Storage):* private bucket `purchase-invoices` (3 files per delivery, 10 MB, image /
+  PDF / XML, never replaced or deleted), rules for the owner with the phone code, the accountant and a café login with
+  a live manager unlock (`_login_unlocked`: Storage never receives the PIN header), `purchase_doc_attach`. It is a
+  separate file because it touches Storage's tables, which the SQL Editor account may not own: if it fails, everything
+  of 0029 works except attaching the file. *Page:* `website/inventory.html` only — the receive window gains the
+  «Factura y pago» section (status, photo / file / XML, read with correction, currency and rate, subtotal and IVA with
+  the received cost and the difference, one or more payments, manager and PIN), a «Pendiente con proveedores» card
+  (deliveries waiting for their invoice, open invoices with due dates, what is owed), «Detalles» on received orders
+  (deliveries, invoice, payments, payout, files with a signed link, attach, register the invoice, record a payment) and
+  a vendor / month search of received orders. `website/accounting.html` only labels the two card methods;
+  `website/lang.js` gets the Spanish strings and lets a line with an English date go through the part-by-part rules.
+  Reading: the XML exactly as data (the same reader as Contabilidad); a PDF with text through pdf.js and a photo
+  through tesseract.js (Spanish), both loaded only when «Leer la factura» is tapped, from jsDelivr like supabase-js
+  (lint rule 13 pins the versions); every read value is a suggestion the person checks and confirms.
+- **Tests:** `320_receive_settle` (83), `330_purchase_docs` (31), `240_release_check` extended (0030 optional, bucket
+  and rules), browser `290_receive` (4: a café device with a manager PIN reading the XML and paying from the register
+  then by bank, a pending invoice registered later with a double tap, three refusals that save nothing, a dollar
+  invoice with its photo shown from the history and the page's answer when the reader library cannot load); the
+  rehearsal applies 0029 and 0030 after 0028 (`compare.py`: no optional migration missing, the upload rule current);
+  `anonimizar.sql` knows the new columns (the draft's names and notes, the file paths); the nightly backup copies the
+  new bucket (`PRIVATE_BUCKETS`); `ensayo.sh` clears it in the staging copy.
+- **Limits, stated:** the reader versions (`pdfjs-dist@3.11.174`, `tesseract.js@5.1.1`) were pinned without reaching
+  the CDN from the development environment (E-27 checks the two addresses once; a missing one only disables reading,
+  the page says so and typing works); the photo reader downloads its Spanish model (a few MB) the first time on each
+  device; a dollar invoice is paid in colones at the invoice's rate (no exchange difference until A-06); confirming an
+  invoice posts it as 0016 always did, whatever the daily auto-post setting says, and the invoice's IVA goes to 1140
+  on confirmation; a delivery or a confirmed invoice is not voided from this page (reversals from Contabilidad, as
+  before); a payout taken before the invoice shows as pending until the invoice is confirmed or the payout is voided
+  at the POS.
+- **Not done, by the owner's instruction:** 0029 and 0030 are files only (E-25); the site is not published; no
+  accounting setting changed (the new account and mappings are additions, A-12).
