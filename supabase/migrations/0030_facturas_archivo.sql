@@ -9,7 +9,8 @@
 --     desbloqueo con PIN de encargado vigente (Storage no recibe el encabezado del PIN que ven las demás reglas:
 --     por eso la regla mira el desbloqueo del ingreso en access_unlocks). Subir, además, solo a la carpeta de una
 --     entrega de los últimos 90 días que tenga menos de 3 archivos.
---   * purchase_doc_attach: registra el archivo en la entrega (purchase_receipt_files, tabla de la 0029).
+--   * purchase_doc_attach: registra el archivo en la entrega (purchase_receipt_files, tabla de la 0029); de paso registra
+--     cualquier archivo de esa entrega que llegó al depósito sin quedar anotado (conexión débil).
 --   * Va aparte de la 0029 porque crea reglas en las tablas de Storage, que la cuenta del SQL Editor no posee: si
 --     este archivo fallara, todo lo de la 0029 sigue funcionando, menos adjuntar el archivo.
 -- Qué cambia para el personal: en «Recibir» y en el historial del pedido aparecen «Tomar foto» y «Elegir archivo».
@@ -56,6 +57,12 @@ begin
   select * into r from public.purchase_receipts where id = p_receipt_id for update;
   if r.id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   if coalesce(p_path, '') !~ ('^' || r.id::text || '/[A-Za-z0-9._-]{1,120}$') then return jsonb_build_object('ok', false, 'error', 'bad_path'); end if;
+  -- files that reached Storage but whose registration was lost (a weak connection): registered now, oldest first
+  insert into public.purchase_receipt_files (receipt_id, path, kind, by_name)
+    select r.id, o.name, case when o.name ~* '\.pdf$' then 'pdf' when o.name ~* '\.xml$' then 'xml' when o.name ~* '\.(jpe?g|png|webp)$' then 'image' else 'other' end, public._inv_actor()
+      from storage.objects o where o.bucket_id = 'purchase-invoices' and split_part(o.name, '/', 1) = r.id::text
+       and o.name <> p_path and not exists (select 1 from public.purchase_receipt_files f where f.path = o.name)
+     order by o.created_at limit greatest(0, 3 - (select count(*) from public.purchase_receipt_files f where f.receipt_id = r.id));
   if exists (select 1 from public.purchase_receipt_files where path = p_path) then return jsonb_build_object('ok', true, 'repeat', true); end if;
   select count(*) into n from public.purchase_receipt_files where receipt_id = r.id;
   if n >= 3 then return jsonb_build_object('ok', false, 'error', 'too_many'); end if;

@@ -1252,7 +1252,7 @@ $('viXml').addEventListener('change', async function(){
   this.value = '';
   if (x.error){ msg.textContent = x.error === 'not_xml' ? 'That file is not an XML file.' : 'That file is not an electronic invoice from Hacienda.'; return; }
   if (x.kind === 'NotaCreditoElectronica' || x.kind === 'NotaDebitoElectronica'){ msg.textContent = 'That is a credit or debit note, not an invoice: record it by hand with the accountant.'; return; }
-  if (x.currency !== 'CRC'){ msg.textContent = 'This invoice is in ' + x.currency + '. Invoices in dollars are not recorded here yet: ask the accountant.'; return; }
+  if (x.currency !== 'CRC'){ msg.textContent = 'This invoice is in ' + x.currency + '. Invoices in dollars are recorded from Inventario → Pedidos → Recibir, with their exchange rate.'; return; }
   $('viNum').value = x.number || x.key; $('viDate').value = x.date || $('viDate').value;
   $('viNet').value = x.net; $('viIva').value = x.tax - x.otherTax;
   var want = plain(x.vendor), match = AP ? AP.vendor_list.filter(function(v){ var n = plain(v.name); return n && want && (n === want || want.indexOf(n) >= 0 || n.indexOf(want) >= 0); }) : [];

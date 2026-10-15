@@ -80,9 +80,9 @@ module.exports.tests = [
     run: async ({ browser }) => {
       setup(); openRegister();
       const pg = await orders(browser, { login: 'cafe', lang: 'es' });
-      assert.match(await pg.locator('#pendOwed').textContent(), /No se debe nada/, 'nothing owed yet, in Spanish');
+      await until(async () => /No se debe nada/.test(await text(pg.locator('#pendOwed'))), 5000, 'nothing owed yet, in Spanish');   // the translation runs a frame later
       await openReceive(pg);
-      assert.strictEqual(await pg.locator('#recvGo').textContent(), 'Confirmar recepción');
+      await until(async () => (await text(pg.locator('#recvGo'))) === 'Confirmar recepción', 5000, 'the button, in Spanish');
       await pg.locator('#recvTable [data-f=qty]').fill('20');
       await pg.setInputFiles('#rvFile', { name: 'factura.xml', mimeType: 'text/xml', buffer: Buffer.from(xml(today())) });
       await until(async () => (await pg.inputValue('#recvInv')) === '00100001010000000123', 5000, 'the number read from the XML');
@@ -90,7 +90,7 @@ module.exports.tests = [
       assert.strictEqual(await pg.inputValue('#rvNet'), '6000');
       assert.strictEqual(await pg.inputValue('#rvIva'), '780');
       assert.strictEqual(await pg.inputValue('#rvMode'), 'review', 'a read invoice waits for a human');
-      assert.match(await pg.locator('#rvReadMsg').textContent(), /Leído del XML/);
+      await until(async () => /Leído del XML/.test(await text(pg.locator('#rvReadMsg'))), 5000, 'the read note, in Spanish');
       await pg.selectOption('#rvMode', 'confirm');
       await payRow(pg, 'register', 2000);
       await until(async () => /Pagado: ₡2 000 · Saldo: ₡4 780/.test(await text(pg.locator('#rvPaySum'))), 5000, 'the balance, in Spanish');
@@ -110,7 +110,7 @@ module.exports.tests = [
       await until(async () => /pendiente ₡4 780/.test(await text(pg.locator('#pendInvoices'))), 8000, 'the open invoice listed');
       await pg.locator('#pendInvoices button', { hasText: /^Registrar pago$/ }).click();
       await pg.waitForSelector('#recvModal:not([hidden])', { timeout: 5000 });
-      assert.match(await pg.locator('#recvTitle').textContent(), /^Registrar un pago · Nº/);
+      await until(async () => /^Registrar un pago · Nº/.test(await text(pg.locator('#recvTitle'))), 5000, 'the pay window title, in Spanish');
       // the page proposes one row with the whole open amount from the register: pay it by bank instead
       const row = pg.locator('#rvPays .rv-pay');
       await until(async () => (await row.count()) === 1 && (await row.locator('.rv-amount').inputValue()) === '4780', 5000, 'the open amount proposed');
@@ -221,7 +221,7 @@ module.exports.tests = [
       await pg.click('#recvGo');
       await toasted(pg, /Invoice confirmed · paid ₡0 · open ₡5 876/, 'confirmed in colones');
       assert.strictEqual(sql(`select currency || '|' || fx_rate || '|' || net_fx || '|' || iva_fx || '|' || net_crc || '|' || iva_crc || '|' || total_crc from supplier_invoices`), 'USD|520.00|10.00|1.30|5200.00|676.00|5876.00');
-      assert.strictEqual(sql(`select kind || '|' || path from purchase_receipt_files`), 'image|' + sql(`select id from purchase_receipts`) + '/factura-1.jpg');
+      assert.match(sql(`select kind || '|' || path from purchase_receipt_files`), new RegExp('^image\\|' + sql(`select id from purchase_receipts`) + '/factura-1-[a-z0-9]{1,6}\\.jpg$'), 'the photo, with its own name, registered on the delivery');
       await until(async () => (await pg.locator('#poDone .po').count()) > 0, 8000, 'in received orders');
       await pg.locator('#poDone .po').first().locator('button', { hasText: /^Details$/ }).click();
       await pg.waitForSelector('#histModal:not([hidden])', { timeout: 5000 });
@@ -229,6 +229,31 @@ module.exports.tests = [
       await pg.locator('#histBody button', { hasText: /^View file 1$/ }).click();
       await until(async () => (await pg.locator('#histPreview img').count()) === 1, 8000, 'the photo shows');
       assert.match(await pg.locator('#histPreview img').getAttribute('src'), /\/object\/sign\/purchase-invoices\//);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'without migration 0030 the file buttons stay hidden and the page says why; receiving and confirming still work',
+    run: async ({ browser }) => {
+      setup();
+      sql(`drop function public.purchase_doc_attach(uuid, text); notify pgrst, 'reload schema'`);
+      await new Promise((r) => setTimeout(r, 1500));   // PostgREST reloads its schema cache on the notice
+      const pg = await orders(browser);
+      await openReceive(pg);
+      assert.strictEqual(await pg.locator('#rvCamBtn').isVisible(), false, 'no camera button');
+      assert.strictEqual(await pg.locator('#rvFileBtn').isVisible(), false, 'no file button');
+      assert.match(await text(pg.locator('#rvFiles')), /database update 0030/);
+      await pg.locator('#recvTable [data-f=qty]').fill('20');
+      await pg.fill('#recvInv', 'N-30');
+      await pg.fill('#recvInvDate', today());
+      await pg.selectOption('#rvMode', 'confirm');
+      await pg.fill('#rvNet', '6000'); await pg.fill('#rvIva', '780');
+      await pg.click('#recvGo');
+      await toasted(pg, /Invoice confirmed · paid ₡0 · open ₡6 780/, 'confirmed without 0030');
+      await until(async () => (await pg.locator('#poDone .po').count()) > 0, 8000, 'in received orders');
+      await pg.locator('#poDone .po').first().locator('button', { hasText: /^Details$/ }).click();
+      await pg.waitForSelector('#histModal:not([hidden])', { timeout: 5000 });
+      assert.strictEqual(await pg.locator('#histBody button', { hasText: /^Attach invoice$/ }).count(), 0, 'no attach button either');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

@@ -447,7 +447,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
         <p class="hint" id="rvReadMsg"></p>
         <div class="row"><div><label for="rvDue">Due date</label><input id="rvDue" type="date"></div><div><label for="rvCur">Currency</label><select id="rvCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div></div>
         <div class="row" id="rvFxRow" hidden><div><label for="rvFx">Exchange rate (₡ per $)</label><input id="rvFx" type="number" min="100" max="2000" step="0.01"></div><div></div></div>
-        <div class="row"><div><label for="rvNet">Subtotal (without IVA)</label><input id="rvNet" type="number" min="0" step="0.01" data-keypad="amount"></div><div><label for="rvIva">IVA</label><input id="rvIva" type="number" min="0" step="0.01" data-keypad="amount"></div></div>
+        <div class="row"><div><label for="rvNet">Subtotal (without IVA)</label><input id="rvNet" type="number" min="0" step="0.01" data-keypad="qty"></div><div><label for="rvIva">IVA</label><input id="rvIva" type="number" min="0" step="0.01" data-keypad="qty"></div></div>
         <p class="hint" id="rvTotals"></p>
       </div>
       <div id="rvPayBox">
@@ -1022,7 +1022,7 @@ function printPo(p, v){
 }
 var recvTarget = null, recvReq = null;
 function openRecv(p){
-  recvMode = 'receive'; recvReceipt = null; recvTarget = p; recvReq = storedReq(recvKey(p.id)); var tb = $('recvTable').querySelector('tbody'); tb.replaceChildren();
+  recvMode = 'receive'; recvReceipt = null; recvTarget = p; recvReq = storedReq(recvKey(p)); var tb = $('recvTable').querySelector('tbody'); tb.replaceChildren();
   (p.purchase_lines || []).forEach(function(l){
     var i = byId[l.item_id]; if (!i) return;
     var already = Number(l.received_qty || 0), left = Math.max(0, Number(l.qty) - already);
@@ -1096,20 +1096,27 @@ $('recvForm').addEventListener('submit', async function(e){
     } else if (recvMode === 'settle'){
       r = await db.rpc('po_receipt_settle', {p_receipt_id: recvReceipt.id, p_invoice: c.invoice, p_payments: c.payments, p_manager_id: withPin ? c.mgr : null, p_pin: withPin ? c.pin : null});
     } else {
-      r = await db.rpc('po_receipt_pay', {p_receipt_id: recvReceipt.id, p_payments: c.payments, p_request_id: storedReq('hg-pay-' + recvReceipt.id), p_manager_id: c.mgr, p_pin: c.pin, p_station: stationName()});
+      r = await db.rpc('po_receipt_pay', {p_receipt_id: recvReceipt.id, p_payments: c.payments, p_request_id: payReq, p_manager_id: c.mgr, p_pin: c.pin, p_station: stationName()});
     }
     if (r.error || !r.data || !r.data.ok){
       var why = r.data && r.data.error, step = r.data && r.data.step;
       $('recvErr').textContent = r.error ? 'Could not save. Check the connection and try again.' : recvErrText(why, step);
-      if (why === 'already_received'){ dropReq(recvKey(recvTarget.id)); loadAll(); }
+      if (why === 'locked' && step !== 'pin' && window.HG_ACCESS) HG_ACCESS.gate(db, {title: 'Inventory · owners and managers'}).then(function(){ $('recvErr').textContent = ''; });
+      if (why === 'already_received'){ dropReq(recvKey(recvTarget)); loadAll(); }
       if (why === 'already_confirmed') loadAll();
       return;
     }
     var receiptId = recvMode === 'receive' ? recvReq : recvReceipt.id;
-    if (recvMode === 'receive') dropReq(recvKey(recvTarget.id)); else if (recvMode === 'pay') dropReq('hg-pay-' + recvReceipt.id);
+    if (recvMode === 'receive') dropReq(recvKey(recvTarget));
     $('rvPin').value = '';
     var failed = rvFileList.length ? await uploadRvFiles(receiptId, recvReceipt && recvReceipt.files ? recvReceipt.files.length : 0) : 0;
     $('recvModal').hidden = true;
+    if (r.data.repeat){
+      toast(recvMode === 'pay' ? 'That payment was already recorded earlier: nothing new was recorded. Check the balance before recording another one.'
+          : recvMode === 'settle' ? 'That invoice was already confirmed earlier: nothing new was recorded.'
+          : 'That delivery was already saved earlier: nothing new was recorded. Check it in Details.');
+      loadAll(); return;
+    }
     var msg = recvMode === 'pay' ? 'Payment recorded · open ' + fmt(r.data.open_crc)
             : r.data.invoice_status === 'confirmed' ? 'Invoice confirmed · paid ' + fmt(r.data.paid_crc) + ' · open ' + fmt(r.data.open_crc)
             : r.data.invoice_status === 'review' ? 'Saved · the invoice waits to be reviewed'
@@ -1275,12 +1282,14 @@ $('csvMonthBtn').addEventListener('click', function(){
    the payment), 'settle' (the invoice and the payment of a delivery already saved) and 'pay' (another payment on a
    confirmed invoice). Everything the server saves is one transaction keyed by the delivery id, so a double tap or a
    retry after a lost answer never doubles anything. */
-var SETTLE_OK = null, PEND = null, MGRS = null, recvMode = 'receive', recvReceipt = null, recvBusy = false, rvFileList = [], FX_TODAY = null;
+var SETTLE_OK = null, DOCS_OK = null, PEND = null, MGRS = null, recvMode = 'receive', recvReceipt = null, recvBusy = false, rvFileList = [], FX_TODAY = null;
+/* rvGen changes every time the window is reset: a slow read or lookup that finishes later writes nothing into another order's form */
+var rvGen = 0, payReq = null;
 var PAY_LABEL = {register: 'Cash from the register drawer', cash: 'Cash from the safe', bank: 'SINPE or bank transfer', card_debit: 'Debit card', card_credit: 'Credit card', payout: 'Cash from the register drawer'};
 var INV_STATUS = {pending: 'Invoice pending', review: 'Invoice to review', confirmed: 'Invoice confirmed'};
 var READERS = {pdf: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', pdfWorker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
                ocr: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'};
-function recvKey(id){ return 'hg-recv-' + id; }
+function recvKey(p){ return 'hg-recv-' + p.id + ':' + (p.purchase_lines || []).reduce(function(s, l){ return s + Number(l.received_qty || 0); }, 0); }
 function storedReq(key){ var v = null; try { v = sessionStorage.getItem(key); } catch (e) {} if (!v){ v = uuid(); try { sessionStorage.setItem(key, v); } catch (e) {} } return v; }
 function dropReq(key){ try { sessionStorage.removeItem(key); } catch (e) {} }
 function stationName(){ try { var s = JSON.parse(localStorage.getItem('hg-pos-station') || 'null'); return s && s.name ? String(s.name) : null; } catch (e) { return null; } }
@@ -1292,10 +1301,15 @@ function plusDays(iso, n){ var d = new Date(iso + 'T12:00:00'); d.setDate(d.getD
 /* what is pending with suppliers; also tells whether the database has 0029 */
 async function loadPending(){
   var r = await db.rpc('po_pending');
-  if (r.error){ SETTLE_OK = !isMissing(r.error) && !(r.error.code === 'PGRST202'); PEND = null; }
-  else { SETTLE_OK = true; PEND = r.data && r.data.ok ? r.data : null; }
+  SETTLE_OK = r.error ? !isMissing(r.error) && !(r.error.code === 'PGRST202') : true;
+  if (SETTLE_OK && DOCS_OK === null){   /* 0030 (the file bucket) is optional: without it the file buttons stay hidden */
+    var d = await db.rpc('purchase_doc_attach', {p_receipt_id: null, p_path: null});
+    DOCS_OK = !(d.error && (d.error.code === 'PGRST202' || d.error.code === '42883' || /Could not find the function|does not exist/i.test(d.error.message || '')));
+  }
   $('pendCard').hidden = !SETTLE_OK; $('doneTools').hidden = !SETTLE_OK;
-  if (SETTLE_OK) renderPending();
+  if (!SETTLE_OK) return;
+  if (r.error || !r.data || !r.data.ok){ if (PEND) renderPending(); $('pendOwed').textContent = 'Could not load what is pending with suppliers. Check the connection.'; return; }
+  PEND = r.data; renderPending();
 }
 function renderPending(){
   var rb = $('pendReceipts'), ib = $('pendInvoices'); rb.replaceChildren(); ib.replaceChildren();
@@ -1330,6 +1344,7 @@ function renderPending(){
 async function loadManagers(){
   if (MGRS) return MGRS;
   var r = await db.from('staff').select('id,name,role').eq('active', true).in('role', ['owner', 'manager']).order('name');
+  if (r.error) return [];
   MGRS = (r.data || []); return MGRS;
 }
 async function fillMgrs(){
@@ -1342,8 +1357,10 @@ async function fillMgrs(){
 
 /* the invoice and payment section: reset, collect, validate, totals */
 function resetRv(opts){
-  opts = opts || {};
+  opts = opts || {}; rvGen++;
   rvFileList = []; renderRvFiles(); $('rvReadMsg').textContent = ''; $('rvRead').hidden = true;
+  $('rvCamBtn').hidden = $('rvFileBtn').hidden = !DOCS_OK;
+  if (!DOCS_OK) $('rvFiles').textContent = 'Attaching the invoice file needs database update 0030: type the invoice and keep the paper.';
   $('rvMode').value = opts.mode || 'pending';
   $('rvDue').value = plusDays(todayIso(), 30); $('rvCur').value = 'CRC'; $('rvFx').value = '';
   $('rvNet').value = ''; $('rvIva').value = ''; $('rvFxRow').hidden = true;
@@ -1369,7 +1386,7 @@ function addPayRow(method, amount, ref){
   var sel = document.createElement('select'); sel.className = 'rv-method';
   ['register', 'cash', 'bank', 'card_debit', 'card_credit'].forEach(function(k){ var o = document.createElement('option'); o.value = k; o.textContent = PAY_LABEL[k]; sel.appendChild(o); });
   sel.value = method || 'register';
-  var amt = document.createElement('input'); amt.type = 'number'; amt.min = '0'; amt.step = '1'; amt.className = 'rv-amount'; amt.placeholder = 'Amount (₡)'; amt.setAttribute('data-keypad', 'amount'); if (amount) amt.value = amount;
+  var amt = document.createElement('input'); amt.type = 'number'; amt.min = '0'; amt.step = '0.01'; amt.className = 'rv-amount'; amt.placeholder = 'Amount (₡)'; amt.setAttribute('data-keypad', 'qty'); if (amount) amt.value = amount;
   var rf = document.createElement('input'); rf.className = 'rv-ref'; rf.maxLength = 80; rf.placeholder = 'Reference (optional)'; if (ref) rf.value = ref;
   var x = actBtn('Remove', function(){ row.remove(); updateTotals(); });
   [sel, amt].forEach(function(el){ el.addEventListener('input', updateTotals); el.addEventListener('change', updateTotals); });
@@ -1382,7 +1399,7 @@ $('rvAddPay').addEventListener('click', function(){ addPayRow('register'); });
 function rvPayments(){
   var out = [];
   $('rvPays').querySelectorAll('.rv-pay').forEach(function(row){
-    var amt = Math.round(Number(row.querySelector('.rv-amount').value) || 0);
+    var amt = Math.round((Number(row.querySelector('.rv-amount').value) || 0) * 100) / 100;
     if (amt > 0) out.push({method: row.querySelector('.rv-method').value, amount_crc: amt, reference: row.querySelector('.rv-ref').value.trim() || null});
   });
   return out;
@@ -1404,7 +1421,8 @@ function rvInvoiceTotals(){
   var cur = $('rvCur').value, fx = Number($('rvFx').value) || 0;
   var net = Number($('rvNet').value) || 0, iva = Number($('rvIva').value) || 0;
   var k = cur === 'USD' ? fx : 1;
-  return {cur: cur, fx: fx, net: net, iva: iva, total: net + iva, totalCrc: Math.round((net + iva) * k * 100) / 100, netCrc: Math.round(net * k * 100) / 100};
+  var netCrc = Math.round(net * k * 100) / 100, ivaCrc = Math.round(iva * k * 100) / 100;
+  return {cur: cur, fx: fx, net: net, iva: iva, total: net + iva, totalCrc: Math.round((netCrc + ivaCrc) * 100) / 100, netCrc: netCrc};
 }
 function updateTotals(){
   var t = rvInvoiceTotals(), pays = rvPayments(), paid = pays.reduce(function(s, p){ return s + p.amount_crc; }, 0);
@@ -1434,8 +1452,9 @@ function updateTotals(){
 $('rvCur').addEventListener('change', async function(){
   $('rvFxRow').hidden = this.value !== 'USD';
   if (this.value === 'USD' && !$('rvFx').value){
-    if (!FX_TODAY){ var r = await db.rpc('fx_today'); FX_TODAY = r.error || !r.data || !r.data.ok ? {} : r.data; }
-    if (FX_TODAY.rate) $('rvFx').value = FX_TODAY.rate;
+    var gen = rvGen;
+    if (!FX_TODAY){ var r = await db.rpc('fx_today'); if (!r.error && r.data && r.data.ok) FX_TODAY = r.data; }
+    if (gen === rvGen && FX_TODAY && FX_TODAY.rate && !$('rvFx').value) $('rvFx').value = FX_TODAY.rate;
   }
   updateTotals();
 });
@@ -1455,7 +1474,7 @@ function rvValidate(c){
     if (c.totals.cur === 'USD' && !(c.totals.fx >= 100 && c.totals.fx <= 2000)) return 'Type the exchange rate (₡ per $).';
     if (!$('rvVendorBox').hidden && !c.invoice.vendor_id) return 'Pick the supplier first.';
     var pending = recvReceipt && recvReceipt.payout && !recvReceipt.payout.documented && !recvReceipt.payout.voided ? Number(recvReceipt.payout.amount_crc || 0) : 0;
-    if (paid + pending > c.totals.totalCrc + 0.5) return 'The payments add up to more than the invoice.';
+    if (paid + pending - c.totals.totalCrc >= 1) return 'The payments add up to more than the invoice.';
   } else if (mode !== 'pay' && pays.length){
     if (pays.length > 1 || pays[0].method !== 'register') return 'Bank and card payments need the invoice confirmed first. Only cash from the register can be recorded before.';
     if (recvReceipt && recvReceipt.payout && !recvReceipt.payout.voided) return 'Money from the register was already taken for this delivery. Confirm the invoice to document it.';
@@ -1463,7 +1482,7 @@ function rvValidate(c){
   if (mode === 'pay'){
     if (!pays.length) return 'Add at least one payment.';
     var open = recvReceipt && recvReceipt.invoice ? Number(recvReceipt.invoice.open_crc || 0) : 0;
-    if (paid > open + 0.5) return 'That is more than what is open on this invoice.';
+    if (paid - open >= 1) return 'That is more than what is open on this invoice.';
   }
   if (paid > 0 && (!c.mgr || !c.pin)) return 'A manager must authorize the payment with their PIN.';
   return null;
@@ -1508,12 +1527,16 @@ async function addRvFile(file){
   if (rvFileList.length >= 3){ toast('Three files is the limit for one delivery.'); return; }
   var kind = fileKind(file);
   if (kind === 'other'){ toast('Only a photo, a PDF or the XML of the invoice.'); return; }
-  var blob = file, name = file.name || 'factura', type = file.type || 'application/octet-stream';
-  if (kind === 'image'){ blob = await shrinkImage(file); if (blob !== file){ type = 'image/jpeg'; name = name.replace(/\.[^.]+$/, '') + '.jpg'; } }
+  var gen = rvGen, blob = file, name = file.name || 'factura', type = kind === 'pdf' ? 'application/pdf' : kind === 'xml' ? 'text/xml' : (file.type || '');
+  if (kind === 'image'){
+    blob = await shrinkImage(file); if (gen !== rvGen) return;
+    if (blob !== file){ type = 'image/jpeg'; name = name.replace(/\.[^.]+$/, '') + '.jpg'; }
+    else if (!/^image\/(jpeg|png|webp)$/.test(type)){ toast('That photo format cannot be read by this device: take the photo with the camera button or save it as JPEG.'); return; }
+  }
   if (blob.size > 10 * 1024 * 1024){ toast('That file is over 10 MB.'); return; }
-  rvFileList.push({blob: blob, name: name, type: type, kind: kind});
+  rvFileList.push({blob: blob, name: name, type: type, kind: kind, token: Math.random().toString(36).slice(2, 8)});
   renderRvFiles();
-  if (kind === 'xml') readXml(await file.text());
+  if (kind === 'xml'){ var txt = await file.text(); if (gen === rvGen) readXml(txt); }
 }
 $('rvCamBtn').addEventListener('click', function(){ $('rvCam').click(); });
 $('rvFileBtn').addEventListener('click', function(){ $('rvFile').click(); });
@@ -1536,7 +1559,7 @@ function eInvoiceRead(text){
   return {kind: kind, key: one(root, 'Clave'), number: one(root, 'NumeroConsecutivo'), date: one(root, 'FechaEmision').slice(0, 10),
           vendor: one(emisor, 'Nombre'), vendorId: one(emisor, 'Numero'), currency: one(resumen, 'CodigoMoneda') || 'CRC',
           net: numv(one(resumen, 'TotalVentaNeta')), tax: numv(one(resumen, 'TotalImpuesto')), total: numv(one(resumen, 'TotalComprobante')),
-          charges: numv(one(resumen, 'TotalOtrosCargos')), otherTax: other};
+          charges: numv(one(resumen, 'TotalOtrosCargos')), otherTax: other, fx: numv(one(resumen, 'TipoCambio'))};
 }
 function readXml(text){
   var msg = $('rvReadMsg');
@@ -1545,6 +1568,7 @@ function readXml(text){
   if (x.kind === 'NotaCreditoElectronica' || x.kind === 'NotaDebitoElectronica'){ msg.textContent = 'That is a credit or debit note, not an invoice: record it by hand with the accountant.'; return; }
   $('recvInv').value = x.number || x.key; if (x.date) $('recvInvDate').value = x.date;
   $('rvCur').value = x.currency === 'USD' ? 'USD' : 'CRC'; $('rvFxRow').hidden = $('rvCur').value !== 'USD';
+  if ($('rvCur').value === 'USD' && x.fx >= 100 && x.fx <= 2000) $('rvFx').value = x.fx;   /* the invoice's own rate, not today's */
   if ($('rvCur').value === 'USD' && !$('rvFx').value) $('rvCur').dispatchEvent(new Event('change'));
   $('rvNet').value = x.net; $('rvIva').value = Math.max(0, x.tax - x.otherTax);
   rvSource = 'xml';
@@ -1611,9 +1635,10 @@ async function imageText(blob, onProgress){
 }
 $('rvRead').addEventListener('click', async function(){
   var f = rvFileList.filter(function(x){ return x.kind === 'pdf' || x.kind === 'image'; })[0], msg = $('rvReadMsg'); if (!f) return;
-  var b = this; b.disabled = true; msg.textContent = 'Reading the invoice…';
+  var b = this, gen = rvGen; b.disabled = true; msg.textContent = 'Reading the invoice…';
   try {
-    var text = f.kind === 'pdf' ? await pdfText(f.blob) : await imageText(f.blob, function(p){ msg.textContent = 'Reading the invoice… ' + p + '%'; });
+    var text = f.kind === 'pdf' ? await pdfText(f.blob) : await imageText(f.blob, function(p){ if (gen === rvGen) msg.textContent = 'Reading the invoice… ' + p + '%'; });
+    if (gen !== rvGen) return;
     if (!text || text.trim().length < 10){ msg.textContent = f.kind === 'pdf' ? 'That PDF has no text to read (a scan): type the invoice.' : 'Nothing could be read in the photo: type the invoice.'; return; }
     var x = extractFields(text), notes = [];
     if (x.number){ $('recvInv').value = x.number; } if (x.date){ $('recvInvDate').value = x.date; }
@@ -1629,7 +1654,7 @@ $('rvRead').addEventListener('click', async function(){
         d.appendChild(document.createTextNode(i === 0 ? ' ' : i === n.length - 1 ? (w === 'Type it.' ? '' : '.') : n[i + 1] === 'Type it.' ? '. ' : ', ')); }); return d; }));
     updateTotals();
   } catch (e) {
-    msg.textContent = 'The reader could not be loaded (no internet to the library?). Type the invoice.';
+    if (gen === rvGen) msg.textContent = 'The reader could not be loaded (no internet to the library?). Type the invoice.';
   } finally { b.disabled = false; }
 });
 
@@ -1637,8 +1662,8 @@ $('rvRead').addEventListener('click', async function(){
 async function uploadRvFiles(receiptId, startAt){
   var failed = 0, n = startAt || 0;
   for (var i = 0; i < rvFileList.length; i++){
-    var f = rvFileList[i], ext = f.kind === 'pdf' ? 'pdf' : f.kind === 'xml' ? 'xml' : 'jpg';
-    var path = receiptId + '/factura-' + (n + i + 1) + '.' + ext;
+    var f = rvFileList[i], ext = f.kind === 'pdf' ? 'pdf' : f.kind === 'xml' ? 'xml' : f.type === 'image/png' ? 'png' : f.type === 'image/webp' ? 'webp' : 'jpg';
+    var path = receiptId + '/factura-' + (n + i + 1) + '-' + f.token + '.' + ext;   /* its own name: a retry of this file finds it, another file never collides */
     var up = await db.storage.from('purchase-invoices').upload(path, f.blob, {contentType: f.type, upsert: false});
     var dup = up.error && /exists|duplicate|409/i.test((up.error.message || '') + (up.error.statusCode || up.error.status || ''));
     if (up.error && !dup){ failed++; continue; }
@@ -1666,7 +1691,7 @@ function openSettle(receiptId, mode){
       $('recvLinesBox').hidden = true; $('recvFinalBox').hidden = true; $('rvBox').hidden = false; $('rvBox').open = true;
       $('recvInv').value = rec.invoice_no || (rec.draft && rec.draft.number) || ''; $('recvInvDate').value = rec.invoice_date || (rec.draft && rec.draft.date) || todayIso();
       resetRv({mode: rec.invoice_status === 'review' ? 'review' : 'confirm', needVendor: !po.vendor_id, draft: rec.draft});
-      if (mode === 'pay') addPayRow('register', Math.round(Number(rec.invoice ? rec.invoice.open_crc : 0)));
+      if (mode === 'pay'){ payReq = uuid(); addPayRow('register', Math.round(Number(rec.invoice ? rec.invoice.open_crc : 0) * 100) / 100); }
       $('recvErr').textContent = ''; $('recvGo').textContent = mode === 'pay' ? 'Record the payment' : 'Confirm'; $('recvModal').hidden = false;
     });
   });
@@ -1701,7 +1726,7 @@ async function openHistory(poId){
     d.appendChild(info);
     var acts = document.createElement('div'); acts.className = 'acts'; acts.style.justifyContent = 'flex-start'; acts.style.marginTop = '.5rem';
     (rc.files || []).forEach(function(f, i){ acts.appendChild(actBtn('View file ' + (i + 1), function(){ showFile(f.path, f.kind); })); });
-    if (SETTLE_OK && (rc.files || []).length < 3){
+    if (SETTLE_OK && DOCS_OK && (rc.files || []).length < 3){
       var fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*,application/pdf,.xml,text/xml,application/xml'; fi.hidden = true;
       fi.addEventListener('change', async function(){
         var file = fi.files && fi.files[0]; if (!file) return;
@@ -1738,7 +1763,7 @@ $('doneSearch').addEventListener('click', async function(){
   var done = $('poDone'); done.replaceChildren();
   if (!(r.data || []).length) done.innerHTML = '<p class="empty">Nothing received in that search.</p>';
   (r.data || []).forEach(function(p){ done.appendChild(poCard(p, false)); });
-  $('doneHint').textContent = (r.data || []).length + ' orders';
+  $('doneHint').textContent = (r.data || []).length === 1 ? '1 order' : (r.data || []).length + ' orders';
 });
 
 /* modals close on backdrop tap */

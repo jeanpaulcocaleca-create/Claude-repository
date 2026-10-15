@@ -305,7 +305,8 @@ solas cuando vuelven a conectarse.
   las líneas de `storage.` de las migraciones 0015 y 0025; los archivos se suben igual que las fotos.
 - **Facturas de proveedores** (solo si ya aplicó la 0030): el depósito `purchase-invoices` y sus reglas son las líneas
   de `storage.` de la 0030. El respaldo nocturno lo copia junto con `expense-receipts` (`PRIVATE_BUCKETS` en
-  `backup.sh`): suba el `backup.sh` de la versión a `canopy-respaldos` cuando aplique la 0030 (E-26).
+  `backup.sh`) **solo cuando existan las llaves de Storage de E-17**; hasta entonces ningún depósito privado se copia.
+  Suba el `backup.sh` de la versión a `canopy-respaldos` cuando aplique la 0030 (E-26).
 - **Vault**: vuelva a poner los secretos (token del BCCR).
 - **Respaldos**: en el proyecto nuevo, paso 2 y una contraseña nueva (paso 3.4); actualice `CANOPY_DB_URL` y
   `SUPABASE_URL` en `canopy-respaldos`.

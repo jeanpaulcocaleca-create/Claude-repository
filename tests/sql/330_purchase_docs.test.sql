@@ -21,6 +21,11 @@ select test.eq(public.po_receive_and_settle('9a000000-0000-4000-8000-00000000330
 select set_config('request.headers', '{}', false);
 select test.eq(public._login_unlocked(), true, 'the café login with a live manager unlock may handle the files, header or not');
 select test.lives($$insert into storage.objects (bucket_id, name) values ('purchase-invoices', '7e000000-0000-4000-8000-000000003301/factura-1.jpg')$$, 'the first photo goes up');
+-- registered on the delivery (the page's calls carry the PIN header again)
+select test.unlock(test.staff('ana'), '4826');
+select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-1.jpg')->>'kind', 'image', 'the photo is registered');
+select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-1.jpg')->>'repeat', 'true', 'registering it again changes nothing');
+select set_config('request.headers', '{}', false);
 select test.lives($$insert into storage.objects (bucket_id, name) values ('purchase-invoices', '7e000000-0000-4000-8000-000000003301/factura-2.jpg')$$, 'the second page too');
 select test.lives($$insert into storage.objects (bucket_id, name) values ('purchase-invoices', '7e000000-0000-4000-8000-000000003301/factura-3.pdf')$$, 'and a third file');
 select test.throws($$insert into storage.objects (bucket_id, name) values ('purchase-invoices', '7e000000-0000-4000-8000-000000003301/factura-4.jpg')$$, 'row-level security',
@@ -31,12 +36,14 @@ select test.throws($$insert into storage.objects (bucket_id, name) values ('purc
 select test.throws($$insert into storage.objects (bucket_id, name) values ('expense-receipts', '7e000000-0000-4000-8000-000000003301/factura-1.jpg')$$, 'row-level security',
                    'the expenses bucket keeps its own rule');
 select test.eq((select count(*)::int from storage.objects where bucket_id = 'purchase-invoices'), 3, 'the device sees the three files');
--- registered on the delivery (the page's calls carry the PIN header again)
+-- the second page reached Storage but its registration was lost (weak connection): registering the third registers it too
 select test.unlock(test.staff('ana'), '4826');
-select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-1.jpg')->>'kind', 'image', 'the photo is registered');
-select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-1.jpg')->>'repeat', 'true', 'registering it again changes nothing');
-select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-2.jpg')->>'files', '2', 'two files');
-select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-3.pdf')->>'kind', 'pdf', 'the PDF too');
+select public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-3.pdf') as a3 \gset
+select test.eq(((:'a3'::jsonb)->>'kind') || '|' || (((:'a3'::jsonb)->>'files')), 'pdf|3', 'the PDF is registered, and the orphan page with it');
+select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-2.jpg')->>'repeat', 'true', 'the orphan page is already registered');
+reset role;
+select test.eq((select string_agg(kind, ',' order by path) from public.purchase_receipt_files where receipt_id = '7e000000-0000-4000-8000-000000003301'), 'image,image,pdf', 'three files, in order');
+select test.login('cafe'); set role authenticated; select test.unlock(test.staff('ana'), '4826');
 select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', '7e000000-0000-4000-8000-000000003301/factura-4.jpg')->>'error', 'too_many', 'three is the limit');
 select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003301', 'otra/factura.jpg')->>'error', 'bad_path', 'only a file in the delivery''s own folder');
 select test.eq(public.purchase_doc_attach('7e000000-0000-4000-8000-000000003399', '7e000000-0000-4000-8000-000000003399/x.jpg')->>'error', 'not_found', 'a delivery that does not exist');

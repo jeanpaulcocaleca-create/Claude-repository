@@ -109,6 +109,7 @@ known_fn(fn, h, ver) as (values
   ('public._purchase_line_guard()', 'bbe77da7d1db', '0025'),
   ('public._purchase_order_status()', 'ba47bb939298', '0012'),
   ('public._purchase_order_status()', 'e150c9e7b94e', '0005'),
+  ('public._receipt_invoice_status()', '0df198c02d1c', '0029'),
   ('public._receipt_slot_open(p_name text)', '1699e79781f7', '0025'),
   ('public._receipts_allowed()', '6d8daad1dfd0', '0015'),
   ('public._register_closed(p_day date)', '6f336f3bc23d', '0003'),
@@ -280,14 +281,14 @@ known_fn(fn, h, ver) as (values
   ('public.payroll_staff()', 'ce637fc78706', '0026'),
   ('public.payslip(p_run_id uuid, p_staff_id uuid)', '9a14cbb140bc', '0026'),
   ('public.place_room_order(p_code text, p_name text, p_phone text, p_lang text, p_notes text, p_items jsonb)', '5bfa7ad315b3', 'legacy'),
-  ('public.po_history(p_po_id uuid)', '06f3b1fea1d9', '0029'),
-  ('public.po_pending()', '72ba36183fb2', '0029'),
-  ('public.po_receipt_pay(p_receipt_id uuid, p_payments jsonb, p_request_id uuid, p_manager_id uuid, p_pin text, p_station text)', '83365797cae9', '0029'),
-  ('public.po_receipt_settle(p_receipt_id uuid, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', '1a555bf622e3', '0029'),
+  ('public.po_history(p_po_id uuid)', '0957c100c32f', '0029'),
+  ('public.po_pending()', '02099386b382', '0029'),
+  ('public.po_receipt_pay(p_receipt_id uuid, p_payments jsonb, p_request_id uuid, p_manager_id uuid, p_pin text, p_station text)', 'e2f840b1b9db', '0029'),
+  ('public.po_receipt_settle(p_receipt_id uuid, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', 'ea909ff65604', '0029'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '54e0e7a8423c', 'legacy'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '877f65220db9', '0005'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '9dd7e6af2c89', '0012'),
-  ('public.po_receive_and_settle(p_po_id uuid, p_lines jsonb, p_receipt_id uuid, p_final boolean, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', '5fcc159a4322', '0029'),
+  ('public.po_receive_and_settle(p_po_id uuid, p_lines jsonb, p_receipt_id uuid, p_final boolean, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', 'e8eb2f51d0bf', '0029'),
   ('public.po_receive_delivery(p_po_id uuid, p_lines jsonb, p_receipt_id uuid, p_invoice_no text, p_invoice_date date, p_final boolean)', 'df03651e5f18', '0012'),
   ('public.pos_operator_end(p_token text)', 'd55484606c5a', '0008'),
   ('public.pos_operator_end(p_token text, p_clock_out boolean)', 'c53b6e6d250a', '0027'),
@@ -297,7 +298,7 @@ known_fn(fn, h, ver) as (values
   ('public.pos_record_sale(p_order jsonb)', 'bd1e22c34ce5', '0010'),
   ('public.pos_record_tender(p_order_id uuid, p_tender jsonb)', '4e77acb867f2', '0010'),
   ('public.product_profitability(p_from date, p_to date)', 'a1aba53e1bc2', '0017'),
-  ('public.purchase_doc_attach(p_receipt_id uuid, p_path text)', 'bb6104cf2d67', '0030'),
+  ('public.purchase_doc_attach(p_receipt_id uuid, p_path text)', '3415530da876', '0030'),
   ('public.quick_items(p_days integer, p_limit integer)', '11762e8f5921', '0001'),
   ('public.quick_items(p_days integer, p_limit integer)', 'de244c47ac56', 'legacy'),
   ('public.recipes_autolink()', '2079624d014f', 'legacy'),
@@ -557,7 +558,7 @@ open_policies as (
     from pg_policies
    where schemaname in ('public', 'storage', 'acct', 'canopy')
      and coalesce(qual, '') || coalesce(with_check, '') !~
-         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed|_login_unlocked|_purchase_doc_slot_open)'
+         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed|_login_unlocked)'
 )
 select jsonb_pretty(jsonb_build_object(
   'checked_at', now(),

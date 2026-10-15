@@ -270,14 +270,16 @@ registra impuestos ni pagos sin confirmar. Las cinco opciones del pedido y el di
   (entregas, factura, pagos, retiro de caja, archivos, adjuntar, registrar la factura, registrar un pago); búsqueda de
   pedidos recibidos por proveedor y mes. `website/accounting.html` solo nombra los dos métodos de tarjeta;
   `website/lang.js` trae los textos en español.
-- Pruebas: SQL `320_receive_settle` (83) y `330_purchase_docs` (31), `240_release_check` ampliada; navegador
-  `290_receive` (4 escenarios); ensayo de migraciones con 0029 y 0030; `anonimizar.sql`, `backup.sh` y `ensayo.sh`
+- Pruebas: SQL `320_receive_settle` (127) y `330_purchase_docs` (32), `240_release_check` ampliada; navegador
+  `290_receive` (5 escenarios); ensayo de migraciones con 0029 y 0030; `anonimizar.sql`, `backup.sh` y `ensayo.sh`
   del kit privado actualizados (E-26).
 
 **Cómo funciona el dinero:** un pago en efectivo de la caja es un retiro (`payout`) del día abierto, con PIN, igual
 que en el POS; si la factura todavía no está, queda anotado en la entrega y se documenta al confirmar. Bancos y
 tarjetas solo con la factura confirmada. Confirmar asienta la factura como hasta hoy (IVA a 1140, diferencia de
-precio a 5103, proveedor en 2101) y cada pago desde su cuenta (1104 caja, 1110 banco, 2120 tarjeta de crédito).
+precio a 5103, proveedor en 2101) y cada pago desde su cuenta (1104 retiro de caja por documentar, 1101 efectivo de la
+caja fuerte, 1110 banco para SINPE, transferencia y tarjeta de débito, 2160 tarjeta de crédito por pagar: cuenta
+nueva, pues la 2120 ya es «Anticipos de clientes»).
 Todo lo de una recepción se guarda en **una** transacción con el id de la entrega: un doble toque o un reintento no
 duplica nada, y un rechazo (caja cerrada, PIN malo, pago mayor que la factura, factura repetida) no guarda nada.
 
@@ -290,14 +292,20 @@ reemplazo ni borrado.
 
 **Pasos para aprobar el despliegue (en este orden; nada de esto lo ejecuta el desarrollo):**
 1. Revisar la rama `claude/hanging-garden-coffee-proposal-1m8zd4` (PR #1) con CI en verde y responder «apruebo».
-2. «Ensayo en pruebas» con esa versión: destino `desechable`, vaciar `no`, **reinicio `no`** (producción ya pasó la
-   ventana); debe terminar en verde aplicando 0029 y 0030 (docs/PRUEBAS.md).
-3. «Respaldo inmediato» en verde (y, si ya se resolvió, la llave privada de E-24 confirmada).
-4. SQL Editor, fuera de horario: pegar `0029_recibir_pago.sql` → *Success*; luego `0030_facturas_archivo.sql` →
+2. Pedir al contador la confirmación de la cuenta `2160 Tarjeta de crédito por pagar` y de los dos mapeos (A-12): la 0029
+   los crea al aplicarse, así que esta confirmación va **antes** del paso 5.
+3. Subir a `canopy-respaldos` los tres archivos de `ops/backup/repositorio-respaldos/` (`anonimizar.sql`, `ensayo.sh`,
+   `backup.sh`; E-26): sin ellos, el primer «Ensayo en pruebas» después de la 0029 se detiene en columnas que el
+   anonimizador no conoce, y el respaldo nocturno no sabría del depósito nuevo.
+4. «Ensayo en pruebas» con esa versión: destino `desechable`, vaciar `no`, **reinicio `no`** (producción ya pasó la
+   ventana); debe terminar en verde aplicando 0029 y 0030 (docs/PRUEBAS.md). «Respaldo inmediato» en verde (y, si ya se
+   resolvió, la llave privada de E-24 confirmada).
+5. SQL Editor, fuera de horario: pegar `0029_recibir_pago.sql` → *Success*; luego `0030_facturas_archivo.sql` →
    *Success* (si dice "must be owner of table objects", parar ahí: todo funciona menos adjuntar el archivo).
-5. `supabase/tools/release-check.sql`: `migrations_optional_missing` = `[]`, `purchase_upload_rule_current` = `true`,
-   `functions_missing` = `[]`.
-6. Crear la etiqueta `v…` sobre el commit aprobado y correr «Publish website (PRODUCTION · manual only)»
-   (docs/PUBLICAR.md). Recargar Inventario en una tableta: debe aparecer «Pendiente con proveedores».
-7. Subir a `canopy-respaldos` los tres archivos de `ops/backup/repositorio-respaldos/` (E-26) y comprobar las dos
-   direcciones de las librerías (E-27); pedir al contador la confirmación de las cuentas de tarjeta (A-12).
+6. `supabase/tools/release-check.sql`: `migrations_optional_missing` = `[]` y `purchase_upload_rule_current` = `true`
+   (o `[30]` y `null` si la 0030 se dejó para después), `functions_missing` = `[]`.
+7. Comprobar las dos direcciones de las librerías de lectura (E-27). Crear la etiqueta `v…` sobre el commit aprobado y
+   correr «Publish website (PRODUCTION · manual only)» (docs/PUBLICAR.md). Recargar Inventario en una tableta: debe
+   aparecer «Pendiente con proveedores» (y, sin la 0030, los botones de foto y archivo no aparecen: la página lo dice).
+8. Las fotos de facturas entran al respaldo nocturno solo cuando existan las llaves de Storage (E-17); hasta entonces,
+   guarde el papel.

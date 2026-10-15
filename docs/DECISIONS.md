@@ -1032,8 +1032,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   invoice pending (not here yet) or to review (captured, not confirmed) without losing the goods received; nothing
   reaches the books, the IVA credit or the payables until the invoice is confirmed. The five order options and the
   page's design stay; no other module changed beyond the connections listed below.
-- **What this commit adds.** *Migration 0029 (`recibir_pago`, adds only):* account `2120 Tarjeta de crédito por pagar`
-  and the mappings `from_card_debit` → 1110, `from_card_credit` → 2120 (the accountant confirms them: A-12);
+- **What this commit adds.** *Migration 0029 (`recibir_pago`, adds only):* account `2160 Tarjeta de crédito por pagar`
+  (a free code: 2120 is already «Anticipos de clientes» since 0013; the file refuses to run if 2160 exists with another name)
+  and the mappings `from_card_debit` → 1110, `from_card_credit` → 2160 (the accountant confirms them before 0029 is applied: A-12);
   `supplier_payments.paid_from` accepts `card_debit` / `card_credit` and `supplier_payment_save` posts them;
   `supplier_invoices` gains `currency`, `fx_rate`, `net_fx`, `iva_fx` (a dollar invoice is valued in colones at the
   typed rate, 100–2000, and the books stay in colones); `purchase_receipts` gains `invoice_status`
@@ -1061,20 +1062,37 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   Reading: the XML exactly as data (the same reader as Contabilidad); a PDF with text through pdf.js and a photo
   through tesseract.js (Spanish), both loaded only when «Leer la factura» is tapped, from jsDelivr like supabase-js
   (lint rule 13 pins the versions); every read value is a suggestion the person checks and confirms.
-- **Tests:** `320_receive_settle` (83), `330_purchase_docs` (31), `240_release_check` extended (0030 optional, bucket
-  and rules), browser `290_receive` (4: a café device with a manager PIN reading the XML and paying from the register
+- **Tests:** `320_receive_settle` (127), `330_purchase_docs` (32), `240_release_check` extended (0030 optional, bucket
+  and rules), browser `290_receive` (5: a café device with a manager PIN reading the XML and paying from the register
   then by bank, a pending invoice registered later with a double tap, three refusals that save nothing, a dollar
-  invoice with its photo shown from the history and the page's answer when the reader library cannot load); the
+  invoice with its photo shown from the history and the page's answer when the reader library cannot load, and the
+  page without 0030); the
   rehearsal applies 0029 and 0030 after 0028 (`compare.py`: no optional migration missing, the upload rule current);
   `anonimizar.sql` knows the new columns (the draft's names and notes, the file paths); the nightly backup copies the
-  new bucket (`PRIVATE_BUCKETS`); `ensayo.sh` clears it in the staging copy.
+  new bucket (`PRIVATE_BUCKETS`) once the Storage keys of E-17 exist (until then no private bucket is copied: the
+  invoice files are not backed up); `ensayo.sh` clears it in the staging copy.
 - **Limits, stated:** the reader versions (`pdfjs-dist@3.11.174`, `tesseract.js@5.1.1`) were pinned without reaching
   the CDN from the development environment (E-27 checks the two addresses once; a missing one only disables reading,
-  the page says so and typing works); the photo reader downloads its Spanish model (a few MB) the first time on each
-  device; a dollar invoice is paid in colones at the invoice's rate (no exchange difference until A-06); confirming an
+  the page says so and typing works); the photo reader fetches its worker and core from jsDelivr and its Spanish model (a few MB) from tessdata.projectnaptha.com
+  the first time on each device (neither pinned by lint rule 13, which sees only the two script addresses); a dollar invoice is paid in colones at the invoice's rate (no exchange difference until A-06); confirming an
   invoice posts it as 0016 always did, whatever the daily auto-post setting says, and the invoice's IVA goes to 1140
   on confirmation; a delivery or a confirmed invoice is not voided from this page (reversals from Contabilidad, as
   before); a payout taken before the invoice shows as pending until the invoice is confirmed or the payout is voided
   at the POS.
 - **Not done, by the owner's instruction:** 0029 and 0030 are files only (E-25); the site is not published; no
-  accounting setting changed (the new account and mappings are additions, A-12).
+  accounting setting changed (the new account and mappings are additions that go live when 0029 is applied, so A-12
+  comes before E-25).
+- **Reviewed (three independent readers, 2026-10-15) and fixed in the follow-up commit:** a wrong PIN was counted inside
+  the transaction block and rolled back with it (unlimited guessing): the PIN is now checked before the block in the
+  three functions; the credit-card account code collided with 0013's customer advances (2160 now, with a guard); a
+  register payout could be documented twice when the accountant had already documented it (checked now, also in
+  `po_history`); a voided payout blocked a new one (the id follows the void); a Contabilidad-made or voided invoice
+  left `invoice_status` behind (a trigger on `invoice_id` keeps it, and a re-confirmation takes a fresh invoice id); an
+  invoice over several deliveries hit the unique index on the number (only the first delivery carries it); a dollar
+  invoice rounded differently on the page and the server; whole-colón payments could never close an invoice with cents
+  (under one colón over pays it in full, on both sides; the pads accept cents); a request id kept per order could report
+  a second delivery as saved when the server answered «repeat» (the id follows the order's state, and a repeat is told
+  as such); a slow read could fill another order's window (generation guard); orphan uploads (`purchase_doc_attach`
+  registers them); file types from the kind, HEIC refused; the XML's own exchange rate; the page hides the file
+  buttons when 0030 is not applied; a failed `po_pending` no longer reads as «nothing owed»; «locked» offers the PIN
+  screen over the window.

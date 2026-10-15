@@ -1122,7 +1122,14 @@
     '{x} taken from the register on {d} (documented)': '{x} sacados de la caja el {d} (documentado)', '{x} taken from the register on {d} (voided)': '{x} sacados de la caja el {d} (anulado)',
     '{x} taken from the register on {d} (waiting for the invoice)': '{x} sacados de la caja el {d} (en espera de la factura)',
     'Payment on {d}': 'Pago del {d}', 'View file {n}': 'Ver archivo {n}', 'Open in a new tab': 'Abrir en otra pestaña',
-    'Nothing received in that search.': 'Nada recibido en esa búsqueda.', '{n} orders': '{n} pedidos',
+    'Nothing received in that search.': 'Nada recibido en esa búsqueda.', '{n} orders': '{n} pedidos', '1 order': '1 pedido',
+    'That delivery was already saved earlier: nothing new was recorded. Check it in Details.': 'Esa entrega ya se había guardado antes: no se registró nada nuevo. Revísela en Detalles.',
+    'That invoice was already confirmed earlier: nothing new was recorded.': 'Esa factura ya se había confirmado antes: no se registró nada nuevo.',
+    'That payment was already recorded earlier: nothing new was recorded. Check the balance before recording another one.': 'Ese pago ya se había registrado antes: no se registró nada nuevo. Revise el saldo antes de registrar otro.',
+    'Attaching the invoice file needs database update 0030: type the invoice and keep the paper.': 'Adjuntar el archivo de la factura necesita la actualización 0030 de la base de datos: escriba la factura y guarde el papel.',
+    'That photo format cannot be read by this device: take the photo with the camera button or save it as JPEG.': 'Este aparato no puede leer ese formato de foto: tome la foto con el botón de la cámara o guárdela como JPEG.',
+    'Could not load what is pending with suppliers. Check the connection.': 'No se pudo cargar lo pendiente con proveedores. Revise la conexión.',
+    'This invoice is in {c}. Invoices in dollars are recorded from Inventario → Pedidos → Recibir, with their exchange rate.': 'Esta factura está en {c}. Las facturas en dólares se registran desde Inventario → Pedidos → Recibir, con su tipo de cambio.',
     /* owner areas behind a PIN (access.js) */
     'Owners and managers only': 'Solo dueños y encargados', 'owners and managers': 'dueños y encargados', 'Owner': 'Dueño',
     'Type the PIN of an owner, GM or manager. It stays open on this device for 15 minutes, or until someone taps Lock.':
