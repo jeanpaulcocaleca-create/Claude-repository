@@ -83,14 +83,21 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
   (`payout`, que queda «por documentar» en 1104, como hoy en el POS); la factura y el pago se registran después
   desde el historial y documentan ese retiro. Pagos por banco o tarjeta sin factura no se admiten: se registran
   cuando llegue la factura.
-- **Costos completos:** si alguna línea recibida no tiene costo, el cuadro lo pide antes de registrar la factura
-  (un costo en cero inflaría la diferencia que va a 5103).
+- **Costos completos y sin IVA:** si alguna línea recibida no tiene costo, el cuadro lo pide antes de registrar la
+  factura (un costo en cero inflaría la diferencia que va a 5103). El cuadro dice en claro que «Costo / paquete» va
+  **sin IVA** (hoy no lo dice): el inventario y el costo promedio se llevan sin IVA, y el IVA entra solo por la
+  factura. Un pago combinado se guarda como **una fila de pago por método**, todas aplicadas a esta factura.
+- **Comprobante sin número** (un tiquete del mercado): la factura se registra con «S/N» más la fecha y el id corto
+  de la entrega, para que el pago tenga contra qué aplicarse; el dueño o el contador lo corrigen si llega el número.
+- **`vendors.tax_id`** (opcional, cédula del proveedor): permite que el XML de Hacienda encuentre al proveedor por su
+  cédula y no solo por el nombre exacto.
 - **Factura opcional en la entrega.** Si la mercadería llega sin factura, se recibe como hoy y la factura y el pago
   se agregan después desde el historial del pedido con `po_receipt_settle`.
 - **Archivo (en su propia migración, 0030, para que un fallo de permisos de Storage no detenga la 0029):**
   depósito privado `purchase-invoices`; columna `purchase_receipts.document_path`;
   `purchase_doc_attach(p_receipt_id, p_path)` (una sola vez, ruta `<id de la entrega>/<archivo>`); sin borrar ni
-  reemplazar (el mismo patrón de `expense-receipts`). **Permiso sin encabezado:** como Storage no ve el PIN, la regla
+  reemplazar (el mismo patrón de `expense-receipts`; las reglas leen la carpeta con `split_part`, como la 0025, porque
+  las funciones `storage.foldername…` no existen en la base de pruebas). **Permiso sin encabezado:** como Storage no ve el PIN, la regla
   nueva `_login_unlocked()` acepta al dueño con código, al contador, o un ingreso que tenga **un desbloqueo con PIN
   vigente** (fila en `access_unlocks` del mismo ingreso, de encargado o dueño, no vencida); subir, además, solo en la
   carpeta de una entrega de las últimas 24 horas que aún no tiene archivo. Las dos políticas se escriben en las
@@ -105,6 +112,10 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
   nombres de archivo pueden llevar el nombre del proveedor), `ops/backup/backup.sh` (`PRIVATE_BUCKETS`, con copia
   que el dueño vuelve a subir al repositorio privado) y `docs/RESPALDOS.md`. Hasta que existan las llaves S3
   (E-17) ningún depósito privado entra en el respaldo nocturno.
+- **Lo que toda migración nueva debe actualizar** (la CI lo exige): `release-check.sql` (serie de migraciones y lista
+  de funciones), las listas conocidas de `production-snapshot.sql` (`tests/tools/snapshot-known.sh`), y los textos
+  «0000–0028» de `tests/rehearsal/run.sh`, `compare.py`, `compare-selftest.py`, la prueba de páginas en vivo y
+  `docs/PRUEBAS.md`.
 - **Proveedor obligatorio** para registrar factura o pago: si el pedido no tiene proveedor, el cuadro pide elegirlo
   antes (se guarda en el pedido).
 - **Id de la entrega por pedido, no por apertura:** la página guarda el id en el dispositivo hasta que el servidor
@@ -127,6 +138,8 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
   (la diferencia va a 5103 como hoy); pagos en líneas (método, monto, referencia; «Agregar otro pago»); **Total de
   la factura · Pagado · Saldo pendiente · Fecha de recepción · Vencimiento**; el PIN del encargado solo si hay
   efectivo de la caja; botón **«Confirmar recepción»**.
+- Las fotos se **reducen en el dispositivo** antes de subirlas (lado mayor 1 600 px, JPEG): una foto de iPad pesa
+  5–12 MB y bastan 300–600 KB para leer una factura.
 - Dos botones, **«Tomar foto»** y **«Elegir archivo»** (uno solo con `capture` abre la cámara y no deja elegir un PDF
   en los teléfonos). El nombre del archivo en el depósito se deriva del id de la entrega y de la página (1, 2, 3), así
   un reintento que encuentra el archivo ya subido sigue adelante y lo registra en vez de fallar.
@@ -158,12 +171,35 @@ En todos los casos la regla es la misma: **los datos leídos se muestran, se cor
 guardar**; nada entra a libros sin esa confirmación. Los tamaños y tiempos del OCR son conocimiento general, no se
 midieron en este repositorio.
 
+Detalles que fijan el diseño de la lectura:
+
+- El analizador del XML vive dentro de `accounting.html`; Inventario recibe **una copia** en su propia página (la
+  de Contabilidad no se toca); unirlas en un archivo compartido queda para después. El XML da los **totales**
+  (neto, IVA, total, otros cargos), no las líneas: la comparación es contra el total del pedido, no línea por línea.
+- Las librerías de lectura se cargan **solo cuando alguien toca «Leer la factura»** (versión fija, el mismo CDN que
+  ya usa el sitio); si el CDN no responde, el cuadro sigue funcionando y se escribe a mano. Hoy las páginas del
+  personal ya dependen de ese CDN para `supabase-js`.
+- Meta del OCR en fotos: leer primero lo que tiene **forma fija** (la clave de 50 dígitos, el consecutivo de 20, la
+  fecha y el total); lo demás se escribe. Es mucho más fiable en papel térmico que intentar todos los campos. La
+  foto se reduce en el dispositivo antes de leerla (misma reducción que para subirla), para no agotar la memoria
+  de la tableta.
+- pdf.js lee solo el texto del PDF: un PDF escaneado o hecho con una foto da «no se encontró nada» y se escribe a
+  mano (en esta versión no se encadena OCR sobre el PDF).
+- La opción con costo necesita además lo que hoy no existe: una Edge Function en Supabase (no hay ninguna, ni
+  herramienta en la CI para desplegarla) y una llave del servicio guardada por usted en Supabase, nunca en el
+  repositorio. Por eso es la última opción y solo con su autorización.
+
 ### 3.4 Contabilidad
 
 - No se activa nada: `ledger_auto_post` sigue como esté. Las compras siguen entrando a **inventario** (1150 / 2101)
   en el asiento del día, no como gasto; la factura asienta su IVA y la diferencia de precio; el pago descarga la
   cuenta por pagar contra caja fuerte, caja chica, banco, tarjeta o el retiro de caja (1104). Todo con las funciones
   de hoy.
+- No se adelanta el asiento de la compra (Inventario 1150 / Por pagar 2101) al momento de recibir: seguiría siendo el
+  asiento del día, como decidió D-014; hacerlo inmediato sería activar contabilización, y eso es del contador.
+- **Correcciones:** una entrega mal recibida no se borra ni se deshace (no existe «anular entrega»): se anula el pago
+  (dueño con código o contador), luego la factura, y las existencias se corrigen con un ajuste o un conteo, como
+  hoy. Un «anular entrega» con su contra-movimiento queda fuera de este alcance; se puede proponer aparte.
 - Sin duplicados: ids derivados del id de la entrega; cada asiento tiene su clave (`source_key`); repetir devuelve lo
   ya guardado; reabrir un pedido recibido no muestra «Recibir».
 - **Nota para el contador (no cambia con esto):** mientras `ledger_auto_post` esté apagado, las facturas y los pagos a
@@ -179,9 +215,17 @@ midieron en este repositorio.
   rechazados; retiro con otro monto rechazado; pago aplicado a esta factura y no a una más vieja; `release-check` sin
   faltantes. Políticas de Storage probadas en SQL como se hace con el resto de reglas (hoy la del depósito de gastos
   solo se comprueba por su texto).
-- Navegador `290_receive.spec.js`: el cuadro completo en tableta en español; XML que prellena; adjuntar y ver;
-  doble clic en «Confirmar»; historial del pedido; «Por pagar» y pago desde Inventario; el cierre de caja con el
-  retiro.
+- Navegador `290_receive.spec.js`: el cuadro completo en tableta en español **con el ingreso del café y el PIN de
+  encargado** (hoy todas las pruebas de Inventario entran como dueño con código, y ese es el caso real del café);
+  XML que prellena; adjuntar y ver; doble clic en «Confirmar»; historial del pedido; «Por pagar» y pago desde
+  Inventario; el cierre de caja con el retiro. Las librerías de lectura (pdf.js, tesseract.js) se sirven desde la
+  carpeta de pruebas, no desde internet, con versión fija; el OCR se prueba con una imagen pequeña o se omite en la
+  CI si alarga la corrida (tope de 40 minutos).
+- Ensayo: el camino recibir + factura + pago también corre sobre la copia con forma de producción
+  (`tests/rehearsal/after-window.sql`) y sobre el café vacío (`reset-pages`), no solo en la base sintética.
+- Numeración: SQL `320` (0029) y `330` (0030, Storage); navegador `290`.
+- `tests/lint.sh` gana una regla: toda etiqueta `<script src="https://…">` debe estar en una lista de direcciones
+  permitidas con versión fija (hoy nada revisa el origen de los scripts externos).
 - `tests/run.sh` completo (lint, SQL, respaldo, ensayo con la 0029 sobre la copia de producción, navegador) y la
   CI en verde antes de cada commit.
 
@@ -203,3 +247,7 @@ Rama `claude/hanging-garden-coffee-proposal-1m8zd4` (PR #1). Necesitan **su apro
 2. ¿«Tarjeta» es la tarjeta de débito de la cuenta del banco, o una tarjeta de crédito del negocio? (Define la cuenta
    contable por defecto.)
 3. ¿Hay facturas de proveedor en dólares? (Hoy todo el módulo de proveedores trabaja en colones.)
+4. ¿Con qué aparato se fotografiará la factura al recibir: las tabletas Android del café, el iPad, o el teléfono de
+   quien recibe? (Decide el peso aceptable de la lectura automática y las pruebas que se hacen.)
+5. ¿Sus proveedores le mandan la factura electrónica (XML) al correo del café, y qué parte son informales (feria,
+   productores sin factura electrónica)? (Decide cuánto resuelve la lectura exacta y gratuita del XML.)
