@@ -45,7 +45,10 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
    entrega dos veces. Hoy solo el pedido ya cerrado está protegido.
 10. **Historial corto:** «Pedidos recibidos» muestra 12 tarjetas, sin entregas, facturas ni archivos; las facturas
    de proveedor no se pueden leer directo desde la página (solo por `ap_aging`).
-11. **Dos números de factura sin unir:** el que se escribe en «Recibir» (`purchase_receipts.invoice_no`) y el de la
+11. **Sin factura no hay pago:** `supplier_payment_save` rechaza pagar más de lo que se debe, y lo que se debe nace
+   con la factura; un anticipo o un pago contra entrega sin factura no tiene camino hoy (la cuenta 1160 «Anticipos a
+   proveedores» existe y nadie la usa). El pago «con retiro de caja» acepta un retiro vacío y no compara montos.
+12. **Dos números de factura sin unir:** el que se escribe en «Recibir» (`purchase_receipts.invoice_no`) y el de la
    factura de proveedor (`supplier_invoices.number`) solo se unen cuando el contador vincula las entregas; nada
    comprueba que coincidan. Una entrega vacía (todo en 0) hoy pasa el pedido a «recibido en parte».
 
@@ -73,7 +76,15 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
   cierre cuadra, y el gasto no se cuenta dos veces. «SINPE / transferencia» → `bank` con referencia. «Tarjeta» →
   valor nuevo `card` con mapeo contable `from_card` (por defecto la cuenta de banco 1110; el contador puede apuntarlo
   a una cuenta de tarjeta de crédito desde Contabilidad, como el resto de mapeos). «Crédito del proveedor» → sin
-  pago; la factura queda abierta con vencimiento.
+  pago; la factura queda abierta con vencimiento. El pago se aplica **a esta factura** (no a las más viejas del
+  proveedor), el retiro de caja se crea siempre con su id y por el mismo monto que el pago, y la factura se guarda
+  **antes** del pago en la misma transacción (sin factura no se puede pagar).
+- **Mercadería pagada con dinero de la caja pero todavía sin factura:** se guarda la entrega y el retiro de caja
+  (`payout`, que queda «por documentar» en 1104, como hoy en el POS); la factura y el pago se registran después
+  desde el historial y documentan ese retiro. Pagos por banco o tarjeta sin factura no se admiten: se registran
+  cuando llegue la factura.
+- **Costos completos:** si alguna línea recibida no tiene costo, el cuadro lo pide antes de registrar la factura
+  (un costo en cero inflaría la diferencia que va a 5103).
 - **Factura opcional en la entrega.** Si la mercadería llega sin factura, se recibe como hoy y la factura y el pago
   se agregan después desde el historial del pedido con `po_receipt_settle`.
 - **Archivo (en su propia migración, 0030, para que un fallo de permisos de Storage no detenga la 0029):**
@@ -84,7 +95,16 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
   vigente** (fila en `access_unlocks` del mismo ingreso, de encargado o dueño, no vencida); subir, además, solo en la
   carpeta de una entrega de las últimas 24 horas que aún no tiene archivo. Las dos políticas se escriben en las
   formas exactas que acepta `tests/lint.sh` (una línea `create policy … on storage.objects …`, un
-  `insert into storage.buckets … on conflict …`), como la 0015 y la 0025.
+  `insert into storage.buckets … on conflict …`), como la 0015 y la 0025. El depósito nace con **límite de tamaño
+  (10 MB) y de tipos (imagen y PDF)** en esa misma línea, cosa que el de gastos no tiene. Se admiten **hasta 3
+  archivos por entrega** (una factura de varias páginas fotografiada hoja por hoja): tabla `purchase_receipt_files`
+  en lugar de una sola columna. **Por qué un depósito nuevo y no el de gastos:** reutilizar `expense-receipts`
+  obligaría a ampliar quién puede ver las facturas de gastos (la regla de lectura es de todo el depósito), y el
+  dueño pidió no tocar otras secciones. El costo del depósito nuevo es la lista de lugares que lo deben conocer:
+  `release-check.sql`, `production-snapshot.sql`, `tests/rehearsal/compare.py`, `anonimizar.sql` y `ensayo.sh` (los
+  nombres de archivo pueden llevar el nombre del proveedor), `ops/backup/backup.sh` (`PRIVATE_BUCKETS`, con copia
+  que el dueño vuelve a subir al repositorio privado) y `docs/RESPALDOS.md`. Hasta que existan las llaves S3
+  (E-17) ningún depósito privado entra en el respaldo nocturno.
 - **Proveedor obligatorio** para registrar factura o pago: si el pedido no tiene proveedor, el cuadro pide elegirlo
   antes (se guarda en el pedido).
 - **Id de la entrega por pedido, no por apertura:** la página guarda el id en el dispositivo hasta que el servidor
@@ -107,7 +127,12 @@ Estado: **propuesta, pendiente de aprobación.** Nada de esto está programado n
   (la diferencia va a 5103 como hoy); pagos en líneas (método, monto, referencia; «Agregar otro pago»); **Total de
   la factura · Pagado · Saldo pendiente · Fecha de recepción · Vencimiento**; el PIN del encargado solo si hay
   efectivo de la caja; botón **«Confirmar recepción»**.
+- Dos botones, **«Tomar foto»** y **«Elegir archivo»** (uno solo con `capture` abre la cámara y no deja elegir un PDF
+  en los teléfonos). El nombre del archivo en el depósito se deriva del id de la entrega y de la página (1, 2, 3), así
+  un reintento que encuentra el archivo ya subido sigue adelante y lo registra en vez de fallar.
 - Después de guardar se sube el archivo; si la subida falla (sin internet), el historial muestra «Adjuntar factura».
+- «Ver factura» abre el archivo con un enlace firmado de dos minutos en un enlace preparado de antemano (no con
+  una ventana emergente, que el iPad suele bloquear).
 - «Efectivo de caja registradora» aparece deshabilitado, con el motivo, cuando **no hay un día de caja abierto**
   (regla de `register_cash_move`): entonces se paga por otro método o queda pendiente.
 - Una factura que cubre todo el pedido cuando solo llegó una parte: el cuadro avisa la diferencia y ofrece
@@ -150,7 +175,10 @@ midieron en este repositorio.
 - SQL `320_receive_settle.test.sql`: recepción con factura y pago combinado (efectivo de caja + crédito); el mismo id
   dos veces guarda una vez; pago mayor que la factura rechazado; caja cerrada rechazada; PIN equivocado; tarjeta;
   factura después de la entrega; políticas de Storage (carpeta ajena, segundo archivo, borrar); el esperado de la
-  gaveta y la conciliación; `ap_aging` y un pago posterior; `release-check` sin faltantes.
+  gaveta y la conciliación; `ap_aging` y un pago posterior; fecha futura y mes cerrado por el contador
+  rechazados; retiro con otro monto rechazado; pago aplicado a esta factura y no a una más vieja; `release-check` sin
+  faltantes. Políticas de Storage probadas en SQL como se hace con el resto de reglas (hoy la del depósito de gastos
+  solo se comprueba por su texto).
 - Navegador `290_receive.spec.js`: el cuadro completo en tableta en español; XML que prellena; adjuntar y ver;
   doble clic en «Confirmar»; historial del pedido; «Por pagar» y pago desde Inventario; el cierre de caja con el
   retiro.
