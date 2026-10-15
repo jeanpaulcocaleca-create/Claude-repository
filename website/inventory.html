@@ -107,7 +107,6 @@ td .sub{display:block;font-size:.78rem;color:var(--sec)}
 @media print{.pagenav,.tabs,header.top button,.tools,.acts,.hg-lang{display:none !important}}
 .rv-pay{display:grid;grid-template-columns:1.5fr 1fr 1fr auto;gap:.5rem;align-items:center;margin:.4rem 0}
 @media (max-width:720px){.rv-pay{grid-template-columns:1fr 1fr}}
-#histPreview img,#histPreview iframe{margin-top:.5rem}
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
@@ -435,16 +434,10 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <label class="chk" id="recvFinalBox" style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem"><input type="checkbox" id="recvFinal"> Nothing more is coming: close the order</label>
     <details id="rvBox" open hidden>
       <summary style="cursor:pointer;font-weight:600;margin-top:.8rem">Invoice and payment</summary>
-      <p class="hint" id="rvIntro">Costs above are without IVA. Attach the supplier's invoice, read it or type it, and say how it was paid. Nothing is posted to the books until the invoice is confirmed.</p>
+      <p class="hint" id="rvIntro">Costs above are without IVA. Type the supplier's invoice and say how it was paid. Nothing is posted to the books until the invoice is confirmed.</p>
       <div id="rvInvFields">
         <div class="row" id="rvModeBox"><div><label for="rvMode">Invoice</label><select id="rvMode"><option value="pending">Not here yet · it arrives later</option><option value="review">Captured · to review before confirming</option><option value="confirm">Confirmed now</option></select></div>
           <div id="rvVendorBox" hidden><label for="rvVendor">Supplier</label><select id="rvVendor"></select></div></div>
-        <div class="tools" style="margin:.6rem 0 .2rem">
-          <input id="rvCam" type="file" accept="image/*" capture="environment" hidden><input id="rvFile" type="file" accept="image/*,application/pdf,.xml,text/xml,application/xml" hidden>
-          <button type="button" class="small ghost" id="rvCamBtn">Take a photo</button><button type="button" class="small ghost" id="rvFileBtn">Choose a file</button><button type="button" class="small ghost" id="rvRead" hidden>Read the invoice</button>
-        </div>
-        <div id="rvFiles" class="hint"></div>
-        <p class="hint" id="rvReadMsg"></p>
         <div class="row"><div><label for="rvDue">Due date</label><input id="rvDue" type="date"></div><div><label for="rvCur">Currency</label><select id="rvCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div></div>
         <div class="row" id="rvFxRow" hidden><div><label for="rvFx">Exchange rate (₡ per $)</label><input id="rvFx" type="number" min="100" max="2000" step="0.01"></div><div></div></div>
         <div class="row"><div><label for="rvNet">Subtotal (without IVA)</label><input id="rvNet" type="number" min="0" step="0.01" data-keypad="qty"></div><div><label for="rvIva">IVA</label><input id="rvIva" type="number" min="0" step="0.01" data-keypad="qty"></div></div>
@@ -468,7 +461,6 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   <div class="modal" style="max-width:720px">
     <h2 id="histTitle">Order</h2>
     <div id="histBody"></div>
-    <div id="histPreview" hidden></div>
     <div class="btns"><button type="button" class="ghost" id="histClose">Close</button></div>
   </div>
 </div>
@@ -1106,10 +1098,8 @@ $('recvForm').addEventListener('submit', async function(e){
       if (why === 'already_confirmed') loadAll();
       return;
     }
-    var receiptId = recvMode === 'receive' ? recvReq : recvReceipt.id;
     if (recvMode === 'receive') dropReq(recvKey(recvTarget));
     $('rvPin').value = '';
-    var failed = rvFileList.length ? await uploadRvFiles(receiptId, recvReceipt && recvReceipt.files ? recvReceipt.files.length : 0) : 0;
     $('recvModal').hidden = true;
     if (r.data.repeat){
       toast(recvMode === 'pay' ? 'That payment was already recorded earlier: nothing new was recorded. Check the balance before recording another one.'
@@ -1121,7 +1111,6 @@ $('recvForm').addEventListener('submit', async function(e){
             : r.data.invoice_status === 'confirmed' ? 'Invoice confirmed · paid ' + fmt(r.data.paid_crc) + ' · open ' + fmt(r.data.open_crc)
             : r.data.invoice_status === 'review' ? 'Saved · the invoice waits to be reviewed'
             : r.data.status === 'partially_received' ? 'Delivery received · the rest is still on order' : 'Order received, stock updated';
-    if (failed) msg += ' · ' + failed + ' file(s) not saved: attach them from Details';
     toast(msg); loadAll();
   } finally { recvBusy = false; $('recvGo').disabled = false; }
 });
@@ -1277,18 +1266,16 @@ $('csvMonthBtn').addEventListener('click', function(){
   download('stock-' + $('monthLabel').textContent.replace(/\s+/g, '-').toLowerCase() + '.csv', [['item', 'category', 'unit', 'ordered', 'ordered_cost', 'sold', 'waste', 'count_adjustment', 'in_stock_now']].concat(MONTH.map(function(m){ return [m.name, m.category, m.unit, m.received_qty, m.received_cost, m.sold_qty, m.waste_qty, m.count_diff, m.on_hand]; })));
 });
 
-/* ---------- receive with the supplier invoice and the payment (migrations 0029/0030) ----------
+/* ---------- receive with the supplier invoice and the payment (migration 0029) ----------
    The receive modal works in three ways: 'receive' (a delivery of an open order, as before, plus the invoice and
    the payment), 'settle' (the invoice and the payment of a delivery already saved) and 'pay' (another payment on a
    confirmed invoice). Everything the server saves is one transaction keyed by the delivery id, so a double tap or a
    retry after a lost answer never doubles anything. */
-var SETTLE_OK = null, DOCS_OK = null, PEND = null, MGRS = null, recvMode = 'receive', recvReceipt = null, recvBusy = false, rvFileList = [], FX_TODAY = null;
-/* rvGen changes every time the window is reset: a slow read or lookup that finishes later writes nothing into another order's form */
+var SETTLE_OK = null, PEND = null, MGRS = null, recvMode = 'receive', recvReceipt = null, recvBusy = false, FX_TODAY = null;
+/* rvGen changes every time the window is reset: a slow lookup that finishes later writes nothing into another order's form */
 var rvGen = 0, payReq = null;
 var PAY_LABEL = {register: 'Cash from the register drawer', cash: 'Cash from the safe', bank: 'SINPE or bank transfer', card_debit: 'Debit card', card_credit: 'Credit card', payout: 'Cash from the register drawer'};
 var INV_STATUS = {pending: 'Invoice pending', review: 'Invoice to review', confirmed: 'Invoice confirmed'};
-var READERS = {pdf: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js', pdfWorker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
-               ocr: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'};
 function recvKey(p){ return 'hg-recv-' + p.id + ':' + (p.purchase_lines || []).reduce(function(s, l){ return s + Number(l.received_qty || 0); }, 0); }
 function storedReq(key){ var v = null; try { v = sessionStorage.getItem(key); } catch (e) {} if (!v){ v = uuid(); try { sessionStorage.setItem(key, v); } catch (e) {} } return v; }
 function dropReq(key){ try { sessionStorage.removeItem(key); } catch (e) {} }
@@ -1302,10 +1289,6 @@ function plusDays(iso, n){ var d = new Date(iso + 'T12:00:00'); d.setDate(d.getD
 async function loadPending(){
   var r = await db.rpc('po_pending');
   SETTLE_OK = r.error ? !isMissing(r.error) && !(r.error.code === 'PGRST202') : true;
-  if (SETTLE_OK && DOCS_OK === null){   /* 0030 (the file bucket) is optional: without it the file buttons stay hidden */
-    var d = await db.rpc('purchase_doc_attach', {p_receipt_id: null, p_path: null});
-    DOCS_OK = !(d.error && (d.error.code === 'PGRST202' || d.error.code === '42883' || /Could not find the function|does not exist/i.test(d.error.message || '')));
-  }
   $('pendCard').hidden = !SETTLE_OK; $('doneTools').hidden = !SETTLE_OK;
   if (!SETTLE_OK) return;
   if (r.error || !r.data || !r.data.ok){ if (PEND) renderPending(); $('pendOwed').textContent = 'Could not load what is pending with suppliers. Check the connection.'; return; }
@@ -1358,9 +1341,6 @@ async function fillMgrs(){
 /* the invoice and payment section: reset, collect, validate, totals */
 function resetRv(opts){
   opts = opts || {}; rvGen++;
-  rvFileList = []; renderRvFiles(); $('rvReadMsg').textContent = ''; $('rvRead').hidden = true;
-  $('rvCamBtn').hidden = $('rvFileBtn').hidden = !DOCS_OK;
-  if (!DOCS_OK) $('rvFiles').textContent = 'Attaching the invoice file needs database update 0030: type the invoice and keep the paper.';
   $('rvMode').value = opts.mode || 'pending';
   $('rvDue').value = plusDays(todayIso(), 30); $('rvCur').value = 'CRC'; $('rvFx').value = '';
   $('rvNet').value = ''; $('rvIva').value = ''; $('rvFxRow').hidden = true;
@@ -1377,10 +1357,8 @@ function resetRv(opts){
     if (d.currency) $('rvCur').value = d.currency; if (d.fx_rate) $('rvFx').value = d.fx_rate; if (d.net != null) $('rvNet').value = d.net; if (d.iva != null) $('rvIva').value = d.iva;
     $('rvFxRow').hidden = $('rvCur').value !== 'USD';
   }
-  rvSource = (opts.draft && opts.draft.source) || null;
   fillMgrs(); updateTotals();
 }
-var rvSource = null;
 function addPayRow(method, amount, ref){
   var row = document.createElement('div'); row.className = 'rv-pay';
   var sel = document.createElement('select'); sel.className = 'rv-method';
@@ -1462,7 +1440,7 @@ function rvCollect(){
   var mode = recvMode === 'pay' ? 'pay' : $('rvMode').value, t = rvInvoiceTotals();
   var inv = {mode: mode, number: null, date: null, due_date: $('rvDue').value || null, currency: t.cur,
              fx_rate: t.cur === 'USD' ? (t.fx || null) : null, net: $('rvNet').value === '' ? null : t.net, iva: $('rvIva').value === '' ? null : t.iva,
-             source: rvSource || (($('recvInv').value || $('rvNet').value) ? 'manual' : null), station: stationName()};
+             source: ($('recvInv').value || $('rvNet').value) ? 'manual' : null, station: stationName()};
   if (!$('rvVendorBox').hidden && $('rvVendor').value) inv.vendor_id = $('rvVendor').value;
   return {invoice: inv, payments: rvPayments(), totals: t, mgr: $('rvMgr').value || null, pin: $('rvPin').value.trim()};
 }
@@ -1489,191 +1467,6 @@ function rvValidate(c){
 }
 
 /* files: photos, PDF or XML of the invoice */
-function renderRvFiles(){
-  var box = $('rvFiles'); box.replaceChildren();
-  rvFileList.forEach(function(f, i){
-    var d = document.createElement('div'); d.style.display = 'flex'; d.style.gap = '.5rem'; d.style.alignItems = 'center';
-    var s = document.createElement('span'); s.textContent = f.name + ' · ' + Math.round(f.blob.size / 1024) + ' KB' + (f.kind === 'xml' ? ' · read' : ''); d.appendChild(s);
-    var x = actBtn('Remove', function(){ rvFileList.splice(i, 1); renderRvFiles(); }); d.appendChild(x); box.appendChild(d);
-  });
-  $('rvRead').hidden = !rvFileList.some(function(f){ return f.kind === 'image' || f.kind === 'pdf'; });
-  $('rvCamBtn').disabled = $('rvFileBtn').disabled = rvFileList.length >= 3;
-}
-function fileKind(f){
-  var n = (f.name || '').toLowerCase(), t = (f.type || '').toLowerCase();
-  if (t === 'application/pdf' || /\.pdf$/.test(n)) return 'pdf';
-  if (/xml/.test(t) || /\.xml$/.test(n)) return 'xml';
-  if (/^image\//.test(t) || /\.(jpe?g|png|webp|heic)$/.test(n)) return 'image';
-  return 'other';
-}
-/* a phone photo is several MB; 1 600 px on the long side is plenty to read an invoice and to keep */
-function shrinkImage(file){
-  return new Promise(function(resolve){
-    var url = URL.createObjectURL(file), img = new Image();
-    img.onload = function(){
-      try {
-        var max = 1600, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, max / Math.max(w, h));
-        var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        c.toBlob(function(b){ URL.revokeObjectURL(url); resolve(b || file); }, 'image/jpeg', 0.85);
-      } catch (e) { URL.revokeObjectURL(url); resolve(file); }
-    };
-    img.onerror = function(){ URL.revokeObjectURL(url); resolve(file); };
-    img.src = url;
-  });
-}
-async function addRvFile(file){
-  if (!file) return;
-  if (rvFileList.length >= 3){ toast('Three files is the limit for one delivery.'); return; }
-  var kind = fileKind(file);
-  if (kind === 'other'){ toast('Only a photo, a PDF or the XML of the invoice.'); return; }
-  var gen = rvGen, blob = file, name = file.name || 'factura', type = kind === 'pdf' ? 'application/pdf' : kind === 'xml' ? 'text/xml' : (file.type || '');
-  if (kind === 'image'){
-    blob = await shrinkImage(file); if (gen !== rvGen) return;
-    if (blob !== file){ type = 'image/jpeg'; name = name.replace(/\.[^.]+$/, '') + '.jpg'; }
-    else if (!/^image\/(jpeg|png|webp)$/.test(type)){ toast('That photo format cannot be read by this device: take the photo with the camera button or save it as JPEG.'); return; }
-  }
-  if (blob.size > 10 * 1024 * 1024){ toast('That file is over 10 MB.'); return; }
-  rvFileList.push({blob: blob, name: name, type: type, kind: kind, token: Math.random().toString(36).slice(2, 8)});
-  renderRvFiles();
-  if (kind === 'xml'){ var txt = await file.text(); if (gen === rvGen) readXml(txt); }
-}
-$('rvCamBtn').addEventListener('click', function(){ $('rvCam').click(); });
-$('rvFileBtn').addEventListener('click', function(){ $('rvFile').click(); });
-$('rvCam').addEventListener('change', async function(){ var f = this.files && this.files[0]; this.value = ''; await addRvFile(f); });
-$('rvFile').addEventListener('change', async function(){ var f = this.files && this.files[0]; this.value = ''; await addRvFile(f); });
-
-/* the supplier's electronic invoice (Hacienda XML 4.3/4.4): exact, read as data; same reader as Contabilidad */
-function eInvoiceRead(text){
-  var doc = new DOMParser().parseFromString(text, 'application/xml');
-  if (doc.getElementsByTagName('parsererror').length) return {error: 'not_xml'};
-  var root = doc.documentElement, kind = root ? root.localName : '';
-  var one = function(el, name){ var n = el ? el.getElementsByTagNameNS('*', name) : []; return n.length ? n[0].textContent.trim() : ''; };
-  var numv = function(v){ var x = Number(String(v || '').replace(',', '.')); return isFinite(x) ? x : 0; };
-  if (!/^(FacturaElectronica|TiqueteElectronico|NotaCreditoElectronica|NotaDebitoElectronica|FacturaElectronicaCompra)$/.test(kind)) return {error: 'not_einvoice'};
-  var emisor = root.getElementsByTagNameNS('*', 'Emisor')[0], resumen = root.getElementsByTagNameNS('*', 'ResumenFactura')[0];
-  var other = 0;
-  Array.prototype.forEach.call(resumen ? resumen.getElementsByTagNameNS('*', 'TotalDesgloseImpuesto') : [], function(d){
-    if (one(d, 'Codigo') && one(d, 'Codigo') !== '01') other += numv(one(d, 'TotalMontoImpuesto'));
-  });
-  return {kind: kind, key: one(root, 'Clave'), number: one(root, 'NumeroConsecutivo'), date: one(root, 'FechaEmision').slice(0, 10),
-          vendor: one(emisor, 'Nombre'), vendorId: one(emisor, 'Numero'), currency: one(resumen, 'CodigoMoneda') || 'CRC',
-          net: numv(one(resumen, 'TotalVentaNeta')), tax: numv(one(resumen, 'TotalImpuesto')), total: numv(one(resumen, 'TotalComprobante')),
-          charges: numv(one(resumen, 'TotalOtrosCargos')), otherTax: other, fx: numv(one(resumen, 'TipoCambio'))};
-}
-function readXml(text){
-  var msg = $('rvReadMsg');
-  var x = text.length > 2000000 ? {error: 'not_einvoice'} : eInvoiceRead(text);
-  if (x.error){ msg.textContent = x.error === 'not_xml' ? 'That file is not an XML file.' : 'That file is not an electronic invoice from Hacienda.'; return; }
-  if (x.kind === 'NotaCreditoElectronica' || x.kind === 'NotaDebitoElectronica'){ msg.textContent = 'That is a credit or debit note, not an invoice: record it by hand with the accountant.'; return; }
-  $('recvInv').value = x.number || x.key; if (x.date) $('recvInvDate').value = x.date;
-  $('rvCur').value = x.currency === 'USD' ? 'USD' : 'CRC'; $('rvFxRow').hidden = $('rvCur').value !== 'USD';
-  if ($('rvCur').value === 'USD' && x.fx >= 100 && x.fx <= 2000) $('rvFx').value = x.fx;   /* the invoice's own rate, not today's */
-  if ($('rvCur').value === 'USD' && !$('rvFx').value) $('rvCur').dispatchEvent(new Event('change'));
-  $('rvNet').value = x.net; $('rvIva').value = Math.max(0, x.tax - x.otherTax);
-  rvSource = 'xml';
-  if ($('rvMode').value === 'pending') $('rvMode').value = 'review';
-  var notes = ['Read from the XML: ' + x.vendor + (x.vendorId ? ' (' + x.vendorId + ')' : '') + ', total ' + fmtMoney(x.total, x.currency) + '.'];
-  if (x.charges) notes.push('The invoice also has other charges of ' + fmtMoney(x.charges, x.currency) + ' (not IVA): check them with the accountant.');
-  if (x.otherTax) notes.push('It includes other taxes of ' + fmtMoney(x.otherTax, x.currency) + ' that are not IVA: they were left out of the IVA.');
-  if (Math.abs(x.net + x.tax + x.charges - x.total) > 1) notes.push('Its total does not add up: check the invoice.');
-  notes.push('Check the amounts, then choose "Confirmed now" or leave it to review.');
-  msg.replaceChildren.apply(msg, notes.map(function(n){ var d = document.createElement('div'); d.textContent = n; return d; }));
-  updateTotals();
-}
-
-/* reading a photo or a PDF: the readers load only now, from the same CDN as supabase-js; without them, type it */
-var LOADED = {};
-function loadScript(url){
-  if (LOADED[url]) return LOADED[url];
-  LOADED[url] = new Promise(function(resolve, reject){
-    var s = document.createElement('script'); s.src = url; s.async = true;
-    s.onload = function(){ resolve(); }; s.onerror = function(){ delete LOADED[url]; reject(new Error('load')); };
-    document.head.appendChild(s);
-  });
-  return LOADED[url];
-}
-function parseAmount(s){
-  s = String(s || '').replace(/[^\d.,]/g, '');
-  if (!s) return null;
-  var lastDot = s.lastIndexOf('.'), lastComma = s.lastIndexOf(',');
-  if (lastDot >= 0 && lastComma >= 0){ var dec = Math.max(lastDot, lastComma); s = s.slice(0, dec).replace(/[.,]/g, '') + '.' + s.slice(dec + 1); }
-  else if (lastComma >= 0){ var tail = s.length - lastComma - 1; s = tail === 2 ? s.replace(/,/g, '.') : s.replace(/,/g, ''); if (tail === 2 && s.split('.').length > 2) s = s.replace(/\.(?=.*\.)/g, ''); }
-  else if (lastDot >= 0){ var tail2 = s.length - lastDot - 1; if (tail2 === 3 && s.split('.').length >= 2) s = s.replace(/\./g, ''); }
-  var n = Number(s); return isFinite(n) ? n : null;
-}
-function extractFields(text){
-  var t = String(text || '').replace(/\s+/g, ' '), out = {found: [], missing: []};
-  var clave = t.match(/\b(\d{50})\b/), consec = t.match(/\b(\d{20})\b/);
-  if (consec) out.number = consec[1]; else if (clave) out.number = clave[1].slice(21, 41);
-  if (!out.number){ var m = t.match(/(?:factura|tiquete|comprobante|n[uú]mero|no\.?|nº|#)\s*[:.]?\s*([A-Z]{0,3}-?\d{3,20})/i); if (m) out.number = m[1]; }
-  var d1 = t.match(/\b(\d{2})[\/.-](\d{2})[\/.-](20\d{2})\b/), d2 = t.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
-  if (d2) out.date = d2[1] + '-' + d2[2] + '-' + d2[3]; else if (d1) out.date = d1[3] + '-' + d1[2] + '-' + d1[1];
-  var tot = t.match(/total(?:\s+(?:comprobante|general|a\s+pagar|factura|neto|final))?\s*[:$₡]?\s*([\d.,]{3,})/i);
-  var iva = t.match(/(?:\biva\b|impuesto(?:s)?(?:\s+(?:al\s+)?valor\s+agregado)?|i\.v\.a\.?)\s*(?:13\s*%)?\s*[:$₡]?\s*([\d.,]{2,})/i);
-  var sub = t.match(/(?:subtotal|sub-total|venta\s+neta|total\s+venta\s+neta|monto\s+gravado)\s*[:$₡]?\s*([\d.,]{2,})/i);
-  var total = tot ? parseAmount(tot[1]) : null, tax = iva ? parseAmount(iva[1]) : null, net = sub ? parseAmount(sub[1]) : null;
-  if (total != null && tax != null && net == null) net = Math.round((total - tax) * 100) / 100;
-  if (total != null && net != null && tax == null) tax = Math.max(0, Math.round((total - net) * 100) / 100);
-  if (net == null && total != null && tax == null) { net = total; tax = 0; }
-  out.net = net; out.iva = tax; out.total = total;
-  out.currency = (/\$|\busd\b|d[oó]lares/i.test(t) && !/₡|colones|\bcrc\b/i.test(t)) ? 'USD' : 'CRC';
-  [['number', 'number'], ['date', 'date'], ['total', 'total']].forEach(function(k){ (out[k[0]] != null ? out.found : out.missing).push(k[1]); });
-  return out;
-}
-async function pdfText(blob){
-  await loadScript(READERS.pdf);
-  var lib = window.pdfjsLib || (window['pdfjs-dist/build/pdf']); lib.GlobalWorkerOptions.workerSrc = READERS.pdfWorker;
-  var doc = await lib.getDocument({data: new Uint8Array(await blob.arrayBuffer())}).promise, text = '';
-  for (var i = 1; i <= Math.min(2, doc.numPages); i++){ var page = await doc.getPage(i); var c = await page.getTextContent(); text += c.items.map(function(it){ return it.str; }).join(' ') + '\n'; }
-  return text;
-}
-async function imageText(blob, onProgress){
-  await loadScript(READERS.ocr);
-  var r = await window.Tesseract.recognize(blob, 'spa', {logger: function(m){ if (onProgress && m.status === 'recognizing text') onProgress(Math.round((m.progress || 0) * 100)); }});
-  return r && r.data ? r.data.text : '';
-}
-$('rvRead').addEventListener('click', async function(){
-  var f = rvFileList.filter(function(x){ return x.kind === 'pdf' || x.kind === 'image'; })[0], msg = $('rvReadMsg'); if (!f) return;
-  var b = this, gen = rvGen; b.disabled = true; msg.textContent = 'Reading the invoice…';
-  try {
-    var text = f.kind === 'pdf' ? await pdfText(f.blob) : await imageText(f.blob, function(p){ if (gen === rvGen) msg.textContent = 'Reading the invoice… ' + p + '%'; });
-    if (gen !== rvGen) return;
-    if (!text || text.trim().length < 10){ msg.textContent = f.kind === 'pdf' ? 'That PDF has no text to read (a scan): type the invoice.' : 'Nothing could be read in the photo: type the invoice.'; return; }
-    var x = extractFields(text), notes = [];
-    if (x.number){ $('recvInv').value = x.number; } if (x.date){ $('recvInvDate').value = x.date; }
-    if (x.net != null){ $('rvNet').value = x.net; } if (x.iva != null){ $('rvIva').value = x.iva; }
-    if (x.currency === 'USD'){ $('rvCur').value = 'USD'; $('rvCur').dispatchEvent(new Event('change')); }
-    rvSource = f.kind === 'pdf' ? 'pdf' : 'ocr';
-    if ($('rvMode').value === 'pending') $('rvMode').value = 'review';
-    notes.push([f.kind === 'pdf' ? 'Read from the PDF:' : 'Read from the photo:'].concat(x.found.length ? x.found : ['nothing certain']));
-    if (x.missing.length) notes.push(['Not found:'].concat(x.missing).concat(['Type it.']));
-    notes.push('Reading is a help, never a decision: check every amount against the paper before confirming.');
-    msg.replaceChildren.apply(msg, notes.map(function(n){ var d = document.createElement('div'); if (typeof n === 'string'){ d.textContent = n; return d; }
-      n.forEach(function(w, i){ var sp = document.createElement('span'); sp.textContent = w; d.appendChild(sp);
-        d.appendChild(document.createTextNode(i === 0 ? ' ' : i === n.length - 1 ? (w === 'Type it.' ? '' : '.') : n[i + 1] === 'Type it.' ? '. ' : ', ')); }); return d; }));
-    updateTotals();
-  } catch (e) {
-    if (gen === rvGen) msg.textContent = 'The reader could not be loaded (no internet to the library?). Type the invoice.';
-  } finally { b.disabled = false; }
-});
-
-/* upload the files of a delivery after it is saved; a retry that finds the file already there goes on to register it */
-async function uploadRvFiles(receiptId, startAt){
-  var failed = 0, n = startAt || 0;
-  for (var i = 0; i < rvFileList.length; i++){
-    var f = rvFileList[i], ext = f.kind === 'pdf' ? 'pdf' : f.kind === 'xml' ? 'xml' : f.type === 'image/png' ? 'png' : f.type === 'image/webp' ? 'webp' : 'jpg';
-    var path = receiptId + '/factura-' + (n + i + 1) + '-' + f.token + '.' + ext;   /* its own name: a retry of this file finds it, another file never collides */
-    var up = await db.storage.from('purchase-invoices').upload(path, f.blob, {contentType: f.type, upsert: false});
-    var dup = up.error && /exists|duplicate|409/i.test((up.error.message || '') + (up.error.statusCode || up.error.status || ''));
-    if (up.error && !dup){ failed++; continue; }
-    var at = await db.rpc('purchase_doc_attach', {p_receipt_id: receiptId, p_path: path});
-    if (at.error || !at.data || !at.data.ok) failed++;
-  }
-  rvFileList = [];
-  return failed;
-}
-
 /* the receive modal in its three ways */
 function openSettle(receiptId, mode){
   var fail = function(){ toast('Could not open that delivery. Reload the page.'); };
@@ -1687,7 +1480,7 @@ function openSettle(receiptId, mode){
       var v = VENDORS.filter(function(x){ return x.id === po.vendor_id; })[0];
       $('recvTitle').textContent = (mode === 'pay' ? 'Record a payment' : 'Invoice and payment') + ' · Nº ' + (po.po_number || '') + (v ? ' · ' + v.name : '');
       $('recvHint').textContent = mode === 'pay' ? 'Invoice Nº ' + (rec.invoice ? rec.invoice.number : '') + ' · open ' + fmt(rec.invoice ? rec.invoice.open_crc : 0) + ' · Say how it was paid; a manager authorizes with their PIN.'
-                                                  : 'Delivery on ' + fmtDT(rec.received_at) + ' · received cost ' + fmt(rec.total_crc) + ' · Attach the invoice, read it or type it, and say how it was paid.';
+                                                  : 'Delivery on ' + fmtDT(rec.received_at) + ' · received cost ' + fmt(rec.total_crc) + ' · Type the invoice and say how it was paid.';
       $('recvLinesBox').hidden = true; $('recvFinalBox').hidden = true; $('rvBox').hidden = false; $('rvBox').open = true;
       $('recvInv').value = rec.invoice_no || (rec.draft && rec.draft.number) || ''; $('recvInvDate').value = rec.invoice_date || (rec.draft && rec.draft.date) || todayIso();
       resetRv({mode: rec.invoice_status === 'review' ? 'review' : 'confirm', needVendor: !po.vendor_id, draft: rec.draft});
@@ -1697,11 +1490,11 @@ function openSettle(receiptId, mode){
   });
 }
 
-/* the order's history: deliveries, invoice, payments, files */
+/* the order's history: deliveries, invoice, payments */
 async function openHistory(poId){
   var r = await db.rpc('po_history', {p_po_id: poId});
   if (r.error || !r.data || !r.data.ok){ toast('Could not load the order. Check the connection.'); return; }
-  var h = r.data, body = $('histBody'); body.replaceChildren(); $('histPreview').hidden = true; $('histPreview').replaceChildren();
+  var h = r.data, body = $('histBody'); body.replaceChildren();
   $('histTitle').textContent = 'Order Nº ' + (h.order.po_number || '') + (h.order.vendor ? ' · ' + h.order.vendor : '');
   if (!h.receipts.length) body.innerHTML = '<p class="empty">No delivery yet.</p>';
   h.receipts.forEach(function(rc){
@@ -1718,24 +1511,13 @@ async function openHistory(poId){
       lines.push('Subtotal ' + fmtMoney(inv.currency === 'USD' ? inv.net_fx : inv.net_crc, inv.currency) + ' · IVA ' + fmtMoney(inv.currency === 'USD' ? inv.iva_fx : inv.iva_crc, inv.currency) + ' · Total ' + fmtMoney(inv.currency === 'USD' ? Number(inv.net_fx) + Number(inv.iva_fx) : inv.total_crc, inv.currency) +
                  (inv.currency === 'USD' ? ' at ₡' + esc(inv.fx_rate) + ' = ' + fmt(inv.total_crc) : '') + ' · <b>open ' + fmt(inv.open_crc) + '</b>');
     } else if (rc.draft && (rc.draft.number || rc.draft.net)){
-      lines.push('Draft: invoice ' + (rc.draft.number ? 'Nº ' + esc(rc.draft.number) : '(no number)') + (rc.draft.date ? ' · ' + esc(fmtD(rc.draft.date)) : '') + (rc.draft.net != null ? ' · subtotal ' + fmtMoney(rc.draft.net, rc.draft.currency) + ' · IVA ' + fmtMoney(rc.draft.iva || 0, rc.draft.currency) : '') + (rc.draft.source ? ' · ' + ({xml: 'from the XML', pdf: 'from the PDF', ocr: 'from the photo'}[rc.draft.source] || 'typed') : ''));
+      lines.push('Draft: invoice ' + (rc.draft.number ? 'Nº ' + esc(rc.draft.number) : '(no number)') + (rc.draft.date ? ' · ' + esc(fmtD(rc.draft.date)) : '') + (rc.draft.net != null ? ' · subtotal ' + fmtMoney(rc.draft.net, rc.draft.currency) + ' · IVA ' + fmtMoney(rc.draft.iva || 0, rc.draft.currency) : ''));
     }
     if (rc.payout) lines.push(fmt(rc.payout.amount_crc) + ' taken from the register on ' + esc(fmtD(rc.payout.business_date)) + (rc.payout.voided ? ' (voided)' : rc.payout.documented ? ' (documented)' : ' (waiting for the invoice)'));
     (rc.payments || []).forEach(function(p){ lines.push('Payment on ' + esc(fmtD(p.date)) + ' · ' + esc(PAY_LABEL[p.paid_from] || p.paid_from) + ' · ' + fmt(p.amount_crc) + (p.reference ? ' · ' + esc(p.reference) : '') + (p.voided ? ' · voided' : '')); });
     info.innerHTML = lines.map(function(l){ return '<div>' + l + '</div>'; }).join('');
     d.appendChild(info);
     var acts = document.createElement('div'); acts.className = 'acts'; acts.style.justifyContent = 'flex-start'; acts.style.marginTop = '.5rem';
-    (rc.files || []).forEach(function(f, i){ acts.appendChild(actBtn('View file ' + (i + 1), function(){ showFile(f.path, f.kind); })); });
-    if (SETTLE_OK && DOCS_OK && (rc.files || []).length < 3){
-      var fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*,application/pdf,.xml,text/xml,application/xml'; fi.hidden = true;
-      fi.addEventListener('change', async function(){
-        var file = fi.files && fi.files[0]; if (!file) return;
-        rvFileList = []; await addRvFile(file); if (!rvFileList.length) return;
-        var failed = await uploadRvFiles(rc.id, (rc.files || []).length);
-        toast(failed ? 'Could not save the file. Try again.' : 'Invoice attached'); openHistory(poId); loadPending();
-      });
-      acts.appendChild(fi); acts.appendChild(actBtn('Attach invoice', function(){ fi.click(); }));
-    }
     if (rc.invoice_status !== 'confirmed'){ var b1 = actBtn('Register invoice', function(){ $('histModal').hidden = true; openSettle(rc.id, 'settle'); }); b1.className = 'small'; acts.appendChild(b1); }
     else if (rc.invoice && Number(rc.invoice.open_crc) > 0 && !rc.invoice.voided){ var b2 = actBtn('Record payment', function(){ $('histModal').hidden = true; openSettle(rc.id, 'pay'); }); b2.className = 'small'; acts.appendChild(b2); }
     d.appendChild(acts); body.appendChild(d);
@@ -1743,16 +1525,6 @@ async function openHistory(poId){
   $('histModal').hidden = false;
 }
 $('histClose').addEventListener('click', function(){ $('histModal').hidden = true; });
-async function showFile(path, kind){
-  var box = $('histPreview'); box.replaceChildren(); box.hidden = false;
-  var su = await db.storage.from('purchase-invoices').createSignedUrl(path, 120);
-  if (su.error || !su.data){ box.textContent = 'Could not open the file. Try again.'; return; }
-  var a = document.createElement('a'); a.href = su.data.signedUrl; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open in a new tab'; a.className = 'btnlink'; a.style.marginBottom = '.5rem';
-  box.appendChild(a);
-  if (kind === 'image'){ var img = document.createElement('img'); img.src = su.data.signedUrl; img.alt = ''; img.style.maxWidth = '100%'; img.style.borderRadius = '10px'; box.appendChild(img); }
-  else if (kind === 'pdf'){ var fr = document.createElement('iframe'); fr.src = su.data.signedUrl; fr.style.width = '100%'; fr.style.height = '60vh'; fr.style.border = '0'; box.appendChild(fr); }
-}
-
 /* received orders: search by supplier and month beyond the last 12 */
 $('doneSearch').addEventListener('click', async function(){
   var q = db.from('purchase_orders').select('*, purchase_lines(*)').in('status', ['received', 'cancelled']).order('created_at', {ascending: false}).limit(100);

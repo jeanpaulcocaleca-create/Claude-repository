@@ -1,5 +1,5 @@
 /* Canopy OS rehearsal · the pages that are LIVE on hanginggardencafe.com today (the gh-pages build named in
-   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0030 today). Until the new pages are
+   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0029 today). Until the new pages are
    published, the café keeps using these: they must load and work exactly as before. Also run on the reset copy
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';

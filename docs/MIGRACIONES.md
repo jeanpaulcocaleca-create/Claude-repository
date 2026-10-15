@@ -77,12 +77,11 @@ Con ese archivo comparo la estructura real contra la reconstrucción.
 
 | Archivo | Qué trae | Cómo se aplica |
 |---|---|---|
-| `0029_recibir_pago.sql` | Recibir un pedido con la factura del proveedor y el pago (D-041): factura pendiente / por revisar / confirmada, dólares con tipo de cambio, tarjeta de débito y de crédito (cuenta nueva 2160, que el contador confirma antes: A-12), efectivo de la caja con PIN | Como cualquier migración (pasos 1–5 de arriba). Requiere la 0028 |
-| `0030_facturas_archivo.sql` | El archivo de la factura (foto, PDF o XML) en el depósito privado `purchase-invoices` y sus reglas de Storage | Después de la 0029. **Opcional:** si sale "must be owner of table objects" no se aplicó nada de ese archivo y todo lo de la 0029 funciona, menos «Tomar foto» / «Elegir archivo». Avíselo y siga |
+| `0029_recibir_pago.sql` | Recibir un pedido con la factura del proveedor y el pago (D-041): factura pendiente / por revisar / confirmada, dólares con tipo de cambio, tarjeta de débito y de crédito (cuenta nueva 2160), efectivo de la caja con PIN; número y montos escritos a mano | Como cualquier migración (pasos 1–5 de arriba). Requiere la 0028 |
 
-Antes de las dos: «Ensayo en pruebas» en verde con la versión (con **reinicio = no**: producción ya pasó la ventana) y
-«Respaldo inmediato» en verde. Después: `supabase/tools/release-check.sql` debe mostrar `migrations_optional_missing`
-vacío y `purchase_upload_rule_current` en `true` (o `[30]` y `null` si la 0030 se dejó para después).
+Antes: «Ensayo en pruebas» en verde con la versión (con **reinicio = no**: producción ya pasó la ventana) y «Respaldo
+inmediato» en verde. Después: `supabase/tools/release-check.sql` debe mostrar `migrations_missing` y `functions_missing`
+vacíos.
 
 ## Plantilla de una migración nueva
 

@@ -2,7 +2,7 @@
 
 **Para qué sirve:** ensayar, con una copia **anonimizada** de los datos reales, exactamente lo que usted hará en la
 ventana del lanzamiento único (docs/LANZAMIENTO-UNICO.md, D-038): el reinicio operativo (solo en una copia de antes de la 0000) y las migraciones que falten
-(hoy producción tiene 0000–0028; la versión a ensayar trae la 0029 y la 0030), con los mismos archivos y en el mismo
+(hoy producción tiene 0000–0028; la versión a ensayar trae la 0029), con los mismos archivos y en el mismo
 orden, antes de tocar producción. Producción solo se **lee**.
 
 **Decisión del dueño (2026-10-14):** el café se queda con su proyecto actual de Supabase y su sitio actual; **no se
@@ -81,7 +81,7 @@ Qué hace, en orden, dentro del trabajo:
      `BORRAR PRUEBAS` en la última línea (lo mismo que usted escribirá a mano), enviado como una sola consulta; debe
      responder `reinicio hecho`, si no, el ensayo se detiene;
    - toma otra foto y revisión (`snapshot-after-reset.json`, `consistency-after-reset.json`).
-4. Aplica las migraciones que falten (hoy 0029 y 0030; en la copia de antes del lanzamiento, 0000–0030) una por una, como un pegado en el SQL Editor, y anota cuánto tardó cada una
+4. Aplica las migraciones que falten (hoy la 0029; en la copia de antes del lanzamiento, 0000–0029) una por una, como un pegado en el SQL Editor, y anota cuánto tardó cada una
    (`timings.txt`); foto y revisión DESPUÉS; `release-check.sql` (`release-check.json`).
 5. Compara (`compare.py`, modo `reset`): las 14 tablas que el reinicio borra deben quedar **vacías**, las 10 que conserva
    **idénticas** (huella por huella), las existencias en cero y la bitácora con una línea más; luego, lo que quedó

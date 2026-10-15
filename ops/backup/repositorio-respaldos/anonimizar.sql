@@ -57,7 +57,7 @@ declare
                           'public.chat_questions.session', 'public.audit_log.summary', 'public.audit_log.details', 'public.audit_log.target_id',
                           'public.expenses.vendor_name', 'public.expenses.receipt_path', 'public.bank_lines.fingerprint',
                           'public.payroll_runs.rules', 'public.staff_profile.id_number', 'public.payroll_special_runs.lines',
-                          'public.purchase_receipts.invoice_draft', 'public.purchase_receipt_files.path'];
+                          'public.purchase_receipts.invoice_draft'];
   -- logins and unlock tokens belong to production only: these tables are emptied
   emptied text[] := array['app_accounts', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'operator_sessions'];
   -- about the business, not about anyone: menu, stock, chart of accounts, settings, codes, kinds and statuses
@@ -86,7 +86,7 @@ declare
                        'public.payroll_special_runs.status',
                        'public.payroll_rules.code', 'public.payroll_rules.kind', 'public.payroll_rules.name', 'public.payroll_runs.status',
                        'public.purchase_orders.status', 'public.purchase_receipts.invoice_no', 'public.purchase_receipts.invoice_status',
-                       'public.purchase_receipt_files.kind', 'public.supplier_invoices.currency', 'public.settings.key', 'public.settings.value',
+                       'public.supplier_invoices.currency', 'public.settings.key', 'public.settings.value',
                        'public.staff.role', 'public.staff_pay.kind', 'public.stock_items.category', 'public.stock_items.name',
                        'public.stock_items.pack_label', 'public.stock_items.unit', 'public.stock_moves.kind', 'public.supplier_invoices.account',
                        'public.supplier_invoices.number', 'public.supplier_payments.paid_from', 'public.tab_adds.result', 'public.tax_rates.code',
@@ -162,15 +162,11 @@ begin
   if exists (select 1 from _cols where q = 'public.expenses.receipt_path') then
     execute 'update public.expenses set receipt_path = id || ''/factura'' where receipt_path is not null';
   end if;
-  -- 0029/0030: the draft of a delivery's invoice names who captured it and may carry a note; the file names may carry the supplier
+  -- 0029: the draft of a delivery's invoice names who captured it and may carry a note may carry the supplier
   if exists (select 1 from _cols where q = 'public.purchase_receipts.invoice_draft') then
     execute $d$update public.purchase_receipts set invoice_draft = invoice_draft || jsonb_strip_nulls(jsonb_build_object(
                'captured_by', case when invoice_draft ? 'captured_by' then 'Persona' end, 'notes', case when invoice_draft ? 'notes' then 'texto' end))
              where invoice_draft is not null$d$;
-  end if;
-  if exists (select 1 from _cols where q = 'public.purchase_receipt_files.path') then
-    execute 'update public.purchase_receipt_files f set path = f.receipt_id || ''/factura-'' || x.n
-               from (select id, row_number() over (partition by receipt_id order by created_at, id) as n from public.purchase_receipt_files) x where x.id = f.id';
   end if;
   if exists (select 1 from _cols where q = 'public.bank_lines.fingerprint') then
     execute 'update public.bank_lines set fingerprint = md5(random()::text || id::text)';

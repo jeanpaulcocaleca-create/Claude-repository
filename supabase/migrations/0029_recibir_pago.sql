@@ -2,7 +2,8 @@
 -- Canopy OS · migración 0029 · Recibir pedido con factura y pago en un solo paso (Inventario → Pedidos → Recibir)
 -- Pegar TODO en Supabase → SQL Editor → New query → Run.  Requiere: 0028.
 --
--- Qué hace (propuesta aprobada por el dueño el 2026-10-15, docs/RECIBIR-PEDIDO.md)
+-- Qué hace (propuesta aprobada por el dueño el 2026-10-15, docs/RECIBIR-PEDIDO.md; el número y el monto de la factura se
+--   escriben a mano: sin fotos, archivos ni lectura automática, por decisión del dueño del mismo día)
 --   * po_receive_and_settle: la entrega (lo que ya hace po_receive_delivery), la factura del proveedor y los pagos
 --     en UNA transacción. Si algo falla, nada queda a medias; repetir el envío devuelve lo ya guardado. Reúne las
 --     funciones que ya existen (po_receive_delivery, supplier_invoice_save, register_cash_move, supplier_payment_save):
@@ -72,18 +73,6 @@ end $$;
 drop trigger if exists purchase_receipts_invoice_status on public.purchase_receipts;
 create trigger purchase_receipts_invoice_status before update of invoice_id on public.purchase_receipts
   for each row execute function public._receipt_invoice_status();
-
--- los archivos de cada entrega (foto, PDF o XML de la factura): la tabla aquí; el depósito y sus reglas en la 0030
-create table if not exists public.purchase_receipt_files (
-  id         uuid primary key default gen_random_uuid(),
-  receipt_id uuid not null references public.purchase_receipts(id),
-  path       text not null unique,                    -- <id de la entrega>/<archivo> en el depósito purchase-invoices
-  kind       text not null check (kind in ('image', 'pdf', 'xml', 'other')),
-  by_name    text,
-  created_at timestamptz not null default now()
-);
-alter table public.purchase_receipt_files enable row level security;
-revoke all on public.purchase_receipt_files from anon, authenticated;
 
 -- 4) supplier_payment_save acepta tarjeta de débito y de crédito (lo demás igual que en la 0025) -----------------------
 create or replace function public.supplier_payment_save(p_payment jsonb, p_request_id uuid)
@@ -479,9 +468,7 @@ begin
                                                                          'reference', sp.reference, 'voided', sp.voided_at is not null, 'by', sp.created_by)
                                                       order by sp.created_at), '[]')
                               from public.supplier_payment_allocations a join public.supplier_payments sp on sp.id = a.payment_id
-                             where a.invoice_id = r.invoice_id),
-               'files', (select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'path', f.path, 'kind', f.kind, 'created_at', f.created_at) order by f.created_at), '[]')
-                           from public.purchase_receipt_files f where f.receipt_id = r.id)) as x
+                             where a.invoice_id = r.invoice_id)) as x
         from public.purchase_receipts r where r.po_id = po.id) q));
 end $$;
 revoke all on function public.po_history(uuid) from public, anon;
@@ -496,8 +483,7 @@ begin
     'receipts', (select coalesce(jsonb_agg(x order by x->>'received_at' desc), '[]') from (
       select jsonb_build_object('id', r.id, 'po_id', r.po_id, 'po_number', po.po_number, 'vendor_id', r.vendor_id, 'vendor', v.name, 'received_at', r.received_at,
                'total_crc', r.total_crc, 'invoice_status', r.invoice_status, 'draft', r.invoice_draft,
-               'payout_crc', (select m.amount_crc from public.cash_movements m where m.id = r.payout_id and m.voided_at is null),
-               'files', (select count(*) from public.purchase_receipt_files f where f.receipt_id = r.id)) as x
+               'payout_crc', (select m.amount_crc from public.cash_movements m where m.id = r.payout_id and m.voided_at is null)) as x
         from public.purchase_receipts r join public.purchase_orders po on po.id = r.po_id left join public.vendors v on v.id = r.vendor_id
        where r.invoice_status in ('pending', 'review') and r.invoice_id is null and r.received_at > now() - interval '180 days') q),
     'invoices', (select coalesce(jsonb_agg(x order by x->>'due_date', x->>'date'), '[]') from (

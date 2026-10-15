@@ -1096,3 +1096,26 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   registers them); file types from the kind, HEIC refused; the XML's own exchange rate; the page hides the file
   buttons when 0030 is not applied; a failed `po_pending` no longer reads as «nothing owed»; «locked» offers the PIN
   screen over the window.
+
+## D-042 · 2026-10-15 · Recibir pedido approved for publication with two adjustments: no files or readers; no accountant gate
+- **The owner's decision (same day, after reading the result of D-041):** the implementation is approved as built with
+  two changes only. (1) No photographs, attachments or automatic reading of invoices (OCR, PDF, XML): the invoice's
+  number and amounts are typed by hand. (2) The accountant needs no access to the system and approves nothing for
+  this section to be used: Canopy OS is the café's internal administration; the financial information stays available
+  to consult, and any accounting automation not yet enabled stays off. Everything else of D-041 stands unchanged:
+  the five order options and the design, pending / review / confirmed invoices, colones and dollars with the rate,
+  the payment methods (register cash with a manager PIN, SINPE/bank, debit card, credit card), partial and combined
+  payments, what is owed, the order's history, and the one-transaction save with its repeat protection.
+- **What changed in this commit.** Migration 0030 (the Storage bucket, its rules, `purchase_doc_attach`) is deleted;
+  0029 loses the `purchase_receipt_files` table and the `files` entries of `po_history`/`po_pending`; the page loses
+  the photo/file buttons, the readers (pdf.js, tesseract.js), the XML reader, the file list, uploads, «Adjuntar
+  factura», «Ver archivo» and the file preview; the release check, the rehearsal comparison, the backup kit
+  (`backup.sh`, `ensayo.sh`, `anonimizar.sql`), the Storage stubs and lint rule 13 go back to what they were, minus
+  the two reader libraries; test `330_purchase_docs` and the browser scenarios about files are gone. Nothing else of
+  the flow or its tests changed. The accountant's confirmation of the card accounts (A-12) is no longer a condition
+  for anything: the account `2160` and the two mappings are part of 0029 as approved; the accountant may review them
+  whenever the owner shares the information. `ledger_auto_post` and every regulated setting stay off as before; the
+  entry an invoice or a payment writes in the internal books is the one Contabilidad has written since 0016, not a
+  fiscal record.
+- **Tests:** SQL 32 files (`320_receive_settle` 127, `240_release_check` 17), browser `290_receive` (4), the full
+  suite green; the rehearsal applies 0000–0029.

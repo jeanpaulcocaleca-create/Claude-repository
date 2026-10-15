@@ -1,6 +1,6 @@
-/* Receive a delivery with the supplier invoice and the payment (migrations 0029/0030): the café device with a manager
-   PIN, the invoice read from its Hacienda XML, cash from the register and a later bank payment; a delivery whose
-   invoice comes later; refusals that save nothing; a dollar invoice with its photo kept with the delivery. */
+/* Receive a delivery with the supplier invoice and the payment (migration 0029): the café device with a manager PIN,
+   the invoice typed by hand, cash from the register and a later bank payment; a delivery whose invoice comes later;
+   refusals that save nothing; a dollar invoice valued in colones. */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
@@ -14,22 +14,6 @@ function setup() {
        insert into purchase_lines (id, po_id, item_id, packs, qty, unit_cost) values ('${LINE}', '${PO}', '${ITEM}', 2, 20, 300)`);
 }
 const today = () => sql(`select cr_today()::text`);
-/* a Hacienda electronic invoice (v4.3): net 6 000, IVA 780, total 6 780 */
-function xml(date) {
-  return `<?xml version="1.0" encoding="utf-8"?>
-<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica">
-  <Clave>${'5061510260031011234560010000101000000012310000000'.padEnd(50, '1')}</Clave>
-  <NumeroConsecutivo>00100001010000000123</NumeroConsecutivo>
-  <FechaEmision>${date}T08:00:00-06:00</FechaEmision>
-  <Emisor><Nombre>Panadería Sol</Nombre><Identificacion><Tipo>02</Tipo><Numero>3101123456</Numero></Identificacion></Emisor>
-  <ResumenFactura><CodigoTipoMoneda><CodigoMoneda>CRC</CodigoMoneda><TipoCambio>1.00000</TipoCambio></CodigoTipoMoneda>
-    <TotalVentaNeta>6000.00000</TotalVentaNeta>
-    <TotalDesgloseImpuesto><Codigo>01</Codigo><CodigoTarifaIVA>08</CodigoTarifaIVA><TotalMontoImpuesto>780.00000</TotalMontoImpuesto></TotalDesgloseImpuesto>
-    <TotalImpuesto>780.00000</TotalImpuesto><TotalOtrosCargos>0.00000</TotalOtrosCargos><TotalComprobante>6780.00000</TotalComprobante>
-  </ResumenFactura>
-</FacturaElectronica>`;
-}
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 
 /* the Orders tab of the inventory page; a café device opens it with a manager PIN */
 async function orders(browser, opts) {
@@ -66,41 +50,37 @@ async function pin(pg, who, code) {
 }
 const plain = (s) => String(s || '').replace(/\s+/g, ' ');   // the page's money uses narrow no-break spaces
 const toast = async (pg) => plain(await pg.locator('#toast').textContent());
+const text = async (loc) => plain(await loc.textContent());
+const paid = (inv) => `(select coalesce(sum(a.amount_crc), 0) from supplier_payment_allocations a where a.invoice_id = ${inv})`;
 /* waits for a toast; a timeout reports what the modal said instead */
 async function toasted(pg, re, what) {
   try { await until(async () => re.test(await toast(pg)), 10000, what); }
   catch (e) { throw new Error(e.message + ' · toast: ' + (await toast(pg)) + ' · error shown: ' + plain(await pg.locator('#recvErr').textContent())); }
 }
-const text = async (loc) => plain(await loc.textContent());
-const paid = (inv) => `(select coalesce(sum(a.amount_crc), 0) from supplier_payment_allocations a where a.invoice_id = ${inv})`;
 
 module.exports.tests = [
   {
-    name: 'café device + manager PIN: the delivery, its invoice read from the XML, cash from the register; the rest paid later by bank',
+    name: 'café device + manager PIN: the delivery, its invoice typed, cash from the register; the rest paid later by bank',
     run: async ({ browser }) => {
       setup(); openRegister();
       const pg = await orders(browser, { login: 'cafe', lang: 'es' });
       await until(async () => /No se debe nada/.test(await text(pg.locator('#pendOwed'))), 5000, 'nothing owed yet, in Spanish');   // the translation runs a frame later
       await openReceive(pg);
       await until(async () => (await text(pg.locator('#recvGo'))) === 'Confirmar recepción', 5000, 'the button, in Spanish');
+      assert.strictEqual(await pg.locator('#rvCamBtn, #rvFileBtn, #rvRead').count(), 0, 'no photo, file or reader buttons');
       await pg.locator('#recvTable [data-f=qty]').fill('20');
-      await pg.setInputFiles('#rvFile', { name: 'factura.xml', mimeType: 'text/xml', buffer: Buffer.from(xml(today())) });
-      await until(async () => (await pg.inputValue('#recvInv')) === '00100001010000000123', 5000, 'the number read from the XML');
-      assert.strictEqual(await pg.inputValue('#recvInvDate'), today());
-      assert.strictEqual(await pg.inputValue('#rvNet'), '6000');
-      assert.strictEqual(await pg.inputValue('#rvIva'), '780');
-      assert.strictEqual(await pg.inputValue('#rvMode'), 'review', 'a read invoice waits for a human');
-      await until(async () => /Leído del XML/.test(await text(pg.locator('#rvReadMsg'))), 5000, 'the read note, in Spanish');
+      await pg.fill('#recvInv', '00100001010000000123');
+      await pg.fill('#recvInvDate', today());
       await pg.selectOption('#rvMode', 'confirm');
+      await pg.fill('#rvNet', '6000'); await pg.fill('#rvIva', '780');
       await payRow(pg, 'register', 2000);
       await until(async () => /Pagado: ₡2 000 · Saldo: ₡4 780/.test(await text(pg.locator('#rvPaySum'))), 5000, 'the balance, in Spanish');
       await pin(pg, STAFF.ana, PINS.ana);
       await pg.click('#recvGo');
       await toasted(pg, /Factura confirmada · pagado ₡2 000 · pendiente ₡4 780/, 'confirmed, in Spanish');
-      const r = sql(`select r.invoice_status || '|' || i.number || '|' || i.total_crc || '|' || ${paid('i.id')} || '|' || i.currency || '|' || (select count(*) from purchase_receipt_files f where f.receipt_id = r.id)
-                       || '|' || (select kind from purchase_receipt_files f where f.receipt_id = r.id) || '|' || (select on_hand from stock_items where id = '${ITEM}')
+      const r = sql(`select r.invoice_status || '|' || i.number || '|' || i.total_crc || '|' || ${paid('i.id')} || '|' || i.currency || '|' || (select on_hand from stock_items where id = '${ITEM}')
                      from purchase_receipts r join supplier_invoices i on i.id = r.invoice_id`);
-      assert.strictEqual(r, 'confirmed|00100001010000000123|6780.00|2000.00|CRC|1|xml|20');
+      assert.strictEqual(r, 'confirmed|00100001010000000123|6780.00|2000.00|CRC|20');
       assert.strictEqual(sql(`select direction || '|' || purpose || '|' || amount_crc || '|' || (business_date = cr_today()) from cash_movements`), 'out|payout|2000.00|true', 'the cash left the register drawer');
       assert.strictEqual(sql(`select paid_from || '|' || amount_crc || '|' || (payout_id is not null) from supplier_payments`), 'payout|2000.00|true', 'the payment points at the register payout');
       // the invoice and the payment are in the books, the IVA apart from the goods
@@ -161,6 +141,7 @@ module.exports.tests = [
       await pg.waitForSelector('#histModal:not([hidden])', { timeout: 5000 });
       const hist = await text(pg.locator('#histBody'));
       assert.match(hist, /Invoice confirmed/); assert.match(hist, /Invoice Nº F-77/); assert.match(hist, /Payment on .* · Debit card · ₡6 780/);
+      assert.strictEqual(await pg.locator('#histBody button', { hasText: /Attach|View file/ }).count(), 0, 'nothing about files');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -187,6 +168,7 @@ module.exports.tests = [
       await until(async () => /That PIN is not right/.test(await pg.locator('#recvErr').textContent()), 8000, 'wrong PIN');
       assert.strictEqual(sql(`select count(*) from purchase_receipts`), '0');
       assert.strictEqual(sql(`select count(*) from cash_movements`), '0', 'no money left the register');
+      assert.strictEqual(sql(`select failed_pins from staff where id = '${STAFF.ana}'`), '1', 'the wrong try is counted');
       await pg.locator('#rvPays .rv-amount').last().fill('999999');
       await pg.fill('#rvPin', PINS.ana);
       await pg.click('#recvGo');
@@ -200,7 +182,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'a dollar invoice is valued in colones at the typed rate; the photo stays with the delivery and opens from the history; without the reader library the page says so',
+    name: 'a dollar invoice is valued in colones at the typed rate and shows so in the history',
     run: async ({ browser }) => {
       setup();
       const pg = await orders(browser);
@@ -214,46 +196,13 @@ module.exports.tests = [
       await pg.fill('#rvFx', '520');
       await pg.fill('#rvNet', '10'); await pg.fill('#rvIva', '1.3');
       assert.match(await text(pg.locator('#rvTotals')), /Invoice total: \$11\.30 = ₡5 876/);
-      await pg.setInputFiles('#rvFile', { name: 'foto.png', mimeType: 'image/png', buffer: PNG });
-      await until(async () => /foto\.jpg/.test(await pg.locator('#rvFiles').textContent()), 5000, 'the photo, shrunk to a JPEG, is listed');
-      await pg.click('#rvRead');
-      await until(async () => /reader could not be loaded/.test(await pg.locator('#rvReadMsg').textContent()), 10000, 'no library: type it');
       await pg.click('#recvGo');
       await toasted(pg, /Invoice confirmed · paid ₡0 · open ₡5 876/, 'confirmed in colones');
       assert.strictEqual(sql(`select currency || '|' || fx_rate || '|' || net_fx || '|' || iva_fx || '|' || net_crc || '|' || iva_crc || '|' || total_crc from supplier_invoices`), 'USD|520.00|10.00|1.30|5200.00|676.00|5876.00');
-      assert.match(sql(`select kind || '|' || path from purchase_receipt_files`), new RegExp('^image\\|' + sql(`select id from purchase_receipts`) + '/factura-1-[a-z0-9]{1,6}\\.jpg$'), 'the photo, with its own name, registered on the delivery');
       await until(async () => (await pg.locator('#poDone .po').count()) > 0, 8000, 'in received orders');
       await pg.locator('#poDone .po').first().locator('button', { hasText: /^Details$/ }).click();
       await pg.waitForSelector('#histModal:not([hidden])', { timeout: 5000 });
       assert.match(await text(pg.locator('#histBody')), /Total \$11\.30 at ₡520 = ₡5 876 · open ₡5 876/);
-      await pg.locator('#histBody button', { hasText: /^View file 1$/ }).click();
-      await until(async () => (await pg.locator('#histPreview img').count()) === 1, 8000, 'the photo shows');
-      assert.match(await pg.locator('#histPreview img').getAttribute('src'), /\/object\/sign\/purchase-invoices\//);
-      assert.deepStrictEqual(pg.errors, []);
-    }
-  },
-  {
-    name: 'without migration 0030 the file buttons stay hidden and the page says why; receiving and confirming still work',
-    run: async ({ browser }) => {
-      setup();
-      sql(`drop function public.purchase_doc_attach(uuid, text); notify pgrst, 'reload schema'`);
-      await new Promise((r) => setTimeout(r, 1500));   // PostgREST reloads its schema cache on the notice
-      const pg = await orders(browser);
-      await openReceive(pg);
-      assert.strictEqual(await pg.locator('#rvCamBtn').isVisible(), false, 'no camera button');
-      assert.strictEqual(await pg.locator('#rvFileBtn').isVisible(), false, 'no file button');
-      assert.match(await text(pg.locator('#rvFiles')), /database update 0030/);
-      await pg.locator('#recvTable [data-f=qty]').fill('20');
-      await pg.fill('#recvInv', 'N-30');
-      await pg.fill('#recvInvDate', today());
-      await pg.selectOption('#rvMode', 'confirm');
-      await pg.fill('#rvNet', '6000'); await pg.fill('#rvIva', '780');
-      await pg.click('#recvGo');
-      await toasted(pg, /Invoice confirmed · paid ₡0 · open ₡6 780/, 'confirmed without 0030');
-      await until(async () => (await pg.locator('#poDone .po').count()) > 0, 8000, 'in received orders');
-      await pg.locator('#poDone .po').first().locator('button', { hasText: /^Details$/ }).click();
-      await pg.waitForSelector('#histModal:not([hidden])', { timeout: 5000 });
-      assert.strictEqual(await pg.locator('#histBody button', { hasText: /^Attach invoice$/ }).count(), 0, 'no attach button either');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

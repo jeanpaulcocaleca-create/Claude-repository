@@ -56,7 +56,6 @@ known_fn(fn, h, ver) as (values
   ('public._insights_allowed()', 'dbdab2600c4c', '0025'),
   ('public._inv_actor()', 'd4077c1976c2', 'legacy'),
   ('public._invoice_open(p_id uuid)', '97ca0fa8ef47', '0016'),
-  ('public._login_unlocked()', 'cdb184720553', '0030'),
   ('public._on_the_clock(p_staff uuid, p_at timestamp with time zone)', '4ba30fe2d47e', '0008'),
   ('public._operator_resolve(p_at timestamp with time zone, OUT staff_id uuid, OUT staff_name text, OUT session_id uuid, OUT verified boolean, OUT on_clock boolean)', '26859a1af083', '0008'),
   ('public._order_after_close_log()', 'ee4bcf2ffc1f', '0003'),
@@ -104,7 +103,6 @@ known_fn(fn, h, ver) as (values
   ('public._payroll_params_now()', 'c805b306d619', '0026'),
   ('public._payroll_renta(p_base numeric, p_days integer, p_children integer, p_spouse boolean, p_params jsonb)', 'a52cca07a829', '0026'),
   ('public._po_number()', 'caa0f33968b1', '0012'),
-  ('public._purchase_doc_slot_open(p_name text)', 'ef6ffa25a9e2', '0030'),
   ('public._purchase_history_guard()', '3ca61894b294', '0005'),
   ('public._purchase_line_guard()', 'bbe77da7d1db', '0025'),
   ('public._purchase_order_status()', 'ba47bb939298', '0012'),
@@ -281,8 +279,8 @@ known_fn(fn, h, ver) as (values
   ('public.payroll_staff()', 'ce637fc78706', '0026'),
   ('public.payslip(p_run_id uuid, p_staff_id uuid)', '9a14cbb140bc', '0026'),
   ('public.place_room_order(p_code text, p_name text, p_phone text, p_lang text, p_notes text, p_items jsonb)', '5bfa7ad315b3', 'legacy'),
-  ('public.po_history(p_po_id uuid)', '0957c100c32f', '0029'),
-  ('public.po_pending()', '02099386b382', '0029'),
+  ('public.po_history(p_po_id uuid)', '03d0a032bab8', '0029'),
+  ('public.po_pending()', '610deb5fdedb', '0029'),
   ('public.po_receipt_pay(p_receipt_id uuid, p_payments jsonb, p_request_id uuid, p_manager_id uuid, p_pin text, p_station text)', 'e2f840b1b9db', '0029'),
   ('public.po_receipt_settle(p_receipt_id uuid, p_invoice jsonb, p_payments jsonb, p_manager_id uuid, p_pin text)', 'ea909ff65604', '0029'),
   ('public.po_receive(p_po_id uuid, p_lines jsonb)', '54e0e7a8423c', 'legacy'),
@@ -298,7 +296,6 @@ known_fn(fn, h, ver) as (values
   ('public.pos_record_sale(p_order jsonb)', 'bd1e22c34ce5', '0010'),
   ('public.pos_record_tender(p_order_id uuid, p_tender jsonb)', '4e77acb867f2', '0010'),
   ('public.product_profitability(p_from date, p_to date)', 'a1aba53e1bc2', '0017'),
-  ('public.purchase_doc_attach(p_receipt_id uuid, p_path text)', '3415530da876', '0030'),
   ('public.quick_items(p_days integer, p_limit integer)', '11762e8f5921', '0001'),
   ('public.quick_items(p_days integer, p_limit integer)', 'de244c47ac56', 'legacy'),
   ('public.recipes_autolink()', '2079624d014f', 'legacy'),
@@ -558,7 +555,7 @@ open_policies as (
     from pg_policies
    where schemaname in ('public', 'storage', 'acct', 'canopy')
      and coalesce(qual, '') || coalesce(with_check, '') !~
-         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed|_login_unlocked)'
+         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed)'
 )
 select jsonb_pretty(jsonb_build_object(
   'checked_at', now(),

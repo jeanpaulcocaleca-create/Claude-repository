@@ -18,7 +18,7 @@
 #   AGE_RECIPIENTS     the owner's age PUBLIC keys (age1...), separated by spaces or new lines (2 recommended)
 #   SUPABASE_URL       https://<ref>.supabase.co (public; used to download public Storage files)
 #   STORAGE_BUCKETS    public buckets to copy (default: menu-photos)
-#   PRIVATE_BUCKETS    private buckets to copy with Storage's S3 access (default: expense-receipts purchase-invoices)
+#   PRIVATE_BUCKETS    private buckets to copy with Storage's S3 access (default: expense-receipts)
 #   STORAGE_S3_ENDPOINT, STORAGE_S3_REGION, STORAGE_S3_KEY_ID, STORAGE_S3_SECRET
 #                      Supabase → Storage → S3 access keys (they open every bucket, read and write: keep them only
 #                      in the private repository); without them private buckets are skipped
@@ -347,7 +347,7 @@ PY
 fi
 
 STEP="copiar facturas (Storage privado)"
-PRIVATE="${PRIVATE_BUCKETS:-expense-receipts purchase-invoices}"
+PRIVATE="${PRIVATE_BUCKETS:-expense-receipts}"
 if [ -n "${STORAGE_S3_KEY_ID:-}" ] && [ -n "${STORAGE_S3_SECRET:-}" ] && [ -n "${STORAGE_S3_ENDPOINT:-}" ]; then
   export RCLONE_CONFIG_SUPASTORE_TYPE=s3 RCLONE_CONFIG_SUPASTORE_PROVIDER=Other
   export RCLONE_CONFIG_SUPASTORE_ENDPOINT="$STORAGE_S3_ENDPOINT" RCLONE_CONFIG_SUPASTORE_REGION="${STORAGE_S3_REGION:-us-east-1}"

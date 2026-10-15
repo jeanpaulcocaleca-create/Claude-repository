@@ -28,9 +28,6 @@ select test.eq((select count(*)::int from pg_proc p join pg_namespace n on n.oid
 \set rc `cat :'rc_file'`
 select test.eq((:'rc'::jsonb) -> 'storage_buckets_missing', '[]'::jsonb, 'storage: the receipts bucket is there (0015)');
 select test.eq((:'rc'::jsonb) -> 'storage_policies_missing', '[]'::jsonb, 'storage: the receipts rules and the menu photos rules are there');
-select test.eq((:'rc'::jsonb) -> 'migrations_optional_missing', '[]'::jsonb, 'the optional 0030 is applied here');
-select test.eq((:'rc'::jsonb) -> 'purchase_upload_rule_current', 'true'::jsonb, 'storage: the invoice upload rule is the current one');
-select test.ok(((:'rc'::jsonb) -> 'storage_buckets_missing') = '[]'::jsonb and not (((:'rc'::jsonb) -> 'storage_policies_missing') ? 'purchase invoices add'), 'storage: the invoice bucket and its rules are there');
 select test.eq((:'rc'::jsonb) -> 'menu_photos_bucket', 'true'::jsonb, 'storage: the menu photos bucket is reported');
 select test.eq((:'rc'::jsonb) -> 'receipt_upload_rule_current', 'true'::jsonb, 'storage: the upload rule is the one from 0025');
 -- 0015's looser upload rule left in place
@@ -72,10 +69,6 @@ delete from canopy.migrations where version >= 15;
 select test.eq((:'rc'::jsonb) -> 'storage_buckets_missing', '[]'::jsonb, 'storage: before 0015 no receipts bucket is asked for');
 select test.eq((:'rc'::jsonb) -> 'storage_policies_missing', '[]'::jsonb, 'storage: before 0015 no receipts rule is asked for');
 select test.eq((:'rc'::jsonb) -> 'receipt_upload_rule_current', 'null'::jsonb, 'storage: before 0025 the upload rule is not judged');
--- the owner may stop before 0030: it is reported as optional, nothing of it is demanded
-select test.eq((:'rc'::jsonb) -> 'migrations_optional_missing', '[30]'::jsonb, 'without 0030 the optional migration is listed, apart from the required ones');
-select test.eq((:'rc'::jsonb) -> 'purchase_upload_rule_current', 'null'::jsonb, 'storage: without 0030 the invoice upload rule is not judged');
-select test.ok(not (((:'rc'::jsonb) -> 'storage_buckets_missing') ? 'purchase-invoices'), 'storage: without 0030 the invoice bucket is not asked for');
 \set rc `rm -f :'rc_file'`
 \pset tuples_only off
 \pset format aligned

@@ -38,8 +38,6 @@ async function page(browser, opts) {
   await pg.addInitScript(() => { document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.scrollBehavior = 'auto'; }); });
   await pg.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await pg.route(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/, (r) => r.fulfill({ contentType: 'application/javascript', body: SBJS }));
-  // the invoice readers (pdf.js, tesseract.js) are loaded only when someone taps 'Read the invoice'; a test never fetches them
-  await pg.route(/cdn\.jsdelivr\.net\/npm\/(pdfjs-dist|tesseract\.js)/, (r) => r.abort());
   // the real Supabase must never be reached from a test
   await pg.route(/\.supabase\.co\//, (r) => { pg.supabaseHits++; return r.abort(); });
   await pg.route(/cloudfront\.net|unsplash|higgsfield/, (r) => r.abort());

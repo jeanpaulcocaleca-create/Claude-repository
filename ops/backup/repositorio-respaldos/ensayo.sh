@@ -143,8 +143,6 @@ begin
   -- (Supabase lets the SQL Editor's account manage policies there), so no cascade has to reach Storage's table
   drop policy if exists "expense receipts read" on storage.objects;
   drop policy if exists "expense receipts add" on storage.objects;
-  drop policy if exists "purchase invoices read" on storage.objects;
-  drop policy if exists "purchase invoices add" on storage.objects;
   drop schema if exists canopy cascade;
   drop schema if exists acct cascade;
   for r in select format('%I.%I', schemaname, tablename) as t from pg_tables where schemaname = 'public' loop
@@ -159,7 +157,6 @@ begin
   -- trigger fires even when no row matches). Only the rows go: the staging receipt files stay orphaned in staging Storage.
   perform set_config('storage.allow_delete_query', 'true', true);
   delete from storage.objects where bucket_id = 'expense-receipts';
-  delete from storage.objects where bucket_id = 'purchase-invoices';
 end $$;
 SQL
 fi
