@@ -87,7 +87,9 @@ colón por colón; (8) respaldo y restauración de la copia migrada; (9) la copi
 y cargada en una base **vacía** que `restore-stub.sql` deja igual a un proyecto de Supabase, otra vez vaciándola antes, y
 otra vez con reinicio = `si`; (10) el pase del reinicio sobre una segunda copia de la base de hoy: seis negativas que no
 cambian nada, el reinicio como UNA consulta, lo borrado vacío, las existencias en cero, lo conservado idéntico, la
-bitácora con la huella del resumen, las migraciones después y `compare.py reset`; luego `tests/rehearsal/reset-pages.sh`:
+bitácora con la huella del resumen, las migraciones después y `compare.py reset fixture` (cada una de las 14 tablas que se
+borran tenía filas en la copia sintética: el borrado de cada una queda probado; `compare-selftest.py` prueba la comparación
+misma sobre copias alteradas de esos archivos); luego `tests/rehearsal/reset-pages.sh`:
 las páginas de hoy y las nuevas, en un navegador real, sobre el café vacío y su primer día.
 
 **(b) Su ensayo con los datos reales, de un botón**: `canopy-respaldos` → Actions → **Ensayo en pruebas** → versión: la
@@ -97,7 +99,15 @@ en una base PostgreSQL 17 **temporal dentro del propio trabajo** (ningún proyec
 cierra el café en la copia, guarda el resumen, ejecuta `reinicio-operativo.sql` **tal cual**, toma la foto de después,
 aplica 0000–0028 y compara. Debe terminar en **verde** con `reinicio hecho · respaldo ensayo …`, `borrado: …` (filas por
 tabla y `stock_items_a_cero`), `conservado idéntico: …` (los 13 nombres), cada migración con su tiempo y la comparación
-`reset` sin diferencias; los archivos (`ensayo-resultados-desechable`) traen solo cantidades y huellas; `timings.txt` es
+`reset` sin diferencias: su línea `reset: 14 tables cleared (N had rows; …)` nombra las tablas que en producción no tenían
+filas (como `order_part_lines` si ninguna cuenta se dividió por platos) y las tres de llaves que `anonimizar.sql` vacía; no
+son errores. **Primera corrida con los datos reales, 2026-10-14 23:29 UTC (corrida #2):** la copia (35 ventas, 85 líneas,
+3 días de caja, 5 turnos, 3 movimientos de inventario, 5 pedidos, 3 personas) se anonimizó y cargó, el reinicio respondió
+`reinicio hecho` (14 tablas borradas, 13 conservadas idénticas, 3 insumos a cero) en menos de un segundo y las 29
+migraciones corrieron después en menos de 2 s; la corrida quedó roja solo en la comparación, por una expectativa pensada
+para la copia sintética (`order_part_lines had nothing to clear`), corregida esa noche (D-039, adenda): **se repite con la
+versión corregida** (PRUEBAS, «Instalación»: `ensayo.sh` de nuevo). Los archivos (`ensayo-resultados-desechable`) traen
+solo cantidades y huellas; `timings.txt` es
 la referencia de cuánto tardará cada pegado. Allí las migraciones corren como superusuario del servidor temporal: que
 corren también como la cuenta del SQL Editor, que no lo es, lo prueba (a). Si cambia la versión, se repite. No hay sitio
 de pruebas: las páginas se prueban en (a) sobre el café vacío; con los datos reales las ve usted en la ventana.
@@ -110,7 +120,7 @@ de pruebas: las páginas se prueban en (a) sobre el café vacío; con los datos 
 | Ingresos (Auth) | Las páginas con y sin código; `cafe-login.sql` en la copia (la sesión del aparato sigue vendiendo) | Que activar el código cierre las otras sesiones del mismo ingreso; el correo de «olvidé mi contraseña»; las sesiones reales de los iPads | INGRESOS caso B: ingresos personales confirmados antes; el ingreso del café se convierte **antes** de cualquier código; el código solo en el ingreso personal, desde el propio teléfono; ni el reinicio ni `cafe-login.sql` tocan sesiones |
 | Storage (fotos, facturas) | Las líneas `storage.` de 0015 y 0025 con un rol sustituto (`rehearsal_storage_admin`) que permite **más** que producción; el lint solo deja crear el depósito y sus reglas | storage-api y `policy_grants` de supautils | Derechos confirmados por la consulta de seguimiento (2026-10-13: `can_insert_buckets` y `policy_grants` true); `storage_buckets_missing` y `storage_policies_missing` vacíos, `receipt_upload_rule_current` true; si la 0015 fallara no aplica nada y la ventana para en la 0014, donde las páginas de hoy funcionan (probado) |
 | PostgREST | Un PostgREST local en las pruebas de navegador; la puerta de versión de las páginas | La versión de Supabase y cuándo recarga su caché del esquema | Cada migración termina con `notify pgrst`; las páginas leen `canopy_schema_version` y dicen «necesita una actualización» en vez de fallar: una recarga |
-| SQL Editor | Cada archivo como UNA transacción (`psql -c`, el pegado entero como una consulta) | Cómo ejecuta el Editor y si hay un tiempo máximo por consulta | Cada pegado es pequeño: cada migración tardó menos de un segundo; el reinicio, unos 9 s con 14 534 ventas (producción tiene cerca de una semana). Un pegado que falla no aplica nada |
+| SQL Editor | Cada archivo como UNA transacción (`psql -c`, el pegado entero como una consulta) | Cómo ejecuta el Editor y si hay un tiempo máximo por consulta | Cada pegado es pequeño: cada migración tardó menos de un segundo; el reinicio, unos 9 s con 14 534 ventas sintéticas y menos de un segundo con las 35 reales (corrida del 2026-10-14). Un pegado que falla no aplica nada |
 | Páginas y sitio | Las páginas de hoy y las nuevas, en navegador, contra la copia migrada y la reiniciada | GitHub Pages en `hanginggardencafe.com`, la caché del CDN tras publicar, la recarga de cada aparato | `version.json` muestra la etiqueta; los aparatos se recargan solos (hasta 15 min) o con una recarga; la llave `anon` es pública y no cambia (`config-check` en el lint) |
 | Versión del servidor | PostgreSQL 17 en CI y en la base desechable (16 en local) | 17.6 en Supabase | La misma versión mayor; SQL llano; la foto de después se compara con la del ensayo |
 | Respaldo y anonimización | Cada respaldo se restaura en una base desechable y se compara; `anonimizar.sql` se detiene ante una columna que no conoce | — | El respaldo de la ventana debe decir `restauración verificada` antes de seguir |
@@ -124,7 +134,9 @@ de pruebas: las páginas se prueban en (a) sobre el café vacío; con los datos 
 4. **El ensayo con los datos reales** (sección 3b): subir al repositorio privado los archivos que cambiaron (PRUEBAS los
    nombra); «Ensayo en pruebas» con la versión a lanzar, destino = `desechable`, reinicio = `si` → verde con `reinicio
    hecho`, `borrado`, `conservado idéntico` y `reset` limpio. Si la versión cambia, se repite. No hay proyecto ni sitio
-   de pruebas que crear (E-13, E-14 retiradas, D-039).
+   de pruebas que crear (E-13, E-14 retiradas, D-039). **Estado:** la corrida #2 (2026-10-14 23:29 UTC) pasó el
+   reinicio y las 29 migraciones sobre la copia real y quedó roja solo en la comparación, por una expectativa de la
+   copia sintética ya corregida (sección 3b): **falta repetirla** con `ensayo.sh` subido de nuevo y la versión corregida (E-23).
 5. **Ingresos personales** (INGRESOS, caso B, «Primero»): cada dueño entra con su propio ingreso en una ventana privada
    de su teléfono y cierra sesión del ingreso compartido en sus propios aparatos (nunca en los del café). Si uno no puede
    entrar, su `+dueno` con `make_owner` (pasos 1–2).

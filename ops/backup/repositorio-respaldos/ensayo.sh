@@ -49,7 +49,9 @@ case "${REINICIO:-no}" in si|sí|Si|Sí|SI|SÍ) REINICIO=si;; *) REINICIO=no;; e
 # public SQL goes to the server as-is: refuse a file that would start with a psql command
 run_public() {  # url file [extra psql flags]
   local url="$1" f="$2"; shift 2
-  [ "$(grep -v '^\s*--' "$f" | grep -v '^\s*$' | head -c 1)" != '\' ] || die "$(basename "$f") empieza con un comando de psql; no se ejecuta"
+  # the first character of the first line that is neither blank nor a comment, read by awk alone (a pipe into head made
+  # grep print "write error: Broken pipe" into the log for every file sent)
+  [ "$(awk '/^[[:space:]]*(--|$)/ { next } { sub(/^[[:space:]]+/, ""); print substr($0, 1, 1); exit }' "$f")" != '\' ] || die "$(basename "$f") empieza con un comando de psql; no se ejecuta"
   psql -X -q -At -v ON_ERROR_STOP=1 "$url" "$@" -c "$(cat "$f")"
 }
 
@@ -108,13 +110,14 @@ PROD_PRIV="$(psql -X -At "$CANOPY_DB_URL" -c "$PRIV_SQL")"
 unset CANOPY_DB_URL
 
 log "2/4 anonimizando en una base desechable…"
-psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" -c "create database $SCRATCH_DB" >/dev/null
+# the job's own server: its notices ("does not exist, skipping", a role already granted) say nothing to the owner
+PGOPTIONS='-c client_min_messages=warning' psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" -c "create database $SCRATCH_DB" >/dev/null
 TMP_URL="$(python3 - "$SCRATCH_URL" "$SCRATCH_DB" <<'PY'
 import sys, urllib.parse as u
 p = u.urlsplit(sys.argv[1]); print(u.urlunsplit(p._replace(path='/' + sys.argv[2])))
 PY
 )"
-psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -f "$HERE/restore-stub.sql" >/dev/null
+PGOPTIONS='-c client_min_messages=warning' psql -X -q -v ON_ERROR_STOP=1 "$TMP_URL" -f "$HERE/restore-stub.sql" >/dev/null
 # Supabase keeps default rights for its own admin role in public (ALTER DEFAULT PRIVILEGES FOR ROLE
 # supabase_admin): that role is not on a throw-away server and postgres may not act for it on Supabase, so only
 # postgres's own default rights are restored
@@ -127,7 +130,7 @@ rm -f "$OUT/produccion.dump"
 # terse: if a step fails, the error must not print the row it was working on (production data) into the log
 psql -X -q -At -v ON_ERROR_STOP=1 -v VERBOSITY=terse -v pin="$STAGING_PIN" "$TMP_URL" -f "$HERE/anonimizar.sql" | tail -1
 pg_dump "$TMP_URL" --format=custom --no-owner $SCHEMAS --file="$OUT/anonimizada.dump"
-psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" >/dev/null
+PGOPTIONS='-c client_min_messages=warning' psql -X -q "$SCRATCH_URL" -c "drop database if exists $SCRATCH_DB" >/dev/null
 
 log "3/4 cargando la copia anonimizada en PRUEBAS…"
 if [ "$HAS" != "0" ]; then

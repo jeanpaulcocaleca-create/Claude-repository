@@ -47,7 +47,10 @@ ningún secreto nuevo**: producción se lee con `CANOPY_DB_URL` y la variable `S
 1. Suba (reemplazando) al repositorio privado estos archivos de `ops/backup/repositorio-respaldos/`:
    `.github/workflows/ensayo-pruebas.yml`, `ensayo.sh`, `anonimizar.sql` y `restore-stub.sql`. El flujo y `ensayo.sh`
    cambiaron el **2026-10-14** (la opción `reinicio` y el destino `desechable`); `anonimizar.sql` y
-   `restore-stub.sql`, el 2026-10-13 (si los subió después de esa fecha, ya están al día).
+   `restore-stub.sql`, el 2026-10-13 (si los subió después de esa fecha, ya están al día). `ensayo.sh` cambió otra vez
+   la **noche del 2026-10-14**, después del primer ensayo con los datos reales: solo su registro (sin las líneas `grep:
+   write error: Broken pipe` ni los avisos del servidor temporal); el flujo no cambió. La comparación (`compare.py`)
+   viene del repositorio público en la versión que usted elige: no hay que subirla.
 2. Nada más. El secreto `STAGING_PIN` es opcional para este destino: sin él, todas las personas de la copia quedan con
    el PIN `2468` (en una base desechable nadie entra). `STAGING_DB_URL` solo existe para la última sección.
 
@@ -77,10 +80,16 @@ Qué hace, en orden, dentro del trabajo:
    - toma otra foto y revisión (`snapshot-after-reset.json`, `consistency-after-reset.json`).
 4. Aplica las migraciones 0000–0028 una por una, como un pegado en el SQL Editor, y anota cuánto tardó cada una
    (`timings.txt`); foto y revisión DESPUÉS; `release-check.sql` (`release-check.json`).
-5. Compara (`compare.py`, modo `reset`): lo que quedó **justo después del reinicio** debe ser idéntico a lo que hay
-   **después de las migraciones** (ventas, caja, inventario en cero, horas, personal, bitácora), y la estructura, las
-   reglas de filas, los permisos y los ajustes (regulados apagados) deben ser los esperados. Con reinicio = `no`
-   compara ANTES con DESPUÉS y exige `unchanged: … original tables`.
+5. Compara (`compare.py`, modo `reset`): las 14 tablas que el reinicio borra deben quedar **vacías**, las 10 que conserva
+   **idénticas** (huella por huella), las existencias en cero y la bitácora con una línea más; luego, lo que quedó
+   **justo después del reinicio** debe ser idéntico a lo que hay **después de las migraciones** (ventas, caja, inventario
+   en cero, horas, personal, bitácora), y la estructura, las reglas de filas, los permisos y los ajustes (regulados
+   apagados) deben ser los esperados. Una tabla que en producción **nunca tuvo filas** (por ejemplo `order_part_lines`
+   si ninguna cuenta se dividió por platos, o `tab_adds`) no es un error: la comparación la nombra en su línea `reset:`
+   («no rows in the copy of production, nothing to clear»), igual que las tres tablas de llaves de desbloqueo que
+   `anonimizar.sql` vacía antes de que la copia salga del trabajo. Que el reinicio borre de verdad cada una de las 14
+   tablas lo prueba CI sobre la copia sintética, donde todas tienen filas (`compare.py … reset fixture`). Con
+   reinicio = `no` compara ANTES con DESPUÉS y exige `unchanged: … original tables`.
 6. El trabajo termina y el PostgreSQL temporal desaparece con la copia.
 
 Qué leer, en el registro del paso «Copiar, anonimizar, cargar…»:
@@ -90,7 +99,10 @@ Qué leer, en el registro del paso «Copiar, anonimizar, cargar…»:
   `purchase_orders`…) y `stock_items_a_cero` (cuántos insumos tenían existencias y quedaron en 0);
 - `conservado idéntico: …`: menú, recetas, insumos, proveedores, personal, ingresos, ajustes, pizarra, habitaciones y
   bitácora, con huellas iguales antes y después del reinicio;
-- el tiempo de cada migración y, en el paso siguiente, la comparación (también en el resumen del trabajo).
+- el tiempo de cada migración y, en el paso siguiente, la comparación (también en el resumen del trabajo): `reset: 14
+  tables cleared (N had rows; …), 10 kept byte for byte, N stock items at zero, N log lines (one new); then the
+  migrations:` y debajo `unchanged: …`. El paréntesis dice cuántas tablas tenían filas y nombra las que no: las que el
+  café nunca usó («no rows in the copy of production») y las tres de llaves que vacía `anonimizar.sql`.
 
 En **Artifacts** (`ensayo-resultados-desechable`) quedan `resumen.json` (el resumen del periodo: cantidades y totales
 por día y por medio de pago, sin nombres), `reinicio.txt` (la respuesta completa del reinicio), las fotos y revisiones
@@ -99,7 +111,11 @@ datos de personas: solo cantidades, totales y huellas. Las cifras de `resumen.js
 (los montos y las fechas son los reales; los nombres no viajan). Guarde `timings.txt`: es la referencia de cuánto
 tardará cada pegado en la ventana.
 
-Si queda en **rojo**: el mensaje en rojo dice el paso y nunca muestra datos; mándemelo tal cual.
+Si queda en **rojo**: el mensaje en rojo dice el paso y nunca muestra datos; mándemelo tal cual. Si el paso rojo es la
+comparación, cada línea `DIFFERENCE: …` es una diferencia concreta (una tabla que debía quedar vacía y no quedó, una
+conservada que cambió, una migración que cambió algo): mándemelas todas. (El primer ensayo con los datos reales, el
+2026-10-14, se detuvo aquí por una expectativa de la copia sintética, no por un fallo del reinicio: `order_part_lines`
+no tenía filas en producción; desde esa noche eso se informa y no detiene.)
 Con `el reinicio operativo se negó en PRUEBAS`, la línea `ERROR` de arriba dice el motivo, el mismo que daría en
 producción (ya migrada, ya hecho, una venta reciente, una caja abierta, una tabla conservada que cambiaría): en la copia
 no cambió nada. Con `la copia en PRUEBAS ya tiene migraciones`, producción ya pasó la ventana: corra el ensayo con
@@ -113,7 +129,8 @@ copia sintética de cuatro meses y 14 534 ventas, `tests/rehearsal/run.sh`):
 
 - que `reinicio-operativo.sql` acepta la base real tal como está hoy (o dice por qué no, con el mismo mensaje que daría
   en producción), borra lo que debe y conserva idénticos menú, recetas, insumos, proveedores, personal, ingresos,
-  ajustes, pizarra, habitaciones y bitácora;
+  ajustes, pizarra, habitaciones y bitácora (que borra de verdad cada una de las 14 tablas, también las que en
+  producción están vacías, lo prueba CI, donde la copia sintética las tiene todas con filas);
 - que las 29 migraciones corren en orden sobre esa base, cuánto tarda cada una, y que después de ellas nada de lo que
   quedó cambió (`compare.py`, modo `reset`);
 - la estructura resultante, las reglas de filas (RLS) y los permisos de `anon`, `authenticated`, `service_role` y

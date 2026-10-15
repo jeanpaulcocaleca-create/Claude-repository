@@ -108,7 +108,10 @@ rehearsal compares them with the reviewed list after the migrations.
 - **The owner's real-data rehearsal runs in a temporary database, not in a staging project (D-039):** one button in
   the private repository («Ensayo en pruebas» → destino = `desechable`, reinicio = `si`); the copy is anonymized on
   the job's scratch server, loaded into a PostgreSQL 17 database inside the job, reset, migrated and compared, and
-  disappears with the job. CI proves the same path into an empty local database. Not yet run by the owner.
+  disappears with the job. CI proves the same path into an empty local database. First run by the owner 2026-10-14
+  23:29 UTC: the reset and 0000–0028 passed on the real copy; red only in the comparison's fixture-only coverage check
+  (`order_part_lines` is empty in production: no bill was split by item), fixed that night (D-039 addendum); the repeat
+  on the fixed version is pending (E-23).
 
 **Full automated run** (`tests/run.sh`, 2026-10-14, also in CI on every push), all passed:
 
@@ -118,7 +121,7 @@ rehearsal compares them with the reviewed list after the migrations.
 | SQL tests | 31 files, 930 assertions (incl. the 0001 additions: stranger cannot edit categories, punch, guess or void; the release check's storage keys; `cafe-login.sql` run as shipped, both parts and every refusal; the follow-up query read-only, its devices section and what it never shows; the Costa Rican payroll `290` (143), who took the money `300`, the review fixes `310`) |
 | Backup pipeline (before 0000 and after; content, rights, photos, encryption, offline-key restore, computer sync) | ok |
 | Migration rehearsal 0000 → 0028 (sections 4 and 5, with the staging-copy flow; both payroll settings arrive OFF) | ok |
-| One-time reset pass (D-038): six refusals, the reset as the SQL Editor account, preserved tables identical, cleared tables empty, stock at zero, migrations after it, the rehearsal copy with `REINICIO=si` into an empty local database (the throwaway destination) | ok |
+| One-time reset pass (D-038): six refusals, the reset as the SQL Editor account, every one of the 14 cleared tables with rows before and empty after, preserved tables identical, stock at zero, migrations after it, the comparison's self-test (nine crafted cases), the rehearsal copy with `REINICIO=si` into an empty local database (the throwaway destination) | ok |
 | Live pages and new pages on the reset copy (empty café, first day) | 5/5 and 2/2 |
 | Live pages on the migrated copy | 5/5 |
 | Browser tests of the new pages | 102/102 (incl. the supplier XML import, the phone-code warning in English and Spanish, a sale on a login without café grant kept on the device, the payroll screens, the clock-out from the POS, the Menu Manager in tax-exclusive mode, and a café morning on two devices with three people) |
@@ -250,7 +253,9 @@ Each step is the owner's. I give them one at a time and check each result before
 **C. Rehearsal with the real data in a temporary database (docs/PRUEBAS.md; D-039: no staging project, no site)**
 
 12. Upload the changed private-repository files; «Ensayo en pruebas» → destino = `desechable`, reinicio = `si` →
-    green: `reinicio hecho`, `borrado`, `conservado idéntico`, every migration, the `reset` comparison clean.
+    green: `reinicio hecho`, `borrado`, `conservado idéntico`, every migration, the `reset` comparison clean. The first
+    run (2026-10-14) was green up to the comparison, which stopped on a check meant for the seeded copy (fixed): upload
+    `ensayo.sh` again and repeat on the fixed version (E-23).
 13. The pages are checked in CI on the empty café (`tests/rehearsal/reset-pages.sh`); the owner sees them with the
     real data in the window's device checks and on the first day (`docs/LANZAMIENTO-UNICO.md` §5–§6).
 

@@ -20,8 +20,9 @@
 #      still working, register open, the paste as shipped, the wrong word, a second run); the real run as ONE query
 #      like the SQL Editor sends it, after supabase/tools/resumen-pruebas.sql; what it clears is empty, the stock at
 #      zero, what it keeps identical (snapshot fingerprints), one log line with the accountant's summary; then every
-#      migration on that copy and the checks of 5 (compare.py reset). The copy ${DB}_reset stays for
-#      tests/rehearsal/reset-pages.sh (the live pages and the new pages on the empty café), which drops it
+#      migration on that copy and the checks of 5 (compare.py reset fixture: every one of the 14 cleared tables had a
+#      row to clear; compare-selftest.py: the comparison's branches on crafted copies of these files). The copy
+#      ${DB}_reset stays for tests/rehearsal/reset-pages.sh (the live pages and the new pages on the empty café), which drops it
 # Usage: tests/rehearsal/run.sh            (local/CI test server only; prints a summary, keeps files in $OUT)
 #        REHEARSAL_DB / REHEARSAL_OUT pick the database name (default canopy_rehearsal) and the folder for the files
 # =====================================================================================================
@@ -179,7 +180,10 @@ step "the owner's staging rehearsal with the reset (Ensayo en pruebas, vaciar = 
 ensayo "$OUT/staging-reset" EMPTY_STAGING=si REINICIO=si > "$OUT/staging-reset.log" 2>&1 || { cat "$OUT/staging-reset.log"; die "staging copy with the reset"; }
 head -1 "$OUT/staging-reset/reinicio.txt" | grep -q '^reinicio hecho' || { cat "$OUT/staging-reset.log"; die "staging copy with the reset: the reset did not answer 'reinicio hecho'"; }
 [ -s "$OUT/staging-reset/resumen.json" ] || die "staging copy with the reset: no summary for the accountant"
-python3 "$HERE/compare.py" "$OUT/staging-reset" reset || die "staging copy with the reset: differences (see above)"
+python3 "$HERE/compare.py" "$OUT/staging-reset" reset | tee "$OUT/staging-reset-compare.txt" || die "staging copy with the reset: differences (see above)"
+# as in the owner's run: the three unlock tables are empty because anonimizar.sql empties them, and the comparison says so by name
+grep -q 'access_unlocks, inventory_unlocks, sales_unlocks: unlock tokens, emptied by anonimizar.sql' "$OUT/staging-reset-compare.txt" \
+  || die "staging copy with the reset: the comparison does not name the tables the anonymizer empties"
 
 step "one-time operational reset before the window (supabase/tools/reinicio-operativo.sql, D-038) on a second copy of today's production"
 # the owner's window as docs/LANZAMIENTO-UNICO.md orders it: verified backup -> summary for the accountant -> the reset,
@@ -216,6 +220,10 @@ refused "$RDB" 'caja abierta' "the register still open" "$REF" "BORRAR PRUEBAS"
 rq -c "update public.register_days set closed_at = now() - interval '30 minutes' where closed_at is null" >/dev/null
 refused "$RDB" 'Falta la referencia' "the paste as shipped (placeholders)"
 refused "$RDB" 'palabra de confirmación' "the wrong confirmation word" "$REF" "BORRAR TODO"
+# every one of the 14 tables the reset clears has rows in this copy (seed-legacy.sql): the rehearsal proves that each one
+# is cleared, not only the busy ones (compare.py reset fixture checks the same from the snapshots)
+CLEARED="order_part_lines tab_adds order_items orders discount_approvals register_days time_entries stock_moves purchase_lines purchase_orders access_unlocks sales_unlocks inventory_unlocks chat_questions"
+for t in $CLEARED; do [ "$(rq -c "select count(*) from public.$t")" != 0 ] || die "seed: $t has no row for the reset to clear"; done
 # the summary for the accountant (read-only), saved with the backup before the reset; the state before the reset
 editor -d "$RDB" -f "$ROOT/supabase/tools/resumen-pruebas.sql" > "$OUT/resumen.json"
 rq -f "$ROOT/supabase/tools/production-snapshot.sql" > "$OUT/reset-snapshot-before.json"
@@ -224,7 +232,6 @@ t0=$(date +%s%N)
 run_paste "$RDB" "$REF" "BORRAR PRUEBAS" > "$OUT/reset.log" 2>&1 || { cat "$OUT/reset.log"; die "the reset failed"; }
 reset_ms=$(( ($(date +%s%N) - t0) / 1000000 ))
 head -1 "$OUT/reset.log" | grep -q "^reinicio hecho · respaldo $REF\$" || { cat "$OUT/reset.log"; die "the reset did not answer 'reinicio hecho · respaldo $REF'"; }
-CLEARED="order_part_lines tab_adds order_items orders discount_approvals register_days time_entries stock_moves purchase_lines purchase_orders access_unlocks sales_unlocks inventory_unlocks chat_questions"
 for t in $CLEARED; do n=$(rq -c "select count(*) from public.$t"); [ "$n" = 0 ] || die "reset: $t still has $n rows"; done
 [ "$(rq -c "select count(*) from public.stock_items where on_hand <> 0")" = 0 ] || die "reset: a stock item is not at zero"
 [ "$(rq -c "select count(*) from public.audit_log where action = 'reinicio_operativo'")" = 1 ] || die "reset: expected exactly one 'reinicio_operativo' line in the log"
@@ -253,7 +260,10 @@ migrate "$RDB" "$OUT/reset-timings.txt"
 rq -f "$ROOT/supabase/tools/production-snapshot.sql" > "$OUT/reset-snapshot-after.json"
 rq -f "$ROOT/supabase/tools/consistency-check.sql" > "$OUT/reset-consistency-after.json"
 rq -f "$ROOT/supabase/tools/release-check.sql" > "$OUT/reset-release-check.json"
-python3 "$HERE/compare.py" "$OUT" reset || die "reset copy: differences after the reset or the migrations (see above)"
+python3 "$HERE/compare.py" "$OUT" reset fixture || die "reset copy: differences after the reset or the migrations (see above)"
+# the comparison's own branches, on crafted copies of these files: a table production never wrote to is reported, not a
+# difference (the first real-data rehearsal, 2026-10-14); the seeded copy must exercise every table; what must fail, fails
+python3 "$HERE/compare-selftest.py" "$OUT" || die "compare.py self-test (see above)"
 
 psql -X -q -d postgres -c "drop database if exists ${DB}_src with (force)" -c "drop database if exists ${DB}_staging with (force)" >/dev/null
 echo "  ok    migration rehearsal (files in $OUT; $DB and $RDB kept for live-pages.sh and reset-pages.sh)"

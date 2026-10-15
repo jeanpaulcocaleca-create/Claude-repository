@@ -39,7 +39,7 @@ These are waiting on your accountant, your provider choice or official confirmat
 
 Production readiness depends on three things you have to do first:
 - backups installed (E-03);
-- the owner's dress rehearsal on the real anonymized copy in a temporary database (`Ensayo en pruebas`, destino `desechable`, reinicio `si`; no staging project: E-13/E-14 withdrawn, D-039);
+- the owner's dress rehearsal on the real anonymized copy in a temporary database (`Ensayo en pruebas`, destino `desechable`, reinicio `si`; no staging project: E-13/E-14 withdrawn, D-039): run once on 2026-10-14, when the reset and the migrations passed on the real copy and the comparison's fixture-only check was fixed (D-039 addendum); to repeat on the fixed version (E-23);
 - the two urgent security items E-01/E-02 (they apply to the live system today).
 
 ## 2. Completed checklist
@@ -318,6 +318,6 @@ Details: `docs/LANZAMIENTO.md`.
 
 **Approval asked of you:**
 1. Approve Wave 0 now (E-01, E-02, E-03).
-2. Run `Ensayo en pruebas` with destino `desechable` and reinicio `si` on the version to launch (the real anonymized copy in a temporary database; no staging project, D-039).
+2. Run `Ensayo en pruebas` with destino `desechable` and reinicio `si` on the version to launch (the real anonymized copy in a temporary database; no staging project, D-039). The first run (2026-10-14) stopped only in the comparison, on a check meant for the seeded copy; it is fixed: upload `ensayo.sh` again and repeat (E-23).
 3. After the rehearsal evidence (release-check output, test run, checklist), approve the production window for
    0003–0028 and the release tag.

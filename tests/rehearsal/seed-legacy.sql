@@ -2,9 +2,11 @@
 -- Fake data only (test logins and PINs from tests/db/90_seed.sql). Deterministic: the same rows every run.
 --   * 120 days of sales (about 140 a day): cash ₡/$, card, SINPE, other; kitchen tickets; discounts approved by a
 --     manager; voids with reason; bills paid in parts (with their part lines); room orders; register days
---     opened and closed; stock deliveries, counts, waste and recipe deductions; purchase orders; time clock
+--     opened and closed; stock deliveries, counts, waste and recipe deductions; purchase orders; time clock;
+--     yesterday's PIN unlocks (owner areas, sales report, inventory), expired
 --   * today, through the real legacy functions as the café tablet does it: register opened, a sale, an open bill
---     paid in part, a manager void, a room order paid at the window, punches (one shift still open)
+--     with an add sent by its request id and paid in part, a manager void, a room order paid at the window, punches
+--     (one shift still open). Every table the one-time reset clears has a row here (tests/rehearsal/run.sh step 10)
 -- Used by tests/rehearsal/run.sh. Never run on a real Supabase project.
 \set ON_ERROR_STOP on
 select setseed(0.20261012);
@@ -189,6 +191,16 @@ select ('a1000000-0000-4000-8000-00000000000' || (1 + (d + k) % 6))::uuid,
 
 insert into public.chat_questions (message, lang, answered) select '¿A qué hora abren? ' || g, 'es', g % 2 = 0 from generate_series(1, 15) g;
 
+-- yesterday's PIN unlocks, expired as a café day leaves them (one row per login, as the legacy functions write them): the
+-- one-time reset clears these three tables too, and the rehearsal must find a row in each of them to clear
+insert into public.access_unlocks (token_hash, user_id, staff_id, staff_name, staff_role, created_at, expires_at)
+  values (encode(extensions.digest('seed-access-token', 'sha256'), 'hex'), 'c0000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'Ana', 'manager',
+          public.cr_day_start(public.cr_today() - 1) + interval '10 hours', public.cr_day_start(public.cr_today() - 1) + interval '10 hours 15 minutes');
+insert into public.sales_unlocks (user_id, staff_id, staff_name, expires_at)
+  values ('c0000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'Ana', public.cr_day_start(public.cr_today() - 1) + interval '17 hours 50 minutes');
+insert into public.inventory_unlocks (user_id, staff_id, staff_name, expires_at)
+  values ('c0000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000006', 'Diego', public.cr_day_start(public.cr_today() - 1) + interval '9 hours 20 minutes');
+
 -- today, through the legacy functions as the café tablet uses them --------------------------------------
 select set_config('request.jwt.claims', '{"sub":"c0000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}', false);
 set role authenticated;
@@ -204,8 +216,10 @@ insert into public.order_items (order_id, item_name, qty, price_crc)
 -- an open bill, one person pays their item
 insert into public.orders (id, total_crc, payment_method, station, source, status, paid, guest_name, needs_kitchen, pickup_number)
   values ('0d000000-0000-4000-8000-0000000000b2', 0, 'pending', 'Caja', 'front', 'new', false, 'Mesa 4', true, 7);
+-- the add carries its request id, as the POS sends it (tab_add_items keeps the answer two days in tab_adds, for a retry)
 select public.tab_add_items('0d000000-0000-4000-8000-0000000000b2',
-  (select jsonb_agg(jsonb_build_object('menu_item_id', id, 'qty', 1)) from (select id from public.menu_items where price_crc > 0 order by name limit 3) m));
+  (select jsonb_agg(jsonb_build_object('menu_item_id', id, 'qty', 1)) from (select id from public.menu_items where price_crc > 0 order by name limit 3) m),
+  '7a000000-0000-4000-8000-0000000000a1');
 select public.tab_pay('0d000000-0000-4000-8000-0000000000b2', 'card',
   (select jsonb_build_array(jsonb_build_object('item_id', id, 'qty', 1)) from public.order_items where order_id = '0d000000-0000-4000-8000-0000000000b2' order by item_name limit 1),
   null, 'Caja');
@@ -233,5 +247,8 @@ do $$ begin
   if not (select paid from public.orders where id = '0d000000-0000-4000-8000-0000000000b4') then raise exception 'seed: room order not paid'; end if;
   if (select count(*) from public.time_entries where clock_in >= public.cr_today_start()) <> 2 then raise exception 'seed: punches missing'; end if;
   if (select count(nullif(btrim(note), '')) from public.orders) <> 3 then raise exception 'seed: order notes missing'; end if;
+  if (select count(*) from public.tab_adds) <> 1 then raise exception 'seed: the tab add was not recorded'; end if;
+  if (select count(*) from public.access_unlocks) <> 1 or (select count(*) from public.sales_unlocks) <> 1 or (select count(*) from public.inventory_unlocks) <> 1 then
+    raise exception 'seed: unlock rows missing'; end if;
 end $$;
 analyze;

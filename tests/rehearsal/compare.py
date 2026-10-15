@@ -1,9 +1,12 @@
 """Canopy OS rehearsal · compare the read-only checks taken before and after the migrations.
-python3 compare.py <out-dir> after|day-after|reset     (exit 1 on any unexpected difference)
+python3 compare.py <out-dir> after|day-after|reset [fixture]     (exit 1 on any unexpected difference)
   after      the main copy: snapshot and consistency before -> after the migrations, release check
   day-after  the main copy after a day of work on the old and the new pages
-  reset      the copy that went through the one-time reset (run.sh step 10, reset-*.json): the reset kept what it must
-             and cleared the rest, then the migrations changed nothing of what was left"""
+  reset      the copy that went through the one-time reset (run.sh step 10, reset-*.json; the owner's "Ensayo en pruebas"
+             with reinicio = si, plain names): the reset kept what it must and cleared the rest, then the migrations
+             changed nothing of what was left. With 'fixture' (the seeded copy of run.sh step 10) every cleared table
+             must also have had rows, so the rehearsal proves the clearing of each one; on a copy of production a table
+             the café never wrote to is reported by name, not a difference (tests/rehearsal/compare-selftest.py checks both)"""
 import json
 import os
 import sys
@@ -34,6 +37,9 @@ ANON_DEFINER = ['canopy_schema_version', 'order_status', 'place_room_order', 'ro
 CLEARED = ('order_part_lines', 'tab_adds', 'order_items', 'orders', 'discount_approvals', 'register_days', 'time_entries', 'stock_moves',
            'purchase_lines', 'purchase_orders', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'chat_questions')
 PRESERVED = ('menu_categories', 'menu_items', 'recipes', 'vendors', 'staff', 'app_accounts', 'app_settings', 'board_settings', 'board_group_slides', 'rooms')
+# cleared tables that ops/backup/repositorio-respaldos/anonimizar.sql empties before a copy leaves the job (unlock tokens open
+# things: they never leave production), so on the owner's anonymized copy they are always empty before the reset
+ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks')
 rows = lambda fp: int(fp.split(':')[0])   # a data fingerprint is 'rows:md5 of every original column'
 
 
@@ -126,9 +132,16 @@ elif mode == 'day-after':
         print('    old pages, an offline sale from before the window, new pages, room order, stock, register close: all recorded; no new problems')
 else:
     # before the reset (today's schema, the test period's history) -> right after it (today's schema, empty café) -> after the migrations
-    # run.sh step 10 shares one folder with the main copy and prefixes its files 'reset-'; the owner's staging rehearsal
-    # (ensayo.sh with REINICIO=si) has a folder of its own and writes the plain names
+    # run.sh step 10 shares one folder with the main copy and prefixes its files 'reset-'; the owner's rehearsal (ensayo.sh
+    # with REINICIO=si, and run.sh's own run of it) has a folder of its own and writes the plain names
     pre = 'reset-' if os.path.exists(os.path.join(out, 'reset-snapshot-before.json')) else ''
+    # 'fixture' (run.sh step 10, on the seeded copy): every cleared table must have had rows, so the rehearsal proves that
+    # each one is cleared. Without it (the owner's run on the anonymized copy of production, run.sh's run of ensayo.sh): a
+    # table the café never wrote to is empty before the reset and stays empty; that is production's history, reported by
+    # name, never a difference. 2026-10-14, the first run on the real copy stopped only here: no bill of the test period had
+    # been split by item, so order_part_lines had no row to clear (the reset itself had cleared the 14 tables, kept the 13
+    # preserved ones identical, and 0000-0028 had run after it)
+    fixture = len(sys.argv) > 3 and sys.argv[3] == 'fixture'
     s0, s1, s2 = load(f'{pre}snapshot-before.json'), load(f'{pre}snapshot-after-reset.json'), load(f'{pre}snapshot-after.json')
     c0, c1, c2 = load(f'{pre}consistency-before.json'), load(f'{pre}consistency-after-reset.json'), load(f'{pre}consistency-after.json')
     f0, f1 = s0['data_fingerprint'], s1['data_fingerprint']
@@ -136,8 +149,13 @@ else:
     # the reset's lists and the snapshot's original tables are the same 26: a table one of them forgets is caught here
     check(set(f0) == set(f1) == set(CLEARED) | set(PRESERVED) | {'stock_items', 'audit_log'},
           f"the original tables are not the reset's {len(CLEARED)} cleared + {len(PRESERVED) + 2} kept: {sorted(set(f0) ^ (set(CLEARED) | set(PRESERVED) | {'stock_items', 'audit_log'}))}")
+    # the reset refuses a café with nothing to clear (no sale, register day, shift or stock move): a copy like that is not production's
+    check(any(rows(f0[t]) > 0 for t in ('orders', 'register_days', 'stock_moves', 'time_entries')),
+          'nothing to clear in the copy: no sales, register days, shifts or stock moves before the reset (the reset should have refused)')
+    empty = [t for t in CLEARED if rows(f0[t]) == 0]
+    for t in empty:
+        check(not fixture, f'{t} had nothing to clear in the rehearsal: {f0[t]} (seed-legacy.sql must give the reset a row in every cleared table)')
     for t in CLEARED:
-        check(rows(f0[t]) > 0 or t in ('tab_adds', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks'), f'{t} had nothing to clear in the rehearsal: {f0[t]}')
         check(f1[t] == '0:-', f'{t} not cleared: {f1[t]}')
     for t in PRESERVED:
         check(f1[t] == f0[t], f'the reset changed {t}: {f0[t]} -> {f1[t]}')
@@ -155,8 +173,16 @@ else:
     # then the migrations, checked exactly as on the main copy, against the state right after the reset
     r = migrated(s1, s2, c1, c2, load(f'{pre}release-check.json'))
     if not errors:
-        print(f"    reset: {len(CLEARED)} tables cleared, {len(PRESERVED)} kept byte for byte, {rows(f1['stock_items'])} stock items at zero, "
-              f"{rows(f1['audit_log'])} log lines (one new); then the migrations:")
+        # how many cleared tables had rows and, by name, the ones that had none: the café never wrote to them (nothing to
+        # clear is not a difference), or anonimizar.sql emptied them before the copy left the job
+        notes = []
+        never, tokens = sorted(t for t in empty if t not in ANON_EMPTIED), sorted(t for t in empty if t in ANON_EMPTIED)
+        if never:
+            notes.append(f"{', '.join(never)}: no rows in the copy of production, nothing to clear")
+        if tokens:
+            notes.append(f"{', '.join(tokens)}: unlock tokens, emptied by anonimizar.sql before the copy left the job")
+        print(f"    reset: {len(CLEARED)} tables cleared ({len(CLEARED) - len(empty)} had rows{''.join('; ' + n for n in notes)}), "
+              f"{len(PRESERVED)} kept byte for byte, {rows(f1['stock_items'])} stock items at zero, {rows(f1['audit_log'])} log lines (one new); then the migrations:")
         report(r)
 
 for e in errors:

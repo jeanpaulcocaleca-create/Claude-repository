@@ -891,6 +891,10 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   run with `reinicio = si` waits for E-13); the owner's own window; the accountant's answer on retention and on whether
   any test-period sale was real (A-11); whether the real shifts since 2026-10-15 need more than the backup and the
   manager's note of hours per person before the reset.
+- **Addendum 2026-10-14 (night) · the reset ran on the real anonymized copy:** «Ensayo en pruebas» run #2 (D-039
+  addendum): `reinicio hecho` on the copy of production (35 sales), the 13 preserved tables identical, 0000–0028 after
+  it; the run stopped only in `compare.py`'s fixture-coverage check, fixed that night. The window still waits for the
+  repeat on the fixed version (E-23), A-11 and E-22.
 
 ## D-039 · 2026-10-14 · No second Supabase project: the real-data rehearsal runs in a temporary database; the production project and site stay
 - **Decision:** the owner's revision of D-038, the same evening: keep the existing Supabase production project (URL,
@@ -944,3 +948,34 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   the re-uploaded private-repository files); the owner's own window; every Supabase-only item above, until the window
   itself; A-11 and E-22 (open). `docs/RESPALDOS.md`'s quarterly restore test still names the PRUEBAS project as its
   destination: it needs a temporary project or a local database instead (follow-up; not changed here).
+- **Addendum 2026-10-14 (night) · the first real-data rehearsal and what it changed:** run #2 of «Ensayo en pruebas»
+  (23:29 UTC; destino `desechable`, vaciar `no`, reinicio `si`; version `claude/hanging-garden-coffee-proposal-1m8zd4`
+  at 9c5c5a8). The copy of production (35 sales, 85 lines, 3 register days, 5 shifts, 3 stock moves, 5 purchase orders,
+  15 discount approvals, 15 visitor questions, 3 staff; the restored copy's rights identical to production's) was
+  anonymized and loaded; "closing the café" in the copy changed nothing (no sale or punch of the last hour, no open
+  register); the summary was saved; `reinicio-operativo.sql`, sent as is, answered `reinicio hecho` with
+  `borrado: … order_items 85, order_part_lines 0, orders 35, … tab_adds 0, time_entries 5` and the 13 preserved names
+  identical, in well under a second; 0000–0028 ran after it in under 2 s. The run went red only at `compare.py reset`:
+  `DIFFERENCE: order_part_lines had nothing to clear in the rehearsal: 0:-`. **Diagnosis:** a test expectation, not a
+  reset defect and not a defect of the copy. The check demanded rows before the reset in every cleared table but four,
+  which is a coverage requirement for the seeded CI copy (so the rehearsal proves the clearing of each table), wrongly
+  applied to production's history: the legacy `tab_pay` writes `order_part_lines` only when a bill is split by item,
+  and no bill of the test period was; the dump cannot lose a table's rows (pg_dump copies whole tables or fails, the
+  restore ran with `--exit-on-error`, the rights fingerprint matched production's) and `anonimizar.sql` empties only
+  the logins and the three unlock tables. **Fix (this commit):** the coverage requirement is explicit, `compare.py …
+  reset fixture`, used by run.sh step 10, where `seed-legacy.sql` now gives every one of the 14 cleared tables a row
+  (yesterday's expired PIN unlocks in `access_unlocks`, `sales_unlocks`, `inventory_unlocks`; the open bill's add sent
+  with its request id into `tab_adds`) and run.sh checks it before the reset: CI's coverage went from 10 of the 14
+  tables to 14 of 14. The owner's run (and run.sh's own run of `ensayo.sh`) keeps every integrity check, the 14
+  cleared tables empty afterwards, the 10 preserved identical, stock at zero, one log line, the migrations changing
+  nothing; it still fails on a copy with nothing to clear at all (the reset's own guard) and now reports by name the
+  tables with no rows in the copy of production and the three the anonymizer empties.
+  `tests/rehearsal/compare-selftest.py` (run.sh step 10) runs nine crafted cases: the report line, the two kinds of
+  empty table, the fixture coverage, and five differences that must still be caught. `ensayo.sh`: the first-character
+  check of each public SQL file is one awk call (the pipe into `head` printed `grep: write error: Broken pipe` for
+  every file) and the throwaway server's notices are silenced; `PRIV_SQL` and every refusal unchanged. **What the
+  owner does (E-23):** upload `ensayo.sh` again (the comparison comes from the public repository at the chosen version)
+  and repeat the rehearsal; for the data of 2026-10-14 the expected line is `reset: 14 tables cleared (9 had rows;
+  order_part_lines, tab_adds: no rows in the copy of production, nothing to clear; access_unlocks, inventory_unlocks,
+  sales_unlocks: unlock tokens, emptied by anonimizar.sql before the copy left the job)`. Nothing in production was
+  touched by the run (read-only account) or by this fix.
