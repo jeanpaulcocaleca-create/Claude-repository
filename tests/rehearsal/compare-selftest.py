@@ -29,7 +29,7 @@ def zero(files, *tables):  # the table had no rows before the reset (as producti
             files['consistency-before']['kept'][k] = 0
 
 
-def case(name, args, edit, want_exit, want_text):
+def case(name, args, edit, want_exit, want_text, mode='reset'):
     global cases
     d = tempfile.mkdtemp(prefix='compare-selftest-')
     try:
@@ -38,7 +38,7 @@ def case(name, args, edit, want_exit, want_text):
         for n, v in files.items():
             with open(os.path.join(d, f'{n}.json'), 'w') as f:
                 json.dump(v, f)
-        r = subprocess.run([sys.executable, os.path.join(HERE, 'compare.py'), d, 'reset', *args], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, os.path.join(HERE, 'compare.py'), d, mode, *args], capture_output=True, text=True)
         if r.returncode != want_exit or want_text not in r.stdout:
             print(f'    FAIL  compare.py self-test · {name}: expected exit {want_exit} saying "{want_text}", got exit {r.returncode}:')
             print(r.stdout + r.stderr)
@@ -77,4 +77,20 @@ case('the log without its new line is a difference', [],
 case('a snapshot without one of the 26 tables is a difference, not a crash', [],
      lambda f: [f[n]['data_fingerprint'].pop('tab_adds') for n in ('snapshot-before', 'snapshot-after-reset')], 1,
      "the original tables are not the reset's 14 cleared + 12 kept: ['tab_adds']")
-print(f'    compare.py self-test: {cases} cases behave (the owner-run report, the fixture coverage, six differences still caught)')
+# the 'after' mode on the same copy (the state right after the reset stands for production before the migrations)
+def after_copy(f, had=None, **settings):
+    f['snapshot-before'], f['consistency-before'] = f['snapshot-after-reset'], f['consistency-after-reset']
+    if had is not None:   # production after the launch: the copy already had migrations, settings of its own, no Storage
+        f['snapshot-before']['migrations_applied'] = had
+        f['release-check'].update(storage_buckets_missing=['expense-receipts'], storage_policies_missing=['expense receipts add', 'expense receipts read'],
+                                  receipt_upload_rule_current=False)
+    f['release-check']['settings'].update(settings)
+case('a copy from before the launch passes the after mode', [], after_copy, 0, 'storage: receipts bucket and rules in place', mode='after')
+case('a copy from before the launch with a switch already on is a difference', [], lambda f: after_copy(f, operator_mode='record'), 1,
+     "setting operator_mode should be 'off'", mode='after')
+case("a copy of production after the launch keeps the owner's operational switches; its Storage is not in the copy", [],
+     lambda f: after_copy(f, list(range(29)), operator_mode='record'), 0, 'the copy already had migrations 0000-0028 (production after the launch)', mode='after')
+case('a copy of production after the launch with automatic books on is still a difference', [],
+     lambda f: after_copy(f, list(range(29)), ledger_auto_post=True), 1, 'setting ledger_auto_post should be False', mode='after')
+print(f'    compare.py self-test: {cases} cases behave (the owner-run report, the fixture coverage, six differences still caught, '
+      f'the after mode on a copy from before and after the launch)')

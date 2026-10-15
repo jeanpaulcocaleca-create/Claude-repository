@@ -89,20 +89,27 @@ def migrated(sb, sa, cb, ca, rc):
     check(rc['anon_can_run'] == ANON_DEFINER, f"anonymous visitors can run: {rc['anon_can_run']}")
     check(rc['tables_without_rls'] == [], 'release check: tables without RLS')
     check(rc['ledger']['unbalanced'] == 0, 'release check: ledger unbalanced')
-    # regulated features arrive switched OFF (CLAUDE.md): prices as today, no automatic books, no e-invoices,
-    # nobody's confirmation recorded on their behalf
+    # a copy of production from before the launch (no migration yet) gets every setting and the Storage pieces of
+    # 0015/0025 from the migrations run here; a copy of production after the launch (D-040) already had migrations: its
+    # operational switches are the owner's own choices (operator_mode 'record' since 2026-10-15) and its Storage lives
+    # outside the copied schemas (public, canopy, acct), so the Storage checks belong to production's own release check
+    fresh = not isinstance(sb.get('migrations_applied'), list)
+    # regulated features stay switched OFF (CLAUDE.md): prices as today, no automatic books, no e-invoices, no payroll
+    # rule, nobody's confirmation recorded on their behalf
     st = rc['settings']
-    for k, v in (('price_mode', 'inclusive'), ('ledger_auto_post', False), ('einvoice_mode', 'off'), ('operator_mode', 'off'),
-                 ('payroll_renta_withhold', False), ('payroll_accrue_aguinaldo', False)):
+    for k, v in (('price_mode', 'inclusive'), ('ledger_auto_post', False), ('einvoice_mode', 'off'),
+                 ('payroll_renta_withhold', False), ('payroll_accrue_aguinaldo', False)) + ((('operator_mode', 'off'),) if fresh else ()):
         check(st.get(k) == v, f'setting {k} should be {v!r} after the window, is {st.get(k)!r}')
     check(rc['confirmations'] == [], f"no confirmation may exist before the owner/accountant gives it: {rc['confirmations']}")
-    # Storage: the receipts bucket and its two rules (0015), the upload rule of 0025; the menu photos rules are
-    # listed by the release check only where the menu-photos bucket exists (a staging project never gets it)
-    check(rc['storage_buckets_missing'] == [], f"storage buckets missing: {rc['storage_buckets_missing']}")
-    check(rc['storage_policies_missing'] == [], f"storage rules missing: {rc['storage_policies_missing']}")
-    check(rc['receipt_upload_rule_current'] is True, f"receipt upload rule current: {rc['receipt_upload_rule_current']}")
+    if fresh:
+        # Storage: the receipts bucket and its two rules (0015), the upload rule of 0025; the menu photos rules are
+        # listed by the release check only where the menu-photos bucket exists (a staging project never gets it)
+        check(rc['storage_buckets_missing'] == [], f"storage buckets missing: {rc['storage_buckets_missing']}")
+        check(rc['storage_policies_missing'] == [], f"storage rules missing: {rc['storage_policies_missing']}")
+        check(rc['receipt_upload_rule_current'] is True, f"receipt upload rule current: {rc['receipt_upload_rule_current']}")
     return dict(drift=drift, tables=len(fb), checks=len(cb['kept']), open_rules=len(sec['policies_without_account_check']),
-                functions=sc['functions_by_version'], rc=rc, rights=sb.get('storage_rights') or {}, af=af)
+                functions=sc['functions_by_version'], rc=rc, rights=sb.get('storage_rights') or {}, af=af, fresh=fresh,
+                had=sb.get('migrations_applied'))
 
 
 def report(r):
@@ -110,8 +117,14 @@ def report(r):
         print(f"    already different from the repository before the window, left as it was: {', '.join(r['drift'])}")
     print(f"    unchanged: {r['tables']} original tables (every original column, md5), {r['checks']} business checks; "
           f"open rules {r['open_rules']} (all reviewed); functions: {r['functions']}")
-    print(f"    storage: receipts bucket and rules in place, upload rule current; menu photos bucket "
-          f"{'and its rules present' if r['rc']['menu_photos_bucket'] else 'absent (not checked)'}")
+    if r['fresh']:
+        print(f"    storage: receipts bucket and rules in place, upload rule current; menu photos bucket "
+              f"{'and its rules present' if r['rc']['menu_photos_bucket'] else 'absent (not checked)'}")
+    else:
+        had = r['had'] or []
+        print(f"    the copy already had migrations {had[0]:04d}-{had[-1]:04d} (production after the launch): its operational settings are "
+              f"production's own and its Storage is not in the copy (production's release-check.sql judges it)" if had else
+              "    the copy already had the migration table, empty")
     # on a staging project these are Supabase's real rights: compare them with production's (follow-up query);
     # expected in production: can_insert_buckets true, member_of_storage_owner false, policy_grants_storage_objects true
     print(f"    rights of this account in Storage: " + ', '.join(f'{k} {r["rights"].get(k)}' for k in

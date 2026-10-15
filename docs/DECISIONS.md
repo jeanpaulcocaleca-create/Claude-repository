@@ -1119,3 +1119,12 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   fiscal record.
 - **Tests:** SQL 32 files (`320_receive_settle` 127, `240_release_check` 17), browser `290_receive` (4), the full
   suite green; the rehearsal applies 0000–0029.
+- **Addendum, the owner's first «Ensayo en pruebas» after the launch (2026-10-15 22:09 UTC, run 38815097544):** the
+  copy, the anonymization and 0029 passed; only the comparison failed, on four checks written for the launch-night copy
+  (production before 0000): `operator_mode` should be `off` (production has `record`, the owner's choice of
+  2026-10-15), and the bucket `expense-receipts`, its two rules and the 0025 upload rule missing (Storage lives in the
+  `storage` schema, which the copy of `public`, `canopy` and `acct` never carries; at the launch 0015 and 0025 created
+  them in the throwaway database itself). Nothing of 0029 was involved. `compare.py` now applies those four checks only
+  to a copy from before the launch; on a copy that already had migrations the regulated switches are still checked OFF
+  and production's own `release-check.sql` (publication step 4) judges its Storage. `compare-selftest.py` proves both
+  kinds of copy (14 cases). The pages and 0029 are byte-identical to 29e4ba3.
