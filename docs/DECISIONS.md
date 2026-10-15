@@ -999,7 +999,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `gh-pages` is `ab97d44`, "Publish website v2026.10.14-1 3c7e020…". Approvals 5 (café login conversion) and 6 (phone
   codes) were deferred by the owner: both Owner accounts and the café devices keep their logins and permissions.
 - **Found on the way:** (1) the owner's notes held only the public keys `age1…`: `age-keygen` prints the public key on
-  screen and writes the private line `AGE-SECRET-KEY-1…` only into the file, which the guide said to keep in the
+  screen and writes the private line `AGE-SECRET-KEY-…` only into the file, which the guide said to keep in the
   password manager and to print; before the window the private keys were not found. The owner was given a search plan
   (the Terminal's folder, Spotlight by name and by content, the Trash, iCloud Drive's Recently Deleted, Time Machine,
   the printout, Notes' Recently Deleted; verification by `grep -c`, `age-keygen -y` and a decrypt to `/dev/null`, never
