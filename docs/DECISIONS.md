@@ -1010,6 +1010,15 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   appended SHA is accepted only when it equals the release tag's commit (fetched by name); a hand-written message, a
   wrong SHA or a tag that does not exist still fail; the old format and the restore format (`· sitio-…`) still pass.
   Verified against the live `gh-pages` and with crafted messages.
+- **First day (2026-10-15):** the nightly backup ran by itself for the first time on the live café: «Respaldo nocturno» #5
+  at 13:24 UTC (schemas `acct`, `canopy`, `public`: 62 tables, 371 rows, content identical in all 62 after the restore,
+  8 photos verified, 5.0 MB encrypted, kept 14 days as a run file; #4 before the reset held `public` only: 26 tables,
+  401 rows). Its result reached `canopy.backup_runs` for the first time (0002 exists now; #4 had logged "no se pudo
+  anotar el resultado", as expected before it), so the owner's Home card has data. GitHub started the run about five
+  hours after the `17 8 * * *` cron (08:17 UTC), as it had on 2026-10-14 (#2 at 13:43 UTC): GitHub documents that
+  scheduled runs are delayed at busy times. Harmless (the account only reads, the restore test uses a disposable
+  database, and the copy then holds the whole previous day) and nothing to change; `docs/RESPALDOS.md` now says so.
+  Every copy is still readable only with a private age key (E-24).
 - **Still owed:** the physical count the morning of 2026-10-15 before opening (stock at zero until then), that morning's
   `release-check.sql` and `consistency-check.sql` (`orders_before_reset` = 0), E-24, A-11, approvals 5 and 6 another
   night, and a `docs/RESPALDOS.md` follow-up: store the whole key file and verify a decrypt from the stored copy before

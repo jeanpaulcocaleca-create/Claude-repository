@@ -8,6 +8,9 @@
    - **la restaura en una base de prueba desechable** y verifica tabla por tabla que no falte nada;
    - la **cifra**;
    - la sube a un almacenamiento externo **protegido contra borrado**.
+   - La hora es la programada: GitHub puede atrasarla varias horas (las dos primeras corridas automáticas, el 14 y
+     el 15 de octubre de 2026, empezaron hacia las 7:30 a. m.). No pasa nada: la cuenta solo lee, la prueba de
+     restauración usa una base desechable y la copia incluye el día anterior completo.
 2. **Su computadora** trae esas copias cifradas a la carpeta `Documentos\HangingGarden-Respaldos`.
    - Revisa cada hora y al encender.
    - Si estuvo apagada varios días, al encender **trae todo lo que falta**. El café nunca depende de que

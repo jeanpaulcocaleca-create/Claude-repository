@@ -317,7 +317,9 @@ accountant's answer (A-11), the café login conversion and the phone codes (defe
 - dollar bank accounts.
 
 **Done on launch night (2026-10-15 UTC):** Wave 0, the rehearsal with the real data (run #3, green), the window
-(backup #4, reset, 0000–0028, release check) and the publish of `v2026.10.14-1`. **Still asked of you:**
+(backup #4, reset, 0000–0028, release check) and the publish of `v2026.10.14-1`. **First day:** the nightly backup ran
+by itself (run #5, 2026-10-15 13:24 UTC, green: 62 tables, restore test passed, result in `canopy.backup_runs`, so the
+Home card has its first row); it is readable only with the private key of E-24. **Still asked of you:**
 1. E-24, urgent: confirm a private age key exists, or make new keys, update `AGE_RECIPIENTS`, run «Respaldo nocturno»
    and decrypt-test it. Until then no backup is readable.
 2. The morning of 2026-10-15 before opening: `release-check.sql`, `consistency-check.sql` (`orders_before_reset` = 0),
