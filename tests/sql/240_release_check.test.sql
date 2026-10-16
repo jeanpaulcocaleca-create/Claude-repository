@@ -26,6 +26,8 @@ select test.eq((select count(*)::int from pg_proc p join pg_namespace n on n.oid
 \ir ../../supabase/tools/release-check.sql
 \o
 \set rc `cat :'rc_file'`
+select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[]'::jsonb, 'every migration of this version is applied (0000 to the last one)');
+select test.eq((:'rc'::jsonb) -> 'functions_missing', '[]'::jsonb, 'every function the pages need is there');
 select test.eq((:'rc'::jsonb) -> 'storage_buckets_missing', '[]'::jsonb, 'storage: the receipts bucket is there (0015)');
 select test.eq((:'rc'::jsonb) -> 'storage_policies_missing', '[]'::jsonb, 'storage: the receipts rules and the menu photos rules are there');
 select test.eq((:'rc'::jsonb) -> 'menu_photos_bucket', 'true'::jsonb, 'storage: the menu photos bucket is reported');

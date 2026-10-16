@@ -264,7 +264,8 @@ confirmar. Las cinco opciones del pedido y el diseño se conservan.
 **Ajuste final del dueño (mismo día, D-042):** sin fotos, archivos adjuntos ni lectura automática (OCR, PDF, XML): el
 número y los montos de la factura se escriben a mano. El contador no necesita acceso ni aprueba nada para usar esta
 sección; la información financiera queda disponible para consulta (Contabilidad → Facturas de proveedor, con sus
-CSV) y toda automatización contable no habilitada sigue apagada. La migración 0030 (archivos) se eliminó.
+CSV) y toda automatización contable no habilitada sigue apagada. La migración 0030 (archivos) se eliminó; desde el
+2026-10-16 el número 0030 (y la prueba SQL `330`) son los de las recetas, etapa 1A (D-043).
 
 **Lo que trae esta versión (detalle en `docs/DECISIONS.md`, D-041 y D-042):**
 - `supabase/migrations/0029_recibir_pago.sql` (solo agrega).

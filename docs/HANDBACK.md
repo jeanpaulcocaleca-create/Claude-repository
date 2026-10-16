@@ -18,7 +18,7 @@ Status vocabulary used throughout:
 ## 1. Executive summary
 
 All five phases are built on the development branch:
-- 30 database migrations (`supabase/migrations/0000`–`0029`; 0029 waits for the owner, E-25);
+- 31 database migrations (`supabase/migrations/0000`–`0030`; 0000–0029 are applied in production, 0029 on 2026-10-15; 0030, recipes stage 1A, waits for the owner, E-29);
 - the existing pages, extended;
 - two new pages (Accounting, Insights);
 - a test suite that rebuilds a Supabase look-alike database from scratch and exercises the database and the
@@ -89,14 +89,17 @@ From `docs/DEPENDENCIES.md`.
 ## 4. Test results
 
 Everything is rebuilt from scratch on every run (`tests/run.sh`).
-- **Last full run (local, 2026-10-15, before the final commit):** ALL TESTS PASSED.
-  - **SQL:** 32 files, 1 057 assertions, one transaction each. Every migration is tested, plus the security attack
+- **Last full run (local, 2026-10-16, before the stage 1A commit):** ALL TESTS PASSED.
+  - **SQL:** 34 files, 1 177 assertions, one transaction each. Every migration is tested, plus the security attack
     suite (`250_security_hardening`), the release check (`240`), which pins down anonymous access, row
-    security and fixed search paths, the Costa Rican payroll (`290`, 143), who took the money (`300`) and the
-    review fixes (`310`).
-  - **Browser:** 106 tests passed (30 spec files), plus the 5 live-page checks of the rehearsal on the migrated copy, the same 5 on
-    the copy that went through the one-time reset, and the 2 checks of the new pages on the empty café and its first day.
-  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0029 on the production-shaped copy: passed, including the
+    security and fixed search paths, the Costa Rican payroll (`290`, 143), who took the money (`300`), the
+    review fixes (`310`), receiving with the invoice (`320`, 127), the recipes of stage 1A (`330`, 105) and the
+    rollback of 0030 (`340`, 13).
+  - **Browser:** 113 tests passed (31 spec files, one of them on a 390 px phone), plus the 6 live-page checks of the
+    rehearsal on the migrated copy (the pages published today, v2026.10.15-1, including their recipe editor on 0030),
+    the same 6 on the copy that went through the one-time reset, and the 2 checks of the new pages on the empty café
+    and its first day.
+  - **Backup pipeline:** passed. **Migration rehearsal** 0000 → 0030 on the production-shaped copy: passed, including the
     one-time reset pass (six refusals, the reset, the migrations after it) and the owner's staging rehearsal with `reinicio = si`.
 - **What the browser tests cover:** Playwright with real supabase-js against PostgREST; staff screens in English
   and Spanish; phone, tablet and desktop sizes; offline and two-device cases.
@@ -141,6 +144,7 @@ Everything is rebuilt from scratch on every run (`tests/run.sh`).
 | 0027 | Who took the money on a bill paid later; the till cannot rewrite who rang or who took the money; "End my turn" can clock out | the POS asks about the clock when a turn ends | drop trigger; previous `tab_pay` and `pos_operator_end` |
 | 0028 | Review fixes (D-037): the till never records a negative total; a room order paid later counts on the day the money came in; days with sales and no register are listed and posted; the journal reverses only its own entries; a PIN in use is refused and the owner role needs the phone code; visitors' questions capped | a repeated PIN is refused when adding someone; the owner role needs the phone code | drop the two triggers; previous functions |
 | 0029 | Receive a delivery with the supplier invoice and the payment (D-041, D-042): invoice pending / review / confirmed, draft kept as data, dollars with the rate, debit and credit card methods (account 2160), payouts from the register documented at confirmation, `po_receive_and_settle`, `po_receipt_settle`, `po_receipt_pay`, `po_history`, `po_pending` | the receive window gains the invoice and payment section | drop the five functions and the trigger; previous `supplier_payment_save`; the new columns stay |
+| 0030 | Recipes stage 1A (D-043): `recipe_versions` (unchangeable history, today's recipes as the starting version), `recipe_save` and `recipes_autolink_pin` with a manager or owner PIN, history triggers for direct writes, unit and delete guards on stock items in use, one cost rule (`_stock_unit_cost`), food cost at the stamped cost against sales without IVA | Recipes asks for a PIN to save and shows the history; quantities in g/ml; counting and receiving in bags | `supabase/tools/reversion-0030.sql`: drops the functions and triggers, restores the three changed functions exactly, keeps the history |
 
 Each file states its purpose, staff impact and reversal in Spanish at the top. Every migration is one
 transaction and only adds; nothing deletes business records.

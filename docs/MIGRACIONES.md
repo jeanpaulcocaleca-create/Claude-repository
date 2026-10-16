@@ -73,11 +73,16 @@ tablas.)
 
 Con ese archivo comparo la estructura real contra la reconstrucción.
 
-## Pendientes de aplicar en producción (hoy en la 0028)
+## Pendientes de aplicar en producción (hoy en la 0029)
+
+La 0029 (recibir un pedido con la factura y el pago, D-041) la aplicó el dueño el 2026-10-15 (E-25).
 
 | Archivo | Qué trae | Cómo se aplica |
 |---|---|---|
-| `0029_recibir_pago.sql` | Recibir un pedido con la factura del proveedor y el pago (D-041): factura pendiente / por revisar / confirmada, dólares con tipo de cambio, tarjeta de débito y de crédito (cuenta nueva 2160), efectivo de la caja con PIN; número y montos escritos a mano | Como cualquier migración (pasos 1–5 de arriba). Requiere la 0028 |
+| `0030_recetas_seguras.sql` | Recetas, etapa 1A (D-043): cada cambio de receta se guarda de una vez con el PIN de un encargado o del dueño, queda en un historial que no se puede borrar (quién, cuándo, por qué, qué cambió y el costo antes → después), cantidades en gramos o mililitros, un solo costo (el promedio) y el costo de ingredientes comparado con las ventas sin IVA. Las recetas de hoy quedan como «versión inicial»; el editor publicado hoy sigue guardando (queda como «cambio directo») | Como cualquier migración (pasos 1–5 de arriba), **fuera del horario de atención**: agregar los disparadores bloquea la tabla de recetas un instante y en ese instante una venta espera. Requiere la 0029. Reversión: `supabase/tools/reversion-0030.sql` |
+
+No confundir con la antigua «0030 facturas_archivo» (archivos de facturas en Storage): se eliminó antes de publicarse
+(D-042) y nunca se aplicó; el número 0030 es ahora el de las recetas.
 
 Antes: «Ensayo en pruebas» en verde con la versión (con **reinicio = no**: producción ya pasó la ventana) y «Respaldo
 inmediato» en verde. Después: `supabase/tools/release-check.sql` debe mostrar `migrations_missing` y `functions_missing`

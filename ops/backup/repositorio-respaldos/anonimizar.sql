@@ -46,7 +46,7 @@ declare
                        'public.compliance_confirmations.reference', 'public.compliance_confirmations.note', 'public.tax_rates.reference',
                        'public.payroll_rules.reference', 'public.payroll_lines.other_note', 'public.payroll_lines.extra_note',
                        'public.payroll_params.reference', 'public.staff_profile.notes', 'public.vacations.note', 'public.vacations.void_reason',
-                       'public.payroll_special_runs.note', 'public.e_documents.last_error',
+                       'public.payroll_special_runs.note', 'public.e_documents.last_error', 'public.recipe_versions.reason',
                        'acct.entries.memo', 'acct.lines.memo'];
   -- emptied (nullable): a bank account's last digits, the e-invoice receiver and Hacienda's answer about it
   cleared text[] := array['public.bank_accounts.last4', 'public.e_documents.receiver', 'public.e_documents.response'];
@@ -86,6 +86,9 @@ declare
                        'public.payroll_special_runs.status',
                        'public.payroll_rules.code', 'public.payroll_rules.kind', 'public.payroll_rules.name', 'public.payroll_runs.status',
                        'public.purchase_orders.status', 'public.purchase_receipts.invoice_no', 'public.purchase_receipts.invoice_status',
+                       -- 0030: a recipe's history names the product and its ingredients (who saved it is "by_name", above)
+                       'public.recipe_versions.menu_item_name', 'public.recipe_versions.source', 'public.recipe_versions.lines',
+                       'public.recipe_versions.missing_cost',
                        'public.supplier_invoices.currency', 'public.settings.key', 'public.settings.value',
                        'public.staff.role', 'public.staff_pay.kind', 'public.stock_items.category', 'public.stock_items.name',
                        'public.stock_items.pack_label', 'public.stock_items.unit', 'public.stock_moves.kind', 'public.supplier_invoices.account',

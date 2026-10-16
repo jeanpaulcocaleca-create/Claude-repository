@@ -904,6 +904,9 @@ function openEditor(row, it){
   });
   box.querySelector('[data-x]').addEventListener('click', function(){ box.remove(); });
   box.querySelector('[data-del]').addEventListener('click', async function(){
+    /* a product with a recipe: its recipe history stays (migration 0030), but "Sold out" is usually what is meant */
+    var rc = await db.from('recipes').select('id', {count: 'exact', head: true}).eq('menu_item_id', it.id);
+    if (!rc.error && rc.count > 0 && !confirm('"' + it.name + '" has a recipe. To stop selling it for a while, tap Sold out instead: it keeps its recipe. Delete it anyway? Its recipe stays in the recipe history.')) return;
     if (!confirm('Delete "' + it.name + '" from the menu? This cannot be undone.')) return;
     var r = await db.from('menu_items').delete().eq('id', it.id);
     if (r.error){ toast('Could not delete. Try again.'); return; }

@@ -749,7 +749,8 @@ var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_d
                     register_reclose:'Register closed again', inventory_view:'Inventory opened', unpaid_cancelled:'Unpaid order cancelled',
                     tab_item_removed:'Item taken off a bill', payment_given_back:'Payment given back',
                     tab_discount_removed:'Discount taken off a bill', login_kind_change:'Login type changed',
-                    login_access_revoked:'Owner access removed'};
+                    login_access_revoked:'Owner access removed', recipe_change:'Recipe changed',
+                    stock_cost_edit:'Stock cost changed', stock_item_deleted:'Stock item deleted'};
 async function loadLog(){
   var root = document.getElementById('logBody');
   var r = await db.from('audit_log').select('at,action,manager_name,summary,details')

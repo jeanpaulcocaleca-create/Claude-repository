@@ -1128,3 +1128,92 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   to a copy from before the launch; on a copy that already had migrations the regulated switches are still checked OFF
   and production's own `release-check.sql` (publication step 4) judges its Storage. `compare-selftest.py` proves both
   kinds of copy (14 cases). The pages and 0029 are byte-identical to 29e4ba3.
+
+## D-043 · 2026-10-16 · Recipes, stage 1A: saved with a manager or owner PIN, with history, kitchen units and one cost (0030)
+- **The owner's decisions (2026-10-16), after the drink catalog («Recetario», version 2) and the stage plan:**
+  (1) fruit is bought fresh to freeze at the café or bought frozen; usable grams and preparation losses are recorded
+  separately (stage 3); (2) baristas may report waste, only a manager or the owner approves inventory adjustments
+  (stage 3); (3) every recipe change is authorized with a PIN (1A); (4) a sale taken without internet keeps the recipe
+  and the customizations in force when it was rung, even if it reaches the server later (1B/1C); (5) room orders use the
+  standard recipe at first (1C). Order of work: 1A the recipe editor's security, history, units and consistent costs;
+  1B exact deductions and returns; 1C customizations at the register and on the preparation ticket; 2 automatic
+  printing of the preparation ticket; 3 waste and smart reorder alerts. The quantities of the catalog are still
+  proposals: nothing of it is loaded.
+- **What 1A builds (development and test environment only; the owner authorized code and tests, not production):**
+  - Migration `0030_recetas_seguras` (additive). `recipe_versions`: one row per saved version of a product's recipe
+    (lines with name, unit and quantity, cost at the average cost, the cost before, the price without IVA, who, when,
+    why, how), readable by whoever may open the inventory, unchangeable even from the SQL Editor (update, delete and
+    truncate refused). Every recipe that exists when 0030 is applied becomes its «starting version». `recipe_save`
+    saves a whole recipe in one transaction: inventory open on that device, the PIN of a manager or an owner (checked
+    first, so wrong PINs count and lock after five, as everywhere since 0025), the version the page showed (a second
+    device that saved meanwhile is reported, never overwritten), a request id (a lost answer retried is saved once),
+    every line checked (up to 30, no duplicates, a known and active item, a positive number, g/kg on mass items, ml/L
+    on volume items, units on unit items, at most 10 kg or 10 L or 500 units per serving), quantities typed in grams or
+    millilitres converted to the item's own unit, a reason required to leave a product without ingredients, an
+    unchanged recipe answered without a version. It writes the version and an approvals-log row (`recipe_change`).
+    `recipes_autolink_pin` is «link same-name items» with the same PIN. The PIN is never stored.
+  - Pages still open on a device with the old editor (and the café's SQL) keep writing `recipes` directly: three
+    statement triggers record those writes as «direct change» versions (the old page's delete-then-insert shows as two:
+    the recipe emptied, then the new one); a product deleted from the menu leaves a last «product deleted» version. A
+    contract migration (0031) will take direct writes away once every device has the new page (E-30).
+  - Guards: the unit of a stock item that has movements or is in a recipe cannot change (`unit_locked`: a new item is
+    the way to count it differently, so no recipe or history changes meaning); an item in a recipe cannot be deleted
+    (`stock_item_in_recipe`).
+  - One cost everywhere: the average cost, or the last price per unit when there is no average yet
+    (`_stock_unit_cost`, the rule sales already stamp on their movements). An ingredient created without a price has
+    no average (not ₡0), and one priced on the page but never received takes that price as its average, so its sales
+    are stamped at a real cost and Recipes, Insights and the books agree; 0030 gives that price once to the existing
+    items in that state; the first delivery sets the average as always. The Inventory food cost now values what was
+    used at the cost stamped on each movement (a movement stamped without a cost, from before, at today's cost, as
+    before) and compares it with sales without IVA (`revenue_net_crc`; `revenue` stays what was charged). The
+    function's `stock_value` follows the same rule; the Inventory «Stock value» tile still uses the last price (a
+    known gap, CHECKLIST row 31).
+  - Inventory → Recipes: every line editable (ingredient, quantity, unit: g or kg, ml or L, units), add, remove and
+    substitute (the quantity stays when the new item is in the same family), the cost per line and in total at the
+    average cost and as a percentage of the price without IVA, the cost at the last purchase price when it differs,
+    the items without a cost named; «Save recipe» opens the PIN window (who authorizes: managers and owners only, the
+    person who unlocked the device proposed; the reason); the history of the product with who, when, why and what
+    changed (added, removed, from → to) and the cost before → after; an unsaved draft survives a reload of the page
+    (never its PIN) and is dropped when someone saved a newer version. A database without 0030 keeps the old save.
+  - Frozen fruit and other things bought in bags: counting in closed bags plus loose grams (the total is filled in), the
+    delivery in bags or grams (each fills the other), and a hint on what «units per pack» means (a 1 kg bag of frozen
+    fruit = 1000 g). Menu Manager warns before deleting a product that has a recipe (Sold out keeps it); the approvals
+    log names recipe, cost and stock-item changes.
+- **Rollback:** `supabase/tools/reversion-0030.sql` removes the functions and triggers, restores the three changed
+  functions byte for byte (the production snapshot's fingerprints), and keeps the history (still unchangeable).
+- **Not in 1A (later stages):** a sale still takes the recipe in force when its line reaches the server, so a sale
+  synced late uses the recipe of that moment (decision 4 is 1B/1C); returns of exactly what a sale took (1B); the
+  customizations (1C); waste reports and approvals, fruit losses (3). A sale's movement of an item whose average cost is
+  0 is stamped at 0 (`_stock_move_cost`, unchanged; 1B).
+- **The phone (the owner's added requirement, 2026-10-16):** the recipe editor works completely from a phone. On screens
+  up to 720 px each ingredient is a touch card (ingredient on top, quantity and unit side by side, the line's cost and
+  «Quitar» below), every control is at least 44 px high with 16 px text (no zoom-in on iOS), «+ Ingrediente» and
+  «Guardar receta» are two wide buttons, the PIN window fits the screen with full-width fields and buttons, and a
+  product finder («Buscar un producto») filters the menu list by name or category. Nothing scrolls sideways. After a
+  save, a green line stays on screen («Receta guardada · versión N · quién»); errors stay in the PIN window or under the
+  editor. The browser test opens the editor at 390 px and checks every control's size and position, the horizontal
+  scroll, the finder, add/remove/substitute, the costs, a wrong PIN, the save, the confirmation, the history and a
+  refused quantity.
+- **Independent review (five lenses, each finding re-checked adversarially; all confirmed ones fixed before the commit):**
+  security: the page treated any failed database-version call as «old database» and fell back to the save without PIN
+  (now only «function not found» does; any other error leaves the version unknown and saving waits); the whole history
+  table was read to find each product's version (Supabase answers 1 000 rows at most, so past that some products could
+  never be saved: now one read per product); `_stock_item_in_use` was callable from the API (now only from its trigger).
+  Integrity: a recipe saved in grams while the owner changed the item to grams could end up 1 000× off (the save now
+  holds the ingredients, in id order, for its few milliseconds); the history trigger swallowed a deadlock as a warning
+  (now it fails the write visibly); «link by name» could add a line to a recipe being saved (it now takes each product's
+  lock); the baseline ran before the triggers were in place and did not record changes made during a rollback (now
+  after them, and a second apply records those changes as direct); the cost before of a direct version was the stamped
+  one (now the previous recipe at today's costs). Page: the lines were read before the version (now after, and nothing
+  is editable until both are read; a failed read says so and the product is tapped again); a new request id was made
+  each time the PIN window opened (now the draft keeps its id, so a save whose answer was lost is retried as the same
+  save, and a changed draft is a new one); the Spanish of «% del precio sin IVA» was half translated (the specific
+  entry now precedes the general one); costs could be stale after a delivery in another tab (opening a product reads
+  today's costs). Compatibility with the page published today: the delete guard's code carries «history», so that page
+  shows its «it is kept; untick Active» advice; the food cost keeps `revenue` as what was charged (that page's «Sales»)
+  and adds `revenue_net_crc`, which the new page shows as «Sales without IVA»; only the unit guard still gets that
+  page's generic «try again» until the new page is published.
+- **Tests:** SQL `330_recetas_seguras` (99), `340_reversion_0030` (13), `240_release_check` (0030 and its two functions
+  required); browser `300_recipes` (7, one on a phone); the rehearsal's live pages (the three builds published so far:
+  8950054, v2026.10.14-1 and v2026.10.15-1) save a recipe with the editor published today and the history records it.
+  Nothing was applied to production, nothing published, nothing merged (the owner's instruction).

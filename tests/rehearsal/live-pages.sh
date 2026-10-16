@@ -6,7 +6,8 @@
 # (tests/e2e/gateway.js): E2E_SITE_PORT / E2E_PGRST_PORT / E2E_SUFFIX pick other ports and database names.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
-SHA="$(grep -E '^[0-9a-f]{40}$' "$HERE/LIVE_PAGES")"
+# LIVE_PAGES_SHA: another published build (e.g. the latest gh-pages commit) instead of the one named in LIVE_PAGES
+SHA="${LIVE_PAGES_SHA:-$(grep -E '^[0-9a-f]{40}$' "$HERE/LIVE_PAGES")}"
 git -C "$ROOT" cat-file -e "$SHA^{commit}" 2>/dev/null || git -C "$ROOT" fetch -q --depth=1 origin "$SHA"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/site"; git -C "$ROOT" archive "$SHA" | tar -x -C "$T/site"
