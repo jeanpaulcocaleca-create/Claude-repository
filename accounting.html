@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="3b67783a24a4">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accounting · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="config.js?v=3b67783a24a4"></script>
+<script src="version.js?v=3b67783a24a4" defer></script>
+<script src="keypad.js?v=3b67783a24a4" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js?v=3b67783a24a4"></script>
+<script src="login.js?v=3b67783a24a4"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-hover:#143726; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.45em .65em;width:100%;min-height:42px}
+input:focus,select:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:1080px;margin:0 auto;padding:1.4rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.6rem}
+.err.ok{color:var(--ok)}
+.hint{font-size:.85rem;color:var(--sec)}
+header.top{display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap}
+header.top h1{font-size:1.5rem;line-height:1.15}
+header.top .sub{font-family:'Spline Sans Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--sec);margin-top:.15rem}
+header.top .sp{flex:1}
+.nav a{color:var(--accent);font-weight:600;text-decoration:none;margin-right:.8rem}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.tabs button{background:transparent;color:var(--sec);border:1.5px solid var(--muted);font-size:.9rem}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1.2rem}
+.card h2{font-size:1.15rem;margin-bottom:.7rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.card h2 .sp{flex:1}
+.banner{border:1.5px solid var(--gold);background:#FFF8E6}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;margin-bottom:1.2rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem}
+.kpi .l{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.45rem;margin-top:.2rem}
+.tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:end;margin-bottom:.8rem}
+.tools label{display:block;font-size:.8rem;color:var(--sec)}
+.tools > div{min-width:150px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid rgba(201,207,182,.7);vertical-align:top}
+th{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--sec);font-weight:600}
+td.num,th.num{text-align:right;white-space:nowrap;font-family:'Spline Sans Mono',monospace}
+tr.total td{font-weight:700;border-top:2px solid var(--muted)}
+tr.head td{font-weight:700;background:var(--canvas)}
+.entry{border-bottom:1px solid var(--muted);padding:.6rem 0}
+.entry .eh{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.entry .eh .sp{flex:1}
+.entry table{margin-top:.3rem}
+.tag{font-size:.75rem;padding:.1em .55em;border-radius:99px;border:1px solid var(--muted);color:var(--sec)}
+.tag.rev{border-color:var(--bad);color:var(--bad)}
+#bkTable td:last-child{min-width:15rem}
+td.edit{white-space:normal;min-width:17rem}td.edit .row{display:flex;gap:.25rem;align-items:center}td.edit input{width:auto;min-height:36px;padding:.3em .5em}
+#bkTable td:last-child button{white-space:normal;text-align:left}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.6rem}
+.grid2 label{display:block;font-size:.8rem;color:var(--sec);margin-bottom:.2rem}
+.lines .lrow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:.4rem;margin-bottom:.4rem}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6rem 1rem;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}
+.toast.on{opacity:1}
+@media print{.tabs,.tools,header.top button,.nav,.noprint{display:none !important}.card{background:#fff}}
+.card h3{font-size:1.05rem;margin:1rem 0 .3rem}
+#slip table{max-width:34rem}#slip .who{display:flex;flex-wrap:wrap;gap:.3rem 1.5rem;font-size:.9rem;margin:.4rem 0 .8rem}
+@media print{body.slip-print *{visibility:hidden}body.slip-print #slip,body.slip-print #slip *{visibility:visible}body.slip-print #slip{position:absolute;left:0;top:0;width:100%;border:0;box-shadow:none}body.slip-print #slip .noprint{display:none}}
+</style>
+</head>
+<body>
+<div id="loginView" class="login" hidden>
+  <h1>Hanging Garden</h1>
+  <p class="hint">Accounting · owner and accountant</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="noView" class="login" hidden>
+  <h1>Accounting</h1>
+  <p class="hint" id="noWhy">This page is for the owner (with the phone code) and the accountant.</p>
+  <!-- the books always need the phone code: a login without one turns it on here -->
+  <div id="enrollWrap" hidden>
+    <button type="button" id="enrollStart">Turn on the phone code</button>
+    <div id="enrollBox" hidden>
+      <p class="hint">Scan this with Google Authenticator, Microsoft Authenticator or 1Password on your phone, then type the 6-digit code it shows.</p>
+      <img id="enrollQr" alt="QR code for the authenticator app" width="180" height="180" style="display:block;margin:.6rem auto;background:#fff;border-radius:10px">
+      <p class="hint">Or type this key by hand: <code id="enrollSecret" class="mono"></code></p>
+      <form id="enrollForm">
+        <input id="enrollCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit code" aria-label="6-digit code" required>
+        <button type="submit">Confirm</button>
+      </form>
+    </div>
+    <p class="err" id="enrollErr"></p>
+  </div>
+  <button type="button" class="ghost" id="noOut">Sign out</button>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <header class="top">
+    <div><h1>Accounting</h1><div class="sub" id="whoSub">Hanging Garden · Monteverde</div></div>
+    <span class="sp"></span>
+    <span class="nav" id="ownerNav"><a href="home.html">Home</a><a href="sales.html">Sales</a><a href="inventory.html">Inventory</a></span>
+    <button type="button" class="ghost small" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="card banner" id="setupCard" hidden>
+    <h2>Before the books run by themselves</h2>
+    <p class="hint" id="setupText">The chart of accounts below is a proposal. Once your accountant approves it (and the first day to post), the register close posts each day automatically. Until then a day can be posted here to review it.</p>
+    <div class="grid2" id="approveBox" hidden>
+      <div><label for="apWho">Approved by (accountant)</label><input id="apWho" maxlength="80"></div>
+      <div><label for="apRef">Document or reference</label><input id="apRef" maxlength="120"></div>
+      <div><label for="apStart">First day to post</label><input id="apStart" type="date"></div>
+      <div style="align-self:end"><button type="button" id="apGo">Approve and switch on</button></div>
+    </div>
+    <p class="err" id="setupErr"></p>
+  </div>
+
+  <div class="card" id="pendingCard" hidden>
+    <h2>Closed days not in the books yet <span class="sp"></span><button type="button" class="small" id="pendingGo">Post these days</button></h2>
+    <p class="hint mono" id="pendingList"></p>
+    <p class="hint" id="pendingNoReg" hidden></p>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button type="button" data-view="summary" class="on">Summary</button>
+    <button type="button" data-view="journal">Journal</button>
+    <button type="button" data-view="reports">Reports</button>
+    <button type="button" data-view="expenses">Expenses</button>
+    <button type="button" data-view="payables">Suppliers</button>
+    <button type="button" data-view="einvoice">E-invoices</button>
+    <button type="button" data-view="cash">Cash</button>
+    <button type="button" data-view="bank">Bank</button>
+    <button type="button" data-view="payroll">Payroll</button>
+    <button type="button" data-view="accounts">Accounts</button>
+    <button type="button" data-view="periods">Periods</button>
+  </div>
+
+  <!-- SUMMARY -->
+  <section class="view" id="view-summary">
+    <div class="tools"><div><label for="sMonth">Month</label><input id="sMonth" type="month"></div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="l">Revenue</div><div class="v" id="kRev">–</div></div>
+      <div class="kpi"><div class="l">Costs and expenses</div><div class="v" id="kExp">–</div></div>
+      <div class="kpi"><div class="l">Net income</div><div class="v" id="kNet">–</div></div>
+      <div class="kpi"><div class="l">Cash and bank</div><div class="v" id="kCash">–</div></div>
+      <div class="kpi"><div class="l">IVA payable (net)</div><div class="v" id="kIva">–</div></div>
+    </div>
+    <p class="hint">From the entries in the books. Days not posted yet are not included.</p>
+  </section>
+
+  <!-- JOURNAL -->
+  <section class="view" id="view-journal" hidden>
+    <div class="card">
+      <h2>Journal <span class="sp"></span><button type="button" class="small ghost" id="jCsv">Download CSV</button><button type="button" class="small" id="jNew">+ New entry</button></h2>
+      <div class="tools">
+        <div><label for="jFrom">From</label><input id="jFrom" type="date"></div>
+        <div><label for="jTo">To</label><input id="jTo" type="date"></div>
+        <div><label for="jAcct">Account</label><select id="jAcct"><option value="">All accounts</option></select></div>
+        <div><button type="button" id="jGo">Show</button></div>
+      </div>
+      <div id="jForm" class="card" style="background:var(--canvas)" hidden>
+        <div class="grid2">
+          <div><label for="nDate">Date</label><input id="nDate" type="date"></div>
+          <div style="grid-column:span 2"><label for="nMemo">Description</label><input id="nMemo" maxlength="200"></div>
+          <div style="align-self:end"><label><input type="checkbox" id="nOpening" style="width:auto;min-height:0"> Opening balances</label></div>
+        </div>
+        <div class="lines" id="nLines" style="margin-top:.6rem"></div>
+        <div class="tools"><button type="button" class="ghost small" id="nAdd">+ Line</button><span class="hint mono" id="nSum"></span></div>
+        <div class="tools"><button type="button" id="nGo">Post the entry</button><button type="button" class="ghost" id="nCancel">Cancel</button></div>
+        <p class="err" id="nErr"></p>
+      </div>
+      <div id="jList"></div>
+    </div>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="view" id="view-reports" hidden>
+    <div class="card">
+      <h2>Reports <span class="sp"></span><button type="button" class="small ghost" id="rCsv">Download CSV</button><button type="button" class="small ghost" id="rPrint">Print</button><button type="button" class="small" id="rPack">Month's package (ZIP)</button></h2>
+      <div class="tools">
+        <div><label for="rKind">Report</label><select id="rKind">
+          <option value="tb">Trial balance</option><option value="is">Income statement</option>
+          <option value="bs">Balance sheet</option><option value="cf">Cash flow</option>
+          <option value="iva">IVA of the period (draft)</option><option value="inv">Inventory at average cost</option><option value="pp">Profit by product</option><option value="labor">Labor cost</option></select></div>
+        <div><label for="rFrom">From</label><input id="rFrom" type="date"></div>
+        <div><label for="rTo">To</label><input id="rTo" type="date"></div>
+        <div><button type="button" id="rGo">Show</button></div>
+      </div>
+      <div class="tablewrap" id="rOut"></div>
+    </div>
+  </section>
+
+  <!-- EXPENSES -->
+  <section class="view" id="view-expenses" hidden>
+    <div class="card">
+      <h2>New expense</h2>
+      <div class="grid2">
+        <div><label for="xDate">Date</label><input id="xDate" type="date"></div>
+        <div><label for="xVendor">Supplier</label><input id="xVendor" maxlength="80"></div>
+        <div style="grid-column:span 2"><label for="xDesc">What was it?</label><input id="xDesc" maxlength="200"></div>
+        <div><label for="xAcct">Account</label><select id="xAcct"></select></div>
+        <div><label for="xAmt">Total paid, IVA included (₡)</label><input id="xAmt" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="xIva">Creditable IVA (₡)</label><input id="xIva" data-keypad="amount" type="number" min="0" step="any" value="0"></div>
+        <div><label for="xFrom">Paid from</label><select id="xFrom"><option value="payout">Money taken from the register (recorded at the POS)</option><option value="petty">Petty cash</option><option value="bank">Bank or company card</option><option value="credit">On credit (to pay later)</option><option value="cash">Cash from the safe (not the register drawer)</option></select></div>
+        <div id="xPayoutBox"><label for="xPayout">Which payout</label><select id="xPayout"></select></div>
+        <div><label for="xInv">Invoice Nº</label><input id="xInv" maxlength="40"></div>
+        <div><label for="xInvDate">Invoice date</label><input id="xInvDate" type="date"></div>
+        <div><label for="xFile">Photo or PDF of the invoice</label><input id="xFile" type="file" accept="image/*,application/pdf" capture="environment"></div>
+      </div>
+      <div class="tools" style="margin-top:.6rem"><button type="button" id="xGo">Save the expense</button></div>
+      <p class="err" id="xErr"></p>
+    </div>
+    <div class="card">
+      <h2>Expenses <span class="sp"></span><button type="button" class="small ghost" id="xCsv">Download CSV</button></h2>
+      <div class="tools">
+        <div><label for="xlFrom">From</label><input id="xlFrom" type="date"></div>
+        <div><label for="xlTo">To</label><input id="xlTo" type="date"></div>
+        <div><button type="button" id="xlGo">Show</button></div>
+      </div>
+      <div class="tablewrap"><table id="xTable"><thead><tr><th>Date</th><th>Supplier · description</th><th>Account</th><th class="num">Total</th><th class="num">IVA</th><th>Invoice</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- SUPPLIERS: invoices, payments, what is owed -->
+  <section class="view" id="view-payables" hidden>
+    <div class="card">
+      <h2>What is owed to suppliers <span class="sp"></span><button type="button" class="small ghost" id="pyCsv">Download CSV</button></h2>
+      <div class="tablewrap"><table id="agTable"><thead><tr><th>Supplier</th><th class="num">Not due yet</th><th class="num">1–30 days late</th><th class="num">31–60 days late</th><th class="num">Over 60 days late</th><th class="num">Total</th></tr></thead><tbody></tbody></table></div>
+      <p class="hint mono" id="agTie"></p>
+      <p class="hint mono" id="agDiff" hidden></p>
+    </div>
+    <div class="card">
+      <h2>New supplier invoice</h2>
+      <div class="tools"><div><label for="viXml">Fill in from the supplier's electronic invoice (XML file)</label><input id="viXml" type="file" accept=".xml,text/xml,application/xml"></div></div>
+      <p class="hint" id="viXmlMsg"></p>
+      <div class="grid2">
+        <div><label for="viVendor">Supplier</label><select id="viVendor"></select></div>
+        <div><label for="viNum">Invoice Nº</label><input id="viNum" maxlength="50"></div>
+        <div><label for="viDate">Invoice date</label><input id="viDate" type="date"></div>
+        <div><label for="viDue">Due date</label><input id="viDue" type="date"></div>
+        <div><label for="viNet">Amount before IVA (₡)</label><input id="viNet" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="viIva">IVA on the invoice (₡)</label><input id="viIva" data-keypad="amount" type="number" min="0" step="any" value="0"></div>
+        <div id="viAcctBox"><label for="viAcct">What was it for (no delivery)</label><select id="viAcct"></select></div>
+      </div>
+      <p class="hint">Deliveries of this supplier waiting for their invoice (tick the ones on it):</p>
+      <div id="viRecs" class="lines"></div>
+      <p class="hint mono" id="viDiff"></p>
+      <div class="tools"><button type="button" id="viGo">Save the invoice</button></div>
+      <p class="err" id="viErr"></p>
+    </div>
+    <div class="card">
+      <h2>Pay a supplier</h2>
+      <div class="grid2">
+        <div><label for="vpVendor">Supplier</label><select id="vpVendor"></select></div>
+        <div><label for="vpAmt">Amount (₡)</label><input id="vpAmt" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="vpFrom">Paid from</label><select id="vpFrom"><option value="bank">Bank transfer or SINPE</option><option value="payout">Money taken from the register (recorded at the POS)</option><option value="petty">Petty cash</option><option value="cash">Cash from the safe (not the register drawer)</option></select></div>
+        <div id="vpPayoutBox" hidden><label for="vpPayout">Which payout</label><select id="vpPayout"></select></div>
+        <div><label for="vpDate">Date</label><input id="vpDate" type="date"></div>
+        <div><label for="vpRef">Reference</label><input id="vpRef" maxlength="80"></div>
+        <div><label for="vpInv">Invoice to pay first</label><select id="vpInv"></select></div>
+      </div>
+      <p class="hint mono" id="vpOwed"></p>
+      <div class="tools"><button type="button" id="vpGo">Record the payment</button></div>
+      <p class="err" id="vpErr"></p>
+    </div>
+    <div class="card">
+      <h2>Invoices of the last 3 months</h2>
+      <div class="tablewrap"><table id="viTable"><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th>Due</th><th class="num">Total</th><th class="num">Still owed</th><th></th></tr></thead><tbody></tbody></table></div>
+      <h2 style="margin-top:1rem">Payments of the last 3 months</h2>
+      <div class="tablewrap"><table id="vpTable"><thead><tr><th>Date</th><th>Supplier</th><th>Paid from</th><th>Reference</th><th>Invoices</th><th class="num">Amount</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ELECTRONIC DOCUMENTS: recorded only, never sent (0018) -->
+  <section class="view" id="view-einvoice" hidden>
+    <div class="card">
+      <h2>Electronic documents</h2>
+      <p class="hint" id="eMode"></p>
+      <div class="tools">
+        <div><label for="eFrom">From</label><input id="eFrom" type="date"></div>
+        <div><label for="eTo">To</label><input id="eTo" type="date"></div>
+        <div><button type="button" id="eGo">Show</button></div>
+      </div>
+      <p class="hint mono" id="eCounts"></p>
+      <details id="eCabys" hidden><summary class="err" id="eCabysN"></summary><p class="hint" id="eCabysList" data-no-translate></p></details>
+      <div class="tablewrap"><table id="eTable"><thead><tr><th>Nº</th><th>Date</th><th>Receipt</th><th>Document</th><th class="num">Total</th><th class="num">IVA</th><th>Status</th><th>Missing</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- CASH: the drawer by day in colones and dollars; payouts waiting for their invoice (0019) -->
+  <section class="view" id="view-cash" hidden>
+    <div class="card">
+      <h2>Cash by day <span class="sp"></span><button type="button" class="small ghost" id="cCsv">Download CSV</button></h2>
+      <div class="tools">
+        <div><label for="cFrom">From</label><input id="cFrom" type="date"></div>
+        <div><label for="cTo">To</label><input id="cTo" type="date"></div>
+        <div><button type="button" id="cGo">Show</button></div>
+      </div>
+      <div class="tablewrap"><table id="cTable"><thead><tr><th>Day</th><th></th><th class="num">Float</th><th class="num">Cash sales</th><th class="num">Money in</th><th class="num">Money out</th><th class="num">Expected</th><th class="num">Counted</th><th class="num">Difference</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Payouts from the register waiting for their invoice</h2>
+      <p class="hint">Money a manager took from the drawer to pay a purchase. File its invoice as an expense or a supplier payment "paid with money taken from the register".</p>
+      <div class="tablewrap"><table id="poTable"><thead><tr><th>Day</th><th>What for</th><th>Who</th><th class="num">Amount</th><th class="num">Filed</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- BANK: accounts, statements imported from the bank's CSV, reconciliation (0020) -->
+  <section class="view" id="view-bank" hidden>
+    <div class="card">
+      <h2>Bank accounts <span class="sp"></span><button type="button" class="small" id="bkNew">+ Bank account</button></h2>
+      <div class="tools"><div><label for="bkAcct">Account</label><select id="bkAcct"></select></div></div>
+      <div class="grid2" id="bkForm" hidden>
+        <div><label for="bkName">Name</label><input id="bkName" maxlength="60" placeholder="BCR colones"></div>
+        <div><label for="bkBank">Bank</label><input id="bkBank" maxlength="60"></div>
+        <div><label for="bkCur">Currency</label><select id="bkCur"><option value="CRC">Colones (₡)</option></select></div>
+        <div><label for="bkLast4">Last 4 digits</label><input id="bkLast4" inputmode="numeric" maxlength="4"></div>
+        <div><label for="bkGl">Account in the books</label><select id="bkGl"></select></div>
+        <div style="align-self:end"><button type="button" id="bkSave">Save</button> <button type="button" class="ghost" id="bkCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="bkErr"></p>
+    </div>
+    <div class="card" id="bkImportCard" hidden>
+      <h2>Import a statement</h2>
+      <p class="hint">Download the movements from the bank's website as CSV (or Excel saved as CSV) and pick the file. Importing the same movements again adds nothing.</p>
+      <div class="tools"><div><label for="bkFile">Statement file (CSV)</label><input id="bkFile" type="file" accept=".csv,.txt,text/csv,text/plain"></div></div>
+      <div id="bkMap" hidden>
+        <div class="grid2">
+          <div><label for="mDate">Date column</label><select id="mDate"></select></div>
+          <div><label for="mDesc">Description column</label><select id="mDesc"></select></div>
+          <div><label for="mRef">Reference column</label><select id="mRef"></select></div>
+          <div><label for="mAmt">Amount column (+ in, − out)</label><select id="mAmt"></select></div>
+          <div><label for="mOut">Or: money out column</label><select id="mOut"></select></div>
+          <div><label for="mIn">and money in column</label><select id="mIn"></select></div>
+          <div><label for="mBal">Balance column</label><select id="mBal"></select></div>
+          <div><label for="mFmt">Dates are written</label><select id="mFmt"><option value="dmy">day/month/year</option><option value="ymd">year-month-day</option><option value="mdy">month/day/year</option></select></div>
+        </div>
+        <div class="tablewrap" style="margin-top:.6rem"><table id="bkPrev"><thead><tr><th>Date</th><th>Description</th><th>Reference</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead><tbody></tbody></table></div>
+        <p class="hint mono" id="bkPrevNote"></p>
+        <div class="tools"><button type="button" id="bkImport">Import these movements</button></div>
+      </div>
+      <p class="err" id="bkImpErr"></p>
+    </div>
+    <div class="card" id="bkRecCard" hidden>
+      <h2>Reconcile <span class="sp"></span><button type="button" class="small ghost" id="bkAuto">Match automatically</button></h2>
+      <div class="tools">
+        <div><label for="bkFrom">From</label><input id="bkFrom" type="date"></div>
+        <div><label for="bkTo">To</label><input id="bkTo" type="date"></div>
+        <div><button type="button" id="bkGo">Show</button></div>
+      </div>
+      <p class="hint mono" id="bkSum"></p>
+      <div class="tablewrap"><table id="bkTable"><thead><tr><th>Date</th><th>Movement</th><th class="num">Amount</th><th>In the books</th></tr></thead><tbody></tbody></table></div>
+      <h2 style="margin-top:1rem">In the books, not on the statement</h2>
+      <div class="tablewrap"><table id="bkBook"><thead><tr><th>Date</th><th>Entry</th><th class="num">Amount</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- PAYROLL: periods, approved hours, rates and confirmed rules, the payroll (0021, 0022) -->
+  <section class="view" id="view-payroll" hidden>
+    <div class="card">
+      <h2>Pay periods <span class="sp"></span><button type="button" class="small" id="ppNew">+ Period</button></h2>
+      <div class="tools" id="ppForm" hidden>
+        <div><label for="ppFrom">From</label><input id="ppFrom" type="date"></div>
+        <div><label for="ppTo">To</label><input id="ppTo" type="date"></div>
+        <div><button type="button" id="ppSave">Create</button> <button type="button" class="ghost" id="ppCancel">Cancel</button></div>
+      </div>
+      <div class="tools"><div><label for="ppSel">Period</label><select id="ppSel"></select></div><div><span class="tag" id="ppStatus"></span></div></div>
+      <p class="err" id="ppErr"></p>
+    </div>
+    <div class="card" id="tsCard" hidden>
+      <h2>Hours of the period <span class="sp"></span><button type="button" class="small" id="tsApprove" hidden>Approve the hours</button><button type="button" class="small ghost" id="tsReopen" hidden>Reopen</button></h2>
+      <p class="hint" id="tsHint"></p>
+      <div class="tablewrap"><table id="tsTable"><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">Shifts</th><th>To check</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card" id="prCard" hidden>
+      <h2>Payroll <span class="sp"></span><button type="button" class="small ghost" id="prCsv">Download CSV</button><button type="button" class="small" id="prPrepare">Prepare the payroll</button></h2>
+      <p class="hint" id="prState"></p>
+      <div class="tablewrap"><table id="prTable"><thead><tr><th>Person</th><th class="num">Hours</th><th class="num">Rate</th><th class="num">Gross</th><th class="num">Extra pay</th><th class="num">Deductions</th><th class="num">Income tax</th><th class="num">Other deductions</th><th class="num">Employer charges</th><th class="num">Net</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="tools" style="margin-top:.6rem">
+        <button type="button" id="prReview" hidden>Mark as reviewed (accountant)</button>
+        <button type="button" class="ghost" id="prBack" hidden>Back to draft</button>
+        <button type="button" id="prPost" hidden>Post to the books</button>
+        <div id="prPayBox" hidden><label for="prFrom">Paid from</label><select id="prFrom"><option value="bank">Bank</option><option value="cash">Cash from the safe (not the register drawer)</option><option value="petty">Petty cash</option></select></div>
+        <div id="prPayDateBox" hidden><label for="prDate">Date</label><input id="prDate" type="date"></div>
+        <button type="button" id="prPay" hidden>Record the payment</button>
+      </div>
+      <p class="err" id="prErr"></p>
+    </div>
+    <div class="card" id="slip" hidden>
+      <h2>Colilla de pago <span class="sp"></span><button type="button" class="small ghost noprint" id="slipPrint">Print</button><button type="button" class="small ghost noprint" id="slipClose">Close</button></h2>
+      <div id="slipBody" data-no-translate></div>
+    </div>
+    <div class="card">
+      <h2>Pay rates</h2>
+      <div class="tablewrap"><table id="rtTable"><thead><tr><th>Person</th><th>Pay</th><th>Since</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="grid2" id="rtForm" hidden>
+        <div><label for="rtWho">Person</label><input id="rtWho" disabled></div>
+        <div><label for="rtKind">Paid</label><select id="rtKind"><option value="hourly">By the hour</option><option value="period">A fixed amount per pay period</option></select></div>
+        <div><label for="rtRate">Amount (₡)</label><input id="rtRate" data-keypad="amount" type="number" min="0" step="any"></div>
+        <div><label for="rtFrom">From</label><input id="rtFrom" type="date"></div>
+        <div style="align-self:end"><button type="button" id="rtSave">Save</button> <button type="button" class="ghost" id="rtCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="rtErr"></p>
+      <div class="grid2" id="pfForm" hidden>
+        <div><label for="pfWho">Person</label><input id="pfWho" disabled></div>
+        <div><label for="pfId">ID number (cédula or DIMEX)</label><input id="pfId" maxlength="20"></div>
+        <div><label for="pfHired">Hired on</label><input id="pfHired" type="date"></div>
+        <div><label for="pfEnded">Last day (if they left)</label><input id="pfEnded" type="date"></div>
+        <div><label for="pfContract">Contract</label><select id="pfContract"><option value="">—</option><option value="indefinido">Open-ended</option><option value="plazo_fijo">Fixed term</option><option value="por_horas">By the hour</option></select></div>
+        <div><label for="pfChildren">Children (tax credit)</label><input id="pfChildren" type="number" min="0" max="20" step="1"></div>
+        <div style="align-self:end"><label><input type="checkbox" id="pfSpouse" style="width:auto;min-height:0"> Spouse (tax credit)</label></div>
+        <div><label for="pfNotes">Notes</label><input id="pfNotes" maxlength="300"></div>
+        <div style="align-self:end"><button type="button" id="pfSave">Save the profile</button> <button type="button" class="ghost" id="pfCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="pfErr"></p>
+    </div>
+    <div class="card">
+      <h2>Deductions and employer charges <span class="sp"></span><button type="button" class="small" id="ruNew">+ Rule</button></h2>
+      <p class="hint">None come built in. Each one is entered with who confirmed it (your accountant) and the document. Until then the payroll only works out the gross pay.</p>
+      <div class="tablewrap"><table id="ruTable"><thead><tr><th>Rule</th><th>Who pays it</th><th>Category</th><th class="num">%</th><th>Confirmed by</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="grid2" id="ruForm" hidden>
+        <div><label for="ruCode">Code</label><input id="ruCode" maxlength="30" placeholder="ccss_trabajador"></div>
+        <div><label for="ruName">Name</label><input id="ruName" maxlength="80"></div>
+        <div><label for="ruKind">Who pays it</label><select id="ruKind"><option value="employee">Taken from the pay</option><option value="employer">Paid by the business on top</option></select></div>
+        <div><label for="ruCat">Category</label><select id="ruCat"><option value="ccss">CCSS</option><option value="ins">INS (occupational risk policy)</option><option value="other">Other</option></select></div>
+        <div><label for="ruPct">Percent of the gross pay</label><input id="ruPct" type="number" min="0" max="49.999" step="0.001"></div>
+        <div><label for="ruWho">Confirmed by</label><input id="ruWho" maxlength="80"></div>
+        <div><label for="ruRef">Document or reference</label><input id="ruRef" maxlength="120"></div>
+        <div style="align-self:end"><label><input type="checkbox" id="ruActive" style="width:auto;min-height:0" checked> Active</label></div>
+        <div style="align-self:end"><button type="button" id="ruSave">Save</button> <button type="button" class="ghost" id="ruCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="ruErr"></p>
+    </div>
+    <div class="card" id="crCard">
+      <h2>Costa Rican rules: CCSS, INS, income tax, aguinaldo, vacations</h2>
+      <p class="hint">What is arithmetic (hours × rate, salaries ÷ 12, averages) is always worked out. What the law sets (percentages, the tax table, vacation days, notice and severance) is entered by your accountant with the document, and the owner records the confirmation "payroll_cr_rules" in Home → Settings. Until then everything here is an estimate marked as not confirmed, and nothing is withheld, provisioned or posted.</p>
+      <p class="hint" id="crState"></p>
+      <h3>Income tax table (monthly brackets)</h3>
+      <p class="hint" id="crRentaState"></p>
+      <div class="tablewrap"><table id="rbTable"><thead><tr><th>Up to (₡ a month; empty = no limit)</th><th class="num">%</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="grid2">
+        <div style="align-self:end"><button type="button" class="small ghost" id="rbAdd">+ Bracket</button></div>
+        <div><label for="rbChild">Credit per child (₡ a month)</label><input id="rbChild" type="number" min="0" step="any"></div>
+        <div><label for="rbSpouse">Credit for the spouse (₡ a month)</label><input id="rbSpouse" type="number" min="0" step="any"></div>
+        <div><label for="rbMethod">Periods shorter than a month</label><select id="rbMethod"><option value="prorate">Take the pay to a month, tax it, bring the tax back to the period</option><option value="monthly">Apply the table to the pay as it is</option></select></div>
+        <div><label for="rbFrom">Valid from</label><input id="rbFrom" type="date"></div>
+        <div><label for="rbWho">Confirmed by</label><input id="rbWho" maxlength="80"></div>
+        <div><label for="rbRef">Document or reference</label><input id="rbRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="rbSave">Save the tax table</button></div>
+      </div>
+      <p class="err" id="rbErr"></p>
+      <h3>Vacation days</h3>
+      <p class="hint" id="vpState"></p>
+      <div class="grid2">
+        <div><label for="vpDays">Days earned per month worked</label><input id="vpDays" type="number" min="0.1" max="5" step="0.01"></div>
+        <div><label for="vpWho">Confirmed by</label><input id="vpWho" maxlength="80"></div>
+        <div><label for="vacRef">Document or reference</label><input id="vacRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="vpSave">Save the vacation rule</button></div>
+      </div>
+      <h3>CCSS minimum contribution base</h3>
+      <p class="hint">The CCSS takes contributions on at least a minimum monthly base: when it is confirmed here, each payroll takes the CCSS rules on the greater of the pay (taken to a month) and this base, and flags the lines below it.</p>
+      <p class="hint" id="ccState"></p>
+      <div class="grid2">
+        <div><label for="ccMin">Minimum base (₡ a month; 0 = none)</label><input id="ccMin" type="number" min="0" step="1"></div>
+        <div><label for="ccWho">Confirmed by</label><input id="ccWho" maxlength="80"></div>
+        <div><label for="ccShare">Worker's quota on the part of the base above the pay</label><select id="ccShare"><option value="on_pay">Paid by the business on top</option><option value="on_base">Deducted from the worker</option></select></div>
+        <div><label for="ccRef">Document or reference</label><input id="ccRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="ccSave">Save the CCSS base</button></div>
+      </div>
+      <h3>Notice and severance table</h3>
+      <p class="hint" id="svText" data-no-translate></p>
+      <p class="hint" id="svState"></p>
+      <div class="grid2">
+        <div><label for="svWho">Confirmed by</label><input id="svWho" maxlength="80"></div>
+        <div><label for="svRef">Document or reference</label><input id="svRef" maxlength="120"></div>
+        <div style="align-self:end"><button type="button" id="svSave">Confirm the table as written</button></div>
+      </div>
+      <p class="err" id="vacErr"></p>
+    </div>
+    <div class="card" id="agCard">
+      <h2>Aguinaldo <span class="sp"></span><button type="button" class="small ghost" id="agCsv">Download CSV</button></h2>
+      <div class="tools"><div><label for="agYear">Year</label><input id="agYear" type="number" min="2020" max="2100"></div><div style="align-self:end"><button type="button" class="small" id="agGo">Estimate</button></div><div style="align-self:end"><span class="tag" id="agStatus" hidden></span></div></div>
+      <p class="hint" id="agHint"></p>
+      <div class="tablewrap"><table id="aguTable"><thead><tr><th>Person</th><th>ID number</th><th class="num">Months</th><th class="num">Salaries</th><th class="num">Aguinaldo</th><th class="num">Provisioned</th></tr></thead><tbody></tbody></table></div>
+      <div class="tools" style="margin-top:.6rem">
+        <button type="button" id="agPrepare" hidden>Prepare the aguinaldo</button>
+        <button type="button" id="agReview" hidden>Mark as reviewed (accountant)</button>
+        <button type="button" class="ghost" id="agBack" hidden>Back to draft</button>
+        <div id="agPostBox" hidden><label for="agPostDate">Date</label><input id="agPostDate" type="date"></div>
+        <button type="button" id="agPost" hidden>Post to the books</button>
+        <div id="agPayBox" hidden><label for="agFrom">Paid from</label><select id="agFrom"><option value="bank">Bank</option><option value="cash">Cash from the safe (not the register drawer)</option><option value="petty">Petty cash</option></select></div>
+        <div id="agPayDateBox" hidden><label for="agPayDate">Date</label><input id="agPayDate" type="date"></div>
+        <button type="button" id="agPay" hidden>Record the payment</button>
+      </div>
+      <p class="err" id="agErr"></p>
+    </div>
+    <div class="card" id="vcCard">
+      <h2>Vacations</h2>
+      <div class="tools"><div><label for="vcWho">Person</label><select id="vcWho"></select></div><div style="align-self:end"><button type="button" class="small" id="vcGo">See the balance</button></div></div>
+      <p class="hint" id="vcBalance"></p>
+      <div class="grid2">
+        <div><label for="vcFrom">From</label><input id="vcFrom" type="date"></div>
+        <div><label for="vcTo">To</label><input id="vcTo" type="date"></div>
+        <div><label for="vcDays">Days</label><input id="vcDays" type="number" min="0.5" max="60" step="0.5"></div>
+        <div><label for="vcKind">What</label><select id="vcKind"><option value="taken">Days taken</option><option value="paid_out">Days paid instead of taken</option></select></div>
+        <div><label for="vcNote">Note</label><input id="vcNote" maxlength="200"></div>
+        <div style="align-self:end"><button type="button" id="vcSave">Record</button></div>
+      </div>
+      <p class="hint">Paying days instead of taking them is the exception (Código de Trabajo art. 156): write the reason.</p>
+      <div class="tablewrap"><table id="vcTable"><thead><tr><th>From</th><th>To</th><th class="num">Days</th><th>What</th><th>Note</th><th></th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="vcErr"></p>
+    </div>
+    <div class="card" id="lqCard">
+      <h2>Settlement estimate (when someone leaves)</h2>
+      <div class="tools">
+        <div><label for="lqWho">Person</label><select id="lqWho"></select></div>
+        <div><label for="lqDate">Last day</label><input id="lqDate" type="date"></div>
+        <div><label for="lqReason">Reason</label><select id="lqReason"><option value="despido_sin_causa">Dismissal without cause (notice and severance owed)</option><option value="despido_con_causa">Dismissal with cause</option><option value="renuncia">Resignation</option><option value="fin_contrato">End of a fixed-term contract</option></select></div>
+        <div style="align-self:end"><button type="button" class="small" id="lqGo">Estimate</button></div>
+      </div>
+      <p class="hint" id="lqHint"></p>
+      <div class="tablewrap"><table id="lqTable"><thead><tr><th>Concept</th><th class="num">Days</th><th class="num">Amount</th><th>Legal basis</th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="lqErr"></p>
+    </div>
+    <div class="card" id="mrCard">
+      <h2>Month for the CCSS and the INS <span class="sp"></span><button type="button" class="small ghost" id="mrCsv">Download CSV</button></h2>
+      <div class="tools"><div><label for="mrMonth">Month</label><input id="mrMonth" type="month"></div><div style="align-self:end"><button type="button" class="small" id="mrGo">Show</button></div></div>
+      <p class="hint" id="mrHint"></p>
+      <div class="tablewrap"><table id="mrTable"><thead><tr><th>Person</th><th>ID number</th><th class="num">Days</th><th class="num">Hours</th><th class="num">Salary</th><th class="num">CCSS (employee)</th><th class="num">Income tax</th><th class="num">Other</th><th class="num">Net</th><th class="num">CCSS (employer)</th><th class="num">INS</th><th class="num">Other charges</th></tr></thead><tbody></tbody></table></div>
+      <div class="tablewrap"><table id="mrRules"><thead><tr><th>Rule</th><th>Who pays it</th><th>Category</th><th class="num">%</th><th class="num">Total</th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="mrErr"></p>
+    </div>
+  </section>
+
+  <!-- ACCOUNTS -->
+  <section class="view" id="view-accounts" hidden>
+    <div class="card">
+      <h2>Chart of accounts <span class="sp"></span><button type="button" class="small" id="aNew">+ Account</button></h2>
+      <div class="grid2" id="aForm" hidden>
+        <div><label for="aCode">Code</label><input id="aCode" inputmode="numeric" maxlength="8"></div>
+        <div style="grid-column:span 2"><label for="aName">Name</label><input id="aName" maxlength="120"></div>
+        <div><label for="aType">Type</label><select id="aType"><option value="asset">Asset</option><option value="liability">Liability</option><option value="equity">Equity</option><option value="revenue">Revenue</option><option value="expense">Cost or expense</option></select></div>
+        <div style="align-self:end"><label><input type="checkbox" id="aCash" style="width:auto;min-height:0"> Cash or bank</label></div>
+        <div style="align-self:end"><label><input type="checkbox" id="aActive" style="width:auto;min-height:0" checked> Active</label></div>
+        <div style="align-self:end"><button type="button" id="aGo">Save</button> <button type="button" class="ghost" id="aCancel">Cancel</button></div>
+      </div>
+      <p class="err" id="aErr"></p>
+      <div class="tablewrap"><table id="aTable"><thead><tr><th>Code</th><th>Name</th><th>Type</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Where the automatic entries go</h2>
+      <div class="tablewrap"><table id="mTable"><thead><tr><th>Line</th><th>Account</th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="mErr"></p>
+    </div>
+  </section>
+
+  <!-- PERIODS -->
+  <section class="view" id="view-periods" hidden>
+    <div class="card">
+      <h2>Periods</h2>
+      <p class="hint">Close a month when its books are complete: nothing more can be dated in it (the accountant can reopen it). Lock it when it is filed: then it never changes again.</p>
+      <div class="tablewrap"><table id="pTable"><thead><tr><th>Month</th><th>Status</th><th>Changed</th><th></th></tr></thead><tbody></tbody></table></div>
+      <p class="err" id="pErr"></p>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+var db = window.supabase.createClient(HG_CONFIG.url, HG_CONFIG.key, window.HG_LOGIN ? HG_LOGIN.options(window.HG_ACCESS ? HG_ACCESS.options() : undefined) : undefined);
+function $(id){ return document.getElementById(id); }
+function fmt(n){ var v = Number(n) || 0; return (v < 0 ? '−' : '') + '₡' + Math.abs(Math.round(v * 100) / 100).toLocaleString('fr-FR', {minimumFractionDigits: 0, maximumFractionDigits: 2}); }
+function esc(s){ var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
+function toast(t){ var e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(function(){ e.classList.remove('on'); }, 2600); }
+function uuid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function today(){ var d = new Date(Date.now() - 6 * 3600000); return d.toISOString().slice(0, 10); }   /* Costa Rica (UTC−6) */
+function monthStart(d){ return d.slice(0, 8) + '01'; }
+function monthEnd(d){ var x = new Date(d.slice(0, 7) + '-01T12:00:00'); x.setMonth(x.getMonth() + 1); x.setDate(0); return x.toISOString().slice(0, 10); }
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
+function download(name, rows){
+  var csv = rows.map(function(r){ return r.map(function(c){ var s = csvSafe(c == null ? '' : String(c)); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(','); }).join('\r\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv;charset=utf-8'})); a.download = name; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant can do this.', unbalanced: 'Debits and credits must be equal.',
+  period_closed: 'That month is closed. Use a date in an open month.', unknown_account: 'One of the accounts does not exist or is not active.',
+  already_reversed: 'That entry was already reversed.', is_reversal: 'A reversal is not reversed again: post a new entry.', locked: 'That month is locked.',
+  earlier_open: 'Close the earlier months first.', later_locked: 'A later month is locked.', bad_value: 'Check the values.', type_in_use: 'This account has entries: its type cannot change.',
+  system_account: 'The automatic entries use this account: it stays active.', duplicate_invoice: 'That invoice of this supplier was already entered.',
+  bad_account: 'Pick an expense account.', future_date: 'The date cannot be in the future.', needs_confirmation: 'Record the approval first.',
+  owner_only: 'Only the owner can switch this on.', missing_reference: 'Write who approved it and the document.', bad_range: 'Pick at most three months.',
+  missing_reason: 'Write the reason.', already_voided: 'Already voided.', no_vendor: 'Pick the supplier.',
+  bad_receipts: 'One of those deliveries is of another supplier or already has its invoice. Refresh and try again.',
+  more_than_owed: 'That is more than is owed to this supplier.', bad_payout: 'That payout is not available: refresh and pick it again.',
+  not_open: 'That was already done. Refresh the page.', no_match: 'The amounts are not the same.', already_matched: 'That entry is already matched to another movement.',
+  parts_differ: 'The parts must add up to the bank\'s amount.', overlaps: 'That period overlaps another one.',
+  open_shifts: 'Some shifts have no clock-out: fix them in Time clock first.', not_ended: 'The period has not ended yet.', owner_only: 'Only the owner approves the hours.',
+  not_approved: 'The owner approves the hours first.', not_draft: 'This payroll is no longer a draft.', accountant_only: 'Only the accountant marks it as reviewed.',
+  missing_rates: 'Someone has no pay rate: set it in Pay rates and prepare the payroll again.', empty: 'Nobody to pay in this period.', not_reviewed: 'The accountant reviews it first.',
+  not_posted: 'Post it first.', payroll_posted: 'Its payroll is already posted: the hours stay.', used_by_payroll: 'A posted payroll used this rate: the change starts after that period.',
+  bad_rows: 'Some rows could not be read: check the date format and the columns.', usd_not_supported: 'Dollar accounts come later: their movements must be valued in colones first.',
+  prepare_again: 'The hours changed since this payroll was prepared: prepare it again.', negative_net: 'Someone would be paid less than zero: check the deductions.',
+  floor_over_pay: 'The worker\'s CCSS quota on the minimum base is more than someone\'s pay for this period (their net would be below zero): in Costa Rican rules, set the worker\'s quota above the pay as paid by the business, or save the base as 0, and prepare the payroll again.',
+  renta_table_missing: 'Income tax withholding is on but there is no confirmed tax table: enter it in Costa Rican rules, or switch it off in Home → Settings, then prepare the payroll again.',
+  not_found: 'Not found. Refresh the page.', unknown_setting: 'That setting does not exist.',
+  too_early: 'Before 30 November the aguinaldo is posted only with a written reason.',
+  pending_payrolls: 'A pay period of the year has no posted payroll yet: post it first (or prepare the aguinaldo again after).',
+  is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.', big_change: 'That rate is far from the last one: the owner with the phone code can set it.', has_payments: 'This invoice has payments: void the payments first.',
+  use_document: 'This entry came from a document (expense, supplier, bank, payroll, day): undo it from that document.', cash_not_asset: 'Only an asset account can be cash or bank.'};
+/* a refusal that names its guard (needs_confirmation with guard: 'payroll_cr_rules') says which confirmation is missing */
+var GUARD_ERR = {payroll_cr_rules: 'Record the confirmation "payroll_cr_rules" in Home → Settings first.'};
+function errText(r){
+  if (r.error) return 'Could not save. Check the connection and try again.';
+  var d = r.data || {};
+  if (d.error === 'needs_confirmation' && typeof d.guard === 'string' && GUARD_ERR[d.guard]) return GUARD_ERR[d.guard];
+  return ERR[d.error] || 'Could not save. Try again.';
+}
+
+/* ---------- sign in: the owner (phone code) or the accountant ---------- */
+var KIND = null, OV = null;
+/* the owner's and the accountant's logins sign out by themselves after 30 minutes without a touch */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (!/^(owner|accountant)/.test(KIND || '')) return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
+async function codeNeeded(){
+  try { var r = await db.auth.mfa.getAuthenticatorAssuranceLevel(); return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2'; }
+  catch (e){ return false; }
+}
+async function refreshAuth(){
+  var s = await db.auth.getSession(), authed = !!(s.data && s.data.session);
+  var needCode = authed && await codeNeeded();
+  $('loginView').hidden = authed && !needCode; $('loginForm').hidden = needCode; $('codeForm').hidden = !needCode;
+  $('appView').hidden = true; $('noView').hidden = true;
+  if (needCode){ $('codeIn').focus(); return; }
+  if (!authed) return;
+  var k = await db.rpc('account_kind'); KIND = k.error ? null : k.data;
+  armIdle();
+  var r = await db.rpc('acct_overview');
+  if (r.error || !r.data || !r.data.ok){
+    var needs = KIND === 'accountant_needs_code' || KIND === 'owner' || KIND === 'owner_needs_code';
+    $('noWhy').textContent = r.error && /acct_overview|Could not find/i.test(r.error.message || '') ? 'The accounting needs a database update: apply the pending migrations (docs/MIGRACIONES.md).'
+      : needs ? 'The books open only with the code from your phone. Turn it on once; then every sign-in asks for the code.'
+      : 'This page is for the owner (with the phone code) and the accountant.';
+    $('enrollWrap').hidden = !(needs && !r.error);
+    $('noView').hidden = false; return;
+  }
+  OV = r.data; $('appView').hidden = false;
+  $('ownerNav').hidden = KIND !== 'owner';
+  $('whoSub').textContent = KIND === 'accountant' ? 'Accountant' : 'Owner';
+  renderOverview(); showView(current);
+}
+$('loginForm').addEventListener('submit', async function(e){ e.preventDefault(); var res = await HG_LOGIN.signIn(db); if (res.ok) refreshAuth(); });
+$('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var f = await db.auth.mfa.listFactors(), t = f.data && f.data.totp && f.data.totp[0];
+  var r = t ? await db.auth.mfa.challengeAndVerify({factorId: t.id, code: $('codeIn').value.trim()}) : {error: {}};
+  $('codeIn').value = '';
+  if (r.error){ $('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; return; }
+  refreshAuth();
+});
+var enrollId = null;
+$('enrollStart').addEventListener('click', async function(){
+  $('enrollErr').textContent = '';
+  /* each time the code is typed, Supabase signs out every other session of this login without it: never on the café tablets' login */
+  if (!confirm('Only on your own phone and your own login. Typing this code signs out every other device that uses this login, including café tablets. Continue?')) return;
+  var f = await db.auth.mfa.listFactors(), all = (f.data && f.data.all) || [];
+  for (var i = 0; i < all.length; i++){ if (all[i].factor_type === 'totp' && all[i].status !== 'verified') await db.auth.mfa.unenroll({factorId: all[i].id}); }
+  var e = await db.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Phone'});
+  if (e.error || !e.data || !e.data.totp){ $('enrollErr').textContent = 'Could not start the phone code. Ask the owner to check that Supabase → Authentication → Multi-Factor → TOTP is on.'; return; }
+  enrollId = e.data.id; $('enrollQr').src = e.data.totp.qr_code; $('enrollSecret').textContent = e.data.totp.secret;
+  $('enrollBox').hidden = false; $('enrollStart').hidden = true; $('enrollCode').focus();
+});
+$('enrollForm').addEventListener('submit', async function(ev){
+  ev.preventDefault();
+  if (!enrollId) return;
+  var r = await db.auth.mfa.challengeAndVerify({factorId: enrollId, code: $('enrollCode').value.trim()});
+  $('enrollCode').value = '';
+  if (r.error){ $('enrollErr').textContent = 'That code did not match. Wait for the next code and try again.'; return; }
+  enrollId = null; $('enrollBox').hidden = true; $('enrollStart').hidden = false; refreshAuth();
+});
+['outBtn', 'noOut'].forEach(function(id){ $(id).addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }); });
+db.auth.onAuthStateChange(function(ev){ if (ev === 'SIGNED_OUT') refreshAuth(); });
+
+/* ---------- overview: approval, pending days, the account lists ---------- */
+var ACCOUNTS = [];
+function renderOverview(){
+  ACCOUNTS = OV.accounts || [];
+  var auto = OV.auto_post === true || OV.auto_post === 'true';
+  $('setupCard').hidden = auto;
+  $('approveBox').hidden = KIND !== 'owner' || auto;
+  if (!$('apStart').value) $('apStart').value = monthStart(today());
+  var pend = OV.pending_days || [];
+  $('pendingCard').hidden = !pend.length;
+  $('pendingList').textContent = pend.join(' · ');
+  var noReg = OV.days_without_register || [];   /* 0028: days with paid sales and no register opened */
+  $('pendingNoReg').hidden = !noReg.length;
+  $('pendingNoReg').textContent = noReg.length ? 'Days with sales and no register: ' + noReg.join(', ') + '. They are posted from the sales alone.' : '';
+  var opts = ACCOUNTS.filter(function(a){ return a.active; }).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  $('jAcct').innerHTML = '<option value="">All accounts</option>' + opts;
+  $('xAcct').innerHTML = ACCOUNTS.filter(function(a){ return a.active && a.type === 'expense'; }).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  renderAccounts(); renderPeriods();
+}
+async function reloadOverview(){ var r = await db.rpc('acct_overview'); if (!r.error && r.data && r.data.ok){ OV = r.data; renderOverview(); } }
+$('apGo').addEventListener('click', async function(){
+  var who = $('apWho').value.trim(), ref = $('apRef').value.trim(), start = $('apStart').value;
+  if (!who || !ref || !start){ $('setupErr').textContent = 'Write who approved it, the document and the first day.'; return; }
+  var c = await db.rpc('compliance_confirm', {p_key: 'chart_of_accounts_approved', p_confirmed_by: who, p_reference: ref});
+  if (c.error || !c.data || !c.data.ok){ $('setupErr').textContent = errText(c); return; }
+  await db.rpc('setting_set', {p_key: 'ledger_start_date', p_value: start});
+  var s = await db.rpc('setting_set', {p_key: 'ledger_auto_post', p_value: true});
+  if (s.error || !s.data || !s.data.ok){ $('setupErr').textContent = errText(s); return; }
+  toast('The books now post each day at the register close'); reloadOverview();
+});
+$('pendingGo').addEventListener('click', async function(){
+  var pend = OV.pending_days || []; if (!pend.length) return;
+  var b = this; b.disabled = true;
+  var r = await db.rpc('acct_post_days', {p_from: pend[0], p_to: pend[pend.length - 1]});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; }
+  toast(r.data.entries + ' entries posted'); reloadOverview(); showView(current);
+});
+
+/* ---------- tabs ---------- */
+var current = 'summary';
+function showView(v){
+  current = v;
+  document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.view === v); });
+  document.querySelectorAll('.view').forEach(function(s){ s.hidden = s.id !== 'view-' + v; });
+  if (v === 'summary') loadSummary();
+  if (v === 'journal') loadJournal();
+  if (v === 'reports') loadReport();
+  if (v === 'expenses') loadExpenses();
+  if (v === 'payables') loadPayables();
+  if (v === 'einvoice') loadEDocs();
+  if (v === 'cash') loadCash();
+  if (v === 'bank') loadBank();
+  if (v === 'payroll') loadPayroll();
+  if (v === 'periods' || v === 'accounts') reloadOverview();   /* months appear as entries are posted */
+}
+document.querySelectorAll('#tabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.dataset.view); }); });
+
+/* ---------- summary ---------- */
+var sSeq = 0;
+async function loadSummary(){
+  if (!$('sMonth').value) $('sMonth').value = today().slice(0, 7);
+  var from = $('sMonth').value + '-01', to = monthEnd(from), mine = ++sSeq;
+  var r = await Promise.all([db.rpc('acct_income_statement', {p_from: from, p_to: to}), db.rpc('acct_cash_flow', {p_from: from, p_to: to}), db.rpc('acct_balance_sheet', {p_as_of: to})]);
+  if (mine !== sSeq) return;
+  var is = r[0].data, cf = r[1].data, bs = r[2].data;
+  if (!is || !is.ok) return;
+  $('kRev').textContent = fmt(is.revenue); $('kExp').textContent = fmt(is.expenses); $('kNet').textContent = fmt(is.net_income);
+  $('kCash').textContent = cf && cf.ok ? fmt(cf.closing) : '–';
+  /* IVA payable net of the IVA credit: the mapped accounts (Accounts tab), 2110 and 1140 when the mappings are missing.
+     The balance sheet gives an asset as its debit balance and a liability as its credit balance: both read as credit here */
+  var rows = bs && bs.ok ? (bs.rows || []) : [];
+  function credit(code){ var x = rows.filter(function(r){ return r.code === code; })[0]; return x ? (x.type === 'asset' ? -Number(x.amount) : Number(x.amount)) : 0; }
+  $('kIva').textContent = fmt(credit(mapped('iva_out', '2110')) + credit(mapped('iva_in', '1140')));
+}
+function mapped(key, fallback){ var m = (OV && OV.mappings || []).filter(function(x){ return x.key === key; })[0]; return (m && m.account) || fallback; }
+$('sMonth').addEventListener('change', loadSummary);
+
+/* ---------- journal ---------- */
+var JOURNAL = [], jSeq = 0;
+async function loadJournal(){
+  if (!$('jFrom').value){ $('jFrom').value = monthStart(today()); $('jTo').value = today(); }
+  var mine = ++jSeq;
+  var r = await db.rpc('acct_journal', {p_from: $('jFrom').value, p_to: $('jTo').value, p_account: $('jAcct').value || null});
+  if (mine !== jSeq) return;
+  var box = $('jList'); box.replaceChildren();
+  if (r.error || !r.data || !r.data.ok){ box.textContent = errText(r); return; }
+  JOURNAL = r.data.entries || [];
+  if (!JOURNAL.length){ box.innerHTML = '<p class="hint">No entries in these days.</p>'; return; }
+  JOURNAL.slice().reverse().forEach(function(e){
+    var d = document.createElement('div'); d.className = 'entry';
+    var head = document.createElement('div'); head.className = 'eh';
+    head.innerHTML = '<b class="mono">Nº ' + e.entry_no + '</b><span class="mono">' + esc(e.date) + '</span><span>' + esc(e.memo) + '</span>' +
+      '<span class="tag">' + esc(SRC[e.source] || e.source) + '</span>' + (e.reversed ? '<span class="tag rev">Reversed</span>' : '') + '<span class="sp"></span>';
+    if (!e.reversed && (e.source === 'manual' || e.source === 'opening')){
+      var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'ghost small noprint'; rb.textContent = 'Reverse';
+      rb.addEventListener('click', function(){ reverse(e); }); head.appendChild(rb);
+    } else if (!e.reversed && e.source !== 'reversal'){
+      var ud = document.createElement('span'); ud.className = 'tag'; ud.textContent = 'undo from its document'; head.appendChild(ud);
+    }
+    var t = document.createElement('table');
+    t.innerHTML = '<tbody>' + (e.lines || []).map(function(l){ return '<tr><td>' + esc(l.account + ' · ' + l.name) + (l.memo ? '<br><small class="hint">' + esc(l.memo) + '</small>' : '') +
+      '</td><td class="num">' + (Number(l.debit) ? fmt(l.debit) : '') + '</td><td class="num">' + (Number(l.credit) ? fmt(l.credit) : '') + '</td></tr>'; }).join('') + '</tbody>';
+    d.appendChild(head); d.appendChild(t); box.appendChild(d);
+  });
+}
+var SRC = {manual: 'Manual', day: 'Day', expense: 'Expense', reversal: 'Reversal', opening: 'Opening', payroll: 'Payroll', ap: 'Suppliers', bank: 'Bank'};
+$('jGo').addEventListener('click', loadJournal);
+$('jCsv').addEventListener('click', function(){
+  var rows = [['entry_no', 'date', 'source', 'memo', 'account', 'account_name', 'debit', 'credit', 'line_memo']];
+  JOURNAL.forEach(function(e){ (e.lines || []).forEach(function(l){ rows.push([e.entry_no, e.date, e.source, e.memo, l.account, l.name, l.debit, l.credit, l.memo || '']); }); });
+  download('diario-' + $('jFrom').value + '-' + $('jTo').value + '.csv', rows);
+});
+async function reverse(e){
+  var why = prompt('Why is entry Nº ' + e.entry_no + ' reversed?');
+  if (!why) return;
+  var r = await db.rpc('acct_journal_reverse', {p_entry_id: e.id, p_date: today(), p_memo: why});
+  if (r.error && /acct_journal_reverse|Could not find/i.test(r.error.message || '')) r = await db.rpc('acct_entry_reverse', {p_entry_id: e.id, p_date: today(), p_memo: why});   /* before 0028 */
+  if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; }
+  toast('Reversal posted'); loadJournal();
+}
+/* a new entry */
+var nReq = null;
+function addLine(acc, d, c){
+  var row = document.createElement('div'); row.className = 'lrow';
+  var sel = document.createElement('select'); sel.innerHTML = $('jAcct').innerHTML.replace('<option value="">All accounts</option>', '<option value="">Account…</option>'); sel.value = acc || '';
+  var di = document.createElement('input'); di.type = 'number'; di.min = '0'; di.step = 'any'; di.placeholder = 'Debit'; di.setAttribute('data-keypad', 'amount'); di.value = d || '';
+  var ci = document.createElement('input'); ci.type = 'number'; ci.min = '0'; ci.step = 'any'; ci.placeholder = 'Credit'; ci.setAttribute('data-keypad', 'amount'); ci.value = c || '';
+  var x = document.createElement('button'); x.type = 'button'; x.className = 'ghost small'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove the line');
+  x.addEventListener('click', function(){ row.remove(); sumLines(); });
+  [di, ci].forEach(function(i){ i.addEventListener('input', sumLines); });
+  row.appendChild(sel); row.appendChild(di); row.appendChild(ci); row.appendChild(x); $('nLines').appendChild(row);
+}
+function readLines(){
+  return Array.prototype.map.call($('nLines').querySelectorAll('.lrow'), function(r){
+    var f = r.querySelectorAll('select,input'); return {account: f[0].value, debit: Number(f[1].value) || 0, credit: Number(f[2].value) || 0};
+  }).filter(function(l){ return l.account && (l.debit || l.credit); });
+}
+function sumLines(){
+  var ls = readLines(), d = 0, c = 0; ls.forEach(function(l){ d += l.debit; c += l.credit; });
+  $('nSum').textContent = 'Debit ' + fmt(d) + ' · Credit ' + fmt(c) + (Math.round(d * 100) === Math.round(c * 100) ? '' : ' · difference ' + fmt(d - c));
+}
+$('jNew').addEventListener('click', function(){
+  nReq = uuid(); $('nDate').value = today(); $('nMemo').value = ''; $('nOpening').checked = false; $('nLines').replaceChildren(); $('nErr').textContent = '';
+  addLine(); addLine(); sumLines(); $('jForm').hidden = false; $('nMemo').focus();
+});
+$('nAdd').addEventListener('click', function(){ addLine(); });
+$('nCancel').addEventListener('click', function(){ $('jForm').hidden = true; });
+$('nGo').addEventListener('click', async function(){
+  var ls = readLines();
+  if (!$('nMemo').value.trim()){ $('nErr').textContent = 'Write a description.'; return; }
+  if (ls.length < 2){ $('nErr').textContent = 'An entry needs at least two lines.'; return; }
+  var b = this; b.disabled = true;
+  var r = await db.rpc('acct_entry_post', {p_date: $('nDate').value, p_memo: $('nMemo').value.trim(), p_lines: ls, p_request_id: nReq, p_opening: $('nOpening').checked});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('nErr').textContent = errText(r); return; }
+  $('jForm').hidden = true; toast('Entry Nº ' + r.data.entry_no + ' posted'); loadJournal();
+});
+
+/* ---------- reports ---------- */
+var REPORT = null, rSeq = 0;
+async function loadReport(){
+  if (!$('rFrom').value){ $('rFrom').value = monthStart(today()); $('rTo').value = today(); }
+  var k = $('rKind').value, from = $('rFrom').value, to = $('rTo').value, r, mine = ++rSeq;
+  $('rFrom').disabled = k === 'bs' || k === 'inv'; $('rTo').disabled = k === 'inv';
+  if (k === 'iva') r = await db.rpc('iva_report', {p_from: from, p_to: to});
+  if (k === 'inv') r = await db.rpc('inventory_valuation');
+  if (k === 'pp') r = await db.rpc('product_profitability', {p_from: from, p_to: to});
+  if (k === 'labor') r = await db.rpc('labor_cost', {p_from: from, p_to: to});
+  if (k === 'tb') r = await db.rpc('acct_trial_balance', {p_from: from, p_to: to});
+  if (k === 'is') r = await db.rpc('acct_income_statement', {p_from: from, p_to: to});
+  if (k === 'bs') r = await db.rpc('acct_balance_sheet', {p_as_of: to});
+  if (k === 'cf') r = await db.rpc('acct_cash_flow', {p_from: from, p_to: to});
+  if (mine !== rSeq) return;              /* a newer report was asked for meanwhile: it wins */
+  var out = $('rOut');
+  if (r.error || !r.data || !r.data.ok){ out.textContent = errText(r); REPORT = null; return; }
+  var d = r.data, rows = [], html = '';
+  function tr(cells, cls){ return '<tr' + (cls ? ' class="' + cls + '"' : '') + '>' + cells.map(function(c, i){ return '<td' + (i && typeof c === 'number' ? ' class="num"' : '') + '>' + (typeof c === 'number' ? fmt(c) : esc(c)) + '</td>'; }).join('') + '</tr>'; }
+  if (k === 'tb'){
+    rows.push(['code', 'account', 'opening', 'debit', 'credit', 'closing']);
+    var td = 0, tc = 0;
+    html = '<table><thead><tr><th>Account</th><th class="num">Opening</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Closing</th></tr></thead><tbody>' +
+      d.rows.map(function(x){ td += Number(x.debit); tc += Number(x.credit); rows.push([x.code, x.name, x.opening, x.debit, x.credit, x.closing]);
+        return tr([x.code + ' · ' + x.name, Number(x.opening), Number(x.debit), Number(x.credit), Number(x.closing)]); }).join('') +
+      tr(['Total', '', td, tc, ''], 'total') + '</tbody></table>';
+  }
+  if (k === 'is'){
+    rows.push(['code', 'account', 'type', 'amount']);
+    function part(type, title){ var xs = d.rows.filter(function(x){ return x.type === type; }); return tr([title, ''], 'head') + xs.map(function(x){ rows.push([x.code, x.name, x.type, x.amount]); return tr([x.code + ' · ' + x.name, Number(x.amount)]); }).join(''); }
+    html = '<table><tbody>' + part('revenue', 'Revenue') + tr(['Total revenue', Number(d.revenue)], 'total') + part('expense', 'Costs and expenses') +
+      tr(['Total costs and expenses', Number(d.expenses)], 'total') + tr(['Net income', Number(d.net_income)], 'total') + '</tbody></table>';
+    rows.push(['', 'net income', '', d.net_income]);
+  }
+  if (k === 'bs'){
+    rows.push(['code', 'account', 'type', 'amount']);
+    function part2(type, title){ var xs = d.rows.filter(function(x){ return x.type === type; }); return tr([title, ''], 'head') + xs.map(function(x){ rows.push([x.code, x.name, x.type, x.amount]); return tr([x.code + ' · ' + x.name, Number(x.amount)]); }).join(''); }
+    html = '<table><tbody>' + part2('asset', 'Assets') + tr(['Total assets', Number(d.assets)], 'total') + part2('liability', 'Liabilities') +
+      tr(['Total liabilities', Number(d.liabilities)], 'total') + part2('equity', 'Equity') + tr(['Results not yet closed', Number(d.current_earnings)]) +
+      tr(['Total liabilities and equity', Number(d.liabilities) + Number(d.equity) + Number(d.current_earnings)], 'total') + '</tbody></table>' +
+      (d.balanced ? '' : '<p class="err">The balance sheet does not balance: tell the accountant.</p>');
+    rows.push(['', 'results not yet closed', '', d.current_earnings]);
+  }
+  if (k === 'cf'){
+    rows.push(['group', 'amount']);
+    html = '<table><tbody>' + tr(['Cash and bank at the start', Number(d.opening)], 'total') +
+      d.rows.map(function(x){ rows.push([x.group, x.amount]); return tr([x.group, Number(x.amount)]); }).join('') +
+      tr(['Cash and bank at the end', Number(d.closing)], 'total') + '</tbody></table>';
+    rows.push(['opening', d.opening]); rows.push(['closing', d.closing]);
+  }
+  function cell(v, kind){   /* kind: money (₡), qty, pct, or text */
+    if (v == null || v === '') return '<td></td>';
+    if (kind === 'money') return '<td class="num">' + fmt(v) + '</td>';
+    if (kind === 'qty') return '<td class="num">' + esc(Number(v).toLocaleString('fr-FR', {maximumFractionDigits: 3})) + '</td>';
+    if (kind === 'pct') return '<td class="num">' + esc(String(v).replace('.', ',')) + ' %</td>';
+    return '<td>' + esc(v) + '</td>';
+  }
+  if (k === 'iva'){
+    var S = d.sales, C = d.credits, L = d.ledger, exp = C.documents.filter(function(x){ return x.source === 'expense'; }),
+        inv = C.documents.filter(function(x){ return x.source !== 'expense'; });
+    function sum(xs){ return xs.reduce(function(t, x){ return t + Number(x.iva_crc); }, 0); }
+    rows.push(['section', 'item', 'base_crc', 'iva_crc']);
+    html = '<p class="hint">Draft for the accountant, not the return: they review it, apply the proportional credit if it applies, and file it.</p><table><tbody>' +
+      '<tr class="head"><td colspan="3">IVA on sales</td></tr>' +
+      S.by_rate.map(function(x){ rows.push(['sales', x.code + ' ' + Math.round(Number(x.rate) * 1000) / 10 + ' %', x.net_crc, x.tax_crc]);
+        return '<tr><td>' + esc(x.code + ' · ' + (Math.round(Number(x.rate) * 1000) / 10).toString().replace('.', ',') + ' %') + '</td>' + cell(x.net_crc, 'money') + cell(x.tax_crc, 'money') + '</tr>'; }).join('') +
+      '<tr><td>Refunds</td><td></td>' + cell(S.refunds_tax_crc, 'money') + '</tr>' +
+      '<tr class="total"><td>Total IVA on sales</td><td></td>' + cell(S.tax_crc, 'money') + '</tr>' +
+      '<tr class="head"><td colspan="3">Creditable IVA on purchases</td></tr>' +
+      '<tr><td>' + esc('Expenses (' + exp.length + ')') + '</td><td></td>' + cell(sum(exp), 'money') + '</tr>' +
+      '<tr><td>' + esc('Supplier invoices (' + inv.length + ')') + '</td><td></td>' + cell(sum(inv), 'money') + '</tr>' +
+      '<tr class="total"><td>Total creditable IVA</td><td></td>' + cell(C.iva_crc, 'money') + '</tr>' +
+      '<tr class="total"><td>' + (Number(d.net_crc) >= 0 ? 'IVA to pay' : 'Credit balance for the next period') + '</td><td></td>' + cell(Math.abs(Number(d.net_crc)), 'money') + '</tr>' +
+      '<tr class="head"><td colspan="3">In the books</td></tr>' +
+      '<tr><td>IVA payable posted (2110)</td><td></td>' + cell(L.iva_out_crc, 'money') + '</tr>' +
+      '<tr><td>IVA credit posted (1140)</td><td></td>' + cell(L.iva_in_crc, 'money') + '</tr>' +
+      '</tbody></table>' +
+      (Number(L.pending_days) ? '<p class="err">' + esc(L.pending_days + ' closed days not in the books yet: post them so the books match.') + '</p>' : '') +
+      (Number(S.without_tax_detail.orders) ? '<p class="hint">' + esc(S.without_tax_detail.orders + ' sales recorded before the IVA update have no IVA detail: ' + fmt(S.without_tax_detail.total_crc) + ' (left out of the totals).') + '</p>' : '') +
+      '<h2 style="margin-top:1rem">Purchase documents</h2><table><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th class="num">Base</th><th class="num">IVA</th></tr></thead><tbody>' +
+      C.documents.map(function(x){ return '<tr><td class="mono">' + esc(x.date) + '</td><td>' + esc(x.supplier || '') + '</td><td>' + esc(x.number || '') + '</td>' + cell(x.base_crc, 'money') + cell(x.iva_crc, 'money') + '</tr>'; }).join('') +
+      '</tbody></table>';
+    rows.push(['sales', 'refunds', '', S.refunds_tax_crc], ['sales', 'total', '', S.tax_crc], ['credits', 'expenses', '', sum(exp)], ['credits', 'supplier invoices', '', sum(inv)],
+              ['credits', 'total', '', C.iva_crc], ['net', Number(d.net_crc) >= 0 ? 'to pay' : 'credit balance', '', d.net_crc],
+              ['ledger', '2110', '', L.iva_out_crc], ['ledger', '1140', '', L.iva_in_crc], ['', '', '', '']);
+    rows.push(['date', 'supplier', 'invoice', 'base_crc', 'iva_crc', 'source']);
+    C.documents.forEach(function(x){ rows.push([x.date, x.supplier, x.number, x.base_crc, x.iva_crc, x.source]); });
+  }
+  if (k === 'inv'){
+    rows.push(['item', 'category', 'on_hand', 'unit', 'avg_cost', 'value_crc']);
+    var diff = Number(d.ledger_crc) - Number(d.total_crc);
+    html = '<table><thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Average cost</th><th class="num">Value</th></tr></thead><tbody>' +
+      d.items.map(function(x){ rows.push([x.name, x.category, x.on_hand, x.unit, x.avg_cost, x.value_crc]);
+        return '<tr><td>' + esc(x.name) + (x.negative ? ' <span class="tag rev">Below zero</span>' : '') + '</td>' + cell(x.on_hand, 'qty').replace('</td>', ' ' + esc(x.unit) + '</td>') +
+          cell(x.avg_cost, 'money') + cell(x.value_crc, 'money') + '</tr>'; }).join('') +
+      '<tr class="total"><td>Total</td><td></td><td></td>' + cell(d.total_crc, 'money') + '</tr>' +
+      '<tr><td>Inventory in the books (1150)</td><td></td><td></td>' + cell(d.ledger_crc, 'money') + '</tr></tbody></table>' +
+      (d.posted ? (Math.abs(diff) >= 1 ? '<p class="hint">' + esc('Difference with the books ' + fmt(diff) + ': counts or receipts of days not posted yet, or the opening entry.') + '</p>' : '') :
+       '<p class="hint">The books have no days posted yet.</p>');
+    rows.push(['total', '', '', '', '', d.total_crc], ['books 1150', '', '', '', '', d.ledger_crc]);
+  }
+  if (k === 'pp'){
+    rows.push(['product', 'units', 'net_crc', 'cost_crc', 'margin_crc', 'food_cost_pct', 'price_crc', 'price_net_crc', 'recipe_cost_crc', 'unit_margin_crc', 'unit_margin_pct', 'has_recipe']);
+    html = '<p class="hint">Sales that stand (not voided or refunded), net of IVA and discounts. Cost: what the stock cost at the moment of each sale. Recipe: today\'s cost and price.</p>' +
+      '<table><thead><tr><th>Product</th><th class="num">Units</th><th class="num">Sold, no IVA</th><th class="num">Cost</th><th class="num">Margin</th><th class="num">Food cost</th>' +
+      '<th class="num">Recipe cost</th><th class="num">Margin per unit</th></tr></thead><tbody>' +
+      d.rows.map(function(x){ rows.push([x.name, x.units, x.net_crc, x.cost_crc, x.margin_crc, x.food_cost_pct, x.price_crc, x.price_net_crc, x.recipe_cost_crc, x.unit_margin_crc, x.unit_margin_pct, x.has_recipe ? 'yes' : 'no']);
+        if (!Number(x.units) && !x.has_recipe) return '';      /* not sold and no recipe: nothing to show (counted below) */
+        return '<tr><td>' + esc(x.name) + (x.has_recipe ? '' : ' <span class="tag rev">No recipe</span>') + '</td>' + cell(x.units, 'qty') + cell(x.net_crc, 'money') + cell(x.cost_crc, 'money') +
+          cell(x.margin_crc, 'money') + cell(x.food_cost_pct, 'pct') + cell(x.has_recipe ? x.recipe_cost_crc : null, 'money') +
+          (x.on_menu && x.has_recipe ? '<td class="num">' + fmt(x.unit_margin_crc) + ' · ' + esc(String(x.unit_margin_pct).replace('.', ',')) + ' %</td>' : '<td></td>') + '</tr>'; }).join('') +
+      '<tr class="total"><td>Total</td>' + cell(d.totals.units, 'qty') + cell(d.totals.net_crc, 'money') + cell(d.totals.cost_crc, 'money') + cell(d.totals.margin_crc, 'money') +
+      cell(Number(d.totals.net_crc) > 0 ? Math.round(1000 * Number(d.totals.cost_crc) / Number(d.totals.net_crc)) / 10 : null, 'pct') + '<td></td><td></td></tr></tbody></table>';
+    var noRecipe = d.rows.filter(function(x){ return x.on_menu && !x.has_recipe; }).length;
+    if (noRecipe) html += '<p class="hint">' + esc(noRecipe + ' products on the menu have no recipe yet: their cost is unknown (Inventory → Recipes).') + '</p>';
+  }
+  if (k === 'labor'){
+    rows.push(['day', 'hours', 'labor_crc', 'sales_net_crc', 'pct', 'missing_rates']);
+    var th = 0, tl = 0, ts = 0, miss = false;
+    html = '<p class="hint">An estimate: the hours worked at each person\'s rate (fixed pay spread over its pay period), against sales without IVA.</p>' +
+      '<table><thead><tr><th>Day</th><th class="num">Hours</th><th class="num">Labor</th><th class="num">Sales, no IVA</th><th class="num">Labor %</th></tr></thead><tbody>' +
+      d.days.map(function(x){ th += Number(x.hours); tl += Number(x.labor_crc); ts += Number(x.sales_net_crc); miss = miss || x.missing_rates;
+        rows.push([x.day, x.hours, x.labor_crc, x.sales_net_crc, x.pct, x.missing_rates ? 'yes' : '']);
+        return '<tr><td class="mono">' + esc(x.day) + '</td>' + cell(x.hours, 'qty') + cell(x.labor_crc, 'money') + cell(x.sales_net_crc, 'money') + cell(x.pct, 'pct') + '</tr>'; }).join('') +
+      '<tr class="total"><td>Total</td>' + cell(Math.round(th * 100) / 100, 'qty') + cell(tl, 'money') + cell(ts, 'money') + cell(ts > 0 ? Math.round(1000 * tl / ts) / 10 : null, 'pct') + '</tr></tbody></table>' +
+      (miss ? '<p class="err">Some people worked without a pay rate: set it in Payroll → Pay rates.</p>' : '');
+  }
+  out.innerHTML = html; REPORT = {kind: k, rows: rows};
+}
+$('rGo').addEventListener('click', loadReport); $('rKind').addEventListener('change', loadReport);
+$('rCsv').addEventListener('click', function(){ if (REPORT) download({tb: 'balanza', is: 'estado-resultados', bs: 'balance-general', cf: 'flujo-efectivo', iva: 'iva-periodo', inv: 'inventario-valorado', pp: 'rentabilidad-productos', labor: 'costo-mano-de-obra'}[REPORT.kind] +
+  '-' + (REPORT.kind === 'inv' ? today() : $('rTo').value) + '.csv', REPORT.rows); });
+$('rPrint').addEventListener('click', function(){ window.print(); });
+
+/* the month for the accountant in one file: journal, trial balance, income statement, balance sheet, cash flow,
+   expenses, sales IVA by rate, purchase IVA documents and today's inventory valuation, each a CSV inside a ZIP
+   (built here, nothing is sent anywhere) */
+function csvText(rows){ return '\ufeff' + rows.map(function(r){ return r.map(function(c){ var t = csvSafe(c == null ? '' : String(c)); return /[",\n;]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(','); }).join('\r\n'); }
+var CRC_T = (function(){ var t = []; for (var n = 0; n < 256; n++){ var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b){ var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zip(files){   /* store-only ZIP: [{name, text}] */
+  var enc = new TextEncoder(), parts = [], central = [], off = 0;
+  files.forEach(function(f){
+    var name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+    var h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    var c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), name);
+    off += 30 + name.length + data.length;
+  });
+  var csize = central.reduce(function(t, x){ return t + x.length; }, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob(parts.concat(central, [new Uint8Array(e.buffer)]), {type: 'application/zip'});
+}
+$('rPack').addEventListener('click', async function(){
+  var m = ($('rTo').value || today()).slice(0, 7), from = m + '-01', to = monthEnd(from), b = this; b.disabled = true;
+  var r = await Promise.all([db.rpc('acct_journal', {p_from: from, p_to: to}), db.rpc('acct_trial_balance', {p_from: from, p_to: to}),
+    db.rpc('acct_income_statement', {p_from: from, p_to: to}), db.rpc('acct_balance_sheet', {p_as_of: to}), db.rpc('acct_cash_flow', {p_from: from, p_to: to}),
+    db.rpc('expense_list', {p_from: from, p_to: to}), db.rpc('tax_summary', {p_from: from, p_to: to}), db.rpc('iva_report', {p_from: from, p_to: to}),
+    db.rpc('inventory_valuation')]);
+  b.disabled = false;
+  if (r.some(function(x){ return x.error || !x.data || x.data.ok === false; })){ toast('Could not build the package. Check the connection and try again.'); return; }
+  var j = [['entry_no', 'date', 'source', 'memo', 'account', 'account_name', 'debit', 'credit']];
+  r[0].data.entries.forEach(function(e){ (e.lines || []).forEach(function(l){ j.push([e.entry_no, e.date, e.source, e.memo, l.account, l.name, l.debit, l.credit]); }); });
+  var tb = [['code', 'account', 'opening', 'debit', 'credit', 'closing']].concat(r[1].data.rows.map(function(x){ return [x.code, x.name, x.opening, x.debit, x.credit, x.closing]; }));
+  var is = [['code', 'account', 'type', 'amount']].concat(r[2].data.rows.map(function(x){ return [x.code, x.name, x.type, x.amount]; }), [['', 'net income', '', r[2].data.net_income]]);
+  var bs = [['code', 'account', 'type', 'amount']].concat(r[3].data.rows.map(function(x){ return [x.code, x.name, x.type, x.amount]; }), [['', 'results not yet closed', '', r[3].data.current_earnings]]);
+  var cf = [['group', 'amount'], ['opening', r[4].data.opening]].concat(r[4].data.rows.map(function(x){ return [x.group, x.amount]; }), [['closing', r[4].data.closing]]);
+  var ex = [['date', 'supplier', 'description', 'account', 'total', 'iva', 'paid_from', 'invoice', 'invoice_date', 'voided', 'invoice_file']].concat(
+    r[5].data.expenses.map(function(x){ return [x.date, x.vendor_name, x.description, x.account, x.amount_crc, x.iva_crc, x.paid_from, x.invoice_no, x.invoice_date, x.voided_at ? 'yes' : '', x.receipt_path || '']; }));
+  var iva = [['code', 'rate', 'lines', 'gross_crc', 'net_crc', 'tax_crc']].concat(r[6].data.by_rate.map(function(x){ return [x.code, x.rate, x.lines, x.gross_crc, x.net_crc, x.tax_crc]; }),
+    [['refunds', '', '', '', '', r[6].data.refunds_tax_crc], ['sales without tax detail (before 0009)', '', r[6].data.without_tax_detail.orders, r[6].data.without_tax_detail.total_crc, '', '']]);
+  var ivc = [['date', 'supplier', 'invoice', 'base_crc', 'iva_crc', 'source', 'account']].concat(r[7].data.credits.documents.map(function(x){
+    return [x.date, x.supplier, x.number, x.base_crc, x.iva_crc, x.source, x.account]; }), [['', 'total', '', '', r[7].data.credits.iva_crc, '', '']]);
+  var stk = [['item', 'category', 'on_hand', 'unit', 'avg_cost', 'value_crc']].concat(r[8].data.items.map(function(x){ return [x.name, x.category, x.on_hand, x.unit, x.avg_cost, x.value_crc]; }),
+    [['total', '', '', '', '', r[8].data.total_crc], ['books 1150', '', '', '', '', r[8].data.ledger_crc]]);
+  var blob = zip([{name: 'diario.csv', text: csvText(j)}, {name: 'balanza.csv', text: csvText(tb)}, {name: 'estado-resultados.csv', text: csvText(is)},
+                  {name: 'balance-general.csv', text: csvText(bs)}, {name: 'flujo-efectivo.csv', text: csvText(cf)}, {name: 'gastos.csv', text: csvText(ex)},
+                  {name: 'iva-ventas.csv', text: csvText(iva)}, {name: 'iva-compras.csv', text: csvText(ivc)}, {name: 'inventario-valorado-' + today() + '.csv', text: csvText(stk)}]);
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'contabilidad-' + m + '.zip'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+});
+
+/* ---------- expenses ---------- */
+var xReq = null, EXPENSES = [];
+async function loadExpenses(){
+  if (!$('xlFrom').value){ $('xlFrom').value = monthStart(today()); $('xlTo').value = today(); }
+  if (!$('xDate').value){ $('xDate').value = today(); xReq = uuid(); }
+  loadPayouts().then(payoutBoxes);
+  var r = await db.rpc('expense_list', {p_from: $('xlFrom').value, p_to: $('xlTo').value});
+  var tb = $('xTable').querySelector('tbody'); tb.replaceChildren();
+  if (r.error || !r.data || !r.data.ok) return;
+  EXPENSES = r.data.expenses || [];
+  EXPENSES.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc([x.vendor_name, x.description].filter(Boolean).join(' · ')) + (x.voided_at ? ' <span class="tag rev">Voided</span>' : '') +
+      '</td><td>' + esc(x.account + ' · ' + x.account_name) + '</td><td class="num">' + fmt(x.amount_crc) + '</td><td class="num">' + fmt(x.iva_crc) + '</td><td>' + esc(x.invoice_no || '') + '</td>';
+    var c = document.createElement('td');
+    if (x.receipt_path){
+      var rv = document.createElement('button'); rv.type = 'button'; rv.className = 'ghost small'; rv.textContent = 'Invoice';
+      rv.addEventListener('click', async function(){
+        var su = await db.storage.from('expense-receipts').createSignedUrl(x.receipt_path, 120);
+        if (su.error || !su.data){ toast('Could not open the file. Try again.'); return; }
+        window.open(su.data.signedUrl, '_blank', 'noopener');
+      });
+      c.appendChild(rv);
+    } else if (!x.voided_at){
+      var fi = document.createElement('input'); fi.type = 'file'; fi.accept = 'image/*,application/pdf'; fi.hidden = true;
+      var ab = document.createElement('button'); ab.type = 'button'; ab.className = 'ghost small'; ab.textContent = 'Attach invoice';
+      ab.addEventListener('click', function(){ fi.click(); });
+      fi.addEventListener('change', async function(){
+        var file = fi.files && fi.files[0]; if (!file) return;
+        var path = x.id + '/' + (file.name || 'factura').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
+        var up = await db.storage.from('expense-receipts').upload(path, file, {contentType: file.type || 'application/octet-stream'});
+        var at = up.error ? null : await db.rpc('expense_attach', {p_id: x.id, p_path: path});
+        toast(up.error || !at || at.error || !at.data || !at.data.ok ? 'Could not save the file. Try again.' : 'Invoice attached'); loadExpenses();
+      });
+      c.appendChild(fi); c.appendChild(ab);
+    }
+    if (!x.voided_at && KIND !== null){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Void';
+      b.addEventListener('click', async function(){
+        var why = prompt('Why is this expense voided?'); if (!why) return;
+        var v = await db.rpc('expense_void', {p_id: x.id, p_reason: why});
+        if (v.error || !v.data || !v.data.ok){ toast(errText(v)); return; }
+        toast('Expense voided'); loadExpenses();
+      });
+      c.appendChild(b);
+    }
+    t.appendChild(c); tb.appendChild(t);
+  });
+}
+$('xlGo').addEventListener('click', loadExpenses);
+$('xGo').addEventListener('click', async function(){
+  var x = {date: $('xDate').value, vendor_name: $('xVendor').value.trim(), description: $('xDesc').value.trim(), account: $('xAcct').value,
+           amount_crc: Number($('xAmt').value), iva_crc: Number($('xIva').value) || 0, paid_from: $('xFrom').value,
+           invoice_no: $('xInv').value.trim() || null, invoice_date: $('xInvDate').value || null,
+           payout_id: $('xFrom').value === 'payout' ? ($('xPayout').value || null) : null};
+  if (!x.description || !(x.amount_crc > 0)){ $('xErr').textContent = 'Write what it was and the total.'; return; }
+  var b = this; b.disabled = true;
+  var r = await db.rpc('expense_save', {p_expense: x, p_request_id: xReq || (xReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('xErr').textContent = errText(r); return; }
+  var file = $('xFile').files && $('xFile').files[0], note = 'Expense saved and posted';
+  if (file){
+    /* the invoice goes to the private receipts folder of this expense; it is never replaced */
+    var path = r.data.id + '/' + (file.name || 'factura').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
+    var up = await db.storage.from('expense-receipts').upload(path, file, {contentType: file.type || 'application/octet-stream'});
+    var at = up.error ? null : await db.rpc('expense_attach', {p_id: r.data.id, p_path: path});
+    if (up.error || !at || at.error || !at.data || !at.data.ok) note = 'Expense saved, but the invoice file was not: attach it again from the list';
+  }
+  $('xErr').textContent = ''; ['xVendor', 'xDesc', 'xAmt', 'xInv', 'xInvDate', 'xFile'].forEach(function(id){ $(id).value = ''; }); $('xIva').value = '0';
+  xReq = uuid(); toast(note); loadExpenses();
+});
+$('xCsv').addEventListener('click', function(){
+  download('gastos-' + $('xlFrom').value + '-' + $('xlTo').value + '.csv', [['date', 'supplier', 'description', 'account', 'total', 'iva', 'paid_from', 'invoice', 'invoice_date', 'voided']].concat(
+    EXPENSES.map(function(x){ return [x.date, x.vendor_name, x.description, x.account, x.amount_crc, x.iva_crc, x.paid_from, x.invoice_no, x.invoice_date, x.voided_at ? 'yes' : '']; })));
+});
+
+/* ---------- suppliers: invoices linked to deliveries, payments, what is owed ---------- */
+var AP = null, viReq = null, vpReq = null, PAID_FROM = {cash: 'Safe', petty: 'Petty cash', bank: 'Bank', payout: 'Register payout', card_debit: 'Debit card', card_credit: 'Credit card'};
+async function loadPayables(){
+  if (!$('viDate').value){ $('viDate').value = today(); $('vpDate').value = today(); }
+  viReq = viReq || uuid(); vpReq = vpReq || uuid();
+  loadPayouts().then(payoutBoxes);
+  var r = await db.rpc('ap_aging', {p_as_of: null});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /ap_aging|Could not find/i.test(r.error.message || '') ? 'Suppliers need a database update (migration 0016).' : errText(r)); return; }
+  AP = r.data;
+  var keepI = $('viVendor').value, keepP = $('vpVendor').value;
+  var vopts = '<option value="">–</option>' + AP.vendor_list.map(function(v){ return '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>'; }).join('');
+  $('viVendor').innerHTML = vopts; $('vpVendor').innerHTML = vopts;
+  $('viVendor').value = keepI; $('vpVendor').value = keepP;
+  $('viAcct').innerHTML = AP.accounts.map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  var tb = $('agTable').querySelector('tbody'); tb.replaceChildren();
+  var tot = {current: 0, d30: 0, d60: 0, older: 0, total: 0};
+  AP.vendors.forEach(function(v){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(v.name) + '</td>' + ['current', 'd30', 'd60', 'older', 'total'].map(function(k){ tot[k] += Number(v[k]); return '<td class="num">' + fmt(v[k]) + '</td>'; }).join('');
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'head';
+  f.innerHTML = '<td>Total</td>' + ['current', 'd30', 'd60', 'older', 'total'].map(function(k){ return '<td class="num">' + fmt(tot[k]) + '</td>'; }).join('');
+  tb.appendChild(f);
+  var L = AP.ledger, parts = Number(L.invoices_open) + Number(L.received_not_invoiced) + Number(L.expenses_on_credit);
+  $('agTie').textContent = 'Accounts payable in the books ' + fmt(L.ap_balance) + ' = open invoices ' + fmt(L.invoices_open) + ' + received not invoiced ' + fmt(L.received_not_invoiced) +
+    ' + expenses on credit ' + fmt(L.expenses_on_credit);
+  $('agDiff').hidden = Math.abs(Number(L.ap_balance) - parts) < 0.5;
+  $('agDiff').textContent = 'Difference ' + fmt(Number(L.ap_balance) - parts) + ': days not posted yet, or entries by hand.';
+  renderInvoiceForm(); renderPayForm();
+  var it = $('viTable').querySelector('tbody'); it.replaceChildren();
+  AP.recent_invoices.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td>' + esc(x.number) + (x.voided ? ' <span class="tag rev">Voided</span>' : '') +
+      '</td><td class="mono">' + esc(x.due_date || '') + '</td><td class="num">' + fmt(x.total) + '</td><td class="num">' + (x.voided ? '' : fmt(x.open)) + '</td>';
+    var c = document.createElement('td');
+    if (!x.voided) c.appendChild(voidBtn('supplier_invoice_void', x.id, 'Why is this invoice voided?', 'Invoice voided'));
+    t.appendChild(c); it.appendChild(t);
+  });
+  var pt = $('vpTable').querySelector('tbody'); pt.replaceChildren();
+  AP.payments.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td>' + esc(PAID_FROM[x.paid_from] || x.paid_from) + '</td><td>' + esc(x.reference || '') +
+      '</td><td>' + esc(x.invoices || '') + '</td><td class="num">' + fmt(x.amount) + '</td>';
+    var c = document.createElement('td'); c.appendChild(voidBtn('supplier_payment_void', x.id, 'Why is this payment voided?', 'Payment voided'));
+    t.appendChild(c); pt.appendChild(t);
+  });
+}
+function voidBtn(fn, id, ask, done){
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Void';
+  b.addEventListener('click', async function(){
+    var why = prompt(ask); if (!why) return;
+    var v = await db.rpc(fn, {p_id: id, p_reason: why});
+    if (v.error || !v.data || !v.data.ok){ toast(errText(v)); return; }
+    toast(done); loadPayables();
+  });
+  return b;
+}
+function checkedReceipts(){ return Array.prototype.map.call(document.querySelectorAll('#viRecs input:checked'), function(i){ return i.value; }); }
+function renderInvoiceForm(){
+  var vid = $('viVendor').value, keep = checkedReceipts(), box = $('viRecs'); box.replaceChildren();
+  var recs = AP ? AP.uninvoiced.filter(function(r){ return r.vendor_id === vid; }) : [];
+  if (!vid) box.textContent = 'Pick the supplier.';
+  else if (!recs.length) box.textContent = 'None: this invoice is for something else (a service, equipment…).';
+  recs.forEach(function(r){
+    var l = document.createElement('label'); l.style.display = 'block';
+    var c = document.createElement('input'); c.type = 'checkbox'; c.value = r.id; c.style.width = 'auto'; c.style.minHeight = '0'; c.checked = keep.indexOf(r.id) >= 0;
+    c.addEventListener('change', invoiceDiff);
+    l.appendChild(c);
+    l.appendChild(document.createTextNode(' ' + String(r.received_at).slice(0, 10) + (r.po_number ? ' · Nº ' + r.po_number : '') + (r.invoice_no ? ' · ' + r.invoice_no : '') + ' · ' + fmt(r.total_crc)));
+    box.appendChild(l);
+  });
+  invoiceDiff();
+}
+function invoiceDiff(){
+  var ids = checkedReceipts(), rec = 0;
+  (AP ? AP.uninvoiced : []).forEach(function(r){ if (ids.indexOf(r.id) >= 0) rec += Number(r.total_crc); });
+  $('viAcctBox').hidden = ids.length > 0;
+  var net = Number($('viNet').value) || 0;
+  $('viDiff').textContent = ids.length ? 'Received at cost ' + fmt(rec) + (net ? ' · difference with the invoice ' + fmt(net - rec) : '') : '';
+}
+$('viVendor').addEventListener('change', renderInvoiceForm);
+$('viNet').addEventListener('input', invoiceDiff);
+
+/* the supplier's electronic invoice (Hacienda XML, versions 4.3 and 4.4): it only fills in the form; the accountant
+   checks it and saves. Read as data: nothing in the file is run or shown as HTML. */
+function eInvoiceRead(text){
+  var doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) return {error: 'not_xml'};
+  var root = doc.documentElement, kind = root ? root.localName : '';
+  var one = function(el, name){ var n = el ? el.getElementsByTagNameNS('*', name) : []; return n.length ? n[0].textContent.trim() : ''; };
+  var num = function(v){ var x = Number(String(v || '').replace(',', '.')); return isFinite(x) ? x : 0; };
+  if (!/^(FacturaElectronica|TiqueteElectronico|NotaCreditoElectronica|NotaDebitoElectronica|FacturaElectronicaCompra)$/.test(kind)) return {error: 'not_einvoice'};
+  var emisor = root.getElementsByTagNameNS('*', 'Emisor')[0], resumen = root.getElementsByTagNameNS('*', 'ResumenFactura')[0];
+  var other = 0;   /* taxes that are not IVA (v4.4 breaks the total down by tax code; 01 = IVA) */
+  Array.prototype.forEach.call(resumen ? resumen.getElementsByTagNameNS('*', 'TotalDesgloseImpuesto') : [], function(d){
+    if (one(d, 'Codigo') && one(d, 'Codigo') !== '01') other += num(one(d, 'TotalMontoImpuesto'));
+  });
+  return {kind: kind, key: one(root, 'Clave'), number: one(root, 'NumeroConsecutivo'), date: one(root, 'FechaEmision').slice(0, 10),
+          vendor: one(emisor, 'Nombre'), vendorId: one(emisor, 'Numero'), currency: one(resumen, 'CodigoMoneda') || 'CRC',
+          net: num(one(resumen, 'TotalVentaNeta')), tax: num(one(resumen, 'TotalImpuesto')), total: num(one(resumen, 'TotalComprobante')),
+          charges: num(one(resumen, 'TotalOtrosCargos')), otherTax: other};
+}
+function plain(t){ return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\b(s\.?\s?a|s\.?r\.?l|ltda|limitada|sociedad anonima)\b\.?/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
+$('viXml').addEventListener('change', async function(){
+  var f = this.files && this.files[0], msg = $('viXmlMsg'); msg.textContent = '';
+  if (!f) return;
+  var x = f.size > 2000000 ? {error: 'not_einvoice'} : eInvoiceRead(await f.text());
+  this.value = '';
+  if (x.error){ msg.textContent = x.error === 'not_xml' ? 'That file is not an XML file.' : 'That file is not an electronic invoice from Hacienda.'; return; }
+  if (x.kind === 'NotaCreditoElectronica' || x.kind === 'NotaDebitoElectronica'){ msg.textContent = 'That is a credit or debit note, not an invoice: record it by hand with the accountant.'; return; }
+  if (x.currency !== 'CRC'){ msg.textContent = 'This invoice is in ' + x.currency + '. Invoices in dollars are recorded from Inventario → Pedidos → Recibir, with their exchange rate.'; return; }
+  $('viNum').value = x.number || x.key; $('viDate').value = x.date || $('viDate').value;
+  $('viNet').value = x.net; $('viIva').value = x.tax - x.otherTax;
+  var want = plain(x.vendor), match = AP ? AP.vendor_list.filter(function(v){ var n = plain(v.name); return n && want && (n === want || want.indexOf(n) >= 0 || n.indexOf(want) >= 0); }) : [];
+  if (match.length === 1){ $('viVendor').value = match[0].id; renderInvoiceForm(); }
+  var notes = ['Read from the XML: ' + x.vendor + (x.vendorId ? ' (' + x.vendorId + ')' : '') + ', total ' + fmt(x.total) + '.'];
+  if (match.length !== 1) notes.push('Pick the supplier: no single supplier in the list has that name.');
+  if (x.charges) notes.push('The invoice also has other charges of ' + fmt(x.charges) + ' (not IVA): check them with the accountant.');
+  if (x.otherTax) notes.push('It includes other taxes of ' + fmt(x.otherTax) + ' that are not IVA: they were left out of the IVA.');
+  if (Math.abs(x.net + x.tax + x.charges - x.total) > 1) notes.push('Its total does not add up (' + fmt(x.net) + ' + ' + fmt(x.tax) + ' + ' + fmt(x.charges) + '): check the invoice.');
+  notes.push('Check the amounts, tick the deliveries on it, then save.');
+  msg.replaceChildren.apply(msg, notes.map(function(n){ var d = document.createElement('div'); d.textContent = n; return d; }));
+  invoiceDiff();
+});
+$('viGo').addEventListener('click', async function(){
+  var ids = checkedReceipts();
+  var x = {vendor_id: $('viVendor').value, number: $('viNum').value.trim(), date: $('viDate').value, due_date: $('viDue').value || null,
+           net_crc: $('viNet').value === '' ? null : Number($('viNet').value), iva_crc: Number($('viIva').value) || 0, receipt_ids: ids,
+           account: ids.length ? null : $('viAcct').value};
+  if (!x.vendor_id || !x.number || x.net_crc == null){ $('viErr').textContent = 'Pick the supplier and write the invoice number and amount.'; return; }
+  var b = this; b.disabled = true;
+  var r = await db.rpc('supplier_invoice_save', {p_invoice: x, p_request_id: viReq || (viReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('viErr').textContent = r.data && r.data.error === 'bad_account' ? 'Pick what the invoice was for.' : errText(r); return; }
+  $('viErr').textContent = ''; ['viNum', 'viDue', 'viNet'].forEach(function(id){ $(id).value = ''; }); $('viIva').value = '0';
+  viReq = uuid(); toast('Invoice saved'); loadPayables();
+});
+function renderPayForm(){
+  var vid = $('vpVendor').value, v = AP ? AP.vendors.filter(function(x){ return x.vendor_id === vid; })[0] : null;
+  $('vpInv').innerHTML = '<option value="">The oldest first</option>' + (v ? v.invoices.filter(function(i){ return Number(i.open) > 0; }).map(function(i){
+    return '<option value="' + esc(i.id) + '">' + esc(i.number + ' · ' + fmt(i.open)) + '</option>'; }).join('') : '');
+  $('vpOwed').textContent = vid ? 'Owed to this supplier: ' + fmt(v ? v.total : 0) : '';
+}
+$('vpVendor').addEventListener('change', renderPayForm);
+$('vpGo').addEventListener('click', async function(){
+  var x = {vendor_id: $('vpVendor').value, amount_crc: Number($('vpAmt').value), paid_from: $('vpFrom').value, date: $('vpDate').value,
+           reference: $('vpRef').value.trim() || null, invoice_ids: $('vpInv').value ? [$('vpInv').value] : [],
+           payout_id: $('vpFrom').value === 'payout' ? ($('vpPayout').value || null) : null};
+  if (!x.vendor_id || !(x.amount_crc > 0)){ $('vpErr').textContent = 'Pick the supplier and write the amount.'; return; }
+  var b = this; b.disabled = true;
+  var r = await db.rpc('supplier_payment_save', {p_payment: x, p_request_id: vpReq || (vpReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('vpErr').textContent = errText(r); return; }
+  $('vpErr').textContent = ''; ['vpAmt', 'vpRef'].forEach(function(id){ $(id).value = ''; });
+  vpReq = uuid(); toast('Payment recorded'); loadPayables();
+});
+$('pyCsv').addEventListener('click', function(){
+  if (!AP) return;
+  var rows = [['supplier', 'invoice', 'date', 'due_date', 'total', 'open']];
+  AP.vendors.forEach(function(v){ v.invoices.forEach(function(i){ if (Number(i.open) > 0) rows.push([v.name, i.number, i.date, i.due_date, i.total, i.open]); }); });
+  download('cuentas-por-pagar-' + AP.as_of + '.csv', rows);
+});
+
+/* ---------- cash: the drawer by day, and payouts to file ---------- */
+var CASH = null, PAYOUTS = [];
+async function loadPayouts(){
+  var r = await db.rpc('cash_payouts', {p_from: null, p_to: null});
+  PAYOUTS = (!r.error && r.data && r.data.ok) ? r.data.payouts : [];
+  var open = PAYOUTS.filter(function(p){ return Number(p.amount_crc) - Number(p.documented_crc) > 0.5; });
+  var opts = open.map(function(p){ return '<option value="' + esc(p.id) + '">' + esc(p.date + ' · ' + p.reason + ' · ' + fmt(Number(p.amount_crc) - Number(p.documented_crc))) + '</option>'; }).join('');
+  ['xPayout', 'vpPayout'].forEach(function(id){ var keep = $(id).value; $(id).innerHTML = '<option value="">' + esc('Not recorded at the POS') + '</option>' + opts; if (keep) $(id).value = keep; });
+  return open;
+}
+function payoutBoxes(){ $('xPayoutBox').hidden = $('xFrom').value !== 'payout'; $('vpPayoutBox').hidden = $('vpFrom').value !== 'payout'; }
+$('xFrom').addEventListener('change', payoutBoxes); $('vpFrom').addEventListener('change', payoutBoxes);
+async function loadCash(){
+  if (!$('cFrom').value){ $('cFrom').value = monthStart(today()); $('cTo').value = today(); }
+  var r = await db.rpc('cash_reconciliation', {p_from: $('cFrom').value, p_to: $('cTo').value});
+  var tb = $('cTable').querySelector('tbody'); tb.replaceChildren();
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /cash_reconciliation|Could not find/i.test(r.error.message || '') ? 'Cash needs a database update (migration 0019).' : errText(r)); return; }
+  CASH = r.data.days;
+  function num(v, money){ return v == null ? '<td></td>' : '<td class="num">' + (money ? fmt(v) : esc('$' + Number(v).toFixed(2))) + '</td>'; }
+  function diff(v, money){ if (v == null) return '<td class="num">' + esc('not counted') + '</td>'; var x = Number(v);
+    return '<td class="num"' + (Math.abs(x) >= (money ? 1 : 0.01) ? ' style="color:var(--bad)"' : '') + '>' + (money ? fmt(x) : esc((x < 0 ? '−$' : '$') + Math.abs(x).toFixed(2))) + '</td>'; }
+  CASH.forEach(function(d){
+    var t = document.createElement('tr');
+    var noReg = d.opened === false;   /* sales (or drawer movements) that day, no register opened: nothing counted, no difference */
+    t.innerHTML = '<td class="mono">' + esc(d.date) + (noReg ? ' <span class="tag">' + esc('register not opened') + '</span>' : d.closed ? '' : ' <span class="tag">' + esc('Still open') + '</span>') + '</td><td>₡</td>' + num(d.float_crc, 1) + num(d.sales_crc, 1) + num(d.in_crc, 1) + num(d.out_crc, 1) +
+      num(d.expected_crc, 1) + (noReg ? '<td></td><td></td>' : num(d.counted_crc, 1) + (d.closed ? diff(d.diff_crc, 1) : '<td></td>'));
+    tb.appendChild(t);
+    if (Number(d.float_usd) || Number(d.sales_usd) || Number(d.in_usd) || Number(d.out_usd) || d.counted_usd != null){
+      var u = document.createElement('tr');
+      u.innerHTML = '<td></td><td>$</td>' + num(d.float_usd) + num(d.sales_usd) + num(d.in_usd) + num(d.out_usd) + num(d.expected_usd) +
+        (noReg ? '<td></td><td></td>' : num(d.counted_usd) + (d.closed ? diff(d.diff_usd) : '<td></td>'));
+      tb.appendChild(u);
+    }
+  });
+  var open = await loadPayouts(), pb = $('poTable').querySelector('tbody'); pb.replaceChildren();
+  PAYOUTS.forEach(function(p){
+    var left = Number(p.amount_crc) - Number(p.documented_crc), t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(p.date) + '</td><td>' + esc(p.reason) + '</td><td>' + esc(p.staff_name) + '</td><td class="num">' +
+      (p.currency === 'USD' ? esc('$' + Number(p.amount).toFixed(2)) + ' · ' : '') + fmt(p.amount_crc) + '</td><td class="num">' + fmt(p.documented_crc) + '</td>';
+    var c = document.createElement('td');
+    if (left > 0.5){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'File its invoice';
+      b.addEventListener('click', function(){
+        showView('expenses'); $('xFrom').value = 'payout'; payoutBoxes(); $('xPayout').value = p.id; $('xAmt').value = Math.round(left * 100) / 100; $('xDate').value = p.date; $('xDesc').focus();
+      });
+      c.appendChild(b);
+    }
+    t.appendChild(c); pb.appendChild(t);
+  });
+}
+$('cGo').addEventListener('click', loadCash);
+$('cCsv').addEventListener('click', function(){
+  if (!CASH) return;
+  download('caja-' + $('cFrom').value + '-' + $('cTo').value + '.csv', [['day', 'closed', 'float_crc', 'cash_sales_crc', 'in_crc', 'out_crc', 'expected_crc', 'counted_crc', 'diff_crc',
+    'float_usd', 'cash_sales_usd', 'in_usd', 'out_usd', 'expected_usd', 'counted_usd', 'diff_usd', 'fx_rate']].concat(CASH.map(function(d){
+      return [d.date, d.closed ? 'yes' : 'no', d.float_crc, d.sales_crc, d.in_crc, d.out_crc, d.expected_crc, d.counted_crc, d.diff_crc,
+              d.float_usd, d.sales_usd, d.in_usd, d.out_usd, d.expected_usd, d.counted_usd, d.diff_usd, d.fx_rate]; })));
+});
+
+/* ---------- bank: accounts, statement import, reconciliation ---------- */
+var BANK = null, BK_ROWS = null, bkReq = null, BK_POST = [];
+function bkMoney(v){ var c = BANK && BANK.account && BANK.account.currency === 'USD'; var x = Number(v); return c ? (x < 0 ? '−$' : '$') + Math.abs(x).toFixed(2) : fmt(x); }
+async function loadBank(){
+  if (!$('bkFrom').value){ var d = new Date(Date.now() - 6 * 3600000 - 60 * 86400000); $('bkFrom').value = d.toISOString().slice(0, 10); $('bkTo').value = today(); }
+  var id = $('bkAcct').value || null;
+  var r = await db.rpc('bank_overview', {p_account_id: id, p_from: $('bkFrom').value, p_to: $('bkTo').value});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /bank_overview|Could not find/i.test(r.error.message || '') ? 'The bank needs a database update (migration 0020).' : errText(r)); return; }
+  BANK = r.data;
+  var accts = BANK.accounts || [];
+  $('bkAcct').innerHTML = accts.length ? accts.map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.name + (a.last4 ? ' ·· ' + a.last4 : '')) + '</option>'; }).join('')
+    : '<option value="">' + esc('No bank accounts yet') + '</option>';
+  $('bkGl').innerHTML = (BANK.gl_accounts || []).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  if (id) $('bkAcct').value = id;
+  if (!id && accts.length){ return loadBank(); }    /* the first account, with its lines */
+  $('bkImportCard').hidden = !accts.length; $('bkRecCard').hidden = !accts.length;
+  if (!BANK.account) return;
+  BK_POST = BANK.post_accounts || [];
+  var S = BANK.summary;
+  $('bkSum').textContent = 'Books ' + bkMoney(S.book_balance) + (S.statement_balance == null ? '' : ' · statement ' + bkMoney(S.statement_balance) + ' (' + S.statement_day + ')') +
+    ' · to reconcile on the statement ' + bkMoney(S.open_statement) + ' · in the books only ' + bkMoney(S.book_only);
+  var tb = $('bkTable').querySelector('tbody'); tb.replaceChildren();
+  BANK.lines.forEach(function(l){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(l.date) + '</td><td>' + esc(l.description) + (l.reference ? ' <span class="hint">' + esc(l.reference) + '</span>' : '') +
+      '</td><td class="num">' + bkMoney(l.amount) + '</td>';
+    var c = document.createElement('td');
+    if (l.status === 'open'){
+      (l.suggest || []).forEach(function(sg){
+        c.appendChild(bkBtn('Match: Nº ' + sg.entry_no + ' · ' + sg.date + ' · ' + sg.memo, async function(){ return db.rpc('bank_match', {p_line_id: l.id, p_ledger_line_id: sg.line_id}); }));
+      });
+      var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghost small'; pb.textContent = 'Post…';
+      pb.addEventListener('click', function(){ bkPostForm(c, l); });
+      c.appendChild(pb);
+      c.appendChild(bkBtn('Ignore', async function(){ var why = prompt('Why is it left out?'); if (!why) return null; return db.rpc('bank_ignore', {p_line_id: l.id, p_note: why}); }));
+    } else {
+      var info = document.createElement('span');
+      info.textContent = l.status === 'ignored' ? 'Ignored: ' + (l.note || '') : (l.status === 'posted' ? 'Posted' : 'Matched') + (l.ledger ? ' · Nº ' + l.ledger.entry_no + ' · ' + l.ledger.memo : '');
+      c.appendChild(info);
+      c.appendChild(bkBtn('Undo', async function(){ return db.rpc('bank_undo', {p_line_id: l.id}); }));
+    }
+    t.appendChild(c); tb.appendChild(t);
+  });
+  var bb = $('bkBook').querySelector('tbody'); bb.replaceChildren();
+  BANK.book_only.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc('Nº ' + x.entry_no + ' · ' + x.memo) + '</td><td class="num">' + bkMoney(x.amount) + '</td>';
+    bb.appendChild(t);
+  });
+}
+function bkBtn(label, fn){
+  var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = label; b.style.margin = '0 .3rem .3rem 0';
+  b.addEventListener('click', async function(){ b.disabled = true; var r = await fn(); b.disabled = false; if (!r) return;
+    if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } loadBank(); });
+  return b;
+}
+/* post a movement the books do not have: one account, or two (a card deposit: the card sales and the fee) */
+function bkPostForm(cell, l){
+  cell.replaceChildren();
+  var opts = BK_POST.map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+  var f = document.createElement('div'); f.className = 'lines';
+  f.innerHTML = '<div class="lrow"><select aria-label="Account" class="pa1">' + opts + '</select><input class="pv1" type="number" step="any" aria-label="Amount"><span></span><span></span></div>' +
+    '<div class="lrow"><select aria-label="Second account (optional)" class="pa2"><option value="">' + esc('Second account (optional)') + '</option>' + opts + '</select><input class="pv2" type="number" step="any" aria-label="Amount"><span></span><span></span></div>' +
+    '<input class="pmemo" maxlength="200" placeholder="Description" aria-label="Description" style="width:100%;margin-bottom:.4rem">';
+  cell.appendChild(f);
+  f.querySelector('.pv1').value = l.amount;
+  var go = document.createElement('button'); go.type = 'button'; go.className = 'small'; go.textContent = 'Post';
+  var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'ghost small'; cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', loadBank);
+  go.addEventListener('click', async function(){
+    var parts = [{account: f.querySelector('.pa1').value, amount: Number(f.querySelector('.pv1').value)}];
+    if (f.querySelector('.pa2').value) parts.push({account: f.querySelector('.pa2').value, amount: Number(f.querySelector('.pv2').value)});
+    var sum = parts.reduce(function(t, p){ return t + p.amount; }, 0);
+    if (Math.abs(sum - Number(l.amount)) > 0.001){ toast('The parts must add up to ' + bkMoney(l.amount) + '.'); return; }
+    go.disabled = true;
+    var r = await db.rpc('bank_post', {p_line_id: l.id, p_parts: parts, p_memo: f.querySelector('.pmemo').value.trim() || null});
+    go.disabled = false;
+    if (r.error || !r.data || !r.data.ok){ toast(r.data && r.data.error === 'bad_account' ? 'Pick the accounts (never the bank\'s own account).' : errText(r)); return; }
+    toast('Posted'); loadBank();
+  });
+  cell.appendChild(go); cell.appendChild(cancel);
+}
+$('bkAcct').addEventListener('change', function(){ BK_ROWS = null; $('bkMap').hidden = true; $('bkFile').value = ''; loadBank(); });
+$('bkGo').addEventListener('click', loadBank);
+$('bkAuto').addEventListener('click', async function(){
+  var r = await db.rpc('bank_auto_match', {p_account_id: $('bkAcct').value});
+  if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; }
+  toast(r.data.matched + ' matched'); loadBank();
+});
+$('bkNew').addEventListener('click', function(){ $('bkForm').hidden = false; $('bkErr').textContent = ''; $('bkName').focus(); });
+$('bkCancel').addEventListener('click', function(){ $('bkForm').hidden = true; });
+$('bkSave').addEventListener('click', async function(){
+  var r = await db.rpc('bank_account_save', {p_account: {name: $('bkName').value.trim(), bank: $('bkBank').value.trim(), currency: $('bkCur').value,
+                                                         last4: $('bkLast4').value.trim(), gl_account: $('bkGl').value}});
+  if (r.error || !r.data || !r.data.ok){ $('bkErr').textContent = r.data && r.data.error === 'bad_account' ? 'Pick a cash or bank account of the books.' : errText(r); return; }
+  $('bkForm').hidden = true; ['bkName', 'bkBank', 'bkLast4'].forEach(function(id){ $(id).value = ''; });
+  toast('Bank account saved'); $('bkAcct').innerHTML = '<option value="' + esc(r.data.id) + '"></option>'; $('bkAcct').value = r.data.id; loadBank();
+});
+/* the bank's CSV, read here: separator and decimal style found from the file; the columns are picked once per account */
+function csvParse(text){
+  var first = text.split(/\r?\n/).slice(0, 5).join('\n'), seps = [';', ',', '\t'], sep = seps.reduce(function(b, c){ return first.split(c).length > first.split(b).length ? c : b; }, ',');
+  var rows = [], row = [], cur = '', q = false;
+  for (var i = 0; i < text.length; i++){
+    var ch = text[i];
+    if (q){ if (ch === '"'){ if (text[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; continue; }
+    if (ch === '"') q = true;
+    else if (ch === sep){ row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r'){ if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur !== '' || row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){ return c.trim() !== ''; }); });
+}
+function bkNum(s){
+  if (s == null) return null;
+  var t = String(s).replace(/[₡$\s ]|CRC|USD/g, ''), neg = /^\(.*\)$/.test(t) || /-$/.test(t);
+  t = t.replace(/[()]/g, '').replace(/-$/, '');
+  if (t === '') return null;
+  var lc = t.lastIndexOf(','), ld = t.lastIndexOf('.');
+  if (lc > ld) t = t.replace(/\./g, '').replace(',', '.');          /* 1.234,56 */
+  else t = t.replace(/,/g, '');                                      /* 1,234.56 */
+  var n = Number(t); if (!isFinite(n)) return null;
+  return neg ? -Math.abs(n) : n;
+}
+function bkDate(s, fmtK){
+  var m = String(s || '').trim().match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})/); if (!m) return null;
+  var a = +m[1], b = +m[2], c = +m[3], y, mo, d;
+  if (m[1].length === 4){ y = a; mo = b; d = c; } else if (fmtK === 'mdy'){ mo = a; d = b; y = c; } else { d = a; mo = b; y = c; }
+  if (y < 100) y += 2000;
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+var BK_RAW = null, BK_HEAD = false;
+$('bkFile').addEventListener('change', async function(){
+  var file = this.files && this.files[0]; $('bkImpErr').textContent = ''; BK_ROWS = null;
+  if (!file) return;
+  var buf = await file.arrayBuffer(), text = new TextDecoder('utf-8').decode(buf);
+  if (text.indexOf('�') >= 0) text = new TextDecoder('windows-1252').decode(buf);   /* older bank exports */
+  BK_RAW = csvParse(text.replace(/^﻿/, ''));
+  if (BK_RAW.length < 1){ $('bkImpErr').textContent = 'That file has no rows.'; return; }
+  var width = BK_RAW.reduce(function(w, r){ return Math.max(w, r.length); }, 0);
+  BK_HEAD = !BK_RAW[0].some(function(c){ return bkDate(c, 'dmy'); });
+  var names = []; for (var i = 0; i < width; i++) names.push(BK_HEAD && BK_RAW[0][i] ? BK_RAW[0][i].trim() : 'Column ' + (i + 1));
+  var opt = function(none){ return (none ? '<option value="">' + esc('None') + '</option>' : '') + names.map(function(n, i){ return '<option value="' + i + '">' + esc(n) + '</option>'; }).join(''); };
+  $('mDate').innerHTML = opt(false); $('mDesc').innerHTML = opt(false); ['mRef', 'mAmt', 'mOut', 'mIn', 'mBal'].forEach(function(id){ $(id).innerHTML = opt(true); });
+  var saved = null; try { saved = JSON.parse(localStorage.getItem('hg-bank-map-' + $('bkAcct').value) || 'null'); } catch (e) {}
+  function guess(re){ for (var i = 0; i < names.length; i++) if (re.test(names[i])) return String(i); return ''; }
+  var g = saved || {mDate: guess(/fecha|date/i) || '0', mDesc: guess(/descrip|concepto|detalle|description/i) || '1', mRef: guess(/refer|documento|comprobante/i),
+                    mAmt: guess(/^monto$|importe|amount/i), mOut: guess(/d[eé]bito|cargo|retiro|debit/i), mIn: guess(/cr[eé]dito|abono|dep[oó]sito|credit/i),
+                    mBal: guess(/saldo|balance/i), mFmt: 'dmy'};
+  Object.keys(g).forEach(function(k){ if ($(k) && g[k] != null && (k === 'mFmt' || $(k).querySelector('option[value="' + g[k] + '"]'))) $(k).value = g[k]; });
+  $('bkMap').hidden = false; bkPreview(); bkReq = uuid();
+});
+['mDate', 'mDesc', 'mRef', 'mAmt', 'mOut', 'mIn', 'mBal', 'mFmt'].forEach(function(id){ $(id).addEventListener('change', bkPreview); });
+function bkPreview(){
+  if (!BK_RAW) return;
+  var col = function(id){ return $(id).value === '' ? null : +$(id).value; }, fm = $('mFmt').value, rows = [], skipped = 0;
+  BK_RAW.slice(BK_HEAD ? 1 : 0).forEach(function(r){
+    var d = bkDate(r[col('mDate')], fm), amt = null;
+    if (col('mAmt') != null) amt = bkNum(r[col('mAmt')]);
+    else { var o = col('mOut') != null ? bkNum(r[col('mOut')]) : null, n = col('mIn') != null ? bkNum(r[col('mIn')]) : null;
+           if (o != null || n != null) amt = (n || 0) - Math.abs(o || 0); }
+    var desc = (r[col('mDesc')] || '').trim();
+    if (!d || amt == null || amt === 0 || !desc){ skipped++; return; }      /* totals, blank and title rows are not movements */
+    rows.push({date: d, description: desc, reference: col('mRef') != null ? (r[col('mRef')] || '').trim() : '', amount: Math.round(amt * 100) / 100,
+               balance: col('mBal') != null ? bkNum(r[col('mBal')]) : null});
+  });
+  BK_ROWS = rows;
+  var tb = $('bkPrev').querySelector('tbody'); tb.replaceChildren();
+  rows.slice(0, 5).forEach(function(x){ var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.date) + '</td><td>' + esc(x.description) + '</td><td>' + esc(x.reference) + '</td><td class="num">' + bkMoney(x.amount) +
+      '</td><td class="num">' + (x.balance == null ? '' : bkMoney(x.balance)) + '</td>'; tb.appendChild(t); });
+  $('bkPrevNote').textContent = rows.length + ' movements' + (skipped ? ' · ' + skipped + ' rows left out (titles, totals or blank)' : '');
+}
+$('bkImport').addEventListener('click', async function(){
+  if (!BK_ROWS || !BK_ROWS.length){ $('bkImpErr').textContent = 'No movements found: check the columns.'; return; }
+  var map = {}; ['mDate', 'mDesc', 'mRef', 'mAmt', 'mOut', 'mIn', 'mBal', 'mFmt'].forEach(function(id){ map[id] = $(id).value; });
+  try { localStorage.setItem('hg-bank-map-' + $('bkAcct').value, JSON.stringify(map)); } catch (e) {}
+  var b = this; b.disabled = true;
+  var file = $('bkFile').files && $('bkFile').files[0];
+  var r = await db.rpc('bank_import', {p_account_id: $('bkAcct').value, p_file_name: file ? file.name : null, p_rows: BK_ROWS, p_request_id: bkReq || (bkReq = uuid())});
+  b.disabled = false;
+  if (r.error || !r.data || !r.data.ok){ $('bkImpErr').textContent = r.data && r.data.error === 'bad_rows' ? 'Some rows could not be read: check the date format and the columns.' : errText(r); return; }
+  toast(r.data.added + ' new movements · ' + r.data.skipped + ' already there');
+  bkReq = null; BK_ROWS = null; BK_RAW = null; $('bkMap').hidden = true; $('bkFile').value = '';
+  if (r.data.from && r.data.from < $('bkFrom').value) $('bkFrom').value = r.data.from;
+  loadBank();
+});
+
+/* ---------- payroll: periods, hours approved by the owner, rates, rules, the payroll ---------- */
+var PAYP = null, PAYRUN = null, PAYSTAFF = null;
+var PP_STATUS = {open: 'Hours not approved yet', approved: 'Hours approved', paid: 'Paid'}, PR_STATUS = {draft: 'Draft', reviewed: 'Reviewed by the accountant', posted: 'Posted', paid: 'Paid'};
+async function loadPayroll(){
+  var sel = $('ppSel').value || null;
+  var r = await db.rpc('timesheet', {p_period_id: sel});
+  if (r.error || !r.data || !r.data.ok){ toast(r.error && /timesheet|Could not find/i.test(r.error.message || '') ? 'Payroll needs a database update (migrations 0021, 0022).' : errText(r)); return; }
+  var periods = r.data.periods || [];
+  $('ppSel').innerHTML = periods.length ? periods.map(function(p){ return '<option value="' + esc(p.id) + '">' + esc(p.starts_on + ' → ' + p.ends_on) + '</option>'; }).join('')
+    : '<option value="">' + esc('No pay periods yet') + '</option>';
+  if (sel) $('ppSel').value = sel;
+  if (!sel && periods.length){ $('ppSel').value = periods[0].id; return loadPayroll(); }
+  PAYP = r.data.period || null;
+  $('ppStatus').textContent = PAYP ? PP_STATUS[PAYP.status] : '';
+  $('tsCard').hidden = !PAYP; $('prCard').hidden = !PAYP;
+  loadPayStaff();
+  if (!PAYP) return;
+  var tb = $('tsTable').querySelector('tbody'); tb.replaceChildren();
+  (r.data.people || []).forEach(function(x){
+    var flags = [];
+    if (+x.open) flags.push(x.open + ' without clock-out');
+    if (+x.long) flags.push(x.long + ' over 12 h');
+    if (+x.overlap) flags.push(x.overlap + ' overlapping');
+    if (+x.edited) flags.push(x.edited + ' changed by hand');
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.name) + '</td><td class="num">' + esc(Number(x.hours || 0).toLocaleString('fr-FR', {maximumFractionDigits: 2})) + '</td><td class="num">' + esc(x.shifts) +
+      '</td><td' + (flags.length ? ' style="color:var(--bad)"' : '') + '>' + esc(flags.join(' · ')) + '</td>';
+    tb.appendChild(t);
+  });
+  var ended = PAYP.ends_on < today();
+  $('tsApprove').hidden = !(KIND === 'owner' && PAYP.status === 'open');
+  $('tsReopen').hidden = !(KIND === 'owner' && PAYP.status === 'approved');
+  $('tsHint').textContent = PAYP.status === 'open' ? (ended ? 'Check the hours (shifts are changed in Time clock with a manager PIN), then the owner approves them. Approved hours can no longer change.'
+                                                            : 'The period has not ended yet.')
+    : (PAYP.approved_by ? 'Approved by ' + PAYP.approved_by + ': these hours no longer change.' : 'Approved: these hours no longer change.');
+  loadPayrun();
+}
+async function loadPayrun(){
+  var r = await db.rpc('payroll_get', {p_period_id: PAYP.id});
+  var tb = $('prTable').querySelector('tbody'); tb.replaceChildren(); $('prErr').textContent = '';
+  PAYRUN = (!r.error && r.data && r.data.ok) ? r.data : null;
+  var run = PAYRUN && PAYRUN.run, st = run ? run.status : null;
+  $('prPrepare').hidden = !(PAYP.status !== 'open' && (!run || st === 'draft'));
+  $('prReview').hidden = !(st === 'draft' && KIND === 'accountant');
+  $('prBack').hidden = st !== 'reviewed';
+  $('prPost').hidden = st !== 'reviewed';
+  ['prPayBox', 'prPayDateBox', 'prPay'].forEach(function(id){ $(id).hidden = st !== 'posted'; });
+  if (!$('prDate').value) $('prDate').value = today();
+  var ps = (run && run.params) || {};
+  $('prState').textContent = PAYP.status === 'open' ? 'The payroll is prepared once the owner approves the hours.'
+    : !run ? 'Not prepared yet.' : PR_STATUS[st] + (run.reviewed_by ? ' · reviewed by ' + run.reviewed_by : '') +
+      (run.rules && run.rules.length ? '' : ' · no deductions or charges confirmed: gross pay only') +
+      (ps.renta_status === 'no_table' ? ' · income tax withholding is on but there is no tax table: enter it in Costa Rican rules, or switch it off' : ps.renta_status === 'on' ? ' · income tax withheld' : '') +
+      (ps.accrue_aguinaldo ? ' · aguinaldo provisioned' : '');
+  if (!run) return;
+  PAYRUN.lines.forEach(function(l){
+    var t = document.createElement('tr'), rd = l.renta_detail || {};
+    t.innerHTML = '<td>' + esc(l.staff_name) + (l.gross_crc == null ? ' <span class="tag rev">' + esc('No pay rate') + '</span>' : '') + '</td><td class="num">' + esc(Number(l.hours).toLocaleString('fr-FR')) +
+      '</td><td class="num">' + (l.rate_crc == null ? '' : fmt(l.rate_crc) + (l.pay_kind === 'hourly' ? ' /h' : '')) + '</td><td class="num">' + (l.gross_crc == null ? '' : fmt(l.gross_crc)) + '</td>';
+    t.appendChild(lineInput(l, st, l.extra_crc, l.extra_note, 'payroll_extra', 'p_extra', 'Extra pay', 'What for'));
+    var floored = (l.deductions || []).concat(l.employer || []).some(function(x){ return !!x && x.floor === true; });   /* the CCSS rules took the confirmed minimum base, above this pay */
+    t.insertAdjacentHTML('beforeend', '<td class="num">' + fmt(l.deductions_crc) + (floored ? ' <span class="tag">' + esc('CCSS minimum base') + '</span>' : '') + '</td><td class="num">' + fmt(l.renta_crc) +
+      (rd.status && rd.status !== 'on' ? ' <span class="tag">' + esc(RENTA_ST[rd.status] || rd.status) + '</span>' : rd.status === 'on' && rd.method === 'prorate' && Number(rd.days) !== 30 ? ' <span class="tag" title="' + esc('Pay taken to a month of 30 days, taxed, brought back to the period of ' + rd.days + ' days') + '">×30/' + esc(rd.days) + '</span>' : '') + '</td>');
+    t.appendChild(lineInput(l, st, l.other_crc, l.other_note, 'payroll_adjust', 'p_other', 'Other deductions', 'What for'));
+    t.insertAdjacentHTML('beforeend', '<td class="num">' + fmt(l.employer_crc) + '</td><td class="num">' + (l.net_crc == null ? '' : fmt(l.net_crc)) + '</td>');
+    var pc = document.createElement('td');
+    if (l.gross_crc != null){ var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghost small'; pb.textContent = 'Payslip'; pb.addEventListener('click', function(){ showPayslip(run.id, l.staff_id); }); pc.appendChild(pb); }
+    t.appendChild(pc);
+    tb.appendChild(t);
+  });
+  var T = PAYRUN.totals || {}, f = document.createElement('tr'); f.className = 'total';
+  f.innerHTML = '<td>Total</td><td class="num">' + esc(Number(T.hours || 0).toLocaleString('fr-FR')) + '</td><td></td><td class="num">' + fmt(T.gross || 0) + '</td><td class="num">' + fmt(T.extra || 0) + '</td><td class="num">' + fmt(T.deductions || 0) +
+    '</td><td class="num">' + fmt(T.renta || 0) + '</td><td class="num">' + fmt(T.other || 0) + '</td><td class="num">' + fmt(T.employer || 0) + '</td><td class="num">' + fmt(T.net || 0) + '</td><td></td>';
+  tb.appendChild(f);
+}
+var RENTA_ST = {off: 'tax off', no_table: 'no tax table', unconfirmed: 'not confirmed'};
+/* an amount with its note on a draft line (extra pay or another deduction); read-only once reviewed */
+function lineInput(l, st, amount, note, fn, argName, label, noteLabel){
+  var c = document.createElement('td'); c.className = 'num';
+  if (st === 'draft' && l.gross_crc != null){
+    c.className = 'num edit'; var row = document.createElement('div'); row.className = 'row';
+    var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = 'any'; inp.value = amount; inp.style.width = '5.5rem'; inp.setAttribute('aria-label', label);
+    var nt = document.createElement('input'); nt.maxLength = 120; nt.value = note || ''; nt.placeholder = noteLabel; nt.style.width = '7rem'; nt.setAttribute('aria-label', noteLabel);
+    var sv = document.createElement('button'); sv.type = 'button'; sv.className = 'ghost small'; sv.textContent = 'Save';
+    sv.addEventListener('click', async function(){
+      var args = {p_run_id: PAYRUN.run.id, p_staff_id: l.staff_id, p_note: nt.value.trim() || null}; args[argName] = Number(inp.value) || 0;
+      var a = await db.rpc(fn, args);
+      if (a.error || !a.data || !a.data.ok){ $('prErr').textContent = errText(a); return; }
+      loadPayrun();
+    });
+    row.appendChild(inp); row.appendChild(nt); row.appendChild(sv); c.appendChild(row);
+  } else c.textContent = fmt(amount) + (note ? ' · ' + note : '');
+  return c;
+}
+function payAct(id, fn, done){
+  $(id).addEventListener('click', async function(){
+    var b = this; b.disabled = true; var r = await fn(); b.disabled = false;
+    if (!r) return;
+    if (r.error || !r.data || !r.data.ok){ $(id.slice(0, 2) === 'ts' ? 'ppErr' : 'prErr').textContent = errText(r); return; }
+    toast(done); loadPayroll();
+  });
+}
+payAct('tsApprove', function(){ return confirm('Approve these hours? They can no longer change, unless the owner reopens the period.') ? db.rpc('timesheet_approve', {p_period_id: PAYP.id}) : null; }, 'Hours approved');
+payAct('tsReopen', function(){ var why = prompt('Why is the period reopened?'); return why ? db.rpc('timesheet_reopen', {p_period_id: PAYP.id, p_reason: why}) : null; }, 'Period reopened');
+payAct('prPrepare', function(){ return db.rpc('payroll_prepare', {p_period_id: PAYP.id}); }, 'Payroll prepared');
+payAct('prReview', function(){ return db.rpc('payroll_review', {p_run_id: PAYRUN.run.id}); }, 'Reviewed');
+payAct('prBack', function(){ return db.rpc('payroll_reopen', {p_run_id: PAYRUN.run.id}); }, 'Back to draft');
+payAct('prPost', function(){ return confirm('Post this payroll to the books? It can no longer change.') ? db.rpc('payroll_post', {p_run_id: PAYRUN.run.id}) : null; }, 'Payroll posted');
+payAct('prPay', function(){ return db.rpc('payroll_pay', {p_run_id: PAYRUN.run.id, p_paid_from: $('prFrom').value, p_date: $('prDate').value}); }, 'Payment recorded');
+$('ppSel').addEventListener('change', loadPayroll);
+$('ppNew').addEventListener('click', function(){ $('ppForm').hidden = false; $('ppErr').textContent = ''; });
+$('ppCancel').addEventListener('click', function(){ $('ppForm').hidden = true; });
+$('ppSave').addEventListener('click', async function(){
+  var r = await db.rpc('pay_period_save', {p_starts: $('ppFrom').value || null, p_ends: $('ppTo').value || null});
+  if (r.error || !r.data || !r.data.ok){ $('ppErr').textContent = errText(r); return; }
+  $('ppForm').hidden = true; $('ppSel').innerHTML = '<option value="' + esc(r.data.id) + '"></option>'; $('ppSel').value = r.data.id; toast('Pay period created'); loadPayroll();
+});
+$('prCsv').addEventListener('click', function(){
+  if (!PAYRUN || !PAYRUN.run) return;
+  download('planilla-' + PAYP.starts_on + '-' + PAYP.ends_on + '.csv', [['person', 'id_number', 'hours', 'pay_kind', 'rate_crc', 'gross_crc', 'extra_crc', 'extra_note', 'deductions_crc', 'deductions', 'renta_crc', 'other_crc', 'other_note', 'employer_crc', 'employer', 'net_crc', 'aguinaldo_accrual_crc']].concat(
+    PAYRUN.lines.map(function(l){ var sp = PAYSTAFF && PAYSTAFF.staff.filter(function(x){ return x.id === l.staff_id; })[0]; return [l.staff_name, sp && sp.profile ? sp.profile.id_number : '', l.hours, l.pay_kind, l.rate_crc, l.gross_crc, l.extra_crc, l.extra_note, l.deductions_crc,
+      (l.deductions || []).map(function(x){ return x.name + ' ' + x.pct + '% ' + x.amount; }).join(' | '), l.renta_crc, l.other_crc, l.other_note, l.employer_crc,
+      (l.employer || []).map(function(x){ return x.name + ' ' + x.pct + '% ' + x.amount; }).join(' | '), l.net_crc, l.aguinaldo_accrual_crc]; })));
+});
+var rtStaff = null;
+async function loadPayStaff(){
+  var r = await db.rpc('payroll_staff');
+  if (r.error || !r.data || !r.data.ok) return;
+  PAYSTAFF = r.data;
+  var tb = $('rtTable').querySelector('tbody'); tb.replaceChildren();
+  PAYSTAFF.staff.filter(function(x){ return x.active || x.pay; }).forEach(function(x){
+    var t = document.createElement('tr'), p = x.pay;
+    t.innerHTML = '<td>' + esc(x.name) + (x.active && !(x.profile && x.profile.id_number) ? ' <span class="tag rev">' + esc('No ID number') + '</span>' : '') + '</td><td>' + (p ? fmt(p.rate_crc) + esc(p.kind === 'hourly' ? ' per hour' : ' per pay period') : '<span style="color:var(--bad)">' + esc('No pay rate') + '</span>') +
+      (x.next ? ' · ' + esc('from ' + x.next.effective_from + ': ') + fmt(x.next.rate_crc) : '') + '</td><td class="mono">' + esc(p ? p.effective_from : '') + '</td>';
+    var c = document.createElement('td'), b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
+    b.addEventListener('click', function(){ rtStaff = x; $('rtWho').value = x.name; $('rtKind').value = p ? p.kind : 'hourly'; $('rtRate').value = ''; $('rtFrom').value = today();
+      $('rtForm').hidden = false; $('pfForm').hidden = true; $('rtErr').textContent = ''; $('rtRate').focus(); });
+    var pb = document.createElement('button'); pb.type = 'button'; pb.className = 'ghost small'; pb.textContent = 'Profile'; pb.style.marginLeft = '.3rem';
+    pb.addEventListener('click', function(){ openProfile(x); });
+    c.appendChild(b); c.appendChild(pb); t.appendChild(c); tb.appendChild(t);
+  });
+  ['vcWho', 'lqWho'].forEach(function(id){
+    var sel = $(id), keep = sel.value; sel.replaceChildren();
+    PAYSTAFF.staff.filter(function(x){ return x.active || x.pay; }).forEach(function(x){ var o = document.createElement('option'); o.value = x.id; o.textContent = x.name; sel.appendChild(o); });
+    if (keep) sel.value = keep;
+  });
+  renderCr();
+  var rb = $('ruTable').querySelector('tbody'); rb.replaceChildren();
+  if (!PAYSTAFF.rules.length) rb.innerHTML = '<tr><td colspan="6" class="hint">' + esc('No rules confirmed yet.') + '</td></tr>';
+  PAYSTAFF.rules.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.name) + (x.active ? '' : ' <span class="tag">' + esc('Inactive') + '</span>') + '</td><td>' + esc(x.kind === 'employee' ? 'Taken from the pay' : 'Paid by the business on top') +
+      '</td><td>' + esc(CAT[x.category] || x.category || 'Other') + '</td><td class="num">' + esc(String(x.pct).replace('.', ',')) + '</td><td>' + esc(x.confirmed_by + ' · ' + x.reference) + '</td>';
+    var c = document.createElement('td'), b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
+    b.addEventListener('click', function(){ $('ruCode').value = x.code; $('ruName').value = x.name; $('ruKind').value = x.kind; $('ruCat').value = x.category || 'other'; $('ruPct').value = x.pct; $('ruWho').value = ''; $('ruRef').value = '';
+      $('ruActive').checked = x.active; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
+    c.appendChild(b); t.appendChild(c); rb.appendChild(t);
+  });
+}
+$('rtCancel').addEventListener('click', function(){ $('rtForm').hidden = true; });
+$('rtSave').addEventListener('click', async function(){
+  if (!rtStaff) return;
+  var r = await db.rpc('staff_pay_set', {p_staff_id: rtStaff.id, p_kind: $('rtKind').value, p_rate: Number($('rtRate').value) || null, p_from: $('rtFrom').value || null});
+  if (r.error || !r.data || !r.data.ok){ $('rtErr').textContent = errText(r); return; }
+  $('rtForm').hidden = true; toast('Pay rate saved'); loadPayStaff();
+});
+$('ruNew').addEventListener('click', function(){ ['ruCode', 'ruName', 'ruPct', 'ruWho', 'ruRef'].forEach(function(id){ $(id).value = ''; }); $('ruActive').checked = true; $('ruCat').value = 'ccss'; $('ruForm').hidden = false; $('ruErr').textContent = ''; });
+$('ruCancel').addEventListener('click', function(){ $('ruForm').hidden = true; });
+$('ruSave').addEventListener('click', async function(){
+  var r = await db.rpc('payroll_rule_save', {p_rule: {code: $('ruCode').value.trim(), name: $('ruName').value.trim(), kind: $('ruKind').value, category: $('ruCat').value, pct: $('ruPct').value,
+                                                      active: $('ruActive').checked, confirmed_by: $('ruWho').value.trim(), reference: $('ruRef').value.trim()}});
+  if (r.error || !r.data || !r.data.ok){ $('ruErr').textContent = errText(r); return; }
+  $('ruForm').hidden = true; toast('Rule saved'); loadPayStaff();
+});
+
+/* ---------- Costa Rican rules (0026): profile, tax table and parameters, payslip, aguinaldo, vacations, settlement, the month ---------- */
+var CAT = {ccss: 'CCSS', ins: 'INS (occupational risk policy)', other: 'Other'};
+var pfStaff = null;
+function openProfile(x){
+  pfStaff = x; var p = x.profile || {};
+  $('pfWho').value = x.name; $('pfId').value = p.id_number || ''; $('pfHired').value = p.hired_on || ''; $('pfEnded').value = p.ended_on || ''; $('pfContract').value = p.contract || '';
+  $('pfChildren').value = p.children || 0; $('pfSpouse').checked = !!p.spouse; $('pfNotes').value = p.notes || '';
+  $('pfForm').hidden = false; $('rtForm').hidden = true; $('pfErr').textContent = ''; $('pfId').focus();
+}
+$('pfCancel').addEventListener('click', function(){ $('pfForm').hidden = true; });
+$('pfSave').addEventListener('click', async function(){
+  if (!pfStaff) return;
+  var r = await db.rpc('staff_profile_set', {p_staff_id: pfStaff.id, p_profile: {id_number: $('pfId').value.trim() || null, hired_on: $('pfHired').value || null, ended_on: $('pfEnded').value || null,
+    contract: $('pfContract').value || null, children: Number($('pfChildren').value) || 0, spouse: $('pfSpouse').checked, notes: $('pfNotes').value.trim() || null}});
+  if (r.error || !r.data || !r.data.ok){ $('pfErr').textContent = errText(r); return; }
+  $('pfForm').hidden = true; toast('Profile saved'); loadPayStaff();
+});
+
+var RB = [];
+function renderCr(){
+  if (!PAYSTAFF) return;
+  var cr = PAYSTAFF.cr || {}, P = PAYSTAFF.params || {};
+  $('crState').textContent = (cr.confirmed ? 'Confirmation "payroll_cr_rules" recorded' : 'Confirmation "payroll_cr_rules" not recorded yet (Home → Settings): estimates only; nothing is withheld, provisioned or posted') +
+    ' · ' + (cr.renta_withhold ? 'Income tax withholding on' : 'Income tax withholding off') + ' · ' + (cr.accrue_aguinaldo ? 'Aguinaldo provision on' : 'Aguinaldo provision off');
+  var r = P.renta;
+  $('crRentaState').textContent = r ? 'Confirmed by ' + r.confirmed_by + ' · ' + r.reference + (r.value.valid_from ? ' · valid from ' + r.value.valid_from : '')
+    : 'No tax table yet: with the withholding on, the payroll cannot be reviewed until the accountant enters it here (the monthly brackets Hacienda publishes for the year)';
+  RB = r ? (r.value.brackets || []).map(function(b){ return {upto: b.upto == null ? null : Number(b.upto), pct: Number(b.pct) || 0}; }) : [];
+  if (!RB.length) RB = [{upto: null, pct: 0}];
+  renderBrackets();
+  if (r){ $('rbChild').value = r.value.credit_child || 0; $('rbSpouse').value = r.value.credit_spouse || 0; $('rbMethod').value = r.value.method || 'prorate'; $('rbFrom').value = r.value.valid_from || ''; }
+  var v = P.vacation; $('vpDays').value = v ? v.value.days_per_month : 1;
+  $('vpState').textContent = v && v.confirmed_by ? 'Confirmed by ' + v.confirmed_by + ' · ' + v.reference : 'Not confirmed: the law as written, for the estimates';
+  var cc = P.ccss; $('ccMin').value = cc && cc.confirmed_by ? Number(cc.value.min_base_crc) || 0 : ''; $('ccShare').value = cc && cc.value.worker_share === 'on_base' ? 'on_base' : 'on_pay';
+  $('ccState').textContent = !(cc && cc.confirmed_by) ? 'Not confirmed: contributions are taken on the pay as it is (no minimum base)' :
+    Number(cc.value.min_base_crc) > 0 ? 'Confirmed by ' + cc.confirmed_by + ' · ' + cc.reference : 'No minimum base, saved by ' + cc.confirmed_by + ' · ' + cc.reference + ' · contributions are taken on the pay as it is';
+  var sv = P.severance;
+  $('svText').textContent = sv ? sv.value.legal_basis || '' : '';
+  $('svState').textContent = sv && sv.confirmed_by ? 'Confirmed by ' + sv.confirmed_by + ' · ' + sv.reference : 'Not confirmed: the law as written, for the estimates';
+}
+function renderBrackets(){
+  var tb = $('rbTable').querySelector('tbody'); tb.replaceChildren();
+  RB.forEach(function(b, i){
+    var t = document.createElement('tr');
+    var up = document.createElement('input'); up.type = 'number'; up.min = '0'; up.step = 'any'; up.value = b.upto == null ? '' : b.upto; up.placeholder = 'no limit'; up.setAttribute('aria-label', 'Up to'); up.style.maxWidth = '11rem';
+    up.addEventListener('input', function(){ b.upto = up.value === '' ? null : Number(up.value); });
+    var pc = document.createElement('input'); pc.type = 'number'; pc.min = '0'; pc.max = '50'; pc.step = '0.01'; pc.value = b.pct; pc.setAttribute('aria-label', 'Percent'); pc.style.maxWidth = '6rem';
+    pc.addEventListener('input', function(){ b.pct = Number(pc.value) || 0; });
+    var del = document.createElement('button'); del.type = 'button'; del.className = 'ghost small'; del.textContent = 'Remove';
+    del.addEventListener('click', function(){ RB.splice(i, 1); if (!RB.length) RB = [{upto: null, pct: 0}]; renderBrackets(); });
+    var c1 = document.createElement('td'); c1.appendChild(up); var c2 = document.createElement('td'); c2.className = 'num'; c2.appendChild(pc); var c3 = document.createElement('td'); c3.appendChild(del);
+    t.appendChild(c1); t.appendChild(c2); t.appendChild(c3); tb.appendChild(t);
+  });
+}
+$('rbAdd').addEventListener('click', function(){ RB.push({upto: null, pct: 0}); renderBrackets(); });
+async function paramSave(key, value, who, ref, errId, done){
+  var r = await db.rpc('payroll_param_save', {p_key: key, p_value: value, p_confirmed_by: who.trim(), p_reference: ref.trim()});
+  if (r.error || !r.data || !r.data.ok){ $(errId).textContent = errText(r); return; }
+  $(errId).textContent = ''; toast(done); loadPayStaff();
+}
+$('rbSave').addEventListener('click', function(){
+  paramSave('renta', {brackets: RB, credit_child: Number($('rbChild').value) || 0, credit_spouse: Number($('rbSpouse').value) || 0, method: $('rbMethod').value, valid_from: $('rbFrom').value || null},
+            $('rbWho').value, $('rbRef').value, 'rbErr', 'Tax table saved');
+});
+$('vpSave').addEventListener('click', function(){
+  var v = PAYSTAFF && PAYSTAFF.params && PAYSTAFF.params.vacation;
+  paramSave('vacation', {days_per_month: Number($('vpDays').value) || 0, legal_basis: v ? v.value.legal_basis || null : null}, $('vpWho').value, $('vacRef').value, 'vacErr', 'Vacation rule saved');
+});
+$('svSave').addEventListener('click', function(){
+  var sv = PAYSTAFF && PAYSTAFF.params && PAYSTAFF.params.severance; if (!sv) return;
+  paramSave('severance', sv.value, $('svWho').value, $('svRef').value, 'vacErr', 'Table confirmed');
+});
+$('ccSave').addEventListener('click', function(){
+  var m = $('ccMin').value.trim();   /* an empty field is not a base: 0 is written on purpose and means "no minimum base" */
+  if (m === '' || !(Number(m) >= 0)){ $('vacErr').textContent = 'Write the minimum base in colones (0 = no minimum base).'; return; }
+  paramSave('ccss', {min_base_crc: Number(m), worker_share: $('ccShare').value === 'on_base' ? 'on_base' : 'on_pay'}, $('ccWho').value, $('ccRef').value, 'vacErr', 'CCSS base saved');
+});
+
+/* the payslip: a document for the person, in Spanish, printed from the page */
+var SLIP_KIND = {indefinido: 'indefinido', plazo_fijo: 'a plazo fijo', por_horas: 'por horas'};
+async function showPayslip(runId, staffId){
+  var r = await db.rpc('payslip', {p_run_id: runId, p_staff_id: staffId});
+  if (r.error || !r.data || !r.data.ok){ $('prErr').textContent = errText(r); return; }
+  var p = r.data, h = [], st = {draft: 'borrador', reviewed: 'revisada', posted: 'asentada', paid: 'pagada'};
+  function row(k, v, cls){ h.push('<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(k) + '</td><td class="num">' + v + '</td></tr>'); }
+  h.push('<div class="who"><span><b>' + esc(p.staff.name) + '</b></span>' + (p.staff.id_number ? '<span>Cédula: ' + esc(p.staff.id_number) + '</span>' : '') + (p.staff.contract ? '<span>Contrato ' + esc(SLIP_KIND[p.staff.contract] || p.staff.contract) + '</span>' : '') +
+    '<span>Periodo: ' + esc(p.period.starts_on) + ' al ' + esc(p.period.ends_on) + ' (' + esc(p.period.days) + ' días)</span><span>Planilla ' + esc(st[p.status] || p.status) + '</span></div>');
+  h.push('<table><tbody>');
+  row('Horas', esc(Number(p.hours).toLocaleString('fr-FR')));
+  if (p.rate_crc != null) row(p.pay_kind === 'hourly' ? 'Tarifa por hora' : 'Monto fijo del periodo', fmt(p.rate_crc));
+  row('Salario bruto', fmt(p.gross_crc));
+  if (Number(p.extra_crc)) row('Pago extra' + (p.extra_note ? ' · ' + p.extra_note : ''), fmt(p.extra_crc));
+  var floorEntry = (p.deductions || []).concat(p.employer || []).filter(function(d){ return !!d && d.floor === true; })[0];
+  if (floorEntry) row('Cuotas de la CCSS calculadas sobre la base mínima de', fmt(floorEntry.base));   /* every floored entry carries the base itself; an absorbed one adds the difference */
+  (p.deductions || []).forEach(function(d){ row(d.name + ' (' + String(d.pct).replace('.', ',') + ' %)', '−' + fmt(d.amount)); });
+  if (Number(p.renta_crc)) row('Retención del impuesto sobre la renta', '−' + fmt(p.renta_crc));
+  if (Number(p.other_crc)) row('Otras deducciones' + (p.other_note ? ' · ' + p.other_note : ''), '−' + fmt(p.other_crc));
+  row('Salario neto', '<b>' + fmt(p.net_crc) + '</b>', 'total');
+  (p.employer || []).forEach(function(d){ row(d.name + ' (' + String(d.pct).replace('.', ',') + ' %, la paga el negocio)', fmt(d.amount)); });
+  h.push('</tbody></table>');
+  h.push('<p class="hint">' + (p.cr_confirmed ? 'Deducciones según las reglas confirmadas por el contador.' : 'Las reglas de Costa Rica no están confirmadas: deducciones según lo registrado hasta hoy.') + ' Hanging Garden Café · Monteverde</p>');
+  $('slipBody').innerHTML = h.join('');
+  $('slip').hidden = false; $('slip').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+$('slipClose').addEventListener('click', function(){ $('slip').hidden = true; });
+$('slipPrint').addEventListener('click', function(){
+  document.body.classList.add('slip-print');
+  var done = function(){ document.body.classList.remove('slip-print'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);   /* Safari (the iPads) returns from print() before laying out the page */
+  window.print();
+});
+
+/* aguinaldo */
+var AG = null, AG_STATUS = {draft: 'Draft', reviewed: 'Reviewed by the accountant', posted: 'Posted', paid: 'Paid'};
+function crAct(id, errId, reload, fn, done){
+  $(id).addEventListener('click', async function(){
+    var b = this; b.disabled = true; var r = await fn(); b.disabled = false;
+    if (!r) return;
+    if (r.error || !r.data || !r.data.ok){ $(errId).textContent = errText(r); return; }
+    $(errId).textContent = ''; toast(done); reload();
+  });
+}
+async function loadAguinaldo(){
+  if (!$('agYear').value) $('agYear').value = Number(today().slice(0, 4));   /* the run of year Y is the one due in December Y */
+  var r = await db.rpc('aguinaldo_estimate', {p_year: Number($('agYear').value)});
+  var tb = $('aguTable').querySelector('tbody'); tb.replaceChildren(); $('agErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){   /* nothing of another year stays on the screen: no pill, no hint, no buttons */
+    $('agErr').textContent = errText(r); AG = null; $('agStatus').hidden = true; $('agHint').textContent = '';
+    ['agPrepare', 'agReview', 'agBack', 'agPostBox', 'agPost', 'agPayBox', 'agPayDateBox', 'agPay'].forEach(function(id){ if ($(id)) $(id).hidden = true; });
+    return;
+  }
+  AG = r.data; var run = AG.run && AG.run.id ? AG.run : null, st = run ? run.status : null;
+  var open = run && st !== 'paid' ? run : null;                       /* the run in progress; a paid one is history */
+  var lines = open && st !== 'draft' ? open.lines : AG.lines;       /* a draft and the estimate show what is still owed */
+  $('agStatus').textContent = open ? AG_STATUS[st] : (Number(AG.paid_crc) > 0 ? 'Paid' : 'Estimate'); $('agStatus').hidden = false;
+  $('agHint').textContent = 'Salaries posted from ' + AG.from + ' to ' + AG.to + ', divided by twelve; to be paid by ' + AG.pay_by +
+    (Number(AG.paid_crc) > 0 ? ' · paid so far ' + fmt(AG.paid_crc) + ' in ' + AG.runs.filter(function(x){ return x.status === 'posted' || x.status === 'paid'; }).length + ' run(s)' : '') +
+    (AG.window_open ? ' · before 30 November it is posted only with a written reason (an advance, someone leaving); the rest comes later as a new run' : '') +
+    (Number(AG.pending_payrolls) > 0 ? ' · ' + AG.pending_payrolls + ' pay period(s) of the year without a posted payroll: their salaries are missing here' : '') +
+    (AG.confirmed ? '' : ' · Not confirmed: an estimate; nothing is posted until the owner records the confirmation') + ' · ' + AG.legal_basis;
+  var tot = {s: 0, g: 0, c: 0};
+  lines.forEach(function(x){
+    tot.s += Number(x.salary_crc); tot.g += Number(x.aguinaldo_crc); tot.c += Number(x.accrued_crc);
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.staff_name) + '</td><td class="mono">' + esc(x.id_number || '') + '</td><td class="num">' + esc(x.months) + '</td><td class="num">' + fmt(x.salary_crc) + '</td><td class="num">' + fmt(x.aguinaldo_crc) + '</td><td class="num">' + fmt(x.accrued_crc) + '</td>';
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'total';
+  f.innerHTML = '<td>Total</td><td></td><td></td><td class="num">' + fmt(tot.s) + '</td><td class="num">' + fmt(tot.g) + '</td><td class="num">' + fmt(tot.c) + '</td>'; tb.appendChild(f);
+  $('agPrepare').hidden = !(lines.length && (!open || st === 'draft'));
+  $('agReview').hidden = !(open && st === 'draft' && KIND === 'accountant');
+  $('agBack').hidden = !(open && st === 'reviewed');
+  ['agPostBox', 'agPost'].forEach(function(id){ $(id).hidden = !(open && st === 'reviewed'); });
+  ['agPayBox', 'agPayDateBox', 'agPay'].forEach(function(id){ $(id).hidden = !(open && st === 'posted'); });
+  if (!$('agPostDate').value) $('agPostDate').value = today();
+  if (!$('agPayDate').value) $('agPayDate').value = today();
+}
+crAct('agPrepare', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_prepare', {p_year: Number($('agYear').value)}); }, 'Aguinaldo prepared');
+crAct('agReview', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_review', {p_id: AG.run.id}); }, 'Reviewed');
+crAct('agBack', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_reopen', {p_id: AG.run.id}); }, 'Back to draft');
+crAct('agPost', 'agErr', loadAguinaldo, function(){
+  if (!confirm('Post the aguinaldo to the books? It can no longer change.')) return null;
+  var why = null;
+  if (AG.window_open){ why = prompt('Why is the aguinaldo posted before 30 November? (an advance, someone leaving)'); if (!why || !why.trim()) return null; }
+  return db.rpc('aguinaldo_post', {p_id: AG.run.id, p_date: $('agPostDate').value, p_note: why});
+}, 'Aguinaldo posted');
+crAct('agPay', 'agErr', loadAguinaldo, function(){ return db.rpc('aguinaldo_pay', {p_id: AG.run.id, p_paid_from: $('agFrom').value, p_date: $('agPayDate').value}); }, 'Payment recorded');
+$('agGo').addEventListener('click', loadAguinaldo);
+$('agCsv').addEventListener('click', function(){
+  if (!AG) return; var lines = AG.run && AG.run.id && AG.run.status !== 'draft' ? AG.run.lines : AG.lines;
+  download('aguinaldo-' + AG.year + '.csv', [['person', 'id_number', 'months', 'salary_crc', 'aguinaldo_crc', 'accrued_crc']].concat(lines.map(function(x){ return [x.staff_name, x.id_number, x.months, x.salary_crc, x.aguinaldo_crc, x.accrued_crc]; })));
+});
+
+/* vacations */
+var VC_KIND = {taken: 'Days taken', paid_out: 'Days paid instead of taken'};
+async function loadVacation(){
+  var sid = $('vcWho').value; if (!sid) return;
+  var r = await db.rpc('vacation_balance', {p_staff_id: sid, p_as_of: null});
+  var tb = $('vcTable').querySelector('tbody'); tb.replaceChildren(); $('vcErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('vcErr').textContent = errText(r); return; }
+  var b = r.data;
+  $('vcBalance').textContent = (b.started_on ? 'Since ' + b.started_on + ': ' + b.months + ' months' : 'No start date: set the hire date in the profile') + ' · earned ' + b.earned_days + ' days (' + b.days_per_month + ' a month)' +
+    ' · taken ' + b.taken_days + ' · remaining ' + b.remaining_days +
+    (b.daily_crc != null ? ' · daily pay average ' + fmt(b.daily_crc) + ' (last 50 weeks of posted payrolls)' + ' · value ' + fmt(b.value_crc) : ' · no posted payroll yet for the daily pay average') +
+    (b.confirmed ? '' : ' · an estimate: rule not confirmed');
+  (b.records || []).forEach(function(v){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(v.from_on) + '</td><td class="mono">' + esc(v.to_on) + '</td><td class="num">' + esc(v.days) + '</td><td>' + esc(VC_KIND[v.kind] || v.kind) + (v.voided_at ? ' <span class="tag rev">' + esc('Voided') + '</span>' : '') +
+      '</td><td>' + esc((v.note || '') + (v.void_reason ? ' · ' + v.void_reason : '')) + '</td>';
+    var c = document.createElement('td');
+    if (!v.voided_at){
+      var bt = document.createElement('button'); bt.type = 'button'; bt.className = 'ghost small'; bt.textContent = 'Void';
+      bt.addEventListener('click', async function(){
+        var why = prompt('Why is this record voided?'); if (!why) return;
+        var x = await db.rpc('vacation_void', {p_id: v.id, p_reason: why});
+        if (x.error || !x.data || !x.data.ok){ $('vcErr').textContent = errText(x); return; }
+        toast('Record voided'); loadVacation();
+      });
+      c.appendChild(bt);
+    }
+    t.appendChild(c); tb.appendChild(t);
+  });
+}
+$('vcGo').addEventListener('click', loadVacation);
+$('vcWho').addEventListener('change', loadVacation);
+$('vcSave').addEventListener('click', async function(){
+  if ($('vcKind').value === 'paid_out' && !$('vcNote').value.trim()){ toast(ERR.missing_reason); return; }   /* the server refuses too (missing_reason) */
+  var r = await db.rpc('vacation_record', {p_staff_id: $('vcWho').value, p_from: $('vcFrom').value || null, p_to: $('vcTo').value || null, p_days: Number($('vcDays').value) || null, p_kind: $('vcKind').value, p_note: $('vcNote').value.trim() || null});
+  if (r.error || !r.data || !r.data.ok){ $('vcErr').textContent = errText(r); return; }
+  $('vcDays').value = ''; $('vcNote').value = ''; toast('Vacation recorded'); loadVacation();
+});
+
+/* the settlement estimate */
+var LQ_NAME = {preaviso: 'Notice', cesantia: 'Severance', aguinaldo: 'Proportional aguinaldo', vacaciones: 'Unused vacations'};
+$('lqGo').addEventListener('click', async function(){
+  if (!$('lqDate').value) $('lqDate').value = today();
+  var r = await db.rpc('severance_estimate', {p_staff_id: $('lqWho').value, p_end_on: $('lqDate').value, p_reason: $('lqReason').value});
+  var tb = $('lqTable').querySelector('tbody'); tb.replaceChildren(); $('lqErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('lqErr').textContent = errText(r); return; }
+  var d = r.data;
+  $('lqHint').textContent = (d.started_on ? 'Since ' + d.started_on + ': ' + d.months + ' months' : 'No start date: set the hire date in the profile') +
+    (d.daily_crc != null ? ' · daily pay average of the last six months of posted payrolls ' + fmt(d.daily_crc) : ' · no posted payroll in the last six months: the amounts cannot be worked out') +
+    (d.confirmed ? '' : ' · the notice and severance table is the law as written, not confirmed') + ' · ' + d.note;
+  d.items.forEach(function(x){
+    var t = document.createElement('tr'); if (!x.applies) t.style.opacity = '.55';
+    t.innerHTML = '<td>' + esc(LQ_NAME[x.key] || x.key) + (x.applies ? '' : ' <span class="tag">' + esc('Does not apply') + '</span>') + '</td><td class="num">' + esc(x.days == null ? '' : String(x.days).replace('.', ',')) +
+      '</td><td class="num">' + (x.amount_crc == null ? '' : fmt(x.amount_crc)) + '</td><td class="hint" data-no-translate>' + esc(x.basis) + '</td>';
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'total'; f.innerHTML = '<td>Total</td><td></td><td class="num">' + (d.total_crc == null ? '—' : fmt(d.total_crc)) + '</td><td></td>'; tb.appendChild(f);
+});
+
+/* the month for the CCSS and the INS */
+var MR = null;
+async function loadMonthReport(){
+  if (!$('mrMonth').value) $('mrMonth').value = today().slice(0, 7);
+  var ym = $('mrMonth').value.split('-');
+  var r = await db.rpc('payroll_month_report', {p_year: Number(ym[0]), p_month: Number(ym[1])});
+  var tb = $('mrTable').querySelector('tbody'); tb.replaceChildren(); var rb = $('mrRules').querySelector('tbody'); rb.replaceChildren(); $('mrErr').textContent = '';
+  if (r.error || !r.data || !r.data.ok){ $('mrErr').textContent = errText(r); MR = null; return; }
+  MR = r.data;
+  var noId = MR.people.filter(function(x){ return !x.id_number; }).map(function(x){ return x.staff_name; });
+  $('mrHint').textContent = 'Each pay period counts in the month it ends in; the days worked are the calendar month\'s · Payrolls posted whose period ends in the month' + (MR.pending_runs ? ' · ' + MR.pending_runs + ' payroll(s) of the month not posted yet' : '') +
+    (MR.periods_without_payroll ? ' · ' + MR.periods_without_payroll + ' period(s) without a payroll' : '') + (Number(MR.floor_lines) > 0 ? ' · ' + MR.floor_lines + ' line(s) on the CCSS minimum base' : '') +
+    (noId.length ? ' · no ID number on file (Pay rates → Profile): ' + noId.join(', ') : '') +
+    (MR.confirmed ? '' : ' · rules not confirmed: the figures are what the payrolls applied');
+  var T = {hours: 0, salary: 0, ccss: 0, renta: 0, other: 0, net: 0, er_ccss: 0, er_ins: 0, er_other: 0};
+  MR.people.forEach(function(x){
+    var other = Number(x.employee_other_crc) + Number(x.other_crc);
+    T.hours += Number(x.hours); T.salary += Number(x.salary_crc); T.ccss += Number(x.employee_ccss_crc); T.renta += Number(x.renta_crc); T.other += other; T.net += Number(x.net_crc);
+    T.er_ccss += Number(x.employer_ccss_crc); T.er_ins += Number(x.employer_ins_crc); T.er_other += Number(x.employer_other_crc);
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.staff_name) + '</td><td class="mono">' + esc(x.id_number || '') + '</td><td class="num">' + esc(x.days_worked) + '</td><td class="num">' + esc(Number(x.hours).toLocaleString('fr-FR')) +
+      '</td><td class="num">' + fmt(x.salary_crc) + '</td><td class="num">' + fmt(x.employee_ccss_crc) + '</td><td class="num">' + fmt(x.renta_crc) + '</td><td class="num">' + fmt(other) + '</td><td class="num">' + fmt(x.net_crc) +
+      '</td><td class="num">' + fmt(x.employer_ccss_crc) + '</td><td class="num">' + fmt(x.employer_ins_crc) + '</td><td class="num">' + fmt(x.employer_other_crc) + '</td>';
+    tb.appendChild(t);
+  });
+  var f = document.createElement('tr'); f.className = 'total';
+  f.innerHTML = '<td>Total</td><td></td><td></td><td class="num">' + esc(T.hours.toLocaleString('fr-FR')) + '</td><td class="num">' + fmt(T.salary) + '</td><td class="num">' + fmt(T.ccss) + '</td><td class="num">' + fmt(T.renta) + '</td><td class="num">' + fmt(T.other) +
+    '</td><td class="num">' + fmt(T.net) + '</td><td class="num">' + fmt(T.er_ccss) + '</td><td class="num">' + fmt(T.er_ins) + '</td><td class="num">' + fmt(T.er_other) + '</td>';
+  tb.appendChild(f);
+  MR.rules.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td>' + esc(x.name) + '</td><td>' + esc(x.kind === 'employee' ? 'Taken from the pay' : 'Paid by the business on top') + '</td><td>' + esc(CAT[x.category] || x.category) + '</td><td class="num">' + esc(String(x.pct).replace('.', ',')) + '</td><td class="num">' + fmt(x.amount_crc) + '</td>';
+    rb.appendChild(t);
+  });
+}
+$('mrGo').addEventListener('click', loadMonthReport);
+$('mrCsv').addEventListener('click', function(){
+  if (!MR) return;
+  download('planilla-mes-' + MR.year + '-' + String(MR.month).padStart(2, '0') + '.csv',
+    [['person', 'id_number', 'days_worked', 'hours', 'salary_crc', 'employee_ccss_crc', 'employee_other_crc', 'renta_crc', 'other_crc', 'net_crc', 'employer_ccss_crc', 'employer_ins_crc', 'employer_other_crc']].concat(
+      MR.people.map(function(x){ return [x.staff_name, x.id_number, x.days_worked, x.hours, x.salary_crc, x.employee_ccss_crc, x.employee_other_crc, x.renta_crc, x.other_crc, x.net_crc, x.employer_ccss_crc, x.employer_ins_crc, x.employer_other_crc]; })));
+});
+
+/* ---------- electronic documents: what would be sent, once there is a provider ---------- */
+var E_KIND = {TE: 'Ticket', FE: 'Invoice', NC: 'Credit note'},
+    E_STATUS = {pending: 'Waiting', queued: 'Queued', sent: 'Sent', accepted: 'Accepted', rejected: 'Rejected', error: 'Error', contingency: 'Contingency', cancelled: 'Voided'};
+async function loadEDocs(){
+  if (!$('eFrom').value){ $('eFrom').value = monthStart(today()); $('eTo').value = today(); }
+  var r = await db.rpc('einvoice_list', {p_from: $('eFrom').value, p_to: $('eTo').value});
+  var tb = $('eTable').querySelector('tbody'); tb.replaceChildren();
+  if (r.error || !r.data || !r.data.ok){ $('eMode').textContent = r.error && /einvoice_list|Could not find/i.test(r.error.message || '') ? 'Electronic documents need a database update (migration 0018).' : errText(r); return; }
+  var d = r.data, mode = d.mode === 'shadow' || d.mode === '"shadow"' ? 'shadow' : 'off';
+  $('eMode').textContent = mode === 'shadow' ? 'Recording only: each sale and refund records its document here to check the data. Nothing is sent to Hacienda or to any provider.'
+    : 'Off: nothing is recorded or sent. To check the data before choosing a provider, the owner switches on "Record only" in Home → Settings.';
+  $('eCounts').innerHTML = Object.keys(d.counts).map(function(k){ return '<span>' + esc(E_STATUS[k] || k) + '</span> ' + esc(d.counts[k]); }).join(' · ');
+  $('eCabys').hidden = !d.products_without_cabys.length;
+  $('eCabysN').textContent = d.products_without_cabys.length + ' products on sale have no CABYS code yet (Admin → Menu).';
+  $('eCabysList').textContent = d.products_without_cabys.join(', ');
+  d.documents.forEach(function(x){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(x.internal_no) + '</td><td class="mono">' + esc(String(x.created_at).slice(0, 16).replace('T', ' ')) + '</td><td class="mono">' + esc(x.receipt_no || '') +
+      '</td><td>' + esc(E_KIND[x.kind] || x.kind) + (x.receiver ? ' · ' + esc(x.receiver.name) : '') + '</td><td class="num">' + fmt(x.total_crc) + '</td><td class="num">' + (x.tax_crc == null ? '' : fmt(x.tax_crc)) +
+      '</td><td>' + esc(E_STATUS[x.status] || x.status) + '</td><td>' + esc((x.missing || []).map(function(m){ return m === 'reference' ? 'the sale\'s document' : m.replace(/^cabys:/, 'CABYS: '); }).join(', ')) + '</td>';
+    tb.appendChild(t);
+  });
+}
+$('eGo').addEventListener('click', loadEDocs);
+
+/* ---------- accounts and mappings ---------- */
+var TYPE = {asset: 'Asset', liability: 'Liability', equity: 'Equity', revenue: 'Revenue', expense: 'Cost or expense'};
+function renderAccounts(){
+  var tb = $('aTable').querySelector('tbody'); tb.replaceChildren();
+  ACCOUNTS.forEach(function(a){
+    var t = document.createElement('tr');
+    t.innerHTML = '<td class="mono">' + esc(a.code) + '</td><td>' + esc(a.name) + (a.cash ? ' <span class="tag">Cash or bank</span>' : '') + (a.active ? '' : ' <span class="tag">Inactive</span>') +
+      '</td><td>' + esc(TYPE[a.type] || a.type) + '</td>';
+    var c = document.createElement('td'); var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = 'Edit';
+    b.addEventListener('click', function(){ openAccount(a); }); c.appendChild(b); t.appendChild(c); tb.appendChild(t);
+  });
+  var mt = $('mTable').querySelector('tbody'); mt.replaceChildren();
+  (OV.mappings || []).forEach(function(m){
+    var t = document.createElement('tr'); t.innerHTML = '<td>' + esc(m.label) + '</td>';
+    var c = document.createElement('td'); var s = document.createElement('select');
+    s.innerHTML = ACCOUNTS.filter(function(a){ return a.active; }).map(function(a){ return '<option value="' + esc(a.code) + '">' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('');
+    s.value = m.account; s.setAttribute('aria-label', m.label);
+    s.addEventListener('change', async function(){
+      var r = await db.rpc('acct_mapping_set', {p_key: m.key, p_account: s.value});
+      if (r.error || !r.data || !r.data.ok){ $('mErr').textContent = errText(r); s.value = m.account; return; }
+      m.account = s.value; toast('Saved');
+    });
+    c.appendChild(s); t.appendChild(c); mt.appendChild(t);
+  });
+}
+function openAccount(a){
+  $('aForm').hidden = false; $('aErr').textContent = '';
+  $('aCode').value = a ? a.code : ''; $('aCode').disabled = !!a; $('aName').value = a ? a.name : ''; $('aType').value = a ? a.type : 'expense';
+  $('aCash').checked = !!(a && a.cash); $('aActive').checked = a ? a.active : true; cashOnlyAsset(); $('aName').focus();
+}
+function cashOnlyAsset(){ var asset = $('aType').value === 'asset'; $('aCash').disabled = !asset; if (!asset) $('aCash').checked = false; }
+$('aType').addEventListener('change', cashOnlyAsset);
+$('aNew').addEventListener('click', function(){ openAccount(null); });
+$('aCancel').addEventListener('click', function(){ $('aForm').hidden = true; });
+$('aGo').addEventListener('click', async function(){
+  var r = await db.rpc('acct_account_save', {p_code: $('aCode').value.trim(), p_name: $('aName').value.trim(), p_type: $('aType').value, p_cash: $('aCash').checked, p_active: $('aActive').checked});
+  if (r.error || !r.data || !r.data.ok){ $('aErr').textContent = errText(r); return; }
+  $('aForm').hidden = true; toast('Account saved'); reloadOverview();
+});
+
+/* ---------- periods ---------- */
+var STATUS = {open: 'Open for entries', closed: 'Closed', locked: 'Locked'};
+function renderPeriods(){
+  var tb = $('pTable').querySelector('tbody'); tb.replaceChildren();
+  (OV.periods || []).forEach(function(p){
+    var t = document.createElement('tr'), m = String(p.id);
+    t.innerHTML = '<td class="mono">' + m.slice(0, 4) + '-' + m.slice(4) + '</td><td>' + esc(STATUS[p.status] || p.status) + '</td><td class="hint">' + esc(p.changed_by ? p.changed_by + ' · ' + String(p.changed_at).slice(0, 10) : '') + '</td>';
+    var c = document.createElement('td');
+    function btn(label, to, ask){ var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost small'; b.textContent = label;
+      b.addEventListener('click', async function(){ if (ask && !confirm(ask)) return; var r = await db.rpc('acct_period_set', {p_period: p.id, p_status: to});
+        if (r.error || !r.data || !r.data.ok){ $('pErr').textContent = errText(r); return; } $('pErr').textContent = ''; reloadOverview(); }); c.appendChild(b); }
+    if (p.status === 'open') btn('Close', 'closed');
+    if (p.status === 'closed'){ btn('Reopen', 'open'); btn('Lock', 'locked', 'Lock this month for good? It can never change again.'); }
+    t.appendChild(c); tb.appendChild(t);
+  });
+  if (!(OV.periods || []).length) tb.innerHTML = '<tr><td colspan="4" class="hint">No entries yet.</td></tr>';
+}
+
+refreshAuth();
+</script>
+<script src="lang.js?v=3b67783a24a4"></script>
+</body>
+</html>
