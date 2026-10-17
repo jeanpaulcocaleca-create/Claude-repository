@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="__BUILD__">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="config.js"></script>
+<script src="version.js" defer></script>
+<script src="keypad.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js"></script>
+<script src="login.js"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-hover:#143726; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F;
+  --ok:#4A7A4E; --bad:#A8402F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.5em 1em}
+button:hover{background:var(--accent-hover)}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
+input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+input:focus,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+.sec{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1.4rem}
+.secrow{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.35rem 0}
+.secrow button{margin-left:auto}
+#enrollBox{margin-top:.8rem;padding-top:.8rem;border-top:1px dotted var(--muted)}
+#enrollBox img{display:block;margin:.6rem 0;border-radius:10px;background:#fff}
+#enrollForm{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+#enrollForm input{width:9em}
+code.mono{background:var(--canvas);padding:.1em .4em;border-radius:6px;user-select:all}
+.wrap{max-width:920px;margin:0 auto;padding:1.4rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login .emblem{width:74px;margin:0 auto .6rem;display:block}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.hint{font-size:.85rem;color:var(--sec)}
+header.top{display:flex;align-items:center;gap:1rem;margin-bottom:1.4rem}
+header.top .emblem{width:52px;flex:none}
+header.top h1{font-size:1.5rem;line-height:1.15}
+header.top .sub{font-family:'Spline Sans Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--sec);margin-top:.15rem}
+header.top button{margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem;margin-bottom:1.6rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem;min-width:0}
+.kpi .l{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.6rem;margin-top:.2rem;overflow-wrap:break-word}
+.kpi .v.names{font-family:'Figtree',system-ui,sans-serif;font-size:1.05rem;font-weight:600;line-height:1.4;margin-top:.45rem}
+.kpi .s{font-size:.78rem;color:var(--sec);margin-top:.2rem}
+h2.section{font-size:1.1rem;margin:0 0 .8rem}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.9rem}
+.tile{display:flex;flex-direction:column;gap:.5rem;background:var(--panel);border-radius:18px;padding:1.2rem 1.25rem;text-decoration:none;color:var(--ink);border:1.5px solid transparent;transition:transform .15s ease, box-shadow .15s ease}
+.tile:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(30,75,51,.13);border-color:var(--muted)}
+.tile svg{width:32px;height:32px;color:var(--accent)}
+.tile .t{font-family:'Playfair Display',Georgia,serif;font-size:1.12rem;display:flex;align-items:center;gap:.4em}
+.tile .t .ext{font-size:.8em;color:var(--sec)}
+.tile .d{font-size:.88rem;color:var(--sec)}
+.invcard{background:var(--panel);border-radius:16px;padding:1rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid #E7C7A0}
+.bkcard{display:flex;gap:.8rem;align-items:center;background:var(--panel);border-radius:16px;padding:.8rem 1.2rem;margin-bottom:1.4rem;border:1.5px solid var(--muted)}
+.bkcard .s{font-size:.85rem;color:var(--sec);margin-top:.15rem}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto);gap:.3rem 1rem;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--muted)}
+.setrow:last-child{border-bottom:0}
+.setrow .s{grid-column:1 / -1;font-size:.85rem;color:var(--sec)}
+.setrow select{min-height:44px;min-width:0;max-width:100%}
+/* a phone: the long choices of a select would otherwise set the width of the whole page */
+@media(max-width:480px){.setrow{grid-template-columns:minmax(0,1fr)} .setrow select{width:100%}}
+.confform{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem}
+.bkdot{flex:none;width:14px;height:14px;border-radius:50%;background:var(--muted)}
+.bkcard.green .bkdot{background:var(--ok)} .bkcard.amber .bkdot{background:var(--gold)} .bkcard.red .bkdot{background:var(--bad)}
+.bkcard.amber{border-color:var(--gold)} .bkcard.red{border-color:var(--bad)}
+.invhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem}
+.invhead .btnlink{display:inline-flex;align-items:center;min-height:36px;padding:.3em .9em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600;font-size:.85rem}
+.invrow{display:flex;justify-content:space-between;gap:.6rem;padding:.4rem 0;border-bottom:1px solid rgba(201,207,182,.5);font-size:.92rem}
+.invrow:last-child{border-bottom:0}
+.invrow .s{color:var(--sec);font-size:.84rem}
+.invpill{display:inline-block;padding:.1em .55em;border-radius:99px;font-size:.72rem;font-weight:600;margin-left:.4em;vertical-align:middle}
+.invpill.out{background:#A8402F;color:#fff}.invpill.low{background:#E7C7A0;color:#5a3a12}.invpill.soon{background:#F1E3B3;color:#5a4a12}.invpill.exp{background:#E3D2EE;color:#4a2a63}
+footer{margin-top:2.4rem;font-family:'Spline Sans Mono',monospace;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:center}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.err.ok{color:var(--ok,#4A7A4E)}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <img class="emblem" src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="Hanging Garden Café emblem">
+  <h1>Hanging Garden</h1>
+  <p class="hint">Owner dashboard · Monteverde, Costa Rica</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="cafeView" class="login" hidden>
+  <h1>Hanging Garden</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <a class="ghost btnlink" href="time.html">Time clock</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <header class="top">
+    <img class="emblem" src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="">
+    <div>
+      <h1>Hanging Garden</h1>
+      <div class="sub">Owner dashboard · Monteverde</div>
+    </div>
+    <button class="ghost small" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi" id="kRevTile"><div class="l">Revenue today</div><div class="v" id="kRev">–</div><div class="s" id="kRevSub"></div></div>
+    <div class="kpi" id="kOrdersTile"><div class="l">Orders today</div><div class="v" id="kOrders">–</div></div>
+    <div class="kpi"><div class="l">On the clock</div><div class="v names" id="kClock">–</div><div class="s" id="kClockSub"></div></div>
+    <div class="kpi"><div class="l">Sold out</div><div class="v" id="kSoldOut">–</div><div class="s" id="kSoldOutSub"></div></div>
+  </div>
+
+  <div class="card invcard" id="invCard" hidden>
+    <div class="invhead"><h2 class="section" style="margin:0">Before it runs out</h2><a class="ghost btnlink small" href="inventory.html">Open inventory</a></div>
+    <div id="invList"></div>
+  </div>
+
+  <div class="card bkcard" id="bkCard" hidden>
+    <span class="bkdot" id="bkDot" aria-hidden="true"></span>
+    <div><b id="bkTitle">Backups</b><div class="s" id="bkSub"></div></div>
+  </div>
+
+  <h2 class="section">Your café, one tap away</h2>
+  <div class="tiles">
+    <a class="tile" href="pos.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21zM9 8h6M9 12h6M9 16h3"/></svg>
+      <span class="t">POS</span>
+      <span class="d">Ring up sales at the counter — cash, card or SINPE, recorded instantly.</span>
+    </a>
+    <a class="tile" href="sales.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-9M21 20H3"/></svg>
+      <span class="t">Sales</span>
+      <span class="d">What you sold today, this week, this month — best sellers and CSV for the accountant.</span>
+    </a>
+    <a class="tile" href="insights.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 17l5-5 4 3 7-8M15 7h4v4"/></svg>
+      <span class="t">Insights</span>
+      <span class="d">Trends month by month, busy hours, what each product leaves, suppliers and what to order soon.</span>
+    </a>
+    <a class="tile" href="admin.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2.2"/></svg>
+      <span class="t">Menu Manager</span>
+      <span class="d">Change prices, photos and items — updates the website and TV board in a minute.</span>
+    </a>
+    <a class="tile" href="inventory.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 8l8-4 8 4v9l-8 4-8-4zM4 8l8 4 8-4M12 12v9"/></svg>
+      <span class="t">Inventory</span>
+      <span class="d">What is on the shelf, what each sale uses, and what to order before it runs out.</span>
+    </a>
+    <a class="tile" href="accounting.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h11l3 3v15H5zM8 9h8M8 13h8M8 17h5"/></svg>
+      <span class="t">Accounting</span>
+      <span class="d">The books: the day's entries, expenses, reports and exports for the accountant.</span>
+    </a>
+    <a class="tile" href="time.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.8 1.6M9 2h6"/></svg>
+      <span class="t">Time clock</span>
+      <span class="d">The team clocks in and out with a PIN; you see everyone's hours.</span>
+    </a>
+    <a class="tile" href="tv.html" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+      <span class="t">TV board <span class="ext">↗</span></span>
+      <span class="d">The live menu screen — open this on the TV in the café.</span>
+    </a>
+    <a class="tile" href="kitchen.html" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 11h16v2a7 7 0 01-7 7h-2a7 7 0 01-7-7zM8 3c0 2-1.5 2-1.5 4S8 9 8 9M12 3c0 2-1.5 2-1.5 4s1.5 2 1.5 2M16 3c0 2-1.5 2-1.5 4s1.5 2 1.5 2"/></svg>
+      <span class="t">Kitchen screen <span class="ext">↗</span></span>
+      <span class="d">Tickets for the back — open this on the tablet or screen in the kitchen.</span>
+    </a>
+    <a class="tile" href="index.html" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg>
+      <span class="t">Website <span class="ext">↗</span></span>
+      <span class="d">What your guests see — the cinematic Monteverde story with the live menu.</span>
+    </a>
+  </div>
+
+  <h2 class="section" id="setHead" hidden>System settings</h2>
+  <div class="sec" id="setCard" hidden>
+    <div id="setList"></div>
+    <!-- the day's dollar rate: official when it arrives on its own (E-16), typed here when it is missing -->
+    <div class="setrow" id="fxRow">
+      <b>Dollar exchange rate</b>
+      <span class="mono" id="fxNow"></span>
+      <div class="confform">
+        <input id="fxBuy" type="number" min="0" step="0.01" inputmode="decimal" data-keypad="amount" placeholder="Buy" aria-label="Buy rate">
+        <input id="fxSell" type="number" min="0" step="0.01" inputmode="decimal" data-keypad="amount" placeholder="Sell" aria-label="Sell rate">
+        <button class="small" id="fxGo">Save today's rate</button>
+      </div>
+      <div class="s">Used by the POS for payments in dollars. Type the bank's rate of the day when the official one has not arrived; it never replaces an official rate.</div>
+    </div>
+    <div id="confBox" hidden>
+      <p class="hint" style="margin:.8rem 0 .4rem">Settings with a lock follow a legal rule (taxes, payroll, electronic invoices). They switch on only after the rule is confirmed by your accountant or an official source. Record who confirmed it and with which document:</p>
+      <div class="confform">
+        <select id="confKey" aria-label="Rule"></select>
+        <input id="confWho" maxlength="80" placeholder="Confirmed by (name)">
+        <input id="confRef" maxlength="120" placeholder="Document or reference">
+        <button class="small" id="confGo">Record the confirmation</button>
+      </div>
+    </div>
+    <p class="err" id="setMsg"></p>
+  </div>
+
+  <h2 class="section" id="secHead">Owner login</h2>
+  <div class="sec" id="secCard">
+    <div class="secrow"><span>Signed in as <b id="secEmail"></b></span><button class="ghost small" id="outAllBtn">Sign out everywhere</button></div>
+    <div class="secrow"><span>Phone code (2FA): <b id="secCode">checking</b></span><button class="ghost small" id="codeBtn" hidden>Turn on</button></div>
+    <p class="hint" id="secHint" style="margin:.3rem 0 0"></p>
+    <div class="secrow" id="acctRow"><span>Accountant login</span><input id="acctEmail" type="email" placeholder="accountant's email" aria-label="Accountant's email" style="max-width:16rem"><button class="ghost small" id="acctGrant">Give access</button></div>
+    <p class="hint" id="acctHint" style="margin:0">First create their login in Supabase → Authentication → Add user. They see only the accounting, never the POS or the inventory.</p>
+    <div id="enrollBox" hidden>
+      <p class="hint">Scan this with Google Authenticator, Microsoft Authenticator or 1Password on your phone, then type the 6-digit code it shows.</p>
+      <img id="enrollQr" alt="QR code for the authenticator app" width="180" height="180">
+      <p class="hint">Or type this key by hand: <code id="enrollSecret" class="mono"></code></p>
+      <form id="enrollForm">
+        <input id="enrollCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6-digit code" required>
+        <button type="submit" class="small">Confirm</button>
+        <button type="button" class="ghost small" id="enrollCancel">Cancel</button>
+      </form>
+      <p class="err" id="enrollErr"></p>
+    </div>
+  </div>
+
+  <footer>Canopy OS · Hanging Garden Café</footer>
+</div>
+
+<script>
+var SUPA_URL = HG_CONFIG.url;
+var SUPA_KEY = HG_CONFIG.key;
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(window.HG_ACCESS ? HG_ACCESS.options() : undefined) : (window.HG_ACCESS ? HG_ACCESS.options() : undefined));
+
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null; /* 'owner' | 'owner_needs_code' | 'cafe' | 'none'; null until the accounts SQL is run */
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+/* phone code (2FA): needed when this login enrolled one and this session has not typed it yet */
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+/* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){
+  document.addEventListener(ev, armIdle, {passive: true});
+});
+
+function fmt(n){ return '₡' + Number(n).toLocaleString('fr-FR'); }
+function fmtTime(d){ return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  var needCode = authed && await codeNeeded();
+  document.getElementById('loginView').hidden = authed && !needCode;
+  document.getElementById('loginForm').hidden = needCode;
+  document.getElementById('codeForm').hidden = !needCode;
+  document.getElementById('cafeView').hidden = true;
+  document.getElementById('appView').hidden = !authed || needCode;
+  if (needCode){ document.getElementById('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (ACCOUNT === 'none'){ showCafeView(); return; }
+  /* owner areas open with the PIN of an owner, GM or manager on this device (supabase/manager-mode.sql) */
+  var st = await HG_ACCESS.load(db);
+  if (st.missing){ if (isCafeLogin()){ showCafeView(); return; } }
+  else if (!st.level){
+    document.getElementById('appView').hidden = true;
+    HG_ACCESS.gate(db, {title: 'Home · owners and managers'}).then(refreshAuth);
+    return;
+  } else HG_ACCESS.pill(db);
+  SALES_OK = !!(st.missing || st.error || st.sales);
+  var ownerLogin = !isCafeLogin();
+  document.getElementById('secHead').hidden = !ownerLogin;
+  document.getElementById('secCard').hidden = !ownerLogin;
+  armIdle();
+  document.getElementById('secEmail').textContent = (s.data.session.user && s.data.session.user.email) || '';
+  loadStats(); if (ownerLogin) loadSecurity();
+}
+document.getElementById('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode(document.getElementById('codeIn').value.trim());
+  if (r.error){ document.getElementById('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; document.getElementById('codeIn').value = ''; return; }
+  document.getElementById('codeIn').value = '';
+  refreshAuth();
+});
+
+document.getElementById('cafeOut').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
+function showCafeView(){
+  document.getElementById('cafeMsg').textContent = ACCOUNT === 'none'
+    ? 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.'
+    : 'This is the café login. It opens the POS, the time clock and the kitchen screen. This page needs the owner login.';
+  document.getElementById('cafeView').hidden = false;
+  document.getElementById('appView').hidden = true;
+}
+
+/* ---------- owner login: phone code, sign out everywhere ---------- */
+var enrollId = null;
+async function loadSecurity(){
+  var codeEl = document.getElementById('secCode'), btn = document.getElementById('codeBtn'), hint = document.getElementById('secHint');
+  if (ACCOUNT === null){
+    codeEl.textContent = 'not available yet';
+    hint.textContent = 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.';
+    btn.hidden = true; return;
+  }
+  var f = await db.auth.mfa.listFactors();
+  var on = !!(f.data && f.data.totp && f.data.totp.length);
+  codeEl.textContent = on ? 'on' : 'off';
+  btn.textContent = on ? 'Turn off' : 'Turn on';
+  btn.hidden = false;
+  hint.textContent = on
+    ? 'Every sign-in with the owner login asks for the code from your phone. Without it, the session only gets café-level access.'
+    : 'Recommended: with a phone code, your password alone is not enough to reach sales, menu and team settings.';
+}
+document.getElementById('codeBtn').addEventListener('click', async function(){
+  var f = await db.auth.mfa.listFactors();
+  var verified = (f.data && f.data.totp) || [];
+  if (verified.length){
+    if (!confirm('Turn the phone code off? Your password alone will open the owner login again.')) return;
+    var u = await db.auth.mfa.unenroll({factorId: verified[0].id});
+    if (u.error){ alert('Could not turn it off. Sign out, sign in again with the code, then try once more.'); return; }
+    loadSecurity(); return;
+  }
+  /* each time the code is typed, Supabase signs out every other session of this login without it: never on the café tablets' login */
+  if (!confirm('Only on your own phone and your own login. Typing this code signs out every other device that uses this login, including café tablets. Continue?')) return;
+  /* clear leftovers from an enrolment that was never confirmed */
+  var all = (f.data && f.data.all) || [];
+  for (var i = 0; i < all.length; i++){
+    if (all[i].factor_type === 'totp' && all[i].status !== 'verified') await db.auth.mfa.unenroll({factorId: all[i].id});
+  }
+  var e = await db.auth.mfa.enroll({factorType: 'totp', friendlyName: 'Owner phone'});
+  if (e.error || !e.data || !e.data.totp){ alert('Could not start the phone code. In Supabase, check that Authentication > Multi-Factor > TOTP is switched on.'); return; }
+  enrollId = e.data.id;
+  document.getElementById('enrollQr').src = e.data.totp.qr_code;
+  document.getElementById('enrollSecret').textContent = e.data.totp.secret;
+  document.getElementById('enrollErr').textContent = '';
+  document.getElementById('enrollCode').value = '';
+  document.getElementById('enrollBox').hidden = false;
+  document.getElementById('enrollCode').focus();
+});
+document.getElementById('enrollCancel').addEventListener('click', async function(){
+  if (enrollId) await db.auth.mfa.unenroll({factorId: enrollId});
+  enrollId = null; document.getElementById('enrollBox').hidden = true;
+});
+document.getElementById('enrollForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  if (!enrollId) return;
+  var r = await db.auth.mfa.challengeAndVerify({factorId: enrollId, code: document.getElementById('enrollCode').value.trim()});
+  if (r.error){ document.getElementById('enrollErr').textContent = 'That code did not match. Wait for the next code and try again.'; return; }
+  enrollId = null;
+  document.getElementById('enrollBox').hidden = true;
+  loadSecurity();
+});
+document.getElementById('outAllBtn').addEventListener('click', async function(){
+  if (!confirm('Sign the owner login out on every device, including this one?')) return;
+  await db.auth.signOut({scope: 'global'}); refreshAuth();
+});
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
+});
+document.getElementById('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+async function loadInventoryAlerts(){
+  var card = document.getElementById('invCard');
+  var r = await db.rpc('inventory_alerts');
+  if (r.error || !r.data || r.data.ok === false){ card.hidden = true; return; }   /* inventory SQL not run yet, or locked */
+  var a = r.data, list = document.getElementById('invList'); list.replaceChildren();
+  var items = a.items || [];
+  if (!items.length){ card.hidden = true; return; }
+  items.forEach(function(i){
+    var d = document.createElement('div'); d.className = 'invrow';
+    var label = {out: 'Out of stock', low: 'Low', soon: 'Running out'}[i.status];
+    var today = new Date(); today.setHours(0,0,0,0);
+    var exp = i.expires_on && (new Date(i.expires_on + 'T12:00:00') - today) <= 3 * 86400000;
+    var left = document.createElement('div');
+    left.innerHTML = '<b>' + i.name.replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }) + '</b>' +
+      (label ? '<span class="invpill ' + i.status + '">' + label + '</span>' : '') + (exp ? '<span class="invpill exp">Expiring</span>' : '');
+    var right = document.createElement('div'); right.className = 's';
+    right.textContent = Number(i.on_hand).toLocaleString('fr-FR', {maximumFractionDigits: 1}) + ' ' + (i.unit === 'unit' ? 'units' : i.unit) +
+      (i.days_left != null && i.days_left > 0 ? ' · about ' + Math.round(i.days_left) + ' days left' : '') + (i.vendor ? ' · ' + i.vendor : '');
+    d.appendChild(left); d.appendChild(right); list.appendChild(d);
+  });
+  card.hidden = false;
+}
+/* nightly backups (migration 0002 + ops/backup): green = verified copy in the last 26 h */
+function ago(iso){
+  var h = Math.round((Date.now() - new Date(iso)) / 3600000);
+  return h < 1 ? 'less than an hour ago' : h < 48 ? h + ' h ago' : Math.round(h / 24) + ' days ago';
+}
+async function loadBackupStatus(){
+  var card = document.getElementById('bkCard');
+  var r = await db.rpc('backup_status');
+  if (r.error || !r.data || r.data.ok === false){ card.hidden = true; return; }   /* not the owner, or 0002 not applied */
+  var b = r.data, title = document.getElementById('bkTitle'), sub = document.getElementById('bkSub');
+  card.className = 'card bkcard ' + b.health;
+  if (!b.last_ok_at){
+    title.textContent = 'Backups are not running yet';
+    sub.textContent = b.last_attempt_at ? ['Last attempt failed', ago(b.last_attempt_at), 'see docs/RESPALDOS.md'].join(' · ') : 'Set up the nightly backup: see docs/RESPALDOS.md.';
+  } else if (b.health === 'green'){
+    title.textContent = 'Backups OK';
+    sub.textContent = ['Last verified copy', ago(b.last_ok_at), 'restore test passed'].join(' · ');
+  } else {
+    title.textContent = b.health === 'red' ? 'No verified backup in 2 days' : 'The backup is late';
+    sub.textContent = ['Last verified copy', ago(b.last_ok_at)].concat(b.failures_7d ? [b.failures_7d + ' failed this week'] : [], ['see docs/RESPALDOS.md']).join(' · ');
+  }
+  card.hidden = false;
+}
+/* system settings (migration 0008): the owner's decisions, regulated ones locked until confirmed */
+var SET_LABEL = {operator_mode: 'Who rings up each sale', fx_rate_kind: 'Exchange rate for dollars', price_mode: 'Prices at the POS',
+                 einvoice_mode: 'Electronic invoices (Hacienda)', payroll_renta_withhold: 'Income tax withheld from pay',
+                 payroll_accrue_aguinaldo: 'Aguinaldo provisioned every payroll'};
+var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On',
+                    buy: 'Buy rate of the day', sell: 'Sell rate of the day', inclusive: 'IVA included (as today)', exclusive: 'Before IVA, IVA added at checkout',
+                    shadow: 'Record only, send nothing (to check the data)'};
+var SET_ERR = {owner_only: 'Only the owner login, with the phone code, can change settings.', bad_value: 'That value is not allowed.',
+               needs_confirmation: 'Locked: record the confirmation of this rule first.'};
+async function loadSettingsCard(){
+  var r = await db.rpc('settings_get');
+  var card = document.getElementById('setCard'), head = document.getElementById('setHead');
+  if (r.error || !Array.isArray(r.data) || !r.data.length){ card.hidden = true; head.hidden = true; return; }
+  var list = document.getElementById('setList'); list.replaceChildren();
+  var guards = {};
+  r.data.forEach(function(st){
+    /* choices and on/off switches (the payroll's, 0026); the books' switches live on the Accounting page, with their approval */
+    var bool = st.kind === 'boolean';
+    if (!(st.kind === 'choice' || bool) || /^ledger_/.test(st.key)) return;
+    var row = document.createElement('div'); row.className = 'setrow';
+    var name = document.createElement('b'); name.textContent = SET_LABEL[st.key] || st.key;
+    if (st.locked){ var lk = document.createElement('span'); lk.textContent = ' 🔒'; lk.title = 'Locked until the rule is confirmed'; name.appendChild(lk); }
+    var sel = document.createElement('select'); sel.setAttribute('aria-label', SET_LABEL[st.key] || st.key);
+    (bool ? ['off', 'on'] : (st.choices || [])).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = CHOICE_LABEL[c] || c; sel.appendChild(o); });
+    var cur = bool ? ((st.value === true || st.value === 'true') ? 'on' : 'off') : st.value;
+    sel.value = cur;
+    sel.addEventListener('change', async function(){
+      var msg = document.getElementById('setMsg'); msg.textContent = ''; msg.className = 'err';
+      var res = await db.rpc('setting_set', {p_key: st.key, p_value: bool ? sel.value === 'on' : sel.value});
+      if (res.error || !res.data || !res.data.ok){ msg.textContent = res.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[res.data.error] || 'Could not save. Try again.'); sel.value = cur; return; }
+      cur = sel.value; msg.className = 'err ok'; msg.textContent = 'Saved.';
+    });
+    var d = document.createElement('div'); d.className = 's'; d.setAttribute('data-no-translate', ''); d.textContent = st.description;
+    row.appendChild(name); row.appendChild(sel); row.appendChild(d); list.appendChild(row);
+    if (st.guard) guards[st.guard] = st.locked;
+  });
+  var keys = Object.keys(guards), ck = document.getElementById('confKey'); ck.replaceChildren();
+  keys.forEach(function(k){ var o = document.createElement('option'); o.value = k; o.textContent = k + (guards[k] ? '' : ' ✓'); ck.appendChild(o); });
+  document.getElementById('confBox').hidden = !keys.length;
+  card.hidden = false; head.hidden = false;
+  loadFxRow();
+}
+async function loadFxRow(){
+  var r = await db.rpc('fx_today'), now = document.getElementById('fxNow');
+  if (r.error || !r.data || !r.data.ok){ document.getElementById('fxRow').hidden = true; return; }
+  document.getElementById('fxRow').hidden = false;
+  now.textContent = r.data.rate ? '₡' + Number(r.data.rate).toFixed(2) + ' · ' + r.data.day + ' · ' + (r.data.source === 'manual' ? 'typed' : 'official') + (r.data.stale ? ' · old' : '') : 'No rate yet';
+}
+document.getElementById('fxGo').addEventListener('click', async function(){
+  var msg = document.getElementById('setMsg'); msg.className = 'err'; msg.textContent = '';
+  var b = parseFloat(document.getElementById('fxBuy').value), se = parseFloat(document.getElementById('fxSell').value);
+  if (!(b > 0) || !(se > 0)){ msg.textContent = 'Type the buy and sell rates.'; return; }
+  var day = new Date(Date.now() - 6 * 3600000).toISOString().slice(0, 10);   /* Costa Rica (UTC−6) */
+  var r = await db.rpc('fx_rate_set', {p_day: day, p_buy: b, p_sell: se});
+  var E = {official_exists: 'The official rate of today is already in: it is used as it is.', bad_value: 'Check the rates: buy is the lower one, sell the higher one.',
+           big_change: 'That rate is far from the last one: the owner with the phone code can set it.',
+           owner_only: 'Only the owner login, with the phone code, can change settings.'};
+  if (r.error || !r.data || !r.data.ok){ msg.textContent = r.error ? 'Could not save. Check the connection and try again.' : (E[r.data.error] || 'Could not save. Try again.'); return; }
+  document.getElementById('fxBuy').value = ''; document.getElementById('fxSell').value = '';
+  msg.className = 'err ok'; msg.textContent = 'Saved.'; loadFxRow();
+});
+document.getElementById('confGo').addEventListener('click', async function(){
+  var msg = document.getElementById('setMsg'); msg.className = 'err'; msg.textContent = '';
+  var who = document.getElementById('confWho').value.trim(), ref = document.getElementById('confRef').value.trim();
+  if (!who || !ref){ msg.textContent = 'Write who confirmed it and the document.'; return; }
+  if (!confirm('Record that "' + document.getElementById('confKey').value + '" was confirmed by ' + who + '?')) return;
+  var r = await db.rpc('compliance_confirm', {p_key: document.getElementById('confKey').value, p_confirmed_by: who, p_reference: ref});
+  if (r.error || !r.data || !r.data.ok){ msg.textContent = r.error ? 'Could not save. Check the connection and try again.' : (SET_ERR[r.data.error] || 'Could not save. Try again.'); return; }
+  document.getElementById('confWho').value = ''; document.getElementById('confRef').value = '';
+  msg.className = 'err ok'; msg.textContent = 'Confirmation recorded.'; loadSettingsCard();
+});
+document.getElementById('acctGrant').addEventListener('click', async function(){
+  var em = document.getElementById('acctEmail').value.trim(), hint = document.getElementById('acctHint');
+  if (!em) return;
+  var r = await db.rpc('accountant_grant', {p_email: em});
+  var E = {no_such_login: 'There is no login with that email yet: create it in Supabase → Authentication first.', is_owner: 'That is an owner login.', owner_only: 'Only the owner login can do this.',
+           is_cafe_login: 'That is the café tablet\'s login: create a separate login for the accountant.'};
+  hint.textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.ok ? 'Done: ' + em + ' can open the accounting.' : (E[r.data && r.data.error] || 'Could not save. Try again.'));
+});
+/* this device may see the sales numbers: the owner, or a manager whose PIN carries the sales permission (manager-mode.sql) */
+var SALES_OK = true;
+async function loadStats(){
+  loadInventoryAlerts();
+  loadBackupStatus();
+  loadSettingsCard();
+  document.getElementById('kRevTile').hidden = !SALES_OK;
+  document.getElementById('kOrdersTile').hidden = !SALES_OK;
+  var rs = await Promise.all([
+    SALES_OK ? db.rpc('dashboard_today') : Promise.resolve(null),
+    db.from('menu_items').select('id,name').eq('available', false),
+    db.from('time_entries').select('clock_in, staff(name)').is('clock_out', null)
+  ]);
+
+  /* today's sales from the same function as Insights (migration 0023): Costa Rica's day, refunds taken off, a bill paid in
+     parts counted once; an estimate while the register is open, final once closed, against the same weekday last week */
+  var d = rs[0];
+  if (d && !d.error && d.data && d.data.ok){
+    var T = d.data.today, L = d.data.last_week, fin = d.data.state === 'final', lw = Number(fin ? L.gross_day : L.gross_so_far);
+    var ch = lw > 0 ? Math.round(100 * (Number(T.gross) - lw) / lw) : null;
+    document.getElementById('kRev').textContent = fmt(T.gross);
+    document.getElementById('kOrders').textContent = T.orders;
+    document.getElementById('kRevSub').textContent = (fin ? 'Final' : 'Estimate') + ' · without IVA ' + fmt(Math.round(T.net)) +
+      (ch == null ? '' : ' · ' + (ch >= 0 ? '▲ ' : '▼ ') + Math.abs(ch) + ' % vs last week');
+  } else if (d && d.error){
+    await loadTodayLegacy();   /* a database without migration 0023 */
+  }
+
+  var sold = rs[1];
+  if (!sold.error){
+    var n = (sold.data || []).length;
+    document.getElementById('kSoldOut').textContent = n;
+    document.getElementById('kSoldOutSub').textContent =
+      n ? (sold.data.map(function(i){return i.name}).slice(0,3).join(', ') + (n > 3 ? '…' : '')) : 'everything is available';
+  }
+
+  var clockEl = document.getElementById('kClock');
+  var clockSub = document.getElementById('kClockSub');
+  var tc = rs[2];
+  if (tc.error){
+    clockEl.textContent = '–';
+    clockSub.textContent = /does not exist|schema cache|could not find/i.test(tc.error.message || '')
+      ? 'time clock not set up yet' : '';
+  } else {
+    var people = (tc.data || []).filter(function(e){ return e.staff && e.staff.name; });
+    if (!people.length){
+      clockEl.textContent = 'Nobody in';
+      clockSub.textContent = '';
+    } else {
+      clockEl.textContent = people.map(function(e){ return e.staff.name; }).join(' · ');
+      clockSub.textContent = people.length === 1
+        ? 'since ' + fmtTime(new Date(people[0].clock_in))
+        : people.length + ' people working';
+    }
+  }
+}
+
+/* before migration 0023: this device's day, straight from the orders */
+async function loadTodayLegacy(){
+  var start = new Date(); start.setHours(0,0,0,0);
+  var orders = await db.from('orders').select('total_crc,voided_at,paid,part_of').gte('created_at', start.toISOString());
+  if (orders.error && /part_of/.test(orders.error.message || '')){ /* pos-tabs SQL not run yet */
+    orders = await db.from('orders').select('total_crc,voided_at,paid').gte('created_at', start.toISOString());
+  }
+  if (orders.error && /paid/.test(orders.error.message || '')){ /* kitchen SQL not run yet */
+    orders = await db.from('orders').select('total_crc,voided_at').gte('created_at', start.toISOString());
+  }
+  if (orders.error && /voided_at/.test(orders.error.message || '')){ /* authorization SQL not run yet */
+    orders = await db.from('orders').select('total_crc').gte('created_at', start.toISOString());
+  }
+  if (orders.error) return;
+  var rows = (orders.data || []).filter(function(o){ return !o.voided_at && o.paid !== false; });
+  var total = rows.reduce(function(s,o){ return s + o.total_crc; }, 0);
+  document.getElementById('kRev').textContent = fmt(total);
+  document.getElementById('kOrders').textContent = rows.filter(function(o){ return !o.part_of; }).length;   /* split payments are part of one bill */
+}
+
+setInterval(function(){
+  if (!document.hidden && !document.getElementById('appView').hidden) loadStats();
+}, 60000);
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden && !document.getElementById('appView').hidden) loadStats();
+});
+
+refreshAuth();
+</script>
+<script>
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one.
+   Needs, once, in Supabase > Authentication > URL Configuration: Site URL https://hanginggardencafe.com and
+   https://hanginggardencafe.com/reset.html in Redirect URLs. */
+(function(){
+  var b = document.getElementById('forgotBtn'); if (!b) return;
+  var msg = document.getElementById('loginErr');
+  b.addEventListener('click', async function(){
+    var em = (document.getElementById('em').value || '').trim();
+    if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
+    var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
+    b.disabled = true;
+    var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
+    var limited = !!(r.error && (r.error.status === 429 || r.error.code === 'over_email_send_rate_limit' || /after \d+ seconds|security purposes/i.test(r.error.message || '')));
+    msg.classList.toggle('ok', !r.error);
+    msg.textContent = limited ? 'A link was already sent. Wait a minute and check the spam folder.'
+      : r.error ? 'Could not send the email. Check the address and try again.'
+      : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+    setTimeout(function(){ b.disabled = false; }, (r.error && !limited) ? 0 : 60000);
+  });
+  document.getElementById('loginForm').addEventListener('submit', function(){ msg.classList.remove('ok'); }, true);
+})();
+</script>
+<script src="lang.js"></script>
+</body>
+</html>
