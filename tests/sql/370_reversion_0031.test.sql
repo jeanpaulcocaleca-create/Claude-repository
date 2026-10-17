@@ -29,16 +29,19 @@ select test.eq((select string_agg(left(md5(p.prosrc), 12), ' ' order by p.oid::r
                  where p.oid in ('public._order_item_stock()'::regprocedure, 'public._order_item_menu_id()'::regprocedure,
                                  'public._order_tab_voided()'::regprocedure, 'public._stock_item_history_guard()'::regprocedure,
                                  'public.tab_remove_item(uuid, integer, text, text, uuid, text, integer)'::regprocedure,
-                                 'public.tab_add_items(uuid, jsonb, uuid)'::regprocedure)),
+                                 'public.tab_add_items(uuid, jsonb, uuid)'::regprocedure, 'public.pos_record_sale(jsonb)'::regprocedure,
+                                 'public._stock_item_in_use(uuid)'::regprocedure)),
                (select string_agg(h, ' ' order by f) from (values ('_order_item_menu_id()', 'af97466b5730'), ('_order_item_stock()', 'cbaf16f92c9e'),
                                                                    ('_order_tab_voided()', 'fd89be0c85e3'), ('_stock_item_history_guard()', '01817a884d3a'),
+                                                                   ('_stock_item_in_use(uuid)', '8549877cd542'), ('pos_record_sale(jsonb)', 'bd1e22c34ce5'),
                                                                    ('tab_add_items(uuid,jsonb,uuid)', '490bbe32667f'),
                                                                    ('tab_remove_item(uuid,integer,text,text,uuid,text,integer)', 'a71dbc39ee31')) x(f, h)),
-               'the six functions are exactly as before 0031 (0004, supabase/pos-tabs.sql, 0030)');
+               'the eight functions are exactly as before 0031 (0004, 0010, supabase/pos-tabs.sql, 0030)');
 select test.ok(to_regprocedure('public._order_line_return(uuid, uuid, text, boolean, integer, integer, text)') is null
                and to_regprocedure('public._stock_cost_at(uuid, timestamptz)') is null
                and to_regprocedure('public._sale_unit_cost(numeric, numeric, numeric)') is null
-               and to_regprocedure('public._stock_cost_log()') is null, 'the new functions are gone');
+               and to_regprocedure('public._stock_cost_log()') is null
+               and to_regprocedure('public._as_time(text)') is null, 'the new functions are gone');
 select test.eq((select count(*) from pg_trigger where tgrelid = 'public.stock_items'::regclass and tgname = 'stock_items_cost_log')::int, 0, 'and the cost trigger');
 select test.ok(to_regclass('canopy.stock_cost_history') is not null
                and exists (select 1 from information_schema.columns where table_name = 'stock_moves' and column_name = 'order_item_id'),

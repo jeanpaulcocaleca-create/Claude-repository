@@ -6,8 +6,9 @@
 --
 -- Qué hace
 --   * Deja exactamente como estaban antes de la 0031 (misma huella en la foto de producción): el descuento de una
---     venta (0004), el vínculo de la línea con su producto (0004), agregar y quitar productos de una cuenta y la
---     anulación de una cuenta con pagos parciales (supabase/pos-tabs.sql), y la protección al borrar ingredientes (0030).
+--     venta (0004), el vínculo de la línea con su producto (0004), el guardado de una venta de la Caja (0010), agregar
+--     y quitar productos de una cuenta y la anulación de una cuenta con pagos parciales (supabase/pos-tabs.sql), y las
+--     protecciones de los ingredientes (0030).
 --   * Quita las funciones nuevas y el disparador del historial de costos.
 --   * Quita la 0031 del registro de migraciones (la base vuelve a la versión 30).
 -- Qué NO hace: no borra las columnas nuevas ni el historial de costos (quedan, vacíos de uso), ni ningún movimiento,
@@ -59,6 +60,64 @@ begin
     select id into new.menu_item_id from public.menu_items where lower(name) = lower(new.item_name) order by available desc limit 1;
   end if;
   return new;
+end $$;
+
+-- 0010
+create or replace function public.pos_record_sale(p_order jsonb)
+returns jsonb language plpgsql set search_path = public as $$
+declare oid uuid; existing boolean := false; c text; other boolean := false; op jsonb;
+begin
+  if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
+  oid := nullif(p_order->>'id', '')::uuid;
+  if oid is null or jsonb_typeof(coalesce(p_order->'items', '[]'::jsonb)) <> 'array' then
+    raise exception 'bad_payload' using errcode = 'P0001';
+  end if;
+  op := p_order->'operator';
+  if op is not null and jsonb_typeof(op) = 'object' then
+    perform set_config('canopy.operator_token', coalesce(nullif(op->>'token', ''), 'claim'), true);
+    perform set_config('canopy.operator_claim', coalesce(op->>'staff_id', ''), true);
+  elsif p_order ? 'operator' then
+    perform set_config('canopy.operator_token', 'none', true);
+  end if;
+  begin
+    insert into public.orders (id, created_at, total_crc, payment_method, paid, status, source, needs_kitchen, accepted_at,
+                               pickup_number, guest_name, station, subtotal_crc, discount_crc, discount_id, notes)
+    values (oid,
+            coalesce((p_order->>'created_at')::timestamptz, now()),
+            (p_order->>'total_crc')::int,
+            coalesce(p_order->>'payment_method', 'cash_crc'),
+            coalesce((p_order->>'paid')::boolean, true),
+            coalesce(p_order->>'status', 'done'),
+            coalesce(p_order->>'source', 'front'),
+            coalesce((p_order->>'needs_kitchen')::boolean, false),
+            (p_order->>'accepted_at')::timestamptz,
+            (p_order->>'pickup_number')::int,
+            nullif(left(p_order->>'guest_name', 60), ''),
+            nullif(left(p_order->>'station', 40), ''),
+            (p_order->>'subtotal_crc')::int,
+            coalesce((p_order->>'discount_crc')::int, 0),
+            (p_order->>'discount_id')::uuid,
+            nullif(left(p_order->>'notes', 200), ''));
+  exception when unique_violation then
+    get stacked diagnostics c = constraint_name;
+    if c = 'orders_pkey' then existing := true; else raise; end if;
+  end;
+  begin
+    insert into public.order_items (id, order_id, item_name, price_crc, qty, menu_item_id)
+      select coalesce(nullif(l->>'id', '')::uuid, gen_random_uuid()), oid, l->>'item_name', (l->>'price_crc')::int, (l->>'qty')::int,
+             nullif(l->>'menu_item_id', '')::uuid
+        from jsonb_array_elements(coalesce(p_order->'items', '[]'::jsonb)) l;
+  exception
+    when unique_violation then
+      if not existing then raise; end if;
+    when others then
+      if existing and sqlerrm ~ 'order_has_lines' then other := true; else raise; end if;
+  end;
+  -- cash received and change; a repeated send keeps the first
+  if jsonb_typeof(p_order->'tender') = 'object' then perform public._tender_insert(oid, p_order->'tender'); end if;
+  perform set_config('canopy.operator_token', '', true);
+  perform set_config('canopy.operator_claim', '', true);
+  return jsonb_build_object('ok', true, 'already', existing, 'other_lines', other);
 end $$;
 
 -- supabase/pos-tabs.sql
@@ -280,6 +339,13 @@ begin
 end $$;
 
 -- 0030
+create or replace function public._stock_item_in_use(p_id uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+  if pg_trigger_depth() = 0 then raise exception 'stock_item_in_use: solo desde el disparador de ingredientes'; end if;
+  return exists (select 1 from public.stock_moves where item_id = p_id) or exists (select 1 from public.recipes where stock_item_id = p_id);
+end $$;
+
 create or replace function public._stock_item_history_guard()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -299,6 +365,7 @@ begin
 end $$;
 
 drop function if exists public._stock_cost_at(uuid, timestamptz);
+drop function if exists public._as_time(text);
 drop function if exists public._sale_unit_cost(numeric, numeric, numeric);
 
 delete from canopy.migrations where version = 31;

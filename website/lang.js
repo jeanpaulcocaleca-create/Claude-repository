@@ -1275,6 +1275,8 @@
     'sent to the kitchen': 'enviado a cocina', 'Part of {x}': 'Parte de la cuenta {x}',
     'Part of this bill was paid. Take items off one by one instead.': 'Parte de esta cuenta ya se pagó. Quite los productos uno por uno.',
     'Item taken off a bill': 'Producto quitado de una cuenta', 'Paid in parts {x} · this is the last payment': 'Pagado en partes {x} · este es el último pago',
+    'Stock not taken off · check with a manager': 'Inventario no descontado · revisar con el encargado',
+    'An ingredient of its recipe no longer exists · check with a manager': 'Un ingrediente de su receta ya no existe · revisar con el encargado',
     'this is the last payment': 'este es el último pago',     'only these': 'solo esto', 'Something was just added to this order. Check the ticket.': 'Se acaba de añadir algo a este pedido. Revise el ticket.',
     'Something was added · check the ticket': 'Se añadió algo · revise el ticket', 'Paid earlier': 'Pagado antes',
     'Part of this bill was already paid on account. A manager voids (or gives back) that payment in Orders first, then try again.': 'Parte de esta cuenta ya se pagó a cuenta. Un encargado anula (o devuelve) ese pago en Pedidos primero; luego intente de nuevo.',

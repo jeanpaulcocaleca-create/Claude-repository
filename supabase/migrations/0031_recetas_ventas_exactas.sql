@@ -3,7 +3,7 @@
 -- registró, y lo que se quita de una cuenta devuelve exactamente lo que salió
 -- Pegar TODO en Supabase → SQL Editor → New query → Run. Requiere: 0030. Una sola transacción.
 -- Aplicar FUERA DEL HORARIO DE ATENCIÓN: agregar columnas y disparadores a las líneas de venta, los movimientos de
--- inventario y los ingredientes toma esas tablas un instante (si una venta llega en ese instante, el pegado se
+-- inventario y los ingredientes toma esas tablas un instante (si algo las está usando en ese instante, el pegado se
 -- detiene a los 8 segundos sin cambiar nada y se vuelve a pegar).
 --
 -- Qué hace
@@ -19,13 +19,13 @@
 --   * El costo de cada ingrediente queda con historial (canopy.stock_cost_history) para valorar una venta tardía al
 --     costo de su momento; un ingrediente con costo promedio 0 y precio de compra se valora al precio (no a ₡0).
 --   * Lo agregado sin internet a un pedido que todavía estaba en la caja toma la receta y el costo de cuando se agregó
---     (la Caja nueva envía esa hora a tab_add_items; las páginas de antes no la envían y siguen igual).
+--     (la Caja nueva envía esa hora con el pedido o después; las páginas de antes no la envían y siguen igual).
 --   * Un producto renombrado o borrado del menú mientras una caja estaba sin internet todavía descuenta su receta
 --     (salvo que hoy otro producto del menú tenga ese nombre: entonces es ese, como antes).
 --   * Un ingrediente que aparece en el historial de recetas ya no se puede borrar (se desactiva): las ventas viejas
 --     siguen pudiendo leer su receta.
 --   * Nunca rechaza una venta: si algo impide descontar el inventario, la venta se guarda igual y queda marcada
---     ('stock_not_taken' o 'recipe_item_missing') para que el encargado la revise.
+--     ('stock_not_taken' o 'recipe_item_missing'; la página Ventas lo muestra) para que el encargado la revise.
 -- Qué NO cambia: la Caja, la cocina y las páginas publicadas hoy siguen igual (ningún cambio en lo que envían; la
 --   hora de lo agregado es opcional).
 --   Anular una venta, cancelar un pedido y devolver con reposición ya devolvían exactamente lo que salió (0005, 0006):
@@ -77,21 +77,24 @@ revoke all on function public._stock_cost_log() from public, anon, authenticated
 drop trigger if exists stock_items_cost_log on public.stock_items;
 create trigger stock_items_cost_log after insert or update of avg_cost, cost_per_pack, pack_qty on public.stock_items
   for each row execute function public._stock_cost_log();
--- el punto de partida: el costo de cada ingrediente hoy
+-- el punto de partida: el costo de cada ingrediente hoy (también si la 0031 se vuelve a aplicar después de revertirla:
+-- un costo que cambió mientras estuvo revertida queda anotado)
 insert into canopy.stock_cost_history (item_id, at, unit_cost)
   select s.id, now(), public._sale_unit_cost(s.avg_cost, s.cost_per_pack, s.pack_qty) from public.stock_items s
-   where not exists (select 1 from canopy.stock_cost_history h where h.item_id = s.id);
+   where not exists (select 1 from canopy.stock_cost_history h where h.item_id = s.id)
+      or public._sale_unit_cost(s.avg_cost, s.cost_per_pack, s.pack_qty) is distinct from
+         (select h.unit_cost from canopy.stock_cost_history h where h.item_id = s.id order by h.at desc, h.id desc limit 1);
 
 -- el costo de un ingrediente en un momento: si no cambió desde entonces, el de hoy (como siempre)
 create or replace function public._stock_cost_at(p_item_id uuid, p_at timestamptz)
 returns numeric language plpgsql stable security definer set search_path = public, canopy as $$
-declare c numeric; hit boolean := false;
+declare c numeric;
 begin
   if exists (select 1 from canopy.stock_cost_history h where h.item_id = p_item_id and h.at > p_at) then
-    select h.unit_cost, true into c, hit from canopy.stock_cost_history h
+    select h.unit_cost into c from canopy.stock_cost_history h
      where h.item_id = p_item_id and h.at <= p_at order by h.at desc, h.id desc limit 1;
-    if not hit then   -- el historial empezó después: el primer costo conocido
-      select h.unit_cost, true into c, hit from canopy.stock_cost_history h where h.item_id = p_item_id order by h.at, h.id limit 1;
+    if not found then   -- el historial empezó después: el primer costo conocido
+      select h.unit_cost into c from canopy.stock_cost_history h where h.item_id = p_item_id order by h.at, h.id limit 1;
     end if;
     if c is not null then return c; end if;
   end if;
@@ -131,11 +134,12 @@ end $$;
 -- El momento de una línea es added_at: la hora de la caja para una venta (también la guardada sin internet) y la
 -- hora en que se agregó para lo que se suma a una cuenta. Si la receta no cambió desde ese momento, la receta de hoy
 -- (como siempre); si cambió, la versión vigente entonces; si el producto todavía no tenía receta, nada.
--- Lo agregado sin internet a un pedido que todavía estaba en la caja llega por tab_add_items con su hora (stock_time,
--- entre la hora del pedido y ahora); una línea escrita por la caja no puede adelantar ni atrasar su hora con eso.
+-- Lo agregado sin internet a un pedido que todavía estaba en la caja trae su propia hora (stock_time: la Caja nueva la
+-- envía con el pedido o después, por tab_add_items); se toma entre la hora del pedido y ahora. La caja ya elige la hora
+-- del pedido, así que esto no le da nada nuevo; las páginas de antes no la envían.
 create or replace function public._order_item_stock()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare mid uuid; t timestamptz; v public.recipe_versions; live boolean := false; ver bigint; missing int := 0;
+declare mid uuid; t timestamptz; ts timestamptz; v public.recipe_versions; live boolean := false; ver bigint; missing int := 0;
 begin
   mid := new.menu_item_id;
   if mid is null then
@@ -144,10 +148,11 @@ begin
   -- a line of now (online, or added to a bill now) takes this very instant, so a change made just before it in the same
   -- transaction counts; a line rung earlier (a sale kept on the device without internet) takes its own time
   t := case when new.added_at is null or new.added_at >= now() then clock_timestamp() else new.added_at end;
-  -- an item added on the device before the order reached the system (tab_add_items): the time it was added, never
-  -- before the order (a line the till writes already has the order's time, so this cannot move it)
-  if new.stock_time is not null and new.stock_time < t then
-    t := greatest(new.stock_time, (select o.created_at from public.orders o where o.id = new.order_id));
+  -- an item added on the device to an order that was still there: the time it was added, never before the order and
+  -- never later than now (then it is now)
+  if new.stock_time is not null then
+    ts := greatest(new.stock_time, (select o.created_at from public.orders o where o.id = new.order_id));
+    if ts < now() then t := ts; end if;
   end if;
   begin
     if mid is not null then
@@ -178,12 +183,12 @@ begin
           select s.id, 'sale', -((l->>'qty')::numeric * greatest(new.qty, 0)), public._stock_cost_at(s.id, t),
                  new.order_id, new.id, new.qty, new.item_name
             from jsonb_array_elements(v.lines) l
-            join public.stock_items s on s.id = (l->>'stock_item_id')::uuid
+            join public.stock_items s on s.id = (l->>'stock_item_id')::uuid and s.unit = coalesce(l->>'unit', s.unit)
            where (l->>'qty')::numeric * greatest(new.qty, 0) <> 0
            order by s.id;
-        -- an ingredient of that version that no longer exists is left out, never refused
+        -- an ingredient of that version that no longer exists (or is counted in another unit now) is left out, never refused
         select count(*) into missing from jsonb_array_elements(v.lines) l
-         where not exists (select 1 from public.stock_items s where s.id = (l->>'stock_item_id')::uuid);
+         where not exists (select 1 from public.stock_items s where s.id = (l->>'stock_item_id')::uuid and s.unit = coalesce(l->>'unit', s.unit));
       end if;
     end if;
     update public.order_items set recipe_version_id = ver, stock_time = t where id = new.id;
@@ -198,10 +203,85 @@ begin
       raise warning 'stock_not_taken: % (%): %', new.item_name, new.order_id, sqlerrm;
       update public.orders set flags = array_append(coalesce(flags, '{}'), 'stock_not_taken')
        where id = new.order_id and not ('stock_not_taken' = any(coalesce(flags, '{}')));
+      -- the line still counts as rung under 0031: nothing of it went out, so nothing of it comes back later
+      begin
+        update public.order_items set stock_time = t where id = new.id;
+      exception when others then null;
+      end;
   end;
   return new;
 end $$;
 revoke all on function public._order_item_stock() from public, anon, authenticated;
+
+-- una hora enviada por la caja, leída sin riesgo: si no se entiende, ninguna (nunca rechaza la venta)
+create or replace function public._as_time(p text)
+returns timestamptz language plpgsql stable set search_path = public as $$
+begin
+  return p::timestamptz;
+exception when others then
+  return null;
+end $$;
+revoke all on function public._as_time(text) from public, anon;
+grant execute on function public._as_time(text) to authenticated;
+
+-- pos_record_sale (0010) igual, salvo la hora de cada producto agregado en la caja al pedido antes de enviarlo: "at",
+-- opcional (la Caja nueva la envía; las páginas de antes no, y nada cambia para ellas)
+create or replace function public.pos_record_sale(p_order jsonb)
+returns jsonb language plpgsql set search_path = public as $$
+declare oid uuid; existing boolean := false; c text; other boolean := false; op jsonb;
+begin
+  if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
+  oid := nullif(p_order->>'id', '')::uuid;
+  if oid is null or jsonb_typeof(coalesce(p_order->'items', '[]'::jsonb)) <> 'array' then
+    raise exception 'bad_payload' using errcode = 'P0001';
+  end if;
+  op := p_order->'operator';
+  if op is not null and jsonb_typeof(op) = 'object' then
+    perform set_config('canopy.operator_token', coalesce(nullif(op->>'token', ''), 'claim'), true);
+    perform set_config('canopy.operator_claim', coalesce(op->>'staff_id', ''), true);
+  elsif p_order ? 'operator' then
+    perform set_config('canopy.operator_token', 'none', true);
+  end if;
+  begin
+    insert into public.orders (id, created_at, total_crc, payment_method, paid, status, source, needs_kitchen, accepted_at,
+                               pickup_number, guest_name, station, subtotal_crc, discount_crc, discount_id, notes)
+    values (oid,
+            coalesce((p_order->>'created_at')::timestamptz, now()),
+            (p_order->>'total_crc')::int,
+            coalesce(p_order->>'payment_method', 'cash_crc'),
+            coalesce((p_order->>'paid')::boolean, true),
+            coalesce(p_order->>'status', 'done'),
+            coalesce(p_order->>'source', 'front'),
+            coalesce((p_order->>'needs_kitchen')::boolean, false),
+            (p_order->>'accepted_at')::timestamptz,
+            (p_order->>'pickup_number')::int,
+            nullif(left(p_order->>'guest_name', 60), ''),
+            nullif(left(p_order->>'station', 40), ''),
+            (p_order->>'subtotal_crc')::int,
+            coalesce((p_order->>'discount_crc')::int, 0),
+            (p_order->>'discount_id')::uuid,
+            nullif(left(p_order->>'notes', 200), ''));
+  exception when unique_violation then
+    get stacked diagnostics c = constraint_name;
+    if c = 'orders_pkey' then existing := true; else raise; end if;
+  end;
+  begin
+    insert into public.order_items (id, order_id, item_name, price_crc, qty, menu_item_id, stock_time)
+      select coalesce(nullif(l->>'id', '')::uuid, gen_random_uuid()), oid, l->>'item_name', (l->>'price_crc')::int, (l->>'qty')::int,
+             nullif(l->>'menu_item_id', '')::uuid, public._as_time(l->>'at')
+        from jsonb_array_elements(coalesce(p_order->'items', '[]'::jsonb)) l;
+  exception
+    when unique_violation then
+      if not existing then raise; end if;
+    when others then
+      if existing and sqlerrm ~ 'order_has_lines' then other := true; else raise; end if;
+  end;
+  -- cash received and change; a repeated send keeps the first
+  if jsonb_typeof(p_order->'tender') = 'object' then perform public._tender_insert(oid, p_order->'tender'); end if;
+  perform set_config('canopy.operator_token', '', true);
+  perform set_config('canopy.operator_claim', '', true);
+  return jsonb_build_object('ok', true, 'already', existing, 'other_lines', other);
+end $$;
 
 -- tab_add_items (supabase/pos-tabs.sql) igual, salvo la hora de cada producto agregado: "at", opcional (la Caja
 -- nueva la envía para lo agregado sin internet; las páginas de antes no la envían y nada cambia para ellas)
@@ -438,7 +518,8 @@ begin
 end $$;
 
 -- 6) una cuenta con pagos por producto, anulada: lo consumido vuelve a salir exactamente como salió -------------------
--- (pos-tabs.sql igual, salvo esa parte; las líneas registradas antes de 0031 siguen con la regla anterior)
+-- (pos-tabs.sql igual, salvo esa parte; una línea registrada antes de 0031 vuelve a sacar su parte de lo que salió con su
+-- nombre en esa cuenta, al costo con que salió: tampoco se recalcula con la receta de hoy)
 create or replace function public._order_tab_voided()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare m public.orders;
@@ -470,14 +551,27 @@ begin
         join public.order_items i on i.id = e.item_id and i.stock_time is not null
         join public.stock_moves s on s.order_item_id = i.id and s.order_id = new.id and s.kind = 'sale' and s.qty < 0 and s.line_qty > 0
        order by s.item_id;
-    -- lines rung before 0031: as before (the recipe of today, by name)
-    insert into public.stock_moves (item_id, kind, qty, order_id, note)
-      select r.stock_item_id, 'sale', -(r.qty * l.qty), null, i.item_name || ' · paid in part, bill voided'
-        from public.order_part_lines l
-        join public.orders p on p.id = l.part_id and p.part_of = new.id and p.voided_at is null
-        join public.order_items i on i.id = l.item_id and i.stock_time is null
-        join lateral (select id from public.menu_items where lower(name) = lower(i.item_name) order by available desc limit 1) mi on true
-        join public.recipes r on r.menu_item_id = mi.id;
+    -- lines rung before 0031 (no link): the eaten units' share of what still went out under their name in this bill
+    -- before the void, at the cost it went out with (as _order_line_return shares it), never today's recipe
+    insert into public.stock_moves (item_id, kind, qty, unit_cost, order_id, line_qty, note)
+      select g.item_id, 'sale',
+             -(case when e.units >= u.units then g.still_out else trim_scale(g.still_out * e.units / u.units) end),
+             g.cost, null, e.units, e.name || ' · paid in part, bill voided'
+        from (select lower(i.item_name) as k, min(i.item_name) as name, sum(l.qty) as units
+                from public.order_part_lines l
+                join public.orders p on p.id = l.part_id and p.part_of = new.id and p.voided_at is null
+                join public.order_items i on i.id = l.item_id and i.order_id = new.id and i.stock_time is null
+               group by lower(i.item_name)) e
+        join (select lower(i.item_name) as k, sum(i.qty) as units from public.order_items i
+               where i.order_id = new.id and i.stock_time is null group by lower(i.item_name)) u on u.k = e.k and u.units > 0
+        join lateral (select x.item_id, -sum(x.qty) as still_out,
+                             coalesce(round(sum(x.qty * coalesce(x.unit_cost, 0)) filter (where x.qty < 0)
+                                            / nullif(sum(x.qty) filter (where x.qty < 0), 0), 4), 0) as cost
+                        from public.stock_moves x
+                       where x.order_id = new.id and x.order_item_id is null and x.kind = 'sale'
+                         and lower(x.note) in (e.k, e.k || ' · taken off the bill')
+                       group by x.item_id) g on g.still_out > 0
+       order by g.item_id;
   end if;
   return new;
 end $$;
@@ -505,6 +599,16 @@ begin
   insert into public.audit_log (action, manager_name, target_id, summary, details)
     values ('stock_item_deleted', coalesce(public._inv_actor(), 'owner'), old.id::text, 'borró ' || old.name || ' (sin historial)', '{}'::jsonb);
   return old;
+end $$;
+
+-- y su unidad tampoco cambia (igual que en la 0030, más el historial): una venta tardía de esa receta descuenta en la
+-- unidad con que se escribió
+create or replace function public._stock_item_in_use(p_id uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+  if pg_trigger_depth() = 0 then raise exception 'stock_item_in_use: solo desde el disparador de ingredientes'; end if;
+  return exists (select 1 from public.stock_moves where item_id = p_id) or exists (select 1 from public.recipes where stock_item_id = p_id)
+      or exists (select 1 from public.recipe_versions where lines @> jsonb_build_array(jsonb_build_object('stock_item_id', p_id)));
 end $$;
 
 -- 8) el historial de recetas al día antes de que las ventas lo lean (una receta cambiada sin historial queda anotada)

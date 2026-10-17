@@ -1255,10 +1255,10 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     name, and the product still existed when the sale was rung or no product has that name today); a product deleted
     and made again under the same name is the new one for what is rung after that (as in 0004); an id that never had
     that name still falls back to the name as in 0004.
-  - Items added on the device to an order the system has not confirmed (they go after it through `tab_add_items`) take
-    the recipe and cost of when they were added: the new POS sends each item's time (`"at"`, optional; older pages do
-    not send it and nothing changes for them); the server keeps it between the order's time and now, and a line the
-    till writes itself cannot move its time this way.
+  - Items added on the device to an order before it reached the system take the recipe and cost of when they were
+    added, whether they go up with the order (`pos_record_sale`) or after it (`tab_add_items`): the new POS sends each
+    item's time (`"at"`, optional, read safely; older pages do not send it and nothing changes for them); the server
+    keeps it between the order's time and now (the till already chooses the order's time, so this gives it nothing new).
   - The live recipe and the latest version are read in one snapshot, so a recipe saved on another device at the same
     instant is either fully in a sale or fully out of it, and the line names the version it really took.
   - The deduction never refuses a sale: a missing ingredient is skipped and the order flagged `recipe_item_missing`;
@@ -1273,21 +1273,32 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   table owner) and the history records it. This replaces E-30's "wait a week": nothing on the till depends on it.
 - **Rollbacks:** `reversion-0032.sql`, then `reversion-0031.sql`, then `reversion-0030.sql`; each refuses the wrong
   order and restores every changed function byte for byte (`_order_item_stock` and `_order_item_menu_id` of 0004,
-  `tab_add_items`, `tab_remove_item` and `_order_tab_voided` of supabase/pos-tabs.sql, `_stock_item_history_guard` of
-  0030); the new columns and the cost history stay. Applying 0031 again after its rollback is done with the open bills
+  `pos_record_sale` of 0010, `tab_add_items`, `tab_remove_item` and `_order_tab_voided` of supabase/pos-tabs.sql,
+  `_stock_item_in_use` and `_stock_item_history_guard` of 0030); the new columns and the cost history stay. Applying 0031 again after its rollback is done with the open bills
   closed (a bill open under the first 0031 with items taken off during the rollback could give back too much).
 - **Independent review (after the first implementation):** found a regression (a product deleted and made again with
   the same name: a till with the old menu would have taken nothing) and that items added offline to an order not yet
   confirmed took the recipe of when they arrived; both fixed with tests (350, 310). The version stamp of a sale saved at
   the same instant as a recipe change is now read in the same snapshot as the recipe.
-- **Known limits (stated in docs/ACTIVACION-RECETAS.md):** items added on the device to an order that goes up with them
-  in the same first send (the system never had it) take the order's time (same day); the time is the device's clock;
-  the stock movements of a late sale are dated when they arrive (as before), while their quantities and costs are those
-  of the sale's moment; a bill opened before 0031 shares its returns by product name at the weighted cost.
-- **Tests:** SQL `350_ventas_exactas` (53), `360_recetas_solo_con_pin` (22), `370_reversion_0031` (12); 330 and 340
+- **Second independent review (four lenses, each finding attacked by a verifier):** one confirmed medium (the
+  activation guide's test sale could not be voided in the evening window: the register is closed, so it would have
+  left a sale and a refund on a closed day; the window now creates no sale) and lows, all fixed with tests: a sale
+  rung before the cost history began was valued at today's cost (the first known cost now); an ingredient only in an
+  old recipe could change its unit (now locked, and a late sale skips and flags a line whose unit changed); applying
+  0031 again after its rollback now records costs that changed meanwhile; a bill from before 0031 paid in part and
+  voided re-deducted its eaten units with today's recipe (now its share of what went out, at its cost); a line whose
+  stock could not be taken keeps its link (nothing went out, nothing comes back); items added offline that go up with
+  their order keep their own time; flagged sales are now shown in Sales; a real concurrency test (two sessions) was
+  added. Checked and sound: exact returns in every combination, the single snapshot under simultaneous saves, no new
+  deadlock cycle, privileges, 0032 has no bypass, the rollbacks are byte-exact.
+- **Known limits (stated in docs/ACTIVACION-RECETAS.md):** the time is the device's clock; the stock movements of a
+  late sale are dated when they arrive (as before), while their quantities and costs are those of the sale's moment; a
+  bill opened before 0031 shares its returns (and the eaten part of a void) by product name at the weighted cost.
+- **Tests:** SQL `350_ventas_exactas` (68), `360_recetas_solo_con_pin` (22), `370_reversion_0031` (12); 330 and 340
   adapted (the old-page section runs in the window between 0030 and 0032; the 0030 rollback first reverts 0032 and
-  0031); browser `310_recipes_sales` (3: a sale offline while another device changes the recipe; two devices on one
+  0031); browser `310_recipes_sales` (6: a sale offline while another device changes the recipe; two devices on one
   bill with a take-off, a stale device refused, a part payment and a void; an item added on the device to an order not
-  confirmed yet, the recipe changed before it is sent) and `300_recipes` (7, the phone included);
+  confirmed yet, and to one never sent, the recipe changed before it is sent; two sessions at the same instant on one
+  bill, and a sale rung while a recipe save is still open; flagged sales in Sales) and `300_recipes` (7, the phone included);
   the rehearsal's live pages expect the old editor to be refused from 0032 on and the POS to keep selling and syncing.
   Nothing was applied to production, nothing published, nothing merged.

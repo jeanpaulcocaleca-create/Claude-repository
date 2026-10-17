@@ -69,9 +69,9 @@ select test.eq((select count(*) from public.stock_moves where order_id = '0d0000
 -- the same sale through an older page's two-step save (the order, then its lines without the product id)
 select test.login('cafe'); set role authenticated;
 insert into public.orders (id, created_at, total_crc, payment_method) values ('0d000000-0000-4000-8000-0000000b0102', now() - interval '2 hours', 3000, 'card');
--- (a page that also sends a moment of its own for the line cannot move it: half an hour ago would take 150 g at ₡6)
+-- (a moment of its own for the line is never before its order: ten hours ago is the order's time)
 insert into public.order_items (id, order_id, item_name, price_crc, qty, stock_time)
-  values ('0e000000-0000-4000-8000-0000000b0102', '0d000000-0000-4000-8000-0000000b0102', 'Batido 1B', 3000, 1, now() - interval '30 minutes');
+  values ('0e000000-0000-4000-8000-0000000b0102', '0d000000-0000-4000-8000-0000000b0102', 'Batido 1B', 3000, 1, now() - interval '10 hours');
 reset role;
 select test.eq(pg_temp.moves('0d000000-0000-4000-8000-0000000b0102'), 'Fresa 1B:-120@4 Leche 1B:-100@1', 'an older page''s two-step save too');
 select test.ok((select i.stock_time = o.created_at from public.order_items i join public.orders o on o.id = i.order_id
@@ -93,6 +93,24 @@ select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-
                                                      'menu_item_id', '1b000000-0000-4000-8000-000000000001'))));
 reset role;
 select test.eq(pg_temp.moves('0d000000-0000-4000-8000-0000000b0104'), 'Fresa 1B:-150@6 Leche 1B:-100@1', 'a clock ahead counts as now');
+select test.ok((select bool_and(i.stock_time <= clock_timestamp() and i.stock_time < o.created_at) from public.order_items i join public.orders o on o.id = i.order_id
+                 where i.order_id = '0d000000-0000-4000-8000-0000000b0104'), 'its moment is now, not the device''s time ahead');
+-- items added on the device to an order before it was ever sent go up with it (pos_record_sale), each with its time
+select test.login('cafe'); set role authenticated;
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000b0106', 'created_at', now() - interval '2 hours',
+       'total_crc', 9000, 'payment_method', 'card',
+       'items', jsonb_build_array(jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Batido 1B', 'price_crc', 3000, 'qty', 1,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000001'),
+                                  jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Batido 1B', 'price_crc', 3000, 'qty', 2,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000001', 'at', now() - interval '30 minutes'),
+                                  jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Batido 1B', 'price_crc', 3000, 'qty', 3,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000001', 'at', 'no es una hora'))));
+reset role;
+select test.eq((select string_agg(trim_scale(m.qty)::text || '@' || trim_scale(m.unit_cost)::text, ' ' order by i.qty, m.item_id)
+                  from public.stock_moves m join public.order_items i on i.id = m.order_item_id
+                 where m.order_id = '0d000000-0000-4000-8000-0000000b0106'),
+               '-120@4 -100@1 -300@4 -200@1 -360@4 -300@1',
+               'rung 2 h ago: 120 g; added 30 min ago: the new recipe (150 g) at the cost then (₡4); an unreadable time: the order''s, and the sale is kept');
 -- items added on the device to an order that was still there, sent after it (tab_add_items with the time of each):
 -- the recipe and cost of when they were added; never before the order, never after now; a time that does not read is now
 select test.login('cafe'); set role authenticated;
@@ -297,11 +315,22 @@ select test.eq(public.tab_add_items('0d000000-0000-4000-8000-0000000b0502', '[{"
 reset role;
 select id as added_line from public.order_items where order_id = '0d000000-0000-4000-8000-0000000b0502' and item_name = 'Batido 1B' \gset
 select test.eq(pg_temp.net('0d000000-0000-4000-8000-0000000b0502'), 'Fresa 1B=-200 Leche 1B=-100 Té 1B=-3', 'it takes today''s recipe');
+-- the recipe changes before it is taken off (230 g), and back afterwards
+select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+select public.recipe_save('1b000000-0000-4000-8000-000000000001',
+  '[{"stock_item_id": "5a000000-0000-4000-8000-0000000b0001", "qty": 230, "unit": "g"}, {"stock_item_id": "5a000000-0000-4000-8000-0000000b0002", "qty": 100, "unit": "ml"}]',
+  3, test.staff('ana'), '4826', null, gen_random_uuid()) is not null;
+reset role;
 select test.login('cafe'); set role authenticated;
 select test.eq(public.tab_remove_item(:'added_line', 1, '', 'Caja', null, null,
                (select total_crc from public.orders where id = '0d000000-0000-4000-8000-0000000b0502'))->>'ok', 'true', 'and is taken off again');
 reset role;
-select test.eq(pg_temp.net('0d000000-0000-4000-8000-0000000b0502'), 'Té 1B=-3', 'exactly');
+select test.eq(pg_temp.net('0d000000-0000-4000-8000-0000000b0502'), 'Té 1B=-3', 'exactly what it took (200 g), not the 230 g of now');
+select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+select public.recipe_save('1b000000-0000-4000-8000-000000000001',
+  '[{"stock_item_id": "5a000000-0000-4000-8000-0000000b0001", "qty": 200, "unit": "g"}, {"stock_item_id": "5a000000-0000-4000-8000-0000000b0002", "qty": 100, "unit": "ml"}]',
+  4, test.staff('ana'), '4826', null, gen_random_uuid()) is not null;
+reset role;
 
 -- 6) a bill opened before 0031 (lines without the link, one unit taken off the old way) -----------------------------
 set local session_replication_role = replica;      -- as the old code left it
@@ -345,7 +374,7 @@ reset role;
 select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
 select public.recipe_save('1b000000-0000-4000-8000-000000000001',
   '[{"stock_item_id": "5a000000-0000-4000-8000-0000000b0001", "qty": 250, "unit": "g"}, {"stock_item_id": "5a000000-0000-4000-8000-0000000b0002", "qty": 100, "unit": "ml"}]',
-  3, test.staff('ana'), '4826', null, gen_random_uuid()) is not null;
+  5, test.staff('ana'), '4826', null, gen_random_uuid()) is not null;
 select test.eq(public.manager_void_order(test.staff('ana'), '4826', '0d000000-0000-4000-8000-0000000b0701', 'pleito')->>'ok', 'true', 'the bill is voided');
 reset role;
 select test.eq((select string_agg(trim_scale(qty)::text || '@' || trim_scale(unit_cost)::text || ':' || line_qty, ' ' order by item_id)
@@ -357,6 +386,103 @@ select test.eq((select string_agg(s.name || '=' || trim_scale(x.q)::text, ' ' or
                          group by item_id) x join public.stock_items s on s.id = x.item_id where x.q <> 0),
                'Fresa 1B=-200 Leche 1B=-100', 'all told, only the eaten smoothie stays out');
 
+-- 9) a sale rung before the cost history began: the first cost known, not today's ---------------------------------
+insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack) values ('5a000000-0000-4000-8000-0000000b0006', 'Miel 1B', 'g', 1000, 2000);
+insert into public.stock_moves (item_id, kind, qty, unit_cost) values ('5a000000-0000-4000-8000-0000000b0006', 'purchase', 1000, 8);
+select test.eq((select string_agg(trim_scale(unit_cost)::text, ' ' order by at, id) from canopy.stock_cost_history
+                 where item_id = '5a000000-0000-4000-8000-0000000b0006'), '2 8', 'honey: ₡2 when it was entered, then ₡8');
+insert into public.menu_items (id, category_id, name, price_crc) values ('1b000000-0000-4000-8000-000000000009', 'a0000000-0000-4000-8000-000000000002', 'Miel 1B', 1000);
+set local session_replication_role = replica;
+insert into public.recipes (menu_item_id, stock_item_id, qty) values ('1b000000-0000-4000-8000-000000000009', '5a000000-0000-4000-8000-0000000b0006', 10);
+set local session_replication_role = origin;
+select test.login('cafe'); set role authenticated;
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000b0901', 'created_at', now() - interval '2 hours',
+       'total_crc', 1000, 'payment_method', 'card',
+       'items', jsonb_build_array(jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Miel 1B', 'price_crc', 1000, 'qty', 1,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000009'))));
+reset role;
+select test.eq(pg_temp.moves('0d000000-0000-4000-8000-0000000b0901'), 'Miel 1B:-10@2', 'rung before the history began: the first cost known (₡2), not ₡8');
+
+-- 10) an ingredient only in an old recipe keeps its unit; a late sale of that recipe never takes it in another unit ---
+insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack) values ('5a000000-0000-4000-8000-0000000b0007', 'Sirope 1B', 'ml', 1000, 5000);
+insert into public.menu_items (id, category_id, name, price_crc) values ('1b000000-0000-4000-8000-00000000000a', 'a0000000-0000-4000-8000-000000000002', 'Te dulce 1B', 1600);
+select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+select public.recipe_save('1b000000-0000-4000-8000-00000000000a',
+  '[{"stock_item_id": "5a000000-0000-4000-8000-0000000b0007", "qty": 30, "unit": "ml"}, {"stock_item_id": "5a000000-0000-4000-8000-0000000b0004", "qty": 2, "unit": "g"}]',
+  0, test.staff('ana'), '4826', null, gen_random_uuid()) is not null;
+reset role;
+set local session_replication_role = replica;
+select pg_temp.age('1b000000-0000-4000-8000-00000000000a', 1, 3);
+set local session_replication_role = origin;
+select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+select public.recipe_save('1b000000-0000-4000-8000-00000000000a', '[{"stock_item_id": "5a000000-0000-4000-8000-0000000b0004", "qty": 2, "unit": "g"}]',
+                          1, test.staff('ana'), '4826', null, gen_random_uuid()) is not null;
+reset role;
+set local session_replication_role = replica;
+select pg_temp.age('1b000000-0000-4000-8000-00000000000a', 2, 1);
+set local session_replication_role = origin;
+select test.login('owner', 'aal2'); set role authenticated;
+select test.throws($$update public.stock_items set unit = 'L' where id = '5a000000-0000-4000-8000-0000000b0007'$$, 'unit_locked',
+                   'the syrup is in no recipe now, but in the history: its unit stays');
+reset role;
+-- even if it had changed (before 0031, or by hand), the late sale leaves it out and says so
+set local session_replication_role = replica;
+update public.stock_items set unit = 'L', pack_qty = 1 where id = '5a000000-0000-4000-8000-0000000b0007';
+set local session_replication_role = origin;
+select test.login('cafe'); set role authenticated;
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000b1001', 'created_at', now() - interval '2 hours',
+       'total_crc', 1600, 'payment_method', 'card',
+       'items', jsonb_build_array(jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Te dulce 1B', 'price_crc', 1600, 'qty', 1,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-00000000000a'))));
+reset role;
+select test.eq(pg_temp.moves('0d000000-0000-4000-8000-0000000b1001'), 'Té 1B:-2@10', 'the tea of that version goes out; 30 ml are never taken as 30 L');
+select test.ok((select 'recipe_item_missing' = any(flags) from public.orders where id = '0d000000-0000-4000-8000-0000000b1001'), 'and the sale is marked for a manager');
+
+-- 11) a bill opened before 0031, one item paid by item, then voided: the eaten item goes out again as it went out -----
+set local session_replication_role = replica;
+insert into public.orders (id, created_at, total_crc, payment_method, paid, status, source)
+  values ('0d000000-0000-4000-8000-0000000b1101', now() - interval '1 hour', 6000, 'cash_crc', false, 'preparing', 'front');
+insert into public.order_items (id, order_id, item_name, price_crc, qty, menu_item_id) values
+  ('0e000000-0000-4000-8000-0000000b1101', '0d000000-0000-4000-8000-0000000b1101', 'Batido 1B', 3000, 2, '1b000000-0000-4000-8000-000000000001');
+set local session_replication_role = origin;
+insert into public.stock_moves (item_id, kind, qty, unit_cost, order_id, note) values      -- 2 smoothies at 120 g, as the old code took them
+  ('5a000000-0000-4000-8000-0000000b0001', 'sale', -240, 4, '0d000000-0000-4000-8000-0000000b1101', 'Batido 1B'),
+  ('5a000000-0000-4000-8000-0000000b0002', 'sale', -200, 1, '0d000000-0000-4000-8000-0000000b1101', 'Batido 1B');
+select test.login('cafe'); set role authenticated;
+select test.eq(public.tab_pay('0d000000-0000-4000-8000-0000000b1101', 'card', '[{"item_id": "0e000000-0000-4000-8000-0000000b1101", "qty": 1}]', null, 'Caja', 6000)->>'ok',
+               'true', 'one old smoothie paid by item');
+select test.eq(public.manager_void_order(test.staff('ana'), '4826', '0d000000-0000-4000-8000-0000000b1101', 'pleito')->>'ok', 'true', 'the old bill is voided');
+reset role;
+select test.eq((select string_agg(trim_scale(qty)::text || '@' || trim_scale(unit_cost)::text || ':' || line_qty, ' ' order by item_id)
+                  from public.stock_moves where order_id is null and order_item_id is null and note = 'Batido 1B · paid in part, bill voided'),
+               '-120@4:1 -100@1:1', 'the eaten smoothie: its share of what went out (120 g at ₡4), not today''s 250 g');
+
+-- 12) a line whose stock could not be taken keeps its link: nothing of it went out, so nothing of it comes back -------
+create function public.t_1b_fail() returns trigger language plpgsql as $f$
+begin if new.note = 'Falla 1B' then raise exception 'boom'; end if; return new; end $f$;
+create trigger t_1b_fail before insert on public.stock_moves for each row execute function public.t_1b_fail();
+insert into public.menu_items (id, category_id, name, price_crc) values ('1b000000-0000-4000-8000-00000000000b', 'a0000000-0000-4000-8000-000000000002', 'Falla 1B', 1000);
+set local session_replication_role = replica;
+insert into public.recipes (menu_item_id, stock_item_id, qty) values ('1b000000-0000-4000-8000-00000000000b', '5a000000-0000-4000-8000-0000000b0004', 1);
+set local session_replication_role = origin;
+select test.login('cafe'); set role authenticated;
+select test.eq(public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000b1201', 'total_crc', 3500, 'payment_method', 'cash_crc',
+       'paid', false, 'status', 'preparing', 'source', 'front',
+       'items', jsonb_build_array(jsonb_build_object('id', '0e000000-0000-4000-8000-0000000b1201', 'item_name', 'Falla 1B', 'price_crc', 1000, 'qty', 2,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-00000000000b'),
+                                  jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Te 1B', 'price_crc', 1500, 'qty', 1,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000002'))))->>'ok', 'true', 'the sale is kept');
+reset role;
+drop trigger t_1b_fail on public.stock_moves;
+select test.ok((select 'stock_not_taken' = any(flags) from public.orders where id = '0d000000-0000-4000-8000-0000000b1201'), 'marked for a manager');
+select test.eq((select coalesce(count(m.id), 0) || ':' || (i.stock_time is not null)::text from public.order_items i
+                  left join public.stock_moves m on m.order_item_id = i.id where i.id = '0e000000-0000-4000-8000-0000000b1201' group by i.stock_time),
+               '0:true', 'nothing went out for that line, and it is still a line of 0031');
+select test.login('cafe'); set role authenticated;
+select test.eq(public.tab_remove_item('0e000000-0000-4000-8000-0000000b1201', 1, '', 'Caja', null, null, 3500)->>'ok', 'true', 'one taken off');
+reset role;
+select test.eq(pg_temp.net('0d000000-0000-4000-8000-0000000b1201'), 'Té 1B=-3', 'nothing comes back for it; the tea stays out');
+
 -- 8) never a zero movement; the new helpers are not for the pages ---------------------------------------------------
 insert into public.order_items (order_id, item_name, price_crc, qty, menu_item_id)
   values ('0d000000-0000-4000-8000-0000000b0103', 'Batido 1B', 0, 0, '1b000000-0000-4000-8000-000000000001');
@@ -365,7 +491,8 @@ select test.ok(not has_function_privilege('authenticated', 'public._order_line_r
                and not has_function_privilege('anon', 'public._order_line_return(uuid, uuid, text, boolean, int, int, text)', 'execute')
                and not has_function_privilege('authenticated', 'public._stock_cost_at(uuid, timestamptz)', 'execute')
                and not has_function_privilege('authenticated', 'public._sale_unit_cost(numeric, numeric, numeric)', 'execute')
-               and not has_function_privilege('authenticated', 'public._stock_cost_log()', 'execute'), 'the pages cannot call the new helpers');
+               and not has_function_privilege('authenticated', 'public._stock_cost_log()', 'execute')
+               and not has_function_privilege('anon', 'public._as_time(text)', 'execute'), 'the pages cannot call the new helpers');
 select test.ok(not has_table_privilege('authenticated', 'canopy.stock_cost_history', 'select')
                and has_table_privilege('canopy_backup', 'canopy.stock_cost_history', 'select'), 'the cost history: not for the pages, in the backup');
 select test.eq((select count(*) from pg_proc where proname = 'tab_remove_item' and pronamespace = 'public'::regnamespace)::int, 1, 'tab_remove_item has one signature');

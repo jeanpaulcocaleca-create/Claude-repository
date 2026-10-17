@@ -22,7 +22,8 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
 - **Nunca se rechaza una venta.** Si algo impide descontar el inventario de una venta (por ejemplo, un ingrediente de
   una receta vieja que ya no existe), la venta se guarda igual y queda marcada para el encargado.
 - **Ventas pendientes de sincronizar:** al llegar, toman la receta y el costo de cuando se cobraron (las de antes de
-  la 0030 toman la receta con que empezó el historial).
+  la 0030 toman la receta con que empezó el historial y el primer costo conocido). Lo agregado en la caja a un pedido
+  antes de que subiera toma la receta y el costo de cuando se agregó.
 - **Un producto borrado y vuelto a crear con el mismo nombre:** una caja con el menú viejo descuenta la receta del
   producto nuevo; una venta cobrada antes del borrado, la del producto viejo.
 - **Cuentas abiertas al momento de activar:** siguen funcionando. Si se quita un producto de una cuenta abierta antes
@@ -43,14 +44,19 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
    4. Pegar `0032_recetas_solo_con_pin.sql` → *Success*.
    5. Pegar `supabase/tools/release-check.sql`: `migrations_missing` = `[]` y `functions_missing` = `[]`.
    6. Crear la etiqueta `v…` y ejecutar «Publish website (PRODUCTION · manual only)».
-   7. En un aparato del café: Inventario → Recetas, abrir un producto, cambiar nada y guardar con PIN («La receta no
-      cambió»), y una venta de prueba que luego se anula (la anulación devuelve lo mismo que salió).
-   Si un pegado se detiene por «lock timeout» (una venta llegó en ese instante), no cambió nada: se vuelve a pegar.
+   7. En un aparato del café: Inventario → Recetas, abrir un producto, no cambiar nada y guardar con PIN («La receta no
+      cambió»). **No** hacer una venta de prueba en producción: con la caja ya cerrada no se puede anular (quedaría una
+      venta y una devolución en un día cerrado). Las ventas, devoluciones y anulaciones se prueban en el «Ensayo en
+      pruebas» y en las pruebas automáticas; en producción se revisan con las primeras ventas reales (ver «Después»).
+   Si un pegado se detiene por «lock timeout» (algo usaba esas tablas en ese instante), no cambió nada: se vuelve a
+   pegar.
 3. **Después**
    - Los aparatos toman las páginas nuevas solos al quedar libres (sin venta en curso ni cuenta abierta en pantalla).
      No hace falta esperar una semana: la Caja no depende de esto.
-   - La primera semana, en Inventario → Historial, lo devuelto al quitar de una cuenta aparece como «Quitado de una
-     cuenta»; en Ventas, una venta marcada `stock_not_taken` o `recipe_item_missing` se revisa con el encargado.
+   - El primer día, la primera vez que se quite un producto de una cuenta: en Inventario → Historial aparece como
+     «Quitado de una cuenta» con la misma cantidad que salió con la venta.
+   - La primera semana, en Ventas: una venta con el aviso «Inventario no descontado» o «Un ingrediente de su receta ya no
+     existe» se revisa con el encargado (la venta quedó guardada; solo el inventario necesita revisión).
 
 ## Si algo sale mal (reversión, en este orden)
 
@@ -66,11 +72,10 @@ estaban (misma huella en la foto de producción). Ninguna reversión borra venta
 
 - **Etapa 1C:** personalizaciones (tipo y cantidad de leche, azúcar, agua) que cambian lo que se descuenta.
 - **Límites conocidos:**
-  - Lo agregado sin internet a un pedido que sube junto con lo agregado (el sistema nunca lo tuvo) toma la hora del
-    pedido, del mismo día. Lo agregado después de un primer envío sin respuesta toma su propia hora.
   - La hora de una venta es la del reloj del aparato: un reloj atrasado puede tomar la receta anterior a un cambio de ese
     mismo momento.
   - Los movimientos de una venta que llega tarde quedan con la fecha de llegada (como hoy); las cantidades y los costos
     son los del momento de la venta.
-  - Una cuenta abierta antes de la 0031 reparte lo devuelto por nombre del producto, al costo promedio con que salió.
+  - Una cuenta abierta antes de la 0031 reparte por nombre del producto lo devuelto (y, si se anula con pagos por
+    producto, lo consumido), al costo promedio con que salió.
   - Si se revierte la 0031 y luego se vuelve a aplicar, hacerlo con las cuentas abiertas ya cobradas o anuladas.

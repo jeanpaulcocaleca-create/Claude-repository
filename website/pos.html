@@ -1796,7 +1796,8 @@ async function uploadOne(o){
   if (o.station) extra.station = o.station;
   if (o.discount_crc > 0){ extra.subtotal_crc = o.subtotal_crc; extra.discount_crc = o.discount_crc; extra.discount_id = o.discount_id; }
   var items = o.items.map(function(it){ return Object.assign({order_id: o.id}, it); });
-  inAdds.forEach(function(a){ a.items.forEach(function(i){ items.push({id: i.id, order_id: o.id, item_name: i.name, price_crc: i.price, qty: i.qty, menu_item_id: i.menu_item_id}); }); });
+  /* at: when it was added here, for the recipe and cost of that time (0031; pos_record_sale before it ignores it) */
+  inAdds.forEach(function(a){ a.items.forEach(function(i){ items.push({id: i.id, order_id: o.id, item_name: i.name, price_crc: i.price, qty: i.qty, menu_item_id: i.menu_item_id, at: a.at}); }); });
   /* the sale and its lines in one call (supabase/migrations/0004): saved together or not at all */
   var via = await qSaveRpc(o, row, extra, items), r, r2 = {};
   if (via && via.error){
@@ -1806,7 +1807,7 @@ async function uploadOne(o){
   var had = !!(via && via.had);
   if (via && via.otherLines) r2 = {error: {message: 'order_has_lines'}};
   if (!via){                                         /* a database without migration 0004: the two-step save */
-  items.forEach(function(it){ delete it.menu_item_id; });
+  items.forEach(function(it){ delete it.menu_item_id; delete it.at; });
   r = await db.from('orders').insert(Object.assign({}, row, extra));
   had = !!(r.error && isDup(r.error));       /* it was in the system already */
   if (r.error && o.discount_crc > 0 && /discount_(not_approved|too_big|total|no_subtotal|used|expired)|orders_discount_once/.test(r.error.message || '')){

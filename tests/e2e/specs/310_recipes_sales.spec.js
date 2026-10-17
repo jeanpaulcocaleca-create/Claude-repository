@@ -2,9 +2,11 @@
    cost of its moment although a manager changed the recipe on another device before it was sent; an item taken off a
    bill gives back exactly what it took although the recipe changed; a second device with an old view of the bill is
    refused; a bill paid in part and voided leaves out only what was eaten; a void nets the bill to zero; an item added on
-   the device to an order not confirmed yet keeps the recipe of when it was added. */
+   the device to an order (not confirmed yet, or never sent) keeps the recipe of when it was added; two devices at the
+   same instant, and a sale rung while a recipe is being saved. */
 'use strict';
 const assert = require('assert');
+const { spawn } = require('child_process');
 const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
 const gw = require('../gateway');
 
@@ -57,6 +59,33 @@ async function tap(pg, name) {
   if (!hit) throw new Error('no menu button ' + name);
 }
 const queued = (pg) => pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-queue') || '[]').length);
+/* a database session of its own, running alongside the others (a transaction held open on purpose) */
+function session(script) {
+  return new Promise((resolve, reject) => {
+    const p = spawn('psql', ['-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1', '-d', process.env.CANOPY_E2E_DB, '-f', '-']);
+    let out = '', err = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('close', (code) => (code === 0 ? resolve(out.trim()) : reject(new Error('psql ' + code + ': ' + err))));
+    p.stdin.end(script);
+  });
+}
+const waiting = (marker) => until(() => sql(`select count(*) from pg_stat_activity where state = 'active' and query like '%${marker}%' and pid <> pg_backend_pid()`) === '1',
+                                  5000, 'the other session to hold its transaction');
+/* a local order rung 5 minutes ago, kept on the device, to pay later */
+const localOrder = (id, num) => ({ local_id: 'o' + num, id, created_at: new Date(Date.now() - 5 * 60000).toISOString(), total_crc: 1500,
+  payment_method: 'pending', pickup_number: num, needs_kitchen: false, status: 'ready', paid: false, none: true, station: 'Caja', guest_name: null,
+  items: [{ id: id.slice(0, -2) + '99', item_name: 'Espresso', price_crc: 1500, qty: 1 }] });
+async function addOnDevice(b, num, name) {
+  await b.locator('#openBar .ocard', { hasText: '#' + num }).click();
+  await b.waitForSelector('#locModal:not([hidden])', { timeout: 8000 });
+  await b.click('#locAdd');
+  await b.waitForSelector('#addBar:not([hidden])');
+  await tap(b, name);
+  await b.click('#addGo');
+  await b.waitForSelector('#locModal:not([hidden])', { timeout: 8000 });
+  await b.click('#locClose');
+}
 
 /* the recipe editor on the owner's device: one quantity changed, saved with Ana's PIN */
 async function changeRecipe(browser, grams) {
@@ -167,20 +196,10 @@ module.exports.tests = [
         return r.abort('connectionreset');
       });
       const ORDER = 'f1000000-0000-4000-8000-0000000e3103';
-      await b.evaluate((o) => { queue.push(o); saveQueue(); return syncQueue(); }, {
-        local_id: 'o1', id: ORDER, created_at: new Date(Date.now() - 15 * 60000).toISOString(), total_crc: 1500, payment_method: 'pending',
-        pickup_number: 74, needs_kitchen: false, status: 'ready', paid: false, none: true, station: 'Caja', guest_name: null,
-        items: [{ id: 'f1000000-0000-4000-8000-0000000e3104', item_name: 'Espresso', price_crc: 1500, qty: 1 }] });
+      await b.evaluate((o) => { queue.push(o); saveQueue(); return syncQueue(); }, localOrder(ORDER, 74));
       assert.strictEqual(sql(`select count(*) from orders where id = '${ORDER}'`), '1', 'the order is in the system; the till does not know it');
       // a smoothie added on this device to that order
-      await b.locator('#openBar .ocard', { hasText: '#74' }).click();
-      await b.waitForSelector('#locModal:not([hidden])', { timeout: 8000 });
-      await b.click('#locAdd');
-      await b.waitForSelector('#addBar:not([hidden])');
-      await tap(b, 'T Batido');
-      await b.click('#addGo');
-      await b.waitForSelector('#locModal:not([hidden])', { timeout: 8000 });
-      await b.click('#locClose');
+      await addOnDevice(b, 74, 'T Batido');
       await until(() => b.evaluate(() => !qRound), 15000, 'the saving round to finish');
       assert.strictEqual(sql(`select count(*) from order_items where order_id = '${ORDER}'`), '1', 'the smoothie is still only on the device');
       // then, on the owner's device, 150 g instead of 120 g; and dearer strawberries arrive
@@ -193,6 +212,89 @@ module.exports.tests = [
       assert.strictEqual(moves(`order_id = '${ORDER}'`), 'Fresa e2e:-120@4 Leche e2e:-100@1', 'as when it was added: 120 g at ₡4, not 150 g at ₡6');
       await until(async () => (await queued(b)) === 0, 8000, 'nothing left on the device');
       assert.deepStrictEqual(b.errors, []);
+    }
+  },
+  {
+    name: 'without internet the whole time: an item added to an order on the device goes up with it and keeps the recipe and cost of when it was added',
+    run: async ({ browser }) => {
+      setup();
+      const b = await till(browser);
+      await b.context().setOffline(true);
+      const ORDER = 'f1000000-0000-4000-8000-0000000e3105';
+      await b.evaluate((o) => { queue.push(o); saveQueue(); return syncQueue(); }, localOrder(ORDER, 75));
+      // the recipe changes on the owner's device (150 g); then the smoothie is added on the till, still offline
+      await changeRecipe(browser, 150);
+      await addOnDevice(b, 75, 'T Batido');
+      // later, dearer strawberries arrive
+      sql(`insert into stock_moves (item_id, kind, qty, unit_cost) values ('${FRESA}', 'purchase', 5000, 6)`);
+      assert.strictEqual(sql(`select count(*) from orders`), '0', 'nothing has left the till');
+      await b.context().setOffline(false);
+      await b.evaluate(() => syncQueue());
+      await until(() => sql(`select count(*) from order_items where order_id = '${ORDER}'`) === '2', 15000, 'the order and its smoothie arrive together');
+      assert.strictEqual(moves(`order_id = '${ORDER}'`), 'Fresa e2e:-150@4 Leche e2e:-100@1',
+                         'the recipe of when it was added (150 g, after the change) at the cost then (₡4, before the delivery)');
+      await until(async () => (await queued(b)) === 0, 8000, 'nothing left on the device');
+      assert.deepStrictEqual(b.errors, []);
+    }
+  },
+  {
+    name: 'at the same instant: two devices take the same item off (one wins, nothing comes back twice); a sale rung while a recipe is being saved is kept, whole',
+    run: async ({ browser }) => {
+      setup();
+      const BILL = '0d000000-0000-4000-8000-0000000e3106', LINE = '0e000000-0000-4000-8000-0000000e3106';
+      sql(`insert into orders (id, total_crc, payment_method, status, paid, source, station, guest_name)
+             values ('${BILL}', 10500, 'pending', 'preparing', false, 'front', 'Caja', 'Mesa 9');
+           insert into order_items (id, order_id, item_name, price_crc, qty, menu_item_id) values
+             ('${LINE}', '${BILL}', 'T Batido', 3000, 3, '${BATIDO}'), ('0e000000-0000-4000-8000-0000000e3107', '${BILL}', 'Espresso', 1500, 1, null)`);
+      // the bill is busy for a moment (another device paying, say): both take-offs arrive while it is held
+      const held = session(`begin; select 1 from orders where id = '${BILL}' for update; select pg_sleep(1.5) /* hold-bill */; commit;`);
+      await waiting('hold-bill');
+      const both = await Promise.all([1, 2].map(() => rpc('tab_remove_item', { p_item_id: LINE, p_qty: 1, p_reason: '', p_station: 'Caja',
+                                                                            p_staff_id: null, p_pin: null, p_expect: 10500 })));
+      await held;
+      assert.deepStrictEqual(both.map((r) => r.ok ? 'ok' : r.error).sort(), ['changed', 'ok'], 'one take-off went through, the other was told');
+      assert.strictEqual(moves(`order_id = '${BILL}' and qty > 0`), 'Fresa e2e:120@4 Leche e2e:100@1', 'one smoothie came back, once');
+      assert.strictEqual(sql(`select qty from order_items where id = '${LINE}'`), '2');
+      // a manager saves a recipe (150 g) and the save is still open when a sale is rung on the till
+      const claims = JSON.stringify({ sub: gw.USERS['owner@test.local'], role: 'authenticated', aud: 'authenticated', aal: 'aal2', email: 'owner@test.local' });
+      const ver = Number(sql(`select coalesce(max(version), 0) from recipe_versions where menu_item_id = '${BATIDO}'`));
+      const lines = JSON.stringify([{ stock_item_id: FRESA, qty: 150, unit: 'g' }, { stock_item_id: LECHE, qty: 100, unit: 'ml' }]);
+      const saving = session(`begin;
+        select set_config('request.jwt.claims', '${claims}', true) \\g /dev/null
+        set local role authenticated;
+        select public.recipe_save('${BATIDO}', '${lines}'::jsonb, ${ver}, '${STAFF.ana}', '${PINS.ana}', null, gen_random_uuid())->>'ok';
+        select pg_sleep(1.5) /* hold-save */ \\g /dev/null
+        commit;`);
+      await waiting('hold-save');
+      const SALE = '0d000000-0000-4000-8000-0000000e3108';
+      const sold = await rpc('pos_record_sale', { p_order: { id: SALE, total_crc: 3000, payment_method: 'card',
+        items: [{ id: '0e000000-0000-4000-8000-0000000e3108', item_name: 'T Batido', price_crc: 3000, qty: 1, menu_item_id: BATIDO }] } });
+      assert.strictEqual(await saving, 'true', 'the recipe was saved');
+      assert.ok(sold.ok, 'the sale was kept: ' + JSON.stringify(sold));
+      assert.strictEqual(moves(`order_id = '${SALE}'`), 'Fresa e2e:-120@4 Leche e2e:-100@1', 'the whole recipe of before, not half of each');
+      assert.strictEqual(sql(`select v.version from order_items i join recipe_versions v on v.id = i.recipe_version_id where i.order_id = '${SALE}'`), String(ver),
+                         'and it names the version it took');
+      // the next sale takes the saved recipe
+      const next = await rpc('pos_record_sale', { p_order: { id: '0d000000-0000-4000-8000-0000000e3109', total_crc: 3000, payment_method: 'card',
+        items: [{ id: '0e000000-0000-4000-8000-0000000e3109', item_name: 'T Batido', price_crc: 3000, qty: 1, menu_item_id: BATIDO }] } });
+      assert.ok(next.ok);
+      assert.strictEqual(moves(`order_id = '0d000000-0000-4000-8000-0000000e3109'`), 'Fresa e2e:-150@4 Leche e2e:-100@1', 'the next sale: 150 g');
+      assert.strictEqual(sql(`select count(*) from orders where flags <> '{}'`), '0', 'nothing was marked');
+    }
+  },
+  {
+    name: 'a sale whose stock could not be taken off is shown in Sales for a manager to check (in Spanish)',
+    run: async ({ browser }) => {
+      sql(`insert into orders (id, created_at, total_crc, payment_method, paid, status, flags) values
+             ('0d000000-0000-4000-8000-0000000e3110', now() - interval '2 minutes', 3000, 'card', true, 'done', '{stock_not_taken}'),
+             ('0d000000-0000-4000-8000-0000000e3111', now() - interval '1 minute', 3000, 'card', true, 'done', '{recipe_item_missing}');
+           insert into order_items (order_id, item_name, price_crc, qty) values
+             ('0d000000-0000-4000-8000-0000000e3110', 'Latte', 3000, 1), ('0d000000-0000-4000-8000-0000000e3111', 'Mocha', 3000, 1)`);
+      const pg = await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' });
+      await goto(pg, '/sales');
+      await until(async () => /Inventario no descontado · revisar con el encargado/.test(await pg.textContent('body')), 15000, 'the notice');
+      assert.match(await pg.textContent('body'), /Un ingrediente de su receta ya no existe · revisar con el encargado/);
+      assert.deepStrictEqual(pg.errors, []);
     }
   }
 ];

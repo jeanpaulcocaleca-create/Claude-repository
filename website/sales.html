@@ -402,7 +402,7 @@ async function load(){
   /* a bill split between people: each payment is its own sale, part of the bill (supabase/pos-tabs.sql) */
   var since = start.toISOString();
   /* who rang each sale (0008) and who took the money on a bill paid later (0027) */
-  var r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes,operator_name,paid_operator_name').gte('created_at', since); });
+  var r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes,operator_name,paid_operator_name,flags').gte('created_at', since); });
   if (r.error && /operator/.test(r.error.message || '')){ /* migrations 0008 / 0027 not applied yet */
     r = await allRows(function(){ return db.from('orders').select(scols + ',part_of,parts_crc,notes').gte('created_at', since); });
   }
@@ -611,6 +611,13 @@ function renderTx(){
       vr.textContent = 'Voided · ' + (o.void_reason || '');
       t2.appendChild(vr);
     }
+    /* the sale was kept but its stock was not (all) taken off (0031): a manager checks the recipe */
+    (o.flags || []).forEach(function(f){
+      var msg = f === 'stock_not_taken' ? 'Stock not taken off · check with a manager'
+              : f === 'recipe_item_missing' ? 'An ingredient of its recipe no longer exists · check with a manager' : '';
+      if (!msg) return;
+      var fr = document.createElement('span'); fr.className = 'vreason'; fr.textContent = msg; t2.appendChild(fr);
+    });
     if (o.discount_crc > 0){
       var dr = document.createElement('span'); dr.className = 'vreason dreason';
       dr.textContent = 'Discount ' + fmt(o.discount_crc) + ' · ' + (o.discount_reason || '') + (o.discount_by ? ' · approved by ' + o.discount_by : '');
