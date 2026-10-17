@@ -315,7 +315,7 @@ Details: `docs/LANZAMIENTO.md`.
 
 **Launched 2026-10-15** (UTC early hours; the night of 2026-10-14 in Monteverde; D-040): backup #4, the one-time reset
 (`reinicio hecho`), migrations 0000–0028, release check clean, `v2026.10.14-1` published at 04:33 UTC from commit
-3c7e020, regulated features OFF. Still owed: the physical count before opening, the age private keys (E-24), the
+3c7e020, regulated features OFF. Still owed: the physical count before opening, the age private keys (E-24, done 2026-10-17), the
 accountant's answer (A-11), the café login conversion and the phone codes (deferred by the owner).
 
 **Not ready / not requested:**
@@ -326,9 +326,9 @@ accountant's answer (A-11), the café login conversion and the phone codes (defe
 **Done on launch night (2026-10-15 UTC):** Wave 0, the rehearsal with the real data (run #3, green), the window
 (backup #4, reset, 0000–0028, release check) and the publish of `v2026.10.14-1`. **First day:** the nightly backup ran
 by itself (run #5, 2026-10-15 13:24 UTC, green: 62 tables, restore test passed, result in `canopy.backup_runs`, so the
-Home card has its first row); it is readable only with the private key of E-24. **Still asked of you:**
-1. E-24, urgent: confirm a private age key exists, or make new keys, update `AGE_RECIPIENTS`, run «Respaldo nocturno»
-   and decrypt-test it. Until then no backup is readable.
+Home card has its first row); on 2026-10-17 the owner decrypted backup #9 with both private keys and restored it in full on a throw-away PostgreSQL (E-24 DONE, D-046). **Still asked of you:**
+1. E-24: done on 2026-10-17 (both keys decrypt; full restore verified, D-046). Repeat the drill every three months,
+   once a year with the printed key (docs/RESPALDOS.md → Prueba de restauración).
 2. The morning of 2026-10-15 before opening: `release-check.sql`, `consistency-check.sql` (`orders_before_reset` = 0),
    the physical count in Inventario → Existencias → Contar, the register opened with the counted float, the exchange rate.
 3. A-11 (the accountant's retention answer) and, another night, approvals 5 and 6 (`cafe-login.sql`, phone codes).

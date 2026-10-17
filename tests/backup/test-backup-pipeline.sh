@@ -308,6 +308,33 @@ KEEP_STORAGE_TO="$T/photos0" bash "$ROOT/ops/backup/restore.sh" "$F0" "$T/recove
   || { cat "$T/restore0.log"; echo "  FAIL  restore of the backup taken before 0000"; exit 1; }
 grep -q 'contenido idéntico en' "$T/restore0.log" || { cat "$T/restore0.log"; echo "  FAIL  restored content not compared"; exit 1; }
 cmp -s "$T/photos0/menu-photos/desayunos/gallo-pinto.jpg" "$PHOTOS/desayunos/gallo-pinto.jpg" || { echo "  FAIL  photo missing from the backup"; exit 1; }
+! grep -q 'forma de Supabase' "$T/restore0.log" || { cat "$T/restore0.log"; echo "  FAIL  a target that already has the Supabase shape was given the stub again"; exit 1; }
+# the owner's drill on a clean PostgreSQL (Docker, D-046): no stub step by hand; restore.sh gives the target the
+# Supabase shape itself, with the other key, and still compares rows, content, rights and photos. The API roles are
+# cluster-wide and already exist here (tests/db/00_supabase_stub.sql), so this case is "roles present, none of the
+# Supabase schemas"; the owner's drill on a truly bare server is recorded in D-046
+psql -X -q -d postgres -c "drop database if exists canopy_restored0b with (force)" -c "create database canopy_restored0b"
+[ "$(psql -X -At -d canopy_restored0b -c "select count(*) from pg_namespace where nspname in ('auth','storage','extensions')")" = "0" ] \
+  && [ "$(psql -X -At -d postgres -c "select count(*) from pg_roles where rolname = 'supabase_admin'")" = "0" ] || { echo "  FAIL  test setup: the clean database is not clean"; exit 1; }
+KEEP_STORAGE_TO="$T/photos0b" bash "$ROOT/ops/backup/restore.sh" "$F0" "$T/owner.key" "$URL_BASE/canopy_restored0b" --yes > "$T/restore0b.log" 2>&1 \
+  || { cat "$T/restore0b.log"; echo "  FAIL  restore into a clean PostgreSQL without a stub step"; exit 1; }
+grep -q 'forma de Supabase' "$T/restore0b.log" && grep -q 'contenido idéntico en' "$T/restore0b.log" \
+  || { cat "$T/restore0b.log"; echo "  FAIL  the clean target was not given the Supabase shape, or its content was not compared"; exit 1; }
+cmp -s "$T/photos0b/menu-photos/latte.png" "$PHOTOS/latte.png" || { echo "  FAIL  photo missing from the restore into the clean target"; exit 1; }
+# a target with only part of the shape (an interrupted preparation) is refused before anything is loaded
+psql -X -q -d postgres -c "drop database if exists canopy_restored0c with (force)" -c "create database canopy_restored0c"
+psql -X -q -d canopy_restored0c -c "create schema auth" >/dev/null
+if bash "$ROOT/ops/backup/restore.sh" "$F0" "$T/owner.key" "$URL_BASE/canopy_restored0c" --yes > "$T/restore0c.log" 2>&1; then
+  cat "$T/restore0c.log"; echo "  FAIL  a half-prepared target (auth schema, nothing else) was restored into"; exit 1; fi
+grep -q 'solo parte de la forma de Supabase' "$T/restore0c.log" \
+  && [ "$(psql -X -At -d canopy_restored0c -c "select count(*) from information_schema.tables where table_schema in ('public','canopy','acct')")" = "0" ] \
+  || { cat "$T/restore0c.log"; echo "  FAIL  the half-prepared target was not refused with the reason, or something was loaded"; exit 1; }
+# the restored copy keeps production's rules: anonymous visitors are refused, logins read (the same check the owner runs)
+[ "$(psql -X -At -d canopy_restored0b -c "set role anon; select count(*) from public.orders" 2>&1 | grep -c 'permission denied')" = "1" ] \
+  || { echo "  FAIL  the restored copy lets anonymous visitors read the orders"; exit 1; }
+# a login sees in the copy exactly what it sees in the source under the same rules (the policies may depend on the session)
+[ "$(psql -X -At -d canopy_restored0b -c "set role authenticated; select count(*) from public.orders")" = "$(psql -X -At -d canopy_legacysim -c "set role authenticated; select count(*) from public.orders")" ] \
+  || { echo "  FAIL  a login does not read the same orders in the restored copy as in the source"; exit 1; }
 # the logins are not in the backup (the account cannot read them): no auth file in the archive
 age -d -i "$T/owner.key" "$F0" | tar -tf - > "$T/archive0.txt"
 grep -q '/app.dump$' "$T/archive0.txt" && ! grep -qi 'auth' "$T/archive0.txt" \
@@ -483,6 +510,6 @@ for f in backup.sh restore-stub.sql; do
   cmp -s "$ROOT/ops/backup/$f" "$ROOT/ops/backup/repositorio-respaldos/$f" || { echo "  FAIL  repositorio-respaldos/$f is out of date"; exit 1; }
 done
 psql -X -q -d postgres -c "drop database if exists canopy_restored with (force)" -c "drop database if exists canopy_prodsim with (force)" \
-  -c "drop database if exists canopy_restored0 with (force)" -c "drop database if exists canopy_legacysim with (force)" \
+  -c "drop database if exists canopy_restored0 with (force)" -c "drop database if exists canopy_restored0b with (force)" -c "drop database if exists canopy_restored0c with (force)" -c "drop database if exists canopy_legacysim with (force)" \
   -c "drop database if exists canopy_restored_busy with (force)" >/dev/null
 echo "  ok    backup pipeline (before 0000 and after: account self-check (trigger functions too), password tool (refused with nothing changed: a setting that would record it, a pg_tle checker, no account; 64-hex row and login, replaced on a second run, REVISAR statement by statement, a failure carries no password, gives up on a lock before the server would log it) and read-only check, the secrets checked before connecting (the owner's postgres account refused), the connection check, backup, content fingerprints, photos, no logins, encryption, offline-key restore into an en_US-sorting database, a busy backup, computer sync)"

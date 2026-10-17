@@ -1344,3 +1344,41 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   bill, and a sale rung while a recipe save is still open; flagged sales in Sales) and `300_recipes` (7, the phone included);
   the rehearsal's live pages expect the old editor to be refused from 0032 on and the POS to keep selling and syncing.
   Nothing was applied to production, nothing published, nothing merged.
+
+## D-046 · 2026-10-17 · Backup #9 decrypted and restored for real with the owner's keys; the restore drill works on a clean PostgreSQL (E-24 closed)
+- **The owner's request:** before activating 0030–0032, prove that an encrypted backup can really be recovered, in a
+  throw-away environment, without sharing keys through the chat, GitHub or run logs, and without touching production.
+- **What happened:** the owner's notes were first believed to hold only the public keys (D-040); the private key files
+  were found and each of the two (the owner's and the printed recovery one) decrypts «Respaldo nocturno» #9
+  (2026-10-17 15:36 UTC, SHA-256 verified). The restore on a bare PostgreSQL 17 in Docker then failed twice: first on the
+  API roles (`anon`, `authenticated`, `service_role`) that the dump's GRANTs name, then on the missing `auth` schema (37
+  policies call `auth.uid()` or `auth.jwt()`, and PostgreSQL validates a policy's expression when it is created). Both
+  times `--single-transaction` left the database with 0 tables. Root cause: `restore.sh` assumed a Supabase-shaped
+  target and the guide's drill used the PRUEBAS project, gone since D-039; the nightly restore test, the rehearsal and
+  the CI test always run `restore-stub.sql` first, which gives a bare server exactly that shape. With the stub the
+  restore passed: `OK: 62 tablas y 464 filas iguales al respaldo; contenido idéntico en 62 tablas`, rights fingerprint
+  equal to production's, 8 photos verified, migrations 0–29 present, `anon` refused on `public.orders`, a login's query
+  accepted (the policies decide the rows); the container was deleted.
+- **Changes (code and docs only; nothing in production):** `ops/backup/restore.sh` gives a clean PostgreSQL the Supabase
+  shape itself with the `restore-stub.sql` kept next to it (target without an `auth` schema and without a
+  `supabase_admin` role; a half-prepared target with `auth` but no API roles is refused; a Supabase project is never
+  touched) and verifies the checksum with macOS `shasum` when `sha256sum` is missing; the backup pipeline test restores
+  the same file into a clean database with the second key, checks that a target already in shape is not stubbed again,
+  and checks on the restored copy that `anon` is refused and a login sees the same rows as in the source; `docs/RESPALDOS.md` rewrites
+  the quarterly drill for Docker on Mac or WSL with every verification kept (decrypt with each key first, checksum,
+  internal hashes, rows, content, rights, photos, the `set role` checks, release-check against the copy, cleanup of
+  the unencrypted photos folder); `docs/DEPENDENCIES.md` E-24 and E-28 DONE; `docs/LANZAMIENTO.md` rollback rows
+  0029–0032; `docs/PRUEBAS.md` reinicio = `no` on a migrated copy; `docs/ACTIVACION-RECETAS.md` adds the device checks
+  (POS chip, open bills, kitchen, clocks, one tab per page), the read-only snapshots before and after, the fresh
+  backup right before 0030, the tag's Target, version.json before touching devices, the stop rule, the owner's
+  recorded decisions and the rule that the window waits for the café to close.
+- **Also noted:** the job's «restauración verificada» restores the plaintext dump before encrypting and the job never
+  holds a private key, so only the owner's drill proves key custody: now every three months, once a year with the
+  printed key. The kitchen and POS pages keep polling `orders` every few seconds after a session ends (401 as `anon`,
+  nothing exposed; pre-existing since 2026-09-08, identical in the live tag): a one-line timer fix with a browser test
+  is planned for the first release after the activation; nothing grants anything to `anon`.
+- **Activation readiness:** unchanged, LISTO (D-045). An independent readiness review of 9b33273 (four lenses:
+  migrations and reversibility, site/database compatibility both ways, the documented procedure, interruption points;
+  every blocking or owner-decision finding attacked by two verifiers) found no blocker; the surviving owner decisions
+  (the one-time `avg_cost` fill of 0030, the key custody now settled, who holds the manager PIN for the no-op save) are
+  recorded in the guide. Nothing was applied to production, nothing published, nothing merged.

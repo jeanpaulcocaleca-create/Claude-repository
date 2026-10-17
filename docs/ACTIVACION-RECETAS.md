@@ -1,7 +1,11 @@
-# Activación de las recetas, etapas 1A + 1B (propuesta)
+# Activación de las recetas, etapas 1A + 1B
 
-**Estado:** propuesta para aprobación del dueño. Nada de esto está aplicado ni publicado. Las cantidades del
-recetario siguen siendo propuestas: esta activación no carga ninguna receta.
+**Estado:** aprobada técnicamente (LISTO PARA PRODUCCIÓN, D-045) y en preparación paso a paso con el dueño; nada
+aplicado ni publicado hasta que el dueño ejecute la ventana. Las cantidades del recetario siguen siendo propuestas:
+esta activación no carga ninguna receta. **Versión a publicar:** un commit de la rama aprobada cuyos `website/` y
+`supabase/migrations/` sean idénticos a 9b33273 (el ensayado el 2026-10-17 en «Ensayo en pruebas» #6) y con CI en
+verde; si se etiqueta otro commit, repetir el ensayo sobre él (unos 5 minutos). La revisión independiente de preparación
+(cuatro lentes, cada hallazgo serio atacado por dos verificadores) no encontró bloqueos.
 
 ## Qué se activa
 
@@ -31,26 +35,65 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
   de la 0031, se devuelve la parte de lo que sigue fuera con ese nombre en esa cuenta (incluye lo devuelto antes), sin
   recalcular con la receta de hoy.
 
-## Pasos propuestos (una sola ventana, fuera del horario de atención)
+## Pasos (una sola ventana, con el café cerrado)
 
-1. **Antes de la ventana**
-   - Subir `ops/backup/repositorio-respaldos/anonimizar.sql` de esta versión al repositorio privado `canopy-respaldos`
-     (E-28).
-   - «Ensayo en pruebas» con esta rama o su etiqueta, **reinicio = no**: debe terminar en verde (aplica 0030, 0031 y
+**Si el café está operando, se espera al cierre.** La 0030 bloquea un instante la tabla de recetas y la 0031 las de
+líneas y movimientos: una venta en ese instante espera o el pegado se detiene sin cambiar nada (lock timeout de 8 s).
+La publicación recarga las páginas solo cuando están libres, pero la ventana entera se hace con los aparatos quietos.
+
+1. **Antes de la ventana** (puede hacerse con el café abierto; nada de esto cambia producción)
+   - E-28 hecho el 2026-10-17: los archivos del repositorio privado son idénticos a los de la versión, y «Ensayo en
+     pruebas» #6 terminó en verde sobre 9b33273 (destino `desechable`, vaciar `no`, reinicio `no`: aplica 0030, 0031 y
      0032 sobre una copia anonimizada de producción y compara).
+   - Llaves de los respaldos comprobadas: las dos abren el respaldo y la copia restaurada es igual a producción (E-24,
+     D-046).
+   - Decisiones del dueño, registradas antes de la ventana: la 0030 fija **una sola vez** el costo promedio de los
+     ingredientes creados con precio y nunca recibidos (hoy ₡0 en cada venta; aprobado en D-043); ninguna reversión lo
+     deshace, solo el respaldo lo tendría. Los encargados con PIN autorizan cambios de receta hasta que exista un perfil
+     de dueño (D-043). Qué encargado hará el paso 2.11 con su PIN. La regla de parada de abajo.
+   - Solo lectura, en el SQL Editor, con los archivos **de la versión** (Raw en GitHub): `supabase/tools/release-check.sql`
+     → `migrations_missing` = `[30, 31, 32]` y `functions_missing` = `[recipe_save, recipes_autolink_pin]`;
+     `supabase/tools/production-snapshot.sql` → guardar la celda (foto «antes»; es la base para comprobar una reversión).
 2. **En la ventana** (café cerrado; ningún aparato vendiendo)
-   1. «Respaldo inmediato» en verde.
-   2. SQL Editor: pegar `0030_recetas_seguras.sql` → *Success*.
-   3. Pegar `0031_recetas_ventas_exactas.sql` → *Success*.
-   4. Pegar `0032_recetas_solo_con_pin.sql` → *Success*.
-   5. Pegar `supabase/tools/release-check.sql`: `migrations_missing` = `[]` y `functions_missing` = `[]`.
-   6. Crear la etiqueta `v…` y ejecutar «Publish website (PRODUCTION · manual only)».
-   7. En un aparato del café: Inventario → Recetas, abrir un producto, no cambiar nada y guardar con PIN («La receta no
-      cambió»). **No** hacer una venta de prueba en producción: con la caja ya cerrada no se puede anular (quedaría una
-      venta y una devolución en un día cerrado). Las ventas, devoluciones y anulaciones se prueban en el «Ensayo en
-      pruebas» y en las pruebas automáticas; en producción se revisan con las primeras ventas reales (ver «Después»).
-   Si un pegado se detiene por «lock timeout» (algo usaba esas tablas en ese instante), no cambió nada: se vuelve a
-   pegar.
+   1. **Los tres aparatos**, con sesión iniciada: la Caja muestra el chip «en línea» y, al tocarlo, «Todo lo que se tomó
+      en este dispositivo está guardado en el sistema.»; el panel de pedidos abiertos no tiene cuentas por pagar; la
+      cocina no tiene tickets; fecha y hora automáticas y sin aviso de reloj; una sola pestaña por página. La cola de
+      ventas sin conexión existe solo en cada aparato: no se puede ver desde la base. Cualquier otro texto del chip
+      («guardando N…», «N sin guardar todavía», «sin conexión · N en este dispositivo») detiene la ventana hasta que
+      se vacíe.
+   2. «Respaldo inmediato» en verde, **justo antes** de la 0030 (uno de la mañana no cuenta si hubo ventas después). En
+      Actions no debe quedar ninguna corrida de respaldo en curso al pegar: un respaldo abierto haría fallar la 0031 por
+      lock timeout (sin cambiar nada).
+   3. SQL Editor → New query: pegar **todo** `0030_recetas_seguras.sql` de la versión (primera línea: «migración 0030 ·
+      Recetas seguras») → *Success*.
+   4. Pegar `0031_recetas_ventas_exactas.sql` → *Success*.
+   5. Pegar `0032_recetas_solo_con_pin.sql` → *Success*.
+   6. Pegar `release-check.sql`: `migrations_missing` = `[]`, `functions_missing` = `[]`; `anon_can_run` y
+      `tables_without_rls` iguales a la celda de antes.
+   7. Pegar `production-snapshot.sql` → guardar la celda (foto «después»).
+   8. **Etiqueta y publicación.** Releases → Draft a new release → etiqueta `vAAAA.MM.DD-N` → **Target: la rama
+      aprobada**, no la predeterminada (el formulario propone la predeterminada y nada avisaría del error) → comprobar
+      que el commit que muestra es el aprobado → Publish release. Luego Actions → «Publish website (PRODUCTION · manual
+      only)» → Use workflow from → Tags → la etiqueta nueva → casilla PUBLICAR → Run workflow. Si el entorno
+      `production` tiene revisores requeridos (E-20), la corrida espera su clic en Review deployments → Approve; si no,
+      como en las dos publicaciones anteriores, publica en cuanto pasan sus dos controles.
+   9. Abrir `https://hanginggardencafe.com/version.json` en una ventana privada: debe mostrar la etiqueta y el commit
+      **antes** de tocar los aparatos.
+   10. En los tres aparatos: recargar cada página cuando esté libre (la Caja se recarga sola sin ticket, sin cuenta
+       abierta y con la cola vacía; si tras 15 minutos sigue en «actualización lista», recargar a mano); cerrar
+       pestañas sobrantes y dejar una por página, con sesión.
+   11. Inventario → Recetas, con el PIN de un encargado: abrir un producto que **ya tenga receta con cantidades
+       enteras**, no cambiar nada y guardar → «La receta no cambió». No escribe versión ni bitácora; teclear el PIN
+       correcto una sola vez (uno equivocado cuenta para el bloqueo). Si dice «Receta guardada · versión 2», detenerse y
+       revisar Inventario → Historial. **No** hacer una venta de prueba en producción: con la caja ya cerrada no se puede
+       anular (quedaría una venta y una devolución en un día cerrado). Las ventas, devoluciones y anulaciones se prueban
+       en el «Ensayo en pruebas» y en las pruebas automáticas; en producción se revisan con las primeras ventas reales
+       (ver «Después»).
+
+   **Regla de parada.** Un pegado que se detiene por «lock timeout» no cambió nada: se vuelve a pegar. Cualquier **otro**
+   error: detenerse, copiar el mensaje completo, no pegar el archivo siguiente y **no publicar**. La base queda en la
+   versión alcanzada (0030 sola, o 0030 + 0031), estados probados con las páginas publicadas hoy. Cada archivo es una
+   sola transacción, exige la anterior y rechaza repetirse.
 3. **Después**
    - Los aparatos toman las páginas nuevas solos al quedar libres (sin venta en curso ni cuenta abierta en pantalla).
      No hace falta esperar una semana: la Caja no depende de esto.
@@ -58,6 +101,12 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
      «Quitado de una cuenta» con la misma cantidad que salió con la venta.
    - La primera semana, en Ventas: una venta con el aviso «Inventario no descontado» o «Un ingrediente de su receta quedó
      fuera» se revisa con el encargado (la venta quedó guardada; solo el inventario necesita revisión).
+   - Una pestaña de cocina o de Caja que quedó en la pantalla de inicio de sesión sigue consultando los pedidos cada
+     pocos segundos y deja errores 401 en el registro de Supabase, sin exponer nada: cerrarla o iniciar sesión. Nunca
+     conceder permisos sobre `orders` al rol `anon`; la corrección de una línea va en la primera versión posterior.
+   - Anotar en `docs/DECISIONS.md` y `docs/DEPENDENCIES.md` la etiqueta, la hora UTC de cada pegado, las celdas de
+     release-check y version.json y el resultado del paso 2.11; actualizar `tests/rehearsal/LIVE_PAGES` con el nuevo
+     commit de `gh-pages` (un commit normal, no esa noche).
 
 ## Relojes de los aparatos y ventas que llegan tarde (revisión final, 2026-10-17)
 
@@ -90,6 +139,9 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
 
 Cada archivo es una sola transacción, se niega si el orden no es el correcto y deja las funciones exactamente como
 estaban (misma huella en la foto de producción). Ninguna reversión borra ventas, movimientos ni recetas.
+La reversión de la 0030 tampoco devuelve a ₡0 el costo promedio que esa migración dio una vez (D-043): ese dato queda,
+y solo el respaldo lo tendría. Las páginas vuelven con «Publicar» desde la etiqueta anterior (`v2026.10.15-1`), que
+funciona sobre la base con las tres migraciones y también después de cualquiera de las reversiones.
 
 ## Qué queda para después
 

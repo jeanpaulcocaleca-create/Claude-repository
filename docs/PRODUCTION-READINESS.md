@@ -32,7 +32,7 @@ owner's paste of the read-only snapshot (2026-10-12 21:48 UTC, D-027) and of the
 restore test, the encrypted file was downloaded and the owner's recovery key decrypts it. The launch window started
 with another one (#4, 2026-10-15 02:50 UTC: 26 tables, 401 rows, restore test passed) and the nightly job ran by itself
 on the first day (#5, 13:24 UTC: 62 tables, 371 rows, restore test passed, result recorded in `canopy.backup_runs`).
-Every copy is readable only with a private age key the owner still has to confirm (E-24). What is proven on test copies:
+Every copy is readable with the owner's private age keys: both decrypt backup #9 and a full restore on a throw-away PostgreSQL matched production in rows, content and rights (E-24 DONE 2026-10-17, D-046). What is proven on test copies:
 
 - **Works before any migration:** `supabase/tools/backup-account.sql` creates the `canopy_backup` account on
   today's schema (no migration needed). It reads the café's tables and the photo list, never the logins (`auth`) or

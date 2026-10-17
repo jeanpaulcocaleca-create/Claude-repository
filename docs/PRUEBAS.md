@@ -60,7 +60,9 @@ ningún secreto nuevo**: producción se lee con `CANOPY_DB_URL` y la variable `S
 ## Ensayo
 
 `canopy-respaldos` → **Actions → Ensayo en pruebas → Run workflow** → versión: la etiqueta o rama a lanzar →
-destino: `desechable` → vaciar: `no` → reinicio: `si`. Al terminar (unos 5 minutos) debe estar en **verde**.
+destino: `desechable` → vaciar: `no` → reinicio: `no` (desde el lanzamiento la copia ya está migrada; `si` solo valía
+para una copia anterior al reinicio, D-038, y el guion se detiene si se elige con una copia migrada). Al terminar (unos
+5 minutos) debe estar en **verde**.
 (`vaciar` solo tiene sentido con un proyecto de pruebas: la base desechable nace vacía.)
 
 Qué hace, en orden, dentro del trabajo:

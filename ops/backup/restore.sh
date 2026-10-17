@@ -3,10 +3,13 @@
 # Canopy OS · restore a backup
 #   ops/backup/restore.sh <canopy-respaldo-....tar.age> <age-identity-file> <target-database-url> [--yes]
 #
-# The target must be an EMPTY project: a new Supabase project (disaster) or the staging project after it
-# was emptied (drill, docs/RESPALDOS.md). The script refuses a database that already has café data.
-# It never touches the production database unless you point it there yourself, and even then it refuses
-# because production is not empty.
+# The target must be an EMPTY database: a new Supabase project (disaster), or a clean PostgreSQL such as a Docker
+# container on the owner's computer (drill, docs/RESPALDOS.md). A clean PostgreSQL has none of what Supabase provides
+# (the API roles, the auth and storage schemas that the policies and functions name, the extensions schema): the
+# script gives it that shape itself with restore-stub.sql, kept next to it, the same way the nightly restore test and
+# the rehearsal do (D-046). On a Supabase project nothing of that is touched. The script refuses a database that
+# already has café data. It never touches the production database unless you point it there yourself, and even then
+# it refuses because production is not empty.
 # The logins (auth) are not in the backup: create them again by hand (docs/RESPALDOS.md → Cuentas de acceso).
 #   --yes    do not ask for the typed confirmation (for the automated drill only)
 # =====================================================================================================
@@ -57,8 +60,11 @@ PRIV_SQL="select md5(coalesce(string_agg(x, E'\n' order by x collate \"C\"), '')
     from pg_policies where schemaname in ('public', 'canopy', 'acct')) q"
 
 echo "1/6 Verificando la suma de control…"
+# the .sha256 file is in sha256sum's format; macOS has no sha256sum unless coreutils is installed, but shasum reads it
+sum_check() { if command -v sha256sum >/dev/null 2>&1; then sha256sum -c "$1"; else shasum -a 256 -c "$1"; fi; }
 if [ -f "$ARCHIVE.sha256" ]; then
-  ( cd "$(dirname "$ARCHIVE")" && sha256sum -c "$(basename "$ARCHIVE").sha256" ) >/dev/null || { echo "La suma de control NO coincide: archivo dañado."; exit 1; }
+  command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || { echo "Falta sha256sum (coreutils) o shasum para verificar la suma de control. No se cambió nada."; exit 1; }
+  ( cd "$(dirname "$ARCHIVE")" && sum_check "$(basename "$ARCHIVE").sha256" ) >/dev/null || { echo "La suma de control NO coincide: archivo dañado."; exit 1; }
 else
   echo "   (no hay archivo .sha256 al lado; se sigue con la verificación interna)"
 fi
@@ -82,12 +88,39 @@ echo "3/6 Revisando que la base de destino esté vacía…"
 HAS="$(psql -X -At "$TARGET" -c "select count(*) from information_schema.tables where table_schema in ('public','canopy','acct')")"
 if [ "$HAS" != "0" ]; then
   echo "La base de destino YA tiene $HAS tablas. Por seguridad no se restaura encima."
-  echo "Use un proyecto nuevo, o vacíe el proyecto de PRUEBAS como dice docs/RESPALDOS.md."
+  echo "Use un proyecto nuevo o una base desechable vacía (docs/RESPALDOS.md → Prueba de restauración)."
   exit 1
 fi
+# A clean PostgreSQL (a Docker container for a drill) has none of what Supabase provides and the dump names: the API
+# roles in its GRANTs, auth.uid()/auth.jwt() in the policies (37 at backup #9), the extensions schema in column defaults. restore-stub.sql
+# gives it that shape, as the nightly restore test and the rehearsal do before loading. A Supabase project is known by
+# its auth schema (and its supabase_admin role): there nothing of this runs. The kind is decided before the typed
+# confirmation, so the prompt says it and a missing stub is found before anything happens.
+IS_SUPABASE="$(psql -X -At "$TARGET" -c "select exists (select 1 from pg_namespace where nspname = 'auth') or exists (select 1 from pg_roles where rolname = 'supabase_admin')")"
+if [ "$IS_SUPABASE" = "f" ]; then
+  [ -f "$HERE/restore-stub.sql" ] || { echo "El destino es un PostgreSQL limpio (no es Supabase) y falta $HERE/restore-stub.sql, que le da la forma de Supabase. Copie restore-stub.sql junto a restore.sh. No se cambió nada."; exit 1; }
+  KIND="un PostgreSQL limpio: se le dará la forma de Supabase con restore-stub.sql"
+else
+  # a Supabase project, or a base already given the shape: all of it must be there (a stub interrupted halfway is not)
+  ROLES="$(psql -X -At "$TARGET" -c "select count(*) from pg_roles where rolname in ('anon','authenticated','service_role')")"
+  SHAPE="$(psql -X -At "$TARGET" -c "select count(*) from pg_namespace where nspname = any (array['auth', 'storage', 'extensions'])")"
+  if [ "$ROLES" != "3" ] || [ "$SHAPE" != "3" ]; then
+    echo "El destino tiene solo parte de la forma de Supabase (roles de la API: $ROLES de 3; esquemas auth, storage y extensions: $SHAPE de 3): no es un proyecto Supabase ni un PostgreSQL limpio (por ejemplo, una preparación interrumpida). Use una base nueva. No se cambió nada."
+    exit 1
+  fi
+  KIND="un proyecto Supabase o una base ya preparada (no se cambia nada de su forma)"
+fi
+echo "   Destino: $KIND"
 if [ "$ASSUME_YES" != "1" ]; then
   read -r -p "Escriba RESTAURAR para cargar este respaldo en la base de destino: " ok
   [ "$ok" = "RESTAURAR" ] || { echo "Cancelado. No se cambió nada."; exit 1; }
+fi
+
+if [ "$IS_SUPABASE" = "f" ]; then
+  echo "   Dando al destino la forma de Supabase (roles, auth, storage, extensions) con restore-stub.sql, en una sola transacción…"
+  echo "   Aviso: el stub crea el ingreso 'authenticator' con la contraseña pública de los entornos de prueba: esta base debe escuchar solo en 127.0.0.1 y borrarse al terminar."
+  PGOPTIONS='-c client_min_messages=warning' psql -X -q -v ON_ERROR_STOP=1 --single-transaction "$TARGET" -f "$HERE/restore-stub.sql" >/dev/null \
+    || { echo "No se pudo preparar el destino con restore-stub.sql; nada quedó a medias. No se restauró nada."; exit 1; }
 fi
 
 echo "4/6 Cargando la estructura y los datos…"
@@ -131,7 +164,7 @@ PY
 PHOTOS="${KEEP_STORAGE_TO:-$(cd "$(dirname "$ARCHIVE")" && pwd)/fotos-restauradas-$(date -u +%Y%m%d-%H%M%SZ)}"
 if [ -d "$PACK/storage" ] && [ -n "$(find "$PACK/storage" -type f | head -1)" ]; then
   mkdir -p "$PHOTOS" && cp -R "$PACK/storage/." "$PHOTOS/"
-  echo "6/6 Fotos del menú ($(find "$PHOTOS" -type f | wc -l) archivos, ya comprobados en el paso 2) copiadas a: $PHOTOS"
+  echo "6/6 Fotos del menú ($(find "$PHOTOS" -type f | wc -l | tr -d ' ') archivos, ya comprobados en el paso 2) copiadas a: $PHOTOS"
   echo "    Esa carpeta NO está cifrada (puede traer facturas de gastos): bórrela cuando haya subido las fotos, y antes de"
   echo "    copiar la carpeta de respaldos a la memoria USB."
 else

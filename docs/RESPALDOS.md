@@ -21,8 +21,9 @@
    - **ámbar**: respaldo atrasado o con la prueba fallida;
    - **rojo**: más de 50 h sin respaldo.
 
-   La tarjeta muestra lo que el respaldo anota de sí mismo. La prueba es el resumen verde de la corrida en GitHub
-   o una restauración hecha por usted (vea "Prueba de restauración").
+   La tarjeta muestra lo que el respaldo anota de sí mismo. La prueba de que el volcado sirve es el resumen verde de
+   la corrida en GitHub; la prueba de que **usted** puede leerlo es descifrarlo y restaurarlo con su llave cada tres
+   meses (vea "Prueba de restauración"): el trabajo nunca tiene llaves privadas y no puede hacerla por usted.
 5. Si un respaldo falla, GitHub le envía un correo.
 
 **Cifrado.** Los respaldos se cifran con `age` (gratuito) para **dos llaves**:
@@ -241,26 +242,72 @@ Desconéctela y guárdela fuera del café. Con dos memorias que se turnan, mejor
 
 ## Prueba de restauración (cada 3 meses, 30 minutos)
 
-Cada noche el respaldo se restaura solo en una base desechable. Además, cada 3 meses:
+Cada noche el respaldo se restaura solo en una base desechable **antes de cifrarse**: eso prueba el volcado, no sus
+llaves. La única prueba de que usted puede abrir un respaldo es descifrarlo con su llave y restaurarlo. Se hizo por
+primera vez el 2026-10-17 con el respaldo #9 (D-046): las dos llaves lo abrieron y la copia quedó igual a producción
+en filas, contenido y permisos. La prueba se hace en su computadora, en un PostgreSQL 17 desechable en Docker. Nunca en
+producción ni en un proyecto con datos (ya no hay proyecto de pruebas: D-039).
 
-1. En el proyecto de **PRUEBAS** (nunca en producción), vacíe la base con el SQL Editor:
-   ```sql
-   drop schema if exists acct cascade; drop schema if exists canopy cascade;
-   drop schema public cascade; create schema public;
-   grant usage on schema public to anon, authenticated, service_role;
-   grant all on schema public to postgres, service_role;
+**Necesita, una sola vez.** Mac: Docker Desktop, `brew install age postgresql@17 coreutils` y `python3` (viene con las
+Command Line Tools de Xcode, que Homebrew ya instala). Windows: WSL con Ubuntu,
+Docker Desktop, `age` y `postgresql-client-17` del repositorio de PostgreSQL (el mismo paso que usa el trabajo nocturno).
+En cada Terminal nueva de la Mac, antes de empezar:
+```
+export PATH="$(brew --prefix postgresql@17)/bin:$(brew --prefix coreutils)/libexec/gnubin:$PATH"
+```
+`pg_restore` debe ser de la versión 17 o más nueva, nunca más vieja que la del trabajo nocturno, que hizo el volcado;
+`coreutils` da `sha256sum` (sin él, el script usa `shasum`).
+
+**Archivos.** El `.tar.age` con su `.sha256` al lado (de `Documentos/HangingGarden-Respaldos/archivo`, o el artefacto
+`respaldo-cifrado` de la corrida), y `ops/backup/restore.sh` con `ops/backup/restore-stub.sql` **en la misma carpeta**,
+de esta versión o una posterior (la primera que incluye D-046; las etiquetas anteriores a esa fecha traen un `restore.sh`
+que no da la forma de Supabase por sí mismo: con uno de esos, antes del paso 3 corra
+`psql -X -q "$URL/canopy_restore" -f restore-stub.sql`). La llave privada se usa desde un archivo en su disco; nunca se
+pega en un chat, un correo ni GitHub.
+
+1. **Las dos llaves abren el archivo.** Con la del gestor de contraseñas y con la impresa, cada una copiada completa a un
+   archivo temporal:
    ```
-2. En su computadora, con `pg_restore` y `age` instalados:
+   age -d -i llave.txt -o /dev/null <archivo>.tar.age
    ```
-   bash ops/backup/restore.sh <archivo.tar.age> llave-dueno.txt "<conexión del proyecto de PRUEBAS>"
+   Sin mensaje = bien. «no identity matched» = esa llave no es de `AGE_RECIPIENTS`: cree dos llaves nuevas (3.3 y 3.4),
+   corra un respaldo y repita con el archivo nuevo.
+2. **Base desechable.**
    ```
-   Escriba **RESTAURAR** cuando lo pida. Al final debe decir **OK: … filas iguales al respaldo**. Las fotos del
-   menú quedan en la carpeta `fotos-restauradas-<fecha>`, junto al archivo del respaldo.
-3. Abra el sitio de pruebas y revise las ventas de ayer y el inventario.
-4. Esta prueba deja datos **reales** en pruebas. Al terminar: `canopy-respaldos` → **Ensayo en pruebas** con
-   vaciar = `si`, y `supabase/tools/staging-logins.sql` en el SQL Editor de PRUEBAS, para que pruebas vuelva a la
-   copia anonimizada (docs/PRUEBAS.md). Borre también la carpeta `fotos-restauradas-<fecha>`: no está cifrada y
-   puede traer facturas (si quedó dentro de `archivo`, se iría sin cifrar a la memoria USB del paso 5).
+   docker rm -f canopy-prueba 2>/dev/null
+   docker run --name canopy-prueba -e POSTGRES_PASSWORD=prueba -p 127.0.0.1:5433:5432 -d postgres:17
+   until pg_isready -h 127.0.0.1 -p 5433 -U postgres >/dev/null 2>&1; do sleep 1; done
+   URL="postgresql://postgres:prueba@127.0.0.1:5433"
+   psql -X -q "$URL/postgres" -c "create database canopy_restore"
+   ```
+   El `127.0.0.1:` delante del puerto importa: la copia tendrá datos reales del café y el stub crea un ingreso con una
+   contraseña pública; así solo esta computadora puede conectarse, nadie más en la red.
+3. **Restaurar.**
+   ```
+   KEEP_STORAGE_TO=./fotos-prueba bash restore.sh <archivo>.tar.age llave.txt "$URL/canopy_restore"
+   ```
+   Escriba **RESTAURAR** cuando lo pida. El script comprueba la suma, descifra, verifica cada archivo interno, confirma
+   que la base está vacía, le da la forma de Supabase con `restore-stub.sql` en una sola transacción (roles de la API,
+   esquemas `auth`, `storage` y `extensions`; en un proyecto Supabase no hace falta y no lo hace; una base preparada a
+   medias se rechaza), carga, y compara filas, contenido y
+   **permisos** (quién puede ejecutar o leer qué, RLS y políticas) con los de producción al momento del respaldo. Debe
+   mostrar la línea **`OK: … tablas y … filas iguales al respaldo; contenido idéntico en … tablas`** (paso 5/6);
+   después vienen las fotos (6/6) y la lista de lo que queda a mano. «Los PERMISOS
+   restaurados no son los del respaldo» o «NO coinciden» = no use esa copia: copie la línea y avise.
+4. **Permisos reales en la copia.**
+   ```
+   psql -X "$URL/canopy_restore" -c "select max(version), count(*) from canopy.migrations" \
+     -c "set role anon" -c "select count(*) from public.orders" -c "reset role" \
+     -c "set role authenticated" -c "select count(*) from public.orders"
+   ```
+   Como `anon` debe salir `permission denied for table orders`; como `authenticated` la consulta responde sin error (las
+   reglas deciden las filas: sin una sesión de la Caja el número puede ser 0; lo que importa es que un visitante sin
+   sesión es rechazado y un ingreso no). Opcional: `supabase/tools/release-check.sql` contra la copia (`psql -X -f`): `migrations_applied`, `anon_can_run`
+   y `tables_without_rls` iguales a los de producción; las comprobaciones de Storage salen incompletas en una copia,
+   es lo esperado.
+5. **Limpiar.** `rm -rf fotos-prueba` (fotos y facturas **sin cifrar**), `docker rm -f canopy-prueba`, y borre la copia
+   temporal de la llave: queda en el gestor y en papel.
+6. Anote la fecha y la línea `OK:` en `docs/DEPENDENCIES.md` (E-24).
 
 **Una vez al año, haga la prueba con la llave de recuperación impresa**, para comprobar que sirve.
 
@@ -271,7 +318,8 @@ Cada noche el respaldo se restaura solo en una base desechable. Además, cada 3 
    ```
    bash ops/backup/restore.sh <archivo> <llave> "<conexión del proyecto NUEVO>"
    ```
-   - El script **se niega** a restaurar encima de una base que ya tenga datos.
+   - El script **se niega** a restaurar encima de una base que ya tenga datos. Si el destino es un PostgreSQL limpio
+     (no Supabase), él mismo le da la forma de Supabase con `restore-stub.sql`, que debe estar en su misma carpeta.
    - Las fotos del menú quedan en la carpeta `fotos-restauradas-<fecha>`, junto al archivo del respaldo. No está
      cifrada: bórrela cuando haya subido las fotos (vea "Después de restaurar").
    - Las cuentas de acceso no van en el respaldo: se crean a mano (vea "Cuentas de acceso").
@@ -390,7 +438,8 @@ con su contador. Los respaldos anuales y la base misma cubren ese período.
 - **GitHub y el almacenamiento solo tienen llaves públicas** (`age1…`). Pueden cifrar, nunca descifrar.
 - **La llave de escritura del almacenamiento no puede borrar** respaldos bloqueados.
 - **Con la contraseña de respaldos solo corre código del repositorio privado.** El "Ensayo en pruebas"
-  (docs/PRUEBAS.md) usa las migraciones del repositorio público, pero solo contra el proyecto de PRUEBAS, enviadas
+  (docs/PRUEBAS.md) usa las migraciones del repositorio público, pero solo contra la base desechable del propio trabajo
+  (D-039), enviadas
   como SQL puro (`psql -c`: ningún comando de terminal escrito en esos archivos se ejecuta), y la comparación final
   corre en un paso sin contraseñas.
 - **Restaurar no abre permisos.** Supabase da a los visitantes acceso a cada función nueva; al restaurar, eso se
