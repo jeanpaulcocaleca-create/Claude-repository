@@ -134,6 +134,19 @@ select test.eq((select string_agg(trim_scale(m.qty)::text || '@' || trim_scale(m
                  where m.order_id = '0d000000-0000-4000-8000-0000000b0105'),
                '-120@4 -100@1 -240@4 -200@1 -450@6 -300@1 -600@6 -400@1',
                'added 90 min ago: 120 g at ₡4; before the order: the order''s time; unreadable or ahead: now (150 g at ₡6)');
+-- an add whose reply was lost and is sent again days later (the device was offline): still the same add, not a second one
+select test.login('cafe'); set role authenticated;
+select test.eq(public.tab_add_items('0d000000-0000-4000-8000-0000000b0105', '[{"menu_item_id": "1b000000-0000-4000-8000-000000000002", "qty": 1}]',
+                                    'ad000000-0000-4000-8000-0000000b0105')->>'ok', 'true', 'an add with its own id');
+reset role;
+update public.tab_adds set at = now() - interval '3 days' where id = 'ad000000-0000-4000-8000-0000000b0105';
+select count(*) as lines_before from public.order_items where order_id = '0d000000-0000-4000-8000-0000000b0105' \gset
+select test.login('cafe'); set role authenticated;
+select public.tab_add_items('0d000000-0000-4000-8000-0000000b0105', '[{"menu_item_id": "1b000000-0000-4000-8000-000000000002", "qty": 1}]', gen_random_uuid())->>'ok';
+select test.eq(public.tab_add_items('0d000000-0000-4000-8000-0000000b0105', '[{"menu_item_id": "1b000000-0000-4000-8000-000000000002", "qty": 1}]',
+                                    'ad000000-0000-4000-8000-0000000b0105')->>'repeat', 'true', 'the same add sent again three days later is recognised');
+reset role;
+select test.eq((select count(*) from public.order_items where order_id = '0d000000-0000-4000-8000-0000000b0105')::int, :lines_before + 1, 'only the other add went in');
 
 -- 2) rung before the history began: the starting version; a product whose first recipe came later: nothing ----------
 set local session_replication_role = replica;     -- a recipe from before 0030
@@ -163,6 +176,8 @@ select test.eq((select string_agg(coalesce(recipe_version_id::text, 'none') || '
                   from public.order_items where order_id = '0d000000-0000-4000-8000-0000000b0201'),
                'none:true ' || (select id from public.recipe_versions where menu_item_id = '1b000000-0000-4000-8000-000000000002' and version = 1) || ':true',
                'the chai line has no version, the tea line the starting one; both have their moment');
+select test.ok((select 'stock_not_taken' = any(flags) from public.orders where id = '0d000000-0000-4000-8000-0000000b0201'),
+               'the chai has a recipe today but had none then: nothing taken, and the sale is marked for a manager');
 -- a product with no history at all: today's recipe (as before)
 set local session_replication_role = replica;
 insert into public.recipes (menu_item_id, stock_item_id, qty) values ('1b000000-0000-4000-8000-000000000007', '5a000000-0000-4000-8000-0000000b0004', 4);
@@ -174,6 +189,7 @@ select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-
                                                      'menu_item_id', '1b000000-0000-4000-8000-000000000007'))));
 reset role;
 select test.eq(pg_temp.moves('0d000000-0000-4000-8000-0000000b0203'), 'Té 1B:-4@10', 'a product with no history: today''s recipe');
+select test.ok((select not ('stock_not_taken' = any(flags)) from public.orders where id = '0d000000-0000-4000-8000-0000000b0203'), 'and nothing to check');
 
 -- 3) a product renamed, or deleted from the menu, while the device was offline -------------------------------------
 select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
@@ -242,6 +258,22 @@ select test.eq((select string_agg(right(i.menu_item_id::text, 1) || ':' || trim_
                   from public.order_items i join lateral (select coalesce(sum(m.qty), 0) as q from public.stock_moves m where m.order_item_id = i.id) x on true
                  where i.order_id = '0d000000-0000-4000-8000-0000000b0306'),
                '8:-9 5:-14', 'added after the product was made again: the new one (9 g); added before: the old one (7 g each)');
+-- renamed before its first version (a sale kept on a device across the activation): the menu log remembers the old name
+insert into public.menu_items (id, category_id, name, price_crc) values ('1b000000-0000-4000-8000-00000000000c', 'a0000000-0000-4000-8000-000000000002', 'Viejo 1B', 1700);
+set local session_replication_role = replica;
+insert into public.recipes (menu_item_id, stock_item_id, qty) values ('1b000000-0000-4000-8000-00000000000c', '5a000000-0000-4000-8000-0000000b0004', 3);
+set local session_replication_role = origin;
+update public.menu_items set name = 'Nuevo 1B' where id = '1b000000-0000-4000-8000-00000000000c';
+select test.eq((select count(*) from public.audit_log where action = 'menu_change' and target_id = '1b000000-0000-4000-8000-00000000000c'
+                 and details->'before'->>'name' = 'Viejo 1B')::int, 1, 'the rename is in the menu log');
+select canopy.recipe_baseline();
+select test.login('cafe'); set role authenticated;
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000b0307', 'created_at', now() - interval '2 hours',
+       'total_crc', 1700, 'payment_method', 'card',
+       'items', jsonb_build_array(jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Viejo 1B', 'price_crc', 1700, 'qty', 1,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-00000000000c'))));
+reset role;
+select test.eq(pg_temp.net('0d000000-0000-4000-8000-0000000b0307'), 'Té 1B=-3', 'a sale kept under the old name still takes its recipe (the starting version)');
 
 -- 4) an ingredient of an older version no longer exists: the sale is saved and marked, never refused ----------------
 select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;

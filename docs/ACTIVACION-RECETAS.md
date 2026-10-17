@@ -59,6 +59,28 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
    - La primera semana, en Ventas: una venta con el aviso «Inventario no descontado» o «Un ingrediente de su receta quedó
      fuera» se revisa con el encargado (la venta quedó guardada; solo el inventario necesita revisión).
 
+## Relojes de los aparatos y ventas que llegan tarde (revisión final, 2026-10-17)
+
+- **Hora de cada venta:** es la del reloj del aparato (como hoy). Cada aparato mide su desfase contra la hora del servidor
+  al renovar su sesión (cada hora) y, si pasa de 2 minutos, muestra «El reloj de este dispositivo está desfasado por …»:
+  poner fecha y hora **automáticas** en cada aparato del café y atender ese aviso antes de seguir vendiendo. El servidor
+  marca `clock_ahead` (más de 10 min adelantado) y `late_sync` (llegó más de 12 h tarde) y, si el día ya cerró caja,
+  `after_close` con una línea en la bitácora; desde esta versión **Ventas muestra esas marcas** en cada venta (y el CSV
+  las exporta). Un reloj adelantado toma la receta y el costo de ahora; uno atrasado, los del momento que marca.
+- **No se corrige la hora en el servidor:** se evaluó una corrección automática (comparar la hora del aparato al enviar
+  con la del servidor) y se descartó: corregiría mal las ventas de un aparato cuyo reloj cambió entre cobrar y enviar
+  (por ejemplo, una batería agotada que reinicia la hora), y hoy no hay evidencia de relojes mal puestos en el café.
+- **Un aparato sin conexión varios días** (ensayado sobre una copia detenida en 0029, con recetas cambiadas, 0030–0032
+  aplicadas y la caja de ese día cerrada): sube todas sus ventas sin perder ninguna, descuenta la receta con que empezó el
+  historial y el primer costo conocido, las marca `late_sync` y `after_close`, mantiene al operador y el descuento, y los
+  productos agregados a cuentas ya cobradas o canceladas avisan a la caja sin reintentar para siempre. La cola de ventas
+  del aparato sobrevive al cambio de versión de la página y a tener que iniciar sesión de nuevo. Dejar la pestaña de la
+  Caja **abierta** mientras no hay internet: una pestaña cerrada y vuelta a abrir sin conexión pide iniciar sesión hasta
+  que vuelva la conexión (nada se pierde).
+- **Descuentos con reloj desfasado:** un reloj más de 10 min atrasado o 30 min adelantado hace que un descuento aprobado
+  en línea se registre «sin verificar» (el dinero queda bien; el descuento no consta). Riesgo previo a esta etapa; Ventas
+  lo muestra ahora.
+
 ## Si algo sale mal (reversión, en este orden)
 
 1. `supabase/tools/reversion-0032.sql` — devuelve los permisos de antes (las páginas viejas vuelven a poder guardar
@@ -80,5 +102,8 @@ estaban (misma huella en la foto de producción). Ninguna reversión borra venta
   - Una cuenta abierta antes de la 0031 reparte por nombre del producto lo devuelto (y, si se anula con pagos por
     producto, lo consumido), al costo promedio con que salió.
   - Lo agregado sin internet a un pedido con la Caja publicada hoy (antes de que el aparato tome la Caja nueva) toma la
-    hora del pedido.
+    hora del pedido si sube junto con él (mismo día, pedido todavía no enviado); si sube después, como paso aparte, toma
+    la receta y el costo del momento en que llega, como antes de la 0031.
+  - Una venta de antes de la activación que llegue después descuenta la receta y el costo que había al activar (lo único
+    que se conoce de entonces); queda guardada y marcada `late_sync`.
   - Si se revierte la 0031 y luego se vuelve a aplicar, hacerlo con las cuentas abiertas ya cobradas o anuladas.

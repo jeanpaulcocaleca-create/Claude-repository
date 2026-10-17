@@ -1218,6 +1218,40 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   8950054, v2026.10.14-1 and v2026.10.15-1) save a recipe with the editor published today and the history records it.
   Nothing was applied to production, nothing published, nothing merged (the owner's instruction).
 
+## D-045 · 2026-10-17 · Final review before production: device clocks and devices offline for days (no server-side clock correction; flags visible; three small fixes)
+- **The owner's request:** a last review of two risks before authorizing production: (1) a simple protection against
+  large differences between a device's clock and the server's, without complicating the system or blocking sales;
+  (2) a device offline for several days while recipes change and 0030–0032 are activated must sync without losing
+  sales or deducting wrong ingredients. Fix only real defects, in code and tests; otherwise document the evidence.
+- **How it was reviewed:** three independent lenses (clocks; the multi-day chain on a throwaway database built through
+  0029, then 0030 → recipe changes → 0031 → 0032 → register day closed → sync exactly as the pages do; the page and
+  session a device comes back with), each finding attacked by a verifier. Scripts in the session scratchpad.
+- **Clocks — existing mechanism judged sufficient:** `login.js` measures the skew from every new token and warns at
+  > 2 min; 0003 flags `clock_ahead`/`late_sync`/`after_close` (with an audit row); 0031 treats a clock ahead as now.
+  A server-side correction (send-time skew applied to ring-time stamps) was prototyped and **rejected**: it rewrites
+  correct timestamps whenever the clock changed between ringing and sending (a reset clock threw a sale 26 years
+  ahead; a clock set ahead by hand moved a correct sale back and took the previous recipe). A client-side correction
+  from the stored skew is worse (stale after any clock change). Decision: no correction; make the existing flags
+  visible in Sales (and its CSV) so a manager sees a device whose clock is off.
+- **Clocks — one small fix:** a line whose product has a recipe today but had none at the line's time deducted nothing
+  with no flag (a device clock behind looks exactly like that); it is now flagged `stock_not_taken`.
+- **Offline for days — mechanism judged sufficient:** every sale saved and never refused; lines take the `baseline`
+  version (the recipe at activation, the only one known) and the first known cost; flags and the audit row as 0003;
+  operator attribution from a session expired days earlier holds (the window is on the sale's time); the discount
+  approval holds; adds to a bill paid or cancelled meanwhile answer a final code the POS reports once. The queue
+  (`hg-pos-queue`) survives the version gate (which never reloads over a non-empty queue), a refused token refresh and
+  a forced sign-in. Two small fixes: the `tab_adds` idempotency rows now live 30 days (an add whose reply was lost,
+  re-sent after 2+ days offline, was accepted as a second add); a product renamed before its first version (only
+  possible in the activation window) now keeps its deduction through the menu log's old name.
+- **Residual risks (accepted, stated in docs/ACTIVACION-RECETAS.md):** a clock behind takes the recipe and cost of the
+  time it marks (wrong only if a recipe changed inside the skew); a clock > 10 min behind or > 30 min ahead records an
+  online discount as not verified (pre-existing); a clock off by a day moves that device's cash to another register
+  day (flagged, now visible); a POS tab closed and reopened while still offline asks to sign in until the connection
+  returns (nothing lost); sales from before the activation are valued at the activation's recipe and first cost.
+- **Tests:** 350 (the chai case now asserts the flag; a product renamed before its first version; an add re-sent after
+  three days), browser 310 (the Sales notices), and the rehearsal's live pages (the published POS uploads a sale it
+  kept for three days across 0030–0032: starting recipe, first cost, `late_sync`/`after_close`, audit row).
+
 ## D-044 · 2026-10-17 · Recipes, stage 1B: every sale keeps the recipe and the cost of its moment; returns give back exactly what went out; recipes only with the PIN (0031, 0032)
 - **The owner's instruction (2026-10-16/17):** stage 1A is satisfactory to keep developing, but neither 0030 nor the
   publication is authorized yet. Develop stage 1B in code and tests only: (1) every sale keeps the ingredients,

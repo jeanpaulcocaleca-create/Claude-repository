@@ -283,17 +283,20 @@ module.exports.tests = [
     }
   },
   {
-    name: 'a sale whose stock could not be taken off is shown in Sales for a manager to check (in Spanish)',
+    name: 'a sale whose stock could not be taken off, arrived late, came from a device with its clock off or lost its discount is shown in Sales for a manager (in Spanish)',
     run: async ({ browser }) => {
       sql(`insert into orders (id, created_at, total_crc, payment_method, paid, status, flags) values
-             ('0d000000-0000-4000-8000-0000000e3110', now(), 3000, 'card', true, 'done', '{stock_not_taken}'),
-             ('0d000000-0000-4000-8000-0000000e3111', now(), 3000, 'card', true, 'done', '{recipe_item_missing}');
+             ('0d000000-0000-4000-8000-0000000e3110', now(), 3000, 'card', true, 'done', '{stock_not_taken,clock_ahead,discount_not_verified}'),
+             ('0d000000-0000-4000-8000-0000000e3111', now(), 3000, 'card', true, 'done', '{recipe_item_missing,late_sync,after_close}');
            insert into order_items (order_id, item_name, price_crc, qty) values
              ('0d000000-0000-4000-8000-0000000e3110', 'Latte', 3000, 1), ('0d000000-0000-4000-8000-0000000e3111', 'Mocha', 3000, 1)`);
       const pg = await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' });
       await goto(pg, '/sales');
       await until(async () => /Inventario no descontado · revisar con el encargado/.test(await pg.textContent('body')), 15000, 'the notice');
-      assert.match(await pg.textContent('body'), /Un ingrediente de su receta quedó fuera · revisar con el encargado/);
+      const body = await pg.textContent('body');
+      for (const t of ['Un ingrediente de su receta quedó fuera · revisar con el encargado', 'Reloj del aparato adelantado · revisar el aparato',
+                       'Llegó tarde (guardada en un aparato) · cuenta en su propio día', 'Llegó después del cierre de caja de ese día · revisar con el encargado',
+                       'Descuento sin verificar · revisar con el encargado']) assert.ok(body.includes(t), 'shown: ' + t);
       assert.deepStrictEqual(pg.errors, []);
     }
   }

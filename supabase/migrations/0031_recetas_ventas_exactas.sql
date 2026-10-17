@@ -21,7 +21,9 @@
 --   * Lo agregado sin internet a un pedido que todavía estaba en la caja toma la receta y el costo de cuando se agregó
 --     (la Caja nueva envía esa hora con el pedido o después; las páginas de antes no la envían y siguen igual).
 --   * Un producto renombrado o borrado del menú mientras una caja estaba sin internet todavía descuenta su receta
---     (salvo que hoy otro producto del menú tenga ese nombre: entonces es ese, como antes).
+--     (salvo que hoy otro producto del menú tenga ese nombre: entonces es ese, como antes); también uno renombrado
+--     antes de tener historial (la bitácora del menú recuerda el nombre viejo). Un producto que hoy tiene receta pero
+--     no la tenía cuando se cobró no descuenta nada y la venta queda marcada para el encargado.
 --   * Un ingrediente que aparece en el historial de recetas ya no se puede borrar (se desactiva): las ventas viejas
 --     siguen pudiendo leer su receta.
 --   * Nunca rechaza una venta: si algo impide descontar el inventario, la venta se guarda igual y queda marcada
@@ -119,8 +121,12 @@ begin
     select o.created_at into t from public.orders o where o.id = new.order_id;
     if new.stock_time is not null and t is not null and new.stock_time > t then t := new.stock_time; end if;
     if t is null or t >= now() then t := clock_timestamp(); end if;
-    if not exists (select 1 from public.recipe_versions where menu_item_id = new.menu_item_id
-                                                         and lower(menu_item_name) = lower(new.item_name))
+    if not (exists (select 1 from public.recipe_versions where menu_item_id = new.menu_item_id
+                                                          and lower(menu_item_name) = lower(new.item_name))
+            -- renamed before its first version (a sale kept on a device across the activation): the menu log
+            -- (supabase/accounts.sql, audit_menu) remembers the old name
+            or exists (select 1 from public.audit_log a where a.action = 'menu_change' and a.target_id = new.menu_item_id::text
+                                                             and lower(a.details->'before'->>'name') = lower(new.item_name)))
        or (exists (select 1 from public.menu_items where lower(name) = lower(new.item_name))
            and not exists (select 1 from public.recipe_versions where menu_item_id = new.menu_item_id and at > t)) then
       new.menu_item_id := null;
@@ -142,6 +148,7 @@ end $$;
 create or replace function public._order_item_stock()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare mid uuid; t timestamptz; ts timestamptz; v public.recipe_versions; live boolean := false; ver bigint; missing int := 0;
+        none_then boolean := false;
 begin
   mid := new.menu_item_id;
   if mid is null then
@@ -175,7 +182,9 @@ begin
           -- the history began after the line was rung: the starting version was already in force; any other first
           -- version means the product had no recipe yet then
           select * into v from public.recipe_versions where menu_item_id = mid order by version limit 1;
-          if v.source is distinct from 'baseline' then v := null; end if;
+          -- a recipe exists today but none existed then: nothing is taken, and a manager is told (a device clock behind
+          -- looks the same from here)
+          if v.source is distinct from 'baseline' then none_then := true; v := null; end if;
         end if;
         ver := v.id;
       end if;
@@ -194,6 +203,10 @@ begin
       end if;
     end if;
     update public.order_items set recipe_version_id = ver, stock_time = t where id = new.id;
+    if none_then then
+      update public.orders set flags = array_append(coalesce(flags, '{}'), 'stock_not_taken')
+       where id = new.order_id and not ('stock_not_taken' = any(coalesce(flags, '{}')));
+    end if;
     if missing > 0 then
       update public.orders set flags = array_append(coalesce(flags, '{}'), 'recipe_item_missing')
        where id = new.order_id and not ('recipe_item_missing' = any(coalesce(flags, '{}')));
@@ -366,7 +379,7 @@ begin
     where id = o.id;
   res := jsonb_build_object('ok', true, 'added', added, 'total', t_new, 'kitchen', kitchen, 'round', rnd);
   if p_add_id is not null then
-    delete from public.tab_adds where at < now() - interval '2 days';
+    delete from public.tab_adds where at < now() - interval '30 days';   -- 0031: a device may hold an unanswered add for days
     insert into public.tab_adds (id, order_id, result) values (p_add_id, o.id, res) on conflict (id) do nothing;
   end if;
   return res;

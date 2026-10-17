@@ -4,7 +4,7 @@
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql } = require('../../e2e/lib');
+const { page, goto, until, sql, STAFF } = require('../../e2e/lib');
 
 /* the local stand-in for Supabase answers on the site port + 1000 (tests/e2e/gateway.js; live-pages.sh points the pages there) */
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -96,6 +96,50 @@ module.exports.tests = [
       await until(() => withLines() === beforeLines + 1, 70000, 'the offline sale uploaded with its lines');
       assert.strictEqual(Number(sql(`select count(*) from public.orders`)), before + 1, 'saved once');
       assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    // a device that stayed offline for days while recipes changed and 0030-0032 were applied: the sale it kept (dated
+    // before the window) uploads untouched, takes the recipe the history started with and the first cost it knows, and
+    // is flagged for a manager (0003); nothing is lost and nothing of today's recipe is deducted
+    name: 'the live POS uploads a sale it kept for three days (rung before 0030, recipe and cost changed meanwhile): the starting recipe, the first cost, late_sync and after_close',
+    run: async ({ browser }) => {
+      const MI = '1c000000-0000-4000-8000-00000000c001', FR = '5c000000-0000-4000-8000-00000000c001', LE = '5c000000-0000-4000-8000-00000000c002';
+      const SALE = '0c000000-0000-4000-8000-00000000c001', LINE = '0e000000-0000-4000-8000-00000000c001';
+      const cat = sql(`select id from public.menu_categories order by sort, name limit 1`);
+      // the product had its recipe before the window (no history: written with the triggers off); 0030 wrote the starting
+      // version today; since then the recipe changed (a direct change, which 0030 records) and dearer strawberries arrived;
+      // the register of the sale's day is closed
+      sql(`insert into public.menu_items (id, category_id, name, price_crc) values ('${MI}', '${cat}', 'Batido ensayo', 3000);
+           insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack) values ('${FR}', 'Fresa ensayo', 'g', 1000, 4000), ('${LE}', 'Leche ensayo', 'ml', 1000, 1000);
+           set session_replication_role = replica;
+           insert into public.recipes (menu_item_id, stock_item_id, qty) values ('${MI}', '${FR}', 120), ('${MI}', '${LE}', 100);
+           set session_replication_role = origin;
+           select canopy.recipe_baseline();
+           update public.recipes set qty = 150 where menu_item_id = '${MI}' and stock_item_id = '${FR}';
+           insert into public.stock_moves (item_id, kind, qty, unit_cost) values ('${FR}', 'purchase', 5000, 6);
+           insert into public.register_days (business_date, opened_by, opened_by_name, float_crc, closed_at, closed_by, closed_by_name)
+             values (((now() - interval '3 days') at time zone 'America/Costa_Rica')::date, '${STAFF.ana}', 'Ana', 50000, now() - interval '2 days 10 hours', '${STAFF.ana}', 'Ana')
+             on conflict (business_date) do update set closed_at = coalesce(public.register_days.closed_at, excluded.closed_at)`);
+      // the sale exactly as the live recordSale() keeps it in localStorage 'hg-pos-queue', dated three days ago
+      const kept = { local_id: 'o1760000000000abcde', id: SALE, none: true, created_at: new Date(Date.now() - 3 * 86400e3).toISOString(), total_crc: 6000,
+                     payment_method: 'card', pickup_number: null, needs_kitchen: false, status: 'done', paid: true, station: 'Caja', guest_name: null,
+                     items: [{ id: LINE, item_name: 'Batido ensayo', price_crc: 3000, qty: 2, menu_item_id: MI }] };
+      const pg = watchApi(await page(browser, { login: 'cafe', storage: { 'hg-pos-queue': JSON.stringify([kept]) } }));
+      await goto(pg, '/pos.html');
+      await until(() => Number(sql(`select count(*) from public.order_items where order_id = '${SALE}'`)) === 1, 70000, 'the old sale uploaded with its line');
+      await until(async () => (await pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-queue') || '[]').length)) === 0, 10000, 'the device let it go');
+      const o = sql(`select flags::text || '|' || (business_date = ((now() - interval '3 days') at time zone 'America/Costa_Rica')::date) || '|' || (rung_at = created_at)
+                       from public.orders where id = '${SALE}'`);
+      assert.strictEqual(o, '{late_sync,after_close}|true|true', 'flagged, counted on its own day, rung_at kept: ' + o);
+      assert.strictEqual(sql(`select v.source || ' v' || v.version || '|' || (i.stock_time = o.created_at) from public.order_items i join public.orders o on o.id = i.order_id
+                                join public.recipe_versions v on v.id = i.recipe_version_id where i.id = '${LINE}'`), 'baseline v1|true', 'the line names the starting version and its own moment');
+      assert.strictEqual(sql(`select string_agg(s.name || ':' || trim_scale(m.qty) || '@' || trim_scale(m.unit_cost), ' ' order by s.name)
+                                from public.stock_moves m join public.stock_items s on s.id = m.item_id where m.order_id = '${SALE}'`),
+                         'Fresa ensayo:-240@4 Leche ensayo:-200@1', 'the recipe of before (120 g) at the cost of before (₡4), not 150 g at ₡6');
+      assert.strictEqual(sql(`select count(*) from public.audit_log where action = 'late_sale_after_close' and target_id = '${SALE}'`), '1', 'the manager log names it');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
     }
   },
   {

@@ -611,10 +611,15 @@ function renderTx(){
       vr.textContent = 'Voided · ' + (o.void_reason || '');
       t2.appendChild(vr);
     }
-    /* the sale was kept but its stock was not (all) taken off (0031): a manager checks the recipe */
+    /* the sale was kept, but something about it needs a manager: its stock was not (all) taken off (0031), it arrived late
+       or from a device whose clock is off (0003), or its discount could not be verified */
     (o.flags || []).forEach(function(f){
       var msg = f === 'stock_not_taken' ? 'Stock not taken off · check with a manager'
-              : f === 'recipe_item_missing' ? 'An ingredient of its recipe was left out · check with a manager' : '';
+              : f === 'recipe_item_missing' ? 'An ingredient of its recipe was left out · check with a manager'
+              : f === 'clock_ahead' ? 'Device clock ahead · check the device'
+              : f === 'late_sync' ? 'Arrived late (kept on a device) · counts on its own day'
+              : f === 'after_close' ? 'Arrived after that day\'s register was closed · check with a manager'
+              : f === 'discount_not_verified' ? 'Discount not verified · check with a manager' : '';
       if (!msg) return;
       var fr = document.createElement('span'); fr.className = 'vreason'; fr.textContent = msg; t2.appendChild(fr);
     });
@@ -635,7 +640,7 @@ function renderTx(){
 
 /* ---- CSV export ---- */
 document.getElementById('csvBtn').addEventListener('click', function(){
-  var lines = ['date,time,items,payment_method,total_crc,status,void_reason,subtotal_crc,discount_crc,discount_reason,discount_by,station'];
+  var lines = ['date,time,items,payment_method,total_crc,status,void_reason,subtotal_crc,discount_crc,discount_reason,discount_by,station,flags'];
   allOrders.forEach(function(o){
     var d = new Date(o.created_at);
     var items = (o.order_items||[]).map(function(it){return it.qty + 'x ' + it.item_name}).join('; ') || (o.part_of && o.notes ? o.notes : '');
@@ -651,7 +656,8 @@ document.getElementById('csvBtn').addEventListener('click', function(){
       o.discount_crc || 0,
       '"' + csvSafe(String(o.discount_reason || '')).replace(/"/g,'""') + '"',
       '"' + csvSafe(String(o.discount_by || '')).replace(/"/g,'""') + '"',
-      '"' + csvSafe(String(o.station || '')).replace(/"/g,'""') + '"'
+      '"' + csvSafe(String(o.station || '')).replace(/"/g,'""') + '"',
+      '"' + csvSafe((o.flags || []).join(' ')).replace(/"/g,'""') + '"'
     ].join(','));
   });
   var blob = new Blob([lines.join('\n')], {type:'text/csv'});
