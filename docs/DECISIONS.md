@@ -1217,3 +1217,77 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   required); browser `300_recipes` (7, one on a phone); the rehearsal's live pages (the three builds published so far:
   8950054, v2026.10.14-1 and v2026.10.15-1) save a recipe with the editor published today and the history records it.
   Nothing was applied to production, nothing published, nothing merged (the owner's instruction).
+
+## D-044 · 2026-10-17 · Recipes, stage 1B: every sale keeps the recipe and the cost of its moment; returns give back exactly what went out; recipes only with the PIN (0031, 0032)
+- **The owner's instruction (2026-10-16/17):** stage 1A is satisfactory to keep developing, but neither 0030 nor the
+  publication is authorized yet. Develop stage 1B in code and tests only: (1) every sale keeps the ingredients,
+  quantities, customizations and costs of the moment it was rung, also when it is synced after working without
+  internet; (2) taking a product off, changing a bill or voiding a sale returns exactly the original movements, never
+  recalculated, never twice; (3) once the new system is on, no earlier page version can change recipes without the
+  required authorization, with a transition that never interrupts the till; (4) compatibility with existing devices,
+  open bills and sales waiting to sync; (5) tests with several devices, simultaneous changes, connection loss, recipes
+  changed in between and partial voids; (6) the phone recipe editor keeps working. No customizations (stage 1C).
+- **How it was decided:** five readers mapped the code (deduction, reversals, the POS queue, access, tests); three
+  independent critics attacked the first design and found three high problems, all designed out before writing code:
+  the version would have been resolved at sync time (the menu-link trigger fires before the line's time is set); a
+  per-move return rule would have returned twice the bills that already had an item taken off the old way; a version
+  naming a since-deleted ingredient would have refused the sale with a foreign-key error.
+- **What 0031 does (additive):**
+  - Every sale line records the recipe version it took (`order_items.recipe_version_id`) and the moment whose recipe
+    and cost it took (`stock_time`): the till's time for a sale (also one kept on the device and sent later), the time
+    an item was added to a bill, and "now" for a sale of now. If the recipe did not change since that moment (the
+    normal case), today's recipe is used exactly as before; if it changed, the version in force then; a sale rung
+    before the history began takes the starting version; a product whose first recipe came after the sale takes
+    nothing. Each movement names its line and units (`stock_moves.order_item_id`, `line_qty`).
+  - Costs have a history (`canopy.stock_cost_history`, the effective cost: average, else last price; seeded at the
+    migration, appended on every change) so a late sale is valued at the cost of its moment; an average of 0 with a
+    price is valued at the price, not at ₡0 (the gap D-043 left for 1B).
+  - Taking an item off a bill (`tab_remove_item`, same signature and behaviour otherwise) gives back, per ingredient,
+    the share of what that line still has out, at the cost it went out with; the last unit gives back exactly what is
+    left (no residue, never twice). The rows stay positive 'sale' rows named after the product (so a later void of the
+    bill nets them as 0005 always did, product profitability nets them, and a rollback of 0031 keeps every bill
+    exact). A line from before 0031 shares what is still out under its name in that bill (old take-offs included).
+  - A bill paid in part by item and then voided puts out again exactly what the eaten units took, at their cost
+    (`_order_tab_voided`; lines from before 0031 keep the old rule).
+  - Whole-order voids, cancellations and refunds with restock already returned exactly what went out (0005, 0006):
+    not changed.
+  - A product renamed or deleted from the menu while a till was offline still takes its recipe (its history has the
+    name, and the product still existed when the sale was rung or no product has that name today); a product deleted
+    and made again under the same name is the new one for what is rung after that (as in 0004); an id that never had
+    that name still falls back to the name as in 0004.
+  - Items added on the device to an order the system has not confirmed (they go after it through `tab_add_items`) take
+    the recipe and cost of when they were added: the new POS sends each item's time (`"at"`, optional; older pages do
+    not send it and nothing changes for them); the server keeps it between the order's time and now, and a line the
+    till writes itself cannot move its time this way.
+  - The live recipe and the latest version are read in one snapshot, so a recipe saved on another device at the same
+    instant is either fully in a sale or fully out of it, and the line names the version it really took.
+  - The deduction never refuses a sale: a missing ingredient is skipped and the order flagged `recipe_item_missing`;
+    any other error flags `stock_not_taken` (deadlocks and timeouts still go back to the till, which retries).
+  - An ingredient named in the recipe history cannot be deleted (it is deactivated), so old versions stay readable.
+  - `canopy.recipe_baseline()` runs again so any recipe changed without a version is recorded before sales read the
+    history.
+- **What 0032 does (contract, at activation):** no page can write `recipes` directly (insert/update/delete revoked from
+  the signed-in role; reads unchanged) and the PIN-less `recipes_autolink()` is no longer callable. The only way is the
+  1A editor with a PIN. The POS never writes recipes, so the till is not affected; an older Inventory page that tries to
+  save sees «could not save» and nothing changes. Deleting a product still removes its recipe (the cascade runs as the
+  table owner) and the history records it. This replaces E-30's "wait a week": nothing on the till depends on it.
+- **Rollbacks:** `reversion-0032.sql`, then `reversion-0031.sql`, then `reversion-0030.sql`; each refuses the wrong
+  order and restores every changed function byte for byte (`_order_item_stock` and `_order_item_menu_id` of 0004,
+  `tab_add_items`, `tab_remove_item` and `_order_tab_voided` of supabase/pos-tabs.sql, `_stock_item_history_guard` of
+  0030); the new columns and the cost history stay. Applying 0031 again after its rollback is done with the open bills
+  closed (a bill open under the first 0031 with items taken off during the rollback could give back too much).
+- **Independent review (after the first implementation):** found a regression (a product deleted and made again with
+  the same name: a till with the old menu would have taken nothing) and that items added offline to an order not yet
+  confirmed took the recipe of when they arrived; both fixed with tests (350, 310). The version stamp of a sale saved at
+  the same instant as a recipe change is now read in the same snapshot as the recipe.
+- **Known limits (stated in docs/ACTIVACION-RECETAS.md):** items added on the device to an order that goes up with them
+  in the same first send (the system never had it) take the order's time (same day); the time is the device's clock;
+  the stock movements of a late sale are dated when they arrive (as before), while their quantities and costs are those
+  of the sale's moment; a bill opened before 0031 shares its returns by product name at the weighted cost.
+- **Tests:** SQL `350_ventas_exactas` (53), `360_recetas_solo_con_pin` (22), `370_reversion_0031` (12); 330 and 340
+  adapted (the old-page section runs in the window between 0030 and 0032; the 0030 rollback first reverts 0032 and
+  0031); browser `310_recipes_sales` (3: a sale offline while another device changes the recipe; two devices on one
+  bill with a take-off, a stale device refused, a part payment and a void; an item added on the device to an order not
+  confirmed yet, the recipe changed before it is sent) and `300_recipes` (7, the phone included);
+  the rehearsal's live pages expect the old editor to be refused from 0032 on and the POS to keep selling and syncing.
+  Nothing was applied to production, nothing published, nothing merged.

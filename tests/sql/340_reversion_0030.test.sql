@@ -11,6 +11,11 @@ select test.eq(public.recipe_save(:'latte', '[{"stock_item_id": "5a000000-0000-4
 reset role;
 select count(*) as versions_before from public.recipe_versions \gset
 
+-- after 0030 come 0031 and 0032: they are reverted first (newest first)
+\o /dev/null
+\ir ../../supabase/tools/reversion-0032.sql
+\ir ../../supabase/tools/reversion-0031.sql
+\o
 \ir ../../supabase/tools/reversion-0030.sql
 
 select test.eq(public.canopy_schema_version(), 29, 'the database is back at version 29');

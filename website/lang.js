@@ -1052,6 +1052,10 @@
     'No connection. The draft is kept: try again when the internet is back.': 'Sin conexión. El borrador se conserva: intente de nuevo cuando vuelva el internet.',
     'Could not check the database version. Check the connection and try again.': 'No se pudo revisar la versión de la base de datos. Revise la conexión e intente de nuevo.',
     'Could not load the history. Check the connection.': 'No se pudo cargar el historial. Revise la conexión.',
+    /* recipes stage 1B (0031) */
+    'Taken off a bill': 'Quitado de una cuenta',
+    'This item was used in a recipe before, and sales of that time still name it. Untick Active to hide it.':
+      'Este ingrediente estuvo en una receta y las ventas de entonces todavía lo nombran. Desmarque Activo para ocultarlo.',
     'Could not load the recipe. Check the connection and tap the product again.': 'No se pudo cargar la receta. Revise la conexión y toque el producto de nuevo.',
     'Find a product': 'Buscar un producto', 'No product matches': 'Ningún producto coincide',
     'Recipe saved · version {n} · {who}': 'Receta guardada · versión {n} · {who}',

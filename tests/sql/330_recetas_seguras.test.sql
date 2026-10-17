@@ -171,6 +171,9 @@ select test.eq((select cost_crc from public.recipe_versions where menu_item_id =
 select test.eq((select count(*) from public.recipe_versions where menu_item_id = :'latte')::int, 2, 'and a purchase is not a recipe change');
 
 -- 6) the history catches writes that do not go through recipe_save ------------------------------------------------
+-- (the window between 0030 and 0032: 0032 takes these direct writes away from the pages; test 360)
+grant insert, update, delete on public.recipes to authenticated;
+grant execute on function public.recipes_autolink() to authenticated;
 -- an older page: delete, then insert, as two requests
 select test.login('owner', 'aal2'); set role authenticated;
 delete from public.recipes where menu_item_id = :'espresso';

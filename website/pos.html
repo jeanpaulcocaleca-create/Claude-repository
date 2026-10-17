@@ -1681,8 +1681,9 @@ async function qSteps(o){
   var r, code;
   for (var i = 0; o.adds && i < o.adds.length; i++){   /* one added while this runs is sent too */
     var a = o.adds[i]; if (a.sent) continue;
+    /* at: when it was added here, so it takes the recipe and cost of that time (0031; a database before it ignores it) */
     r = await db.rpc('tab_add_items', {p_order_id: o.id, p_add_id: a.key,
-                                       p_items: a.items.map(function(x){ return {menu_item_id: x.menu_item_id, qty: x.qty}; })});
+                                       p_items: a.items.map(function(x){ return {menu_item_id: x.menu_item_id, qty: x.qty, at: a.at}; })});
     if (r.error) return {error: r.error, status: r.status};
     if (!r.data || !r.data.ok){
       code = (r.data && r.data.error) || 'add';

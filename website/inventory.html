@@ -863,7 +863,8 @@ $('itDelete').addEventListener('click', async function(){
   if (!itemTarget) return;
   if (!confirm('Delete "' + itemTarget.name + '"? Items with history cannot be deleted: untick Active instead.')) return;
   var r = await db.from('stock_items').delete().eq('id', itemTarget.id);
-  if (r.error){ $('itErr').textContent = /in_recipe/.test(r.error.message || '') ? 'This item is in a recipe. Take it out of the recipe first, or untick Active to hide it.'
+  if (r.error){ $('itErr').textContent = /in_old_recipe/.test(r.error.message || '') ? 'This item was used in a recipe before, and sales of that time still name it. Untick Active to hide it.'
+      : /in_recipe/.test(r.error.message || '') ? 'This item is in a recipe. Take it out of the recipe first, or untick Active to hide it.'
       : /history/.test(r.error.message || '') ? 'This item has history (sales, counts or orders), so it is kept. Untick Active to hide it.' : 'Could not delete. Try again.'; return; }
   $('itemModal').hidden = true; toast('Item deleted'); loadAll();
 });
@@ -1619,7 +1620,9 @@ async function loadHistory(){
   $('histEmpty').hidden = !!HIST.length;
   HIST.forEach(function(m){
     var i = byId[m.item_id]; var tr = document.createElement('tr');
-    tr.innerHTML = '<td class="mono-small">' + esc(fmtDT(m.at)) + '</td><td>' + esc(i ? i.name : '?') + '</td><td>' + esc(KIND_LABEL[m.kind] || m.kind) + '</td>' +
+    /* a sale row that adds stock is what came back when an item was taken off a bill (exactly what it took, 0031) */
+    var kind = m.kind === 'sale' && Number(m.qty) > 0 ? 'Taken off a bill' : (KIND_LABEL[m.kind] || m.kind);
+    tr.innerHTML = '<td class="mono-small">' + esc(fmtDT(m.at)) + '</td><td>' + esc(i ? i.name : '?') + '</td><td>' + esc(kind) + '</td>' +
       '<td class="num" style="color:' + (Number(m.qty) < 0 ? 'var(--bad)' : 'var(--ok)') + '">' + (Number(m.qty) > 0 ? '+' : '') + num(m.qty, 1) + (i ? ' ' + esc(unitLabel(i.unit)) : '') + '</td>' +
       '<td class="num">' + (m.unit_cost != null ? fmt(Number(m.unit_cost) * (i ? Number(i.pack_qty) : 1)) + '<span class="sub">per pack</span>' : '') + '</td><td>' + esc(m.note || '') + (m.expires_on ? '<span class="sub">expires ' + esc(fmtD(m.expires_on)) + '</span>' : '') + '</td><td>' + esc(m.by_name || (m.order_id ? 'POS' : '')) + '</td>';
     tb.appendChild(tr);

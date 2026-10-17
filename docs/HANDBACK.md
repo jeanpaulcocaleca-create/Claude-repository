@@ -18,7 +18,7 @@ Status vocabulary used throughout:
 ## 1. Executive summary
 
 All five phases are built on the development branch:
-- 31 database migrations (`supabase/migrations/0000`–`0030`; 0000–0029 are applied in production, 0029 on 2026-10-15; 0030, recipes stage 1A, waits for the owner, E-29);
+- 33 database migrations (`supabase/migrations/0000`–`0032`; 0000–0029 are applied in production, 0029 on 2026-10-15; 0030 (recipes stage 1A) and 0031-0032 (stage 1B) wait for the owner, E-29/E-30, `docs/ACTIVACION-RECETAS.md`);
 - the existing pages, extended;
 - two new pages (Accounting, Insights);
 - a test suite that rebuilds a Supabase look-alike database from scratch and exercises the database and the
@@ -145,6 +145,8 @@ Everything is rebuilt from scratch on every run (`tests/run.sh`).
 | 0028 | Review fixes (D-037): the till never records a negative total; a room order paid later counts on the day the money came in; days with sales and no register are listed and posted; the journal reverses only its own entries; a PIN in use is refused and the owner role needs the phone code; visitors' questions capped | a repeated PIN is refused when adding someone; the owner role needs the phone code | drop the two triggers; previous functions |
 | 0029 | Receive a delivery with the supplier invoice and the payment (D-041, D-042): invoice pending / review / confirmed, draft kept as data, dollars with the rate, debit and credit card methods (account 2160), payouts from the register documented at confirmation, `po_receive_and_settle`, `po_receipt_settle`, `po_receipt_pay`, `po_history`, `po_pending` | the receive window gains the invoice and payment section | drop the five functions and the trigger; previous `supplier_payment_save`; the new columns stay |
 | 0030 | Recipes stage 1A (D-043): `recipe_versions` (unchangeable history, today's recipes as the starting version), `recipe_save` and `recipes_autolink_pin` with a manager or owner PIN, history triggers for direct writes, unit and delete guards on stock items in use, one cost rule (`_stock_unit_cost`), food cost at the stamped cost against sales without IVA | Recipes asks for a PIN to save and shows the history; quantities in g/ml; counting and receiving in bags | `supabase/tools/reversion-0030.sql`: drops the functions and triggers, restores the three changed functions exactly, keeps the history |
+| 0031 | Recipes stage 1B (D-044): each sale line takes the recipe and the cost of its moment (offline sales included) and records its version and time; each movement names its line; an item taken off a bill gives back exactly what it took; a bill paid in part and voided leaves out exactly what was eaten; items added offline keep the recipe of when they were added; cost history; a missing ingredient never refuses a sale | none (the new POS also sends the time of an item added offline, optional) | `supabase/tools/reversion-0031.sql`: restores the six changed functions exactly; columns and cost history stay |
+| 0032 | Recipes only with the PIN (D-044): no page writes recipes directly; the PIN-less autolink is closed | an older Inventory page cannot save recipes (the till is not affected) | `supabase/tools/reversion-0032.sql`: the rights of before |
 
 Each file states its purpose, staff impact and reversal in Spanish at the top. Every migration is one
 transaction and only adds; nothing deletes business records.

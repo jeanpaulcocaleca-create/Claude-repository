@@ -81,6 +81,11 @@ La 0029 (recibir un pedido con la factura y el pago, D-041) la aplicó el dueño
 |---|---|---|
 | `0030_recetas_seguras.sql` | Recetas, etapa 1A (D-043): cada cambio de receta se guarda de una vez con el PIN de un encargado o del dueño, queda en un historial que no se puede borrar (quién, cuándo, por qué, qué cambió y el costo antes → después), cantidades en gramos o mililitros, un solo costo (el promedio) y el costo de ingredientes comparado con las ventas sin IVA. Las recetas de hoy quedan como «versión inicial»; el editor publicado hoy sigue guardando (queda como «cambio directo») | Como cualquier migración (pasos 1–5 de arriba), **fuera del horario de atención**: agregar los disparadores bloquea la tabla de recetas un instante y en ese instante una venta espera. Requiere la 0029. Reversión: `supabase/tools/reversion-0030.sql` |
 
+| `0031_recetas_ventas_exactas.sql` | Recetas, etapa 1B (D-044): cada venta descuenta la receta y el costo vigentes cuando se cobró (también si llegó tarde por falta de internet); lo agregado sin internet a un pedido toma la receta de cuando se agregó; quitar un producto de una cuenta devuelve exactamente lo que salió; nunca rechaza una venta | Igual, **fuera del horario de atención**, después de la 0030. Reversión: `supabase/tools/reversion-0031.sql` (después de revertir la 0032) |
+| `0032_recetas_solo_con_pin.sql` | Recetas, etapa 1B (D-044): ninguna página escribe recetas directamente; solo el editor con PIN. La Caja no cambia | Igual, después de la 0031, en la misma ventana. Reversión: `supabase/tools/reversion-0032.sql` |
+
+La guía completa (orden, verificaciones, reversión) está en `docs/ACTIVACION-RECETAS.md`.
+
 No confundir con la antigua «0030 facturas_archivo» (archivos de facturas en Storage): se eliminó antes de publicarse
 (D-042) y nunca se aplicó; el número 0030 es ahora el de las recetas.
 

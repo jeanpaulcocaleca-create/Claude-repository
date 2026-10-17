@@ -1,5 +1,5 @@
 /* Canopy OS rehearsal · the pages that are LIVE on hanginggardencafe.com today (the gh-pages build named in
-   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0030 today). Until the new pages are
+   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0032 today). Until the new pages are
    published, the café keeps using these: they must load and work exactly as before. Also run on the reset copy
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
@@ -130,9 +130,10 @@ module.exports.tests = [
     }
   },
   {
-    // migration 0030 keeps the live editor working (it deletes the recipe and inserts it again, without a PIN);
-    // the history records that write as a direct change until the new page with the PIN is published
-    name: 'the live recipe editor still saves a recipe; since 0030 the change is kept in the recipe history',
+    // 0030 and 0031 keep the live editor working (it deletes the recipe and inserts it again, without a PIN; the history
+    // records it as a direct change); from 0032 a page can no longer write recipes without the PIN: the old editor's
+    // save is refused and nothing changes (the new editor, published with 0030-0032, saves with the PIN)
+    name: 'the live recipe editor: up to 0031 it saves (kept in the history); from 0032 it is refused and the recipe stays',
     run: async ({ browser }) => {
       const stock = sql(`select id from public.stock_items where active order by name limit 1`);
       let mi = sql(`select menu_item_id from public.recipes order by menu_item_id limit 1`);
@@ -141,7 +142,7 @@ module.exports.tests = [
         sql(`insert into public.recipes (menu_item_id, stock_item_id, qty) values ('${mi}', '${stock}', 1)`);
       }
       const name = sql(`select name from public.menu_items where id = '${mi}'`);
-      const v30 = Number(sql(`select public.canopy_schema_version()`)) >= 30;
+      const level = Number(sql(`select public.canopy_schema_version()`)), v30 = level >= 30, locked = level >= 32;
       const versions = () => Number(sql(`select count(*) from public.recipe_versions where menu_item_id = '${mi}'`));
       const before = v30 ? versions() : 0;
       // in English: the Spanish page translates product names, and the product is found by its stored name
@@ -160,6 +161,14 @@ module.exports.tests = [
       const qty = Number(await line.locator('input').inputValue());
       await line.locator('input').fill(String(qty + 1));
       await pg.click('#recipeSave');
+      if (locked) {
+        await until(async () => /Could not save the recipe/.test(await pg.locator('#toast').textContent()), 8000, 'refused');
+        assert.strictEqual(Number(sql(`select qty from public.recipes where menu_item_id = '${mi}' and stock_item_id = '${item}'`)), qty, 'the recipe is unchanged');
+        assert.strictEqual(versions(), before, 'and nothing was recorded');
+        assert.deepStrictEqual(pg.errors, []);
+        assert.ok(pg.apiErrors.length >= 1 && pg.apiErrors.every((e) => /^40[13] DELETE \/rest\/v1\/recipes/.test(e)), 'only the refused delete: ' + pg.apiErrors.join(' | '));
+        return;
+      }
       await until(async () => /Recipe saved|Receta guardada/.test(await pg.locator('#toast').textContent()), 8000, 'saved');
       assert.strictEqual(Number(sql(`select qty from public.recipes where menu_item_id = '${mi}' and stock_item_id = '${item}'`)), qty + 1, 'the new quantity is saved');
       if (v30) {
