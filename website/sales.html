@@ -614,7 +614,7 @@ function renderTx(){
     /* the sale was kept but its stock was not (all) taken off (0031): a manager checks the recipe */
     (o.flags || []).forEach(function(f){
       var msg = f === 'stock_not_taken' ? 'Stock not taken off · check with a manager'
-              : f === 'recipe_item_missing' ? 'An ingredient of its recipe no longer exists · check with a manager' : '';
+              : f === 'recipe_item_missing' ? 'An ingredient of its recipe was left out · check with a manager' : '';
       if (!msg) return;
       var fr = document.createElement('span'); fr.className = 'vreason'; fr.textContent = msg; t2.appendChild(fr);
     });

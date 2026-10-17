@@ -104,13 +104,17 @@ select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-
                                   jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Batido 1B', 'price_crc', 3000, 'qty', 2,
                                                      'menu_item_id', '1b000000-0000-4000-8000-000000000001', 'at', now() - interval '30 minutes'),
                                   jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Batido 1B', 'price_crc', 3000, 'qty', 3,
-                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000001', 'at', 'no es una hora'))));
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000001', 'at', 'no es una hora'),
+                                  jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Batido 1B', 'price_crc', 3000, 'qty', 4,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000001', 'at', now() + interval '1 hour'))));
 reset role;
 select test.eq((select string_agg(trim_scale(m.qty)::text || '@' || trim_scale(m.unit_cost)::text, ' ' order by i.qty, m.item_id)
                   from public.stock_moves m join public.order_items i on i.id = m.order_item_id
                  where m.order_id = '0d000000-0000-4000-8000-0000000b0106'),
-               '-120@4 -100@1 -300@4 -200@1 -360@4 -300@1',
-               'rung 2 h ago: 120 g; added 30 min ago: the new recipe (150 g) at the cost then (₡4); an unreadable time: the order''s, and the sale is kept');
+               '-120@4 -100@1 -300@4 -200@1 -360@4 -300@1 -600@6 -400@1',
+               'rung 2 h ago: 120 g; added 30 min ago: the new recipe (150 g) at the cost then (₡4); an unreadable time: the order''s; a clock ahead: now (₡6); and the sale is kept');
+select test.ok((select bool_and(stock_time >= now()) from public.order_items where order_id = '0d000000-0000-4000-8000-0000000b0106' and qty = 4),
+               'the item added with the clock ahead has the moment of its arrival');
 -- items added on the device to an order that was still there, sent after it (tab_add_items with the time of each):
 -- the recipe and cost of when they were added; never before the order, never after now; a time that does not read is now
 select test.login('cafe'); set role authenticated;
@@ -225,6 +229,19 @@ select test.eq((select string_agg(right(i.menu_item_id::text, 1) || ':' || pg_te
                   from public.order_items i where i.id in ('0e000000-0000-4000-8000-0000000b0304', '0e000000-0000-4000-8000-0000000b0305')),
                '8:Té 1B=-9 5:Té 1B=-7',
                'a till with the old menu, now: the new product and its recipe (9 g); rung before the delete: the old one (7 g)');
+-- items added on the device, with the old id, to an order rung before the delete: decided at the time each was added
+select test.login('cafe'); set role authenticated;
+select public.pos_record_sale(jsonb_build_object('id', '0d000000-0000-4000-8000-0000000b0306', 'created_at', now() - interval '2 hours',
+       'total_crc', 5400, 'payment_method', 'card',
+       'items', jsonb_build_array(jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Borrar 1B', 'price_crc', 1800, 'qty', 1,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000005', 'at', now() + interval '5 minutes'),
+                                  jsonb_build_object('id', gen_random_uuid(), 'item_name', 'Borrar 1B', 'price_crc', 1800, 'qty', 2,
+                                                     'menu_item_id', '1b000000-0000-4000-8000-000000000005', 'at', now() - interval '10 minutes'))));
+reset role;
+select test.eq((select string_agg(right(i.menu_item_id::text, 1) || ':' || trim_scale(x.q)::text, ' ' order by i.qty)
+                  from public.order_items i join lateral (select coalesce(sum(m.qty), 0) as q from public.stock_moves m where m.order_item_id = i.id) x on true
+                 where i.order_id = '0d000000-0000-4000-8000-0000000b0306'),
+               '8:-9 5:-14', 'added after the product was made again: the new one (9 g); added before: the old one (7 g each)');
 
 -- 4) an ingredient of an older version no longer exists: the sale is saved and marked, never refused ----------------
 select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;

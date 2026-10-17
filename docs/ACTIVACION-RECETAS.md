@@ -14,7 +14,8 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
 
 ## Por qué es seguro para la Caja
 
-- **La Caja y la cocina no cambian lo que envían.** Todo lo nuevo ocurre en el servidor. Las páginas publicadas hoy
+- **La Caja publicada hoy y la cocina no cambian lo que envían.** Todo lo nuevo ocurre en el servidor; la Caja nueva
+  solo agrega, de forma opcional, la hora de lo que se agregó sin internet a un pedido. Las páginas publicadas hoy
   (v2026.10.15-1, y también v2026.10.14-1 y la de antes del lanzamiento) se probaron sobre una copia con 0030-0032:
   venden, guardan sin internet y suben después, marcan horas y editan el menú igual que antes.
 - **La Caja nunca escribe recetas.** El bloqueo de la 0032 solo afecta al editor de recetas: una página vieja del
@@ -55,8 +56,8 @@ recetario siguen siendo propuestas: esta activación no carga ninguna receta.
      No hace falta esperar una semana: la Caja no depende de esto.
    - El primer día, la primera vez que se quite un producto de una cuenta: en Inventario → Historial aparece como
      «Quitado de una cuenta» con la misma cantidad que salió con la venta.
-   - La primera semana, en Ventas: una venta con el aviso «Inventario no descontado» o «Un ingrediente de su receta ya no
-     existe» se revisa con el encargado (la venta quedó guardada; solo el inventario necesita revisión).
+   - La primera semana, en Ventas: una venta con el aviso «Inventario no descontado» o «Un ingrediente de su receta quedó
+     fuera» se revisa con el encargado (la venta quedó guardada; solo el inventario necesita revisión).
 
 ## Si algo sale mal (reversión, en este orden)
 
@@ -78,4 +79,6 @@ estaban (misma huella en la foto de producción). Ninguna reversión borra venta
     son los del momento de la venta.
   - Una cuenta abierta antes de la 0031 reparte por nombre del producto lo devuelto (y, si se anula con pagos por
     producto, lo consumido), al costo promedio con que salió.
+  - Lo agregado sin internet a un pedido con la Caja publicada hoy (antes de que el aparato tome la Caja nueva) toma la
+    hora del pedido.
   - Si se revierte la 0031 y luego se vuelve a aplicar, hacerlo con las cuentas abiertas ya cobradas o anuladas.

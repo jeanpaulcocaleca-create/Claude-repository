@@ -1248,7 +1248,8 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     bill nets them as 0005 always did, product profitability nets them, and a rollback of 0031 keeps every bill
     exact). A line from before 0031 shares what is still out under its name in that bill (old take-offs included).
   - A bill paid in part by item and then voided puts out again exactly what the eaten units took, at their cost
-    (`_order_tab_voided`; lines from before 0031 keep the old rule).
+    (`_order_tab_voided`); a line from before 0031 puts out again the eaten units' share of what is still out under its
+    name in that bill, at the weighted cost it went out with (never today's recipe).
   - Whole-order voids, cancellations and refunds with restock already returned exactly what went out (0005, 0006):
     not changed.
   - A product renamed or deleted from the menu while a till was offline still takes its recipe (its history has the
@@ -1291,10 +1292,17 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   their order keep their own time; flagged sales are now shown in Sales; a real concurrency test (two sessions) was
   added. Checked and sound: exact returns in every combination, the single snapshot under simultaneous saves, no new
   deadlock cycle, privileges, 0032 has no bypass, the rollbacks are byte-exact.
+- **Verification of those fixes (three lenses, each finding attacked):** two lows in the new add-time rule, fixed with
+  tests: the product of an item added on the device was decided at the order's time while its recipe was taken at the
+  add's time (a product deleted and made again in between took nothing); an add with the device clock ahead fell back
+  to the order's time instead of now. Also: a test for the re-apply re-seed (370 applies 0031 again after its rollback),
+  the two-session test scoped to its own database, and wording (Sales says "left out", which also covers a changed
+  unit; this entry and the guide). 22 odd values of "at" (infinity, epoch, objects, a 1 MB string, unknown zones) all
+  keep the sale and land between the order's time and now; pos_record_sale is the 0010 body plus the one column.
 - **Known limits (stated in docs/ACTIVACION-RECETAS.md):** the time is the device's clock; the stock movements of a
   late sale are dated when they arrive (as before), while their quantities and costs are those of the sale's moment; a
   bill opened before 0031 shares its returns (and the eaten part of a void) by product name at the weighted cost.
-- **Tests:** SQL `350_ventas_exactas` (68), `360_recetas_solo_con_pin` (22), `370_reversion_0031` (12); 330 and 340
+- **Tests:** SQL `350_ventas_exactas` (70), `360_recetas_solo_con_pin` (22), `370_reversion_0031` (17, the re-apply after the rollback included); 330 and 340
   adapted (the old-page section runs in the window between 0030 and 0032; the 0030 rollback first reverts 0032 and
   0031); browser `310_recipes_sales` (6: a sale offline while another device changes the recipe; two devices on one
   bill with a take-off, a stale device refused, a part payment and a void; an item added on the device to an order not

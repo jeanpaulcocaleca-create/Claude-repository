@@ -114,8 +114,10 @@ begin
   -- an id is kept only when it names this same product; otherwise the name decides (as before)
   if new.menu_item_id is not null
      and not exists (select 1 from public.menu_items where id = new.menu_item_id and lower(name) = lower(new.item_name)) then
-    -- when the line was rung (the till's time; a clock ahead is now)
+    -- when the line was rung: the till's time, or the time an item was added on the device (the same moment the
+    -- stock trigger uses: never before the order; a clock ahead is now)
     select o.created_at into t from public.orders o where o.id = new.order_id;
+    if new.stock_time is not null and t is not null and new.stock_time > t then t := new.stock_time; end if;
     if t is null or t >= now() then t := clock_timestamp(); end if;
     if not exists (select 1 from public.recipe_versions where menu_item_id = new.menu_item_id
                                                          and lower(menu_item_name) = lower(new.item_name))
@@ -152,7 +154,7 @@ begin
   -- never later than now (then it is now)
   if new.stock_time is not null then
     ts := greatest(new.stock_time, (select o.created_at from public.orders o where o.id = new.order_id));
-    if ts < now() then t := ts; end if;
+    if ts < now() then t := ts; else t := clock_timestamp(); end if;
   end if;
   begin
     if mid is not null then

@@ -70,7 +70,7 @@ function session(script) {
     p.stdin.end(script);
   });
 }
-const waiting = (marker) => until(() => sql(`select count(*) from pg_stat_activity where state = 'active' and query like '%${marker}%' and pid <> pg_backend_pid()`) === '1',
+const waiting = (marker) => until(() => sql(`select count(*) from pg_stat_activity where datname = current_database() and state = 'active' and query like '%${marker}%' and pid <> pg_backend_pid()`) === '1',
                                   5000, 'the other session to hold its transaction');
 /* a local order rung 5 minutes ago, kept on the device, to pay later */
 const localOrder = (id, num) => ({ local_id: 'o' + num, id, created_at: new Date(Date.now() - 5 * 60000).toISOString(), total_crc: 1500,
@@ -247,7 +247,7 @@ module.exports.tests = [
            insert into order_items (id, order_id, item_name, price_crc, qty, menu_item_id) values
              ('${LINE}', '${BILL}', 'T Batido', 3000, 3, '${BATIDO}'), ('0e000000-0000-4000-8000-0000000e3107', '${BILL}', 'Espresso', 1500, 1, null)`);
       // the bill is busy for a moment (another device paying, say): both take-offs arrive while it is held
-      const held = session(`begin; select 1 from orders where id = '${BILL}' for update; select pg_sleep(1.5) /* hold-bill */; commit;`);
+      const held = session(`begin; select 1 from orders where id = '${BILL}' for update; select pg_sleep(2.5) /* hold-bill */; commit;`);
       await waiting('hold-bill');
       const both = await Promise.all([1, 2].map(() => rpc('tab_remove_item', { p_item_id: LINE, p_qty: 1, p_reason: '', p_station: 'Caja',
                                                                             p_staff_id: null, p_pin: null, p_expect: 10500 })));
@@ -263,7 +263,7 @@ module.exports.tests = [
         select set_config('request.jwt.claims', '${claims}', true) \\g /dev/null
         set local role authenticated;
         select public.recipe_save('${BATIDO}', '${lines}'::jsonb, ${ver}, '${STAFF.ana}', '${PINS.ana}', null, gen_random_uuid())->>'ok';
-        select pg_sleep(1.5) /* hold-save */ \\g /dev/null
+        select pg_sleep(2.5) /* hold-save */ \\g /dev/null
         commit;`);
       await waiting('hold-save');
       const SALE = '0d000000-0000-4000-8000-0000000e3108';
@@ -286,14 +286,14 @@ module.exports.tests = [
     name: 'a sale whose stock could not be taken off is shown in Sales for a manager to check (in Spanish)',
     run: async ({ browser }) => {
       sql(`insert into orders (id, created_at, total_crc, payment_method, paid, status, flags) values
-             ('0d000000-0000-4000-8000-0000000e3110', now() - interval '2 minutes', 3000, 'card', true, 'done', '{stock_not_taken}'),
-             ('0d000000-0000-4000-8000-0000000e3111', now() - interval '1 minute', 3000, 'card', true, 'done', '{recipe_item_missing}');
+             ('0d000000-0000-4000-8000-0000000e3110', now(), 3000, 'card', true, 'done', '{stock_not_taken}'),
+             ('0d000000-0000-4000-8000-0000000e3111', now(), 3000, 'card', true, 'done', '{recipe_item_missing}');
            insert into order_items (order_id, item_name, price_crc, qty) values
              ('0d000000-0000-4000-8000-0000000e3110', 'Latte', 3000, 1), ('0d000000-0000-4000-8000-0000000e3111', 'Mocha', 3000, 1)`);
       const pg = await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' });
       await goto(pg, '/sales');
       await until(async () => /Inventario no descontado · revisar con el encargado/.test(await pg.textContent('body')), 15000, 'the notice');
-      assert.match(await pg.textContent('body'), /Un ingrediente de su receta ya no existe · revisar con el encargado/);
+      assert.match(await pg.textContent('body'), /Un ingrediente de su receta quedó fuera · revisar con el encargado/);
       assert.deepStrictEqual(pg.errors, []);
     }
   }

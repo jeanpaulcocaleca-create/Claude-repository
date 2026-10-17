@@ -2,7 +2,8 @@
 -- snapshot's fingerprints), the history and the new columns kept, and a bill with an exact return made under 0031
 -- still nets to zero when it is voided after the rollback.
 begin;
-insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack) values ('5a000000-0000-4000-8000-000000003701', 'Leche 0031r', 'ml', 1000, 1000);
+insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack) values
+  ('5a000000-0000-4000-8000-000000003701', 'Leche 0031r', 'ml', 1000, 1000), ('5a000000-0000-4000-8000-000000003702', 'Café 0031r', 'g', 1000, 9000);
 insert into public.menu_items (id, category_id, name, price_crc) values
   ('1b000000-0000-4000-8000-000000003701', 'a0000000-0000-4000-8000-000000000002', 'Leche fría 0031r', 1000);
 select test.login('cafe'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
@@ -64,5 +65,19 @@ select test.eq((select qty || ':' || (order_item_id is null)::text from public.s
                '-200:true', 'a sale still takes its recipe (without the line link, as before 0031)');
 -- and 0030's rollback is possible again
 select test.eq((select count(*) from canopy.migrations where version > 30)::int, 0, 'nothing after 0030 is left');
+-- 0031 applied again later: a cost that changed while it was reverted (nothing logged it then) is recorded at the re-apply
+select count(*) as h_before from canopy.stock_cost_history where item_id = '5a000000-0000-4000-8000-000000003701' \gset
+select count(*) as o_before from canopy.stock_cost_history where item_id = '5a000000-0000-4000-8000-000000003702' \gset
+insert into public.stock_moves (item_id, kind, qty, unit_cost) values ('5a000000-0000-4000-8000-000000003701', 'purchase', 5000, 5);
+select test.eq((select count(*) from canopy.stock_cost_history where item_id = '5a000000-0000-4000-8000-000000003701')::int, :h_before, 'while reverted, nothing logs the cost');
+\o /dev/null
+\ir ../../supabase/migrations/0031_recetas_ventas_exactas.sql
+\o
+select test.eq(public.canopy_schema_version(), 31, '0031 is applied again');
+select test.eq((select count(*) from canopy.stock_cost_history where item_id = '5a000000-0000-4000-8000-000000003701')::int, :h_before + 1, 'one row more for the milk');
+select test.eq((select h.unit_cost from canopy.stock_cost_history h where h.item_id = '5a000000-0000-4000-8000-000000003701' order by h.id desc limit 1),
+               (select public._sale_unit_cost(s.avg_cost, s.cost_per_pack, s.pack_qty) from public.stock_items s where s.id = '5a000000-0000-4000-8000-000000003701'),
+               'with the cost of today');
+select test.eq((select count(*) from canopy.stock_cost_history where item_id = '5a000000-0000-4000-8000-000000003702')::int, :o_before, 'an item whose cost did not change gets no row');
 select test.done();
 rollback;
