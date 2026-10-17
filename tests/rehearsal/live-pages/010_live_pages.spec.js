@@ -129,9 +129,11 @@ module.exports.tests = [
       await goto(pg, '/pos.html');
       await until(() => Number(sql(`select count(*) from public.order_items where order_id = '${SALE}'`)) === 1, 70000, 'the old sale uploaded with its line');
       await until(async () => (await pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-queue') || '[]').length)) === 0, 10000, 'the device let it go');
-      const o = sql(`select flags::text || '|' || (business_date = ((now() - interval '3 days') at time zone 'America/Costa_Rica')::date) || '|' || (rung_at = created_at)
+      // (on the reset copy the sale is also from before the reset: 0028 adds before_reset, nothing else)
+      const o = sql(`select (flags @> '{late_sync,after_close}' and flags <@ '{late_sync,after_close,before_reset}') || '|' || flags::text || '|'
+                            || (business_date = ((now() - interval '3 days') at time zone 'America/Costa_Rica')::date) || '|' || (rung_at = created_at)
                        from public.orders where id = '${SALE}'`);
-      assert.strictEqual(o, '{late_sync,after_close}|true|true', 'flagged, counted on its own day, rung_at kept: ' + o);
+      assert.match(o, /^true\|\{[a-z_,]+\}\|true\|true$/, 'flagged late_sync and after_close, counted on its own day, rung_at kept: ' + o);
       assert.strictEqual(sql(`select v.source || ' v' || v.version || '|' || (i.stock_time = o.created_at) from public.order_items i join public.orders o on o.id = i.order_id
                                 join public.recipe_versions v on v.id = i.recipe_version_id where i.id = '${LINE}'`), 'baseline v1|true', 'the line names the starting version and its own moment');
       assert.strictEqual(sql(`select string_agg(s.name || ':' || trim_scale(m.qty) || '@' || trim_scale(m.unit_cost), ' ' order by s.name)
