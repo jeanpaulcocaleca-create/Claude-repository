@@ -176,10 +176,11 @@ module.exports.tests = [
     }
   },
   {
-    // 0030 and 0031 keep the live editor working (it deletes the recipe and inserts it again, without a PIN; the history
-    // records it as a direct change); from 0032 a page can no longer write recipes without the PIN: the old editor's
-    // save is refused and nothing changes (the new editor, published with 0030-0032, saves with the PIN)
-    name: 'the live recipe editor: up to 0031 it saves (kept in the history); from 0032 it is refused and the recipe stays',
+    // Two live editors are possible. The pre-1A editor (published until v2026.10.15-1) deletes the recipe and inserts
+    // it again without a PIN: on 0030 and 0031 that works and the history records it as a direct change; from 0032 it is
+    // refused and nothing changes. The editor published with 0030-0032 (v2026.10.17-1 and later) asks for a manager's
+    // PIN and saves through recipe_save: one new version, source editor (on a database without 0030 it saves the old way).
+    name: 'the live recipe editor: the PIN editor saves a version with a manager PIN; the old one saves up to 0031 and is refused from 0032',
     run: async ({ browser }) => {
       const stock = sql(`select id from public.stock_items where active order by name limit 1`);
       let mi = sql(`select menu_item_id from public.recipes order by menu_item_id limit 1`);
@@ -203,10 +204,27 @@ module.exports.tests = [
       await pg.locator('#menuList button').nth(i).click();
       await pg.waitForSelector('#recipeCard:not([hidden])', { timeout: 5000 });
       const line = pg.locator('#recipeRows .recipe-row').first();
-      const item = await line.locator('select').inputValue();
+      const item = await line.locator('select').first().inputValue();   // the ingredient; the PIN editor adds a unit select
       const qty = Number(await line.locator('input').inputValue());
       await line.locator('input').fill(String(qty + 1));
       await pg.click('#recipeSave');
+      const pinEditor = (await pg.locator('#recPinForm').count()) > 0;
+      if (pinEditor && v30) {
+        // the editor published with 0030-0032: a manager (Ana, seeded with her test PIN) authorizes; recipe_save writes one version
+        await pg.waitForSelector('#recPinModal:not([hidden])', { timeout: 5000 });
+        await pg.selectOption('#recMgr', 'a1000000-0000-4000-8000-000000000001');
+        await pg.fill('#recPin', '4826');
+        await pg.click('#recPinGo');
+        try { await until(async () => /Recipe saved|Receta guardada/.test(await pg.locator('#toast').textContent()), 8000, 'saved with the PIN'); }
+        catch (e) { throw new Error(e.message + ' · PIN window: ' + (await pg.locator('#recPinErr').textContent()) + ' · recipe: ' + (await pg.locator('#recipeErr').textContent())); }
+        assert.strictEqual(Number(sql(`select qty from public.recipes where menu_item_id = '${mi}' and stock_item_id = '${item}'`)), qty + 1, 'the new quantity is saved');
+        await until(() => versions() === before + 1, 5000, 'one version more');
+        assert.strictEqual(sql(`select source || ':' || coalesce(by_name, '') from public.recipe_versions where menu_item_id = '${mi}' order by version desc limit 1`),
+          'editor:Ana', 'recorded as an editor version authorized by Ana');
+        assert.deepStrictEqual(pg.errors, []);
+        assert.deepStrictEqual(pg.apiErrors, []);
+        return;
+      }
       if (locked) {
         await until(async () => /Could not save the recipe/.test(await pg.locator('#toast').textContent()), 8000, 'refused');
         assert.strictEqual(Number(sql(`select qty from public.recipes where menu_item_id = '${mi}' and stock_item_id = '${item}'`)), qty, 'the recipe is unchanged');

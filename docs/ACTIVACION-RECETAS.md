@@ -143,6 +143,24 @@ La reversión de la 0030 tampoco devuelve a ₡0 el costo promedio que esa migra
 y solo el respaldo lo tendría. Las páginas vuelven con «Publicar» desde la etiqueta anterior (`v2026.10.15-1`), que
 funciona sobre la base con las tres migraciones y también después de cualquiera de las reversiones.
 
+## Resultado · 2026-10-18
+
+- La activación se hizo la noche del 2026-10-17 en Monteverde (madrugada del 2026-10-18 UTC): 0030, 0031 y 0032 aplicadas,
+  release-check limpio; en la foto «después» (`production-snapshot.sql`) las cinco firmas en `functions_missing_legacy` son
+  las de antes del lanzamiento, retiradas por 0005/0010: esperadas; etiqueta
+  `v2026.10.17-1` (= `671fc0e`), «Publish website» #51 a las 02:08 UTC, `gh-pages` `1daae6f`, version.json confirmado en el
+  dominio por el dueño (E-29, E-30 cerradas; D-047).
+- El paso 2.11 (guardar sin cambios con PIN) quedó cubierto el mismo día por la carga de las primeras recetas: siete
+  `recipe_save` con PIN de encargado en producción, autorizados por Jorge, verificados por el dueño con una consulta de solo
+  lectura (D-047). Las comprobaciones en los aparatos del café (paso 2.10) siguen pendientes del reporte del dueño.
+- `tests/rehearsal/LIVE_PAGES` apunta ahora al `gh-pages` publicado (`1daae6f`), en un commit normal como pedía la guía; la
+  prueba del editor de recetas en vivo distingue desde entonces el editor con PIN (guarda una versión `editor` con el PIN
+  de una encargada) del editor anterior (guardaba hasta la 0031 y la 0032 lo rechaza).
+- Recetas iniciales cargadas (7) y lo que queda pendiente (Macchiato, chocolate y sabores, tamaños, las dos leches): D-047 y
+  E-31 a E-34 en `docs/DEPENDENCIES.md`. Leche entera: se compra en paquetes de 10 cajas de 946 ml (9 460 ml), punto de
+  reorden deseado 9 460 ml, las recetas descuentan en ml; compras y recetas deben usar el mismo artículo (`Leche entera 2`).
+  Configuración y verificación pendientes (E-34): no se da por hecha en producción.
+
 ## Qué queda para después
 
 - **Etapa 1C:** personalizaciones (tipo y cantidad de leche, azúcar, agua) que cambian lo que se descuenta.

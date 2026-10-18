@@ -1382,3 +1382,102 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   every blocking or owner-decision finding attacked by two verifiers) found no blocker; the surviving owner decisions
   (the one-time `avg_cost` fill of 0030, the key custody now settled, who holds the manager PIN for the no-op save) are
   recorded in the guide. Nothing was applied to production, nothing published, nothing merged.
+
+## D-047 · 2026-10-18 · Recipes stage 1A+1B live (0030–0032, v2026.10.17-1) and the first drink recipes loaded as data by the owner through `recipe_save`
+- **Activation facts (the owner's report):** 0030, 0031 and 0032 applied in production on the night of 2026-10-17 in Monteverde (early
+  2026-10-18 UTC); `release-check.sql` clean (`migrations_missing` = `[]`, `functions_missing` = `[]`); in the «after»
+  `production-snapshot.sql` the five `functions_missing_legacy` signatures are the pre-launch versions dropped by 0005/0010,
+  expected; tag `v2026.10.17-1`
+  (= `671fc0e`); «Publish website (PRODUCTION · manual only)» run #51 at 02:08 UTC; `gh-pages` `1daae6f` = `website/` of
+  `671fc0e` plus the build stamp, the cache-buster, CNAME, version.json and the film and photos listed in `website/ASSETS.md`; version.json confirmed on the domain by the owner.
+  E-29 and E-30 DONE. Step 2.11 of the guide (the no-op save with a manager PIN) is superseded by this day's import, which
+  exercised `recipe_save` with a manager PIN seven times in production; the café-device checks (step 2.10) wait for the
+  owner's report.
+- **The request:** load the café's 27 standardized drink recipes (coffee grams and cold-milk millilitres; the espresso
+  yield is a preparation spec, never deducted) without typing them one by one, under twelve rules: grams deducted, yield
+  not an ingredient, milk is cold milk in ml and never the cup's volume, no invented quantities for chocolate, cocoa,
+  matcha, chai, syrups, caramel, condensed milk or ice, flavoured drinks stay incomplete until defined, no product or
+  stock item is assumed or created, a range (10–15 ml) is a pending decision and never a chosen value, no existing recipe
+  is overwritten without the difference reviewed and recorded, the PIN, versions, audit, costs and deductions of 0030–0032
+  are preserved, past sales never recompute, no test sales. The owner's question «data or code?» was answered: data.
+- **Decision:** a data load through the existing `recipe_save`, nothing else. No migration, no release, no page change.
+  A small generator (read-only export → correspondence between standards and real products → owner's decisions → preview
+  and batch with deterministic request ids) and a browser-console script that the owner pastes on the live Inventory page,
+  which sends each recipe to `recipe_save` with the manager PIN, the expected version re-read live, a reason, a request id,
+  and stops at the first error of any kind. Each imported recipe is therefore a normal `editor` version: editable later
+  from the page with the PIN, with the previous recipe kept in the history, a cost of the moment and an audit row.
+- **Rejected:** direct SQL on `recipes` (bypasses the PIN and is recorded as a `direct` change: exactly what 0032 closes);
+  choosing a value inside the 10–15 ml range of the espresso macchiato; applying the Americano recipe to «Iced Americano»
+  or the Cappuccino recipe to «Cappuchino Large»; adding a misspelling alias so that a product matches a standard; a
+  migration or a release for what is only data; asking the owner to edit code (two ready files, PREVIA and IMPORTAR, differ
+  in one line).
+- **The real data (read-only export, 2026-10-18 17:43 UTC, schema 32):** 43 products, 25 stock items, 5 recipe lines in 4
+  products (Espresso 20 g, Americano 19 g, Macchiato 19 g + 50 ml, Rollo De Canela 1 unit; all v1). Coffee: `Cafe en grano`
+  (kg). Milk: two whole-milk items, `Leche entera` (counted by unit) and `Leche entera 2` (ml, box of 946 ml); the owner
+  stated they are not interchangeable, so only the ml item can take millilitre lines (a ml line on the
+  unit item is refused by `recipe_save` with `bad_unit`) and that choice was confirmed by the owner, not assumed.
+- **The owner's authorization (2026-10-18, eleven conditions):** import every possible recipe with the standards as
+  initial values; coffee `Cafe en grano`, milk `Leche entera 2`; for a product with several sizes but one menu entry, pick
+  the most appropriate size provisionally and document it, never creating products or variants; Espresso, Americano and
+  Macchiato may be replaced with the history preserved; Rollo De Canela and everything outside the drinks untouched;
+  unknown quantities or missing ingredients marked pending, never presented as recipes; no prices, purchases, stock,
+  movements or past sales changed; no migration or deploy; a final preview with exact quantities, costs and expected
+  versions, and a check that nothing changed after the export; `recipe_save` with manager PIN, version validation, history
+  and immediate stop on any error; the owner runs it, the AI writes nothing to production.
+- **Provisional choices (condition 3), to be confirmed on the first manual review:** «Espresso» → Espresso double (18 g;
+  it was already prepared with 20 g, a double dose; the single of 9 g stays unassigned). «Latte» (one size) → Café
+  latte 8 oz (190 ml; priced between the Cappuccino and the Cappuchino Large on the menu; the regular size is the
+  consistent one, and a wrong guess under-deducts rather than over-deducts; the 12 oz of 280 ml stays unassigned).
+  «Iced Latte» → Iced latte 12 oz (180 ml; same price as the regular Latte and similar milk; 16 oz stays unassigned).
+- **The batch `bebidas-2026-10-18` (7 recipes), imported by the owner, authorized by Jorge with his manager PIN, verified by
+  the owner with the read-only post-check (7 × «ok: importada»; Macchiato and Rollo De Canela «ok: intacto»; expected
+  versions; 7 audit rows; no missing cost):**
+
+  | Product | Before (v1) | Loaded | Stored as | Version | request_id |
+  |---|---|---|---|---|---|
+  | Espresso | Cafe en grano 20 g | 18 g coffee | 0.018 kg | v2 | 82e692b0-642c-5c43-aa19-f59a3b861a11 |
+  | Americano | Cafe en grano 19 g | 18 g coffee | 0.018 kg | v2 | 00c77646-b77c-57ad-bfb3-9692bdec6e19 |
+  | Cortado | no recipe | 18 g + 40 ml | 0.018 kg + 40 ml | v1 | 36862a75-5c72-5fbd-b011-5b1286c44a79 |
+  | Flat White | no recipe | 18 g + 120 ml | 0.018 kg + 120 ml | v1 | 70811573-bc4a-51da-a22e-4128c7eec134 |
+  | Cappuccino | no recipe | 18 g + 120 ml | 0.018 kg + 120 ml | v1 | 0ad428ad-be37-5db3-a099-bac10cf12c2a |
+  | Latte | no recipe | 18 g + 190 ml | 0.018 kg + 190 ml | v1 | 188faa0c-82c7-5cd3-bcba-5b04a590de8a |
+  | Iced Latte | no recipe | 18 g + 180 ml | 0.018 kg + 180 ml | v1 | 0371757c-4850-573c-a644-600237fa9de6 |
+
+  Each version keeps the cost of its moment (not repeated here). The exact moment of each save, the authorizer, the
+  cost and the reason («Estándar bebidas 2026-10 · …», with «reemplaza: … → …» on the two replacements) are in
+  `recipe_versions` and `audit_log` (`recipe_change`), which are the authoritative record.
+- **Not loaded, recorded as pending (E-31 to E-34):** Macchiato keeps 19 g + 50 ml of `Leche entera 2` because the standard
+  fixes the milk as a range (10–15 ml) and a range is a pending decision, not a value; until the owner decides, every
+  Macchiato sold deducts 50 ml, three to five times the standard. Mocha, Iced Mocha and Costa Rican Hot Chocolate wait for
+  the chocolate quantity (`Chocolate en polvo` exists in kg with no cost). Vanilla, caramel and Spanish lattes, chai and
+  matcha have neither a product nor a stock item. Café con Leche, Canela Cloud, Iced Americano, Cappuchino Large, Tea and
+  Sweet Cane Drink have no standard and inherit nothing. Seven standards have no product (Espresso single, Ristretto
+  double, Lungo double, Piccolo latte, Café latte 12 oz, Iced latte 16 oz, Filter coffee 250 ml). From the first sale
+  after the load, milk is deducted from `Leche entera 2`: milk must be received and counted under that item, or its stock
+  goes below zero while `Leche entera` grows (E-34).
+- **The owner's milk decision (2026-10-18, after the load):** whole milk is bought in packages of 10 boxes of 946 ml each
+  (one box = 946 ml; one package = 9 460 ml); the desired reorder point is 9 460 ml on hand; recipes keep deducting
+  millilitres. Purchases and recipe deductions must use one and the same stock item, `Leche entera 2` (ml), with no
+  duplicate between `Leche entera` and `Leche entera 2`. The reorder point, the pack and that single-item rule are NOT
+  assumed configured in production: E-34 lists them as pending implementation by the owner (Inventario → Existencias,
+  no code or migration: every stock item already has the fields «Punto de reorden (alerta en)», which alerts at or below
+  its value, and «Nivel par»; their current values on `Leche entera 2` are not known) and as pending verification with a read-only check of purchases, open order lines, recipes and stock of both milk items.
+- **How it was checked before the hand-over (never against production):** the correspondence table and then the batch were
+  rederived independently from the export and the standards and matched line by line; two adversarial review rounds
+  (twelve readers in all) whose findings were applied: exact decimal costs, the current recipe shown on partial matches,
+  mutually exclusive size choices made explicit, the second milk and the discarded coffee item explained, a stop on any
+  unexpected reply from the server, a PIN dialog that is not a form (so the browser never offers to save it), re-runs that
+  recognize what the batch already saved, two ready files instead of a hand edit, instructions for both logins and for the
+  page's own 15-minute and 30-minute reloads; the console script in a simulated Inventory page with the real data in 13
+  scenarios; the seven exact `recipe_save` calls on a disposable copy of the local test database seeded with the same ids
+  (versions 2/2/1/1/1/1/1, 0.018 kg and exact ml, the same costs, 7 audit rows, zero stock moves, zero sales; `repeat`,
+  `unchanged`, `changed` and `bad_unit` as designed); the two read-only SQL checks on that copy before and after.
+- **Where the tooling is:** in the session's working folder only (export SQL, standards, generator, console script,
+  read-only checks, instructions, batch); nothing of it is in the repository yet, and the real export and batch carry
+  product ids and costs that do not belong in a public repository. Proposed for the owner's decision: add the tooling
+  without data under `supabase/tools/recetas-bebidas/` in a later commit, so the next batches (Macchiato, the chocolate
+  drinks) follow the same path.
+- **Repository side of this entry:** docs only, plus `tests/rehearsal/LIVE_PAGES` pointing at the published `gh-pages`
+  `1daae6f` (as the activation guide asked) and the live-pages rehearsal test taught to recognize the PIN editor it now
+  exercises (a manager's PIN saves one `editor` version; the pre-1A editor's branches are kept). Nothing in this entry was
+  pushed, merged or published by the AI; the import was executed by the owner from Canopy OS.
