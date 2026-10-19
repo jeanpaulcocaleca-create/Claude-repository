@@ -19,7 +19,7 @@ This repository holds two projects for the same owner in Santa Elena, Monteverde
 
 ## Who decides (Basecamp project)
 
-- **Owner**, GitHub account `jeanpaulcocaleca-create`: the only one who approves scope, prices, design, spending and publishing.
+- **Owner**, GitHub account `jeanpaulcocaleca-create`: the only one who approves scope, prices, design, spending and publishing. Claude and ChatGPT's connector also post through this account, so comments are labelled by writer (see `basecamp/CODEX.md` section 1).
 - **ChatGPT / Codex**: overseer and reviewer. Reads, reviews, asks, proposes. Does not push commits to Claude's branch. If Codex writes code, it opens its own pull request.
 - **Claude**: builder. Writes code and documents on branch `claude/brave-archimedes-ar8uc1` and answers on the pull request.
 

@@ -63,6 +63,7 @@ Your first task:
 
 ## Part 3 · Passing messages
 
-- **Fastest:** copy ChatGPT's message for Claude and post it as a comment on pull request #2 from your own GitHub account. Posting it yourself is what makes it your instruction.
+- **Fastest:** copy ChatGPT's message for Claude and post it as a comment on pull request #2.
 - **Or:** paste it into Claude's chat. Paste Claude's reply back into ChatGPT.
-- When you are ready for Claude to start building, write **GO** in either place, from your own account.
+- **Your own comments:** start them with `OWNER:`. Claude, you and ChatGPT's connector all post through your GitHub account, so the label is how Claude tells them apart.
+- **Big decisions go in Claude's chat.** Write **GO** there when you want Claude to start building. Approvals to spend money, publish, or change the domain also go there.
