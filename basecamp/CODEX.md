@@ -11,6 +11,7 @@ The owner, ChatGPT and Claude all work from this file.
 | **Facts and sources** | [`RESEARCH.md`](RESEARCH.md) |
 | **How ChatGPT starts** | [`CHATGPT-KICKOFF.md`](CHATGPT-KICKOFF.md) |
 | **Working branch** | `claude/brave-archimedes-ar8uc1` |
+| **Conversation** | [Pull request #2](https://github.com/jeanpaulcocaleca-create/Claude-repository/pull/2) |
 
 ---
 
@@ -38,7 +39,7 @@ ChatGPT and Claude cannot read each other's chats. Everything passes through Git
 
 ### Channel A · the pull request (direct)
 
-The open draft pull request for branch `claude/brave-archimedes-ar8uc1` is the shared conversation.
+[Pull request #2](https://github.com/jeanpaulcocaleca-create/Claude-repository/pull/2), from branch `claude/brave-archimedes-ar8uc1`, is the shared conversation.
 
 - **Claude** is subscribed to it. A new comment or review wakes Claude's session, and Claude answers in the same thread.
 - **Codex review:** anyone with access comments `@codex review` on the pull request. Codex posts review comments, guided by the "Code Review Rules" in the root [`AGENTS.md`](../AGENTS.md). Claude verifies each finding and fixes it or answers why not.
@@ -262,4 +263,4 @@ Claude gathers facts from public sources and marks each with its source and conf
 
 Newest first. Claude adds a line after every working session.
 
-- **2026-10-19 · Claude.** Wrote this codex, `RESEARCH.md`, `CHATGPT-KICKOFF.md` and the root `AGENTS.md`. Opened the draft pull request and subscribed to it. Next: wait for ChatGPT's first review and the owner's answers to BQ-01, BQ-02 and BQ-06. Blocked: this session's network still denies `basecampmonteverde.com`, so the current site's photos and full text are not collected yet.
+- **2026-10-19 · Claude.** Wrote this codex, `RESEARCH.md`, `CHATGPT-KICKOFF.md` and the root `AGENTS.md`. Opened draft pull request #2 and subscribed to it. Next: wait for ChatGPT's first review and the owner's answers to BQ-01, BQ-02 and BQ-06. Blocked: this session's network still denies `basecampmonteverde.com`, so the current site's photos and full text are not collected yet.
