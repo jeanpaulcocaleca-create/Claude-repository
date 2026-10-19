@@ -5,7 +5,7 @@ The owner, ChatGPT and Claude all work from this file.
 
 | | |
 |---|---|
-| **Build status** | **ON HOLD.** Nothing gets built until the owner writes GO (BD-004). |
+| **Build status** | **ON HOLD. No code.** First ChatGPT gets connected, then the owner, ChatGPT and Claude go over the plan together, then the owner writes GO in Claude's chat (BD-004). |
 | **Phase** | 0 · Codex and research |
 | **Last updated** | 2026-10-19 by Claude |
 | **Facts and sources** | [`RESEARCH.md`](RESEARCH.md) |
@@ -215,7 +215,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | Phase | Delivers | Done when |
 |---|---|---|
 | **0 · Codex** (now) | This file, research, kickoff prompt, communication set up. | ChatGPT has read it and replied, and the owner has answered BQ-02 and BQ-06. BQ-01 is answered. |
-| **1 · Plan sign-off** | Final page map, simple wireframes of every page, hero choice, brand colors and type. | Owner approves in writing. |
+| **1 · Plan review** (no code) | Go over the plan together. Final page map, wireframe sketches of every page as pictures or text, hero choice, brand colors and type. | Owner approves the plan, then writes GO in Claude's chat. |
 | **2 · Site preview** | Every page in EN and ES with real content and photos. Booking bar sends a WhatsApp or email request. | Owner and ChatGPT review a preview link on a phone. |
 | **3 · Direct booking** | Availability, rates, checkout, confirmations, calendar sync. | A test booking runs end to end without real money. |
 | **4 · Growth** | Google listing and free booking links, structured data, guest guide, conditions board, review flow. | Each item checked off by the owner. |
@@ -258,8 +258,8 @@ The owner likes the JW Marriott Costa Elena page for its layout and easy navigat
 **BD-003 · 2026-10-18 · Owner · No memberships or subscriptions.**
 Per-use fees are allowed and listed in section 6.
 
-**BD-004 · 2026-10-19 · Owner · Do not build yet.**
-Claude builds nothing until ChatGPT is connected and the owner writes GO in Claude's chat.
+**BD-004 · 2026-10-19 · Owner · No coding yet.**
+No website code until three things happen in order: ChatGPT is connected; the owner, ChatGPT and Claude go over the plan and its open points together; the owner writes GO in Claude's chat. Until then the work is discussion, research and documents only.
 
 **BD-005 · 2026-10-19 · Owner · Home page hero is a cloudy scene like the current Basecamp photo.**
 Spec in section 4. Source pending BQ-06.
@@ -279,6 +279,7 @@ The hotel rebranded from Orchid Lodge to Basecamp Monteverde. Orchid's room name
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-19 · Claude.** Owner repeated: no coding yet. ChatGPT gets connected and the plan is reviewed together first. BD-004, the build status line and Phase 1 now say so. No website code exists anywhere in this project.
 - **2026-10-19 · Claude.** Owner answered BQ-01: Orchid Lodge was the hotel's name before the rebrand. Recorded as BD-008. Marked Orchid's room list as outdated in `RESEARCH.md`, and added BQ-15 about moving the old Orchid listings and website over to Basecamp. Still waiting on BQ-02 and BQ-06, and on ChatGPT's first review.
 - **2026-10-19 · Claude.** Claude, the owner and ChatGPT's connector all post through the owner's GitHub account. Added labels to tell them apart, and moved GO and spending approvals to Claude's chat (section 1).
 - **2026-10-19 · Claude.** Wrote this codex, `RESEARCH.md`, `CHATGPT-KICKOFF.md` and the root `AGENTS.md`. Opened draft pull request #2 and subscribed to it. Next: wait for ChatGPT's first review and the owner's answers to BQ-01, BQ-02 and BQ-06. Blocked: this session's network still denies `basecampmonteverde.com`, so the current site's photos and full text are not collected yet.
