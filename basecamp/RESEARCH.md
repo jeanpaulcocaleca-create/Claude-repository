@@ -51,11 +51,24 @@ The clues found before the owner answered:
 | Orchid Lodge calls The Hanging Garden Café "our signature café experience". | Indexed |
 | Orchid Lodge has 10 rooms. The café system has QR room ordering set up for exactly 10 rooms. | Indexed and Confirmed |
 
-**Inferred:** the hotel and the café share one owner and probably one building, 50 m south and 50 m east of the Santa Elena church. The current room count is still to confirm (BQ-02).
+**Inferred:** the hotel and the café share one owner and probably one building, 50 m south and 50 m east of the Santa Elena church. The owner confirmed 10 rooms on 2026-10-19 (section 2).
 
 ---
 
 ## 2. Rooms
+
+### Confirmed by the owner, 2026-10-19
+
+| Room type | Rooms | Beds | Sleeps |
+|---|---|---|---|
+| Queen and single | 7 | 1 queen, 1 single | 3 |
+| Queen | 2 | 1 queen | 2 |
+| Two queens | 1 | 2 queens | 4 |
+| **Total** | **10** | | **29 guests when full** |
+
+Room type names above are descriptive placeholders, not names the owner chose.
+
+**Still to confirm (BQ-02, BQ-19):** the name of each room type, bathroom, size, amenities, accessibility, photos, prices by season, and what each rate includes.
 
 ### As listed on basecampmonteverde.com (Indexed, mid-July 2026)
 
@@ -65,7 +78,15 @@ The clues found before the owner answered:
 | Family Room | 3 | 2 | 1 | $85 |
 | Triple Room | 2 shown | 1 | 1 | $75 |
 
-**verify:** the Triple Room shows two guests and one bed, which conflicts with its name. Sizes, amenities, room counts and photos were not indexed (BQ-02).
+**How these line up with the confirmed rooms (Inferred):** matching by beds and guests, each indexed price fits one confirmed room type.
+
+| Indexed listing | Confirmed room type it matches |
+|---|---|
+| Family Room, 3 guests, 2 beds, from $85 | Queen and single, 7 rooms |
+| "Triple Room", 2 guests, 1 bed, from $75 | Queen, 2 rooms. The name "Triple" does not fit a two-guest room. |
+| Four-person room, 2 beds, from $95 | Two queens, 1 room |
+
+**verify:** the prices are a July 2026 snapshot and the names are inconsistent. Neither is published until the owner confirms them.
 
 ### As listed on orchidlodgemonteverde.com, the hotel's former site (outdated, never publish)
 
@@ -117,7 +138,7 @@ The current site offers private transport to Arenal, Guanacaste, Monteverde, Jac
 
 ## 5. The Hanging Garden Café (link only, per BD-006)
 
-All Confirmed from this repository's café documents.
+All Confirmed from this repository's café documents. The owner re-confirmed the hours, 6:00 to 19:00 every day, on 2026-10-19.
 
 | Fact | Value |
 |---|---|

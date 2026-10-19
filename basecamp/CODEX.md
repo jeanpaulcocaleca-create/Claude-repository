@@ -10,6 +10,7 @@ The owner, ChatGPT and Claude all work from this file.
 | **Last updated** | 2026-10-19 by Claude |
 | **Facts and sources** | [`RESEARCH.md`](RESEARCH.md) |
 | **How ChatGPT starts** | [`CHATGPT-KICKOFF.md`](CHATGPT-KICKOFF.md) |
+| **Reservation proposal** | [`RESERVATIONS.md`](RESERVATIONS.md) |
 | **Working branch** | `claude/brave-archimedes-ar8uc1` |
 | **Conversation** | [Pull request #2](https://github.com/jeanpaulcocaleca-create/Claude-repository/pull/2) |
 
@@ -187,12 +188,13 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 |---|---|---|
 | P-01 | Plain HTML, CSS and a little JavaScript, generated from one content file by a small build script, the same way the café's guide pages are built. | One toolset for both businesses. No framework or plugin updates. Replaces the Astro idea from the first audit. |
 | P-02 | The site lives in its own public repository with GitHub Pages and a manual-only publish, copying the café's safety pattern. | GitHub Pages serves one domain per repository, and this one already serves the café. Separating them keeps the café's live site safe. |
-| P-03 | Phase 2 booking bar sends a ready-made WhatsApp or email request. Phase 3 adds real availability and checkout. | Ships something useful fast while payments are sorted out. |
-| P-04 | Availability and bookings stored in a free-tier database; the café's existing Supabase project is an option. | Depends on the café's Supabase plan (café item E-10). |
-| P-05 | Booking.com and Airbnb calendars synced by iCal, holding back one room as a buffer. | Free, but updates lag. A channel manager would be a subscription. |
+| P-03 | ~~Request-only booking at first.~~ **Superseded by BD-009:** launch needs instant confirmed booking. | |
+| P-04 | ~~Bookings in a free-tier database, possibly the café's Supabase.~~ **Replaced by P-09.** Hotel data never goes in the café's systems, and free database tiers pause when idle. | |
+| P-05 | ~~iCal sync with a one-room buffer.~~ **Replaced by P-09.** iCal cannot prevent double bookings. | |
 | P-06 | Google free booking links through the Business Profile rate editor. | Free and needs no connectivity partner, if Google classes the property as a hotel. |
 | P-07 | WhatsApp confirmations through Meta's Cloud API directly. | Billed per message, no monthly plan. |
-| P-08 | Card payments through a Costa Rican gateway, plus SINPE Móvil as a guided transfer. | Which gateway depends on the owner's bank (BQ-09). |
+| P-08 | Card payments through a Costa Rican gateway, plus SINPE Móvil as a guided transfer. | Which gateway depends on the owner's bank (BQ-09). Options compared in `RESERVATIONS.md` section 5. |
+| P-09 | One low-cost certified channel manager, Beds24 the leading candidate, as the single source of truth for rooms, rates and bookings. Its booking engine handles checkout, styled to match our site. Full comparison in [`RESERVATIONS.md`](RESERVATIONS.md). | Only certified channel managers can sync live with Booking.com and Airbnb. Needs BQ-23 and written quotes (BQ-24). |
 
 ---
 
@@ -202,7 +204,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 |---|---|---|
 | Domain basecampmonteverde.com | Yearly renewal | Unavoidable. |
 | Hosting | No | GitHub Pages is free for public repositories. |
-| Database | No, on a free tier | See P-04. |
+| Booking system and channel manager | Monthly, only if the owner approves an exception (BQ-23) | Estimated low tens of euros per month for Beds24, written quote needed. See `RESERVATIONS.md`. |
 | Card payments | Per transaction only | Gateway fees to confirm (BQ-09). |
 | WhatsApp messages | Per message only | Service replies inside an open conversation window are free. |
 | AI trip helper | Per use only | Optional. |
@@ -228,7 +230,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | ID | Question | Blocks |
 |---|---|---|
 | BQ-01 | ~~Are Basecamp Monteverde and Orchid Lodge Monteverde the same?~~ **Answered 2026-10-19:** Orchid Lodge was the hotel's name before the rebrand. Its room list is out of date (BD-008). | Answered |
-| BQ-02 | The exact room list: name of each room type, how many of each, beds, max guests, bathroom, size, amenities, photos, and prices by season. | Phase 1 |
+| BQ-02 | **Partly answered 2026-10-19:** 10 rooms. 7 have a queen and a single bed for 3 guests, 2 have one queen for 2 guests, 1 has two queens for 4 guests. **Still needed:** the name of each room type, bathroom, size, amenities, photos, and prices by season. | Phase 1 |
 | BQ-03 | Which page should the "Tours" link open? | Phase 2 |
 | BQ-04 | Does Basecamp still offer private transport? If yes, is it a link like the tours, or part of the site? | Phase 1 |
 | BQ-05 | Basecamp's logo, colors and fonts. If none exist, Claude proposes a brand kit for approval. | Phase 1 |
@@ -242,6 +244,15 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | BQ-13 | Does Basecamp have its own Google Business Profile? Who can log in to it? | Phase 4 |
 | BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. The former Orchid Lodge rules are in the research file. Do they still apply? | Phase 2 |
 | BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
+| BQ-16 | What is the single source of truth for the reservation calendar, and who keeps it up to date? | Phase 1 |
+| BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
+| BQ-18 | Which current URLs, backlinks and indexed pages must keep working or forward to new pages? | Phase 1 |
+| BQ-19 | Which amenities are verified, and what does each room rate include? | Phase 1 |
+| BQ-20 | Which photos, reviews and brand assets do we have the right to reuse? | Phase 1 |
+| BQ-21 | Which measurable business results define success for the website? | Phase 1 |
+| BQ-22 | How are simultaneous bookings, calendar failures, outages and recovery handled? Proposal in `RESERVATIONS.md`. | Phase 1 |
+| BQ-23 | Accept one exception to the no-subscription rule (BD-003) for the booking system, or keep the rule and accept double-booking risk with Booking.com and Airbnb? See `RESERVATIONS.md`. | Phase 1 |
+| BQ-24 | Approve requesting written quotes and answers from Beds24 and one alternative? Claude does not contact vendors. | Phase 1 |
 
 ---
 
@@ -273,12 +284,17 @@ Claude gathers facts from public sources and marks each with its source and conf
 **BD-008 · 2026-10-19 · Owner · Orchid Lodge Monteverde is the hotel's former name.**
 The hotel rebranded from Orchid Lodge to Basecamp Monteverde. Orchid's room names and details are not the current rooms and are not used on the new site. Orchid's old website and listings are treated as legacy: at launch they should point to Basecamp, keeping their reviews (BQ-15).
 
+**BD-009 · 2026-10-19 · Owner · Instant confirmed direct reservations at launch.**
+"Basecamp Monteverde's initial public website must support instant confirmed direct reservations." The owner chose this option with ChatGPT; ChatGPT's message was pasted by the owner into Claude's chat. This approves the booking model only, not a provider, architecture, payment processor or any development. Resolves BQ-17. Claude's proposal for meeting it is in [`RESERVATIONS.md`](RESERVATIONS.md).
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-19 · Claude.** Recorded BD-009, instant confirmed direct reservations, as relayed by ChatGPT and pasted by the owner. Wrote `RESERVATIONS.md`, a proposal comparing five approaches and recommending one low-cost certified channel manager. Added BQ-23 on a possible subscription exception and BQ-24 on vendor quotes. Marked P-03, P-04 and P-05 as replaced. No code.
+- **2026-10-19 · Claude.** Owner confirmed in Claude's chat: 10 rooms (7 sleep 3 with a queen and a single, 2 sleep 2 with one queen, 1 sleeps 4 with two queens), and café hours 6:00 to 19:00 every day. Recorded in `RESEARCH.md` section 2 with the match to the old site's three prices. ChatGPT's first review was received through the owner and answered. The new questions BQ-16 to BQ-22 are now in section 8 because BD-009 refers to them. The other accepted corrections, the acceptance criteria and the revised Phase 1 checklist still wait for the owner's OK.
 - **2026-10-19 · Claude.** Owner repeated: no coding yet. ChatGPT gets connected and the plan is reviewed together first. BD-004, the build status line and Phase 1 now say so. No website code exists anywhere in this project.
 - **2026-10-19 · Claude.** Owner answered BQ-01: Orchid Lodge was the hotel's name before the rebrand. Recorded as BD-008. Marked Orchid's room list as outdated in `RESEARCH.md`, and added BQ-15 about moving the old Orchid listings and website over to Basecamp. Still waiting on BQ-02 and BQ-06, and on ChatGPT's first review.
 - **2026-10-19 · Claude.** Claude, the owner and ChatGPT's connector all post through the owner's GitHub account. Added labels to tell them apart, and moved GO and spending approvals to Claude's chat (section 1).
