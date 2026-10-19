@@ -38,6 +38,15 @@ Confidence labels:
 | Current platform | URLs like `/tours/don-juan-coffee-chocolate-tour/` suggest WordPress | Inferred |
 | Third-party listing | Hotelmix shows "Basecamp Monteverde Hotel", about 100 m from the town centre, 5.0 from a single review | Third-party |
 
+### Reservation system in use
+
+| Fact | Confidence |
+|---|---|
+| Basecamp Monteverde uses Hotel Link for reservations. | Confirmed by the owner, relayed by ChatGPT and pasted by the owner into Claude's chat, 2026-10-19 |
+| Hotel Link is connected to Booking.com and Airbnb. | Confirmed by the owner, same message |
+
+What Hotel Link can and cannot do is in [`RESERVATIONS.md`](RESERVATIONS.md).
+
 ### How Basecamp, Orchid Lodge and the café connect (BQ-01, answered)
 
 **Confirmed by the owner, 2026-10-19:** Orchid Lodge Monteverde was this hotel's name before it rebranded as Basecamp Monteverde. Orchid's room names and details are not the current rooms and are not used for the new site (BD-008).
@@ -107,7 +116,8 @@ The former site said 10 rooms and called the hotel a boutique hotel.
 - 13% Costa Rican VAT applies to every booking.
 - Children under 12 stay free when using existing bedding.
 - Reservations are guaranteed with a valid credit card.
-- Free cancellation up to 48 hours before check-in.
+- Free cancellation up to 48 hours before check-in. Cancellations within 48 hours were charged 50%.
+- A 50% deposit was due at booking, with the balance at check-in.
 - A non-refundable rate is 10% cheaper.
 - Quiet hours 10 PM to 7 AM.
 - No smoking indoors. No pets, except service animals.

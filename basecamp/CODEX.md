@@ -191,10 +191,10 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | P-03 | ~~Request-only booking at first.~~ **Superseded by BD-009:** launch needs instant confirmed booking. | |
 | P-04 | ~~Bookings in a free-tier database, possibly the café's Supabase.~~ **Replaced by P-09.** Hotel data never goes in the café's systems, and free database tiers pause when idle. | |
 | P-05 | ~~iCal sync with a one-room buffer.~~ **Replaced by P-09.** iCal cannot prevent double bookings. | |
-| P-06 | Google free booking links through the Business Profile rate editor. | Free and needs no connectivity partner, if Google classes the property as a hotel. |
+| P-06 | Google free booking links through the Business Profile rate editor, or through Hotel Link, which offers them when its booking engine and channel manager are on. | Free per Google and per Hotel Link, if Google classes the property as a hotel. |
 | P-07 | WhatsApp confirmations through Meta's Cloud API directly. | Billed per message, no monthly plan. |
 | P-08 | Card payments through a Costa Rican gateway, plus SINPE Móvil as a guided transfer. | Which gateway depends on the owner's bank (BQ-09). Options compared in `RESERVATIONS.md` section 5. |
-| P-09 | One low-cost certified channel manager, Beds24 the leading candidate, as the single source of truth for rooms, rates and bookings. Its booking engine handles checkout, styled to match our site. Full comparison in [`RESERVATIONS.md`](RESERVATIONS.md). | Only certified channel managers can sync live with Booking.com and Airbnb. Needs BQ-23 and written quotes (BQ-24). |
+| P-09 | Keep Hotel Link, already in use, as the single source of truth for rooms, rates and bookings. Our site sells; Hotel Link's embedded booking widget, colors matched, handles room choice and checkout. Beds24 and others kept for comparison only. Details in [`RESERVATIONS.md`](RESERVATIONS.md). | No new subscription or migration. Hotel Link already syncs with Booking.com and Airbnb. Needs BQ-24 and BQ-25 to confirm Spanish, payments and concurrency. |
 
 ---
 
@@ -204,7 +204,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 |---|---|---|
 | Domain basecampmonteverde.com | Yearly renewal | Unavoidable. |
 | Hosting | No | GitHub Pages is free for public repositories. |
-| Booking system and channel manager | Monthly, only if the owner approves an exception (BQ-23) | Estimated low tens of euros per month for Beds24, written quote needed. See `RESERVATIONS.md`. |
+| Hotel Link booking engine and channel manager | Existing plan, already paid by the owner | Modules and price to confirm (BQ-25). No new subscription proposed. |
 | Card payments | Per transaction only | Gateway fees to confirm (BQ-09). |
 | WhatsApp messages | Per message only | Service replies inside an open conversation window are free. |
 | AI trip helper | Per use only | Optional. |
@@ -236,7 +236,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | BQ-05 | Basecamp's logo, colors and fonts. If none exist, Claude proposes a brand kit for approval. | Phase 1 |
 | BQ-06 | The original file of the current home page cloud photo, plus any other photos. Or allow `basecampmonteverde.com` in Claude's environment network settings so Claude can collect them. | Phase 1 |
 | BQ-07 | Who hosts basecampmonteverde.com today, and who controls the domain and DNS? | Launch |
-| BQ-08 | How bookings arrive today (WhatsApp, email, Booking.com, Airbnb, other) and which listings must stay in sync. | Phase 3 |
+| BQ-08 | How bookings arrive today and which listings must stay in sync. **Partly answered 2026-10-19:** reservations run through Hotel Link, which is connected to Booking.com and Airbnb. Any other channels or direct booking routes still to list. | Phase 1 |
 | BQ-09 | Which bank or payment gateway, the SINPE Móvil number to show, and the deposit rule. | Phase 3 |
 | BQ-10 | OK to create a separate repository for the site (P-02)? Its name? | Phase 2 |
 | BQ-11 | Is someone on site to receive guests, and at what hours? Do the doors have smart locks? | Phases 3 and 4 |
@@ -244,15 +244,16 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | BQ-13 | Does Basecamp have its own Google Business Profile? Who can log in to it? | Phase 4 |
 | BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. The former Orchid Lodge rules are in the research file. Do they still apply? | Phase 2 |
 | BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
-| BQ-16 | What is the single source of truth for the reservation calendar, and who keeps it up to date? | Phase 1 |
+| BQ-16 | What is the single source of truth for the reservation calendar, and who keeps it up to date? Leading candidate: Hotel Link, already in use. Not decided. | Phase 1 |
 | BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
 | BQ-18 | Which current URLs, backlinks and indexed pages must keep working or forward to new pages? | Phase 1 |
 | BQ-19 | Which amenities are verified, and what does each room rate include? | Phase 1 |
 | BQ-20 | Which photos, reviews and brand assets do we have the right to reuse? | Phase 1 |
 | BQ-21 | Which measurable business results define success for the website? | Phase 1 |
 | BQ-22 | How are simultaneous bookings, calendar failures, outages and recovery handled? Proposal in `RESERVATIONS.md`. | Phase 1 |
-| BQ-23 | Accept one exception to the no-subscription rule (BD-003) for the booking system, or keep the rule and accept double-booking risk with Booking.com and Airbnb? See `RESERVATIONS.md`. | Phase 1 |
-| BQ-24 | Approve requesting written quotes and answers from Beds24 and one alternative? Claude does not contact vendors. | Phase 1 |
+| BQ-23 | ~~Accept one subscription exception for a new booking system?~~ **On hold:** probably unnecessary, since Hotel Link is already in use. No additional subscription is proposed or approved. | On hold |
+| BQ-24 | Approve sending the questions in `RESERVATIONS.md` section 8 to Hotel Link support? The owner or ChatGPT sends them; Claude does not contact vendors. Beds24 and others are no longer being quoted. | Phase 1 |
+| BQ-25 | Which Hotel Link products and plan are active, at what monthly price? Plus the extranet screenshots listed in `RESERVATIONS.md` section 8, with guest and card details hidden. | Phase 1 |
 
 ---
 
@@ -293,6 +294,7 @@ The hotel rebranded from Orchid Lodge to Basecamp Monteverde. Orchid's room name
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-19 · Claude.** Owner confirmed, through ChatGPT's message pasted into Claude's chat, that Basecamp already uses Hotel Link and that it is connected to Booking.com and Airbnb. Rewrote `RESERVATIONS.md` around keeping Hotel Link, with Beds24 and others as comparison only, and labelled every finding as owner, vendor documentation, vendor claim, inferred or unknown. Updated BQ-08, BQ-16, BQ-23, BQ-24, P-06, P-09 and the cost table, and added BQ-25. No approval inferred. No code.
 - **2026-10-19 · Claude.** Recorded BD-009, instant confirmed direct reservations, as relayed by ChatGPT and pasted by the owner. Wrote `RESERVATIONS.md`, a proposal comparing five approaches and recommending one low-cost certified channel manager. Added BQ-23 on a possible subscription exception and BQ-24 on vendor quotes. Marked P-03, P-04 and P-05 as replaced. No code.
 - **2026-10-19 · Claude.** Owner confirmed in Claude's chat: 10 rooms (7 sleep 3 with a queen and a single, 2 sleep 2 with one queen, 1 sleeps 4 with two queens), and café hours 6:00 to 19:00 every day. Recorded in `RESEARCH.md` section 2 with the match to the old site's three prices. ChatGPT's first review was received through the owner and answered. The new questions BQ-16 to BQ-22 are now in section 8 because BD-009 refers to them. The other accepted corrections, the acceptance criteria and the revised Phase 1 checklist still wait for the owner's OK.
 - **2026-10-19 · Claude.** Owner repeated: no coding yet. ChatGPT gets connected and the plan is reviewed together first. BD-004, the build status line and Phase 1 now say so. No website code exists anywhere in this project.
