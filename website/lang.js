@@ -713,6 +713,12 @@
     'Ask a question': 'Hacer una pregunta', 'Garden Guide': 'Guía del Jardín', 'Hanging Garden · English y español': 'Hanging Garden · español e inglés',
     'Ask the Garden Guide a question': 'Hacer una pregunta a la Guía del Jardín', 'Garden Guide chat': 'Chat de la Guía del Jardín',
     'Close chat': 'Cerrar el chat', 'Your question': 'Su pregunta', 'Send': 'Enviar',
+    /* home: reviews on Google and Tripadvisor */
+    'Reviews': 'Reseñas', 'Loved Your Visit?': '¿Le gustó su visita?',
+    'Your experience means the world to us! Share your visit and help other travelers discover Hanging Garden Café in the heart of Monteverde.':
+      '¡Su experiencia significa muchísimo para nosotros! Cuéntenos cómo fue su visita y ayude a otros viajeros a descubrir Hanging Garden Café en el corazón de Monteverde.',
+    'Review Us on Google': 'Déjenos una reseña en Google', 'Review Us on Tripadvisor': 'Déjenos una reseña en Tripadvisor',
+    '(opens in a new tab)': '(se abre en una pestaña nueva)',
     'What are your hours?': '¿Cuál es el horario?', 'How to find us': 'Cómo llegar', 'How do I get there?': '¿Cómo llego?',
     'How can I contact you?': '¿Cómo los contacto?', 'What is the Adventure Box?': '¿Qué es la Adventure Box?',
     'Weather': 'Clima', 'What is the weather like?': '¿Cómo está el clima?', 'Quetzals': 'Quetzales', 'Where can I see a quetzal?': '¿Dónde puedo ver un quetzal?',

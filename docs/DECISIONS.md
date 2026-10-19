@@ -1481,3 +1481,57 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `1daae6f` (as the activation guide asked) and the live-pages rehearsal test taught to recognize the PIN editor it now
   exercises (a manager's PIN saves one `editor` version; the pre-1A editor's branches are kept). Nothing in this entry was
   pushed, merged or published by the AI; the import was executed by the owner from Canopy OS.
+
+## D-048 · 2026-10-19 · Review section on the home page: Google and Tripadvisor as plain links to each platform's review page
+- **Request (owner, 2026-10-19):** a premium, garden-style review section near the bottom of the home page with the
+  heading «Loved Your Visit?», the owner's text, and two buttons, «⭐ Review Us on Google» and «🌿 Review Us on
+  Tripadvisor», in the site's own button style; no redesign, no pop-ups, no large third-party widget, no form on our site,
+  no fabricated ratings or review schema, no incentives; external links in a new tab with `rel="noopener noreferrer"`,
+  accessible names and visible keyboard focus; not deployed without the owner's approval.
+- **Decision:** a new last section of `website/index.html` (`#reviews`, right before the footer), built from what the page
+  already has: the page's light panel (the same panel colour, 24 px radius, 12vh padding and soft shadow as the «Hold to
+  brew» card), the existing kicker, heading and lede styles, the watercolour sprig, the `.rev`/`.part` entrance and the
+  standard `.btn` (same height and the same hover: a 2 px lift and the darker green). Each button carries the owner's star
+  or leaf as the site's own SVG icon (the shapes of the table menu's star and section leaf) instead of the emoji, so it
+  renders the same on every device; when the buttons wrap they take one width with the icons lined up. The button text
+  is the owner's wording; Spanish through `website/lang.js` like the rest of the page; the new-tab notice is visually
+  hidden text inside each link, so the accessible name begins with the visible label. CSS lives in the page's own style
+  block next to `.btn-rev`; no script, package or outside request was added.
+- **Google:** `https://g.page/r/CfHitxq6bJ3AEBM/review`, exactly as the owner gave it (the same link the visit section and
+  the footer already use).
+- **Tripadvisor:** the owner's widget (`cdswritereviewlg`, location 34058072, `lang=es`, `display_version=2`) is a script
+  from `www.jscache.com` that replaces a static link to the restaurant listing (`Restaurant_Review-g951347-d34058072-…`)
+  with Tripadvisor's own small «write a review» form (rating bubbles, a review title and «Continue»). Public copies of
+  that widget as rendered on other sites send the guest to `UserReview-g<geo>-d<location>-<Name>-m12097.html`, and the
+  Content API's documented `write_review` link uses the same `UserReview-…` page; Tripadvisor's own «Write a review»
+  button on listing pages has used `UserReviewEdit-g…-d…`. Tripadvisor documents neither as a public linking format. The
+  button uses the widget's and the API's path for this location, without the widget's tracking code:
+  `https://www.tripadvisor.com/UserReview-g951347-d34058072-The_hanging_garden_cafe-Monteverde_Province_of_Puntarenas.html`.
+  It **could not be verified** from the development environment: its network policy refuses `www.tripadvisor.com`,
+  `www.jscache.com` and `static.tacdn.com`, and the web tools cannot resolve them, so neither the widget's script nor the
+  page could be opened here. **Verified by the owner on 2026-10-19:** the owner opened the link and confirmed it opens
+  Tripadvisor's «Write a review» page for Hanging Garden Café, and approved the URL (E-35 DONE). If Tripadvisor ever
+  changes it, the listing-button form `UserReviewEdit-…` is the first fallback and the address Tripadvisor shows after
+  «Write a review» the last. The listing page was **not** substituted.
+- **Rejected:** embedding the widget (it is itself a review form, which the owner ruled out; a third-party script with its
+  own styling and a request to Tripadvisor on every visit); the listing URL behind the button (owner: not the listing);
+  the official platform logos (they cannot be fetched here, and hand-drawn copies would break the platforms' brand
+  rules); Review or AggregateRating schema (no fabricated ratings); a rotating icon on hover (the page's hover vocabulary
+  is a small lift and a darker colour).
+- **Checked:** e2e `320_home_reviews` (both destinations; accessible names including the new-tab notice; a new tab with no
+  opener and no referrer; no form, widget, outside script or review schema; the standard button height; Tab order and
+  the gold focus ring; Enter opens the page; a 375 px phone in Spanish: stacked, 44 px or taller, one width, nothing
+  sideways); a mutation (the Tripadvisor link without `noreferrer`) makes it fail. The nav and the menu, story,
+  gallery, visit, FAQ, guides and ask sections were screenshotted before and after at 1280, 820 and 390 px in English and
+  Spanish, with motion reduced, the fixed layers (ambient background, drip thread, chat button) hidden and the nav
+  un-fixed: 42 of 48 identical; the six «ask» shots differ only in a 17 px strip along their bottom edge, where the new
+  card's soft shadow (the brew card's) reaches into the gap, and the footer only by its half-pixel position; with those
+  layers shown, the gallery (desktop) and the menu and ask sections (phone) also differ where the drip thread's drawn
+  length and the fixed layers follow the longer page. The hero, the brew cup and the canopy interlude were not screenshotted on their own (nothing
+  above the new section changed in the markup or CSS).
+- **Seen, not changed (site-wide, owner's call):** the site's gold focus ring (#B98A35) is 2.93:1 on the panel colour and
+  2.76:1 on the page background, just under the 3:1 WCAG asks of a focus indicator; changing it would change the site's
+  colours everywhere.
+- **Repository side:** `website/index.html`, `website/lang.js`, `tests/e2e/specs/320_home_reviews.spec.js`, these docs;
+  committed and pushed with the owner's authorization of 2026-10-19 (these six files only). Nothing merged, tagged or
+  published: the site goes live only through the owner's tag and the manual publish workflow, after the owner's approval.
