@@ -38,7 +38,11 @@ Confidence labels:
 | Current platform | URLs like `/tours/don-juan-coffee-chocolate-tour/` suggest WordPress | Inferred |
 | Third-party listing | Hotelmix shows "Basecamp Monteverde Hotel", about 100 m from the town centre, 5.0 from a single review | Third-party |
 
-### How Basecamp, Orchid Lodge and the café connect (BQ-01)
+### How Basecamp, Orchid Lodge and the café connect (BQ-01, answered)
+
+**Confirmed by the owner, 2026-10-19:** Orchid Lodge Monteverde was this hotel's name before it rebranded as Basecamp Monteverde. Orchid's room names and details are not the current rooms and are not used for the new site (BD-008).
+
+The clues found before the owner answered:
 
 | Clue | Source |
 |---|---|
@@ -47,7 +51,7 @@ Confidence labels:
 | Orchid Lodge calls The Hanging Garden Café "our signature café experience". | Indexed |
 | Orchid Lodge has 10 rooms. The café system has QR room ordering set up for exactly 10 rooms. | Indexed and Confirmed |
 
-**Inferred:** Basecamp Monteverde, Orchid Lodge and the café share one owner and probably one building, 50 m south and 50 m east of the Santa Elena church. The room names on the two lodge sites differ, so the owner must confirm whether they are the same rooms.
+**Inferred:** the hotel and the café share one owner and probably one building, 50 m south and 50 m east of the Santa Elena church. The current room count is still to confirm (BQ-02).
 
 ---
 
@@ -63,7 +67,9 @@ Confidence labels:
 
 **verify:** the Triple Room shows two guests and one bed, which conflicts with its name. Sizes, amenities, room counts and photos were not indexed (BQ-02).
 
-### As listed on orchidlodgemonteverde.com (Indexed)
+### As listed on orchidlodgemonteverde.com, the hotel's former site (outdated, never publish)
+
+Kept only as history. The owner says these are not the current rooms (BD-008).
 
 | Room | Description |
 |---|---|
@@ -72,9 +78,9 @@ Confidence labels:
 | Queen Garden Room | One queen bed, modern amenities, central location |
 | Cloud Forest Double Queen | Listed with flexible cancellation |
 
-Total: 10 rooms, described as a boutique hotel.
+The former site said 10 rooms and called the hotel a boutique hotel.
 
-### Orchid Lodge policies (Indexed; candidates for Basecamp, BQ-14)
+### Policies on the former Orchid Lodge site (may still apply; verify, BQ-14)
 
 - Rates are per room, per night.
 - 13% Costa Rican VAT applies to every booking.
@@ -85,7 +91,7 @@ Total: 10 rooms, described as a boutique hotel.
 - Quiet hours 10 PM to 7 AM.
 - No smoking indoors. No pets, except service animals.
 - Group bookings accepted.
-- Contact: stay@orchidlodgemonteverde.com, +506 2101-6980.
+- Former contact: stay@orchidlodgemonteverde.com, +506 2101-6980. Check whether these still reach the hotel.
 
 ---
 
@@ -172,8 +178,8 @@ Basecamp's version of the structure is in `CODEX.md` section 4.
 |---|---|
 | Only one page of basecampmonteverde.com shows up in the search index. | Indexed |
 | No Booking.com, Hostelworld, Airbnb or TripAdvisor listing for Basecamp was found. | Third-party |
-| Orchid Lodge has three separate TripAdvisor listings, one with 4 reviews averaging 4 of 5. | Third-party |
-| Orchid Lodge pages still carry site-builder placeholders, such as a page titled "Cozy Hotel Coffee Shop with Editable Menu". | Indexed |
+| The hotel's former name, Orchid Lodge, has three separate TripAdvisor listings, one with 4 reviews averaging 4 of 5. They should be merged and renamed to Basecamp so the reviews carry over (BQ-15). | Third-party |
+| The former Orchid Lodge site is still online and still carries site-builder placeholders, such as a page titled "Cozy Hotel Coffee Shop with Editable Menu". It should forward to Basecamp at launch (BQ-15). | Indexed |
 
 ---
 

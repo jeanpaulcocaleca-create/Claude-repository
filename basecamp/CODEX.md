@@ -174,6 +174,7 @@ A cloudy cloud-forest scene, similar to the current Basecamp home page photo.
 - Conversion tracking that respects privacy, for Google and Meta ads the owner may run later.
 - Monteverde guide pages that answer real traveler questions, linked with the café's existing guides.
 - Booking.com, Airbnb and Hostelworld as billboards, with the direct site always the better deal.
+- Keep the reviews earned as Orchid Lodge: rename the old listings to Basecamp instead of opening new ones, and forward the old website to the new one (BD-008, BQ-15).
 - Review requests after check-out, and a referral link instead of a membership.
 
 ---
@@ -213,7 +214,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 
 | Phase | Delivers | Done when |
 |---|---|---|
-| **0 · Codex** (now) | This file, research, kickoff prompt, communication set up. | ChatGPT has read it and replied, and the owner has answered BQ-01, BQ-02 and BQ-06. |
+| **0 · Codex** (now) | This file, research, kickoff prompt, communication set up. | ChatGPT has read it and replied, and the owner has answered BQ-02 and BQ-06. BQ-01 is answered. |
 | **1 · Plan sign-off** | Final page map, simple wireframes of every page, hero choice, brand colors and type. | Owner approves in writing. |
 | **2 · Site preview** | Every page in EN and ES with real content and photos. Booking bar sends a WhatsApp or email request. | Owner and ChatGPT review a preview link on a phone. |
 | **3 · Direct booking** | Availability, rates, checkout, confirmations, calendar sync. | A test booking runs end to end without real money. |
@@ -226,7 +227,7 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 
 | ID | Question | Blocks |
 |---|---|---|
-| BQ-01 | Are Basecamp Monteverde and Orchid Lodge Monteverde the same building and rooms? If yes, does Orchid Lodge's site redirect to Basecamp after launch? | Phase 1 |
+| BQ-01 | ~~Are Basecamp Monteverde and Orchid Lodge Monteverde the same?~~ **Answered 2026-10-19:** Orchid Lodge was the hotel's name before the rebrand. Its room list is out of date (BD-008). | Answered |
 | BQ-02 | The exact room list: name of each room type, how many of each, beds, max guests, bathroom, size, amenities, photos, and prices by season. | Phase 1 |
 | BQ-03 | Which page should the "Tours" link open? | Phase 2 |
 | BQ-04 | Does Basecamp still offer private transport? If yes, is it a link like the tours, or part of the site? | Phase 1 |
@@ -239,7 +240,8 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | BQ-11 | Is someone on site to receive guests, and at what hours? Do the doors have smart locks? | Phases 3 and 4 |
 | BQ-12 | Who are the main guests today, and which languages beyond English and Spanish matter? | Phase 1 |
 | BQ-13 | Does Basecamp have its own Google Business Profile? Who can log in to it? | Phase 4 |
-| BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. Orchid Lodge's are in the research file. | Phase 2 |
+| BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. The former Orchid Lodge rules are in the research file. Do they still apply? | Phase 2 |
+| BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
 
 ---
 
@@ -268,10 +270,15 @@ The café and tours appear as links somewhere on the site. Every page focuses on
 **BD-007 · 2026-10-19 · Owner · Claude researches most of the content.**
 Claude gathers facts from public sources and marks each with its source and confidence. The owner confirms anything marked "verify".
 
+**BD-008 · 2026-10-19 · Owner · Orchid Lodge Monteverde is the hotel's former name.**
+The hotel rebranded from Orchid Lodge to Basecamp Monteverde. Orchid's room names and details are not the current rooms and are not used on the new site. Orchid's old website and listings are treated as legacy: at launch they should point to Basecamp, keeping their reviews (BQ-15).
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-19 · Claude.** Owner answered BQ-01: Orchid Lodge was the hotel's name before the rebrand. Recorded as BD-008. Marked Orchid's room list as outdated in `RESEARCH.md`, and added BQ-15 about moving the old Orchid listings and website over to Basecamp. Still waiting on BQ-02 and BQ-06, and on ChatGPT's first review.
+- **2026-10-19 · Claude.** Claude, the owner and ChatGPT's connector all post through the owner's GitHub account. Added labels to tell them apart, and moved GO and spending approvals to Claude's chat (section 1).
 - **2026-10-19 · Claude.** Wrote this codex, `RESEARCH.md`, `CHATGPT-KICKOFF.md` and the root `AGENTS.md`. Opened draft pull request #2 and subscribed to it. Next: wait for ChatGPT's first review and the owner's answers to BQ-01, BQ-02 and BQ-06. Blocked: this session's network still denies `basecampmonteverde.com`, so the current site's photos and full text are not collected yet.
