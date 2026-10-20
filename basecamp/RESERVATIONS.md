@@ -30,6 +30,8 @@ Inventory (Owner): 10 rooms in 3 types. Seven sleep 3, two sleep 2, one sleeps 4
 | Hotel Link is connected to Booking.com and Airbnb. | Owner |
 | Which Hotel Link modules are active (booking engine, channel manager, Hotel Link Pay, Google Free Booking Links), the plan and its monthly price. | Unknown (BQ-25) |
 | Whether the current website already uses the Hotel Link booking widget, and which version. | Unknown. The current site has "check availability" buttons per room (indexed); where they point is not visible from here. |
+| Payment method: capture card details and process manually. Visa and Mastercard on. Hotel Link Pay not activated. Tilopay listed among integration options. | Owner screenshots, as reported by ChatGPT on 2026-10-20. Claude has not seen them. |
+| Booking conditions: 50% deposit. Cancellation: full-stay penalty within 22 days of arrival. Not changed. | Same |
 
 ---
 
@@ -106,13 +108,13 @@ Instant confirmation does not require full payment at booking. Confirming on a c
 
 | Option inside Hotel Link | Fees | Status |
 |---|---|---|
-| Card details captured, charged at the lodge on the local terminal | Local terminal fees only | Vendor doc. Simplest. Staff handle cards, so the PCI rules for the lodge apply. |
+| Card details captured, charged at the lodge on the local terminal | Local terminal fees only | **Enabled today** (owner screenshots). Vendor doc. Simplest. Staff handle cards, so the PCI rules for the lodge apply. |
 | PayPal through Hotel Link | PayPal's rates | PayPal works in Costa Rica. Exact rates to confirm. |
 | Stripe through Hotel Link | Stripe's rates | Whether a Costa Rican business can open a Stripe account is unconfirmed. |
-| Hotel Link Pay | Hotel Link's rates | Costa Rica availability unconfirmed. Pages are dated. |
-| Tilopay, Costa Rican gateway | 4.25% + $0.35, no monthly fee ([Tilopay](https://tilopay.com/en/tarifas)) | Not in Hotel Link's gateway list found. Ask Hotel Link. |
+| Hotel Link Pay | Hotel Link's rates | **Not activated** (owner screenshots). Costa Rica availability unconfirmed. Pages are dated. |
+| Tilopay, Costa Rican gateway | 4.25% + $0.35, no monthly fee ([Tilopay](https://tilopay.com/en/tarifas)) | **Listed among Hotel Link's integration options** (owner screenshots). Integration cost and automatic charging to confirm with Hotel Link. |
 
-The Orchid Lodge site, now historical, asked a 50% deposit at booking with the balance at check-in. The owner decides Basecamp's rule (BQ-14).
+Booking conditions are proposed in section 9.
 
 ---
 
@@ -166,3 +168,104 @@ Screenshots from the Hotel Link extranet. Hide guest names, card numbers and pas
 6. Does the current plan include the booking engine, the widget, the channel manager and Google Free Booking Links with no extra fees?
 7. Is there an uptime commitment or a status page?
 8. Can the booking page run on our own web address?
+9. Can a cancellation or no-show penalty be set as a number of nights, such as one night?
+10. How is "1 day before arrival" counted: from midnight or from the check-in time, and in which time zone?
+11. When is a stored security code deleted, what are the card viewing rules, and is card storage PCI DSS v4.0 compliant?
+12. What does the Tilopay integration cost, and would it allow automatic deposit and penalty charges?
+
+---
+
+## 9. Booking conditions · proposal (BQ-14, BQ-09)
+
+**Status: PROPOSAL.** The owner's preferences are recorded below. The configuration is Claude's proposal, building on ChatGPT's recommendation. Nothing is approved and no Hotel Link setting has been changed.
+
+### 9.1 Owner preferences (2026-10-20, in ChatGPT's message pasted by the owner)
+
+- Industry-standard hotel terms.
+- Keep the ability to ask for a 50% deposit, without requiring it on every booking.
+- A credit card is required as a guarantee.
+- Free cancellation up to 24 hours before check-in.
+- A fair penalty for late cancellation or no-show.
+
+### 9.2 What Hotel Link supports
+
+| # | Question | Finding | Evidence |
+|---|---|---|---|
+| 1 | Card guarantee with no deposit | Yes. Deposit type "No deposit" with the payment method "capture credit card details and process manually" lets the guest book without paying. The card is stored with the booking. | Vendor doc: [booking conditions](https://help.hotellinksolutions.com/booking-conditions-and-cancellation-rules), [payment method link](https://help.hotellinksolutions.com/booking-conditions-payment-method-connection) |
+| 2 | 0% deposit | "No deposit" is one of five deposit types: no deposit, full amount, percentage, fixed amount, nights. | Vendor doc |
+| 3 | First-night penalty | Deposits can be set in nights. Cancellation penalties use a separate rule, and the documented example uses percentages of the booking amount. A penalty of "1 night" is not documented. Fallback that works today: staff mark the booking "Cancelled With Penalty" and enter the first-night amount. | Vendor doc: [cancelling a booking](https://help.hotellinksolutions.com/how-to-cancel-a-booking). Nights penalty: Unknown |
+| 4 | 24-hour deadline | Rules are set in days before arrival ("more than 1 day", "less than 1 day"). The exact cutoff hour, and whether it counts from midnight or from check-in time, is not documented. | Vendor doc. Cutoff hour: Unknown |
+| 5 | Flexible and deposit rate plans side by side | Yes. General booking conditions cover all rate plans, and a rate plan set to "Custom" overrides them. | Vendor doc |
+| 6 | Secure card handling | With manual capture, Hotel Link stores the cardholder name, number, security code and expiry. PCI DSS forbids keeping the security code after a payment is authorised. Card viewing rules exist but are not public. | Vendor doc: [payment methods](https://help.hotellinksolutions.com/payment-methods-in-hotel-link). [PCI SSC FAQ](https://blog.pcisecuritystandards.org/faq-can-cvc-be-stored-for-card-on-file-or-recurring-transactions). Retention: Unknown |
+| 7 | Written confirmation of the conditions | The cancellation text the guest sees when booking is the same on the voucher and in the confirmation email. Confirmations include dates, items, policies and payment status. | Vendor doc: [confirmations](https://help.hotellinksolutions.com/sending-booking-confirmation-and-voucher-to-guests) |
+
+### 9.3 Card-network rules
+
+- Visa lets lodging merchants charge **one night** for a no-show on a guaranteed reservation, when the cancellation policy was disclosed at booking and restated in the confirmation. Merchants may set their own cancellation deadlines. ([Visa merchant guide](https://usa.visa.com/dam/VCOM/download/merchants/Guaranteed%20Reservations%20for%20Merchants%20VBS%2018.AUG.15.pdf), 2015)
+- Mastercard cardholders can dispute a no-show charge when they cancelled in time, the fee was not disclosed, or it exceeds the quoted rate. ([third-party summary](https://chargebacks911.com/chargeback-reason-codes/mastercard/4853-no-show-hotel-charge/))
+- **Consequence:** a first-night penalty matches the card rules. Charging the full stay to a card held only as a guarantee goes beyond the one-night no-show charge Visa describes, which raises chargeback risk. A larger penalty belongs on a rate where the guest pays a deposit up front.
+- Charging a stored card later is a key-entered, card-not-present charge. The lodge's bank must allow this on its terminal (BQ-27).
+
+### 9.4 Booking.com and Airbnb work differently
+
+| Channel | Who sets the policy | Who charges the guest | Notes |
+|---|---|---|---|
+| Direct, Hotel Link | Hotel Link booking conditions | The lodge, on its terminal | The proposal below. |
+| Booking.com | Booking.com's extranet: a policy attached to each rate plan, penalties in percent or nights ([Booking.com](https://partner.booking.com/en-us/help/policies-payments/policies/setting-cancellation-policies)) | The lodge or Booking.com, depending on the payment setup | Set separately from Hotel Link. Align it with the direct terms. |
+| Airbnb | Airbnb's standard policies: Flexible, full refund to 24 h before check-in; Moderate, 5 days; Limited, 14 days; Firm, 30 days. A 24-hour grace period after booking cannot be turned off. ([third-party summary](https://www.hostfully.com/blog/airbnb-cancellation-policy/)) | Airbnb collects and pays the host | The lodge cannot charge Airbnb guests' cards. "Flexible" matches the direct 24-hour rule. |
+
+### 9.5 Costa Rica requirements found (not legal advice, BQ-26)
+
+- **Final prices.** Prices shown must be final, with all taxes included ([Ley 7472](https://www.asamblea.go.cr/sd/Documents/BIBLIOTECADIGITAL/DOCUMENTOS/LEYES/LEY%207472-PROMOCION%20DE%20LA%20COMPETENCIA%20Y%20DEFENSA%20EFECTIVA%20DEL%20CONSUMIDOR.pdf), [regulation](https://pgrweb.go.cr/scij/Busqueda/Normativa/Normas/nrm_texto_completo.aspx?nValor1=1&nValor2=75696)). The site and booking engine show totals with the 13% IVA included, not "plus tax".
+- **IVA and invoices.** Lodging carries 13% IVA, and each stay needs an electronic invoice ([third-party](https://siemprealdia.co/costa-rica/impuestos/impuesto-sobre-el-valor-agregado-iva/), [third-party](https://taxlawyercr.com/airbnb-en-costa-rica-lo-que-todo-anfitrion-debe-saber-para-cumplir-con-la-ley/)). Whether a penalty or a kept deposit carries IVA and needs its own invoice was not found: a question for the accountant.
+- **Right to withdraw.** Ley 7472 article 40 and the regulation's e-commerce chapter give an 8-day right to withdraw from distance sales. The exceptions found do not mention dated lodging ([analysis](https://www.lexology.com/library/detail.aspx?g=5af69811-8359-4b4c-a3f0-855cb54a219c)). Whether this limits a non-refundable deposit is a question for a lawyer.
+- **Personal data.** Ley 8968 requires informed, express consent to process personal data ([third-party guide](https://www.recordinglaw.com/es/world-laws/world-data-privacy-laws/costa-rica-data-privacy-laws/)). The site and booking engine need a privacy notice.
+
+### 9.6 Proposed configuration (not applied)
+
+**General**
+- Keep the payment method "capture credit card details and process manually", with Visa and Mastercard.
+- Leave Hotel Link Pay and Tilopay off for now. Revisit if charging by hand becomes a burden (BQ-09).
+- Replace the current 50% deposit on every booking and the full-stay penalty within 22 days.
+
+**Rate plan A · Flexible** (default, listed first)
+
+| Setting | Value |
+|---|---|
+| Deposit type | No deposit |
+| Balance due | 0: paid at the property |
+| Guarantee | Valid Visa or Mastercard, stored, not charged at booking |
+| Free cancellation | Until the cutoff one day before arrival; hour to confirm |
+| Late cancellation | First night: room rate plus 13% IVA |
+| No-show | First night: room rate plus 13% IVA. The other nights are released. |
+| Changes | Same deadline as cancellations |
+
+**Rate plan B · Advance deposit** (optional)
+
+| Setting | Value |
+|---|---|
+| Deposit type | Percentage: 50% |
+| How it is charged | Staff charge it on the terminal right after booking. Automatic charging needs Hotel Link Pay or Tilopay. |
+| Balance | At the property |
+| Cancellation | Owner decides: deposit refundable until a set number of days before arrival, or non-refundable in exchange for a lower price |
+| When it applies | Owner decides: peak dates, groups and whole-lodge bookings, or as a cheaper prepaid choice |
+
+**Draft guest wording for rate plan A** (owner and a lawyer to approve)
+
+> **EN:** Free cancellation until [time] Costa Rica time on the day before arrival. After that, or if you do not arrive, we charge the first night, with 13% VAT included, to the card you gave us. Nothing is charged when you book. The rest of your stay is paid at the lodge.
+>
+> **ES:** Cancelación gratuita hasta las [hora], hora de Costa Rica, del día anterior a su llegada. Después de esa hora, o si no se presenta, cobramos la primera noche, con el 13% de IVA incluido, a la tarjeta registrada. No cobramos nada al reservar. El resto de la estadía se paga en el hotel.
+
+**Staff procedure** (written in Phase 1): who may view card details; penalties charged on the terminal only; card numbers never copied to paper, WhatsApp or email; every charge recorded on the booking; a receipt and electronic invoice sent to the guest; the booking record and confirmation email kept for disputes.
+
+### 9.7 Needs the owner
+
+1. Approve rate plan A as the default, and the removal of the current 50%-everywhere and 22-day full-stay terms.
+2. Check-in and check-out times, and the exact cancellation cutoff hour.
+3. Whether to offer rate plan B, its refund rule, any discount, and when it applies.
+4. The rule for leaving early: charge the unused nights, one night, or nothing.
+5. Align Booking.com's policy and choose Airbnb's "Flexible", or keep stricter terms on those channels.
+6. Who on staff may view card details.
+7. BQ-26: a Costa Rican lawyer and the accountant review the final terms.
+8. BQ-27: ask the bank whether its terminal allows card-not-present charges for guarantees.
+9. Send Hotel Link questions 9 to 12 in section 8 with the others (BQ-24).

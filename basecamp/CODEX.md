@@ -237,12 +237,12 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | BQ-06 | The original file of the current home page cloud photo, plus any other photos. Or allow `basecampmonteverde.com` in Claude's environment network settings so Claude can collect them. | Phase 1 |
 | BQ-07 | Who hosts basecampmonteverde.com today, and who controls the domain and DNS? | Launch |
 | BQ-08 | How bookings arrive today and which listings must stay in sync. **Partly answered 2026-10-19:** reservations run through Hotel Link, which is connected to Booking.com and Airbnb. Any other channels or direct booking routes still to list. | Phase 1 |
-| BQ-09 | Which bank or payment gateway, the SINPE Móvil number to show, and the deposit rule. | Phase 3 |
+| BQ-09 | Which bank or payment gateway, the SINPE Móvil number to show, and the deposit rule. **Current setup, per owner screenshots reported by ChatGPT:** manual card capture with Visa and Mastercard; Hotel Link Pay off; Tilopay offered as an integration. Proposal in `RESERVATIONS.md` section 9. | Phase 1 |
 | BQ-10 | OK to create a separate repository for the site (P-02)? Its name? | Phase 2 |
 | BQ-11 | Is someone on site to receive guests, and at what hours? Do the doors have smart locks? | Phases 3 and 4 |
 | BQ-12 | Who are the main guests today, and which languages beyond English and Spanish matter? | Phase 1 |
 | BQ-13 | Does Basecamp have its own Google Business Profile? Who can log in to it? | Phase 4 |
-| BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. The former Orchid Lodge rules are in the research file. Do they still apply? | Phase 2 |
+| BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. **Owner preferences recorded 2026-10-20:** card guarantee, free cancellation to 24 hours before check-in, fair late and no-show penalty, optional 50% deposit. Proposed configuration in `RESERVATIONS.md` section 9, not approved. Still open: check-in and check-out times, cutoff hour, children, pets, smoking. | Phase 1 |
 | BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
 | BQ-16 | What is the single source of truth for the reservation calendar, and who keeps it up to date? Leading candidate: Hotel Link, already in use. Not decided. | Phase 1 |
 | BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
@@ -253,7 +253,9 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 | BQ-22 | How are simultaneous bookings, calendar failures, outages and recovery handled? Proposal in `RESERVATIONS.md`. | Phase 1 |
 | BQ-23 | ~~Accept one subscription exception for a new booking system?~~ **On hold:** probably unnecessary, since Hotel Link is already in use. No additional subscription is proposed or approved. | On hold |
 | BQ-24 | Approve sending the questions in `RESERVATIONS.md` section 8 to Hotel Link support? The owner or ChatGPT sends them; Claude does not contact vendors. Beds24 and others are no longer being quoted. | Phase 1 |
-| BQ-25 | Which Hotel Link products and plan are active, at what monthly price? Plus the extranet screenshots listed in `RESERVATIONS.md` section 8, with guest and card details hidden. | Phase 1 |
+| BQ-25 | Which Hotel Link products and plan are active, at what monthly price? Plus the extranet screenshots listed in `RESERVATIONS.md` section 8, with guest and card details hidden. **Partly answered:** ChatGPT reviewed the payment and booking-condition screenshots; Claude has not seen them. Screenshots go in Claude's chat, never in this public repository. | Phase 1 |
+| BQ-26 | Approve a Costa Rican lawyer and the accountant reviewing the final booking terms: the 8-day withdrawal right, penalties, IVA on penalties and deposits, electronic invoices, and the privacy notice. | Phase 1 |
+| BQ-27 | Ask the lodge's bank whether its card terminal allows key-entered, card-not-present charges for no-show and late-cancellation penalties, and at what fee. | Phase 1 |
 
 ---
 
@@ -294,6 +296,7 @@ The hotel rebranded from Orchid Lodge to Basecamp Monteverde. Orchid's room name
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-20 · Claude.** Owner preferences for booking terms and ChatGPT's reading of the Hotel Link screenshots received through ChatGPT's message, pasted by the owner. Added `RESERVATIONS.md` section 9: what Hotel Link supports, card-network rules, how Booking.com and Airbnb differ, Costa Rican requirements found, a proposed two-rate-plan configuration with draft EN and ES wording, and the owner decisions it needs. Updated BQ-09, BQ-14 and BQ-25; added BQ-26 and BQ-27. Nothing approved, no Hotel Link setting changed, no code.
 - **2026-10-19 · Claude.** Owner confirmed, through ChatGPT's message pasted into Claude's chat, that Basecamp already uses Hotel Link and that it is connected to Booking.com and Airbnb. Rewrote `RESERVATIONS.md` around keeping Hotel Link, with Beds24 and others as comparison only, and labelled every finding as owner, vendor documentation, vendor claim, inferred or unknown. Updated BQ-08, BQ-16, BQ-23, BQ-24, P-06, P-09 and the cost table, and added BQ-25. No approval inferred. No code.
 - **2026-10-19 · Claude.** Recorded BD-009, instant confirmed direct reservations, as relayed by ChatGPT and pasted by the owner. Wrote `RESERVATIONS.md`, a proposal comparing five approaches and recommending one low-cost certified channel manager. Added BQ-23 on a possible subscription exception and BQ-24 on vendor quotes. Marked P-03, P-04 and P-05 as replaced. No code.
 - **2026-10-19 · Claude.** Owner confirmed in Claude's chat: 10 rooms (7 sleep 3 with a queen and a single, 2 sleep 2 with one queen, 1 sleeps 4 with two queens), and café hours 6:00 to 19:00 every day. Recorded in `RESEARCH.md` section 2 with the match to the old site's three prices. ChatGPT's first review was received through the owner and answered. The new questions BQ-16 to BQ-22 are now in section 8 because BD-009 refers to them. The other accepted corrections, the acceptance criteria and the revised Phase 1 checklist still wait for the owner's OK.
