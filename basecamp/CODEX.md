@@ -12,6 +12,7 @@ The owner, ChatGPT and Claude all work from this file.
 | **How ChatGPT starts** | [`CHATGPT-KICKOFF.md`](CHATGPT-KICKOFF.md) |
 | **Reservation proposal** | [`RESERVATIONS.md`](RESERVATIONS.md) |
 | **Architecture proposal** | [`ARCHITECTURE.md`](ARCHITECTURE.md): dashboard, provider independence, hosting, backups, costs |
+| **Pending owner decisions** | [`DECISIONES-PENDIENTES.md`](DECISIONES-PENDIENTES.md): one consolidated table, in Spanish |
 | **Marketing strategy** | [`STRATEGY-MUSE.md`](STRATEGY-MUSE.md), the owner's source plan, and [`STRATEGY-REVIEW.md`](STRATEGY-REVIEW.md), Claude's review |
 | **Working branch** | `claude/brave-archimedes-ar8uc1` |
 | **Conversation** | [Pull request #2](https://github.com/jeanpaulcocaleca-create/Claude-repository/pull/2) |
@@ -256,7 +257,7 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-13 | Does Basecamp have its own Google Business Profile? Who can log in to it? | Phase 4 |
 | BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. **Owner preferences recorded 2026-10-20:** card guarantee, free cancellation to 24 hours before check-in, fair late and no-show penalty, optional 50% deposit. Proposed configuration in `RESERVATIONS.md` section 9, not approved. Still open: check-in and check-out times, cutoff hour, children, pets, smoking. | Phase 1 |
 | BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
-| BQ-16 | What is the single source of truth for the reservation calendar, and who keeps it up to date? Leading candidate: Hotel Link, already in use. Not decided. | Phase 1 |
+| BQ-16 | ~~What is the single source of truth for the reservation calendar?~~ **Answered by BD-011 (2026-10-20):** Hotel Link. Who keeps it up to date day to day is an operations detail for Phase 3. | Answered |
 | BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
 | BQ-18 | Which current URLs, backlinks and indexed pages must keep working or forward to new pages? | Phase 1 |
 | BQ-19 | Which amenities are verified, and what does each room rate include? | Phase 1 |
@@ -334,6 +335,7 @@ The owner shared a marketing strategy written by Muse with Claude and ChatGPT an
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-20 · Claude.** At ChatGPT's request, wrote `DECISIONES-PENDIENTES.md`, one consolidated table in Spanish of everything waiting on the owner. It has twelve essential decisions before GO, ten booking-policy decisions, items that can wait, items Claude resolves, and decisions already made. Marked BQ-16 as answered by BD-011. Recommendations only; no approvals. No code.
 - **2026-10-20 · Claude.** Muse's full audit of `STRATEGY-REVIEW.md`, relayed by the owner and signed "Lapis (marketing lead)". It found no further marketing objections. It recommends approving BQ-36 with two conditions, gives an order of preference for the measurement fallbacks, and adds a weekly manual reconciliation. It also asks for native Spanish titles. Added section 12, a proposed permanent event map with deduplication, plus option F and the fallback order in section 11 and the audit rows in section 10. Muse's "approved" is recorded as a recommendation: BQ-31, BQ-34, BQ-35 and BQ-36 still need the owner's word. No code.
 - **2026-10-20 · Claude.** Muse's response to the strategy review, relayed by the owner. Muse accepts the corrections and agrees on BQ-34, BQ-35 and BQ-31, adding that the café should get a full section. It flags Hotel Link question 13 as business-critical. Added Muse as marketing advisor in section 1, with advice-only status. Updated BQ-34. Added `STRATEGY-REVIEW.md` sections 10 and 11, on Muse's positions and on measuring bookings that finish on Hotel Link, with fallbacks A to E. Split question 13 in `RESERVATIONS.md` into priority sub-questions a to e. No owner decision recorded; no code.
 - **2026-10-20 · Claude.** The owner shared Muse's strategy plan and asked for an analysis, its incorporation and an honest opinion. Saved it as `STRATEGY-MUSE.md` and wrote `STRATEGY-REVIEW.md`. The review covers what is already planned, what to adopt, conflicts with BD-006, BD-009 and BQ-31, evidence-based corrections, architecture changes at $0, realistic search goals and a combined build order. Recorded BD-014, added BQ-34 to BQ-36, and added Hotel Link question 13 on analytics and pixel in its checkout. Added the dashboard's Guides, Reviews and Tracking sections to `ARCHITECTURE.md`. No code.
