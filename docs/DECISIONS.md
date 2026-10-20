@@ -1535,3 +1535,43 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Repository side:** `website/index.html`, `website/lang.js`, `tests/e2e/specs/320_home_reviews.spec.js`, these docs;
   committed and pushed with the owner's authorization of 2026-10-19 (these six files only). Nothing merged, tagged or
   published: the site goes live only through the owner's tag and the manual publish workflow, after the owner's approval.
+
+## D-049 · 2026-10-20 · Review section live (v2026.10.20-1)
+- **Approval and preparation (2026-10-19):** the owner approved the review section (D-048) for production and asked for
+  the release to be prepared under `docs/PUBLICAR.md` without bypassing any safeguard. Read-only checks before the
+  release: candidate `f9cfdef` (PR #1 head, CI green, merges cleanly); no merge (every earlier `v*` tag is on the
+  development branch and none was merged), no migration (`supabase/`, `.github/`, `tools/` unchanged since
+  `v2026.10.17-1`); `pages.yml` identical on the default branch, the last tag and the candidate. The workflow's own stamp
+  step, run on a copy, reproduced the live `gh-pages` `1daae6f` byte for byte from `v2026.10.17-1` (apart from the fetched
+  photos, CNAME and the build time); on `f9cfdef` it differed from live in 22 files: the build stamp in 20 pages, the
+  review section and its CSS in `index.html`, the six `lang.js` entries (used by no other page) and `version.json`,
+  nothing else. Every stamped page (20; the five `es/` guide pages carry none) gets the new build, so every open device
+  updates once.
+- **The release (owner):** tag `v2026.10.20-1` → `f9cfdef`, created through Releases with the development branch as
+  target and published 2026-10-20 13:13 UTC; «Tests» #139 on the tag green (13:13–13:22 UTC); «Publish website
+  (PRODUCTION · manual only)» run #52 from the tag at 13:25 UTC, success, the «restaurar» step skipped; `gh-pages`
+  `2ade5f6` "Publish website v2026.10.20-1 f9cfdef…"; `pages build and deployment` #48 green at 13:26 UTC. No
+  environment approval was recorded for the run (E-20 still open).
+- **Verified here, read-only:** the tag's commit; `gh-pages` `version.json` = `v2026.10.20-1`, build `f9cfdefe0a17`;
+  the 20 stamped pages carry that build; the section, both exact links and the Spanish entries present; CNAME
+  `hanginggardencafe.com`; `tests/tools/live-site-check.sh` before the pointer below moved: «approved release
+  (v2026.10.20-1, built from f9cfdef)» (with `LIVE_PAGES` = `2ade5f6` it reports the same build as the known one, as after
+  D-047). The live-pages rehearsal on `2ade5f6` passed on the production-shaped copy migrated to 0032 and on the reset
+  copy (7 + 7).
+  The owner's checks on the domain and on the café devices, and the checklist items done outside this repository
+  (Ensayo, backup card), were not reported at the time of writing.
+- **Timing:** published at 07:25 in Monteverde, after the café opened; `docs/PUBLICAR.md` asks for after the register
+  close or before 6:00. The devices update by design between sales. A gap seen while preparing (older than this
+  release, since the version check of 2026-10-12): the Caja's reload guard ignores an open «Hoy en el mostrador», so
+  cash counts typed in its open, close or cash-move forms can be lost if the screen is left untouched; no money record
+  is affected. A fix (no reload while those forms are open) is proposed, not made.
+- **Way back:** «Publish website» from `v2026.10.17-1` with PUBLICAR and «restaurar» empty; no database step.
+- **Seen while testing this record (not changed):** the browser test `310_recipes_sales` «… is shown in Sales for a
+  manager (in Spanish)» failed in the full run and in 1 of 3 runs on its own, on code this record does not touch. Sales
+  draws its list more than once on start-up (the first load and each sign-in event call `load()`), and the test reads the
+  page once after its first Spanish notice, so it can catch a redraw before `lang.js` translates it on the next frame.
+  Proposed fix, test only: wait until all five notices are on the page. Not made here (outside this records commit).
+- **Records:** `tests/rehearsal/LIVE_PAGES` → `2ade5f6`; `docs/PUBLICAR.md` item 2 without the withdrawn staging site
+  (D-039) and item 6 with the Caja's real connection texts and «Hoy en el mostrador» closed (the old «pendiente de
+  enviar» text does not exist on any page); E-19 DONE (release `sitio-2026-10-09` published 2026-10-15 00:52 UTC);
+  E-35 live; CHECKLIST and PRODUCTION-READINESS. Committed with the owner's authorization of 2026-10-20.

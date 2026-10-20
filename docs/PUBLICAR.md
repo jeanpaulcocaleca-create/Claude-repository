@@ -6,18 +6,23 @@ desde una **versión aprobada**. Hacer *push* a una rama ya **no** publica nada 
 ## Antes de publicar (lista de verificación)
 
 1. **Pruebas automáticas en verde.** GitHub → Actions → "Tests" de la última versión: ✅.
-2. **Revisada en pruebas (staging).** "Ensayo en pruebas" en verde y, en el sitio de pruebas
-   (`jeanpaulcocaleca-create.github.io/canopy-pruebas`, docs/PRUEBAS.md): ventas en efectivo y tarjeta, una
-   cuenta abierta pagada en partes, un descuento con PIN, el cierre de caja, la cocina y el menú QR.
+2. **Ensayo en pruebas en verde.** En `canopy-respaldos` → Actions → "Ensayo en pruebas", con la rama o la etiqueta
+   que se va a publicar, destino `desechable`, vaciar `no`, reinicio `no` (docs/PRUEBAS.md). Ya no hay sitio de pruebas
+   (D-039): las páginas se prueban en las pruebas automáticas.
 3. **Respaldo reciente.** La tarjeta **Respaldos** está en verde, o se pidió un respaldo inmediato
    (docs/RESPALDOS.md).
 4. **Migraciones aplicadas primero.** Si la versión trae migraciones nuevas, péguelas en el SQL Editor de
    producción **antes** de publicar las páginas (docs/MIGRACIONES.md). Las páginas nuevas siempre funcionan
    con la base vieja, pero las funciones nuevas necesitan la base nueva.
 5. **Fuera de horario.** Después del cierre de caja o antes de las 6:00.
-6. **Sin ventas pendientes en las tabletas.** Ninguna tableta muestra "pendiente de enviar".
+6. **Sin ventas pendientes en las tabletas.** En cada Caja el aviso de conexión dice «en línea» y, al tocarlo, «Todo lo
+   que se tomó en este dispositivo está guardado en el sistema.». Si dice «guardando N…», «N sin guardar todavía»,
+   «sin conexión · N en este dispositivo» o «no guardado en este dispositivo», espere a que se vacíe. «Hoy en el
+   mostrador» cerrado (la Caja puede recargarse aunque esa ventana esté abierta, y se pierde lo escrito en ella) y
+   ningún formulario a medio escribir en ninguna pantalla del personal (Inventario, Contabilidad, Inicio, Gestor del
+   menú, Reloj…).
 
-## Una sola vez, antes de la primera versión
+## Una sola vez, antes de la primera versión (hecho el 2026-10-15, E-19)
 
 El sitio que está hoy en el café no salió de una versión aprobada (se publicó solo, el 2026-10-09). Para poder
 volver a él si la primera versión fallara, guárdelo con un nombre:
