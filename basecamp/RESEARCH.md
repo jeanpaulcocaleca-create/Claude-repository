@@ -44,6 +44,8 @@ Confidence labels:
 |---|---|
 | Basecamp Monteverde uses Hotel Link for reservations. | Confirmed by the owner, relayed by ChatGPT and pasted by the owner into Claude's chat, 2026-10-19 |
 | Hotel Link is connected to Booking.com and Airbnb. | Confirmed by the owner, same message |
+| Hotel Link support for Latin America, in Spanish: ayudahls@centaurosolutions.com, WhatsApp +506 8783-2600; global support: support@hotellinksolutions.com | Indexed from Hotel Link's pages ([LATAM support](https://latam.hotellinksolutions.com/soporte)); verify in the extranet |
+| Basecamp Monteverde and Hanging Garden Café each already have a logo and visual identity. The original files have not been shared yet. | Confirmed by the owner, BD-015, 2026-10-20 |
 
 What Hotel Link can and cannot do is in [`RESERVATIONS.md`](RESERVATIONS.md).
 

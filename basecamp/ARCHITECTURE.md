@@ -219,7 +219,7 @@ A restore drill runs once before launch and then every six months.
 | Backups | Optional USB drive | | **$0** | Owner's own computer. |
 | Hotel Link | | | Existing plan | Already paid; not additional. Amount Unknown (BQ-25). |
 | Analytics, Search Console, Meta Pixel | | | **$0** | Free Google and Meta tools (BQ-36). |
-| Conversions API helper (Cloudflare Worker) | | | **$0** | Optional, free plan (BQ-36). |
+| Conversions API helper (Cloudflare Worker) | | | **$0** | Postponed by BD-015 (D-05). Free plan if activated later. |
 | Consent banner | | | **$0** | Open source. |
 | Card processing | | | Per transaction | Existing terminal fees. |
 | Lawyer and accountant review | Owner's choice | | | BQ-26. |
@@ -299,6 +299,21 @@ Requested by ChatGPT for the preferred candidate: **Cloudflare Pages, a private 
 | GitHub sign-in button | A free OAuth helper on Cloudflare Workers | For a private repository Sveltia asks for the `repo` permission, which reaches **every** repository on the owner's account, including the café system ([Doc](https://sveltiacms.app/en/docs/workflows/open)) | Not recommended for this account. |
 
 GitHub added PKCE sign-in in July 2025, but a browser-only app still needs a server-held secret in practice ([GitHub changelog](https://github.blog/changelog/2025-07-14-pkce-support-for-oauth-and-github-app-authentication/), [discussion](https://github.com/orgs/community/discussions/15752)). So the button cannot work without the helper.
+
+**Evidence for D-08, requested by the owner in BD-015.**
+- GitHub's fine-grained tokens let the owner choose exactly which repositories the token can reach, with a permission level for each kind of access, including Contents and Pull requests ([GitHub Docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)).
+- Expiry is configurable, from 1 to 366 days or none; the default is 30 days ([GitHub credential types](https://docs.github.com/en/organizations/managing-programmatic-access-to-your-organization/github-credential-types)).
+- Sveltia's token sign-in needs only Contents read and write, plus Pull requests read and write for drafts ([Sveltia](https://sveltiacms.app/en/docs/backends/github)).
+- No OAuth app and no helper are involved, so nothing can request broad permissions.
+- **One honest caveat:** every fine-grained token also gets read-only access to all *public* repositories. The café's repository is public, so the token could read it. Its content is already public, and the token cannot write to it.
+
+**Concrete solution, to be proven in the first step after GO**
+1. The owner creates the token on GitHub: owner account; repository access "Only select repositories" with the Basecamp repository alone; Contents read and write; Pull requests read and write; expiry 366 days, with a reminder two weeks before.
+2. The owner pastes it once into `/admin` on each device. It is stored only in that browser.
+3. The `/admin` page carries no analytics or pixel, uses a strict Content-Security-Policy allowing only our own files and GitHub's API, and loads a pinned copy of Sveltia kept in the repository. No outside script can run there to read the token.
+4. If a phone is lost, the owner revokes the token on GitHub in one click and creates a new one.
+5. **Proof:** with the token, writing to any other repository must fail, and reading and writing the Basecamp repository must work. The results are recorded before final approval.
+6. AI agents never receive this token.
 
 **Free today is not free forever.** GitHub Free, Cloudflare Pages Free and Cloudflare Workers Free carry no promise of permanence. The design keeps an exit for each: the files move to GitHub Pages; the access token needs no Cloudflare at all.
 

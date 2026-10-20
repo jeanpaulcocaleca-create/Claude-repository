@@ -8,6 +8,42 @@ Preparada el 2026-10-20 a pedido de ChatGPT. Fuentes: `CODEX.md` sección 8, `RE
 
 ---
 
+## Estado después de la dirección del propietario (BD-015, 2026-10-20)
+
+El propietario adoptó la estrategia de Muse y Lapis integrada con la arquitectura de Claude. **Es dirección de planificación, no el GO.**
+
+**1. Decisiones de planificación aprobadas**
+- **D-01:** la arquitectura, como dirección.
+- **D-02:** el alcance.
+- **D-03:** la conversión.
+- **D-04:** los precios.
+- **D-05:** la medición, con cambios: el píxel desde el lanzamiento con consentimiento y la API de Conversiones pospuesta.
+- **D-07:** el repositorio, que se crea solo en la fase de construcción.
+- **D-09:** la política de acceso de los asistentes de IA, sin acceso concedido todavía.
+- **D-10:** solo el propietario publica.
+- **D-11:** el mensaje para Hotel Link, que está listo para enviar.
+- **D-12:** el kit de marca, construido sobre la identidad que ya existe.
+
+**2. Opciones técnicas pendientes de verificación**
+- **D-06:** Cloudflare Pages con repositorio privado, que es la preferida.
+- **D-08:** la entrada al panel con una clave limitada. La evidencia está en `ARCHITECTURE.md` §11.2 y la prueba se hace al empezar el GO.
+- **La selección técnica final de D-01:** Sveltia CMS y las vistas previas.
+- **La API de Conversiones,** pospuesta.
+
+**3. Políticas operativas todavía no aprobadas**
+- **R-01 a R-10.** Las políticas actuales de Hotel Link no se cambian.
+
+**4. Acciones reservadas para después del GO**
+- Crear el repositorio.
+- Crear la cuenta gratuita de Cloudflare.
+- Dar acceso de escritura a Claude solo en ese repositorio.
+- Hacer la prueba del panel y de la vista previa.
+- Programar el sitio y la medición.
+
+Las tablas de abajo se conservan como referencia del momento en que se prepararon.
+
+---
+
 ## Cómo aprobar
 
 Escriba en el chat de Claude una línea como esta:

@@ -160,6 +160,8 @@ Screenshots from the Hotel Link extranet. Hide guest names, card numbers and pas
 
 ### Questions for Hotel Link support (BQ-24; the owner or ChatGPT sends them, Claude does not contact vendors)
 
+A ready-to-send message in Spanish and English, with question 13 first, is in [`HOTEL-LINK-PREGUNTAS.md`](HOTEL-LINK-PREGUNTAS.md).
+
 1. Is Spanish available for the booking engine and widget, and can a link open it in Spanish?
 2. What is the link format for passing dates, guests, language and a specific room type to the widget?
 3. How does the engine handle two guests booking the last room at the same moment?

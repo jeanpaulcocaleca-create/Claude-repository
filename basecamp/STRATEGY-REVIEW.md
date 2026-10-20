@@ -192,6 +192,39 @@ Muse's first condition: these names and meanings are set now and **never renamed
 
 **Details carried with every event:** page address, page type, room type if any, language, and the campaign tags in the address, if any. The WhatsApp event also carries the ID of the prefilled message, so each conversation maps to its source page.
 
-**Deduplication, Muse's second condition.** For each Meta event, the browser creates one random event ID. The Pixel sends it, and the Conversions API helper sends the same event name with the same ID from the server. Meta then counts one conversion, not two. The helper sends nothing for visitors who declined consent. Its Meta access token lives in Cloudflare's secret store.
+**Deduplication, Muse's second condition.** From launch, the browser creates one random event ID for each Meta event, and the Pixel sends it. The Conversions API is postponed (BD-015, D-05). When it is activated, the server will send the same event name with the same ID. Meta then counts one conversion, not two, for events that arrive within 48 hours of each other ([Meta](https://developers.facebook.com/documentation/ads-commerce/conversions-api/deduplicate-pixel-and-server-events)). Creating the IDs from day one means that later activation needs no change to the website's events. The server will send nothing for visitors who declined consent, and its Meta access token will live in Cloudflare's secret store.
 
 **Naming rule** for the future: lower-case words joined by underscores in Google Analytics, Meta's own spelling for Meta, and a new row here before any new event goes live.
+
+---
+
+## 13. Measurement at launch (BD-015, D-05)
+
+Owner direction: Meta Pixel from launch, only after valid consent. Google Analytics 4, Search Console, the event map in section 12, the UTM convention, and tracking of Hotel Link and WhatsApp clicks are prepared. **The Conversions API is postponed** until a safe, verified implementation exists. Nothing extra is built just for it before launch.
+
+### 13.1 The owner's seven conditions
+
+| # | Condition | How the design meets it |
+|---|---|---|
+| 1 | The Pixel never runs before consent | The consent banner loads first. Pixel and Analytics scripts are not even downloaded until the visitor accepts that category. |
+| 2 | The visitor can refuse and withdraw | "Accept", "Reject" and "Choose" buttons with equal weight. A "Cookie settings" link in every footer reopens the choice, and withdrawing stops the tags at once. |
+| 3 | Privacy rules are followed | Informed consent under Ley 8968. A privacy notice page in English and Spanish, reviewed by the lawyer (R-07). The same opt-in model for every visitor, wherever they come from. |
+| 4 | The data collected is documented | Table 13.2, published in the privacy notice too. |
+| 5 | No sensitive or card data | The site has no forms that collect names, emails or cards. Events carry only page, room type, language, campaign tags and the ID of the WhatsApp message, never its text. Card data only ever goes to Hotel Link. |
+| 6 | No extra cost | Analytics, Search Console, Meta Pixel and the open-source banner are free. No Conversions API infrastructure before launch. |
+| 7 | Tested before launch | A Phase 4 checklist: tags absent before consent and present after; Reject and withdraw work; every event in section 12 fires once with the right details, checked in Google's DebugView and Meta's test events tool. |
+
+### 13.2 What data is collected
+
+| Tool | What it receives | What it never receives |
+|---|---|---|
+| Google Analytics 4 | Pages visited, the events in section 12, device and browser type, traffic source and campaign tags, an approximate location worked out by Google, and a random visitor ID kept in a cookie | Names, emails, phone numbers, card data, WhatsApp message text |
+| Meta Pixel | The same events and page addresses, browser data, Meta's own cookies, and the visitor's IP address as Meta receives it | The same as above |
+| Search Console | No visitor data. Only Google's report on how the site appears in search | |
+| The Basecamp website itself | Nothing. It has no database and stores nothing about visitors | |
+
+### 13.3 Booking intent versus completed booking
+
+- **Intent** is `begin_checkout` in Analytics and `InitiateCheckout` in Meta. It is measured from launch.
+- **Completed booking** is `purchase` and `Purchase`. It is measured only if Hotel Link allows the return page or our tags (question 13), and is **never counted from intent**.
+- Reports show the two separately. Option F, the weekly reconciliation, counts real bookings once ads start.
