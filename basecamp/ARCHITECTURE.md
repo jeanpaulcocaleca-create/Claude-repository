@@ -55,7 +55,7 @@ Evidence labels: **Doc** (vendor or official documentation), **Claim** (vendor m
 | Works with GitHub, GitLab, Gitea and Forgejo. Sign-in by GitHub OAuth or access token. | Doc: [npm readme](https://www.npmjs.com/package/@sveltia/cms?activeTab=readme) |
 | Multilingual content, interface in 25+ languages, built-in image optimizer that converts uploads to WebP. | Doc and [maintainer post](https://github.com/sveltia/sveltia-cms/discussions/957) |
 | Editorial workflow, meaning drafts, review and publish, shipped in September 2026. | Maintainer post. One review still calls it beta; **Unknown** whether 1.0 is final. |
-| Friendlier GitHub sign-in uses a small free Cloudflare Worker (`sveltia-cms-auth`). Without it, sign-in uses an access token. | Doc: [sveltia-cms-auth](https://github.com/sveltia/sveltia-cms-auth) |
+| Two sign-in methods. **Access token:** no server at all, using a fine-grained token limited to the Basecamp repository; recommended in section 11. **GitHub button:** needs a small OAuth helper, `sveltia-cms-auth`, on Cloudflare's free Workers plan, and for a private repository it asks for the broad `repo` permission. | Doc: [GitHub backend](https://sveltiacms.app/en/docs/backends/github), [Open Authoring](https://sveltiacms.app/en/docs/workflows/open), [sveltia-cms-auth](https://github.com/sveltia/sveltia-cms-auth) |
 | Uses the same configuration format as Decap CMS, so we can switch tools without redoing content. | Maintainer post, Inferred |
 
 **Alternatives considered**
@@ -80,7 +80,7 @@ Evidence labels: **Doc** (vendor or official documentation), **Claim** (vendor m
 | Role | Who | Can |
 |---|---|---|
 | Owner | `jeanpaulcocaleca-create` | Edit and publish everything. Add and remove people. Approve agent work. |
-| Editor | Staff the owner chooses | Prepare changes as drafts. The owner publishes them. |
+| Editor | Staff the owner chooses, later | Prepare changes as drafts for the owner to publish. **Not enforceable on a free private repository**: anyone with write access can publish (section 11). Start with owner-only. |
 | AI agents | Claude, Codex | Work on separate branches through pull requests. Never publish. Never get the dashboard login. |
 
 ---
@@ -166,7 +166,7 @@ Every "Book" button and date form on the site calls one small piece of code, the
 | Limits | 500 builds a month, 20,000 files, 25 MiB per file, 100 custom domains ([Doc](https://developers.cloudflare.com/pages/platform/limits/)) | 1 GB site, 100 GB a month soft bandwidth limit ([Doc](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)) |
 | Private repository possible for free | Yes ([Doc](https://developers.cloudflare.com/pages/get-started/git-integration/)) | No. Pages from a private repository needs a paid GitHub plan ([Doc](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)) |
 | New account needed | A free Cloudflare account | None |
-| Domain | The main domain is most easily served if its DNS moves to Cloudflare's free DNS (Inferred, verify) | A DNS record at the current registrar |
+| Domain | The main domain needs its nameservers moved to Cloudflare's free DNS ([Doc](https://developers.cloudflare.com/pages/configuration/custom-domains/)). Any email records must be copied across first. | A DNS record at the current registrar |
 
 Either way the Basecamp site gets **its own repository**, separate from the café's, because one repository serves one domain (P-02).
 
@@ -174,7 +174,7 @@ Either way the Basecamp site gets **its own repository**, separate from the caf�
 
 | Question | Answer |
 |---|---|
-| What must stay online for the site to work? | The static host and Hotel Link. The sign-in helper is needed only to log in to the dashboard. |
+| What must stay online for the site to work? | The static host and Hotel Link. The dashboard also needs GitHub. With access-token sign-in there is no sign-in helper to keep running. |
 | Where are edited text and photos stored? | In the Basecamp repository on GitHub, as files with full history, plus a copy on the owner's computer. |
 | Where are full-size originals kept? | On the owner's computer. The repository keeps web-sized versions, about 2,000 px, so it stays small. |
 | Is there a database? | No. The website keeps no guest data, no reservations and no card data. |
@@ -209,7 +209,7 @@ A restore drill runs once before launch and then every six months.
 | Domain basecampmonteverde.com | | Renewal, already paid today | | Unavoidable. |
 | Hosting | | | **$0** | Free tier, option A or B. |
 | Owner Dashboard (Sveltia CMS) | | | **$0** | Open source. |
-| Dashboard sign-in helper (Cloudflare Worker) | | | **$0** | Free plan: 100,000 requests a day ([Doc](https://developers.cloudflare.com/workers/platform/limits)). |
+| Dashboard sign-in helper (Cloudflare Worker) | | | **$0** | Not needed with access-token sign-in. Only for the GitHub button: free plan, 100,000 requests a day ([Doc](https://developers.cloudflare.com/workers/platform/limits)). |
 | Database | | | **$0** | None needed. |
 | Photo and content storage | | | **$0** | In the repository, within free limits. |
 | Builds and image optimization | | | **$0** | Included in the host's free builds. |
@@ -229,8 +229,8 @@ Nothing in this design requires buying storage or a subscription. If a future fe
 | Requirement | How |
 |---|---|
 | Secure sign-in | GitHub accounts with two-factor authentication or passkeys. No shared passwords. |
-| Access control | Owner is admin. Editors draft, the owner publishes. Branch protection on the live branch. Agents never publish. The café's D-001 warning applies here too: an agent credential with admin rights can bypass in-repository gates, so the owner should limit agent access on the Basecamp repository. |
-| Protected credentials | The sign-in helper's secret lives in Cloudflare's secret store. No keys or passwords in the repository or the dashboard. Hotel Link logins are never stored anywhere in this project. |
+| Access control | The owner is the only person with write access at launch. Branch protection cannot be used: on GitHub Free it exists only for public repositories ([Doc](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)). Agents act through the owner's GitHub identity, as the café's D-001 notes, so no repository setting can stop them. The control is the owner's choice of which repositories each agent session can reach, and whether read-only or with push. |
+| Protected credentials | With access-token sign-in, the token lives only in the owner's browser, reaches only the Basecamp repository, and can be revoked on GitHub at any time. If the GitHub button is used instead, its secret lives in Cloudflare's secret store. No keys or passwords in the repository or the dashboard. Hotel Link logins are never stored anywhere in this project. |
 | Safe image uploads | JPEG, PNG and WebP only, no SVG; size cap; every image re-encoded at build time, which strips location data and hidden content; file names cleaned. |
 | Audit history | Every change records who, what and when. Visible from the dashboard's history link, reversible at any time. |
 | No card data | The website never sees card numbers. Checkout happens on Hotel Link's secure page. |
@@ -267,3 +267,136 @@ Owner decisions: the default rate plan; check-in, check-out and cutoff times; wh
 | **4 · Hardening** | Security headers; backups to the owner's computer; restore drill; monitoring; staff guide in Spanish and English | Restore drill passes; owner signs off |
 | **5 · Launch** | The owner points the domain; old WordPress addresses forward to the new pages; the old Orchid domain forwards (BQ-15) | The owner does this, never an agent |
 | **6 · Growth** | Google Business Profile and Free Booking Links, structured data, guides, review flow | Each item checked off by the owner |
+
+---
+
+## 11. Feasibility check (2026-10-20)
+
+Requested by ChatGPT for the preferred candidate: **Cloudflare Pages, a private GitHub repository, Sveltia CMS, and Hotel Link as source of truth.** Desk research only. Nothing was installed, created or configured. Anything marked "test in Phase 2" can only be proven after the owner writes GO.
+
+### 11.1 How the owner would use it
+
+| Step | What the owner does | Evidence |
+|---|---|---|
+| Sign in | Opens `basecampmonteverde.com/admin` on phone or Mac. The first time on each device, pastes a personal access key from GitHub, limited to the Basecamp repository only. It stays signed in on that device after that. | Doc: [GitHub backend](https://sveltiacms.app/en/docs/backends/github) |
+| Edit text | Opens, for example, Rooms, then Family room. English and Spanish fields sit side by side. | Doc: multilingual content ([sveltiacms.app](https://sveltiacms.app/en/)) |
+| Change a photo | Taps the photo field, picks a picture from the phone. The dashboard shrinks it and converts it to WebP before uploading. The owner adds alt text in both languages. | Doc: [internal media and optimizer](https://sveltiacms.app/en/docs/media/internal) |
+| Preview | Taps Save. The change goes to its own draft copy, never the live site. Cloudflare builds a preview of the whole site at a private address for that draft. | Doc: [Sveltia preview workflow](https://sveltiacms.app/en/docs/workflows/preview), [Cloudflare preview deployments](https://developers.cloudflare.com/pages/configuration/preview-deployments/). Whether the dashboard shows the preview link by itself: test in Phase 2 |
+| Publish | Taps Publish. The draft merges into the live site, and Cloudflare rebuilds it, usually within minutes. | Doc: preview workflow |
+| Undo | Opens the history and restores the earlier version (11.3). | Git history |
+
+### 11.2 Sign-in: what is needed
+
+| Option | Extra services | Permission reach | Recommendation |
+|---|---|---|---|
+| **Fine-grained access token** | None | Only the Basecamp repository; content and pull requests, read and write | **Recommended.** No helper to run. Renew it before it expires. |
+| GitHub sign-in button | A free OAuth helper on Cloudflare Workers | For a private repository Sveltia asks for the `repo` permission, which reaches **every** repository on the owner's account, including the café system ([Doc](https://sveltiacms.app/en/docs/workflows/open)) | Not recommended for this account. |
+
+GitHub added PKCE sign-in in July 2025, but a browser-only app still needs a server-held secret in practice ([GitHub changelog](https://github.blog/changelog/2025-07-14-pkce-support-for-oauth-and-github-app-authentication/), [discussion](https://github.com/orgs/community/discussions/15752)). So the button cannot work without the helper.
+
+**Free today is not free forever.** GitHub Free, Cloudflare Pages Free and Cloudflare Workers Free carry no promise of permanence. The design keeps an exit for each: the files move to GitHub Pages; the access token needs no Cloudflare at all.
+
+### 11.3 Mac backup workflow (BQ-30)
+
+| Piece | How | When the Mac is off or asleep |
+|---|---|---|
+| Automatic copy | A macOS background job like the café's installer, which runs at login with `RunAtLoad`. Unlike the café job, it uses an hourly calendar schedule rather than a fixed one-hour timer. It downloads every new change from the Basecamp repository into `Documents/Basecamp-Website`, using a read-only key kept in the macOS Keychain. | Asleep: an hourly calendar job runs on wake ([Apple](https://developer.apple.com/library/mac/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/ScheduledJobs.html)). Off: missed runs are skipped, and the job runs again at the next login. The website is never affected. |
+| Offline copy | Time Machine, built into macOS, onto an external drive. A second drive is swapped in monthly and kept away from the lodge. | Runs whenever the drive is connected. |
+| Full-size originals | Kept in a `Photos-Originals` folder on the Mac, which Time Machine also covers. | |
+| Restore one change | Free GitHub Desktop app: History, choose the change, "Revert changes in commit", Push. The live site rebuilds. | |
+| Restore everything | Upload the Mac copy to a new private repository and reconnect Cloudflare Pages. About an hour. Rehearsed in Phase 4. | |
+
+### 11.4 Hotel Link widget
+
+- The widget runs in every visitor's browser, so its embed code can only hold public identifiers. Hotel Link's guides copy it straight from the Booking Widget tab (Doc). Confirm by reading the actual code once the owner shares it; it is public, so it can be shared safely. No extranet login ever goes into the website.
+- Prices and availability come live from Hotel Link's booking engine ([Doc](https://help.hotellinksolutions.com/how-to-embed-the-search-widget)). With no "from" prices on room cards (BQ-31), the website copies no prices at all.
+
+### 11.5 Provider-switching screen (dashboard, Integrations)
+
+```
+INTEGRATIONS · BOOKING
+Active booking system:   ( ) Hotel Link   ( ) Booking link only   ( ) Contact only
+
+Hotel Link                 (shown when chosen)
+  Property code            [            ]   copied from Hotel Link's widget code
+  Open Hotel Link extranet (link)
+
+Booking link only          (shown when chosen)
+  Booking page address     [ https://   ]
+
+Always shown
+  Fallback WhatsApp        [ +506       ]
+  Fallback phone           [            ]
+
+NOTE: This only changes where Book buttons send guests. It does not move
+reservations, rates, or Booking.com and Airbnb connections. Follow the
+switching checklist (section 5.3) and check the preview before publishing.
+
+[ Save draft ]   [ Open preview ]   [ Publish ]
+```
+
+Only the three listed choices exist. A new provider appears in the list only after its documentation has been checked and its adapter built and tested.
+
+### 11.6 CONFIRMED, from documentation
+
+1. Sveltia works with private GitHub repositories, by token or by OAuth with the `repo` permission.
+2. Sveltia is a static page, so it runs on any static host, Cloudflare Pages included.
+3. Each saved draft gets its own branch and draft pull request. Publishing merges it.
+4. Cloudflare Pages builds previews for branches that are not the live branch, at their own address, without touching production.
+5. The image optimizer converts uploads to WebP with size and quality limits. It works only with the built-in Git media library.
+6. Storage limits are far above a 10-room lodge's needs. On GitHub, keep the repository under 1 GB, and well under 5 GB. Files over 100 MiB are blocked. On Cloudflare Pages, the limits are 25 MiB per file, 20,000 files and 500 builds a month.
+7. Branch protection and rulesets are not available for private repositories on GitHub Free.
+8. A main-domain address on Cloudflare Pages needs the domain's nameservers on Cloudflare.
+9. Hotel Link's widget shows live rates and availability.
+
+### 11.7 UNVERIFIED, test in Phase 2 or ask
+
+1. Whether the dashboard shows Cloudflare's preview link by itself. One documented setup needed a small GitHub Actions step. Fallback: open the branch's preview address directly.
+2. How mature Sveltia's draft and publish workflow is. It shipped in September 2026; one review still calls the product beta.
+3. How easy Sveltia is to use on the owner's own phone.
+4. Expiry options for fine-grained tokens, and a renewal reminder.
+5. That Hotel Link's embed code holds only public identifiers. Read it when the owner shares it.
+6. Generating responsive image sizes at build time within Cloudflare's 20-minute build limit. Expected to be easy at this scale.
+7. Free notice to the owner when a Cloudflare build fails.
+8. Hotel Link's Spanish and its link format, which are still open with Hotel Link support.
+
+### 11.8 RISKS
+
+| Risk | Likelihood | Effect | Mitigation |
+|---|---|---|---|
+| Broad GitHub permission reaches the café system | High if the GitHub button is used | A dashboard compromise could touch café code | Use the repository-limited token |
+| No enforceable approvals on a free private repository | Certain | Anyone with write access can publish | Owner-only write at launch. Editors later only with trust, a public repository, or a paid plan (owner's choice) |
+| Agents act as the owner on GitHub | Certain | An agent with push access could publish | Owner grants agent sessions read-only access to the Basecamp repository, or none |
+| Free plan ends or changes | Low to medium over years | Hosting must move | Plain files; GitHub Pages as a same-day fallback |
+| Account lockout on GitHub or Cloudflare | Low | No edits until recovered; site stays up | Printed recovery codes; a second trusted admin |
+| Domain lapses | Low | Site and email go dark | Auto-renew, registrar lock, a calendar reminder (BQ-07) |
+| Email breaks when nameservers move | Medium if rushed | Lost email | Copy every existing DNS record to Cloudflare before switching |
+| Small open-source project with few maintainers | Medium over years | CMS updates stop | Pin the version and keep a copy in the repository. Config is Decap-compatible, so Decap is a fallback |
+| A failed build | Low | Edits saved but not live | Build-failure notice, and the last good site stays online |
+| Mac off for weeks | Medium | Local copy goes stale | No effect on the site. The copy catches up at login |
+| Hotel Link changes its widget, as in 2025 | Low to medium | Booking buttons need an update | The adapter isolates the change to one place |
+
+### 11.9 Dependencies that could stop the dashboard working
+
+GitHub's service and API · a valid access token · the Sveltia file, pinned and kept in the repository rather than loaded from a CDN · Cloudflare Pages builds for publishing, though not for saving · a modern browser on the owner's phone. None of these needs a paid plan.
+
+### 11.10 RECOMMENDATION
+
+Keep the candidate, with three changes from the first draft:
+1. **Sign in with a repository-limited access token**, not the GitHub button. That removes the sign-in helper and keeps the café system out of reach.
+2. **Owner-only publishing at launch**, because a free private repository cannot enforce approvals.
+3. **Mac backup**: the café-style automatic copy plus Time Machine on a rotating offline drive.
+
+New recurring cost stays **$0**. The first job after GO is a short proof on a private preview with sample content. It confirms items 1 to 7 in 11.7 before any real content moves.
+
+### 11.11 OWNER DECISIONS NEEDED
+
+| ID | Decision | ChatGPT's recommendation, not an approval |
+|---|---|---|
+| BQ-28 | Option A, including a free Cloudflare account and moving the domain's nameservers to Cloudflare at launch | Option A, pending verification |
+| BQ-29 | Owner-only publishing at launch | Yes; consider editors later |
+| BQ-30 | Mac for backups, plus an offline drive | Yes |
+| BQ-31 | No hand-typed "from" prices | Yes; live prices only |
+| BQ-32 | Sign-in by repository-limited access token, or the GitHub button with a sign-in helper | Not yet reviewed |
+| BQ-33 | Agent access to the future Basecamp repository: none, read-only, or push | Not yet reviewed |
+| BQ-07 | Registrar, and whether the domain carries email, before any DNS move | Open |
