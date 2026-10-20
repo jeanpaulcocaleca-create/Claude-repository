@@ -74,6 +74,9 @@ Evidence labels: **Doc** (vendor or official documentation), **Claim** (vendor m
 | **Hotel information** | Name, address, WhatsApp, phone, email, check-in and check-out times, map position, social links. | Used across every page and in structured data for Google. |
 | **Integrations** | See and change the active booking provider and its public settings, such as property ID or booking link. Choose the fallback contact. Open Hotel Link's extranet. | Public identifiers only. No passwords or keys ever (section 7). |
 | **Users and history** | Links to GitHub's settings page for people and permissions, and to the change history. | User management happens on GitHub, not inside the dashboard. Shown honestly as a link. |
+| **Guides** (from the Muse plan, BQ-34) | Write and publish Knowledge Hub guides from templates in EN and ES: destination, seasons, getting here, packing, activities, niche guides, itineraries, local stories, FAQ. | Each guide has its FAQ block, links to room pages and its own WhatsApp message. |
+| **Reviews** (from the Muse plan) | Add real guest quotes, each with its source link, and choose which ones appear beside Book buttons. | No star markup for our own reviews; `STRATEGY-REVIEW.md` section 5. |
+| **Tracking** (BQ-36) | Analytics and pixel IDs, and the WhatsApp message for each page. | Public IDs only. Tags load only after visitor consent. |
 
 ### 2.3 Who can do what (proposal, BQ-29)
 
@@ -215,6 +218,9 @@ A restore drill runs once before launch and then every six months.
 | Builds and image optimization | | | **$0** | Included in the host's free builds. |
 | Backups | Optional USB drive | | **$0** | Owner's own computer. |
 | Hotel Link | | | Existing plan | Already paid; not additional. Amount Unknown (BQ-25). |
+| Analytics, Search Console, Meta Pixel | | | **$0** | Free Google and Meta tools (BQ-36). |
+| Conversions API helper (Cloudflare Worker) | | | **$0** | Optional, free plan (BQ-36). |
+| Consent banner | | | **$0** | Open source. |
 | Card processing | | | Per transaction | Existing terminal fees. |
 | Lawyer and accountant review | Owner's choice | | | BQ-26. |
 | Professional photos | Optional | | | Owner's choice. |

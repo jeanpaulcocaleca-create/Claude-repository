@@ -12,6 +12,7 @@ The owner, ChatGPT and Claude all work from this file.
 | **How ChatGPT starts** | [`CHATGPT-KICKOFF.md`](CHATGPT-KICKOFF.md) |
 | **Reservation proposal** | [`RESERVATIONS.md`](RESERVATIONS.md) |
 | **Architecture proposal** | [`ARCHITECTURE.md`](ARCHITECTURE.md): dashboard, provider independence, hosting, backups, costs |
+| **Marketing strategy** | [`STRATEGY-MUSE.md`](STRATEGY-MUSE.md), the owner's source plan, and [`STRATEGY-REVIEW.md`](STRATEGY-REVIEW.md), Claude's review |
 | **Working branch** | `claude/brave-archimedes-ar8uc1` |
 | **Conversation** | [Pull request #2](https://github.com/jeanpaulcocaleca-create/Claude-repository/pull/2) |
 
@@ -269,9 +270,12 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-28 | Hosting: option A, Cloudflare Pages with a private repository and a free Cloudflare account, or option B, GitHub Pages with a public repository? See `ARCHITECTURE.md` section 6.1. Option A also means moving the domain's nameservers to Cloudflare at launch. *ChatGPT recommends option A, pending verification.* | Phase 1 |
 | BQ-29 | Who besides the owner may edit the website, and should their changes wait for the owner's approval? A free private repository cannot enforce approval. *ChatGPT recommends owner-only publishing at launch.* | Phase 1 |
 | BQ-30 | Which computer keeps the automatic backup copy? *ChatGPT recommends the Mac plus an offline copy.* | Phase 4 |
-| BQ-31 | Should room cards show a hand-typed "from" price, or only live prices from Hotel Link? *ChatGPT recommends live prices only.* | Phase 1 |
+| BQ-31 | Should room cards show a hand-typed "from" price, or only live prices from Hotel Link? *ChatGPT recommends live prices only.* The Muse plan wants the price near the top of each room page; `STRATEGY-REVIEW.md` proposes a live price from Hotel Link if possible, otherwise inclusions plus a "See today's price" button. | Phase 1 |
 | BQ-32 | Dashboard sign-in: a fine-grained access token limited to the Basecamp repository (recommended, no extra service), or the GitHub button, which needs a sign-in helper and reaches every repository on the account? `ARCHITECTURE.md` section 11.2. | Phase 1 |
 | BQ-33 | What access may AI agent sessions have to the future Basecamp repository: none, read-only, or push? Agents act through the owner's GitHub identity, so this is the only real control. | Phase 1 |
+| BQ-34 | Scope after the Muse plan. Keep Basecamp at the centre and add a Knowledge Hub of guides, with activities as guides linking out and the café as an amenity block linking to its own site (recommended)? Or add full café and experience sections as Muse proposes, which would change BD-006? | Phase 1 |
+| BQ-35 | Primary action. Book first on room pages and WhatsApp first on guides (recommended), or WhatsApp as the only primary action everywhere, as Muse proposes? | Phase 1 |
+| BQ-36 | Measurement from day one: Google Analytics 4, Search Console, Meta Pixel, and the Conversions API helper on a free Cloudflare Worker, all behind a consent banner. All free. Approve? | Phase 1 |
 
 ---
 
@@ -320,12 +324,16 @@ Hotel Link must be replaceable without rebuilding the website. Design, content, 
 **BD-013 · 2026-10-20 · Owner · Zero additional monthly subscriptions, as a primary constraint.**
 Extends BD-003. No paid CMS, database, image storage, website builder or unnecessary SaaS. Open source, free hosting where reliable, and backups on the owner's computer. Domain renewal, and hosting if ever unavoidable, are accepted. Any purchase must first be shown to be unavoidable.
 
+**BD-014 · 2026-10-20 · Owner · The Muse strategy plan is part of the brief.**
+The owner shared a marketing strategy written by Muse with Claude and ChatGPT and asked Claude to analyse and incorporate it. It is kept as received in [`STRATEGY-MUSE.md`](STRATEGY-MUSE.md), and Claude's review is in [`STRATEGY-REVIEW.md`](STRATEGY-REVIEW.md). Where it conflicts with an earlier owner decision, the earlier decision stands until the owner chooses (BQ-34, BQ-35, BQ-36, BQ-31).
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-20 · Claude.** The owner shared Muse's strategy plan and asked for an analysis, its incorporation and an honest opinion. Saved it as `STRATEGY-MUSE.md` and wrote `STRATEGY-REVIEW.md`. The review covers what is already planned, what to adopt, conflicts with BD-006, BD-009 and BQ-31, evidence-based corrections, architecture changes at $0, realistic search goals and a combined build order. Recorded BD-014, added BQ-34 to BQ-36, and added Hotel Link question 13 on analytics and pixel in its checkout. Added the dashboard's Guides, Reviews and Tracking sections to `ARCHITECTURE.md`. No code.
 - **2026-10-20 · Claude.** Feasibility check of the preferred candidate for ChatGPT, as desk research only. Added `ARCHITECTURE.md` section 11: the owner's sign-in, edit, preview and publish flow; sign-in options; a Mac backup workflow; the Hotel Link widget; a provider-switching screen; and what is confirmed, unverified and risky. Three findings changed the draft. Sveltia's GitHub button needs the broad `repo` permission on private repositories, so token sign-in is recommended. GitHub Free cannot protect branches on private repositories, so publishing is owner-only. A main-domain address on Cloudflare Pages needs Cloudflare nameservers. Corrected sections 2, 6, 7 and 8 to match. Logged ChatGPT's BQ-28 to BQ-31 recommendations as recommendations, and added BQ-32 and BQ-33. Nothing created or configured, no code.
 - **2026-10-20 · Claude.** Received ChatGPT's requirements review through the owner. Recorded BD-010 to BD-013: owner dashboard, Hotel Link as source of truth, provider independence, and zero additional subscriptions. Wrote `ARCHITECTURE.md`, a proposal covering architecture, dashboard sections and roles, the Basecamp and Hotel Link split, a provider-switching plan, two zero-cost hosting options, backups, a full cost table, security, open policy decisions and revised phases. Added P-10 to P-12 and BQ-28 to BQ-31, and updated P-01, P-02 and the cost table. Nothing approved, nothing created, no code.
 - **2026-10-20 · Claude.** Owner preferences for booking terms and ChatGPT's reading of the Hotel Link screenshots received through ChatGPT's message, pasted by the owner. Added `RESERVATIONS.md` section 9: what Hotel Link supports, card-network rules, how Booking.com and Airbnb differ, Costa Rican requirements found, a proposed two-rate-plan configuration with draft EN and ES wording, and the owner decisions it needs. Updated BQ-09, BQ-14 and BQ-25; added BQ-26 and BQ-27. Nothing approved, no Hotel Link setting changed, no code.
