@@ -58,7 +58,7 @@ It also has three problems:
 
 | Muse says | Owner decision so far | Claude's recommendation | Decision |
 |---|---|---|---|
-| Four sections: lodging, on-site food and drink, experiences, Knowledge Hub | BD-006: Basecamp only; café and tours as links | **Keep Basecamp at the centre and add the Knowledge Hub.** Treat activities as visitor guides that link to the operator, not as products sold here. Show the café as an on-site amenity block linking to hanginggardencafe.com. A full café section would compete with the café's own site and guides for the same searches. | BQ-34 |
+| Four sections: lodging, on-site food and drink, experiences, Knowledge Hub | BD-006: Basecamp only; café and tours as links | **Keep Basecamp at the centre and add the Knowledge Hub.** Treat activities as visitor guides that link to the tour business the owner chooses (BQ-03), not as products sold here. Give the café **a full section of the lodge experience, not a passing mention**, as Muse added (section 10). Write it from the guest's side, using confirmed facts: open from 6:00, an hour before the reserve, and ordering from the room by QR card. Link to hanginggardencafe.com for the menu and its guides rather than copying them, so the two sites do not compete for the same searches. | BQ-34 |
 | "The conversion is a conversation"; one primary action, the chat button; no competing calls to action | BD-009: instant confirmed direct reservations through Hotel Link | **Pick the primary action by page type.** Room pages: Book now, with WhatsApp beside it as the second choice. Guides and the home page: WhatsApp first, Book second. Track both. | BQ-35 |
 | Price and what it includes near the top of every room page | BQ-31: ChatGPT recommends live prices only, never typed by hand | **Ask Hotel Link whether a live "from" price can be shown on the page** (question 13). If not, show what the rate includes plus a "See today's price" button that opens the booking widget on that room. | BQ-31 |
 | Anti-pattern: "a booking flow that depends on a third-party engine the business doesn't have" | Basecamp has Hotel Link | Does not apply. The concern behind it still holds: **WhatsApp must always work, even if the booking engine fails.** That is already the fallback. | None |
@@ -124,3 +124,41 @@ Numbers are left out on purpose; the owner sets them.
 | BQ-35 | Primary action. Choose by page type, as recommended: Book first on room pages, WhatsApp first on guides. Or make WhatsApp the only primary action everywhere. |
 | BQ-36 | Measurement stack. Google Analytics 4, Search Console, Meta Pixel, and the Conversions API helper as a free Worker, all behind a consent banner. All free. |
 | BQ-31 | Price display, updated. A live "from" price from Hotel Link if it exists; otherwise inclusions plus a "See today's price" button. |
+
+---
+
+## 10. Muse's response to this review (2026-10-20, relayed by the owner)
+
+Muse is the owner's marketing advisor and wrote the source plan. Its positions are advice, not owner approvals.
+
+| Point | Muse's position | Status |
+|---|---|---|
+| Head terms against booking sites | Accepts the correction. New ambition: first or second in the map results, long-tail searches, AI answers and direct conversations. | Goal in section 7 matches |
+| No review stars for own reviews | Accepts. The reviews page serves trust and the human reader. | Matches section 5 |
+| llms.txt | Accepts. Kept at no cost; the about page and structured data carry the weight. | Matches section 5 |
+| Conversions API server piece and consent banner | Accepts with no objection. | Matches BQ-36 |
+| BQ-34 scope | Agrees with Basecamp plus the Knowledge Hub, tours as guides linking to what Muse calls the sister tour business; which business that is remains open (BQ-03). **Nuance: the café must be a full section, not a decorative block,** because it is a real reason to book direct: "wake up with this coffee downstairs." | Incorporated in section 4 |
+| BQ-35 primary action | Agrees with the hybrid. Book first on room pages with WhatsApp visible as the human backup; WhatsApp first on guides; let the data decide. The original "the conversation is the conversion" assumed no booking engine. | Matches section 4 |
+| BQ-31 price | Agrees. Live "from" price if Hotel Link gives one, otherwise inclusions plus "See today's price". Never hide the price until the end. | Matches section 4 |
+| BQ-36 measurement | Not judged; the chat summary did not explain it. The full description is in sections 3, 5, 6 and 9. | Waiting for Muse's audit of this file |
+| Hotel Link question 13 | **Critical, a business question.** If bookings finish on Hotel Link's site and it rejects our tags, paid campaigns cannot be measured. | Raised to priority, section 11 |
+
+---
+
+## 11. Measuring bookings when checkout runs on Hotel Link (question 13, priority)
+
+**Why it matters.** Guests choose dates on our site but pay on Hotel Link's page. If that page cannot carry our Google Analytics and Meta Pixel tags, no campaign can be credited with a booking. The site works either way, and ads stay dormant until the owner decides. But this answer decides whether paid campaigns can ever be judged on bookings rather than clicks.
+
+**Ask Hotel Link first** (`RESERVATIONS.md` section 8, question 13 and its sub-questions).
+
+**If the answer is no, these fallbacks exist.** None is verified with Hotel Link yet.
+
+| Option | How it works | Cost | Evidence |
+|---|---|---|---|
+| A. Count "Book" clicks on our site as the conversion | The last step we control is tracked as the success event | $0 | Ours, works for sure, but measures intent, not payment |
+| B. A promo code per campaign | Each campaign advertises its own Hotel Link promo code; booking reports show which code was used | $0 | Promo codes in Hotel Link and per-campaign reporting: Unknown, sub-question 13d |
+| C. Return to our own thank-you page | If Hotel Link can send the guest back to an address we choose after booking, that page records the conversion | $0 | Unknown, sub-question 13c |
+| D. Upload completed bookings to Google and Meta | A monthly export from Hotel Link, matched to campaigns and uploaded to the ad platforms, which accept offline conversions | $0, manual work | Inferred; Hotel Link export: Unknown |
+| E. Change booking provider | Choose a provider that supports the tags, using the adapter (BD-012) | Depends | Last resort; only on the owner's explicit decision |
+
+**Recommendation.** Ask now, before Phase 2. Design the site so options A and B work from day one whatever Hotel Link answers. Use C or D once Hotel Link's answer is known.

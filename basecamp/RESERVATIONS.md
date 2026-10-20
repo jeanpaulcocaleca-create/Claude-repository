@@ -172,7 +172,12 @@ Screenshots from the Hotel Link extranet. Hide guest names, card numbers and pas
 10. How is "1 day before arrival" counted: from midnight or from the check-in time, and in which time zone?
 11. When is a stored security code deleted, what are the card viewing rules, and is card storage PCI DSS v4.0 compliant?
 12. What does the Tilopay integration cost, and would it allow automatic deposit and penalty charges?
-13. Can the booking engine and checkout carry our Google Analytics 4 and Meta Pixel IDs and report completed bookings as conversions? Can a live "from" price for a room be shown on our own page?
+13. **PRIORITY, business-critical for any paid campaign** (`STRATEGY-REVIEW.md` section 11):
+    a. Can the booking engine and checkout carry our Google Analytics 4 and Meta Pixel IDs, and report completed bookings as conversions, including the booking value?
+    b. Does it support cross-domain tracking with our website?
+    c. After a booking, can the guest be sent back to a thank-you page on our own website?
+    d. Is the traffic source, such as UTM tags or a promo code, saved with each booking and shown in reports or exports?
+    e. Can a live "from" price for a room be shown on our own page?
 
 ---
 
