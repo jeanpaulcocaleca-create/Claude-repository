@@ -50,7 +50,7 @@ It also has three problems:
 | **Measurement from day one**: Google Analytics 4, Search Console, an event list | Page views, room views, Book clicks, WhatsApp clicks, calls, directions, review-link clicks | $0 |
 | **Meta Pixel and Conversions API** for future ads, with a written UTM convention | The Conversions API needs a small server piece, which can run on Cloudflare's free Workers plan (BQ-36) | $0 |
 | **60-second friction test**: from landing to an open chat or booking screen in under 60 seconds on a slow phone connection | Added to the acceptance criteria | $0 |
-| **Title and description templates** per page type, in both languages | Part of each template | $0 |
+| **Title and description templates** per page type, in both languages | Part of each template. The Spanish versions are written natively for Spanish searches, never translated from English (Muse). | $0 |
 
 ---
 
@@ -140,8 +140,15 @@ Muse is the owner's marketing advisor and wrote the source plan. Its positions a
 | BQ-34 scope | Agrees with Basecamp plus the Knowledge Hub, tours as guides linking to what Muse calls the sister tour business; which business that is remains open (BQ-03). **Nuance: the café must be a full section, not a decorative block,** because it is a real reason to book direct: "wake up with this coffee downstairs." | Incorporated in section 4 |
 | BQ-35 primary action | Agrees with the hybrid. Book first on room pages with WhatsApp visible as the human backup; WhatsApp first on guides; let the data decide. The original "the conversation is the conversion" assumed no booking engine. | Matches section 4 |
 | BQ-31 price | Agrees. Live "from" price if Hotel Link gives one, otherwise inclusions plus "See today's price". Never hide the price until the end. | Matches section 4 |
-| BQ-36 measurement | Not judged; the chat summary did not explain it. The full description is in sections 3, 5, 6 and 9. | Waiting for Muse's audit of this file |
+| BQ-36 measurement | First message: not judged. **Audit: recommends approval with two conditions.** (1) The event map is fixed now and never renamed. (2) The Conversions API helper sends server events with deduplication IDs matching the browser Pixel. | Conditions built into section 12. Owner approval still needed. |
 | Hotel Link question 13 | **Critical, a business question.** If bookings finish on Hotel Link's site and it rejects our tags, paid campaigns cannot be measured. | Raised to priority, section 11 |
+| Fallback order (audit) | C, the return to our thank-you page, is best. B, per-campaign promo codes, is the attribution backup. A, the Book click, is the acceptable floor. Adds a weekly manual reconciliation. | Added as option F in section 11 |
+| Spanish titles and descriptions (audit) | Write them natively in Spanish, never translated from English. | Added to section 3 |
+| Guide facts (audit) | Muse keeps a base of verified facts and can draft guides; the owner validates local facts before publishing. | Agreed. One fact base only: Muse's verified facts go into `RESEARCH.md` through the owner, labelled like every other fact. |
+| Search goal numbers (audit) | The owner sets them at launch, not before. | Agreed, section 7 |
+| Overall (audit) | Audit complete; no further marketing objections. BQ-31, BQ-34 and BQ-35 carry matching recommendations from Claude and Muse; the final word is the owner's. | Recorded |
+
+The audit was signed "Lapis (marketing lead)". This file assumes Lapis is the same advisor the owner calls Muse.
 
 ---
 
@@ -160,5 +167,31 @@ Muse is the owner's marketing advisor and wrote the source plan. Its positions a
 | C. Return to our own thank-you page | If Hotel Link can send the guest back to an address we choose after booking, that page records the conversion | $0 | Unknown, sub-question 13c |
 | D. Upload completed bookings to Google and Meta | A monthly export from Hotel Link, matched to campaigns and uploaded to the ad platforms, which accept offline conversions | $0, manual work | Inferred; Hotel Link export: Unknown |
 | E. Change booking provider | Choose a provider that supports the tags, using the adapter (BD-012) | Depends | Last resort; only on the owner's explicit decision |
+| F. Weekly manual reconciliation (added by Muse) | Each week, compare Hotel Link's booking report with the spend of each campaign. Even if everything automatic fails, we are never fully blind. | $0, manual work | Ours. The Owner Dashboard edits content and cannot hold reports, so this lives in a free spreadsheet. |
 
-**Recommendation.** Ask now, before Phase 2. Design the site so options A and B work from day one whatever Hotel Link answers. Use C or D once Hotel Link's answer is known.
+**Order of preference** (Muse): C, then B, then A as the floor, with F always running once ads start. D is an extra if Hotel Link exports bookings with their source.
+
+**Recommendation.** Ask now, before Phase 2. Design the site so options A and B work from day one whatever Hotel Link answers. Add C or D once Hotel Link's answer is known.
+
+---
+
+## 12. Event map v1 (proposal, fixed once BQ-36 is approved)
+
+Muse's first condition: these names and meanings are set now and **never renamed or reused**, so the history stays comparable. New events may be added later; existing ones never change. Google Analytics 4 recommended event names and Meta standard event names are used wherever one fits, because the ad platforms optimise best on their own standard events.
+
+| Visitor action | Meaning | Google Analytics 4 | Meta | Where |
+|---|---|---|---|---|
+| Opens any page | Page view | `page_view` (automatic) | `PageView` | Every page |
+| Views a room page | Interest in a specific room | `view_item` | `ViewContent` | Each room page |
+| Clicks **Book** or **See today's price** | **Booking intent**, the floor conversion (option A) | `begin_checkout` | `InitiateCheckout` | Room pages, booking bar, home |
+| Clicks **WhatsApp** | **Lead**, the conversation | `generate_lead` | `Lead` | Every page |
+| Clicks call | Lead by phone | `phone_call` (custom) | `Contact` | Every page |
+| Clicks directions | Intent to visit | `get_directions` (custom) | none | "Find us" page, footer |
+| Clicks a review link | Trust and review flywheel | `review_link_click` (custom) | none | Reviews page, footer |
+| Lands on our thank-you page after paying, only if Hotel Link allows it | **Completed booking** (option C) | `purchase` with value | `Purchase` with value | Thank-you page |
+
+**Details carried with every event:** page address, page type, room type if any, language, and the campaign tags in the address, if any. The WhatsApp event also carries the ID of the prefilled message, so each conversation maps to its source page.
+
+**Deduplication, Muse's second condition.** For each Meta event, the browser creates one random event ID. The Pixel sends it, and the Conversions API helper sends the same event name with the same ID from the server. Meta then counts one conversion, not two. The helper sends nothing for visitors who declined consent. Its Meta access token lives in Cloudflare's secret store.
+
+**Naming rule** for the future: lower-case words joined by underscores in Google Analytics, Meta's own spelling for Meta, and a new row here before any new event goes live.
