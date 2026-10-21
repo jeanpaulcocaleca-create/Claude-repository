@@ -366,6 +366,14 @@ ChatGPT's "Limited Authorization, Owner Dashboard Verification" message, pasted 
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-21 · Claude.** Owner Dashboard audit (BD-019): every check passes.
+  - **Editing:** the owner edited English and Spanish, uploaded a photo, replaced it and turned the test notice off with a token limited to `basecamp-website`.
+  - **Saved in GitHub:** 4 "Panel:" commits (2f0257d, e87c290, a1719ce, 8a26d66), touching only `content/site.json`, `content/rooms/queen.json` and two WebP photos.
+  - **Notice off:** `content/site.json` is back to its original state.
+  - **Preview updated:** the owner saw each change on the preview. The final content builds and passes the 18 tests.
+  - **Security:** 91/91 after every save.
+  - **Other repositories:** no panel commits in `Claude-repository`. Its gh-pages commit at 13:35 UTC is the café's own release, before the tests.
+  - **Pending:** the Queen Room test photo shows the café with people in the background and must be replaced by a real room photo before launch. Audit in `docs/AUDITORIA-PANEL-2026-10-21.md` of `basecamp-website`. Still private preview; no new phase.
 - **2026-10-21 · Claude.** The owner connected Cloudflare Pages (free plan) to `basecamp-website` only and set the preview password.
   - **Private preview:** https://basecamp-website-b99.pages.dev.
   - **Booking dates fixed** (owner report: check-in and check-out showed the same date). Phones display today's date in empty date fields, and check-out accepted the check-in day. Fields now start at today and tomorrow, check-out stays at least one night later, and the summary shows readable dates and nights; 10 browser date checks pass.
