@@ -357,6 +357,9 @@ In Claude's chat the owner wrote: build new images where needed and do not use o
 **BD-018 · 2026-10-21 · Owner · Set up the private preview infrastructure.**
 ChatGPT's "Limited Authorization, Private Preview Setup" message, pasted by the owner into Claude's chat. Scope: prepare the private `basecamp-website` repository and guide the owner through creating it and its access; minimum permissions limited to Basecamp; free Cloudflare Pages; publish only a password-protected preview; verify the Owner Dashboard with the private repository and that its changes reach the preview. Conditions: explain each credential or permission before asking; no secrets in chat; no new costs; no domain or DNS change; no real bookings or Hotel Link change; keep noindex and the access protection; nothing public; no other phase. Claude recommends one safe, simple path instead of presenting options. Not a public launch and not Phase 2.
 
+**BD-019 · 2026-10-21 · Owner · Verify the Owner Dashboard with the private repository.**
+ChatGPT's "Limited Authorization, Owner Dashboard Verification" message, pasted by the owner into Claude's chat. Claude guides the owner step by step to create a GitHub token limited to `basecamp-website` with the minimum permissions, typed only into the dashboard, never in chat or code. To verify: editing in English and Spanish, uploading and replacing photos, changes saved in GitHub, Cloudflare updating the private preview, and no other repository affected. Not a public launch and not Phase 2.
+
 ---
 
 ## 10. Status log
