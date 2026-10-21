@@ -12,6 +12,7 @@ The owner, ChatGPT and Claude all work from this file.
 | **How ChatGPT starts** | [`CHATGPT-KICKOFF.md`](CHATGPT-KICKOFF.md) |
 | **Reservation proposal** | [`RESERVATIONS.md`](RESERVATIONS.md) |
 | **Architecture proposal** | [`ARCHITECTURE.md`](ARCHITECTURE.md): dashboard, provider independence, hosting, backups, costs |
+| **Phase 2 audit and plan** | [`FASE-2-PLAN.md`](FASE-2-PLAN.md): state of the site, missing content, Hotel Link readiness, promotions, SEO and AI visibility, priorities. Proposal; waits for GO |
 | **Pending owner decisions** | [`DECISIONES-PENDIENTES.md`](DECISIONES-PENDIENTES.md): one consolidated table, in Spanish |
 | **Marketing strategy** | [`STRATEGY-MUSE.md`](STRATEGY-MUSE.md), the owner's source plan, and [`STRATEGY-REVIEW.md`](STRATEGY-REVIEW.md), Claude's review |
 | **Working branch** | `claude/brave-archimedes-ar8uc1` |
@@ -278,6 +279,9 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-34 | **Answered by BD-015 (D-02):** Basecamp plus Knowledge Hub, with a featured café section and tours through guides. Scope after the Muse plan. Keep Basecamp at the centre and add a Knowledge Hub of guides? Under that option, activities are guides linking to the tour business the owner chooses (BQ-03), and the café gets a full section of the lodge experience linking to its own site. Claude recommends this, and Muse agrees with the full café section as its nuance. Or add separate café and experience sections, which would change BD-006? | Phase 1 |
 | BQ-35 | **Answered by BD-015 (D-03):** Book now first on room pages, WhatsApp first on guides. Primary action. Book first on room pages and WhatsApp first on guides (recommended), or WhatsApp as the only primary action everywhere, as Muse proposes? | Phase 1 |
 | BQ-36 | **Answered by BD-015 (D-05), with changes:** Pixel from launch after consent, GA4 and Search Console; Conversions API postponed. Measurement from day one: Google Analytics 4, Search Console, Meta Pixel, and the Conversions API helper on a free Cloudflare Worker, all behind a consent banner. All free. Approve? *Muse recommends approval with two conditions: a permanent event map and deduplication between Pixel and server events. Both are built into `STRATEGY-REVIEW.md` section 12.* | Phase 1 |
+| BQ-37 | Approve the dashboard "Promociones" design in `FASE-2-PLAN.md` §4: announces only offers already set up in Hotel Link, required conditions in EN and ES, start and end dates, no typed amounts, optional promo code. | Phase 2 |
+| BQ-38 | At launch, allow AI search crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended) in `robots.txt`? Claude recommends yes, for visibility in AI answers. During the preview everything stays blocked. | Launch |
+| BQ-39 | Add the Photos (gallery) and Groups pages from the property-page model (`CODEX.md` §4) in Phase 2? | Phase 2 |
 
 ---
 
@@ -366,6 +370,7 @@ ChatGPT's "Limited Authorization, Owner Dashboard Verification" message, pasted 
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-21 · Claude.** Phase 2 planning request from ChatGPT, pasted by the owner. Wrote `FASE-2-PLAN.md`: the site's complete, provisional and missing parts; the real content the owner must supply; Hotel Link readiness; a promotions design that keeps Hotel Link as the source of real prices; an SEO, bilingual and AI-visibility review; and a plan by priority with who does each part. SEO facts measured on the build: 24/24 pages have a unique title and their twin language with hreflang, 11 descriptions are under 70 characters, structured data covers only home, guides and The Stay, no `llms.txt`. Added BQ-37 to BQ-39. Nothing implemented; waiting for an express GO.
 - **2026-10-21 · Claude.** Owner Dashboard audit (BD-019): every check passes.
   - **Editing:** the owner edited English and Spanish, uploaded a photo, replaced it and turned the test notice off with a token limited to `basecamp-website`.
   - **Saved in GitHub:** 4 "Panel:" commits (2f0257d, e87c290, a1719ce, 8a26d66), touching only `content/site.json`, `content/rooms/queen.json` and two WebP photos.
