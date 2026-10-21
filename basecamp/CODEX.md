@@ -364,6 +364,22 @@ ChatGPT's "Limited Authorization, Private Preview Setup" message, pasted by the 
 **BD-019 · 2026-10-21 · Owner · Verify the Owner Dashboard with the private repository.**
 ChatGPT's "Limited Authorization, Owner Dashboard Verification" message, pasted by the owner into Claude's chat. Claude guides the owner step by step to create a GitHub token limited to `basecamp-website` with the minimum permissions, typed only into the dashboard, never in chat or code. To verify: editing in English and Spanish, uploading and replacing photos, changes saved in GitHub, Cloudflare updating the private preview, and no other repository affected. Not a public launch and not Phase 2.
 
+**BD-020 · 2026-10-21 · Owner · Limited GO for Phase 2.**
+ChatGPT's "Owner Authorization, Limited GO, Phase 2" message, pasted by the owner into Claude's chat. The owner approves:
+- **BQ-37:** promotions managed from the dashboard and tied to real Hotel Link offers; no rate changes.
+- **BQ-38:** visibility prepared for search engines and AI, while noindex, the password and the /admin/ block stay during the private preview; no crawlers until the authorized launch.
+- **BQ-39:** Photos and Groups pages prepared with only approved real photos and no invented group policies.
+
+Authorized:
+- technical SEO;
+- promotions administration;
+- cookie consent;
+- the Photos and Groups pages;
+- the current infrastructure at $0 extra per month;
+- security and function tests.
+
+Not authorized: public launch, DNS, real bookings, Hotel Link changes, paid services. Claude has technical autonomy inside this scope.
+
 ---
 
 ## 10. Status log
