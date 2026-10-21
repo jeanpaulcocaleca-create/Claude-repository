@@ -8,7 +8,7 @@ URL into `website/assets/` under the name in the left column.
 |---|---|
 | assets/hero-film.mp4 (12 s auto-playing film: quetzal flight v3 opening + landing on the real mural; final cut) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/6c66f312-0717-4f9d-b5fd-ae41003db13b.mp4 |
 | assets/hero-poster.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5231ff45-7b82-4a33-a099-6c1d17a0754b.jpg |
-| assets/hero-ending.jpg (the building photo the film ends on; REPLACE THIS ROW ALONE to update the ending when the mural is finished) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/b3174e2b-3bbe-4fc6-9807-038d2e5fbc2f.jpg |
+| assets/hero-ending.jpg (the building photo the film ends on: the owner's photo of the finished mural, 2026-10-20, cropped 16:9 and enlarged to 1920 px without AI so every sign and logo stays as painted; replace this row alone to change the ending; D-050) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/f38d622c-4413-4f6e-9573-8bc5bfcc7919.jpg |
 | assets/hero-film-mobile.mp4 (same film at 960 px for phones) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5011ba71-37ea-4efb-83fb-196b773bb5a2.mp4 |
 | assets/gal-1.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/49b9d308-00fe-40ad-b29a-09809d8bcaae.jpg |
 | assets/gal-2.jpg | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fcb7d720-2dbe-45f0-88e6-a641e8408aab.jpg |
@@ -18,11 +18,13 @@ URL into `website/assets/` under the name in the left column.
 | assets/logo-512.png (same logo at 512 px: favicon and home-screen icon) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cbafe712-72c1-4ab4-b8cb-715ff9c5c120.png |
 | assets/deco-sprig.png (foliage page framing) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/a7a774e2-b2ff-49db-bb82-9621dba3a00c.png |
 | assets/deco-quetzal.png (bird page framing + chat avatar) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/5f81fe73-ded5-4ef6-84ff-47c01b39abcd.png |
-| assets/quetzal.jpg (story section, soul_2 job 19052895) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/09b4a947-54f3-44ea-b6fe-cce8fbc9c427.jpg |
+| assets/quetzal.jpg (story section: a resplendent quetzal, gpt_image_2_5 job c7e02149 chosen by the owner 2026-10-20, 1000 px JPEG; D-050) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/fdf1aaa7-8465-4048-82dd-05e0ba189aee.jpg |
 | assets/canopy.jpg (forest interlude + TV board backdrop) | https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cdf000bc-33ff-4d98-b457-c1726e4e4512.jpg |
 | product photos (soul_2, 1200px, for the TV slideshow; attach via supabase/tvboard.sql or the Menu Manager) | Cloud Forest Latte e9863237 · Cappuccino 574b4dfb · Golden Passion ae462fb2 · Berry Violet c7e68f2c · Choc Croissant df5479cc · Carrot Cake e1bda9ca · Mano de Piedra 4f9edb15 · Tres Leches e2cbc800 (all .jpg on the same CDN base) |
 
 Hero film v4 = v3 plus a 6 s leg (Wan 3.0, job dbc7c832) in which the quetzal leaves the café and lands on the painted branch of the real mural (building photo 9b05502a, mural completed by gpt_image_2_5 jobs d3794447 -> d5da9bdc -> a7af0e18, outpainted to 16:9 as ab53b4f5).
+Since D-050 (2026-10-21) the photo the film fades into is the real finished mural (hero-ending.jpg above); the film's own
+last shot still shows the mural as completed digitally for v4, until that leg is regenerated from the real photo.
 
 Hero film v3 story: quetzal over the misty Monteverde canopy at dawn, dive through coffee
 plants with red cherries, through an old-fashioned beneficio (beans pouring into burlap

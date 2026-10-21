@@ -331,6 +331,9 @@ nav:not(.on-video) .navlinks a{color:var(--ink)}
 .hero.playing video{opacity:1}
 .hero .still{opacity:0;transition:opacity 1.4s var(--ease)}
 .hero.ended .still{opacity:1}
+/* the ending photo on upright screens (phones, a tablet held upright): framed left of centre so the mural's quetzal,
+   the café logo and the order window stay in view; wide screens keep the centred framing (D-050) */
+@media (max-aspect-ratio:1/1){.hero .still{background-position:30% center}}
 .scrim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 120% 90% at 50% 45%,rgba(15,10,5,0) 40%,rgba(15,10,5,.5) 100%)}
 .cap{position:absolute;left:0;right:0;bottom:0;padding:0 6vw 8svh;display:flex;align-items:flex-end;pointer-events:none;opacity:0;transform:translateY(12px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
 .cap.on{opacity:1;transform:none}

@@ -1575,3 +1575,40 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   (D-039) and item 6 with the Caja's real connection texts and «Hoy en el mostrador» closed (the old «pendiente de
   enviar» text does not exist on any page); E-19 DONE (release `sitio-2026-10-09` published 2026-10-15 00:52 UTC);
   E-35 live; CHECKLIST and PRODUCTION-READINESS. Committed with the owner's authorization of 2026-10-20.
+
+## D-050 · 2026-10-21 · The real mural at the end of the film, and a true quetzal in the story section
+- **Request (owner):** on 2026-09-29 the film's ending was built as a separate photo (`assets/hero-ending.jpg`) so the
+  real building could replace it once the mural was finished, without touching the film. On 2026-10-20 the owner sent
+  that photo and asked for a preview without changing the video, chose the close framing «B cercana» (the mural's
+  quetzal in the middle of a phone screen), and asked to finish it with that photo («es lo que hay»), edited with
+  Higgsfield. The owner also asked to replace the bird of «Una montaña verde, una taza de paz», which did not look like a
+  quetzal (pale hooked bill, black mask, turquoise throat), with a realistic one, and chose candidate B of two.
+- **Ending photo:** the owner's photo (1600×1200, the only copy; uploaded by the owner through Higgsfield, media
+  a2e41807) cropped to 16:9 at its own resolution (rows 25–925), enlarged to 1920×1080 (Lanczos, light unsharp), JPEG
+  q85, 499 044 bytes, Higgsfield media f38d622c. **Higgsfield's AI upscaler was tried and rejected:** at 2K it rewrote the
+  café's lettering (the logo's «MONTEVERDE / COSTA RICA» became «MONTEVERÉE / CSTÉ AILA», «RECEPTION» became «RECERTIOI»,
+  the logo inside the window became «MONT CLOSE», the menu board got invented text); the 4K attempt failed on its side.
+  A photo of the real business must not change its signs, so the final file is a plain enlargement in which every sign
+  and logo reads as painted (checked). The same file is the page's share image (`og:image`) and the image in its
+  structured data.
+- **Framing:** wide screens keep the centred framing; upright screens (phones, a tablet held upright) show the photo
+  30 % from the left, so the mural's quetzal, the café logo and the order window stay in view:
+  `@media (max-aspect-ratio:1/1){.hero .still{background-position:30% center}}` in `website/index.html`. The title over
+  the ending reads on the dark order window on every phone size tried.
+- **Story quetzal:** gpt_image_2_5 (job c7e02149, 3:4, 2K), checked before use: rounded green crest, small yellow bill,
+  crimson breast and belly, green back and wings, white undertail, two long green tail streamers, normal feet, no text or
+  artefacts. Web copy 1000×1339 JPEG, 221 480 bytes, Higgsfield media fdf1aaa7 (the 5.6 MB PNG never ships). The image's
+  alt text already describes a resplendent quetzal; the small watercolour quetzal (`deco-quetzal.png`) is accurate and
+  stays.
+- **Not changed:** the film. Its last shot still lands on the mural as it was completed digitally for film v4, then the
+  real photo fades in (another viewpoint and time of day). Regenerating that last leg from the real photo is an option for
+  the owner (Higgsfield credits), not part of this change.
+- **How it was checked:** both files fetched back from the CDN with the same SHA-256 as the files made (b04f3a79…,
+  723610c3…), and the copies used for the previews are those same bytes; `website/ASSETS.md` still parses to 14 rows with
+  the pages workflow's own expression; e2e `330_home_ending` (upright phones and tablet at 30 %, sideways tablet and
+  computer centred, cover, the ending file; it fails without the rule); previews of the ending on four screen sizes and of
+  the story section on a phone and a computer, served locally with every outside request blocked.
+- **Cost:** Higgsfield credits: 2.75 for the two quetzal candidates, 2 for the 2K upscale that was not used (the failed 4K
+  attempt aside).
+- **Repository side:** `website/index.html` (one CSS rule), `website/ASSETS.md` (two rows and a note),
+  `tests/e2e/specs/330_home_ending.spec.js`, these docs. Goes live only with the owner's next release.
