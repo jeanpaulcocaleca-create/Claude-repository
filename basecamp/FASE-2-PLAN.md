@@ -101,3 +101,61 @@ Mientras sea vista previa, todo sigue bloqueado para buscadores, como correspond
 - **Imágenes de Higgsfield:** la red del entorno de Claude bloquea su servidor. Alternativa sin cambiar la red: el propietario las descarga desde Higgsfield y las sube por el panel. La portada y el quetzal esperan el límite de su cuenta.
 - **Sitio actual `basecampmonteverde.com`:** bloqueado para Claude. Hace falta para la lista de direcciones a redirigir (BQ-18).
 - **Revisión legal:** BQ-26.
+
+## 8 · Decisiones BQ-37, BQ-38 y BQ-39 (detalle)
+
+### BQ-37 · Promociones en el panel
+
+- **Qué decide el propietario:** si se construye la sección "Promociones" del §4. Y si acepta la regla de que cada oferta exista primero en Hotel Link y que el sitio solo la anuncie.
+- **Recomendación:** aprobar.
+  - Empezar con el código promocional visible para copiar.
+  - Pasarlo automáticamente al motor de reservas cuando Hotel Link confirme que se puede.
+- **Por qué:**
+  - Las ofertas propias son la mejor razón para reservar directo en lugar de por Booking.com.
+  - Evita llevar precios en dos lugares (BD-011).
+  - Los candados impiden anunciar una oferta que no existe, que ya venció o que no tiene condiciones. Así se cumple la obligación de informar condiciones claras y respetar lo anunciado (Ley 7472).
+- **Costo:** $0. Una sesión de trabajo de Claude. El propietario configura cada oferta en Hotel Link, dentro del plan que ya paga.
+- **Si se pospone:**
+  - Se puede lanzar igual, y las ofertas se anuncian con el aviso superior que ya existe, pero sin fechas ni candados.
+  - El riesgo es olvidar una oferta vencida en pantalla o anunciar algo distinto de lo que cobra Hotel Link.
+  - Se puede agregar después del lanzamiento sin rediseñar nada.
+
+### BQ-38 · Rastreadores de inteligencia artificial al lanzar
+
+- **Qué decide el propietario:** si el `robots.txt` público permite o bloquea a los rastreadores de IA.
+  - De búsqueda y respuesta: OAI-SearchBot y ChatGPT-User (ChatGPT), PerplexityBot, Claude-SearchBot y Claude-User.
+  - De entrenamiento: GPTBot, ClaudeBot, Google-Extended (Gemini), CCBot.
+- **Recomendación:** permitirlos todos y seguir bloqueando solo `/admin/`.
+- **Por qué:**
+  - Cada vez más viajeros planean con ChatGPT, Gemini o Perplexity.
+  - El plan aprobado busca aparecer en esas respuestas (D-02).
+  - El contenido del sitio es publicidad de Basecamp y no tiene nada privado.
+  - Google-Extended no afecta el posicionamiento en Google; solo decide si Gemini puede usar el contenido.
+  - Si el propietario prefiere que sus guías no se usen para entrenar modelos, la alternativa es permitir los de búsqueda y bloquear los de entrenamiento.
+- **Costo:** $0. El tráfico extra es mínimo y Cloudflare no cobra por él.
+- **Si se pospone:**
+  - Durante la vista previa no cambia nada: todo sigue bloqueado.
+  - Al lanzar, un `robots.txt` normal ya permite a todos los rastreadores, así que no decidir equivale a permitirlos.
+  - Los nombres de estos rastreadores cambian a veces; Claude revisa la lista antes del lanzamiento.
+
+### BQ-39 · Páginas Fotos y Grupos
+
+- **Qué decide el propietario:** si se agregan en la Fase 2 dos páginas del modelo de hotel (BD-002):
+  - **Fotos:** galería por álbumes (habitaciones, edificio, vistas, pueblo), editable en el panel.
+  - **Grupos:** reservar varias habitaciones o todo el hospedaje (10 habitaciones, hasta 29 huéspedes), con solicitud por WhatsApp o correo.
+- **Recomendación:** aprobar las dos.
+  - **Grupos:** construirla ya, con su contenido marcado como pendiente hasta que el propietario defina las condiciones.
+  - **Fotos:** mostrarla al público solo cuando haya al menos unas 12 fotos reales.
+- **Por qué:**
+  - Las fotos son lo primero que mira un huésped antes de reservar.
+  - Grupos abre ingresos que hoy no tienen lugar en el sitio: familias grandes, grupos de tours, alquiler del hospedaje completo.
+  - Las dos usan el diseño actual.
+  - La solicitud de grupo va por WhatsApp o correo: un formulario necesitaría un servicio externo.
+- **Costo:** $0.
+- **Qué necesita del propietario:**
+  - **Para Grupos:** mínimo de habitaciones, depósito y cancelación para grupos (se relaciona con R-01 a R-10), si alquila el hospedaje completo, y a quién llegan las solicitudes.
+  - **Para Fotos:** las fotos.
+- **Si se pospone:**
+  - El sitio se lanza con fotos solo en cada habitación, y los grupos escriben por el WhatsApp general.
+  - Se pueden agregar después sin rediseñar.
+  - Sin la página de Grupos, esas consultas no se distinguen en la medición.
