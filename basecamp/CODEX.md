@@ -363,6 +363,12 @@ ChatGPT's "Limited Authorization, Private Preview Setup" message, pasted by the 
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-21 · Claude.** The owner connected Cloudflare Pages (free plan) to `basecamp-website` only and set the preview password.
+  - **Private preview:** https://basecamp-website-b99.pages.dev.
+  - **Booking dates fixed** (owner report: check-in and check-out showed the same date). Phones display today's date in empty date fields, and check-out accepted the check-in day. Fields now start at today and tomorrow, check-out stays at least one night later, and the summary shows readable dates and nights; 10 browser date checks pass.
+  - **Outside security check added:** a GitHub Actions workflow in `basecamp-website` that never uses the password. Result: 91/91 checks pass on the production address and on the `preview-check` branch preview. Every address answers 401 with noindex and security headers; wrong, empty or malformed passwords are refused; http redirects to https.
+  - **Dashboard with the private repository** waits for the owner's fine-grained token test.
+  - **Higgsfield images still blocked** by this environment's network.
 - **2026-10-21 · Claude.** The owner shared the Basecamp logo in Claude's chat ("use it as needed"). Claude added it to `basecamp-website`:
   - header badge beside the name;
   - full logo in the footer;
