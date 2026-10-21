@@ -5,8 +5,8 @@ The owner, ChatGPT and Claude all work from this file.
 
 | | |
 |---|---|
-| **Build status** | **PHASE 1 GO: private preview only (BD-016).** The site code lives in a separate private repository, `basecamp-website`, never under `basecamp/`. No public launch, no real bookings. Claude stops after the Phase 1 deliverables and asks for a new authorization. |
-| **Phase** | 1 · Private preview: built locally, deliverables presented, waiting for the owner's access approvals |
+| **Build status** | **PHASE 2 LIMITED GO: private preview only (BD-020, BD-021).** The site code lives in a separate private repository, `basecamp-website`, never under `basecamp/`. No public launch, no DNS change, no real bookings, no Hotel Link change, no paid services. |
+| **Phase** | 2 · Built and tested on the private preview (report: `docs/FASE-2-INFORME.md` in `basecamp-website`); waiting for the owner's content and the next authorization |
 | **Last updated** | 2026-10-21 by Claude |
 | **Facts and sources** | [`RESEARCH.md`](RESEARCH.md) |
 | **How ChatGPT starts** | [`CHATGPT-KICKOFF.md`](CHATGPT-KICKOFF.md) |
@@ -244,7 +244,7 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | ID | Question | Blocks |
 |---|---|---|
 | BQ-01 | ~~Are Basecamp Monteverde and Orchid Lodge Monteverde the same?~~ **Answered 2026-10-19:** Orchid Lodge was the hotel's name before the rebrand. Its room list is out of date (BD-008). | Answered |
-| BQ-02 | **Partly answered 2026-10-19:** 10 rooms. 7 have a queen and a single bed for 3 guests, 2 have one queen for 2 guests, 1 has two queens for 4 guests. **Still needed:** the name of each room type, bathroom, size, amenities, photos, and prices by season. | Phase 1 |
+| BQ-02 | **Partly answered 2026-10-19 and 2026-10-21:** 10 rooms. 7 La Orquídea (queen and single, 3 guests), 2 El Quetzal (one queen, 2 guests), 1 La Ceiba (two queens, 4 guests); names and texts in BD-021. **Still needed:** bathroom, size, amenities, photos, and prices by season. | Phase 1 |
 | BQ-03 | Which page should the "Tours" link open? | Phase 2 |
 | BQ-04 | Does Basecamp still offer private transport? If yes, is it a link like the tours, or part of the site? | Phase 1 |
 | BQ-05 | **Answered.** BD-015 (D-12): the brand kit builds on the existing identities. **Logo received from the owner on 2026-10-21** and used on the preview; it lives in the private `basecamp-website` repository. Still needed: the café's logo files, if the café section should show them. Basecamp's logo, colors and fonts. If none exist, Claude proposes a brand kit for approval. | Phase 1 |
@@ -279,9 +279,9 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-34 | **Answered by BD-015 (D-02):** Basecamp plus Knowledge Hub, with a featured café section and tours through guides. Scope after the Muse plan. Keep Basecamp at the centre and add a Knowledge Hub of guides? Under that option, activities are guides linking to the tour business the owner chooses (BQ-03), and the café gets a full section of the lodge experience linking to its own site. Claude recommends this, and Muse agrees with the full café section as its nuance. Or add separate café and experience sections, which would change BD-006? | Phase 1 |
 | BQ-35 | **Answered by BD-015 (D-03):** Book now first on room pages, WhatsApp first on guides. Primary action. Book first on room pages and WhatsApp first on guides (recommended), or WhatsApp as the only primary action everywhere, as Muse proposes? | Phase 1 |
 | BQ-36 | **Answered by BD-015 (D-05), with changes:** Pixel from launch after consent, GA4 and Search Console; Conversions API postponed. Measurement from day one: Google Analytics 4, Search Console, Meta Pixel, and the Conversions API helper on a free Cloudflare Worker, all behind a consent banner. All free. Approve? *Muse recommends approval with two conditions: a permanent event map and deduplication between Pixel and server events. Both are built into `STRATEGY-REVIEW.md` section 12.* | Phase 1 |
-| BQ-37 | Approve the dashboard "Promociones" design in `FASE-2-PLAN.md` §4: announces only offers already set up in Hotel Link, required conditions in EN and ES, start and end dates, no typed amounts, optional promo code. Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Phase 2 |
-| BQ-38 | At launch, allow AI search crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended) in `robots.txt`? Claude recommends yes, for visibility in AI answers. During the preview everything stays blocked. Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Launch |
-| BQ-39 | Add the Photos (gallery) and Groups pages from the property-page model (`CODEX.md` §4) in Phase 2? Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Phase 2 |
+| BQ-37 | **Answered by BD-020: approved and built on the preview.** Approve the dashboard "Promociones" design in `FASE-2-PLAN.md` §4: announces only offers already set up in Hotel Link, required conditions in EN and ES, start and end dates, no typed amounts, optional promo code. Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Phase 2 |
+| BQ-38 | **Answered by BD-020: approved; the public `robots.txt` is ready and the preview stays blocked.** At launch, allow AI search crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended) in `robots.txt`? Claude recommends yes, for visibility in AI answers. During the preview everything stays blocked. Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Launch |
+| BQ-39 | **Answered by BD-020: approved and built on the preview.** Group conditions and real photos still come from the owner. Add the Photos (gallery) and Groups pages from the property-page model (`CODEX.md` §4) in Phase 2? Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Phase 2 |
 
 ---
 
@@ -380,11 +380,68 @@ Authorized:
 
 Not authorized: public launch, DNS, real bookings, Hotel Link changes, paid services. Claude has technical autonomy inside this scope.
 
+**BD-021 · 2026-10-21 · Owner · Room names and descriptions from Muse/Lapis.**
+ChatGPT's "Owner Content, Approved for Implementation" message and the Muse/Lapis content brief, both pasted by the owner into Claude's chat. Room content update on the private preview only; no new features, no launch.
+- **Inventory:**
+  - El Quetzal / The Quetzal Room: 2 rooms, 1 queen, up to 2 guests.
+  - La Orquídea / The Orchid Room: 7 rooms, queen and single, up to 3 guests.
+  - La Ceiba / The Ceiba Room: 1 room, two queens, up to 4 guests.
+- **Content rules:**
+  - Each name plus its fixed subtitle is canonical: the same on the site, the dashboard, structured data and, later, Hotel Link, Booking.com and Google.
+  - Texts are applied exactly as written, without translating or rewriting.
+  - No amenities, views, services or prices may be added.
+- **Photos:**
+  - No photo of another space on a room; the café test photo is removed.
+  - Descriptive file names and alt text in each language.
+
+Commercial claims in the approved texts that the owner should confirm before the public launch:
+- "the couples' favorite" (El Quetzal);
+- "café downstairs" and "the house café right downstairs";
+- "in the heart of Santa Elena";
+- "a quiet place";
+- "the house favorite" and "our most requested room" (La Orquídea);
+- "the orchid garden growing in our café";
+- "our only family room" (La Ceiba), while La Orquídea also says it suits small families;
+- "When it shows as available, it doesn't last".
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-21 · Claude.** Phase 2 (BD-020) built and tested on the private preview, `basecamp-website` commit c12ed29. Report: `docs/FASE-2-INFORME.md` there.
+  - **SEO and AI:**
+    - every page has a 70 to 160 character description;
+    - structured data on every page: LodgingBusiness, HotelRoom without prices, Article, FAQPage, breadcrumbs;
+    - `/llms.txt`;
+    - a public `robots.txt` that allows AI crawlers and closes `/admin/`; the booking step is noindex;
+    - the preview stays `Disallow: /`, noindex and password.
+  - **Promotions:**
+    - dashboard collection; an offer shows only when ticked as set up in Hotel Link, with conditions in both languages;
+    - money amounts stop the build;
+    - offers hide on their last day in Costa Rica time;
+    - the promo code is shown to copy on the booking step.
+  - **Consent:**
+    - GA4 and Pixel IDs are empty, so nothing is measured and no banner shows;
+    - with IDs, on the public site only: equal Accept / Reject / Choose, nothing loaded before a choice, "Cookie settings" reopens it, and withdrawing deletes the cookies.
+  - **Photos and Groups:**
+    - Photos shows only owner-approved real photos and goes public from 12;
+    - Groups shows 10 rooms and 29 guests from the room data, conditions pending, and a WhatsApp request.
+  - **Tests:**
+    - 33/33 unit tests;
+    - browser checks at 360 px and desktop with no sideways scrolling and no axe violations;
+    - 10/10 date checks and 27/27 consent, offer and group checks;
+    - dashboard demo passes;
+    - GitHub now also runs the tests on every save.
+  - **Fixed in passing:** an empty result box showed on `/book/` without dates.
+- **2026-10-21 · Claude.** Room names and descriptions (BD-021) applied word for word, `basecamp-website` commit 320e78f.
+  - **Inventory:** 10 rooms again (the owner's earlier dashboard edit had put the Quetzal text and counts in the two-queens file, giving 11).
+  - **Display:** each name shows with its subtitle on cards, room pages, page titles and the room picker; new dashboard field "Configuración (subtítulo)".
+  - **Photos:** the café photo is off the Quetzal card; room photos get descriptive names per language and need alt text in both.
+  - **WhatsApp:** messages no longer read "book the The ... Room".
+  - **Checks:** 21/21 tests, no axe violations, dashboard demo passes, GitHub security check passes.
+  - **For the owner:** the commercial claims to confirm are listed in BD-021.
 
 - **2026-10-21 · Claude.** Phase 2 planning request from ChatGPT, pasted by the owner. Wrote `FASE-2-PLAN.md`: the site's complete, provisional and missing parts; the real content the owner must supply; Hotel Link readiness; a promotions design that keeps Hotel Link as the source of real prices; an SEO, bilingual and AI-visibility review; and a plan by priority with who does each part. SEO facts measured on the build: 24/24 pages have a unique title and their twin language with hreflang, 11 descriptions are under 70 characters, structured data covers only home, guides and The Stay, no `llms.txt`. Added BQ-37 to BQ-39. Nothing implemented; waiting for an express GO.
 - **2026-10-21 · Claude.** Owner Dashboard audit (BD-019): every check passes.

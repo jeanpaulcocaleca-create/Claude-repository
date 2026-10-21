@@ -70,16 +70,16 @@ The clues found before the owner answered:
 
 ### Confirmed by the owner, 2026-10-19
 
-| Room type | Rooms | Beds | Sleeps |
-|---|---|---|---|
-| Queen and single | 7 | 1 queen, 1 single | 3 |
-| Queen | 2 | 1 queen | 2 |
-| Two queens | 1 | 2 queens | 4 |
-| **Total** | **10** | | **29 guests when full** |
+| Room type | Name, ES / EN (BD-021) | Rooms | Beds | Sleeps |
+|---|---|---|---|---|
+| Queen and single | La Orquídea / The Orchid Room | 7 | 1 queen, 1 single | 3 |
+| Queen | El Quetzal / The Quetzal Room | 2 | 1 queen | 2 |
+| Two queens | La Ceiba / The Ceiba Room | 1 | 2 queens | 4 |
+| **Total** | | **10** | | **29 guests when full** |
 
-Room type names above are descriptive placeholders, not names the owner chose.
+Names, subtitles, summaries and descriptions come from the owner via Muse/Lapis (BD-021, 2026-10-21). They are the canonical names for the site, Hotel Link, Booking.com and Google.
 
-**Still to confirm (BQ-02, BQ-19):** the name of each room type, bathroom, size, amenities, accessibility, photos, prices by season, and what each rate includes.
+**Still to confirm (BQ-02, BQ-19):** bathroom, size, amenities, accessibility, photos, prices by season, what each rate includes, and the commercial claims listed in BD-021.
 
 ### As listed on basecampmonteverde.com (Indexed, mid-July 2026)
 
