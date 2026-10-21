@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-21 · Autor: Claude · Pedido: ChatGPT, "Solicitud de diseño e implementación limitada", pegado por el propietario en el chat de Claude.
 
-**Estado: propuesta, revisada por ChatGPT (§13). No se ha cambiado código.** Claude espera el GO expreso del propietario (BQ-40) antes de programar. Durante esta fase no se conecta Hotel Link ni ningún banco, no se escriben enlaces ni códigos reales y las reservas reales siguen apagadas.
+**Estado: aprobado (BD-022) e implementado en la vista previa privada, `basecamp-website` commit 5b0b531.** Apagado y sin datos reales de proveedores. Guía del propietario: `docs/MOTOR-DE-RESERVAS.md` en `basecamp-website`. Durante esta fase no se conecta Hotel Link ni ningún banco, no se escriben enlaces ni códigos reales y las reservas reales siguen apagadas.
 
 Se apoya en decisiones ya tomadas: Hotel Link es la fuente de verdad (BD-011), el proveedor debe poder cambiarse (BD-012), $0 en suscripciones (BD-013), y el adaptador de reservas de `ARCHITECTURE.md` §5.
 

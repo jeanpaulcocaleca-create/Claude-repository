@@ -13,7 +13,7 @@ The owner, ChatGPT and Claude all work from this file.
 | **Reservation proposal** | [`RESERVATIONS.md`](RESERVATIONS.md) |
 | **Architecture proposal** | [`ARCHITECTURE.md`](ARCHITECTURE.md): dashboard, provider independence, hosting, backups, costs |
 | **Phase 2 audit and plan** | [`FASE-2-PLAN.md`](FASE-2-PLAN.md): state of the site, missing content, Hotel Link readiness, promotions, SEO and AI visibility, priorities. Proposal; waits for GO |
-| **Booking engine plan** | [`MOTOR-RESERVAS-PLAN.md`](MOTOR-RESERVAS-PLAN.md): provider-independent booking engine section, Hotel Link steps, reserved bank payments. Proposal; waits for BQ-40 |
+| **Booking engine plan** | [`MOTOR-RESERVAS-PLAN.md`](MOTOR-RESERVAS-PLAN.md): provider-independent booking engine section, Hotel Link steps, reserved bank payments. Approved (BD-022) and built, off |
 | **Pending owner decisions** | [`DECISIONES-PENDIENTES.md`](DECISIONES-PENDIENTES.md): one consolidated table, in Spanish |
 | **Marketing strategy** | [`STRATEGY-MUSE.md`](STRATEGY-MUSE.md), the owner's source plan, and [`STRATEGY-REVIEW.md`](STRATEGY-REVIEW.md), Claude's review |
 | **Working branch** | `claude/brave-archimedes-ar8uc1` |
@@ -282,7 +282,7 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-36 | **Answered by BD-015 (D-05), with changes:** Pixel from launch after consent, GA4 and Search Console; Conversions API postponed. Measurement from day one: Google Analytics 4, Search Console, Meta Pixel, and the Conversions API helper on a free Cloudflare Worker, all behind a consent banner. All free. Approve? *Muse recommends approval with two conditions: a permanent event map and deduplication between Pixel and server events. Both are built into `STRATEGY-REVIEW.md` section 12.* | Phase 1 |
 | BQ-37 | **Answered by BD-020: approved and built on the preview.** Approve the dashboard "Promociones" design in `FASE-2-PLAN.md` §4: announces only offers already set up in Hotel Link, required conditions in EN and ES, start and end dates, no typed amounts, optional promo code. Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Phase 2 |
 | BQ-38 | **Answered by BD-020: approved; the public `robots.txt` is ready and the preview stays blocked.** At launch, allow AI search crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended) in `robots.txt`? Claude recommends yes, for visibility in AI answers. During the preview everything stays blocked. Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Launch |
-| BQ-40 | Approve the provider-independent booking engine plan in `MOTOR-RESERVAS-PLAN.md`: a dashboard section «Motor de reservas» that starts off, a generic link adapter, a «Prueba» state that only shows the link (BQ-40a), Hotel Link first as a link with parameters rather than an embedded widget (BQ-40b), and a payments section reserved and off (BQ-40c). No Hotel Link or bank connection, no real codes. Claude recommends approving all four. | Phase 3 |
+| BQ-40 | **Answered by BD-022: approved with 40a to 40c, built on the preview, off.** Approve the provider-independent booking engine plan in `MOTOR-RESERVAS-PLAN.md`: a dashboard section «Motor de reservas» that starts off, a generic link adapter, a «Prueba» state that only shows the link (BQ-40a), Hotel Link first as a link with parameters rather than an embedded widget (BQ-40b), and a payments section reserved and off (BQ-40c). No Hotel Link or bank connection, no real codes. Claude recommends approving all four. | Phase 3 |
 | BQ-39 | **Answered by BD-020: approved and built on the preview.** Group conditions and real photos still come from the owner. Add the Photos (gallery) and Groups pages from the property-page model (`CODEX.md` §4) in Phase 2? Full question, recommendation, cost and the effect of postponing: `FASE-2-PLAN.md` §8. | Phase 2 |
 
 ---
@@ -406,11 +406,50 @@ Commercial claims in the approved texts that the owner should confirm before the
 - "our only family room" (La Ceiba), while La Orquídea also says it suits small families;
 - "When it shows as available, it doesn't last".
 
+**BD-022 · 2026-10-21 · Owner · GO for BQ-40: provider-independent booking engine.**
+ChatGPT's "Autorización de implementación" message, pasted by the owner into Claude's chat. The owner approves BQ-40, 40a, 40b and 40c as in `MOTOR-RESERVAS-PLAN.md` with the adjustments in its §13.
+
+Authorized:
+- the «Motor de reservas» dashboard section;
+- providers by fixed link or documented parameters, which the owner can set up, turn on and off and replace;
+- Off, Test and Live states with the agreed safeguards;
+- the Cloudflare lock kept as a separate production authorization;
+- a payments section limited to Off or Information, with no payment links;
+- the owner's manual setup guide;
+- functional and security tests.
+
+Extra safeguard: the dashboard explains that changes take time to publish, and the owner can check the published state before treating a provider as switched off.
+
+Not authorized:
+- connecting Hotel Link, real provider IDs or changes to Hotel Link settings;
+- live bookings or payments;
+- launch or DNS changes;
+- an independent calendar;
+- subscriptions or paid services.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-21 · Claude.** BQ-40 built (BD-022), `basecamp-website` commit 5b0b531. Everything is off and holds no real provider data.
+  - **Dashboard:**
+    - new «Motor de reservas» section with Off, Test and Live states and saved providers by fixed link or documented parameters;
+    - the old hard-wired `hotel-link` and `link-only` modes are removed;
+    - room codes move to each provider.
+  - **Test:** the address shows as text with a copy button, only on the private preview; nothing is sent. On a public site, Test behaves as WhatsApp contact.
+  - **Live:** still needs `BASECAMP_LIVE_BOOKING` set once in Cloudflare; after that the dashboard alone switches providers.
+  - **Validation:** refuses non-https addresses, credentials, IP hosts, markers in the domain, unknown markers, bad codes, and more than one provider in use.
+  - **Status page:** `/admin/estado/` shows the published state; the dashboard explains the 1 to 2 minute delay.
+  - **Payments:** separate section, Off or Information text only, no links or amounts.
+  - **Owner guide:** `docs/MOTOR-DE-RESERVAS.md`.
+  - **Tests:**
+    - 44/44 unit tests;
+    - browser checks with a made-up provider at booking.example.com: 11/11 engine, 27/27 consent, offers and groups, and 10/10 dates;
+    - no axe violations or overflow at 360 px;
+    - the dashboard demo adds a provider.
+  - **Not touched:** Hotel Link, payments, launch and DNS.
 
 - **2026-10-21 · Claude.** ChatGPT reviewed `MOTOR-RESERVAS-PLAN.md` and recommends approving BQ-40 to 40c with seven conditions.
   - All seven are compatible with the current architecture; answers in the plan's §13.
