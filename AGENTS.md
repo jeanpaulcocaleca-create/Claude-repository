@@ -7,7 +7,7 @@ This repository holds two projects for the same owner in Santa Elena, Monteverde
 | Project | Where it lives | Its rules |
 |---|---|---|
 | Hanging Garden Café system (Canopy OS: POS, kitchen, menu, accounting) | `website/`, `supabase/`, `docs/` on branch `claude/hanging-garden-coffee-proposal-1m8zd4` (pull request #1) | `CLAUDE.md` on that branch |
-| Basecamp Monteverde website: the lodge only, with the café and tours as outbound links (planning stage, no site code yet) | `basecamp/` | `basecamp/CODEX.md` |
+| Basecamp Monteverde website: the lodge only, with the café and tours as outbound links (Phase 1 private preview; site code in the separate private repository `basecamp-website`, never in this repository) | `basecamp/` | `basecamp/CODEX.md` |
 
 ## Never (every agent, every project)
 
