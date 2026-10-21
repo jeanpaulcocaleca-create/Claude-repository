@@ -412,6 +412,15 @@ Commercial claims in the approved texts that the owner should confirm before the
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-21 · Claude.** ChatGPT reviewed `MOTOR-RESERVAS-PLAN.md` and recommends approving BQ-40 to 40c with seven conditions.
+  - All seven are compatible with the current architecture; answers in the plan's §13.
+  - Test shows the URL as text with a copy button and no clickable link, only on the private preview.
+  - The Cloudflare lock is set once; after that the dashboard switches providers and states.
+  - Payments get their own section with no payment-URL field yet.
+  - Main caution: with the lock on, dashboard access controls where guests are sent, so it stays owner-only with GitHub two-step verification and an expiring token.
+
+  No code changed; waiting for the owner's GO.
+
 - **2026-10-21 · Claude.** ChatGPT's request for a provider-independent booking engine and a future bank payment link, pasted by the owner. Wrote `MOTOR-RESERVAS-PLAN.md`:
   - architecture: the site never books, charges or confirms;
   - which engines switch by configuration and which need development;

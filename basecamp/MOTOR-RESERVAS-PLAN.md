@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-21 · Autor: Claude · Pedido: ChatGPT, "Solicitud de diseño e implementación limitada", pegado por el propietario en el chat de Claude.
 
-**Estado: propuesta. No se ha cambiado código.** Claude espera la aprobación expresa del propietario (BQ-40) antes de programar. Durante esta fase no se conecta Hotel Link ni ningún banco, no se escriben enlaces ni códigos reales y las reservas reales siguen apagadas.
+**Estado: propuesta, revisada por ChatGPT (§13). No se ha cambiado código.** Claude espera el GO expreso del propietario (BQ-40) antes de programar. Durante esta fase no se conecta Hotel Link ni ningún banco, no se escriben enlaces ni códigos reales y las reservas reales siguen apagadas.
 
 Se apoya en decisiones ya tomadas: Hotel Link es la fuente de verdad (BD-011), el proveedor debe poder cambiarse (BD-012), $0 en suscripciones (BD-013), y el adaptador de reservas de `ARCHITECTURE.md` §5.
 
@@ -246,7 +246,35 @@ Se completa cuando Hotel Link responda cómo recibe fechas, idioma y habitación
 
 ---
 
-## 13 · Decisiones del propietario
+## 13 · Revisión de ChatGPT (2026-10-21) y ajustes
+
+ChatGPT recomienda aprobar BQ-40 a 40c con siete condiciones. Las siete son compatibles con la arquitectura actual. Estos ajustes reemplazan lo dicho antes donde no coincida.
+
+| # | Condición | Respuesta de Claude |
+|---|---|---|
+| 1 | Prueba muestra la URL como texto, sin redirigir ni reservar | Sí. Texto con un botón «Copiar», **sin enlace pulsable**: para revisarla, el propietario la pega en el navegador. Además, en un sitio público el estado Prueba se comporta como Contacto. La URL de prueba solo aparece en la vista previa privada. |
+| 2 | Cloudflare se configura una vez; después todo desde el panel | Sí, ya funciona así. `BASECAMP_LIVE_BOOKING=authorized` es un permiso general que se pone una sola vez. Con él puesto, el panel elige proveedor y estado (Apagado, Prueba, Activo) sin código ni Cloudflare. |
+| 3 | Enlaces fijos o parámetros documentados, sin prometer compatibilidad universal | Sí. Solo esos dos tipos en el panel. El widget y la API siguen fuera (§4). |
+| 4 | Banco completamente separado y desactivado | Sí. Archivo y sección propios (`content/payments.json`), sin relación con el motor. En esta fase solo tiene Apagado e Información (texto). **El campo de dirección de pago no se crea** hasta elegir el banco y recibir otra autorización. |
+| 5 | Sin Hotel Link, sin datos reales, sin reservas, sin publicar | Sí. Las pruebas usan un proveedor ficticio en `booking.example.com`. |
+| 6 | Diseño y controles de seguridad intactos | Sí. El tipo enlace no cambia la política de seguridad de la página ni carga scripts de terceros. |
+| 7 | Guía para que el propietario configure Hotel Link | Sí. `docs/MOTOR-DE-RESERVAS.md` en `basecamp-website`, a partir del §9; se completa cuando Hotel Link responda su formato de enlace. |
+
+**Observaciones de Claude:**
+
+1. **Con el permiso general puesto, el panel controla adónde van los huéspedes.**
+   - El acceso al panel debe seguir siendo solo del propietario (D-10), con verificación en dos pasos en GitHub y un token con fecha de vencimiento.
+   - El sitio no limita los dominios permitidos, porque eso obligaría a tocar código para cada proveedor nuevo.
+   - Cada cambio queda en el historial de GitHub.
+2. **El destino sale solo del panel.** Lo que el visitante escribe en la dirección (fechas, huéspedes) se codifica como dato y nunca puede cambiar el dominio de destino.
+3. **Los cambios no son instantáneos.** Cada guardado tarda uno o dos minutos en publicarse. Pasar a Contacto ante una caída de Hotel Link también.
+4. **Un estado inválido no rompe el sitio.** Si el panel tiene un error, o «Activo» sin el permiso general, la publicación se detiene, el sitio sigue con su última versión buena y GitHub avisa por correo. Mientras no se corrija, otras ediciones tampoco se publican. Es intencional: falla cerrado.
+5. **Quitar el permiso general** en Cloudflare sigue siendo el freno de emergencia total, pero no hace falta para el uso diario.
+6. **El campo «Código en el sistema de reservas»** de cada habitación pasa a cada proveedor. Hoy está vacío, así que no se pierde nada.
+
+---
+
+## 14 · Decisiones del propietario
 
 | ID | Decisión | Recomendación de Claude |
 |---|---|---|
