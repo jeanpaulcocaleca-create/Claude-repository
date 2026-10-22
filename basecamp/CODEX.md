@@ -433,6 +433,10 @@ Not authorized:
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-22 · Claude.** Owner asked to put five room photos in the dashboard media library and choose them per room later. Taken from the owner's artifact "Fotos de habitaciones, versión mejorada". `basecamp-website` commit f97ab34 adds them to `static/images/uploads/` as original JPEGs (1100 × 828, no metadata) named `habitacion-foto-1-pared-de-madera`, `-2-ventana`, `-4-flores`, `-5-tucan-y-rosas`, `-7-orquideas`. No room or page uses them yet. Two points are open for the owner:
+  - The artifact says the photos were retouched in Higgsfield. The owner should confirm that only light, white balance and sharpness changed and no objects were added or removed (AGENTS.md: no AI-generated images on a room page).
+  - The artifact's captions mention a valley view and a balcony. Neither is confirmed in the content memo, so the alt texts should describe only what is visible.
+
 - **2026-10-22 · Claude.** Owner-confirmed content memo (reviewed by Lapis, sent by ChatGPT). Compared it with the preview and wrote `CONTENIDO-PROPUESTA.md`:
   - 21 contradictions or pending texts;
   - 13 owner decisions (C-01 to C-13);
