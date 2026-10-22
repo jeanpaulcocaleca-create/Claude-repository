@@ -1612,3 +1612,56 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   attempt aside).
 - **Repository side:** `website/index.html` (one CSS rule), `website/ASSETS.md` (two rows and a note),
   `tests/e2e/specs/330_home_ending.spec.js`, these docs. Goes live only with the owner's next release.
+
+## D-051 · 2026-10-22 · The real mural and the true quetzal live (v2026.10.21-1)
+- **Authorization (owner, 2026-10-21):** the owner confirmed the café was ready and authorized the release of
+  `v2026.10.21-1` = `c1d9fb5` (D-050) under `docs/PUBLICAR.md`: check the commit and its tests, the pre-release checks,
+  the tag on that exact commit, no change to code, video, database or other files, no merge of PR #1, stop and report
+  on any error. The owner kept the final «Publish website» run (PUBLICAR) for themself.
+- **Read-only checks before the tag:** `c1d9fb5` was the PR #1 head, «Tests» #142 green on it, PR #1 open and unmerged;
+  since `v2026.10.20-1` (`f9cfdef`) two commits (`1e2e803`, the D-049 records; `c1d9fb5`, D-050) and no change under
+  `supabase/`, `.github/` or `tools/` (no migration); `pages.yml` identical (blob `9b8defe`) on the default branch,
+  `v2026.10.20-1` and `c1d9fb5`. The «Ensayo en pruebas» and the backup (checklist items 2 and 3) live in the owner's
+  private `canopy-respaldos`, which this environment cannot reach; they were left to the owner, with the exact inputs
+  (`v2026.10.21-1`, `desechable`, `no`, `no`). Their results were not reported here.
+- **The tag:** `CLAUDE.md` forbids agents to create `v*` tags; the owner authorized it for this release. GitHub
+  refused to create the release from this session ("Creating, editing, or deleting releases is not permitted for this
+  session type", HTTP 403); nothing was created, the refusal was reported to the owner and no other route was tried.
+  The owner then created the release through Releases: tag `v2026.10.21-1` → `c1d9fb5`, target the development branch,
+  published 2026-10-21 13:21:22 UTC. Checked read-only: the tag's commit is exactly
+  `c1d9fb5099ad5aad504cfb8122067ca96783d88f`; «Tests» #144 on the tag green (13:21–13:31 UTC).
+- **The release (owner):** «Publish website (PRODUCTION · manual only)» run #53 from the tag, 13:35 UTC, success, the
+  «restaurar» step skipped; `gh-pages` `0ad8c88` "Publish website v2026.10.21-1 c1d9fb5…" (`version.json`:
+  `v2026.10.21-1`, build `c1d9fb5099ad`, built 13:35:34 UTC); `pages build and deployment` #49 green at 13:36 UTC.
+- **Verified here, read-only:** `gh-pages` `0ad8c88` against the previous `2ade5f6`, file by file (56 files each): 24
+  differ, as expected: the two photos, `index.html` (the build stamp and the D-050 framing rule, nothing else), the
+  build stamp in the other 19 stamped pages, `version.json` and the published copy of `ASSETS.md` (the two rows and the
+  note). `assets/hero-film.mp4`, `assets/hero-film-mobile.mp4` and `assets/hero-poster.jpg` are byte-identical (the
+  film did not change); `es/` and CNAME (`hanginggardencafe.com`) unchanged. The two published photos are the approved
+  files byte for byte: `hero-ending.jpg` 499 044 bytes, SHA-256 `723610c3…`; `quetzal.jpg` 221 480 bytes, `b04f3a79…`.
+- **The public site (2026-10-22):** the domain is blocked from this environment, so it was read from an outside
+  connection (the Higgsfield sandbox): `https://hanginggardencafe.com/version.json` = `v2026.10.21-1` from `c1d9fb5`;
+  both photos served with HTTP 200, `image/jpeg`, the same sizes and SHA-256 as above; the home page carries the
+  framing rule and its share image (`og:image`) is `assets/hero-ending.jpg`.
+- **The owner's visual review:** the owner confirmed the visual review of the public site on 2026-10-22.
+- **Timing:** the tag at 07:21 and the publication at 07:35 in Monteverde, after 6:00; `docs/PUBLICAR.md` asks for
+  after the register close or before 6:00. The owner confirmed the café was ready. The devices update by design
+  between sales.
+- **Way back:** «Publish website» from `v2026.10.20-1` with PUBLICAR and «restaurar» empty; no database step.
+- **Not changed:** `tests/rehearsal/LIVE_PAGES` still names `2ade5f6` (the owner limited this commit to
+  documentation). It is still fetchable from a fresh clone, so the live-pages rehearsal keeps working, and
+  `tests/tools/live-site-check.sh` accepts `0ad8c88` as an approved release. Moving it to `0ad8c88` is a one-line
+  change for a later authorized commit. The hourly PR checks were stopped at the owner's request.
+- **Seen while testing this record (not changed):** the first full run failed one browser test, `300_recipes`
+  «café device in Spanish…», at its last check «no PIN kept on the device». Code this record does not touch; the
+  same test passed in the run of 2026-10-21, in «Tests» #142 and #144, and 7 times in a row afterwards (a scratch copy that only adds logging). The
+  check looks for each 4-digit test PIN as plain text anywhere in the device's storage, which holds numbers that change
+  with time and at random: the unlock record's expiry in milliseconds (`access.js`, `localUntil`), the session's expiry
+  in seconds, tokens and ids (seen: `1792688861403`, `1792691566`, `73234184`…). A PIN inside one of them fails the
+  check without any PIN being kept (at 16:43:11 UTC, for example, the time in seconds ended in `7391`, the test owner's
+  PIN). What the pages keep is the unlock record (token, expiry, name, role), the unlocking person's id, the station,
+  the language, the session and the recipe draft, never a PIN. A test-only fix (match a PIN only as a whole number, not
+  inside a longer one) is proposed, not made: this commit is documentation only.
+- **Records:** this entry, the D-050 row of `docs/CHECKLIST.md` (commit `c1d9fb5`, live), the release runbook row,
+  and `docs/PRODUCTION-READINESS.md` (live site `0ad8c88`, releases, public check). Documentation only, committed with
+  the owner's authorization of 2026-10-22. Nothing merged, tagged or published from here.
