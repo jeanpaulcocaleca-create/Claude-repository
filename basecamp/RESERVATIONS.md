@@ -31,7 +31,8 @@ Inventory (Owner): 10 rooms in 3 types. Seven sleep 3, two sleep 2, one sleeps 4
 | Which Hotel Link modules are active (booking engine, channel manager, Hotel Link Pay, Google Free Booking Links), the plan and its monthly price. | Unknown (BQ-25) |
 | Whether the current website already uses the Hotel Link booking widget, and which version. | Unknown. The current site has "check availability" buttons per room (indexed); where they point is not visible from here. |
 | Payment method: capture card details and process manually. Visa and Mastercard on. Hotel Link Pay not activated. Tilopay listed among integration options. | Owner screenshots, as reported by ChatGPT on 2026-10-20. Claude has not seen them. |
-| Booking conditions: 50% deposit. Cancellation: full-stay penalty within 22 days of arrival. Not changed. | Same |
+| **Booking conditions since 2026-10-22 (BD-024):** no advance deposit; the card is held as a guarantee and the guest pays on arrival. Free cancellation more than 1 day before arrival. Late cancellation or no-show: one night. 13% IVA shown separately and calculated correctly. Engine checked in Spanish. Where the 1-day cutoff falls relative to the 15:00 check-in is not verified. | Owner, in Claude's chat after reviewing with ChatGPT. Claude has not seen the extranet. |
+| Earlier conditions, replaced: 50% deposit and a full-stay penalty within 22 days of arrival. Not to be implemented. | Owner screenshots, as reported by ChatGPT on 2026-10-20 |
 
 ---
 

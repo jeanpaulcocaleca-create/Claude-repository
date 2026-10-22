@@ -252,12 +252,12 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-06 | The original file of the current home page cloud photo, plus any other photos. Or allow `basecampmonteverde.com` in Claude's environment network settings so Claude can collect them. | Phase 1 |
 | BQ-07 | Who hosts basecampmonteverde.com today, and who controls the domain and DNS? | Launch |
 | BQ-08 | How bookings arrive today and which listings must stay in sync. **Partly answered 2026-10-19:** reservations run through Hotel Link, which is connected to Booking.com and Airbnb. Any other channels or direct booking routes still to list. | Phase 1 |
-| BQ-09 | Which bank or payment gateway, the SINPE Móvil number to show, and the deposit rule. **Current setup, per owner screenshots reported by ChatGPT:** manual card capture with Visa and Mastercard; Hotel Link Pay off; Tilopay offered as an integration. Proposal in `RESERVATIONS.md` section 9. | Phase 1 |
+| BQ-09 | Which bank or payment gateway, the SINPE Móvil number to show, and the deposit rule. **Deposit answered by BD-024:** no advance deposit; the card is a guarantee and the guest pays on arrival. **Earlier setup, per owner screenshots reported by ChatGPT:** manual card capture with Visa and Mastercard; Hotel Link Pay off; Tilopay offered as an integration. Still open: the bank (BQ-27) and SINPE Móvil. | Phase 1 |
 | BQ-10 | **Answered by BD-015 (D-07):** yes, private and separate, created only in the authorized build phase; name still to confirm. OK to create a separate repository for the site (P-02)? Its name? | Phase 2 |
 | BQ-11 | Is someone on site to receive guests, and at what hours? Do the doors have smart locks? | Phases 3 and 4 |
 | BQ-12 | Who are the main guests today, and which languages beyond English and Spanish matter? | Phase 1 |
 | BQ-13 | Does Basecamp have its own Google Business Profile? Who can log in to it? | Phase 4 |
-| BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. **Owner preferences recorded 2026-10-20:** card guarantee, free cancellation to 24 hours before check-in, fair late and no-show penalty, optional 50% deposit. Proposed configuration in `RESERVATIONS.md` section 9, not approved. Still open: check-in and check-out times, cutoff hour, children, pets, smoking. | Phase 1 |
+| BQ-14 | Basecamp's own cancellation, check-in and check-out, children, pets and smoking rules. **Mostly answered:** check-in 15:00 and check-out 11:00, children welcome with no cribs, no pets and no smoking (BD-023). In Hotel Link: free cancellation more than 1 day before arrival, one night for late cancellation or no-show (BD-024). **Still open:** where the 1-day cutoff falls relative to 15:00. | Phase 1 |
 | BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
 | BQ-16 | ~~What is the single source of truth for the reservation calendar?~~ **Answered by BD-011 (2026-10-20):** Hotel Link. Who keeps it up to date day to day is an operations detail for Phase 3. | Answered |
 | BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
@@ -447,11 +447,33 @@ Photos: the five recent photos stay in the media library for the owner to assign
 
 Not authorized: publishing, connecting `monteverdebasecamp.com`, real bookings or payments, Cloudflare or Hotel Link changes, new subscriptions, or design changes.
 
+**BD-024 · 2026-10-22 · Owner · Hotel Link booking conditions as now configured.**
+The owner reviewed BD-023 with ChatGPT and reported the setup in Claude's chat. Claude has not seen the extranet. This replaces the setup recorded on 2026-10-20 (50 % deposit, full-stay penalty within 22 days).
+- No advance deposit.
+- Card held as a guarantee; the guest pays on arrival.
+- Free cancellation more than 1 day before arrival.
+- Late cancellation or no-show: a one-night penalty.
+- 13 % IVA shown separately and calculated correctly.
+- Booking engine checked in Spanish.
+- Not yet verified: where the 1-day cutoff falls relative to the 15:00 check-in time.
+
+Consequences:
+- The 22-day rule is not implemented anywhere and must not be.
+- The site publishes no condition that contradicts Hotel Link. The conditions block (K-2) stays unmarked until the cutoff is verified and the site's text matches Hotel Link word for word.
+- The site stays a private preview: no real bookings, no launch.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-22 · Claude.** Recorded BD-024, the Hotel Link booking conditions the owner reported after reviewing BD-023 with ChatGPT. Updated BQ-09, BQ-14 and `RESERVATIONS.md` §2. The 2026-10-22 consolidation report (`docs/CONSOLIDACION-INFORME.md` §3 in `basecamp-website`) predates BD-024; its "today" column is superseded.
+  - Checked the site against BD-024: no 22-day rule anywhere. The conditions block is unmarked and the benefit is off, so nothing contradicting Hotel Link is shown.
+  - **Differences found, reported to the owner and not edited:**
+    - the payment answer on The Stay and the payment note on Book say «in advance or on arrival», but Hotel Link now takes no deposit;
+    - the hidden conditions text says «24 hours before check-in», but Hotel Link says «more than 1 day before arrival», with the cutoff unverified.
+  - No site files changed. Still private preview.
 
 - **2026-10-22 · Claude.** Site consolidation (BD-023) built on the private preview, `basecamp-website` commit 1dc9b5e. Report: `docs/CONSOLIDACION-INFORME.md` there.
   - **Content, EN and ES with «usted»:**
