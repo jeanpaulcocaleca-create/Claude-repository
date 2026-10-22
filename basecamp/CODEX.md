@@ -433,6 +433,14 @@ Not authorized:
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-22 · Claude.** Owner-confirmed content memo (reviewed by Lapis, sent by ChatGPT). Compared it with the preview and wrote `CONTENIDO-PROPUESTA.md`:
+  - 21 contradictions or pending texts;
+  - 13 owner decisions (C-01 to C-13);
+  - drafted EN and ES copy for the home page, rooms, The Stay with 15 FAQs, Location, Groups, guides and payments;
+  - 6 code changes that need a separate authorization.
+
+  Main finding: the last known Hotel Link booking conditions (50 % deposit, full-stay penalty within 22 days) contradict the memo's policy (free cancellation until 24 h, one-night penalty). They are not to be published until Hotel Link matches. Pets stay unpublished. No site files edited; waiting for authorization.
+
 - **2026-10-22 · Claude.** Fixed out-of-date automated tests (limited authorization from ChatGPT; the owner had already rotated the preview password). `basecamp-website` commit efc48fc; only test files changed.
   - **Cause:** CI went red on every dashboard save after the owner set up Hotel Link. A BQ-40 test required the booking engine to stay "off with no providers".
   - **No real fault:**
