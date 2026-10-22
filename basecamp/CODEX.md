@@ -433,6 +433,22 @@ Not authorized:
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-22 · Claude.** Research only, at ChatGPT's request: can Hotel Link receive the visitor's dates, guests, language and room in the link? No code or settings changed.
+  - **Owner's setup in the dashboard:** Hotel Link as a fixed link to `book.securebookings.net/roomrate?id=…&lang=es`, in Test.
+  - **Confirmed** (Hotel Link help center, "How to embed the Search Widget", read through search excerpts because this environment's network blocks Hotel Link's domains):
+    - the Search Widget passes `check_in` and `check_out` as URL parameters to the hotel's own reservation page that holds the Embedded Widget;
+    - dates are written `dd-mm-yyyy` or `dd-Mmm-yyyy`.
+  - **Not documented publicly:**
+    - whether the stand-alone `roomrate` link accepts those parameters;
+    - any parameter for adults, children, room type, rate plan or promo code;
+    - which `lang` values work beyond the `es` in the official link.
+  - **Gap on our side:** our parameter link has no `DD-MM-YYYY` date format.
+  - **Recommendation:**
+    - keep the fixed link;
+    - the owner asks Hotel Link in writing;
+    - if the stand-alone link is confirmed, adding the date format is a small authorized change and the dashboard's parameter link works without a new adapter;
+    - if only the embedded widget reads dates, that is a new adapter needing its own GO.
+
 - **2026-10-21 · Claude.** BQ-40 built (BD-022), `basecamp-website` commit 5b0b531. Everything is off and holds no real provider data.
   - **Dashboard:**
     - new «Motor de reservas» section with Off, Test and Live states and saved providers by fixed link or documented parameters;
