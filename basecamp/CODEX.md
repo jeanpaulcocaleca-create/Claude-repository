@@ -433,6 +433,21 @@ Not authorized:
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-22 · Claude.** Fixed out-of-date automated tests (limited authorization from ChatGPT; the owner had already rotated the preview password). `basecamp-website` commit efc48fc; only test files changed.
+  - **Cause:** CI went red on every dashboard save after the owner set up Hotel Link. A BQ-40 test required the booking engine to stay "off with no providers".
+  - **No real fault:**
+    - the saved settings are valid;
+    - Test shows the address only on the private preview;
+    - a public build falls back to WhatsApp;
+    - «Activo» stays blocked without the Cloudflare lock;
+    - the security check passed on every save.
+  - **Fix:**
+    - the test now checks whatever the owner saved;
+    - rule tests set their own content, so normal edits no longer fail them;
+    - builds of saved content add the live lock when «Activo» is saved, since CI cannot see Cloudflare.
+  - **Results:** 44/44 tests; browser checks 11/11, 27/27 and 10/10, with no axe violations.
+  - **Found:** `image.webp` in the media library is a real room photo (queen plus single bed), not the café.
+
 - **2026-10-22 · Claude.** Research only, at ChatGPT's request: can Hotel Link receive the visitor's dates, guests, language and room in the link? No code or settings changed.
   - **Owner's setup in the dashboard:** Hotel Link as a fixed link to `book.securebookings.net/roomrate?id=…&lang=es`, in Test.
   - **Confirmed** (Hotel Link help center, "How to embed the Search Widget", read through search excerpts because this environment's network blocks Hotel Link's domains):
