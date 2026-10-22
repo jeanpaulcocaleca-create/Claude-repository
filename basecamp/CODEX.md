@@ -5,7 +5,7 @@ The owner, ChatGPT and Claude all work from this file.
 
 | | |
 |---|---|
-| **Build status** | **PHASE 2 LIMITED GO: private preview only (BD-020, BD-021).** The site code lives in a separate private repository, `basecamp-website`, never under `basecamp/`. No public launch, no DNS change, no real bookings, no Hotel Link change, no paid services. |
+| **Build status** | **PHASE 2 LIMITED GO: private preview only (BD-020 to BD-023).** The site code lives in a separate private repository, `basecamp-website`, never under `basecamp/`. No public launch, no DNS change, no real bookings, no Hotel Link change, no paid services. |
 | **Phase** | 2 · Built and tested on the private preview (report: `docs/FASE-2-INFORME.md` in `basecamp-website`); waiting for the owner's content and the next authorization |
 | **Last updated** | 2026-10-21 by Claude |
 | **Facts and sources** | [`RESEARCH.md`](RESEARCH.md) |
@@ -427,11 +427,58 @@ Not authorized:
 - an independent calendar;
 - subscriptions or paid services.
 
+**BD-023 · 2026-10-22 · Owner · GO: consolidate the site's content on the private preview.**
+ChatGPT's "GO — Consolidación integral del sitio web" message, pasted by the owner. It approves the content in `CONTENIDO-PROPUESTA.md` with these decisions, and code changes K-1 to K-6, for the private preview only.
+- **C-01:** no pets in the lodge. Nothing about a pet policy in the café garden.
+- **C-02:** «usted» throughout the Spanish site.
+- **C-03:** late check-out until 13:00 for US$15, subject to availability, published. This is a fixed service charge, not a room rate; BD-011 still applies to rates.
+- **C-04:** keep the technical field for a complimentary drink, but publish nothing yet. Claude proposes a concrete, cost-controlled benefit for approval.
+- **C-05:** the owner's policy is free cancellation until 24 hours before check-in, one night charged after that or for a no-show, and free date changes until 24 hours before, subject to availability and rate differences. Claude lists the exact Hotel Link changes. Nothing changes in Hotel Link without another authorization, and no condition that contradicts the booking engine is published.
+- **C-06:** «50 m sur y 50 m este de la iglesia, Santa Elena, Monteverde, Puntarenas», verified before publishing, with a correct Google Maps link.
+- **C-07:** café hours 6:00 to 19:00 once verified; El Trapiche only if confirmed.
+- **C-08:** whole-hotel group requests, up to 29 people, by WhatsApp, with no automatic availability or prices.
+- **C-09:** no room promoted as wheelchair adapted, and no general statement of inaccessibility. Particular needs are asked directly.
+- **C-10:** verify `cratcr.com` before linking it as Costa Rica Access Travel.
+- **C-11:** keep verifiable references to the orchid garden. Remove «la más pedida» and every popularity claim without data. The Orchid Room may be «la clásica de la casa», with seven of the ten rooms.
+- **C-12:** fix «nuestro propia cafeteria» and remove «Sister café».
+- **C-13:** the FAQs go on The Stay page with valid structured data, without promising rich results.
+
+Photos: the five recent photos stay in the media library for the owner to assign; no changes to them, and no alt text claiming balconies or views.
+
+Not authorized: publishing, connecting `monteverdebasecamp.com`, real bookings or payments, Cloudflare or Hotel Link changes, new subscriptions, or design changes.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-22 · Claude.** Site consolidation (BD-023) built on the private preview, `basecamp-website` commit 1dc9b5e. Report: `docs/CONSOLIDACION-INFORME.md` there.
+  - **Content, EN and ES with «usted»:**
+    - home, rooms (bathroom and nine amenities), The Stay (included, extras, house rules, 15 FAQs), Location, Groups (whole lodge, 29 guests) and payment information;
+    - late check-out until 13:00 for US$15;
+    - no pets;
+    - QR ordering, «café hermano» and popularity claims removed; The Orchid Room is «la clásica de la casa».
+  - **Verified:**
+    - the address matches the café's published site in the same building;
+    - café hours confirmed by the owner, and El Trapiche named on the café's own site;
+    - `cratcr.com` titled Costa Rica Access Travel in the search index, with the same destinations as the lodge's current site. This session's network cannot open it.
+  - **Code K-1 to K-6:**
+    - direct-booking benefit field (off);
+    - booking conditions shown only once marked as applied in Hotel Link (unmarked);
+    - page status fields; The Stay, Location and Groups confirmed, Privacy still test;
+    - café and tours wording in the footer and `llms.txt`;
+    - empty room size and empty group conditions hidden;
+    - fixed service charges are the only amounts allowed.
+  - **Tests:**
+    - 51/51 unit tests;
+    - browser checks with no overflow at 360 px and no axe violations, also with the new notes on;
+    - dashboard demo passes.
+  - **For the owner:**
+    - the Hotel Link changes listed in the report;
+    - the drink proposal (C-04);
+    - assigning the photos;
+    - the legal review of Privacy.
 
 - **2026-10-22 · Claude.** Owner asked to put five room photos in the dashboard media library and choose them per room later. Taken from the owner's artifact "Fotos de habitaciones, versión mejorada". `basecamp-website` commit f97ab34 adds them to `static/images/uploads/` as original JPEGs (1100 × 828, no metadata) named `habitacion-foto-1-pared-de-madera`, `-2-ventana`, `-4-flores`, `-5-tucan-y-rosas`, `-7-orquideas`. No room or page uses them yet. Two points are open for the owner:
   - The artifact says the photos were retouched in Higgsfield. The owner should confirm that only light, white balance and sharpness changed and no objects were added or removed (AGENTS.md: no AI-generated images on a room page).

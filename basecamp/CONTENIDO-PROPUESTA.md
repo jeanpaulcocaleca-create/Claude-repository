@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-22 · Autor: Claude · Fuente: memo «Contenido confirmado del sitio», del propietario, revisado por Lapis y enviado por ChatGPT.
 
-**Estado: propuesta.** No se ha editado ningún archivo del sitio. Claude espera la autorización expresa del propietario. Las fotos, las reservas, el dominio y los servicios externos no se tocan.
+**Estado: aprobada (BD-023) e implementada en la vista previa privada**, commit `1dc9b5e` de `basecamp-website`, con las decisiones de C-01 a C-13 tal como las fijó el GO. El informe está en `docs/CONSOLIDACION-INFORME.md` de ese repositorio. Las fotos, las reservas, el dominio y los servicios externos no se tocaron.
 
 Comparé el memo con el contenido actual de la vista previa (commit `efc48fc`, que incluye los últimos guardados del propietario en el panel).
 
