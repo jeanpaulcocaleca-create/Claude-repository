@@ -587,7 +587,8 @@ Newest first. Claude adds a line after every working session.
     - an optional «Título para Google» on rooms, guides, pages and the home page; the lodge name is added once and nothing is cut;
     - filled in both languages or neither, no amounts, and the build stops if two pages of a language share a title;
     - loaded on the home page, the three rooms and guides 02, 03 and 05; guides 01 and 04 keep their own titles;
-    - all titles are 58 characters or fewer.
+    - hotel page titles are 58 characters or fewer;
+    - guide titles are 68 or fewer, down from up to 115; none was cut to fit 60.
   - **SEO-2:** an optional «Resumen para Google» on rooms, with the three approved texts (136 to 152 characters).
   - **SEO-3:** «Plan your visit» on the room pages and The Stay; a public build lists only confirmed guides, so today it shows nothing.
   - **SEO-4:** in a public build with no confirmed guide, the guides page is noindex, out of the sitemap and out of `llms.txt`; every other hotel page stays indexable.
