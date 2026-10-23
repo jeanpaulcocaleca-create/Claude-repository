@@ -470,11 +470,33 @@ In Claude's chat:
 - **Unchanged:** the direct-booking benefit stays off. Hotel Link is not changed, there are no real bookings, and the preview stays private.
 - **Next:** work continues on design, photos and content. Hotel Link's operational items (cutoff hour, English engine, IVA display, bank, card handling) do not hold up site development.
 
+**BD-026 · 2026-10-23 · Owner · Photos and design package.**
+In Claude's chat.
+- **Step 1, approved:**
+  - alt texts that describe each photo;
+  - remove the false «not a photo of Basecamp» note on the hero;
+  - better headline contrast over the photo, keeping the design;
+  - em dashes out and 24-hour times in the café text.
+- **Step 2, partly approved:**
+  - a concrete list of missing photos;
+  - use the real photos already uploaded;
+  - no retouching, generating or replacing photos without the owner's authorization.
+- **Step 3, proposals only:** nothing is built yet for reviews, the Orchid Lodge history, photo enlargement or guides.
+- **Unchanged:** private preview, no publishing, no real bookings, no Hotel Link changes.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-026 steps 1 and 2 done, `basecamp-website` commit 0f83a39.
+  - Room photos: real alt texts in EN and ES. The unused real photo 1 (queen and single) is added to The Orchid Room.
+  - Hero: the illustration note is gone and the hero has its own alt text.
+  - Hero veil: worst-case subtitle contrast is now 6.7:1 on desktop (was 1.0:1) and 5.5:1 on phones (was 1.4:1).
+  - Café text: em dashes out, 24-hour times.
+  - New `docs/FOTOS-FALTANTES.md`: about 20 photos still needed (bathrooms, views from the door, details, façade, street, reception, café, garden, town).
+  - Tests 51/51. Browser checks on a fresh build show no overflow and no axe violations. No photo was edited or generated.
 
 - **2026-10-23 · Claude.** BD-025 applied in `basecamp-website` commit be33f00, which changes only the content files for payments, The Stay and the conditions.
   - The conditions block is still unmarked and the benefit is still off.
