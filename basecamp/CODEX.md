@@ -637,11 +637,43 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - nothing is implemented until the owner authorizes it;
   - the five guides stay TEST and the site stays a private preview.
 
+**BD-041 · 2026-10-23 · Owner · The ten visual findings to be fixed; a safe proposal first for the image in the public history.**
+- **Authorized:**
+  - fix all ten findings, keeping the design, colours and identity;
+  - the high ones first, then the other seven.
+- **Point 1:** a 16:9 band on phones without the white veil; the desktop version stays intact.
+- **Rules:**
+  - no photo is replaced or edited;
+  - the visual, functional and accessibility tests are run;
+  - the five guides stay TEST and the site stays a private preview; nothing is published and the domain is not connected.
+- **The image in the public repository:** present first a safe proposal to remove it from the history, with its risks and consequences. No force-push and no history rewrite without the owner's express authorization.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-041 applied. `basecamp-website` commit edae490; no photo was edited or replaced.
+  - **High:**
+    1. Under 780 px the home photo shows whole in a 16:9 band above the headline, with no veil and never enlarged; 780 px and wider are unchanged.
+    2. The room choice sits inside the booking card, before the button, with short options.
+    3. The menu, and the footer's fallback link, show Guides only while there is a guide to show.
+  - **Medium and low:**
+    4. The Stay lists keep one column when side by side.
+    5. Privacy, the Photos note and the guides intro sit in the page column, and the guide breadcrumb starts with the article.
+    6. Guide text is about 77 characters per line.
+    7. The header name keeps clear of the language switch at 360 px.
+    8. «Other rooms» cards share one photo width, and subtitles break only between parts.
+    9. Contact links are 44 px tall.
+    10. The footer Privacy link has an icon and lines up.
+  - **Found and fixed during testing:** at first the booking card covered the hero subtitle on phones. A browser check now guards against it.
+  - **Checks:**
+    - npm test 85/85, with 4 new tests in `tests/visual.test.js`;
+    - the browser check now measures these fixes, 37/37, with no sideways scrolling and no axe violations;
+    - the dashboard demo passes.
+  - **Image in the public history:** proposal in `basecamp/HISTORIAL-IMAGEN-PROPUESTA.md`. Nothing was rewritten or force-pushed.
+  - All five guides stay TEST, and nothing is published.
 
 - **2026-10-23 · Claude.** BD-040 recorded. Final visual review: `basecamp/REVISION-VISUAL.md`; the evidence image went to the owner in the chat only, not to this public repository. Read-only: `basecamp-website` is unchanged at cb62155, and no image was touched.
   - **Covered:**
