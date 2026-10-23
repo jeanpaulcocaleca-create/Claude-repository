@@ -556,11 +556,31 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Limit:** confirmed business facts are not marked as pending.
 - **Next:** run the tests and confirm that all five guides are protected by the same mechanism. All stay TEST, the preview stays private, nothing is published.
 
+**BD-033 · 2026-10-23 · Owner · BD-032 approved; the publish block is closed for now.**
+- **Approved:**
+  - the extra marks in guides 01 and 02 stay;
+  - the publish control is approved on the results presented.
+- **Rules:**
+  - the five guides stay TEST until the pending data are verified and the owner expressly authorizes them;
+  - no more changes to the blocking system for now.
+- **Next:** continue with the site's next priorities, with the preview private and nothing published.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-033 recorded. Next priority taken from BD-027, priority 2 (SEO): a read-only audit, with no site files changed. I reviewed 22 pages of a local public build, which was never published, plus the 10 preview guide pages. Proposal: `basecamp/SEO-PROPUESTA.md`.
+  - **Already fine:** hreflang pairs, canonicals, share images, unique titles and descriptions, one h1 per page, image sizes, sitemap, robots.txt, structured data.
+  - **Proposed:**
+    - **SEO-1:** shorter titles for Google, with an optional field; home 65/82 characters, rooms up to 74, guides up to 115.
+    - **SEO-2:** a Google summary for each room, 136 to 152 characters, confirmed facts only.
+    - **SEO-3:** a «Plan your visit» block linking rooms and The Stay to guides; confirmed guides only in public.
+    - **SEO-4:** noindex the guides page while no guide is confirmed (about 22 words today).
+    - **SEO-5:** LodgingBusiness hasMap, petsAllowed and lodge amenities, plus coordinates and profiles from the owner.
+    - **SEO-6:** pillar page text from Lapis.
+  - Waiting for the owner's approval.
 
 - **2026-10-23 · Claude.** BD-032 applied. `basecamp-website` commit 510d3db. All five guides stay TEST.
   - **Marks added on the pending D12 claims, in EN and ES:**
