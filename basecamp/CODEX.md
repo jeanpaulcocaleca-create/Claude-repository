@@ -536,11 +536,38 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   6. The complete first batch is presented for the owner's review.
 - Phase 1 stays a private preview.
 
+**BD-031 · 2026-10-23 · Owner (reviewed with Muse) · Batch 1 corrections.**
+- **Decided:**
+  - **D1** approved: San José departures from Terminal del Atlántico Norte; times and fares stay pending.
+  - **D2** pending an on-site check, marks kept.
+  - **D3:** remove the reserve-bus operator name.
+  - **D4:** the correction, without 7:30.
+  - **D5:** US$26 and US$13 as approximate prices, pending official confirmation.
+  - **D6:** drop the re-entry question unless it is confirmed.
+  - **D7 to D11** approved.
+  - **D12:** transfers and luggage storage approved as business information. Sources and pending checks are kept for parking, distances and the guides' claims.
+  - **T1, T2, P1 and S1 to S5** approved.
+- **Photos:** priority to the street in front of Basecamp with the church behind (guide 05), and a hanging bridge or a misty trail (guide 03). Existing illustrations keep their notes.
+- **Conditions:** corrections in EN and ES; all five guides stay TEST; tests run and the result presented before final approval; nothing published or switched on.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-031 applied in EN and ES. `basecamp-website` commit 845a20d. All five guides stay TEST.
+  - **Open marks:**
+    - 01 keeps 2 per language, for San José bus times and fares (D1);
+    - 02 keeps 4 per language, for the reserve bus timetable and fare, the 6:15 departure twice (D2) and the official entrance fees (D5);
+    - 03, 04 and 05 have none.
+  - **Simulated confirmation:** 01 and 02 are blocked, while 03, 04 and 05 would pass. Their D12 checks (guides' claims, distances) are recorded but not marked. The owner decides whether those checks should also block.
+  - **D11:** the prices date is set when prices are confirmed. 01 and 02 keep price marks, so they cannot be confirmed before then.
+  - **Checks:**
+    - tests 69/69;
+    - browser: 46 screenshots, no overflow, no axe violations;
+    - the dashboard demo passes.
+  - **Photos:** waiting for the two real photos.
 
 - **2026-10-23 · Claude.** The owner kept the five Batch 1 guides in TEST and asked for one decision document before approving them. It is `docs/LOTE-1-DECISIONES.md` in `basecamp-website`, commit c2cfc4c, documentation only. Each item has a code:
   - **D1 to D12:** pending data, each with the current text, the proposed correction and its source. The main ones:
