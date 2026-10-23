@@ -462,11 +462,33 @@ Consequences:
 - The site publishes no condition that contradicts Hotel Link. The conditions block (K-2) stays unmarked until the cutoff is verified and the site's text matches Hotel Link word for word.
 - The site stays a private preview: no real bookings, no launch.
 
+**BD-025 · 2026-10-23 · Owner · BD-024 approved; site texts aligned with Hotel Link; development continues.**
+In Claude's chat:
+- **Payment texts, EN and ES:** nothing is charged at booking, the card is a guarantee, and the guest pays on arrival. This applies to the answer on The Stay and the note on Book.
+- **Cancellation conditions:** option A, in Hotel Link's own terms. Free cancellation more than 1 day before arrival; one night for later cancellations and no-shows; date changes on the same deadline.
+- **The conditions block stays off** until BQ-26 and the legal review are done, even though the text now matches Hotel Link.
+- **Unchanged:** the direct-booking benefit stays off. Hotel Link is not changed, there are no real bookings, and the preview stays private.
+- **Next:** work continues on design, photos and content. Hotel Link's operational items (cutoff hour, English engine, IVA display, bank, card handling) do not hold up site development.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-025 applied in `basecamp-website` commit be33f00, which changes only the content files for payments, The Stay and the conditions.
+  - The conditions block is still unmarked and the benefit is still off.
+  - Tests 51/51. Browser checks were re-run on a fresh build, because the first run had served an old build: no overflow, no axe violations.
+  - **Owner's dashboard edits found (6 "Panel:" commits):**
+    - room photos assigned: Orchid foto-7, Quetzal foto-4, Ceiba foto-5 and foto-2;
+    - the home hero changed to `image.webp`, a real room photo;
+    - home intro and café texts rewritten.
+  - **Issues reported, not edited:**
+    - every room photo has the alt text «space»;
+    - the hero keeps the old alt text and the note «Illustration… not a photo of Basecamp» on a real photo;
+    - the dark headline is hard to read over the photo;
+    - the new café text has em dashes and 12-hour times, and the EN intro has no final period.
+  - Next work package proposed to the owner.
 
 - **2026-10-22 · Claude.** Recorded BD-024, the Hotel Link booking conditions the owner reported after reviewing BD-023 with ChatGPT. Updated BQ-09, BQ-14 and `RESERVATIONS.md` §2. The 2026-10-22 consolidation report (`docs/CONSOLIDACION-INFORME.md` §3 in `basecamp-website`) predates BD-024; its "today" column is superseded.
   - Checked the site against BD-024: no 22-day rule anywhere. The conditions block is unmarked and the benefit is off, so nothing contradicting Hotel Link is shown.
