@@ -605,11 +605,41 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - the site is not published and the domain is not connected;
   - the final result is presented after the tests, to close this SEO phase.
 
+**BD-038 · 2026-10-23 · Owner · Technical close of the SEO phase; three content and consistency adjustments only.**
+- **Approved:** the technical close of the SEO phase.
+- **Authorized, and only these:**
+  1. mark [POR VERIFICAR] the references to the 7:00 opening in guides 02 and 03, when they refer to the same reserve;
+  2. keep the claims on parking, transport and access pending until the CCT's official information is verified;
+  3. remove «Sample guides for the preview» from content meant for publication.
+- **Rules:**
+  - no verification mark is removed without enough evidence;
+  - after these adjustments and their tests, the phase is closed, and no new SEO improvements are opened for now;
+  - all five guides stay TEST and the site stays a private preview; nothing is published and the domain is not connected.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-038 applied. `basecamp-website` commit cb62155, content and tests only. **SEO phase closed.**
+  - **1, opening time:**
+    - every title, line, bridge and FAQ in guides 02 and 03 that states the Cloud Forest Reserve's 7:00 opening now has its own mark, in EN and ES;
+    - guide 02 also has marks on the official hours, the last entry and the opening days;
+    - the Santa Elena Reserve's 7:00 is another reserve and stays as approved (D7).
+  - **2, parking, transport and access:** the same reserve's claims are now marked in guides 02, 03 and 05: tickets, visitor limit and ticket validity, check-in at the visitor centre, where the bus drops visitors, private guide entry, distance, bus stop, timetable and first bus.
+    - Existing marks are unchanged.
+    - Generic mentions that a bus or taxi exists are not marked, and neither are confirmed business facts such as the café at 6:00.
+  - **3:** «Sample guides for the preview.» / «Guías de muestra para la vista previa.» removed from the home page guides text.
+  - **Marks per language:** 4 in guide 01, 23 in 02, 6 in 03, 2 in 04 and 7 in 05. No mark was removed.
+  - **Checks:**
+    - tests 81/81; the new test fails if any of those statements loses its mark;
+    - confirming any of the five guides stops the build (10/10);
+    - browser checks: 46 screenshots, no overflow, no accessibility violations;
+    - the dashboard demo passes;
+    - the local public build has no pending or preview-only text.
+  - **Noted, not changed (outside BD-038):** guides 02, 03 and 04 still give March and April as the quetzal's peak months, which the pillar text softened.
+  - All five guides stay TEST, the site stays a private preview, and no new SEO work is open.
 
 - **2026-10-23 · Claude.** BD-037 applied in the private preview. `basecamp-website` commit fe0a512; `basecamp/PILAR-PROPUESTA.md` version 3 holds the final text.
   - **SEO-6:**
