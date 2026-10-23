@@ -498,6 +498,25 @@ In Claude's chat.
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-23 · Claude.** BD-027 proposals A and B built, `basecamp-website` commit 84f1bfd. C and D are not built.
+  - **Photos:**
+    - swipe gallery on phones, one 4:3 photo at a time with counter, dots and arrows;
+    - mosaic on computers that adapts to 1, 2 or 3 or more photos;
+    - full-screen viewer on the native dialog (Esc, close button, arrow keys, focus returned);
+    - no crop beyond 3 % and no photo shown above its size; photos not edited.
+  - **Room page:**
+    - beds and capacity only in the subtitle;
+    - the facts row shows bathroom, Wi-Fi and rooms of this type;
+    - the booking box comes right after the name on phones and shows the approved payment line (new `payments.short` field);
+    - «Good to know» with times and a list from The Stay (new `good_to_know` field);
+    - compact «Other rooms» cards;
+    - cancellation conditions still hidden.
+  - **Checks:**
+    - 57/57 tests, 6 new;
+    - browser: no overflow, no axe violations (also with the viewer open), 22/22 room photo checks at 390 and 1280 px;
+    - dashboard demo passes; its script now handles rooms that already have photos.
+  - **Fixed in the browser check:** full-page screenshots could show photos blank, because switching photos to eager reloads them; the check now waits until every photo is painted.
+
 - **2026-10-23 · Claude.** BD-027 recorded. The website has no Orchid Lodge mention (content, code and dashboard checked).
   - Audited the photos, galleries and room pages on a fresh build at 390 px and 1280 px, then wrote `HABITACIONES-PROPUESTA.md`: 10 findings and proposals A to D.
   - **Main findings:**
