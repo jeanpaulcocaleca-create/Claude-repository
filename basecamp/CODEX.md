@@ -583,11 +583,26 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - SEO-6 is not implemented yet;
   - no more technical changes for now.
 
+**BD-036 · 2026-10-23 · Owner · Two corrections to the pillar text; final review before PILAR-1 and PILAR-2.**
+- **Agreed:**
+  1. Replace «Travel days don't count» so it says accurately that the arrival day is usually a partial day.
+  2. The pillar page stays unpublished until at least one guide is confirmed.
+- **Titles for Google:** acceptable in principle.
+- **Before the final approval of PILAR-1 and PILAR-2:** the owner reviews the full text in both languages.
+- **Rules:** SEO-6 is not implemented yet, and the preview stays private.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-036 applied to `basecamp/PILAR-PROPUESTA.md` only (version 2). No site files changed.
+  - **Changed:** the «How many days» answer now says the arrival day is usually only a partial day, in EN and ES, following guide 03.
+  - **Added:**
+    - a «Cuándo se publica» section: the pillar stays unpublished until at least one guide is confirmed;
+    - a proposal, not implemented, that SEO-6 make the build enforce this.
+  - **Shown to the owner:** the full text again for the final review.
 
 - **2026-10-23 · Claude.** BD-035 recorded. The full pillar text (EN and ES, titles and summaries for Google) was presented to the owner in the chat, with no site files changed. Every fact was traced to an unflagged sentence in guides 01 to 05. Waiting for PILAR-1 and PILAR-2.
 
