@@ -25,7 +25,7 @@ Evidence labels: **Doc** (vendor or official documentation), **Claim** (vendor m
    (text EN/ES, room details, photos, settings)
                        │  each change triggers a free build (images resized, pages generated)
                        ▼
-   Static website on a free host  ·  basecampmonteverde.com
+   Static website on a free host  ·  monteverdebasecamp.com
                        │  "Book" buttons go through the booking adapter
                        ▼
    Booking adapter  ──►  Hotel Link widget and secure checkout (today)
@@ -209,7 +209,7 @@ A restore drill runs once before launch and then every six months.
 
 | Item | One-time | Yearly | Monthly | Notes |
 |---|---|---|---|---|
-| Domain basecampmonteverde.com | | Renewal, already paid today | | Unavoidable. |
+| Domain monteverdebasecamp.com | | Renewal | | The official domain (BD-043), bought by the owner at GoDaddy. |
 | Hosting | | | **$0** | Free tier, option A or B. |
 | Owner Dashboard (Sveltia CMS) | | | **$0** | Open source. |
 | Dashboard sign-in helper (Cloudflare Worker) | | | **$0** | Not needed with access-token sign-in. Only for the GitHub button: free plan, 100,000 requests a day ([Doc](https://developers.cloudflare.com/workers/platform/limits)). |
@@ -284,7 +284,7 @@ Requested by ChatGPT for the preferred candidate: **Cloudflare Pages, a private 
 
 | Step | What the owner does | Evidence |
 |---|---|---|
-| Sign in | Opens `basecampmonteverde.com/admin` on phone or Mac. The first time on each device, pastes a personal access key from GitHub, limited to the Basecamp repository only. It stays signed in on that device after that. | Doc: [GitHub backend](https://sveltiacms.app/en/docs/backends/github) |
+| Sign in | Opens `monteverdebasecamp.com/admin` on phone or Mac. The first time on each device, pastes a personal access key from GitHub, limited to the Basecamp repository only. It stays signed in on that device after that. | Doc: [GitHub backend](https://sveltiacms.app/en/docs/backends/github) |
 | Edit text | Opens, for example, Rooms, then Family room. English and Spanish fields sit side by side. | Doc: multilingual content ([sveltiacms.app](https://sveltiacms.app/en/)) |
 | Change a photo | Taps the photo field, picks a picture from the phone. The dashboard shrinks it and converts it to WebP before uploading. The owner adds alt text in both languages. | Doc: [internal media and optimizer](https://sveltiacms.app/en/docs/media/internal) |
 | Preview | Taps Save. The change goes to its own draft copy, never the live site. Cloudflare builds a preview of the whole site at a private address for that draft. | Doc: [Sveltia preview workflow](https://sveltiacms.app/en/docs/workflows/preview), [Cloudflare preview deployments](https://developers.cloudflare.com/pages/configuration/preview-deployments/). Whether the dashboard shows the preview link by itself: test in Phase 2 |

@@ -1,6 +1,6 @@
 # Basecamp Monteverde website · project codex
 
-The single source of truth for building the new basecampmonteverde.com.
+The single source of truth for building the new Basecamp Monteverde website at monteverdebasecamp.com, the official domain (BD-043).
 The owner, ChatGPT and Claude all work from this file.
 
 | | |
@@ -116,7 +116,7 @@ NEXT:
 
 ### Goal
 
-Replace basecampmonteverde.com with a lodge website that feels as easy to navigate as a Marriott or Hilton property page, wins more direct bookings, and costs almost nothing to run.
+Replace the current site at basecampmonteverde.com with a lodge website at monteverdebasecamp.com (BD-043) that feels as easy to navigate as a Marriott or Hilton property page, wins more direct bookings, and costs almost nothing to run.
 
 ### What the site sells
 
@@ -211,7 +211,8 @@ These are Claude's proposals. Each needs the owner's OK, after ChatGPT's review.
 
 | Item | Recurring? | Notes |
 |---|---|---|
-| Domain basecampmonteverde.com | Yearly renewal | Unavoidable. |
+| Domain monteverdebasecamp.com | Yearly renewal | The official domain (BD-043), bought by the owner at GoDaddy. |
+| Domain basecampmonteverde.com | Unknown | The previous domain, not used by the new site. No access today (BD-043). |
 | Hosting | No | Free tier, Cloudflare Pages or GitHub Pages (BQ-28). |
 | Owner Dashboard | No | Open-source Sveltia CMS. |
 | Dashboard sign-in helper | No | Free Cloudflare Worker. |
@@ -250,7 +251,7 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-04 | Does Basecamp still offer private transport? If yes, is it a link like the tours, or part of the site? | Phase 1 |
 | BQ-05 | **Answered.** BD-015 (D-12): the brand kit builds on the existing identities. **Logo received from the owner on 2026-10-21** and used on the preview; it lives in the private `basecamp-website` repository. Still needed: the café's logo files, if the café section should show them. Basecamp's logo, colors and fonts. If none exist, Claude proposes a brand kit for approval. | Phase 1 |
 | BQ-06 | The original file of the current home page cloud photo, plus any other photos. Or allow `basecampmonteverde.com` in Claude's environment network settings so Claude can collect them. | Phase 1 |
-| BQ-07 | Who hosts basecampmonteverde.com today, and who controls the domain and DNS? | Launch |
+| BQ-07 | Who hosts basecampmonteverde.com today, and who controls the domain and DNS? **Partly answered by BD-043:** the official domain is `monteverdebasecamp.com`, bought by the owner at GoDaddy. At launch its nameservers move to Cloudflare and its registration stays at GoDaddy, after copying any records it has (email MX and others). The previous domain `basecampmonteverde.com`: no access today; its 301 redirects and the Search Console change of address are pending for later. | Launch |
 | BQ-08 | How bookings arrive today and which listings must stay in sync. **Partly answered 2026-10-19:** reservations run through Hotel Link, which is connected to Booking.com and Airbnb. Any other channels or direct booking routes still to list. | Phase 1 |
 | BQ-09 | Which bank or payment gateway, the SINPE Móvil number to show, and the deposit rule. **Deposit answered by BD-024:** no advance deposit; the card is a guarantee and the guest pays on arrival. **Earlier setup, per owner screenshots reported by ChatGPT:** manual card capture with Visa and Mastercard; Hotel Link Pay off; Tilopay offered as an integration. Still open: the bank (BQ-27) and SINPE Móvil. | Phase 1 |
 | BQ-10 | **Answered by BD-015 (D-07):** yes, private and separate, created only in the authorized build phase; name still to confirm. OK to create a separate repository for the site (P-02)? Its name? | Phase 2 |
@@ -261,7 +262,7 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-15 | Who can log in to the old Orchid Lodge website, its domain, and its listings on TripAdvisor, Google, Booking.com or others? At launch the old site should forward to Basecamp, and each listing should be renamed rather than replaced, so its reviews carry over. | Launch |
 | BQ-16 | ~~What is the single source of truth for the reservation calendar?~~ **Answered by BD-011 (2026-10-20):** Hotel Link. Who keeps it up to date day to day is an operations detail for Phase 3. | Answered |
 | BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
-| BQ-18 | Which current URLs, backlinks and indexed pages must keep working or forward to new pages? | Phase 1 |
+| BQ-18 | Which current URLs, backlinks and indexed pages must keep working or forward to new pages? **BD-043:** they are on the previous domain, to which there is no access today; pending for later. | Phase 1 |
 | BQ-19 | Which amenities are verified, and what does each room rate include? | Phase 1 |
 | BQ-20 | Which photos, reviews and brand assets do we have the right to reuse? | Phase 1 |
 | BQ-21 | Which measurable business results define success for the website? | Phase 1 |
@@ -661,11 +662,79 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no more visual changes for now;
   - the site stays private and the five guides stay TEST.
 
+**BD-043 · 2026-10-23 · Owner · Final launch audit; official domain `monteverdebasecamp.com`.**
+- **Asked:**
+  - a final launch audit, without code changes, in three lists: what is mandatory before publishing, what can wait until after launch, and what the owner must decide or provide;
+  - a concrete, prioritized plan with the least extra work;
+  - the SEO and design phases are not reopened.
+- **P1 approved:** `monteverdebasecamp.com` is the official domain, and `basecampmonteverde.com` is not used as the main address. It is used in:
+  - canonical links and hreflang;
+  - `sitemap.xml` and `robots.txt`;
+  - SEO and Open Graph metadata;
+  - Schema.org data;
+  - internal links and the publishing settings;
+  - Google Search Console, at launch.
+- **D-1:** the owner bought `monteverdebasecamp.com` at GoDaddy.
+- **D-2:** there is no access to `basecampmonteverde.com` today.
+  - Work only on the official domain.
+  - Do not try to change, recover or configure the previous one.
+  - Its 301 redirects and the possible SEO migration stay pending for later.
+  - The project does not stop for it.
+- **Authorized:** group A of the domain proposal:
+  - the build's default address;
+  - the tests;
+  - the site docs;
+  - this CODEX and `ARCHITECTURE.md`, as normal commits with no history rewrite.
+- **Rules:**
+  - no DNS change at GoDaddy, and the domain is not connected to Cloudflare yet;
+  - nothing is published without express authorization;
+  - the site stays private and the five guides stay TEST.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-043 group A applied: `basecamp-website` commit 82afa12.
+  - **Address:**
+    - the build's default address is now `https://monteverdebasecamp.com`;
+    - it feeds canonical links, hreflang (en, es, x-default), `og:url` and `og:image`, Schema.org, `sitemap.xml`, `robots.txt` and `llms.txt`;
+    - the public build has 303 addresses on the official domain and 0 on the previous one;
+    - links between pages were already relative;
+    - `SITE_URL` is not needed in Cloudflare.
+  - **Tests:**
+    - the new `tests/domain.test.js` (3 tests) checks that no file of the preview or public build mentions `basecampmonteverde.com`, and that every page, the sitemap, `robots.txt` and `llms.txt` give the official address;
+    - Claude checked that it fails with the previous domain;
+    - ten test lines moved to the official domain.
+  - **Docs:**
+    - in `basecamp-website`: the README, `CLOUDFLARE-PAGES.md`, `SEGURIDAD-Y-ACCESO.md` and one dashboard hint;
+    - here: this CODEX (header, goal, costs, BQ-07, BQ-18, BD-043) and `ARCHITECTURE.md`;
+    - the BD-023 entry, which says connecting `monteverdebasecamp.com` was not authorized, stays as written: that is still true until launch.
+  - **Checks:**
+    - `npm test`: 88/88;
+    - `npm run check:browser`: no sideways scrolling, no axe violations; booking dates 10/10, consent and offers 27/27, booking engine 11/11, room photos 41/41, visual fixes 37/37;
+    - CI preview security check (run 47): green. Site tests pass, Cloudflare deployed the push, and the preview still asks for its password.
+  - **Not done:** no DNS, GoDaddy, Cloudflare or Hotel Link change, and nothing published. All five guides stay TEST.
+- **2026-10-23 · Claude.** BD-043 launch audit delivered to the owner. The document stays out of this repository.
+  - **Mandatory before launch:**
+    - L1: the final privacy text in EN/ES, with legal review (BQ-26);
+    - L2: the café illustration note, without the word "preview";
+    - L3: the booking path:
+      - A: the real Hotel Link URL in test, then the owner's written authorization, the live lock and a cancelled test booking;
+      - B: WhatsApp only;
+      - either way, the fictitious provider is deleted;
+    - L4: rights to the six real photos in use (BQ-20);
+    - L5: the domain;
+    - L6: the launch switch: `BASECAMP_PUBLIC`, the password scope, and a public mode for the CI check;
+    - L7: GitHub 2FA and a valid dashboard token;
+    - L8: a same-day live check.
+  - **Owner questions:** P1 to P12. P1 is now answered by BD-043.
+  - **Domain audit:**
+    - one source line;
+    - 303 absolute addresses;
+    - internal links relative;
+    - the previous domain is today's live site.
 
 - **2026-10-23 · Claude.** BD-042 applied: the evidence image is removed from the history of `claude/brave-archimedes-ar8uc1`. The full result is in `basecamp/HISTORIAL-IMAGEN-PROPUESTA.md`.
   - **How:**
