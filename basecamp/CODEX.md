@@ -648,11 +648,44 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - the five guides stay TEST and the site stays a private preview; nothing is published and the domain is not connected.
 - **The image in the public repository:** present first a safe proposal to remove it from the history, with its risks and consequences. No force-push and no history rewrite without the owner's express authorization.
 
+**BD-042 · 2026-10-23 · Owner · The ten visual fixes and this phase approved; option B for the image.**
+- **Approved:** the ten visual fixes and the close of this phase.
+- **Authorized:** clean only the history of `claude/brave-archimedes-ar8uc1`, following the proposed procedure and using `--force-with-lease`.
+- **Conditions:**
+  - the final file content is preserved exactly;
+  - main and the other branches are not changed;
+  - verify that the commit holding the image is no longer reachable from the branch's current history;
+  - report any references, copies or cached views that need GitHub Support;
+  - confirm that PR #2 and the project files remain correct.
+- **Rules:**
+  - no more visual changes for now;
+  - the site stays private and the five guides stay TEST.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-042 applied: the evidence image is removed from the history of `claude/brave-archimedes-ar8uc1`. The full result is in `basecamp/HISTORIAL-IMAGEN-PROPUESTA.md`.
+  - **How:**
+    - a local backup, then `git filter-branch` on `00f5f24..HEAD`, removing only that file;
+    - `git push --force-with-lease`, expecting `2e1df84`: `2e1df84 → 3a2afc4`.
+  - **Commits:** `ae25900 → 7628159`, `6bda16f → 2f45151`, `2e1df84 → 3a2afc4`. Authors, dates and messages are kept.
+  - **Verified:**
+    - the final tree is identical (`dca9371`, 0 differences);
+    - the image is in no commit of the branch, not in a fresh clone, and not in `refs/pull/2/head` or `refs/pull/2/merge`;
+    - the history before `00f5f24` is unchanged;
+    - `claude/festive-galileo-0twc1p` (the default branch), `gh-pages`, the other branches and the tags keep their commits;
+    - the repository has no forks;
+    - PR #2 is open, draft, clean, at `3a2afc4`, with 59 commits and 19 files as before;
+    - Claude's local backup and copies were deleted.
+  - **Still needs GitHub Support (only the owner can ask):**
+    - GitHub still serves the old commits by their exact SHA (checked for `ae25900`);
+    - PR #2 shows a "force-pushed" event linking to the old commit.
+    - A draft request is in the document.
+  - **Other agents:** copies fetched before the rewrite (for example by ChatGPT or Codex) must be re-synced and must not be pushed back.
+  - No visual changes, nothing published, and all five guides stay TEST.
 
 - **2026-10-23 · Claude.** BD-041 applied. `basecamp-website` commit edae490; no photo was edited or replaced.
   - **High:**

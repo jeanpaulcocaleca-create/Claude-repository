@@ -1,6 +1,6 @@
 # Imagen en el historial público · propuesta para retirarla (BD-041)
 
-Fecha: 2026-10-23 · Autor: Claude · Estado: **propuesta. No se reescribió nada ni se hizo force-push.** Se necesita la autorización expresa del propietario.
+Fecha: 2026-10-23 · Autor: Claude · Estado: **opción B aplicada el 2026-10-23 (BD-042), con autorización expresa del propietario.** El resultado está al final.
 
 ## Qué pasó
 
@@ -73,3 +73,49 @@ Quita el archivo de la historia de la rama, sin cambiar ningún otro contenido.
 - **Para la opción B:** escribir «Autorizo reescribir el historial de la rama claude/brave-archimedes-ar8uc1 y hacer force-push para quitar la imagen».
 - **Para la solicitud a GitHub Support:** decir si quiere que Claude la redacte.
 - **Si prefiere la opción A:** basta con decirlo, y no se hace nada más.
+
+---
+
+## Resultado (BD-042)
+
+**Qué se hizo:**
+- **Alcance:** solo la rama `claude/brave-archimedes-ar8uc1`, desde `00f5f24`.
+- **Respaldo:** un archivo local de la rama, verificado antes de empezar.
+- **Reescritura:** con `git filter-branch`, que solo quitó el archivo. Conserva el autor, las fechas y los mensajes de cada commit.
+- **Subida:** con `git push --force-with-lease`, que esperaba encontrar `2e1df84` en GitHub. Salió bien: `2e1df84 → 3a2afc4`.
+
+| Commit anterior | Commit nuevo | Qué cambió |
+|---|---|---|
+| `ae25900` (BD-040) | `7628159` | Solo falta la imagen |
+| `6bda16f` (quitar la imagen) | `2f45151` | Nada |
+| `2e1df84` (BD-041) | `3a2afc4` | Nada |
+
+**Verificación:**
+- **Contenido final idéntico:** el árbol de archivos de `3a2afc4` es el mismo que el de `2e1df84`: `dca9371`, con 0 diferencias.
+- **Cada commit nuevo cambia los mismos archivos que antes,** salvo la imagen.
+- **La imagen ya no es accesible desde la historia de la rama:**
+  - ningún commit la contiene;
+  - el archivo no está en ninguna copia nueva descargada de GitHub;
+  - tampoco en las referencias del PR #2 (`refs/pull/2/head` y `refs/pull/2/merge`), que GitHub actualizó solo.
+- **La historia anterior a `00f5f24` no cambió.**
+- **Otras ramas y etiquetas:** no se tocaron `main` (`claude/festive-galileo-0twc1p`), `gh-pages`, las otras ramas `claude/*` ni las etiquetas. Ninguna contenía la imagen.
+- **Forks:** el repositorio no tiene ninguno.
+- **PR #2:**
+  - sigue abierto, como borrador y sin conflictos;
+  - apunta a `3a2afc4`;
+  - tiene 59 commits y 19 archivos cambiados, igual que antes;
+  - comentarios y descripción intactos.
+- **Copias locales de Claude:** se borraron el respaldo, la copia temporal y los objetos viejos del repositorio local.
+
+**Lo que queda y requiere a GitHub Support:**
+- **Commits viejos:** GitHub sigue mostrando `ae25900` si se abre su identificador exacto (verificado), con la imagen. Lo mismo vale para `6bda16f` y `2e1df84`, y para el enlace directo al archivo dentro de esos commits.
+- **Historial del PR #2:** muestra el aviso «force-pushed from 2e1df84 to 3a2afc4», con un enlace de comparación hacia el commit viejo.
+- **Copias descargadas por otros:** GitHub no puede borrarlas. Por ejemplo, si el conector de ChatGPT o Codex descargó la rama.
+- **Copias en el chat:** las imágenes enviadas al propietario por el chat son privadas, pero existen.
+
+GitHub elimina los commits viejos de su caché solo cuando el propietario lo pide a GitHub Support. Solo el propietario de la cuenta puede hacerlo, desde https://support.github.com/contact.
+
+**Borrador del mensaje para GitHub Support** (en inglés, que es el idioma de su soporte):
+
+> Hello, I removed an image that was committed by mistake to my public repository jeanpaulcocaleca-create/Claude-repository. The file was basecamp/revision-visual-evidencia.jpg. I rewrote the history of the branch claude/brave-archimedes-ar8uc1 and force-pushed it (2e1df84 → 3a2afc4). Pull request #2 uses that branch. Please remove the cached views and dereference these orphaned commits so they are no longer reachable on GitHub: ae259002c0233648cc455146cb39683dbea1d15e, 6bda16fa207d178e588f0aa6fa7e2cfd16e3c038, 2e1df84028cc0ec93b09aafe9dff4df311f6980f. The repository has no forks. Thank you.
+
