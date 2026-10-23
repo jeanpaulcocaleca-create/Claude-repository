@@ -1,33 +1,43 @@
-# Página pilar de guías · texto propuesto (SEO-6)
+# Página pilar de guías · texto aprobado (SEO-6)
 
-Fecha: 2026-10-23 · Autor: Claude · Versión 2 (BD-036) · Estado: **propuesta para la aprobación del propietario. No está cargada.**
+Fecha: 2026-10-23 · Autor: Claude · Versión 3 (BD-037) · Estado: **PILAR-1 y PILAR-2 aprobados. Cargada en la vista previa privada como «Contenido de prueba» (`basecamp-website` fe0a512). No está publicada.**
 
 El mapa de Lapis la define así: «P0 · Monteverde: la guía completa para planear su visita», una compilación de las demás guías.
 
-## Cambios en esta versión (BD-036)
+## Historial
 
-- **«Cuántos días»:** «Travel days don't count» / «Los días de viaje no cuentan» se cambió por una frase que refleja la guía 03: el día de llegada suele ser un día parcial.
-- **Publicación:** la página pilar queda fuera de publicación hasta que exista al menos una guía confirmada.
-- **Títulos para Google:** aceptables en principio; pendientes de la aprobación final (PILAR-2).
-- No cambió nada más.
-
-## Cómo está escrito
-
-- **Solo datos que no están pendientes.** Las cinco guías ya los dicen sin marca. No menciona horarios de buses, precios, tiempos de viaje ni distancias, que siguen marcados.
-- **Sin enlaces escritos a mano.**
-  - Debajo del texto, la página ya muestra automáticamente cada guía, agrupada por tema.
-  - Esa lista respeta el estado de cada guía: en el sitio público solo aparecen las confirmadas.
-  - Un enlace escrito a mano hacia una guía en TEST quedaría roto en el sitio público.
-- **No promete avistamientos de fauna.**
-- **El español** usa «usted» y el horario de 24 horas; **el inglés**, el de 12 horas.
-- **Sin rayas largas.**
+- **Versión 2 (BD-036):**
+  - el día de llegada se presenta como un día parcial;
+  - la página queda fuera de publicación hasta que exista al menos una guía confirmada.
+- **Versión 3 (BD-037):** PILAR-1, aprobado con tres ajustes.
+  1. **Tres noches** como recomendación para disfrutar dos días completos, no como requisito.
+  2. **El quetzal,** sin meses pico y sin garantizar ningún mes: «puede mejorar sus probabilidades; ningún mes garantiza verlo».
+  3. **La reserva:**
+     - se identifica como la Reserva Biológica Bosque Nuboso Monteverde;
+     - su hora de apertura queda marcada [POR VERIFICAR] porque no se pudo confirmar con una fuente oficial (ver abajo);
+     - por la misma razón, el resumen para Google dice «a la hora de apertura» en vez de «a las 7:00».
+- **PILAR-2:** aprobado; se usan los títulos opcionales para Google.
 
 ## Cuándo se publica
 
-- Si usted lo aprueba, se carga en el panel, en «Páginas > Página de guías (la guía pilar)», en estado «Contenido de prueba».
-- Queda fuera de publicación hasta que exista al menos una guía confirmada (BD-036). Después, solo se publica cuando usted la confirme.
-- **Hoy esta regla no la hace cumplir el sitio.** En el sitio público el texto solo aparece si la página está confirmada, pero nada impide confirmarla antes que la primera guía.
-- **Propuesta para cuando se implemente SEO-6** (no implementada; solo con su autorización): que el sitio no se actualice si la página pilar está confirmada y no hay ninguna guía confirmada, con un mensaje claro en el panel, igual que el bloqueo de las guías.
+- **Hoy:** está en «Contenido de prueba». El sitio público sigue usando el título y el texto de guías de la página principal.
+- **El sitio no se actualiza si la página está confirmada y:**
+  - no hay ninguna guía confirmada, o
+  - su texto tiene marcas [POR VERIFICAR], ni en el título, ni en el título para Google, ni en el resumen, ni en la introducción.
+- **Para confirmarla hace falta:**
+  1. confirmar la hora de apertura y quitar la marca;
+  2. que al menos una guía esté confirmada;
+  3. su autorización expresa.
+
+## Verificación de la hora de apertura (ajuste 3)
+
+- **La reserva:** Reserva Biológica Bosque Nuboso Monteverde (Monteverde Cloud Forest Biological Reserve), administrada por el Centro Científico Tropical (CCT).
+- **Fuentes oficiales:** `reservamonteverde.com` y `cct.or.cr`. Desde el entorno de trabajo de Claude no se pueden abrir, porque la red del entorno no las permite.
+- **Búsqueda limitada al dominio oficial `cct.or.cr`:**
+  - no da el horario general de la reserva;
+  - sí trae un aviso del CCT sobre cambios en el ingreso desde diciembre de 2024: [Considere estos cambios en el ingreso a la Reserva Bosque Nuboso Monteverde](https://cct.or.cr/cambios-recepcion-monteverde/).
+- **Fuentes no oficiales:** sitios de turismo y una guía de aves dicen de 7:00 a 16:00 todos los días, igual que `RESEARCH.md`. No sirven como verificación oficial.
+- **Resultado:** la hora sigue marcada como pendiente.
 
 ---
 
@@ -35,10 +45,10 @@ El mapa de Lapis la define así: «P0 · Monteverde: la guía completa para plan
 
 **Title:** Monteverde: the complete guide to planning your visit
 
-**Title for Google (optional):** Monteverde guide: plan your visit · Basecamp Monteverde (55 characters)
+**Title for Google:** Monteverde guide: plan your visit · Basecamp Monteverde (55 characters)
 
-**Summary for Google** (137 characters):
-Plan your Monteverde trip: getting to Santa Elena, how many days to stay, the best time to go, where to sleep and the reserve at 7:00 AM.
+**Summary for Google** (155 characters):
+Plan your Monteverde trip: getting to Santa Elena, how many days to stay, the best time to go, where to sleep and the Cloud Forest Reserve at opening time.
 
 **Introduction:**
 
@@ -47,10 +57,10 @@ Plan your Monteverde trip: getting to Santa Elena, how many days to stay, the be
 > ## The short answers
 >
 > - **Getting here.** Monteverde has no airport and no train: everyone arrives by road. When you book anything, your destination is Santa Elena, the town where the hotels, restaurants and bus terminal are.
-> - **How many days.** For most travelers, two full days, which means three nights. Your arrival day is usually only a partial day: the mountain roads are beautiful and slow.
-> - **When to come.** Monteverde has two seasons, not four: dry from December to April, green from May to November. Quetzal season runs roughly from February to June, with March and April the peak months.
-> - **Where to stay.** Santa Elena town, Cerro Plano or near the reserve entrance. There is no wrong zone, only the one that matches how you travel; without a car, town is the easiest base.
-> - **The reserve.** Go in when it opens, at 7:00 AM. The first hours are the quietest on the trails and the most active in the forest.
+> - **How many days.** For most travelers, two full days. To enjoy them without rushing, we recommend three nights: your arrival day is usually only a partial day, because the mountain roads are beautiful and slow.
+> - **When to come.** Monteverde has two seasons, not four: dry from December to April, green from May to November. If you hope to see a resplendent quetzal, its breeding season runs roughly from February to June, which can improve your chances; no month guarantees a sighting.
+> - **Where to stay.** Santa Elena town, Cerro Plano or near the Cloud Forest Reserve entrance. There is no wrong zone, only the one that matches how you travel; without a car, town is the easiest base.
+> - **The reserve.** At the Monteverde Cloud Forest Biological Reserve, go in at opening time: 7:00 AM [POR VERIFICAR: opening time, official source]. The first hours are the quietest on the trails and the most active in the forest.
 >
 > ## How we write these guides
 >
@@ -62,10 +72,10 @@ Plan your Monteverde trip: getting to Santa Elena, how many days to stay, the be
 
 **Título:** Monteverde: la guía completa para planear su visita
 
-**Título para Google (opcional):** Guía de Monteverde: planee su visita · Basecamp Monteverde (58 caracteres)
+**Título para Google:** Guía de Monteverde: planee su visita · Basecamp Monteverde (58 caracteres)
 
-**Resumen para Google** (133 caracteres):
-Planee su viaje a Monteverde: cómo llegar a Santa Elena, cuántos días quedarse, la mejor época, dónde dormir y la reserva a las 7:00.
+**Resumen para Google** (158 caracteres):
+Planee su viaje a Monteverde: cómo llegar a Santa Elena, cuántos días quedarse, la mejor época, dónde dormir y la Reserva Bosque Nuboso a la hora de apertura.
 
 **Introducción:**
 
@@ -74,10 +84,10 @@ Planee su viaje a Monteverde: cómo llegar a Santa Elena, cuántos días quedars
 > ## Las respuestas cortas
 >
 > - **Cómo llegar.** Monteverde no tiene aeropuerto ni tren: todo el mundo llega por carretera. Cuando reserve cualquier servicio, su destino es Santa Elena, el pueblo donde están los hoteles, los restaurantes y la terminal de buses.
-> - **Cuántos días.** Para la mayoría de los viajeros, dos días completos, es decir, tres noches. El día de llegada suele ser solo un día parcial: los caminos de montaña son hermosos y lentos.
-> - **Cuándo venir.** Monteverde tiene dos estaciones, no cuatro: la seca, de diciembre a abril, y la verde, de mayo a noviembre. La temporada del quetzal va aproximadamente de febrero a junio, con marzo y abril como meses pico.
-> - **Dónde hospedarse.** El centro de Santa Elena, Cerro Plano o cerca de la entrada de la reserva. No hay una zona equivocada, solo la que calza con su forma de viajar; sin carro, el centro es la base más fácil.
-> - **La reserva.** Entre a la hora de apertura, a las 7:00. Las primeras horas son las más tranquilas en los senderos y las de mayor actividad en el bosque.
+> - **Cuántos días.** Para la mayoría de los viajeros, dos días completos. Para disfrutarlos sin prisa, recomendamos tres noches: el día de llegada suele ser solo un día parcial, porque los caminos de montaña son hermosos y lentos.
+> - **Cuándo venir.** Monteverde tiene dos estaciones, no cuatro: la seca, de diciembre a abril, y la verde, de mayo a noviembre. Si desea ver un quetzal, su temporada de reproducción va aproximadamente de febrero a junio, lo que puede mejorar sus probabilidades; ningún mes garantiza verlo.
+> - **Dónde hospedarse.** El centro de Santa Elena, Cerro Plano o cerca de la entrada de la Reserva Bosque Nuboso. No hay una zona equivocada, solo la que calza con su forma de viajar; sin carro, el centro es la base más fácil.
+> - **La reserva.** En la Reserva Biológica Bosque Nuboso Monteverde, entre a la hora de apertura: las 7:00 [POR VERIFICAR: hora de apertura, fuente oficial]. Las primeras horas son las más tranquilas en los senderos y las de mayor actividad en el bosque.
 >
 > ## Cómo escribimos estas guías
 >
@@ -90,15 +100,10 @@ Planee su viaje a Monteverde: cómo llegar a Santa Elena, cuántos días quedars
 | Dato | Guía de origen | Estado |
 |---|---|---|
 | Sin aeropuerto ni tren; destino Santa Elena; hoteles, restaurantes y terminal en el pueblo | 01, respuesta directa | Sin marca |
-| Dos días completos, tres noches | 03, respuesta directa | Sin marca |
+| Dos días completos; tres noches como recomendación | 03, respuesta directa | Sin marca |
 | El día de llegada es un día parcial; caminos «hermosos y lentos» | 03, respuesta directa («your arrival day is really a half-day») | Sin marca |
 | Dos estaciones: seca de diciembre a abril, verde de mayo a noviembre | 04, respuesta directa | Sin marca |
-| Quetzal de febrero a junio, pico en marzo y abril | 04 y 02, respuesta directa; también en 03 | Sin marca |
+| Temporada de reproducción del quetzal, de febrero a junio, sin garantía | 04 y 02, respuesta directa; también en 03 | Sin marca |
 | Tres zonas; ninguna equivocada; sin carro, el centro es la base más fácil | 05, respuesta directa | Sin marca |
-| Entrar a las 7:00; primeras horas más tranquilas y activas | 02, respuesta directa; 03; horario 7:00 a 16:00 en RESEARCH.md | Sin marca |
-
-## Lo que necesito de usted
-
-- **PILAR-1:** aprobar el texto tal cual, o indicar los cambios.
-- **PILAR-2:** el título para Google, que es opcional: usarlo o no.
-- **Opcional:** autorizar, para cuando se implemente SEO-6, que el sitio haga cumplir la regla de publicación (sección «Cuándo se publica»).
+| Reserva Biológica Bosque Nuboso Monteverde: abre a las 7:00 | 02; `RESEARCH.md` (7:00 a 16:00) | **[POR VERIFICAR]**: falta la fuente oficial |
+| Primeras horas más tranquilas y activas | 02, respuesta directa; 03 | Sin marca |

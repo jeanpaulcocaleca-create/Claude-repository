@@ -591,11 +591,41 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Before the final approval of PILAR-1 and PILAR-2:** the owner reviews the full text in both languages.
 - **Rules:** SEO-6 is not implemented yet, and the preview stays private.
 
+**BD-037 · 2026-10-23 · Owner · PILAR-1 approved with three adjustments; PILAR-2 approved; GO for SEO-6 and its validation.**
+- **PILAR-1, approved with three adjustments:**
+  1. three nights are a recommendation to enjoy two full days, not a requirement;
+  2. the quetzal season is softened, with no guaranteed months of greater activity;
+  3. the reserve is named and its opening hour officially verified before publishing; if it is not confirmed, it stays marked as pending.
+- **PILAR-2 approved:** use the optional titles for Google in EN and ES.
+- **Authorized:**
+  - SEO-6 in the private preview;
+  - an automatic check that stops the pillar page from being confirmed while no guide is confirmed.
+- **Rules:**
+  - all five guides stay TEST;
+  - the site is not published and the domain is not connected;
+  - the final result is presented after the tests, to close this SEO phase.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-037 applied in the private preview. `basecamp-website` commit fe0a512; `basecamp/PILAR-PROPUESTA.md` version 3 holds the final text.
+  - **SEO-6:**
+    - the guides page carries the approved pillar text and titles for Google in EN and ES, with the three adjustments;
+    - status stays test, so a public build keeps the home page texts.
+  - **Adjustment 3:**
+    - reserve named: Reserva Biológica Bosque Nuboso Monteverde (CCT);
+    - `reservamonteverde.com` and `cct.or.cr` are blocked by this environment's network policy, and a search of `cct.or.cr` gave no general opening hour;
+    - the 7:00 opening time is therefore marked [POR VERIFICAR], and the summary for Google says «at opening time».
+    - The search listed a CCT notice on entry changes since December 2024. The page itself could not be opened; the search summary mentions check-in at the visitor center, a shuttle with a ticket, and limits on private vehicles. It bears on guide 02's parking and shuttle claim, which is already marked; guide 02 itself was not changed.
+  - **New check:** the build stops if the guides page is confirmed while no guide is confirmed. The existing open-mark check for that page now also reads its title for Google.
+  - **Checks:**
+    - tests 80/80, 2 of them new, and the new check's test fails without the check;
+    - browser checks: no overflow at 360 px, no accessibility violations;
+    - the dashboard demo passes.
+  - All five guides stay TEST, and nothing is published.
 
 - **2026-10-23 · Claude.** BD-036 applied to `basecamp/PILAR-PROPUESTA.md` only (version 2). No site files changed.
   - **Changed:** the «How many days» answer now says the arrival day is usually only a partial day, in EN and ES, following guide 03.
