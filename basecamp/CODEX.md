@@ -498,6 +498,8 @@ In Claude's chat.
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-23 · Claude.** The memo's housekeeping note ("no daily housekeeping, ask us for anything") was only a collapsed question on The Stay. It now opens «Good to know» on every room page, in EN and ES, so guests read it before booking. `basecamp-website` commit 0358251, content only. Tests 59/59; browser checks pass.
+
 - **2026-10-23 · Claude.** BD-027 proposal C built, `basecamp-website` commit f81918d. D is not built.
   - **Comparison:** the room comparison on Rooms and Groups shows stacked rows below 600 px and the table above, with no sideways scrolling.
   - **Cards:** the whole card opens the room; the price link keeps its own target.
