@@ -1,6 +1,6 @@
 # Fotos y páginas de habitaciones · propuesta (BD-027, prioridad 1)
 
-Fecha: 2026-10-23 · Autor: Claude · Estado: **A y B aprobadas e implementadas** (commit `84f1bfd` de `basecamp-website`). **C y D siguen como propuesta**, sin implementar.
+Fecha: 2026-10-23 · Autor: Claude · Estado: **A, B y C aprobadas e implementadas** (commits `84f1bfd` y `f81918d` de `basecamp-website`). **D sigue como propuesta**, sin implementar.
 
 Se conservan los colores, las tipografías, el logo, los textos y las fotos originales. No se agregan servicios externos y todo funciona también sin JavaScript. El sitio sigue en vista previa privada.
 

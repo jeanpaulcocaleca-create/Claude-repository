@@ -498,6 +498,13 @@ In Claude's chat.
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-23 · Claude.** BD-027 proposal C built, `basecamp-website` commit f81918d. D is not built.
+  - **Comparison:** the room comparison on Rooms and Groups shows stacked rows below 600 px and the table above, with no sideways scrolling.
+  - **Cards:** the whole card opens the room; the price link keeps its own target.
+  - **Photo count:** a discreet "N photos" badge on each card, also in words for screen readers.
+  - **Checks:** 59/59 tests; browser checks with no overflow, no axe violations and 41/41 room checks.
+  - Design, colours and photos unchanged. Next: guides and SEO (BD-027, priority 2).
+
 - **2026-10-23 · Claude.** BD-027 proposals A and B built, `basecamp-website` commit 84f1bfd. C and D are not built.
   - **Photos:**
     - swipe gallery on phones, one 4:3 photo at a time with counter, dots and arrows;
