@@ -542,6 +542,19 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 
 Newest first. Claude adds a line after every working session.
 
+- **2026-10-23 · Claude.** The owner kept the five Batch 1 guides in TEST and asked for one decision document before approving them. It is `docs/LOTE-1-DECISIONES.md` in `basecamp-website`, commit c2cfc4c, documentation only. Each item has a code:
+  - **D1 to D12:** pending data, each with the current text, the proposed correction and its source. The main ones:
+    - the San José terminal is now Atlántico Norte (El Financiero, Along Dusty Roads, Gecko Routes);
+    - the reserve bus timetable, to be checked at the stop;
+    - the Santa Elena Reserve closing time, to be dropped;
+    - the entrance fee, US$26 and US$13;
+    - «half the price», to be softened.
+  - **T1 and T2:** two translation fixes.
+  - **P1 or P2:** the provisional Spanish bridge of guide 05, approved as written or replaced by Lapis's original.
+  - **S1 to S5:** the summaries for Google in EN and ES, each under 160 characters.
+  - **Covers:** guides 03 and 05 have none; the document recommends shots and how to choose them.
+  - No content changed. Waiting for the owner's answers.
+
 - **2026-10-23 · Claude.** BD-030: Batch 1 is loaded in the private preview. The five guides are in EN and ES, all with status «Guía de muestra»: none is confirmed or published. `basecamp-website` commit 75e7688. Review for the owner: `docs/LOTE-1-REVISION.md`.
   - **Addresses:**
     - 01 and 02 replace the two sample guides and keep their URLs;
