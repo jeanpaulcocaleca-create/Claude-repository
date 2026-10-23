@@ -525,11 +525,53 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   7. «roads truths» corrected. The proposed slugs are kept, and the two existing URLs stay as they are.
 - **Restrictions:** the site stays private, with no public publishing and no new subscriptions.
 
+**BD-030 · 2026-10-23 · Owner · BD-029 approved as the base; Batch 1 authorized for the private preview only.**
+- **Authorized:** Claude prepares and loads Batch 1, exclusively in the private preview.
+- **Conditions:**
+  1. The new guides stay unpublished until their content is verified.
+  2. Decisions 2 to 7 of BD-029 apply.
+  3. Data, links, translations and claims are verified before any guide is marked confirmed.
+  4. No changes to bookings, Hotel Link, DNS or external systems.
+  5. The site is not published and no extra services are switched on.
+  6. The complete first batch is presented for the owner's review.
+- Phase 1 stays a private preview.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-030: Batch 1 is loaded in the private preview. The five guides are in EN and ES, all with status «Guía de muestra»: none is confirmed or published. `basecamp-website` commit 75e7688. Review for the owner: `docs/LOTE-1-REVISION.md`.
+  - **Addresses:**
+    - 01 and 02 replace the two sample guides and keep their URLs;
+    - 03 is `how-many-days-in-monteverde` / `cuantos-dias-en-monteverde`;
+    - 04 is `best-time-to-visit-monteverde` / `mejor-epoca-para-visitar-monteverde`;
+    - 05 is `where-to-stay-in-monteverde` / `donde-hospedarse-en-monteverde`.
+  - **BD-029 decisions applied:**
+    - about 175 em dashes replaced without changing words;
+    - EN 12-hour and ES 24-hour times;
+    - reference facts harmonized (quetzal, bus, temperatures);
+    - the church phrase replaced;
+    - Black Cloudy removed, with «Check our available rates for October» linking to the booking page;
+    - guide 02 marks kept, with 6:15 also marked where it repeats;
+    - «road truths» corrected.
+  - **New marks from fact checking:**
+    - 01: El Financiero reports that San José's Terminal 7-10 closed and that Transmonteverde moved to Terminal del Atlántico Norte.
+    - 03: sources disagree on the Santa Elena Reserve closing time.
+    - 05: the package was cut off before the Spanish bridge, so Claude's provisional translation carries a mark.
+  - **For the owner's review:**
+    - claims only the owner or guides can confirm (re-entry, «half the price» in late May, the bus stop distance, elevation, SJO travel time);
+    - two translation fixes;
+    - the summaries for Google, written by Claude;
+    - no cover photo for guides 03 and 05;
+    - the prices-checked date, set to 2026-10-22.
+  - **Also:** the template example guide was removed, and tests no longer depend on the owner's guides.
+  - **Checks:**
+    - tests 69/69;
+    - browser: 46 screenshots, no overflow, no axe violations;
+    - the dashboard demo edits guide 04 and its 12-row table survives the save;
+    - CI «Preview security check» green on 75e7688.
 
 - **2026-10-23 · Claude.** BD-029: guide template G1 to G8 built in the private preview. `basecamp-website` commit de7c9c0. Owner guide: `docs/GUIAS-PLANTILLA.md`.
   - **The template:**
