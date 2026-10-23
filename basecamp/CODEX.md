@@ -625,11 +625,48 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Next priority:** real photos and the final visual review of Basecamp Monteverde.
 - **First step:** an inventory of the photos available and missing, without changing the site.
 
+**BD-040 · 2026-10-23 · Owner · Inventory approved; final visual review authorized.**
+- **Approved:** the photo inventory (`FOTOS-INVENTARIO.md`).
+- **Authorized:** the final visual review, page by page, on phone and desktop.
+- **Rules for now:**
+  - no photo is modified and no image is replaced;
+  - the café photo with possible privacy problems is not used;
+  - illustrations stay labelled as such;
+  - the 12 gallery photos are not a condition for completing the visual review;
+  - only real problems are presented, ordered by importance, with the recommended fixes;
+  - nothing is implemented until the owner authorizes it;
+  - the five guides stay TEST and the site stays a private preview.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-040 recorded. Final visual review: `basecamp/REVISION-VISUAL.md`, with an evidence image. Read-only: `basecamp-website` is unchanged at cb62155, and no image was touched.
+  - **Covered:**
+    - 35 pages, EN and ES, at 360, 390, 768, 1000 to 1440 px and in dark mode;
+    - the local public build;
+    - screenshots plus measurements.
+  - **High:**
+    1. On phones the home hero crops the 16:9 photo to a tall frame under a white wash, shown about 2.1 times its size.
+    2. On the booking page, the «Room» field sits outside the card, below the button, and its option text is cut on phones.
+    3. In a public build, the menu links to an empty guides page while no guide is confirmed.
+  - **Medium:**
+    4. The Stay on desktop splits each list into narrow inner columns.
+    5. On Privacy and the guides, the heading or breadcrumb does not share the text column's left edge.
+    6. Guide lines run 88 to 99 characters on desktop.
+  - **Low:**
+    7. At 360 px the wordmark nearly touches the language icon.
+    8. The phone «Other rooms» cards are uneven.
+    9. The Location contact links are 20 px tall.
+    10. The footer «Privacy» link has no icon, so it does not line up.
+  - **Verified fine:**
+    - no overflow, cut-off text, or broken or distorted images;
+    - the phone bar never covers content;
+    - dark mode is consistent;
+    - the public build has no test labels or links to sample guides or the Photos page.
+  - Waiting for the owner to choose which fixes to authorize.
 
 - **2026-10-23 · Claude.** BD-039 recorded. Photo inventory: `basecamp/FOTOS-INVENTARIO.md`. Read-only: `basecamp-website` is unchanged at cb62155, and no photo was edited.
   - **Real photos:** 7.
