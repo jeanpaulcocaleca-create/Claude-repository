@@ -616,11 +616,32 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - after these adjustments and their tests, the phase is closed, and no new SEO improvements are opened for now;
   - all five guides stay TEST and the site stays a private preview; nothing is published and the domain is not connected.
 
+**BD-039 · 2026-10-23 · Owner · SEO phase closed; next priority, real photos and the final visual review.**
+- **Approved:** the close of the SEO phase.
+- **For the next content review of guides 02, 03 and 04:** the inconsistency on the quetzal's peak months is recorded.
+- **Rules:**
+  - no more SEO changes for now;
+  - the five guides stay TEST and the site stays a private preview.
+- **Next priority:** real photos and the final visual review of Basecamp Monteverde.
+- **First step:** an inventory of the photos available and missing, without changing the site.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-039 recorded. Photo inventory: `basecamp/FOTOS-INVENTARIO.md`. Read-only: `basecamp-website` is unchanged at cb62155, and no photo was edited.
+  - **Real photos:** 7.
+    - 6 are in use: 5 in the rooms (Orchid 2, Quetzal 1, Ceiba 2) and 1 on the home page, a queen-and-single room whose exact room is to be confirmed.
+    - 1 is unused: the café counter. It cannot be published as is: people who could be recognized sit in the garden behind, and a ceiling security camera is visible.
+  - **Copies only:** every file is a reduced copy (1100 to 1800 px, no camera data); the originals are not in either repository.
+  - **Illustrations with notes:** 4 (the café section and the covers of guides 01, 02 and 04).
+  - **Missing:**
+    - 10 room photos, 9 if the home photo also goes to the Orchid gallery;
+    - 8 shots of the lodge, café and town, including the BD-031 covers for guides 03 and 05;
+    - 12 approved photos for the Photos page, whose four albums are empty.
+  - **Still open:** BQ-06 (original cloud photo of the current home page) and BQ-20 (photo rights).
 
 - **2026-10-23 · Claude.** BD-038 applied. `basecamp-website` commit cb62155, content and tests only. **SEO phase closed.**
   - **1, opening time:**
