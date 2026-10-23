@@ -23,7 +23,7 @@ Fecha: 2026-10-23 · Autor: Claude · Estado: **hallazgos para el propietario.**
 
 ## Hallazgos, de mayor a menor importancia
 
-La imagen `revision-visual-evidencia.jpg` muestra los puntos 1, 2, 4, 7 y 8.
+La imagen de evidencia con los puntos 1, 2, 4, 7 y 8 se envió al propietario por el chat. No se guarda en este repositorio, que es público, porque contiene capturas de la vista previa con las fotos de las habitaciones.
 
 ### Importancia alta
 

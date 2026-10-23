@@ -643,7 +643,7 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 
 Newest first. Claude adds a line after every working session.
 
-- **2026-10-23 · Claude.** BD-040 recorded. Final visual review: `basecamp/REVISION-VISUAL.md`, with an evidence image. Read-only: `basecamp-website` is unchanged at cb62155, and no image was touched.
+- **2026-10-23 · Claude.** BD-040 recorded. Final visual review: `basecamp/REVISION-VISUAL.md`; the evidence image went to the owner in the chat only, not to this public repository. Read-only: `basecamp-website` is unchanged at cb62155, and no image was touched.
   - **Covered:**
     - 35 pages, EN and ES, at 360, 390, 768, 1000 to 1440 px and in dark mode;
     - the local public build;
