@@ -624,7 +624,13 @@ Newest first. Claude adds a line after every working session.
   - **Checks:**
     - tests 80/80, 2 of them new, and the new check's test fails without the check;
     - browser checks: no overflow at 360 px, no accessibility violations;
-    - the dashboard demo passes.
+    - the dashboard demo passes;
+    - CI passed.
+  - **Final audit of a local public build (22 pages, never published):**
+    - no pillar text, no open marks and no sample guide URL;
+    - no duplicate titles or descriptions;
+    - noindex only on the booking and guides pages.
+    - One older finding was not changed: while the pillar is test content, the public guides page uses the home page guides text, which ends «Sample guides for the preview.» / «Guías de muestra para la vista previa.». Proposed to the owner: remove that sentence.
   - All five guides stay TEST, and nothing is published.
 
 - **2026-10-23 · Claude.** BD-036 applied to `basecamp/PILAR-PROPUESTA.md` only (version 2). No site files changed.
