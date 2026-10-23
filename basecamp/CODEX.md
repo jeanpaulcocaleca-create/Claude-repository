@@ -565,11 +565,43 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no more changes to the blocking system for now.
 - **Next:** continue with the site's next priorities, with the preview private and nothing published.
 
+**BD-034 · 2026-10-23 · Owner · SEO-1 to SEO-4 in the private preview; SEO-5 prepared; SEO-6 text first.**
+- **GO:** SEO-1, SEO-2, SEO-3 and SEO-4 in the private preview.
+- **Conditions:**
+  - titles for Google are editable, unique and natural, never cut only to fit 60 characters;
+  - room descriptions use confirmed information only;
+  - internal links respect each guide's status, and no TEST guide appears in a public version;
+  - SEO-4 applies only while no guide is confirmed, without touching the indexing of the other hotel pages.
+- **SEO-5:** prepare it with valid properties and confirmed data only. No invented coordinates, services or official links.
+- **SEO-6:** present the full pillar page text for the owner's approval first.
+- Run the tests and present the results. The site stays private; nothing is published and no domain is connected.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-034 applied in the private preview. `basecamp-website` commit bfb6aa4; owner note `docs/SEO.md`.
+  - **SEO-1:**
+    - an optional «Título para Google» on rooms, guides, pages and the home page; the lodge name is added once and nothing is cut;
+    - filled in both languages or neither, no amounts, and the build stops if two pages of a language share a title;
+    - loaded on the home page, the three rooms and guides 02, 03 and 05; guides 01 and 04 keep their own titles;
+    - all titles are 58 characters or fewer.
+  - **SEO-2:** an optional «Resumen para Google» on rooms, with the three approved texts (136 to 152 characters).
+  - **SEO-3:** «Plan your visit» on the room pages and The Stay; a public build lists only confirmed guides, so today it shows nothing.
+  - **SEO-4:** in a public build with no confirmed guide, the guides page is noindex, out of the sitemap and out of `llms.txt`; every other hotel page stays indexable.
+  - **SEO-5:**
+    - added: hasMap, petsAllowed (new «Mascotas» setting, «no» per BD-023) and the amenities of a confirmed The Stay page;
+    - removed: inLanguage, which is not a lodging property;
+    - coordinates must be both or none and inside Costa Rica; they and the official profiles stay empty until the owner writes them.
+  - **SEO-6:** `basecamp/PILAR-PROPUESTA.md`, not loaded. It waits for PILAR-1 (the text) and PILAR-2 (the optional title for Google).
+  - **Checks:**
+    - tests 78/78, 6 of them new;
+    - browser checks: 46 screenshots, no overflow at 360 px, no accessibility violations;
+    - the dashboard demo passes;
+    - the existing guide block also reads the new field.
+  - All five guides stay TEST, and nothing is published.
 
 - **2026-10-23 · Claude.** BD-033 recorded. Next priority taken from BD-027, priority 2 (SEO): a read-only audit, with no site files changed. I reviewed 22 pages of a local public build, which was never published, plus the 10 preview guide pages. Proposal: `basecamp/SEO-PROPUESTA.md`.
   - **Already fine:** hreflang pairs, canonicals, share images, unique titles and descriptions, one h1 per page, image sizes, sitemap, robots.txt, structured data.
