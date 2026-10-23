@@ -492,11 +492,51 @@ In Claude's chat.
 - **Priority 2:** review and improve the guides for SEO, after the rooms are done.
 - **Unchanged:** private preview.
 
+**BD-028 · 2026-10-23 · Owner (through Lapis) · Guides Library (Knowledge Hub): strategy, rules and map.**
+Package «The Monteverde Guides Library», from the owner through Lapis.
+- **The map:** 27 guides plus a pillar page, approved by the owner on 2026-10-22. Each guide answers one real search.
+- **Binding template:**
+  - a direct answer in the first paragraph;
+  - first-hand depth;
+  - 4 to 6 FAQs with FAQ structured data;
+  - a soft bridge of at most 2 to 3 lines at the end.
+- **Writing rules:**
+  - EN and ES each written natively, with «usted»;
+  - facts verified, or marked [POR VERIFICAR] and never published as fact;
+  - no promised wildlife sightings;
+  - no selling in the body.
+- **Workflow:** Lapis drafts 2 guides every two weeks, and the owner approves the facts. Guides are then published from the dashboard by the owner or staff, with no engineer per guide. Claude builds the template once; template changes go to Claude, content does not.
+- **Batch 1 (guides 01 to 05):** received written. It waits for the owner's fact approval before Claude loads it into the preview.
+- **Not authorized:** publishing, bookings, domains or external services.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-028 received. Checked the guide template against the library rules; no site files changed.
+  - **Already works:**
+    - bilingual guides created and edited in the dashboard, with stable slugs and hreflang;
+    - Markdown body;
+    - Article and breadcrumb structured data.
+  - **Missing:**
+    - a direct-answer field;
+    - FAQs with FAQPage data;
+    - a bridge block;
+    - a guard that keeps [POR VERIFICAR] out of a published guide;
+    - tables that fit phones;
+    - more categories and the guides index as the pillar;
+    - related-guide links;
+    - a visible note on illustrated guide covers (missing today, against AGENTS.md).
+  - **Batch 1 issues reported to the owner:**
+    - third-party prices against the no-prices rule;
+    - em dashes and 12-hour times;
+    - inconsistent quetzal season, bus time and temperatures across guides;
+    - «50 m from the church» in two bridges;
+    - the Black Cloudy offer is not set up in Hotel Link;
+    - guide 02's bridge repeats the flagged bus time.
+  - Waiting for the owner's GO on the template and approval of the facts.
 
 - **2026-10-23 · Claude.** The memo's housekeeping note ("no daily housekeeping, ask us for anything") was only a collapsed question on The Stay. It now opens «Good to know» on every room page, in EN and ES, so guests read it before booking. `basecamp-website` commit 0358251, content only. Tests 59/59; browser checks pass.
 
