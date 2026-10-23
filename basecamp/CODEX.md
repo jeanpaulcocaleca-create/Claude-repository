@@ -550,11 +550,36 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Photos:** priority to the street in front of Basecamp with the church behind (guide 05), and a hanging bridge or a misty trail (guide 03). Existing illustrations keep their notes.
 - **Conditions:** corrections in EN and ES; all five guides stay TEST; tests run and the result presented before final approval; nothing published or switched on.
 
+**BD-032 · 2026-10-23 · Owner · Marks on the pending D12 claims; no guide with pending information can be confirmed.**
+- **Authorized:** [POR VERIFICAR] marks on the pending D12 claims in guides 03, 04 and 05.
+- **Rule:** the system must stop the confirmation of any guide that holds information still to verify, whatever that information is.
+- **Limit:** confirmed business facts are not marked as pending.
+- **Next:** run the tests and confirm that all five guides are protected by the same mechanism. All stay TEST, the preview stays private, nothing is published.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-032 applied. `basecamp-website` commit 510d3db. All five guides stay TEST.
+  - **Marks added on the pending D12 claims, in EN and ES:**
+    - 03: travel time from San José, «longest cables», the families' night walk;
+    - 04: bellbird month, veranillo dates;
+    - 05: Cerro Plano distances in the text and in a FAQ, the last lodges near the entrance;
+    - 01 and 02 under the same rule: SJO travel time, the reserve parking fee and shuttle.
+    - Confirmed business facts carry no mark: transfers, luggage storage, café hours, ten rooms, location.
+  - **Open marks per language:** 01 has 4, 02 has 5, 03 has 3, 04 has 2, 05 has 3.
+  - **Mechanism hardened:**
+    - the block now also reads the picture note;
+    - it counts [POR CONFIRMAR], [PENDIENTE] and the bare words «por verificar», «por confirmar» and «to verify», in any case;
+    - source tags such as [GUÍA] or [CASA] are not marks.
+  - **Proof:** each of the five guides was set to confirmed in a copy of the site, and the real build stopped all ten times (preview and public), naming each mark's location.
+  - **Checks:**
+    - tests 72/72 (3 new);
+    - browser: 46 screenshots, no overflow, no axe violations;
+    - the dashboard demo passes;
+    - each page highlights exactly its own marks.
 
 - **2026-10-23 · Claude.** BD-031 applied in EN and ES. `basecamp-website` commit 845a20d. All five guides stay TEST.
   - **Open marks:**
