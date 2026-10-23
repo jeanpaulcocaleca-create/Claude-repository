@@ -690,11 +690,48 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - nothing is published without express authorization;
   - the site stays private and the five guides stay TEST.
 
+**BD-044 · 2026-10-23 · Owner · Group A closed; launch decisions; editorial review of the guides.**
+- **Accepted:** the BD-043 group A results; that stage is closed.
+- **Decisions:**
+  - **P2:** Hotel Link is the booking system, subject to checking the real link and that it works.
+  - **P7:** the café note becomes «Ilustración, no es una foto de Basecamp», with its natural English equivalent.
+  - **P9:** `/admin/` stays protected after launch.
+  - **P10:** no claim about IVA on the late check-out is published until it is confirmed.
+  - **P11:** launch is NOT authorized yet.
+- **Authorized:**
+  - a bilingual privacy draft for review, not published;
+  - an editorial review of the five guides in EN and ES, editing their content in the private preview, not published:
+    - remove the [POR VERIFICAR] marks without inventing information;
+    - rewrite each claim and the ones that depend on the same fact;
+    - where a fact is essential, verify it with a reliable source or reformulate so the advice does not depend on it;
+    - keep the guides detailed and search-friendly, with the same quality in both languages;
+    - keep an internal record of the changes, and run the tests.
+- **Rules:**
+  - no design changes;
+  - no booking or DNS changes, no GoDaddy changes, and the domain is not connected;
+  - the five guides stay TEST until express authorization;
+  - the publishing protections are not disabled;
+  - no new development phases outside these requirements.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-044 applied in the private preview: `basecamp-website` commit 683a306. All five guides and the guides page stay TEST.
+  - **Guides, editorial review (EN and ES):**
+    - the 86 [POR VERIFICAR] marks (43 per language) were resolved by rewriting each claim, plus 23 more per language that depended on the same fact;
+    - the official reserve and CCT sites are unreachable from this environment, so no reserve hour, fee, ticket rule, bus stop or timetable is stated. The advice ("go at opening time") stays, with a pointer to the official information;
+    - the SJO time is 3 to 4 hours, from the operators' estimates in RESEARCH.md;
+    - quetzal season is February to June, without peak months, in every guide (BD-039);
+    - the full record is in `docs/REVISION-EDITORIAL-GUIAS.md`, with what still needs a real check, unmarked claims for a local guide, and a proposal for the home subtitle ("an hour before the reserve opens"), which was not changed.
+  - **Guard test:** the BD-038 test now covers all guides and the guides page. Those facts can come back only with their own mark. Claude checked that it fails when two of them are reintroduced.
+  - **P7:** the home café note now reads "Illustration, not a photo of Basecamp" / «Ilustración, no es una foto de Basecamp».
+  - **P10:** the site states nothing about IVA on the late check-out; nothing changed.
+  - **Privacy:** `docs/PRIVACIDAD-BORRADOR.md` is a bilingual draft for the owner and a lawyer, with placeholders for P4. It is not loaded on the site; the Privacy page keeps its test text.
+  - **Checks:** `npm test` 88/88; `check:browser` all green; CI run 48: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
+  - **Not done:** no design, booking, DNS or GoDaddy change, and nothing published.
 
 - **2026-10-23 · Claude.** BD-043 group A applied: `basecamp-website` commit 82afa12.
   - **Address:**
