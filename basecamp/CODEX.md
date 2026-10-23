@@ -576,11 +576,20 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **SEO-6:** present the full pillar page text for the owner's approval first.
 - Run the tests and present the results. The site stays private; nothing is published and no domain is connected.
 
+**BD-035 · 2026-10-23 · Owner · SEO-1 to SEO-5 approved; the pillar text is reviewed before PILAR-1 and PILAR-2.**
+- **Approved:** SEO-1 to SEO-5, as reported for BD-034.
+- **Before deciding PILAR-1 and PILAR-2:** the owner reviews the full `PILAR-PROPUESTA.md` in EN and ES, including the proposed titles for Google.
+- **Rules:**
+  - SEO-6 is not implemented yet;
+  - no more technical changes for now.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-035 recorded. The full pillar text (EN and ES, titles and summaries for Google) was presented to the owner in the chat, with no site files changed. Every fact was traced to an unflagged sentence in guides 01 to 05. Waiting for PILAR-1 and PILAR-2.
 
 - **2026-10-23 · Claude.** BD-034 applied in the private preview. `basecamp-website` commit bfb6aa4; owner note `docs/SEO.md`.
   - **SEO-1:**
