@@ -509,11 +509,49 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Batch 1 (guides 01 to 05):** received written. It waits for the owner's fact approval before Claude loads it into the preview.
 - **Not authorized:** publishing, bookings, domains or external services.
 
+**BD-029 · 2026-10-23 · Owner · GO for the guide template G1 to G8 in the private preview; decisions for Batch 1.**
+- **GO:** build and verify the template G1 to G8 only. The publish block for facts still to verify is mandatory.
+- **Not yet:** the five Batch 1 guides are not loaded as approved content. The owner authorizes their load after checking the template.
+- **Batch 1 decisions, applied at load time:**
+  1. Third-party prices only in guides, as approximate references with the date they were checked. Room rates keep their current setup (BD-011).
+  2. Em dashes normalized to the site style without rewriting the articles. English uses 12-hour times, Spanish 24-hour times.
+  3. Drafts harmonized to these reference facts, keeping their sources and verification status:
+     - quetzal season February to June, peak March and April;
+     - bus to the reserve 10 to 15 minutes;
+     - temperatures 18 to 24 °C by day and 12 to 16 °C at night.
+  4. «50 m from the church» becomes «a few steps from the church, in the center of Santa Elena».
+  5. Guide 04: Black Cloudy removed. It uses «Consulte nuestras tarifas disponibles para octubre», with no unconfirmed discounts.
+  6. Guide 02 keeps every [POR VERIFICAR] mark, including the 6:15 time.
+  7. «roads truths» corrected. The proposed slugs are kept, and the two existing URLs stay as they are.
+- **Restrictions:** the site stays private, with no public publishing and no new subscriptions.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-029: guide template G1 to G8 built in the private preview. `basecamp-website` commit de7c9c0. Owner guide: `docs/GUIAS-PLANTILLA.md`.
+  - **The template:**
+    - G1, a direct answer in an «In short» box at the top;
+    - G2, 4 to 6 FAQs with FAQPage data;
+    - G3, a bridge of at most 600 characters, with no amounts and the buttons the owner chooses;
+    - G5, tables that become one card per row on phones;
+    - G6, six topics and the guides page as the pillar, with its own editable introduction;
+    - G7, related guides plus a link to the pillar;
+    - G8, an «Illustration, not a photo of Basecamp» note on illustrated covers.
+  - **The publish block (G4):**
+    - [POR VERIFICAR], [VERIFICAR] and [TO VERIFY] marks are highlighted in the preview, with a count.
+    - A confirmed guide with any open mark, in either language and any field, stops the build and names where the mark is.
+    - A public build carries only confirmed guides. Sample guides never reach the pages, the sitemap, llms.txt or the home page.
+  - **Decision 1:** third-party prices are allowed in guides only with a «checked on» date, which the page shows. Room rates still come only from Hotel Link.
+  - **Dashboard:** new fields for all of the above, plus a preview-only template example guide. The dashboard demo opens a guide, edits it and saves it, and the table, FAQs, related guides and buttons survive.
+  - **Checks:**
+    - tests 69/69, 10 of them new;
+    - browser: 42 screenshots, no overflow at 360 px, no axe violations in light or dark;
+    - all existing flows pass;
+    - CI «Preview security check» green on de7c9c0 (preview still behind its password).
+  - **Batch 1 not loaded.** Waiting for the owner's authorization after checking the template.
 
 - **2026-10-23 · Claude.** BD-028 received. Checked the guide template against the library rules; no site files changed.
   - **Already works:**
