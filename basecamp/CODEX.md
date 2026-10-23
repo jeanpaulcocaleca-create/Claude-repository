@@ -484,11 +484,29 @@ In Claude's chat.
 - **Step 3, proposals only:** nothing is built yet for reviews, the Orchid Lodge history, photo enlargement or guides.
 - **Unchanged:** private preview, no publishing, no real bookings, no Hotel Link changes.
 
+**BD-027 · 2026-10-23 · Owner · BD-026 step 3 priorities.**
+In Claude's chat.
+- **Priority 1:** improve how the photos and rooms are presented. Claude proposes first; nothing is built before the owner approves. Keep the design and visual identity, and never edit or retouch the original photos.
+- **Reviews:** not now. A Google link may come later.
+- **Orchid Lodge:** never mentioned anywhere on the website. This replaces the "formerly Orchid Lodge" proposal. The listing work in BQ-15 stays outside the site.
+- **Priority 2:** review and improve the guides for SEO, after the rooms are done.
+- **Unchanged:** private preview.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-23 · Claude.** BD-027 recorded. The website has no Orchid Lodge mention (content, code and dashboard checked).
+  - Audited the photos, galleries and room pages on a fresh build at 390 px and 1280 px, then wrote `HABITACIONES-PROPUESTA.md`: 10 findings and proposals A to D.
+  - **Main findings:**
+    - on phones the stacked photos push the room name down to 676 px with 2 photos, and to about 1,400 px with 5;
+    - the booking box sits at 1,827 px;
+    - beds and guests are repeated four times;
+    - on desktop, the second photo is cropped to a strip, and a single photo is cropped to 21:9 and upscaled;
+    - there is no full-size photo viewer.
+  - No site files changed. Waiting for the owner's approval.
 
 - **2026-10-23 · Claude.** BD-026 steps 1 and 2 done, `basecamp-website` commit 0f83a39.
   - Room photos: real alt texts in EN and ES. The unused real photo 1 (queen and single) is added to The Orchid Room.
