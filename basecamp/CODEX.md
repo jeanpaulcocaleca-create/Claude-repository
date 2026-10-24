@@ -760,11 +760,49 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no DNS change, no publishing and no new payment features;
   - no design change and no new development phase.
 
+**BD-049 · 2026-10-24 · Owner · Both BD-048 checks resolved; build the Hotel Link search address.**
+- **English confirmed:** the owner opened Hotel Link with `lang=en` and the interface is in English.
+- **Parameters observed:** the address Hotel Link generated after choosing dates and guests:
+  - `…&lang=en&check_in=18+Nov+2026&check_out=20+Nov+2026&filter_adult=2&filter_child=0&filter_room=1`
+  - meaning: `check_in` and `check_out` are the dates, `filter_adult` the adults, `filter_child` the children, `filter_room` the number of rooms, and `lang` the language.
+- **Asked:**
+  - build the address from the dates and guests chosen on the site;
+  - use exactly the observed date format (`18 Nov 2026`, URL-encoded);
+  - use `lang=es` and `lang=en` by language;
+  - no `utm_source=chatgpt.com`;
+  - check in Prueba that the addresses are built correctly and no data is lost;
+  - invent no room-type parameter, so the room is chosen in Hotel Link;
+  - if it cannot be checked that Hotel Link accepts a directly built address, record that as pending.
+- **Rules:**
+  - the site stays private, bookings in Prueba and the activation lock in place;
+  - no DNS, payment, design or tax changes;
+  - run the tests and report before any activation.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-049 prepared in Prueba: `basecamp-website` commit a2e9424.
+  - **Hotel Link address:** `…roomrate?id=…&lang={lang}&check_in={checkin}&check_out={checkout}&filter_adult={guests}&filter_child=0&filter_room=1`, with the date format "DD MMM YYYY".
+    - The room type is chosen in Hotel Link.
+    - The site has no children field: guests go as adults.
+    - No tracking parameters.
+  - **Code:**
+    - a new date format "DD MMM YYYY", with English months in both languages, in the server helper and the browser;
+    - in the query, a space is written "+";
+    - the server helper leaves out empty dates instead of writing "undefined", as the browser already did;
+    - the dashboard offers the new format.
+  - **Checked:**
+    - for 18 to 20 Nov 2026 and 2 adults, the English address is identical to the owner's Hotel Link address;
+    - in Chromium on local builds: the preview shows the addresses in EN and ES and sends nobody; a public build stays on WhatsApp and has no Hotel Link address; a local-only Activo simulation sends the correct addresses, including a single-digit day (`05+Sep+2027`) and no-guests cases. The requests were intercepted, so Hotel Link was never opened.
+  - **Pending (the network policy blocks the host):**
+    1. Hotel Link applies a directly built address (dates and adults pre-filled).
+    2. With `lang=es`, Hotel Link accepts English month names.
+    3. Single-digit days are written with a leading zero (`05`).
+  - **Noticed, not changed:** the owner's dashboard commits 304f013 and 33e0677 replaced the home café illustration with `web-basecamp.webp` (a styled coffee and croissant picture, 1536 × 1024) and dropped the illustration note. Its alt text still describes hanging vines. To confirm: is it a real photo of the café? If it is generated or stock, the rules require a visible note.
+  - **Checks:** `npm test` 89/89; `check:browser` all green, booking engine 13/13; CI run 55: green (site tests pass, Cloudflare deployed, the preview still asks for its password). Runs 53 and 54, the owner's dashboard commits, are green too.
 
 - **2026-10-24 · Claude.** BD-048 prepared in Prueba: `basecamp-website` commit 382972e.
   - **What changed:**
