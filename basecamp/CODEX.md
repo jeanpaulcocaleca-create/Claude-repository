@@ -264,13 +264,13 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-17 | ~~Must launch support instant confirmed bookings, or are booking requests acceptable for a while?~~ **Answered 2026-10-19:** instant confirmed bookings (BD-009). | Answered |
 | BQ-18 | Which current URLs, backlinks and indexed pages must keep working or forward to new pages? **BD-043:** they are on the previous domain, to which there is no access today; pending for later. | Phase 1 |
 | BQ-19 | Which amenities are verified, and what does each room rate include? | Phase 1 |
-| BQ-20 | Which photos, reviews and brand assets do we have the right to reuse? | Phase 1 |
+| BQ-20 | Which photos, reviews and brand assets do we have the right to reuse? **Partly answered by BD-052:** the owner confirmed the rights to the six hotel photos listed in BD-051 (the five room photos and the home cover `image.webp`). **Still open:** the origin and rights of `web-basecamp.webp`, the home café picture, which is not the composition of three café drinks the owner described. | Phase 1 |
 | BQ-21 | Which measurable business results define success for the website? | Phase 1 |
 | BQ-22 | How are simultaneous bookings, calendar failures, outages and recovery handled? Proposal in `RESERVATIONS.md`. | Phase 1 |
 | BQ-23 | ~~Accept one subscription exception for a new booking system?~~ **On hold:** probably unnecessary, since Hotel Link is already in use. No additional subscription is proposed or approved. | On hold |
 | BQ-24 | **Answered for dates, adults and language by BD-049 and BD-050:** the parameters come from Hotel Link's own search address, and the owner verified three built addresses in Hotel Link. No room-type parameter is known, so the room is chosen in Hotel Link. **Earlier, BD-015 (D-11):** message ready in `HOTEL-LINK-PREGUNTAS.md`; the owner sends it. Approve sending the questions in `RESERVATIONS.md` section 8 to Hotel Link support? The owner or ChatGPT sends them; Claude does not contact vendors. Beds24 and others are no longer being quoted. | Phase 1 |
 | BQ-25 | Which Hotel Link products and plan are active, at what monthly price? Plus the extranet screenshots listed in `RESERVATIONS.md` section 8, with guest and card details hidden. **Partly answered:** ChatGPT reviewed the payment and booking-condition screenshots; Claude has not seen them. Screenshots go in Claude's chat, never in this public repository. | Phase 1 |
-| BQ-26 | Approve a Costa Rican lawyer and the accountant reviewing the final booking terms: the 8-day withdrawal right, penalties, IVA on penalties and deposits, electronic invoices, and the privacy notice. | Phase 1 |
+| BQ-26 | Approve a Costa Rican lawyer and the accountant reviewing the final booking terms: the 8-day withdrawal right, penalties, IVA on penalties and deposits, electronic invoices, and the privacy notice. **BD-052:** no lawyer for now; the privacy draft must not be presented as legally approved. | Phase 1 |
 | BQ-27 | Ask the lodge's bank whether its card terminal allows key-entered, card-not-present charges for no-show and late-cancellation penalties, and at what fee. | Phase 1 |
 | BQ-28 | **BD-015 (D-06):** option A preferred, pending technical verification. Hosting: option A, Cloudflare Pages with a private repository and a free Cloudflare account, or option B, GitHub Pages with a public repository? See `ARCHITECTURE.md` section 6.1. Option A also means moving the domain's nameservers to Cloudflare at launch. *ChatGPT recommends option A, pending verification.* | Phase 1 |
 | BQ-29 | **Answered by BD-015 (D-10):** only the owner publishes at first. Who besides the owner may edit the website, and should their changes wait for the owner's approval? A free private repository cannot enforce approval. *ChatGPT recommends owner-only publishing at launch.* | Phase 1 |
@@ -813,11 +813,65 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no new phases and no repeating finished work;
   - no change is published without the owner's authorization.
 
+**BD-052 · 2026-10-24 · Owner · Prepare the privacy policy with confirmed data; photo rights.**
+- **Confirmed legal identification:**
+  - trade name: Basecamp Monteverde;
+  - legal name: Rutas Turisticas SRL;
+  - cédula jurídica: 3-102-941835;
+  - privacy email: rutasturisticascostarica@gmail.com;
+  - country: Costa Rica.
+  - Use exactly these, and invent no legal address, phones or representatives.
+- **Data the lodge asks for:** name, email, nationality, phone. Claim no passport, ID, signature or other data. The policy keeps apart what the lodge asks for and what Hotel Link may collect during a booking.
+- **Still open:**
+  - the retention period: no number of years, to be validated against Costa Rican legal obligations;
+  - what Hotel Link sends to the lodge: not to be described as verified. Review only the available documentation and settings, with no real booking and no change to the provider.
+- **Other decisions:**
+  - no lawyer review for now, and no claim of legal approval;
+  - Google Analytics and Meta Pixel later: neither activated nor said to be installed.
+- **Preparation:**
+  - update `docs/PRIVACIDAD-BORRADOR.md` in ES and EN, in clear professional language;
+  - check Law 8968 and its regulations without inventing obligations or retention periods;
+  - include only processing that can be backed;
+  - identify the pending data and claims;
+  - make the English match the Spanish;
+  - publish no incomplete policy and keep the test notices until authorized.
+- **Photos:**
+  - the owner holds the rights to the six hotel photos in BD-051; that item is closed;
+  - the three-drinks composition is a different picture from `web-basecamp.webp`, whose origin and rights stay pending; it is not changed or labelled without confirmation.
+- **Rules:**
+  - the site stays private with its password, and Hotel Link in Prueba;
+  - no GoDaddy, DNS or Cloudflare changes;
+  - no real bookings, Analytics or Pixel;
+  - no design, rate, tax or cancellation-policy changes;
+  - no new phases.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-052: `basecamp-website` commit 2e77422, documentation only; the built site is unchanged.
+  - **Privacy draft (ES and EN, matching sections):**
+    - the responsible party exactly as confirmed;
+    - the lodge's data (name, email, nationality, phone) kept apart from what Hotel Link may collect;
+    - only practices checked on the site: no forms that send data, no measurement or advertising cookies, Cloudflare hosting, Hotel Link bookings with the card as a guarantee (BD-024);
+    - no claim of legal approval.
+  - **Pending codes in the draft:**
+    - [P-1] the address of the responsible party (Law 8968, article 5.1.h, requires it);
+    - [P-2] the retention period;
+    - [P-3] what Hotel Link sends;
+    - [P-4] the recipients, and confirming no sale or transfer of data;
+    - [P-5] other uses of nationality;
+    - [P-6] the answer deadline;
+    - [FECHA].
+  - **Law sources:**
+    - the official SCIJ and PRODHAB pages are unreachable from this environment;
+    - article 5's list (including h, the identity and address of the responsible party) was confirmed in published copies of the law;
+    - the article 7 deadline appears only in an unofficial source, so the draft states no number.
+  - **Hotel Link:** the project's documentation does not say what it sends to the lodge, and its site is blocked here. No booking was made and the provider was not changed.
+  - **Photos:** BQ-20 is closed for the six hotel photos; `web-basecamp.webp` stays open.
+  - **Checks:** `npm test` 89/89.
 
 - **2026-10-24 · Claude.** BD-051: `basecamp-website` commit 40e9f91, private preview only.
   - **The Stay bus FAQ:**
