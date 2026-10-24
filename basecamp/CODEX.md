@@ -738,11 +738,30 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no new editorial phases;
   - the next work is only the booking and privacy requirements for launch.
 
+**BD-047 · 2026-10-24 · Owner · One more correction on the home page.**
+- **Authorized:** replace the home claim that the reserve bus runs «cinco veces al día» with a natural, useful sentence, with no frequency or times.
+  - ES: «Desde el centro de Santa Elena puede consultar las opciones de transporte hacia la reserva y otros atractivos de Monteverde».
+  - EN: its natural equivalent.
+- **Also asked:** verify that no public page still states that frequency.
+- **Rules:**
+  - no design change and no new editorial phase;
+  - the preview stays private and the five guides stay TEST;
+  - after the tests, only bookings and privacy.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-047 applied in the private preview: `basecamp-website` commit 7569423.
+  - **Home:** the "In the center of Santa Elena" card uses the owner's sentence. EN: "In the center of Santa Elena you can look into transport options to the reserve and Monteverde's other attractions."
+  - **Check:** Claude searched a local public build (never deployed) for any bus frequency. The home page is clean in both languages. The guides have none and are not in the public build.
+  - **Still there, reported, not changed (outside BD-047):** The Stay FAQ "How do I get to the Monteverde reserve?" still says "five times a day" / «cinco veces al día».
+  - **Proposed for that FAQ:**
+    - EN: "A local public bus links Santa Elena with the Monteverde Cloud Forest Reserve. Ask at reception for today's times."
+    - ES: «Un bus público local une Santa Elena con la Reserva Biológica Bosque Nuboso Monteverde. Pregunte en recepción los horarios del día.»
+  - **Checks:** `npm test` 88/88; `check:browser` all green; CI run 51: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
 
 - **2026-10-24 · Claude.** BD-046 applied in the private preview: `basecamp-website` commit a5f597c. The editorial stage is closed.
   - **Home:**
