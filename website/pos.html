@@ -1234,6 +1234,9 @@ function showOp(){
 }
 async function loadOperator(){
   var r = await db.rpc('setting', {p_key: 'operator_mode'});
+  /* no answer (no internet: this runs again at every sign-in event, also when the screen wakes up): keep what we knew,
+     so the chip stays and the sales keep who rang them. Only an older database, without setting(), is off */
+  if (r.error && !/setting|schema cache|could not find/i.test(r.error.message || '')) return;
   OP_MODE = (!r.error && typeof r.data === 'string') ? r.data : 'off';    /* an older database: off */
   if (OP_MODE === 'off'){ showOp(); return; }
   if (OP && OP.expires_at && new Date(OP.expires_at) < new Date()){ OP = null; saveOp(); }

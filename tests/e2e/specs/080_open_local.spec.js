@@ -8,7 +8,7 @@
      refused 400, the database refused the sale (sure) */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, cashExact } = require('../lib');
+const { page, goto, until, settle, sql, openRegister, cashExact } = require('../lib');
 
 const id = (n) => 'f1000000-0000-4000-8000-0000000060' + String(n).padStart(2, '0');
 const CORS = { 'access-control-allow-origin': '*' };
@@ -231,6 +231,7 @@ module.exports.tests = [
     name: 'M5: rung offline, the tries made offline decide nothing; charged here; back online it goes in paid at once',
     run: async ({ browser }) => {
       const A = await device(browser);
+      await settle(A);
       await A.context().setOffline(true);
       await push(A, later(5, 75, [['Latte', 2200, 1]]));
       assert.strictEqual(await A.evaluate((i) => qFind(i).none, id(5)), true, 'tried offline: still surely not in the system');

@@ -1959,3 +1959,52 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `docs/PERSONAL-NUEVO.md` and `reversion-0031.sql`'s message. Committed to the development branch on 2026-10-24 with
   the owner's authorization, which keeps the limit at 10 PINs an hour. 0033 is not applied and nothing is published:
   the owner and Claude go through E-36 together first. The tablet transition (E-05) stays stopped.
+
+## D-054 · 2026-10-24 · The POS keeps «who rings up» when it cannot check without internet; offline tests wait for the page
+
+- **Why:** `120_operators` › «without internet: a sale keeps the person who rang it» failed about 1 run in 10 with three
+  busy CPUs (`page.click: Timeout 30000ms exceeded … locator('#opBtn') … 2 × waiting for element to be visible, enabled
+  and stable`), and older runs of 020, 280, 310 and the live POS offline sale stopped the same way. The renderer was
+  not stalled: `run.js` printed only the first 6 lines of the error, and the next line of Playwright's log says
+  «element is not visible».
+- **Cause (a real bug in the POS, there since the operator mode, 0008):** the POS checks the sign-in two or three times
+  as it opens (at load, then once per sign-in event), and each time it reads `operator_mode` again. `loadOperator()`
+  took any failed read as «an older database: off». A read still in flight when the test went offline failed, the mode
+  became `off`, and the chip `#opBtn` was hidden. The café gets there without any race: supabase-js announces the
+  sign-in again whenever the screen comes back (`visibilitychange` → `SIGNED_IN`, no request needed). Without internet
+  that read fails, the chip disappears, every sale from then on goes up with nobody (`no_operator`) until the page is
+  reloaded online, and in `enforce` mode the rule switches itself off. Shown on the published POS with the real test
+  and one read held back: let through when the test goes offline, the same error; let through after Ana is picked
+  offline, her sale uploads with no cashier; and on a settled POS whose screen wakes offline, `(nobody)|no_operator`.
+- **Change (`website/pos.html`, `loadOperator`):** a read that gets no answer keeps what the page knew, like the
+  register check (`loadRegister`). Only an older database (no `setting()`: «Could not find the function … in the
+  schema cache») means off, as before. A POS opened without internet still starts with the mode off, as before, and
+  the offline sale itself is unchanged.
+- **Tests:**
+  - New in `120_operators`: the screen wakes up without internet; the chip stays and the sale uploads as Ana, not
+    checked. It fails on the published POS.
+  - `settle(pg)` in `tests/e2e/lib.js` (`networkidle`): 020, 080 M5, 120, 310 (two tests) and the live POS offline sale
+    now wait for the POS's own load-time checks before going offline. When a test cuts them off, they are checks
+    without internet to the POS, which then does what it does offline: the Today window opens by itself (the register
+    looks unopened), the people are not saved yet for offline use, or a late answer brings back the «who is ringing
+    up» window the test has just closed. Each was seen with every answer delayed 0–400 ms; with `settle` those tests
+    pass even on the published POS.
+  - The sign-ins of 120 and 280 also `settle` first. 280 never goes offline: a late answer to one of the load-time
+    checks of the mode opens the «who is ringing up» window again after the test has picked a person, so the PIN box
+    is hidden and «Start» disabled (`element is not visible` / `is not enabled`). With the last check answered
+    150–800 ms late, 4 of 6 delays failed before and none after. The page keeps this, like Home in D-053: a cashier who
+    taps their name in the first half second after the POS opens may have to tap it again.
+  - `run.js` prints 12 lines of a failure, so a click that times out shows Playwright's reason.
+  - Results: `node tests/e2e/run.js 120_operators` 20 of 20 and `280_cafe_day` 10 of 10 with three CPU-burning processes
+    on 4 CPUs (this machine had not hit the failure in 30 loaded runs before the fix either; the held-read runs above
+    reproduce it every time). The
+    offline tests of 020, 080, 120 and 310 with every answer delayed 0–400 ms: 36 of 36 (before: 2 or 3 of 5 failed
+    per round). `tests/run.sh`: lint; SQL 40/40; backups; the rehearsal with the published pages on 0033 (8/8) and on
+    the reset café (8/8, 2/2); browser 148/150. The two left are `320_home_reviews` R2 and R3, which open the real
+    Google and Tripadvisor pages: the session's network refuses those hosts, and they fail the same way on the
+    unchanged branch (GitHub «Tests» #151 passed them). GitHub «Tests» on this commit is the full check.
+- **Same pattern, not changed here (no sale data at stake):** `loadTax()` reads `price_mode` the same way (display
+  only, locked to «inclusive»); `loadSettings()` forgets the pickup-number setting and `whoami()` shows the owner links
+  on the café login when the read fails offline.
+- **Records:** this entry and the checklist row. The change ships with the next release of the pages; nothing is
+  published or applied.

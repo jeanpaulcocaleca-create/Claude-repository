@@ -72,6 +72,15 @@ async function until(fn, ms, what) {
   throw new Error('timed out waiting for ' + (what || 'condition') + (last instanceof Error ? ': ' + last.message : ''));
 }
 
+/* before a test goes offline: the page's own requests answered. The POS checks the sign-in, its settings, the register
+   and the people two or three times as it opens (once at load, once per sign-in event). A check the test cuts off by
+   going offline first is a check without internet to the page, which does what it does offline: the Today window opens
+   by itself (the register looks unopened), the people are not saved for offline use yet, or a late answer brings back
+   a window the test has just closed (each seen with every answer delayed 0-400 ms, as on a slow machine; D-054). */
+async function settle(pg) {
+  await pg.waitForLoadState('networkidle');
+}
+
 /* the day's register already opened (most POS tests start mid-day) */
 function openRegister(floatCrc) {
   sql(`insert into public.register_days (business_date, opened_by, opened_by_name, float_crc)
@@ -94,4 +103,4 @@ async function cashExact(pg) {
   await pg.click('#cashExact');
 }
 
-module.exports = { page, goto, until, sql, sqlJson, openRegister, pos, cashExact, SITE, STAFF, PINS, LOGINS, ROOT };
+module.exports = { page, goto, until, settle, sql, sqlJson, openRegister, pos, cashExact, SITE, STAFF, PINS, LOGINS, ROOT };
