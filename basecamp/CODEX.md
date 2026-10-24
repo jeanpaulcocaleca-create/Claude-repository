@@ -748,11 +748,38 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - the preview stays private and the five guides stay TEST;
   - after the tests, only bookings and privacy.
 
+**BD-048 · 2026-10-24 · Owner · Hotel Link's official booking link.**
+- **Link:** the official Spanish link is `https://book.securebookings.net/roomrate?id=e5e982b3-…&lang=es`. The owner opened it and saw the rooms, rates, availability and booking options.
+- **Asked:**
+  - prepare the link in the site's Book buttons;
+  - check whether `lang=en` works for English;
+  - check whether dates, guests and rooms can be passed, if Hotel Link allows it;
+  - report any problem before further changes.
+- **Rules:**
+  - keep it private and in test until express authorization;
+  - no DNS change, no publishing and no new payment features;
+  - no design change and no new development phase.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-048 prepared in Prueba: `basecamp-website` commit 382972e.
+  - **What changed:**
+    - the saved Hotel Link address was already the official one, labelled "fictitious"; it is now recorded as official;
+    - type "link with parameters", with `lang={lang}`, `lang_en` "en" and `lang_es` "es";
+    - the state stays Prueba.
+  - **Checked in Chromium on local builds:**
+    - the preview shows the address it would open (EN `lang=en`, ES `lang=es`) and sends nobody;
+    - a public build keeps Book on WhatsApp and does not contain the Hotel Link address;
+    - a local-only Activo simulation sends each language to its own address. The requests were intercepted, so Hotel Link was never opened;
+    - Activo still needs `BASECAMP_LIVE_BOOKING`.
+  - **Problems reported, nothing more changed:**
+    1. `lang=en` could not be checked: the network policy blocks `book.securebookings.net`. The owner opens the English link to confirm.
+    2. Dates, guests and room do not reach Hotel Link: it documents no parameters (BQ-24), and none were guessed. On Activo the guest would pick dates again on Hotel Link, with no notice on the site.
+  - **Checks:** `npm test` 88/88; `check:browser` all green; CI run 52: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
 
 - **2026-10-24 · Claude.** BD-047 applied in the private preview: `basecamp-website` commit 7569423.
   - **Home:** the "In the center of Santa Elena" card uses the owner's sentence. EN: "In the center of Santa Elena you can look into transport options to the reserve and Monteverde's other attractions."
