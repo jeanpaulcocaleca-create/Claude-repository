@@ -794,11 +794,59 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Not authorized:** activating bookings, publishing, DNS, Cloudflare, payments or taxes.
 - **Then:** only the updated list of requirements still pending for launching monteverdebasecamp.com. No new phases, and no repeating approved checks.
 
+**BD-051 · 2026-10-24 · Owner · Administrative and editorial items before preparing the launch.**
+- **Hotel Link:** closed and approved in Prueba.
+- **Asked:**
+  1. Correct «cinco veces al día» in The Stay bus FAQ, EN and ES, with a general description and no invented times or frequencies.
+  2. List only the privacy (P4) data the owner must confirm, as simple questions in Spanish.
+  3. Prepare an identifiable list of the six photos that need rights confirmation, with where each appears.
+  4. Keep the origin of `web-basecamp.webp` pending.
+- **Owner's message during this work:** "the picture of Hanging Garden Café's three drinks" shows three real drinks from the café, photographed separately and combined into one composition for that section.
+  - Record it in the CODEX.
+  - No "AI-generated" label, and the picture and design stay.
+  - The alt text must describe the three drinks, and no other photo is changed.
+  - First check that it is the same file `web-basecamp.webp` before closing its origin and rights item.
+- **Rules:**
+  - no GoDaddy, DNS, Cloudflare, payment or booking changes;
+  - nothing published and the password stays;
+  - run the tests and record the result;
+  - no new phases and no repeating finished work;
+  - no change is published without the owner's authorization.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-051: `basecamp-website` commit 40e9f91, private preview only.
+  - **The Stay bus FAQ:**
+    - EN: "A local public bus links Santa Elena with the Monteverde Cloud Forest Reserve, and taxis are also an option. Ask at reception for today's times."
+    - ES: «Un bus público local une Santa Elena con la Reserva Biológica Bosque Nuboso Monteverde, y también puede ir en taxi. Pregunte en recepción los horarios del día.»
+    - A local public build has no bus frequency left on any page.
+  - **The six photos that need rights confirmation (BQ-20)**, matched to the built pages by file hash:
+    1. `habitacion-foto-7-orquideas.jpg`, La Orquídea's first photo: La Orquídea page, and the La Orquídea card on the home page, the Rooms page and "Other rooms" on the other two room pages.
+    2. `habitacion-foto-1-pared-de-madera.jpg`, La Orquídea's second photo: La Orquídea page only.
+    3. `habitacion-foto-4-flores.jpg`, El Quetzal's only photo: El Quetzal page and its cards on the home page, Rooms and "Other rooms".
+    4. `habitacion-foto-5-tucan-y-rosas.jpg`, La Ceiba's first photo: La Ceiba page and its cards on the home page, Rooms and "Other rooms".
+    5. `habitacion-foto-2-ventana.jpg`, La Ceiba's second photo: La Ceiba page only.
+    6. `image.webp`, the home page cover, in EN and ES.
+  - **Privacy (P4) questions for the owner:**
+    - the legal name and ID;
+    - the contact email;
+    - the data asked on arrival and why;
+    - the retention period;
+    - confirming what Hotel Link sends;
+    - a lawyer review, yes or no;
+    - whether measurement is on at launch.
+  - **The café composition:**
+    - **The owner's confirmation (recorded as given):** the café section picture is a composition of three real Hanging Garden Café drinks, photographed separately and combined.
+    - **Checked against the file:**
+      - the only café picture on the site is `web-basecamp.webp`, and no new upload exists;
+      - it shows two drinks (a cappuccino in a white cup and a coffee in a glass), a chocolate chip croissant and coffee beans.
+    - **Result:** it does not match "three drinks", so its origin and rights item stays open until the owner confirms which picture is meant.
+    - **Not changed:** the alt text already describes what the picture shows; no label was added; the picture and design are unchanged.
+  - **Checks:** `npm test` 89/89; `check:browser` all green; CI run 57: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
 
 - **2026-10-24 · Claude.** BD-050 recorded: `basecamp-website` commit be07faa.
   - **Hotel Link:** the owner approved the three checks, BD-049 is closed and BQ-24 is answered for dates, adults and language. Only the provider note in `booking.json` changed. The address, type and Prueba state are unchanged, and the live lock stays.
