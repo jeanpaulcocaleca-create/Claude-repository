@@ -268,7 +268,7 @@ A revised phase plan that adds the Owner Dashboard is proposed in `ARCHITECTURE.
 | BQ-21 | Which measurable business results define success for the website? | Phase 1 |
 | BQ-22 | How are simultaneous bookings, calendar failures, outages and recovery handled? Proposal in `RESERVATIONS.md`. | Phase 1 |
 | BQ-23 | ~~Accept one subscription exception for a new booking system?~~ **On hold:** probably unnecessary, since Hotel Link is already in use. No additional subscription is proposed or approved. | On hold |
-| BQ-24 | **BD-015 (D-11):** message ready in `HOTEL-LINK-PREGUNTAS.md`; the owner sends it. Approve sending the questions in `RESERVATIONS.md` section 8 to Hotel Link support? The owner or ChatGPT sends them; Claude does not contact vendors. Beds24 and others are no longer being quoted. | Phase 1 |
+| BQ-24 | **Answered for dates, adults and language by BD-049 and BD-050:** the parameters come from Hotel Link's own search address, and the owner verified three built addresses in Hotel Link. No room-type parameter is known, so the room is chosen in Hotel Link. **Earlier, BD-015 (D-11):** message ready in `HOTEL-LINK-PREGUNTAS.md`; the owner sends it. Approve sending the questions in `RESERVATIONS.md` section 8 to Hotel Link support? The owner or ChatGPT sends them; Claude does not contact vendors. Beds24 and others are no longer being quoted. | Phase 1 |
 | BQ-25 | Which Hotel Link products and plan are active, at what monthly price? Plus the extranet screenshots listed in `RESERVATIONS.md` section 8, with guest and card details hidden. **Partly answered:** ChatGPT reviewed the payment and booking-condition screenshots; Claude has not seen them. Screenshots go in Claude's chat, never in this public repository. | Phase 1 |
 | BQ-26 | Approve a Costa Rican lawyer and the accountant reviewing the final booking terms: the 8-day withdrawal right, penalties, IVA on penalties and deposits, electronic invoices, and the privacy notice. | Phase 1 |
 | BQ-27 | Ask the lodge's bank whether its card terminal allows key-entered, card-not-present charges for no-show and late-cancellation penalties, and at what fee. | Phase 1 |
@@ -778,11 +778,35 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no DNS, payment, design or tax changes;
   - run the tests and report before any activation.
 
+**BD-050 · 2026-10-24 · Owner · The three Hotel Link checks approved; BD-049 closed.**
+- **Approved by the owner, in Hotel Link itself:**
+  1. English, 18 to 20 November, 2 adults: correct.
+  2. Spanish, 18 to 20 November, 2 adults: correct.
+  3. English, 5 to 7 December, 3 adults: correct.
+  Each link opened Hotel Link with the right language, dates and adults, with no need to enter them again.
+- **Closed:** BD-049, and its three pending points are removed.
+- **Instructions:**
+  - keep the current integration without unnecessary changes;
+  - bookings stay in Prueba and the site stays protected;
+  - correct the alt text of `web-basecamp.webp` to describe the coffee and croissant picture, without changing the picture or the design;
+  - make no claim about whether the picture is real or generated until the owner confirms its origin;
+  - run the tests and record the changes.
+- **Not authorized:** activating bookings, publishing, DNS, Cloudflare, payments or taxes.
+- **Then:** only the updated list of requirements still pending for launching monteverdebasecamp.com. No new phases, and no repeating approved checks.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-050 recorded: `basecamp-website` commit be07faa.
+  - **Hotel Link:** the owner approved the three checks, BD-049 is closed and BQ-24 is answered for dates, adults and language. Only the provider note in `booking.json` changed. The address, type and Prueba state are unchanged, and the live lock stays.
+  - **Home café picture:** the alt text now describes it.
+    - EN: "A cappuccino, a glass of coffee and a chocolate chip croissant on a wooden table, with coffee beans and green plants around them".
+    - ES: «Un capuchino, un vaso de café y un croissant con chispas de chocolate sobre una mesa de madera, con granos de café y plantas verdes alrededor».
+    - The picture, its note and the design are unchanged. Its origin waits for the owner.
+  - **Checks:** `npm test` 89/89; `check:browser` all green, booking engine 13/13; CI run 56: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
 
 - **2026-10-24 · Claude.** BD-049 prepared in Prueba: `basecamp-website` commit a2e9424.
   - **Hotel Link address:** `…roomrate?id=…&lang={lang}&check_in={checkin}&check_out={checkout}&filter_adult={guests}&filter_child=0&filter_room=1`, with the date format "DD MMM YYYY".
@@ -797,11 +821,12 @@ Newest first. Claude adds a line after every working session.
   - **Checked:**
     - for 18 to 20 Nov 2026 and 2 adults, the English address is identical to the owner's Hotel Link address;
     - in Chromium on local builds: the preview shows the addresses in EN and ES and sends nobody; a public build stays on WhatsApp and has no Hotel Link address; a local-only Activo simulation sends the correct addresses, including a single-digit day (`05+Sep+2027`) and no-guests cases. The requests were intercepted, so Hotel Link was never opened.
-  - **Pending (the network policy blocks the host):**
-    1. Hotel Link applies a directly built address (dates and adults pre-filled).
-    2. With `lang=es`, Hotel Link accepts English month names.
-    3. Single-digit days are written with a leading zero (`05`).
-  - **Noticed, not changed:** the owner's dashboard commits 304f013 and 33e0677 replaced the home café illustration with `web-basecamp.webp` (a styled coffee and croissant picture, 1536 × 1024) and dropped the illustration note. Its alt text still describes hanging vines. To confirm: is it a real photo of the café? If it is generated or stock, the rules require a visible note.
+  - **Verified by the owner in Hotel Link (BD-050, closed):** the three checks that could not be run from this environment were approved by the owner:
+    - EN, 18 to 20 Nov, 2 adults;
+    - ES, 18 to 20 Nov, 2 adults;
+    - EN, 5 to 7 Dec, 3 adults.
+    Each opened Hotel Link with the right language, dates and adults. Nothing is pending for this integration.
+  - **Noticed, not changed:** the owner's dashboard commits 304f013 and 33e0677 replaced the home café illustration with `web-basecamp.webp` and dropped the illustration note. Its alt text still described hanging vines; corrected in BD-050. Its origin waits for the owner's confirmation.
   - **Checks:** `npm test` 89/89; `check:browser` all green, booking engine 13/13; CI run 55: green (site tests pass, Cloudflare deployed, the preview still asks for its password). Runs 53 and 54, the owner's dashboard commits, are green too.
 
 - **2026-10-24 · Claude.** BD-048 prepared in Prueba: `basecamp-website` commit 382972e.
