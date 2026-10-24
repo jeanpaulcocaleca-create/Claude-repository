@@ -713,11 +713,48 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - the publishing protections are not disabled;
   - no new development phases outside these requirements.
 
+**BD-045 · 2026-10-24 · Owner · Editorial direction approved; two final adjustments; the editorial review closes.**
+- **Approved:** the BD-044 editorial direction and results.
+- **Authorized in the private preview:**
+  1. The home subtitle becomes:
+     - ES: «Sirviendo café desde las 6:00 a. m., ideal para comenzar temprano tu aventura en Monteverde».
+     - EN: «Serving coffee from 6:00 AM, perfect for an early start to your Monteverde adventure».
+  2. A review of the claims that never had [POR VERIFICAR], especially transport prices, distances, wildlife seasons and specific figures; those without enough support are reformulated, without inventing data.
+- **Rules:**
+  - keep the SEO quality and both languages;
+  - no publishing of the guides, and no design, booking or DNS changes;
+  - after the tests, the editorial review is finished;
+  - no new guides phase without a concrete reason.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-045 applied in the private preview: `basecamp-website` commit ca1c78b. The editorial review of the guides is closed. All five guides stay TEST.
+  - **Home:** the hero subtitle uses the owner's exact wording.
+  - **Second pass on claims that never had a mark (EN and ES):**
+    - **Kept, because they have support:**
+      - Santa Elena's elevation and the SJO, Liberia and jeep-boat-jeep times, from RESEARCH.md;
+      - the quetzal season, February to June, where several sources agree;
+      - that bridges and zip lines run in the rain unless there is lightning, confirmed in RESEARCH.md.
+    - **Removed or reformulated:**
+      - every transport price (guide 01's "prices checked" date is cleared);
+      - the km figures and the Sardinal turn-off;
+      - the Liberia route, which mixed two roads;
+      - the jeep-boat-jeep legs;
+      - temperatures without figures;
+      - the 13 km of trails and the tour durations;
+      - the hawk species;
+      - the frog peak;
+      - the superlatives.
+  - **Flagged for the owner, not changed:**
+    - the subtitle's «tu» against the site's «usted»;
+    - "an hour before the reserve opens" in the home café section and in The Stay breakfast FAQ, with proposed rewording.
+  - **Record:** `docs/REVISION-EDITORIAL-GUIAS.md` section 10.
+  - **Checks:** `npm test` 88/88; `check:browser` all green; CI run 49: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
+  - **Not done:** nothing published, and no design, booking or DNS change.
 
 - **2026-10-23 · Claude.** BD-044 applied in the private preview: `basecamp-website` commit 683a306. All five guides and the guides page stay TEST.
   - **Guides, editorial review (EN and ES):**
