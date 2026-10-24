@@ -885,7 +885,7 @@ Newest first. Claude adds a line after every working session.
     - written consent (paper or electronic, per the sources found): how the lodge obtains it is not documented, and the draft claims no method;
     - whether the lodge's database must be registered with PRODHAB: not confirmed in the official text.
   - **Law sources:** the Archivo Nacional copy of the law is also blocked from this environment.
-  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 59: running at the time of writing.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 59: green.
 
 - **2026-10-24 · Claude.** BD-052: `basecamp-website` commit 2e77422, documentation only; the built site is unchanged.
   - **Privacy draft (ES and EN, matching sections):**
