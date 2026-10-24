@@ -845,11 +845,47 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no design, rate, tax or cancellation-policy changes;
   - no new phases.
 
+**BD-053 · 2026-10-24 · Owner · Final confirmations for the privacy policy.**
+- **Legal data:** Rutas Turisticas SRL, cédula jurídica 3-102-941835; address the same as the lodge (Santa Elena, Monteverde, Puntarenas, Costa Rica); privacy email rutasturisticascostarica@gmail.com.
+- **Processing:**
+  - the lodge asks for name, email, nationality and phone;
+  - nationality is used for statistics grouped by country, to decide where to invest in advertising;
+  - the data are not used to send individual promotions by email or WhatsApp;
+  - no guest information is shared with the accountant;
+  - no personal data are sold or shared with other companies for commercial purposes;
+  - Hotel Link sends the lodge booking notifications with name, dates and contact details;
+  - guests can ask at the email for access, correction or deletion.
+- **Still pending:** the retention period; no periods are invented and no legally required information is left out.
+- **The sentence on refusing to give data:** the owner prefers to leave out that a booking might not be possible without the data. Omit it if the law allows; if not, explain why it is needed before publishing.
+- **Other decisions:** no lawyer review for now; Google Analytics and Meta Pixel later, not activated.
+- **Rules:**
+  - the privacy page stays in test mode and the draft is not published;
+  - the password stays; no real bookings;
+  - no DNS, Cloudflare, payment or design changes.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-053: `basecamp-website` commit 5c9605c, documentation only; the built site and the preview privacy page are unchanged.
+  - **Privacy draft (ES and EN, matching sections):**
+    - [P-1] address: the lodge's published address, marked as the same as the lodge;
+    - [P-3] Hotel Link's booking notifications with name, dates and contact details;
+    - [P-4] no sale or sharing for commercial purposes; Hotel Link, WhatsApp and the email service named as the providers used; the accountant is not mentioned because nothing is shared with them;
+    - [P-5] nationality for country statistics, and no individual promotions by email or WhatsApp;
+    - rights requested at the privacy email.
+  - **Contradictions fixed:** the text said all four items are used for, and needed for, the booking; nationality now has its own use, and "needed" covers only name, email and phone. The country statistics come from the lodge's data, not the site, which still has no measurement or advertising cookies.
+  - **The sentence on refusing to give data:** Law 8968 article 5.1 (d and f, from published copies) requires saying whether answers are required or optional and what happens if they are not given, so it cannot be dropped entirely. The draft removes "es posible que no podamos gestionarla" and proposes "Necesitamos su nombre, su correo electrónico y su teléfono para confirmar y atender su reserva", coded [P-7]. The owner decides on that wording and on whether nationality is required or optional.
+  - **Legal points still to verify:**
+    - [P-2] the retention period;
+    - [P-6] the answer deadline (five business days only in an unofficial source);
+    - [P-7] required or optional, and the consequence;
+    - written consent (paper or electronic, per the sources found): how the lodge obtains it is not documented, and the draft claims no method;
+    - whether the lodge's database must be registered with PRODHAB: not confirmed in the official text.
+  - **Law sources:** the Archivo Nacional copy of the law is also blocked from this environment.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 59: running at the time of writing.
 
 - **2026-10-24 · Claude.** BD-052: `basecamp-website` commit 2e77422, documentation only; the built site is unchanged.
   - **Privacy draft (ES and EN, matching sections):**
