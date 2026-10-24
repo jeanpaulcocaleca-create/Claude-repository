@@ -228,7 +228,8 @@ En este orden. Cada paso es de solo lectura o se puede deshacer.
 | 0027 | `drop trigger order_zz_operator_upd`; volver a crear `tab_pay` de pos-tabs.sql y `pos_operator_end` de la 0008 (las columnas quedan) |
 | 0028 | `drop trigger order_zz_till_guard, chat_questions_guard`; volver a crear las funciones anteriores (0001, 0013, 0018, 0019, 0022, manager-mode.sql); no toca datos |
 | 0029 | `drop trigger purchase_receipts_invoice_status on purchase_receipts`; `drop function` de `po_receive_and_settle`, `po_receipt_settle`, `po_receipt_pay`, `po_history`, `po_pending` y sus auxiliares `_settle_*`, `_receipt_invoice_status`; volver a crear `supplier_payment_save` de la 0025 (las columnas y los estados de factura quedan; no toca datos; no hay archivo de reversión, a diferencia de 0030–0032) |
-| 0032 | `supabase/tools/reversion-0032.sql` (devuelve los permisos de antes; una sola transacción; se niega en orden incorrecto) |
+| 0033 | `supabase/tools/reversion-0033.sql` (funciones de PIN y de aperturas byte a byte como antes; la columna `session_id` y lo anotado quedan; vuelven los problemas que corrige, D-053; revertir 0030–0032 obliga a revertir antes esta) |
+| 0032 | `supabase/tools/reversion-0032.sql`, después de la 0033 (devuelve los permisos de antes; una sola transacción; se niega en orden incorrecto) |
 | 0031 | `supabase/tools/reversion-0031.sql`, después de la 0032 (funciones byte a byte como antes; las columnas nuevas, el historial de costos y los movimientos ya hechos quedan) |
 | 0030 | `supabase/tools/reversion-0030.sql`, después de la 0031 (quita el PIN y los disparadores de historial; `recipe_versions` y sus versiones quedan; **no deshace** el costo promedio que la 0030 dio una vez a los ingredientes con precio y sin compras, D-043) |
 

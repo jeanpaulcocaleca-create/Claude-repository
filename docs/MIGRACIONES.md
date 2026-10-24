@@ -73,9 +73,14 @@ tablas.)
 
 Con ese archivo comparo la estructura real contra la reconstrucción.
 
-## Pendientes de aplicar en producción (hoy en la 0029)
+## Pendientes de aplicar en producción (hoy en la 0032)
 
-La 0029 (recibir un pedido con la factura y el pago, D-041) la aplicó el dueño el 2026-10-15 (E-25).
+La 0029 (recibir un pedido con la factura y el pago, D-041) la aplicó el dueño el 2026-10-15 (E-25); las 0030–0032
+(recetas, D-043/D-044) el 2026-10-18 (E-29/E-30, D-047). Las filas de 0030–0032 quedan abajo como referencia.
+
+| Archivo | Qué trae | Cómo se aplica |
+|---|---|---|
+| `0033_pines_seguros.sql` | PIN más seguros (D-053): el editor del equipo ya no deja averiguar PIN (máximo 10 PIN por hora y cuenta, y cada «ya lo usa alguien» queda anotado); un PIN vacío no cuenta como intento; cada bloqueo queda anotado y otro encargado lo quita con su PIN; volver a activar a alguien pide un PIN nuevo; cada apertura de las áreas de dueño queda atada a la sesión que la hizo (otro aparato de la misma cuenta no la usa, tampoco para las fotos del menú) y, con las páginas nuevas, cerrar sesión la termina en el servidor. Solo funciones y una columna nueva; ningún registro cambia | Como cualquier migración (pasos 1–5), **fuera del horario de atención**, después de la 0032. Después: en una tableta, abrir las áreas de dueño con un PIN y cambiar una foto del menú (comprueba la sesión en Supabase). Reversión: `supabase/tools/reversion-0033.sql` |
 
 | Archivo | Qué trae | Cómo se aplica |
 |---|---|---|

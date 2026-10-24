@@ -204,17 +204,24 @@
               (e.inputType !== 'insertText' || typing.text === e.data);
     var person = key || i.__hgKeyed, before = i.__hgBefore;
     typing = null; i.__hgKeyed = false; i.__hgBefore = undefined;
-    if (person && !(before && before !== (i.__hgSeen || ''))) { i.__hgSeen = i.value; return; }
+    if (person && !(before && before !== (i.__hgSeen || ''))) { i.__hgSeen = i.value; i.__hgWiped = false; return; }
     wipe(i);                                         // put in by anything but a person, or a key on top of that
   }, true);
-  function wipe(i) { i.value = ''; i.__hgSeen = ''; }
+  function wipe(i) { i.value = ''; i.__hgSeen = ''; i.__hgWiped = true; }
+  /* a box this guard emptied, and nobody has typed in since: its form and its own button do not go with it empty
+     either (an empty PIN sent to the database would read as a wrong try; 0033 no longer counts it, older ones do).
+     Not a box that may stay empty (data-pin-optional: a person's new PIN when only the name changes) nor one not on
+     screen: those never hold a form back */
+  function emptyWiped(i) {
+    return !i.value && !!i.__hgWiped && !i.hasAttribute('data-pin-optional') && i.getClientRects().length > 0;
+  }
   function notTyped(i) {
     if (!i.value) { i.__hgSeen = ''; return false; }   // emptied (pages clear a PIN after each try): nothing typed is kept
     try { if (i.matches(':autofill')) return true; } catch (x) { try { if (i.matches(':-webkit-autofill')) return true; } catch (y) {} }
     return i.value !== (i.__hgSeen || '');           // changed without a key at all
   }
   function stopUnlessTyped(boxes, e) {
-    var bad = boxes.filter(notTyped);
+    var bad = boxes.filter(function (i) { return notTyped(i) || emptyWiped(i); });
     if (!bad.length) return;
     bad.forEach(wipe);
     e.preventDefault(); e.stopImmediatePropagation();
@@ -227,12 +234,13 @@
      click in its own window, or on its own button, does not go, so not even an empty PIN (a wrong try) is sent */
   function scopeOf(i) { return i.closest('.modal, .hga-wrap, [role="dialog"]') || i.form; }
   document.addEventListener('click', function (e) {
-    var bad = [].slice.call(document.querySelectorAll('input[data-pin]')).filter(notTyped);
-    if (!bad.length) return;
+    var all = [].slice.call(document.querySelectorAll('input[data-pin]')), bad = all.filter(notTyped);
     var t = e.target && e.target.closest ? e.target : null, b = t && t.closest('button[id]');
-    var near = bad.some(function (i) { var s = scopeOf(i); return (s && t && s.contains(t)) || (b && i.getAttribute('data-keypad-ok') === '#' + b.id); });
+    var own = b ? all.filter(function (i) { return i.getAttribute('data-keypad-ok') === '#' + b.id && emptyWiped(i); }) : [];
+    if (!bad.length && !own.length) return;
+    var near = own.length > 0 || bad.some(function (i) { var s = scopeOf(i); return (s && t && s.contains(t)) || (b && i.getAttribute('data-keypad-ok') === '#' + b.id); });
     bad.forEach(wipe);
-    if (near) { e.preventDefault(); e.stopImmediatePropagation(); try { bad[0].focus(); } catch (x) {} }
+    if (near) { e.preventDefault(); e.stopImmediatePropagation(); try { (bad[0] || own[0]).focus(); } catch (x) {} }
   }, true);
   ['copy', 'cut', 'dragstart'].forEach(function (t) {   // the dots hide the PIN; it cannot be copied out either, as from a password box
     document.addEventListener(t, function (e) { if (isPin(e.target)) e.preventDefault(); }, true);
@@ -248,7 +256,7 @@
     attach: attachNum,
     pinTyped: function (i, before) {                 // a page's own on-screen keys changed this PIN box (before: its text until then)
       if (!isPin(i)) return;
-      if (before && before !== (i.__hgSeen || '')) wipe(i); else i.__hgSeen = i.value;
+      if (before && before !== (i.__hgSeen || '')) wipe(i); else { i.__hgSeen = i.value; i.__hgWiped = false; }
     }
   };
 })();

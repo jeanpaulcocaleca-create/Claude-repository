@@ -30,14 +30,16 @@ function decode(tok) {
     return JSON.parse(Buffer.from(p, 'base64url').toString());
   } catch (e) { return null; }
 }
-function session(uid, email, aal) {
+/* like Supabase: one session_id per sign-in, kept when the token is refreshed (migration 0033 binds unlocks to it) */
+function session(uid, email, aal, sid) {
   const now = Math.floor(Date.now() / 1000), exp = now + 3600;
+  sid = sid || crypto.randomUUID();
   const access = sign({ sub: uid, role: 'authenticated', aud: 'authenticated', aal: aal || 'aal1', email, iat: now, exp,
-                        amr: [{ method: 'password', timestamp: now }], session_id: crypto.randomUUID() });
+                        amr: [{ method: 'password', timestamp: now }], session_id: sid });
   const user = { id: uid, aud: 'authenticated', role: 'authenticated', email, app_metadata: { provider: 'email' },
                  user_metadata: {}, factors: [], created_at: '2026-01-01T00:00:00Z' };
   return { access_token: access, token_type: 'bearer', expires_in: 3600, expires_at: exp,
-           refresh_token: b64u(JSON.stringify({ uid, email, aal: aal || 'aal1', n: crypto.randomUUID() })), user };
+           refresh_token: b64u(JSON.stringify({ uid, email, aal: aal || 'aal1', sid, n: crypto.randomUUID() })), user };
 }
 function sessionFor(email, aal) { return session(USERS[email], email, aal); }
 
@@ -81,7 +83,7 @@ function supabaseHandler(opts) {
         return send(res, 200, sessionFor(p.email));
       }
       if (grant === 'refresh_token') {
-        try { const r = JSON.parse(Buffer.from(p.refresh_token, 'base64url').toString()); return send(res, 200, session(r.uid, r.email, r.aal)); }
+        try { const r = JSON.parse(Buffer.from(p.refresh_token, 'base64url').toString()); return send(res, 200, session(r.uid, r.email, r.aal, r.sid)); }
         catch (e) { return send(res, 400, { error: 'invalid_grant', code: 'refresh_token_not_found' }); }
       }
       return send(res, 400, { error: 'unsupported_grant_type' });

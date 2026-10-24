@@ -14,8 +14,9 @@ en el Reloj (probado con las páginas de hoy). La caja **todavía no** anota qui
 - **Cada persona, su propio PIN.** Nunca escriba ni pida un PIN en el chat, en WhatsApp, en un grupo o en una foto.
   Nadie del café ni del sistema le va a pedir su PIN por mensaje.
 - **Un buen PIN**: de 4 a 8 números, que no se use en otro lado (tarjeta, teléfono). No sirven 1234, 0000, números
-  repetidos, un año (como 1998) ni una línea del teclado. El sistema **no avisa** si dos personas tienen el mismo PIN:
-  elíjalo sin copiar el de nadie.
+  repetidos, un año (como 1998) ni una línea del teclado. Si otra persona ya usa ese PIN, el sistema no lo acepta:
+  dice "No se pudo guardar. Intente de nuevo." (con la 0033 y las páginas nuevas, E-36: "Ese PIN ya lo usa otra
+  persona. Elija otro.", y lo anota). Elíjalo sin copiar el de nadie.
 
 ## Crear el perfil y el PIN (5 minutos)
 
@@ -40,6 +41,9 @@ Si sale un aviso, no se guardó nada. Corrija y toque «Guardar» otra vez:
 - "Los dos PIN no coinciden."
 - "El PIN debe tener de 4 a 8 dígitos, solo números."
 - "Una persona nueva necesita un PIN." / "El nombre no puede estar vacío."
+- (con la 0033 y las páginas nuevas) "Esta cuenta ya puso o probó 10 PIN en la última hora (todas las tabletas
+  juntas)…": espere hasta una hora (los PIN puestos con éxito también cuentan), o que un dueño lo haga desde su propio
+  ingreso.
 - No aparece «+ Agregar persona» y dice "Los cambios del equipo necesitan el PIN de un dueño, GM o encargado.": falta
   el paso 3.
 
@@ -65,10 +69,22 @@ El mismo PIN sirve en «Quién abre» y «Quién cierra» de la caja: úselo ah�
 
 Si algo sale mal:
 - **"Ese PIN no es correcto."**: inténtelo otra vez con calma. Después de 5 errores sale "Demasiados PIN incorrectos.
-  Espere 10 minutos e intente de nuevo.". Los errores en «Quién abre» o «Quién cierra» también cuentan.
-- **Olvidó el PIN, o el PIN quedó bloqueado**: un encargado hace los pasos 1–3 de arriba → «Equipo» → «Nuevo PIN» al
-  lado del nombre de la persona. La persona escribe el PIN nuevo y puede marcar de inmediato. Luego el encargado toca
-  «Bloquear». Nadie puede ver un PIN viejo: el sistema no lo guarda.
+  Espere 10 minutos e intente de nuevo.". Los errores en «Quién abre» o «Quién cierra» también cuentan. Al terminar los
+  10 minutos, un error más vuelve a bloquear (como siempre). Desde la 0033, una casilla vacía no cuenta y cada bloqueo
+  queda anotado en la bitácora de aprobaciones.
+- **El PIN quedó bloqueado y no se puede esperar** (solo cuando estén la migración 0033 y las páginas nuevas, E-36;
+  antes: «Nuevo PIN», abajo): un encargado hace los pasos 1–3 de arriba → «Equipo» → «Editar» al lado del nombre →
+  «Quitar el bloqueo del PIN», y lo aprueba con **su propio** PIN (nadie quita su propio bloqueo). Se puede 2 veces al
+  día por persona; después, esperar los 10 minutos o «Nuevo PIN». El bloqueo de un dueño lo quita solo el dueño, desde
+  su propio ingreso con el código del teléfono (cuando los dueños lo tengan, E-06); mientras tanto, esperar o «Nuevo
+  PIN». Queda anotado.
+- **Olvidó el PIN**: un encargado hace los pasos 1–3 de arriba → «Equipo» → «Nuevo PIN» al lado del nombre de la
+  persona. La persona escribe el PIN nuevo y puede marcar de inmediato (también quita un bloqueo). Luego el encargado
+  toca «Bloquear». Nadie puede ver un PIN viejo: el sistema no lo guarda.
+- **Vuelve alguien que ya no estaba activo** (desde la migración 0033): «Equipo» → «Editar» → marcar «Trabaja aquí
+  actualmente» y ponerle un **PIN nuevo** (dos veces). Sin PIN nuevo sale "Para volver a activar a alguien, póngale un
+  PIN nuevo." (en las páginas anteriores, "Una persona nueva necesita un PIN."): mientras no estaba, su PIN viejo pudo
+  pasar a otra persona.
 - **Olvidó marcar la salida**: avise a un encargado, que lo corrige en «Horas y equipo» con su PIN y escribe el
   «Motivo del cambio»; queda anotado y nada se borra. Si la ventana muestra "Aprobación del encargado", el encargado
   elige su nombre en "Aprobado por" y escribe su PIN en "PIN del encargado" antes de «Guardar». Nunca marque por otra

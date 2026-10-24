@@ -100,3 +100,11 @@ begin
   perform set_config('request.headers', h::text, false);
   return h;
 end $$;
+
+-- the sign-in this request comes from (the session_id claim every Supabase token carries; one per device sign-in).
+-- test.login resets the claims, so call this after it.
+create or replace function test.session(sid text) returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', (coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+                                            || jsonb_build_object('session_id', sid))::text, false);
+end $$;

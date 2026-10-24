@@ -1699,20 +1699,25 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   - **What does not go (`keypad.js`).** A form does not go while one of its PIN boxes holds a PIN nobody typed: not by
     Enter, a click or the on-screen ✓ (`requestSubmit`). The same holds for a button that reads the PIN itself: the
     box's own button (`data-keypad-ok`), a cash move's Void, or a shift's Delete. A click in the PIN box's window is
-    stopped too. So such a PIN, or even an empty one (a wrong try), never reaches the database.
+    stopped too. So such a PIN never reaches the database. (Corrected on 2026-10-24: an empty PIN still could, from a
+    box this guard had already emptied, on the six PIN boxes without an empty check of their own, and it counted as a
+    wrong try. D-053 stops it in the pages and in the database.)
   - **An unlock belongs to its login (`access.js`, `pos.html`).**
     - `hg-unlock-login` (new) names the login signed in on this device. The unlock and the people remembered (who
       opened the owner areas last, who opened or closed the register last: `hg-pos-reg-staff`) belong to it.
     - Signing out (SIGNED_OUT), or any other login, takes the notice down at once with no reload, and forgets the
-      unlock and the people remembered. This also holds in another tab of the same browser, and when the other tab
-      forgot first.
+      unlock and the people remembered on the device. This also holds in another tab of the same browser, and when the
+      other tab forgot first. (Corrected on 2026-10-24: on the server the unlock lived on after the sign-out until its
+      15 minutes ended, and meanwhile any device of the same login could change the menu photos. The title held on the
+      device only. D-053 ends it on the server at sign-out and binds each unlock to the sign-in that made it.)
     - The remembered person is offered first only to the login that kept it (`HG_ACCESS.who()`, also used by
       Inventory).
     - The POS fills its register lists again after a change of login on the same page.
     - A late "what is open here" answer for the login just gone is never shown, and the notice also goes whenever the
       database says no PIN unlock is open.
 - **Unchanged:**
-  - the database and the PIN rules (5 tries → 10 minutes, 15 minutes open, who may open);
+  - the database and the PIN rules (5 tries → 10 minutes, 15 minutes open, who may open); D-053 later changed what
+    counts as a try (an empty PIN no longer counts) and logs each lock;
   - the POS offline;
   - typing the PIN on the keyboard, the on-screen keys or a phone keyboard;
   - no new text on screen.
@@ -1767,5 +1772,182 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     - The three checks against a leftover key mark overlap: the key's release, the next tick, and the exact match.
       Taking out the release together with either of the others makes a test fail.
     - The full `tests/run.sh` passes.
-- **Records:** this entry and the checklist row. Prepared and tested locally on 2026-10-23; not committed, not
-  published. Waiting on the owner's authorization.
+- **Records:** this entry and the checklist row. Committed as `37ae275` on 2026-10-24 with the owner's authorization
+  («Tests» #147 green). Not published: on 2026-10-24 the owner decided to first fix the risks the final security review
+  found (D-053) and publish both together.
+
+## D-053 · 2026-10-24 · PINs nobody can find out, locks logged and removable, unlocks bound to their sign-in (0033)
+
+- **Why:** before publishing D-052 the owner asked for a final security review. It ran four independent reviews, each
+  probing a local copy with the production schema. Besides D-052's own overstatements (corrected in D-052), it found
+  three problems in production today, and one gap in the unpublished D-052 pages:
+  - **PIN enumeration (high).** With any manager or owner unlock open, `manager_save_staff` answered «that PIN is in
+    use» before any other refusal (for example with a made-up person), counted nothing and logged nothing. A script
+    found every active PIN, the owner's included, in about 2.5 minutes. In production since 0028.
+  - **Abusive locks (medium).** An empty PIN counted as a wrong try. After a lock ended, a single wrong try locked again
+    for 10 minutes. Nothing was logged. A lock could only be cleared by setting a new PIN.
+  - **Unlocks after sign-out (low/medium).** Signing out only cleared the device. On the server the unlock lived until
+    its 15 minutes ended, and while any unlock of a login was open, every device of that login could upload, replace or
+    delete menu photos (`_unlocked_any_device`, used by the Storage rule).
+  - **Empty PIN after the D-052 guard wiped a fill** (only in the unpublished D-052 pages): six PIN boxes still sent an
+    empty PIN, counted as a wrong try.
+
+  The reviews of this change found a fourth production problem, since 0028: bringing an inactive person back kept their
+  old PIN unchecked, so two active people could share a PIN.
+
+  On 2026-10-24 the owner decided not to publish D-052 yet. They authorized preparing these fixes on the development
+  branch, with no production change, no merge and no publication.
+- **Change: migration `0033_pines_seguros.sql`.** It touches functions and adds one column, `access_unlocks.session_id`.
+  It changes no existing row.
+  - **The team editor (`manager_save_staff`).**
+    - Every refusal comes first: not found, the owner role, another manager's record, the last manager, missing PIN.
+      Only then does it look whether the PIN is free.
+    - Each «in use» answer is logged (`pin_in_use`: who, which login).
+    - Each login may set or try at most **10 PINs per rolling hour**. After that it answers `pin_tries` for every PIN,
+      in use or free, and changes without a PIN still work. The count reads the log (`by_login`, now also on
+      `staff_save`), so no new table is needed. A PIN set successfully counts too: it tells that the PIN was free, so
+      without it a script could test free PINs without limit and only pay for the hits. PIN saves take one lock (`pg_advisory_xact_lock`), so requests sent
+      together wait for each other: the review found that without it a login got 10 plus the connection pool's size.
+    - Bringing someone back (inactive → active) needs a new PIN (`missing_pin`). Their old PIN may have gone to someone
+      else meanwhile; before, the person came back with it unchecked and two active people could share a PIN (since
+      0028, found by the review).
+  - **PIN checks (`_verify_pin`, used by all 24 PIN actions).**
+    - An empty or blank PIN is refused without counting.
+    - Each lock is logged (`pin_locked`: whose PIN, which login and kind).
+    - Unchanged: 5 tries → 10 minutes, `locked` before any comparison, `for update`, and once a lock has ended one more
+      wrong try locks again. A first version left 2 tries there; the review showed that doubles how fast one person's
+      PIN can be guessed (about 290 a day instead of about 150) and stops no deliberate lock, so it was dropped.
+  - **Removing a lock (`pin_lock_clear`, new).**
+    - Needs the owner areas open on the device plus another manager's own PIN, typed in the action and counted. Or the
+      owner with the phone code.
+    - Nobody removes their own lock (`not_self`).
+    - At most 2 removals a day per person without the code (`clear_limit`), because each removal gives 5 new tries at
+      that PIN.
+    - An owner's lock: only the owner with the code (`owner_lock_needs_code`).
+    - Logged (`pin_lock_cleared`).
+    - It locks the approver's row first and the person's after, the order `manager_save_staff` uses (the second review
+      reproduced a deadlock with the opposite order), and answers `not_locked` if another tablet removed it meanwhile.
+  - **Unlocks bound to their sign-in.**
+    - `access_unlock` keeps the token's `session_id` (Supabase puts it in every token: the same on the database and the
+      Storage requests of one device, a new one on every new sign-in; `_jwt_session()`).
+    - `_unlock_staff` requires the same sign-in. Rows from before 0033 have none and keep working until they expire.
+    - `_unlocked_any_device()` (the menu-photo rule; the name is kept for the release check) now requires an unlock of
+      **this** sign-in, so other devices of the login are refused. It fails closed: no `session_id`, no photos through
+      a PIN. The owner with the code is unaffected.
+    - `access_lock()` also ends every unlock of this sign-in, without the token.
+    - `access_lock_all()` (new) ends every unlock of the login.
+- **Pages.**
+  - `access.js`: before a sign-out goes to Supabase, it sends `access_lock`, and on «sign out everywhere» also
+    `access_lock_all`. It uses a plain `fetch` with the same token, because `db.rpc` would wait on the sign-out itself.
+    It waits at most 2.5 s, and a failure never stops the sign-out.
+  - `keypad.js`: a box the guard emptied, with nothing typed since, stops its form and its own button. Not a box that
+    may stay empty (`data-pin-optional`: the new PIN in «Editar») and not one off screen (a hidden approval box), so
+    neither can hold «Guardar» back.
+  - `time.html` + `lang.js`:
+    - «Quitar el bloqueo del PIN» in «Equipo → Editar», using the existing approval block for that action only: while it
+      is open, ✓, Enter or «Guardar» with a PIN typed in it removes the lock instead of saving, and later saves need no
+      PIN (the review found that ✓ saved the person and left the lock, and that every later save asked for a PIN). An
+      answer that comes back after the editor changed is ignored, and while the removal waits, an approval box the
+      guard emptied never holds a save back;
+    - a person made inactive on another tablet meanwhile gets «Para volver a activar a alguien, póngale un PIN nuevo.»
+      too, not «Una persona nueva necesita un PIN»;
+    - texts for `pin_in_use`, `pin_tries`, `not_locked`, `not_self`, `clear_limit` and `owner_lock_needs_code`;
+    - the log labels «PIN bloqueado», «PIN ya en uso» and «Bloqueo de PIN quitado», with their lines in Spanish; a lock
+      says whether it came after 5 wrong tries or after one more once a lock had ended (`tries`, `relock`);
+    - bringing someone back: the PIN label says it is needed, and without one «Para volver a activar a alguien, póngale
+      un PIN nuevo.».
+  - The pages work with and without 0033. The published pages work on 0033 unchanged, with three differences until the
+    new pages are published: 11 PINs in an hour show «No se pudo guardar»; bringing someone back without a PIN shows
+    «Una persona nueva necesita un PIN»; and their approvals log lists the new entries by code (`pin_locked`,
+    `pin_in_use`, `pin_lock_cleared`) with «approved by» naming the locked person or whoever tried the PIN, which is
+    not an approval (the line under it explains). Removing a lock needs the new pages; until then «Nuevo PIN» does it.
+- **Tooling.**
+  - `reversion-0033.sql` restores the six functions byte for byte (production fingerprints), drops the three new ones,
+    keeps the column and every log row, and refuses the wrong order. The reversal chain in tests 340/360/370 and e2e 300
+    now starts with it.
+  - `release-check.sql` expects 0..33 and the two new RPCs.
+  - Undoing the recipes (0030–0032) now means undoing 0033 first, which brings back the problems it fixes:
+    `docs/ACTIVACION-RECETAS.md` (step 0), `docs/LANZAMIENTO.md`, the 0033 header and `reversion-0031.sql`'s message
+    say so.
+  - `production-snapshot.sql` was regenerated (`snapshot-known.sh`).
+  - The test gateway keeps `session_id` across refreshes, like Supabase. A new SQL helper, `test.session()`, was added.
+- **Unchanged:**
+  - the PINs, who may open what, the 15 minutes, 5 tries and 10 minutes, typing a PIN;
+  - the POS offline: a sign-out without a connection stays signed in, as before;
+  - D-022: an owner-role PIN still opens the tablet's owner areas. The owner keeps this pending the permission design.
+- **Known limits (accepted, written down):**
+  - That Supabase Storage sees `session_id` follows from how it passes the token. It cannot be tested locally. Hence the
+    after-apply check (change one menu photo on a PIN-unlocked tablet, E-36). If it fails, only photos through a PIN
+    stop.
+  - The session itself is not checked against `auth.sessions` (the SQL Editor's rights there are unverified). Someone
+    who copied a device's token AND its sign-in could use them until the unlock (≤15 min) or the token (≤1 h) expires.
+  - If the server takes more than 2.5 s to answer `access_lock`, the sign-out goes ahead, and a page that reloads right
+    after it (Accounting, Insights, the 30-minute idle sign-out) can cancel the call. `keepalive` would avoid that but
+    could not be tried on the café's iPads (Safari), and a browser that refuses it would lose the call every time, so it
+    was left out. The row then only works for a sign-in the device no longer has, until it expires (≤15 min).
+  - A sign-out on a page without the check (kitchen, password reset) does not send `access_lock`. The unlock
+    then only works for that old sign-in, which the device no longer has, until it expires.
+  - **Insider limits:**
+    - A determined insider can still try 10 PINs an hour in the team editor (240 a day), all logged. The 10 are per
+      login: one café tablet that uses them up leaves none for the others that hour (adding a person or a forgotten-PIN
+      reset included). The new pages say so and point to the owner's login, which has its own 10. The 10 is written in
+      0033; another number needs a new migration (each step up makes finding a PIN faster in proportion).
+    - At a PIN box, one person's PIN can still be guessed at 5 tries and then 1 every 10 minutes (about 150 a day), as
+      before 0033; every lock is now logged.
+    - Someone at a tablet can still keep a person locked on purpose (one wrong try every 10 minutes, as before). It is
+      now logged, another manager can remove it (2 a day), and empty presses no longer count. After that: wait or
+      «Nuevo PIN». The paths «the owner with the phone code» (an owner's lock, more than 2 a day) work only once the
+      owners have the code (E-06). A lock per device would need a device identity the server does not have.
+    - Each lock writes a log row. The new approvals log lists locks and clashes apart (their last 10), so a run of them
+      never pushes a void or a refund out of the 40 approvals shown. The published pages list them with the rest, and a
+      run of locks can push older approvals off their 40 rows until the new pages are published (E-36 publishes them
+      in the same window). The 40-row view is older than D-053, and other entries (for example cancelled unpaid
+      orders) can push approvals off it too; every row stays in the log.
+  - **Not addressed here (the owner's pending permission design):**
+    - what an owner-role PIN may do on the café login (for example set another manager's PIN);
+    - discount approvals and operator sessions not tied to a login;
+    - guests' phone numbers in the order history;
+    - menu changes attributed to the login.
+- **Tests:**
+  - **SQL `390_pines_seguros` (78):**
+    - the four refusals that can come with a PIN (not found, owner role, another manager's record, last manager), each
+      the same with a PIN in use and a free one, nothing written;
+    - the clash logged, the hourly limit (also for another login), its expiry, and the PIN-save lock taken;
+    - bringing someone back: `missing_pin` without a new PIN, `pin_in_use` with the old one now someone else's;
+    - empty PINs, the lock log (5 tries, or one more after a lock: `tries`, `relock`), the re-lock as before;
+    - all removal rules;
+    - the sign-in binding for the owner areas and for menu photos (insert, update, delete);
+    - Lock and «everywhere»;
+    - the rights.
+  - **SQL `400_reversion_0033` (13):** the fingerprints, data kept, the café working on the reverted database, and
+    0033 applied again.
+  - **Browser `350_pines_seguros` (11):**
+    - the server row gone at sign-out, the token sent first;
+    - «everywhere»;
+    - a copied token opening nothing on another tablet;
+    - an offline sign-out without a hang;
+    - no empty PIN after a wipe (time clock, POS void);
+    - the team editor in Spanish (in use, lock logged, removal with another manager's PIN by Enter, the next save
+      without a PIN);
+    - three PIN saves sent at the same moment: one saves, two get `pin_tries`;
+    - a wiped optional or off-screen PIN box never holds «Guardar» back;
+    - the removal's approval: a late answer, a wiped approval box, a list out of date;
+    - a run of PIN locks never pushes an approval out of the log;
+    - bringing someone back asks for a new PIN.
+  - **Rehearsal (live pages):** the published Hours and team editor on 0033: a wrong PIN, the manager PIN, a new person.
+  - **Old tests adjusted:** `340_pin_autofill` (a late access check now meets an ended unlock; a second tab now shares
+    the first tab's sign-in, as in a browser).
+  - **Mutations:** each protection was broken on purpose and the tests run again on the final files. 25 changes to 0033:
+    24 caught by 390, the last (the PIN-save lock taken too late) by the browser test of saves sent together. 16 page
+    changes: 14 caught; 2 alter nothing visible (the page's own reactivation check, which the server's answer repeats,
+    and a flag that only matters for an empty box) and were set aside. The 390 suite fails on a reverted database.
+  - **Full `tests/run.sh` on the final files (2026-10-24):** lint; SQL 40/40; backup and restore checks; the migration
+    rehearsal on the production-shaped copy (compare.py); the published pages on 0033 (8/8) and on the reset café
+    (8/8, 2/2); browser 149/149.
+  - **Two adversarial review rounds** (8 agents each, every finding checked by an independent skeptic), and probes with
+    two database sessions for deadlocks and parallel saves. Every finding was fixed or is written down here.
+- **Records:** this entry, D-052's corrections, the checklist row, E-36 in `docs/DEPENDENCIES.md` (E-05 stays paused),
+  `docs/MIGRACIONES.md` (now «hoy en la 0032»), `docs/LANZAMIENTO.md`, `docs/ACTIVACION-RECETAS.md` (step 0),
+  `docs/PERSONAL-NUEVO.md` and `reversion-0031.sql`'s message. Committed to the development branch on 2026-10-24 with
+  the owner's authorization, which keeps the limit at 10 PINs an hour. 0033 is not applied and nothing is published:
+  the owner and Claude go through E-36 together first. The tablet transition (E-05) stays stopped.

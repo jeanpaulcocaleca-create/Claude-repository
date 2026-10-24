@@ -1,5 +1,5 @@
 /* Canopy OS rehearsal · the pages that are LIVE on hanginggardencafe.com today (the gh-pages build named in
-   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0032 today). Until the new pages are
+   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0033 today). Until the new pages are
    published, the café keeps using these: they must load and work exactly as before. Also run on the reset copy
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
@@ -155,6 +155,36 @@ module.exports.tests = [
       await pg.fill('#pinInput', '6173');
       await pg.click('#pinGo');
       await until(() => Number(sql(`select count(*) from public.time_entries`)) === before + 1, 10000, 'the punch');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    // 0033 (D-053) changed every PIN check and the team editor underneath the live pages: a wrong PIN, the manager PIN
+    // that opens Hours, and adding a person with a free PIN must behave exactly as before
+    name: 'the live Hours and team editor: a wrong PIN, the manager PIN, and a new person with a free PIN',
+    run: async ({ browser }) => {
+      const level = Number(sql(`select public.canopy_schema_version()`));
+      const pg = watchApi(await page(browser, { login: 'cafe', lang: 'en' }));
+      await goto(pg, '/time.html');
+      await until(async () => (await pg.locator('#staffGrid button').count()) > 0, 15000, 'the clock');
+      await pg.click('#tabHours');
+      await pg.waitForSelector('#hoursPinModal:not([hidden])', { timeout: 10000 });
+      await pg.selectOption('#hpWho', STAFF.ana);
+      await pg.fill('#hpPin', '1111');
+      await pg.click('#hoursPinForm button[type=submit]');
+      await until(async () => /not right/.test(await pg.locator('#hpErr').textContent()), 8000, 'a wrong PIN is refused');
+      await pg.fill('#hpPin', '4826');
+      await pg.click('#hoursPinForm button[type=submit]');
+      await until(async () => pg.locator('#hoursPinModal').isHidden(), 8000, 'the manager PIN opens Hours');
+      await pg.click('#addStaffBtn');
+      await pg.waitForSelector('#staffModal:not([hidden])', { timeout: 5000 });
+      await pg.fill('#stName', 'Ensayo Equipo');
+      await pg.fill('#stPin', '9264');
+      await pg.fill('#stPin2', '9264');
+      await pg.click('#staffForm button[type=submit]');
+      await until(() => sql(`select count(*) from public.staff where name = 'Ensayo Equipo' and active`) === '1', 8000, 'the new person saved');
+      if (level >= 33) assert.strictEqual(sql(`select details->>'by_login' is not null from public.audit_log where action = 'staff_save' order by id desc limit 1`), 't', 'logged with the login (0033)');
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
     }

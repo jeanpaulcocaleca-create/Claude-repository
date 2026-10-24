@@ -253,7 +253,7 @@ module.exports.tests = [
     run: async ({ browser }) => {
       setup();
       // newest first: 0032, 0031, then 0030
-      for (const f of ['reversion-0032.sql', 'reversion-0031.sql', 'reversion-0030.sql']) {
+      for (const f of ['reversion-0033.sql', 'reversion-0032.sql', 'reversion-0031.sql', 'reversion-0030.sql']) {
         const r = spawnSync('psql', ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '--single-transaction', '-d', process.env.CANOPY_E2E_DB,
           '-f', path.join(ROOT, 'supabase/tools', f)], { encoding: 'utf8' });
         assert.strictEqual(r.status, 0, 'the rollback ' + f + ' runs: ' + r.stderr);

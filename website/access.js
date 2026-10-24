@@ -68,9 +68,28 @@
     try { return localStorage.getItem(WHO) || ''; } catch (e) { return ''; }
   }
 
+  /* signing out ends this device's unlock on the server first (migration 0033: access_lock also ends every unlock of
+     this sign-in; «sign out everywhere» ends all of this login's). A plain fetch, never db.rpc: the client is in the
+     middle of signing out and would wait for itself. At most 2.5 s, and a failure never stops the sign-out. */
+  function lockBeforeSignOut(url, init) {
+    var m = /\/auth\/v1\/logout(\?|$)/.test(url) ? ((url.match(/[?&]scope=([a-z]+)/) || [])[1] || 'global') : null;
+    if (!m || m === 'others') return null;
+    var h = new Headers((init && init.headers) || {}), auth = h.get('Authorization'), key = h.get('apikey');
+    if (!auth || !key) return null;
+    var tok = ''; try { tok = (JSON.parse(localStorage.getItem(KEY) || 'null') || {}).token || ''; } catch (e) {}
+    var hdr = { Authorization: auth, apikey: key, 'Content-Type': 'application/json' };
+    if (tok) hdr['x-hg-unlock'] = tok;
+    var base = url.slice(0, url.indexOf('/auth/v1/')) + '/rest/v1/rpc/';
+    var calls = [fetch(base + 'access_lock', { method: 'POST', headers: hdr, body: '{}' }).catch(function () {})];
+    if (m === 'global') calls.push(fetch(base + 'access_lock_all', { method: 'POST', headers: hdr, body: '{}' }).catch(function () {}));
+    return Promise.race([Promise.all(calls), new Promise(function (r) { setTimeout(r, 2500); })]);
+  }
+
   /* only database requests carry the token, never sign-in or storage requests */
   function fetchWithUnlock(input, init) {
     var url = typeof input === 'string' ? input : (input && input.url) || '';
+    var first = lockBeforeSignOut(url, init);
+    if (first) return first.then(function () { return fetch(input, init); });
     var v = read();
     if (v && url.indexOf('/rest/v1/') > -1) {
       var h = new Headers((init && init.headers) || (input && input.headers) || {});

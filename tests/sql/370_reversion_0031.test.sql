@@ -22,6 +22,7 @@ reset role;
 select test.eq((select sum(qty) from public.stock_moves where order_id = '0d000000-0000-4000-8000-000000003701'), -400::numeric, 'two glasses are out');
 
 \o /dev/null
+\ir ../../supabase/tools/reversion-0033.sql
 \ir ../../supabase/tools/reversion-0032.sql
 \ir ../../supabase/tools/reversion-0031.sql
 \o

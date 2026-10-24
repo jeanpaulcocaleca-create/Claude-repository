@@ -2,7 +2,7 @@
 -- Canopy OS · REVERSIÓN DE LA MIGRACIÓN 0031 (ventas con la receta y el costo de su momento, devoluciones exactas)
 -- Supabase → SQL Editor → New query → pegar TODO → Run. Es una sola transacción: si algo falla, no cambia nada.
 -- Úsela solo si la 0031 causa un problema y así lo decide el dueño, FUERA DEL HORARIO DE ATENCIÓN.
--- Antes: si la 0032 está aplicada, revierta primero la 0032 (supabase/tools/reversion-0032.sql).
+-- Antes: si la 0033 o la 0032 están aplicadas, revierta primero esas, en ese orden (reversion-0033.sql, reversion-0032.sql).
 --
 -- Qué hace
 --   * Deja exactamente como estaban antes de la 0031 (misma huella en la foto de producción): el descuento de una
@@ -22,7 +22,7 @@ do $$ begin
     raise exception 'La migración 0031 no está aplicada: no hay nada que revertir. No se cambió nada.';
   end if;
   if exists (select 1 from canopy.migrations where version > 31) then
-    raise exception 'Hay migraciones posteriores a la 0031: revierta primero esas (la 0032 con reversion-0032.sql). No se cambió nada.';
+    raise exception 'Hay migraciones posteriores a la 0031: revierta primero esas (la 0033 con reversion-0033.sql, luego la 0032 con reversion-0032.sql). No se cambió nada.';
   end if;
 end $$;
 set local lock_timeout = '8s';

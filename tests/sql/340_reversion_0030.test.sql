@@ -11,8 +11,9 @@ select test.eq(public.recipe_save(:'latte', '[{"stock_item_id": "5a000000-0000-4
 reset role;
 select count(*) as versions_before from public.recipe_versions \gset
 
--- after 0030 come 0031 and 0032: they are reverted first (newest first)
+-- after 0030 come 0031, 0032 and 0033: they are reverted first (newest first)
 \o /dev/null
+\ir ../../supabase/tools/reversion-0033.sql
 \ir ../../supabase/tools/reversion-0032.sql
 \ir ../../supabase/tools/reversion-0031.sql
 \o

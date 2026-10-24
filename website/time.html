@@ -313,10 +313,11 @@ input[data-pin]{-webkit-text-security:disc}
       <label for="stName">Name</label>
       <input id="stName" required maxlength="60">
       <label for="stPin" id="stPinLabel">PIN (4–8 digits, they'll type it to clock in)</label>
-      <input id="stPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
+      <input id="stPin" type="text" data-pin data-pin-optional inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <label for="stPin2">Type the PIN again</label>
-      <input id="stPin2" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
+      <input id="stPin2" type="text" data-pin data-pin-optional inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <p class="hint" style="margin:.3rem 0 0">Numbers only. Not 1234, 0000 or a birthday everyone knows.</p>
+      <p class="hint" id="stLockLine" hidden style="margin:.3rem 0 0">Locked after 5 wrong PINs? <button type="button" class="linkbtn" id="stUnlockPin" style="margin-top:0">Remove the PIN lock</button> (with another manager's PIN)</p>
       <label for="stRole">Role</label>
       <select id="stRole">
         <option value="staff">Team member (clock in and out)</option>
@@ -490,7 +491,13 @@ var ERR = {
   already_voided: 'That order was already voided.',
   weak_pin: 'That PIN is too easy to guess (like 1234 or 0000). Pick another.',
   missing_staff: 'Pick the person.',
-  no_account: 'This login is not connected to the café yet.'
+  no_account: 'This login is not connected to the café yet.',
+  pin_in_use: 'Someone else already uses that PIN. Pick another.',
+  pin_tries: 'This login already set or tried 10 PINs in the last hour (all tablets together). Wait, or do it from the owner\'s login.',
+  not_locked: 'That PIN is not locked.',
+  not_self: 'Another manager removes your lock, with their own PIN.',
+  clear_limit: 'This PIN was unlocked twice today already. Wait 10 minutes, or give a new PIN with «Reset PIN».',
+  owner_lock_needs_code: "Only the owner, from their own login with the phone code, can remove an owner's PIN lock."
 };
 /* Approval blocks are hidden for the owner login (supabase/access.sql lets it act directly).
    If the database still asks for a manager PIN, the block reappears with an explanation. */
@@ -753,15 +760,21 @@ var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_d
                     tab_item_removed:'Item taken off a bill', payment_given_back:'Payment given back',
                     tab_discount_removed:'Discount taken off a bill', login_kind_change:'Login type changed',
                     login_access_revoked:'Owner access removed', recipe_change:'Recipe changed',
-                    stock_cost_edit:'Stock cost changed', stock_item_deleted:'Stock item deleted'};
+                    stock_cost_edit:'Stock cost changed', stock_item_deleted:'Stock item deleted',
+                    pin_locked:'PIN locked', pin_in_use:'PIN already in use', pin_lock_cleared:'PIN lock removed'};
 async function loadLog(){
   var root = document.getElementById('logBody');
-  var r = await db.from('audit_log').select('at,action,manager_name,summary,details')
+  /* wrong-PIN locks and PIN clashes (0033) come in their own 10, so a run of them never pushes a void or a refund out
+     of the 40 approvals shown */
+  var cols = 'at,action,manager_name,summary,details', pinEvents = ['pin_locked', 'pin_in_use'];
+  var r = await db.from('audit_log').select(cols).not('action', 'in', '(' + pinEvents.join(',') + ')')
     .order('at', {ascending:false}).limit(40);
   if (r.error){ root.innerHTML = '<p class="hint">The approvals log switches on once the manager approval setup is run.</p>'; return; }
+  var p = await db.from('audit_log').select(cols).in('action', pinEvents).order('at', {ascending:false}).limit(10);
+  var rows = (r.data || []).concat((!p.error && p.data) || []).sort(function(a, b){ return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
   root.textContent = '';
-  if (!(r.data || []).length){ root.innerHTML = '<p class="hint">Nothing approved yet.</p>'; return; }
-  r.data.forEach(function(e){
+  if (!rows.length){ root.innerHTML = '<p class="hint">Nothing approved yet.</p>'; return; }
+  rows.forEach(function(e){
     var row = document.createElement('div'); row.className = 'lrow';
     var when = document.createElement('span'); when.className = 'when';
     var d = new Date(e.at); when.textContent = fmtDay(d) + ' ' + fmtTime(d);
@@ -782,6 +795,10 @@ async function loadLog(){
       var dv = e.details || {};
       what.appendChild(document.createTextNode(' · ' + fmtMoney(dv.bill_cut_crc != null ? dv.bill_cut_crc : dv.value_crc) +
         (dv.approved ? ' · approved by ' + (e.manager_name || '?') : ' · ' + (e.manager_name || ''))));
+    } else if (e.action === 'pin_locked'){
+      what.appendChild(document.createTextNode(who));   /* nobody approves a lock: whose PIN it is */
+    } else if (e.action === 'pin_in_use'){
+      what.appendChild(document.createTextNode(' · tried by ' + (e.manager_name || '?')));
     } else what.appendChild(document.createTextNode(who + ' · approved by ' + (e.manager_name || '?')));
     var why = document.createElement('div'); why.className = 'why'; why.textContent = e.summary || '';
     what.appendChild(why);
@@ -963,7 +980,7 @@ function renderTeam(){
   tn.textContent = newAccess() ? 'Team changes need the PIN of an owner, GM or manager.' : 'Team changes are made from the owner login.';
   tn.hidden = canAdd;
 }
-var staffTarget = null, staffPinOnly = false;
+var staffTarget = null, staffPinOnly = false, unlockPending = false, staffEditorRun = 0;
 function openStaffEditor(st, pinOnly){
   staffTarget = st; staffPinOnly = !!(st && pinOnly);
   document.getElementById('staffTitle').textContent = st ? (pinOnly ? 'New PIN · ' : 'Edit · ') + st.name : 'Add person';
@@ -971,7 +988,8 @@ function openStaffEditor(st, pinOnly){
   document.getElementById('stPin').value = '';
   document.getElementById('stPin2').value = '';
   document.getElementById('stPinLabel').textContent = st
-    ? (pinOnly ? 'New PIN (4–8 digits)' : 'New PIN (leave empty to keep the current one)') : 'PIN (4–8 digits, they\'ll type it to clock in)';
+    ? (pinOnly ? 'New PIN (4–8 digits)' : st.active ? 'New PIN (leave empty to keep the current one)' : 'New PIN (needed to bring them back)')
+    : 'PIN (4–8 digits, they\'ll type it to clock in)';
   document.getElementById('stActive').checked = st ? st.active : true;
   var bootstrap = managers().length === 0;
   var roleSel = document.getElementById('stRole');
@@ -986,6 +1004,9 @@ function openStaffEditor(st, pinOnly){
   document.getElementById('stSales').checked = !!(st && st.can_see_sales);
   syncSalesLine();
   document.getElementById('stMgrPin').value = '';
+  document.getElementById('stLockLine').hidden = !st;
+  unlockPending = false; staffEditorRun++;
+  document.getElementById('stMgrPin').removeAttribute('data-pin-optional');
   fillManagers(document.getElementById('stMgr'));
   document.getElementById('staffErr').textContent = '';
   document.getElementById('staffModal').hidden = false;
@@ -998,8 +1019,37 @@ function syncSalesLine(){
 document.getElementById('stRole').addEventListener('change', syncSalesLine);
 document.getElementById('addStaffBtn').addEventListener('click', function(){ openStaffEditor(null); });
 document.getElementById('stCancel').addEventListener('click', function(){ document.getElementById('staffModal').hidden = true; });
+/* a PIN locked after 5 wrong tries (migration 0033): another manager takes the lock off with their own PIN. The
+   approval it asks for is for this action only: while it is open, ✓, Enter or «Save» with a PIN typed in it removes
+   the lock (not a save), and saves without that PIN need no approval, as before */
+document.getElementById('stUnlockPin').addEventListener('click', async function(){
+  if (!staffTarget) return;
+  var run = staffEditorRun;
+  var a = approval('stMgr', 'stMgrPin'), err = document.getElementById('staffErr');
+  var r = await db.rpc('pin_lock_clear', {p_staff_id: staffTarget.id, p_manager_id: a.p_manager_id, p_manager_pin: a.p_manager_pin});
+  if (run !== staffEditorRun || document.getElementById('staffModal').hidden) return;   // the answer came after the editor changed
+  document.getElementById('stMgrPin').value = '';
+  var sbox = document.getElementById('stApprove');
+  if (r.error || !r.data || !r.data.ok){
+    if (sbox.hidden && approvalNeeded(r)){
+      unlockPending = true; sbox.hidden = false; document.getElementById('stOwnerNote').hidden = true;
+      // a save needs no approval meanwhile: an emptied approval box must not hold it back (keypad.js)
+      if (!needApproval) document.getElementById('stMgrPin').setAttribute('data-pin-optional', '');
+      err.textContent = 'To remove the lock, another manager picks their name and types their PIN.';
+      return;
+    }
+    err.textContent = r.error && /pin_lock_clear|schema cache|could not find the function/i.test(r.error.message || '')
+      ? 'Removing a PIN lock needs the latest database update. Ask the owner.' : errMsg(r);
+    return;
+  }
+  err.textContent = '';
+  if (unlockPending && !needApproval){ sbox.hidden = true; document.getElementById('stOwnerNote').hidden = managers().length === 0; }
+  unlockPending = false; document.getElementById('stMgrPin').removeAttribute('data-pin-optional');
+  toast('PIN lock removed for ' + r.data.name);
+});
 document.getElementById('staffForm').addEventListener('submit', async function(e){
   e.preventDefault();
+  if (unlockPending && staffTarget && document.getElementById('stMgrPin').value.trim()){ document.getElementById('stUnlockPin').click(); return; }
   var name = document.getElementById('stName').value.trim();
   var pin = document.getElementById('stPin').value.trim();
   if (!name){
@@ -1014,6 +1064,11 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     document.getElementById('staffErr').textContent = 'A new person needs a PIN.';
     return;
   }
+  if (staffTarget && !staffTarget.active && document.getElementById('stActive').checked && !pin){
+    document.getElementById('staffErr').textContent = 'To bring someone back, give them a new PIN.';   // their old one may be someone else's now (0033)
+    document.getElementById('stPin').focus();
+    return;
+  }
   if (staffPinOnly && !pin){
     document.getElementById('staffErr').textContent = 'Type the new PIN.';
     document.getElementById('stPin').focus();
@@ -1025,7 +1080,7 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
     return;
   }
   var bootstrap = managers().length === 0;
-  var a = bootstrap ? {p_manager_id: null, p_manager_pin: null} : approval('stMgr', 'stMgrPin');
+  var a = bootstrap || (unlockPending && !needApproval) ? {p_manager_id: null, p_manager_pin: null} : approval('stMgr', 'stMgrPin');
   var r = await db.rpc('manager_save_staff', Object.assign(a, {
     p_id: staffTarget ? staffTarget.id : null,
     p_name: name,
@@ -1036,7 +1091,9 @@ document.getElementById('staffForm').addEventListener('submit', async function(e
   if (r.error || !r.data || !r.data.ok){
     var sbox = document.getElementById('stApprove');
     if (sbox.hidden && !bootstrap && approvalNeeded(r)){ needApproval = true; sbox.hidden = false; document.getElementById('stOwnerNote').hidden = true; document.getElementById('staffErr').textContent = NEED_APPROVAL_MSG; return; }
-    document.getElementById('staffErr').textContent = errMsg(r);
+    // missing_pin for someone already on the team: they were made inactive on another tablet and need a new PIN to come back
+    document.getElementById('staffErr').textContent = staffTarget && r.data && r.data.error === 'missing_pin'
+      ? 'To bring someone back, give them a new PIN.' : errMsg(r);
     document.getElementById('stMgrPin').value = '';
     return;
   }

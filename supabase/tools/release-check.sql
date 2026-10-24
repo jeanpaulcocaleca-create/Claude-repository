@@ -13,7 +13,7 @@
 --     true): el depósito de facturas de gastos y sus dos reglas (desde la 0015), la regla de subida de la 0025, y las
 --     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene).
 -- =====================================================================================================
-with expected as (select generate_series(0, 32) as v),
+with expected as (select generate_series(0, 33) as v),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),
@@ -26,7 +26,7 @@ needed(fn) as (values
   ('bank_overview'), ('bank_import'), ('bank_post'), ('timesheet'), ('timesheet_approve'), ('payroll_prepare'), ('payroll_post'), ('labor_cost'), ('payroll_month_report'), ('aguinaldo_estimate'),
   ('dashboard_today'), ('sales_patterns'), ('trends_monthly'), ('supplier_insights'), ('stock_forecast'),
   ('po_receive_and_settle'), ('po_receipt_settle'), ('po_receipt_pay'), ('po_history'), ('po_pending'),
-  ('recipe_save'), ('recipes_autolink_pin')),
+  ('recipe_save'), ('recipes_autolink_pin'), ('pin_lock_clear'), ('access_lock_all')),
 menu_photos as (select exists (select 1 from storage.buckets where id = 'menu-photos') as present),
 storage_rules(name) as (select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects')
 select jsonb_pretty(jsonb_build_object(

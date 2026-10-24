@@ -373,13 +373,15 @@ module.exports.tests = [
       await pg.type('#hgaPin', PINS.ana);
       await pg.press('#hgaPin', 'Enter');
       await pg.waitForSelector('.hga-pill', { timeout: 8000 });
-      // the next "what is open here" answer is held back until after the sign-out (Home's own refresh has finished first)
+      // the next "what is open here" answer is held back until after the sign-out (Home's own refresh has finished first);
+      // the server answers it before the sign-out (since 0033 the sign-out ends the unlock there too), the page gets it late
       await pg.waitForLoadState('networkidle');
-      let release, held = false;
+      let release, held = false, taken = false;
       const gate = new Promise((ok) => { release = ok; });
       await pg.route('**/rest/v1/rpc/access_state', async (route) => {
-        if (held) return route.continue();
-        held = true; await gate; return route.continue();
+        if (taken) return route.continue();
+        taken = true; const answer = await route.fetch(); held = true;
+        await gate; return route.fulfill({ response: answer });
       });
       await pg.evaluate(() => { window.__late = HG_ACCESS.load(db).then((st) => { if (st && st.level) HG_ACCESS.pill(db); return st; }); });
       await until(() => held, 5000, 'the check on its way');
@@ -417,7 +419,7 @@ module.exports.tests = [
       await a.type('#hgaPin', PINS.ana);
       await a.press('#hgaPin', 'Enter');
       await a.waitForSelector('.hga-pill', { timeout: 8000 });
-      const b = await page(browser, { context: ctx, login: 'cafe', lang: 'es' });
+      const b = await page(browser, { context: ctx, lang: 'es' });     // a second tab shares the first one's sign-in, as in a browser
       await goto(b, '/home.html');
       await b.waitForSelector('.hga-pill', { timeout: 10000 });
       await b.click('#outBtn');

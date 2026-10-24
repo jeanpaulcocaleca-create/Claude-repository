@@ -132,6 +132,11 @@ La publicación recarga las páginas solo cuando están libres, pero la ventana 
 
 ## Si algo sale mal (reversión, en este orden)
 
+0. Si la 0033 está aplicada (PIN más seguros, D-053): `supabase/tools/reversion-0033.sql` primero. Las demás se niegan
+   mientras haya una migración posterior. Ojo: con eso vuelven los problemas de PIN que la 0033 corrige (se puede
+   averiguar un PIN con el editor del equipo, un PIN vacío cuenta como intento, los bloqueos no se anotan, se puede
+   reactivar a alguien con un PIN que ya usa otra persona, una apertura sirve para las fotos en otros aparatos de la
+   cuenta); aplicar la 0033 otra vez en cuanto las recetas estén bien.
 1. `supabase/tools/reversion-0032.sql` — devuelve los permisos de antes (las páginas viejas vuelven a poder guardar
    recetas, anotado en el historial).
 2. `supabase/tools/reversion-0031.sql` — las ventas vuelven a descontar la receta del momento de llegar.
