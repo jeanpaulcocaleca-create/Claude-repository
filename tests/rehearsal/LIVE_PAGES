@@ -1,0 +1,8 @@
+# The pages live on hanginggardencafe.com: the gh-pages commit GitHub Pages serves (read-only check, 2026-10-20).
+# It is the build of v2026.10.20-1 (development commit f9cfdef), published 2026-10-20 13:25 UTC by «Publish website» (run #52):
+# the home page review section (D-048, D-049), no migration.
+# Before it: v2026.10.17-1 (671fc0e, gh-pages 1daae6f, 2026-10-18, D-047), v2026.10.15-1 (3b67783, gh-pages 99f698b, 2026-10-16),
+# v2026.10.14-1 (3c7e020, gh-pages ab97d44, 2026-10-15) and the pre-launch build 8950054 (2026-10-09); on 2026-10-16 the three
+# before 1daae6f passed these checks on the copy migrated to 0030, and on 2026-10-20 2ade5f6 passed them on the copies migrated to 0032.
+# Update this line only when a new release is published (docs/PUBLICAR.md).
+2ade5f6999d37e13f5949a6f280941c3a6a8962a

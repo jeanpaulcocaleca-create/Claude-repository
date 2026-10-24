@@ -1,0 +1,81 @@
+name: Tests
+
+# Runs every automated test on each push and pull request. It never publishes anything, holds no secrets
+# and never connects to the café's real database: it builds a throw-away copy from the repository.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # a push to a branch of this repository already runs the suite: the pull_request event runs it only for a fork
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ci-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install PostgreSQL 17 client and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age python3-yaml
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Install browser test tools
+        if: hashFiles('tests/e2e/package.json') != ''
+        working-directory: tests/e2e
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Lint
+        run: bash tests/lint.sh
+      - name: The live site is an approved release
+        run: bash tests/tools/live-site-check.sh
+      - name: SQL tests
+        run: bash tests/run-sql.sh
+      - name: Backup pipeline
+        run: bash tests/backup/test-backup-pipeline.sh
+      - name: Migration rehearsal (production as it is today, every migration, the live pages; the one-time reset, then the pages on the empty café)
+        env:
+          REHEARSAL_OUT: ${{ runner.temp }}/rehearsal
+        run: |
+          bash tests/rehearsal/run.sh
+          bash tests/rehearsal/live-pages.sh
+          bash tests/rehearsal/reset-pages.sh
+      - name: Keep the rehearsal reports
+        # also proves that the pinned upload action the private backup repository uses still resolves
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rehearsal-reports
+          path: |
+            ${{ runner.temp }}/rehearsal/*.json
+            ${{ runner.temp }}/rehearsal/*.log
+            ${{ runner.temp }}/rehearsal/*.txt
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Browser tests
+        if: hashFiles('tests/e2e/run.js') != ''
+        run: node tests/e2e/run.js
