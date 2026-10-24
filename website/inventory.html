@@ -137,6 +137,8 @@ td .sub{display:block;font-size:.78rem;color:var(--sec)}
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
+/* PIN boxes are plain boxes drawn as dots (keypad.js), never password boxes; here too, so a PIN never shows while an older keypad.js is cached */
+input[data-pin]{-webkit-text-security:disc}
 </style>
 </head>
 <body>
@@ -203,7 +205,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="gateMgr">Manager</label>
       <select id="gateMgr"></select>
       <label for="gatePin">PIN</label>
-      <input id="gatePin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="gatePin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <button type="submit">Open the inventory</button>
       <p class="err" id="gateErr"></p>
     </form>
@@ -414,7 +416,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <p class="hint" id="recPinHint">A manager or the owner authorizes every recipe change with their PIN. It is written to the recipe's history.</p>
     <div class="row">
       <div><label for="recMgr">Manager or owner</label><select id="recMgr"></select></div>
-      <div><label for="recPin">PIN</label><input id="recPin" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></div>
+      <div><label for="recPin">PIN</label><input id="recPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div>
     </div>
     <div id="recReasonBox"><label for="recReason" id="recReasonLabel">Reason (optional)</label><input id="recReason" maxlength="200" placeholder="e.g. new cup size"></div>
     <p class="err" id="recPinErr"></p>
@@ -506,7 +508,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
         <button type="button" class="small ghost" id="rvAddPay">+ Add a payment</button>
         <p class="hint" id="rvPaySum"></p>
       </div>
-      <div class="row" id="rvPinBox" hidden><div><label for="rvMgr">Manager who authorizes the payment</label><select id="rvMgr"></select></div><div><label for="rvPin">Manager PIN</label><input id="rvPin" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></div></div>
+      <div class="row" id="rvPinBox" hidden><div><label for="rvMgr">Manager who authorizes the payment</label><select id="rvMgr"></select></div><div><label for="rvPin">Manager PIN</label><input id="rvPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div></div>
     </details>
     <p class="err" id="recvErr"></p>
     <div class="btns"><button type="button" class="ghost" id="recvCancel">Cancel</button><button type="submit" id="recvGo">Confirm reception</button></div>
@@ -1432,7 +1434,7 @@ async function fillRecMgrs(){
   var sel = $('recMgr'); var list = await loadManagers(); sel.replaceChildren();
   list.forEach(function(s){ var o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
   if (!list.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2); }
-  var who = ''; try { who = localStorage.getItem('hg-unlock-who') || ''; } catch (e) {}
+  var who = window.HG_ACCESS && HG_ACCESS.who ? HG_ACCESS.who() : '';     /* the last person who opened, only if this same login saved it */
   if (who && list.some(function(s){ return s.id === who; })) sel.value = who;
 }
 async function openRecPin(mode, emptyRecipe){
@@ -1725,7 +1727,7 @@ async function fillMgrs(){
   var sel = $('rvMgr'); var list = await loadManagers(); sel.replaceChildren();
   list.forEach(function(s){ var o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
   if (!list.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2); }
-  var who = ''; try { who = localStorage.getItem('hg-unlock-who') || ''; } catch (e) {}
+  var who = window.HG_ACCESS && HG_ACCESS.who ? HG_ACCESS.who() : '';     /* the last person who opened, only if this same login saved it */
   if (who && list.some(function(s){ return s.id === who; })) sel.value = who;
 }
 

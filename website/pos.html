@@ -334,6 +334,8 @@ button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:unde
 @media(max-width:480px){ .tabbox .payrow{grid-template-columns:repeat(3,minmax(0,1fr))} .splitbar{grid-template-columns:repeat(2,minmax(0,1fr))} }
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
+/* PIN boxes are plain boxes drawn as dots (keypad.js), never password boxes; here too, so a PIN never shows while an older keypad.js is cached */
+input[data-pin]{-webkit-text-security:disc}
 </style>
 </head>
 <body>
@@ -434,7 +436,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
         <label for="cmStaff">Manager</label>
         <select id="cmStaff"></select>
         <label for="cmPin">Manager PIN</label>
-        <input id="cmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+        <input id="cmPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" required data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
         <p class="err" id="cmErr"></p>
         <button type="submit">Record it</button>
       </form>
@@ -445,7 +447,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="roStaff">Who is opening</label>
       <select id="roStaff"></select>
       <label for="roPin">PIN</label>
-      <input id="roPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <input id="roPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" required data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <label for="roFloat">Cash float received (₡)</label>
       <input id="roFloat" data-keypad="amount" type="number" min="0" step="1" inputmode="numeric" value="50000" required>
       <label for="roFloatUsd">Dollars in the float ($)</label>
@@ -469,7 +471,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="rcStaff">Who is closing</label>
       <select id="rcStaff"></select>
       <label for="rcPin">PIN</label>
-      <input id="rcPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <input id="rcPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" required data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <p class="warn" id="rcQueue" hidden></p>
       <p class="warn" id="rcUnpaid" hidden></p>
       <p class="err" id="rcErr"></p>
@@ -498,7 +500,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="vMgr">Approved by</label>
       <select id="vMgr"></select>
       <label for="vPin">Manager PIN</label>
-      <input id="vPin" data-keypad-ok="#vGo" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="vPin" data-keypad-ok="#vGo" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <div id="vRefundBox" hidden>
         <label for="vMethod">Money goes back as</label>
         <select id="vMethod"><option value="cash_crc">Cash ₡</option><option value="cash_usd">Cash $</option><option value="card">Card</option><option value="sinpe">SINPE</option><option value="other">Other</option></select>
@@ -538,7 +540,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="hMgr">Approved by</label>
       <select id="hMgr"></select>
       <label for="hPin">Manager PIN</label>
-      <input id="hPin" data-keypad-ok="#hBoxGo" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="hPin" data-keypad-ok="#hBoxGo" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <p class="err" id="hBoxErr"></p>
       <div class="row"><button type="button" id="hBoxGo">Confirm</button><button type="button" class="ghost" id="hBoxCancel">Cancel</button></div>
     </div>
@@ -630,7 +632,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="tabRmMgr">Approved by</label>
       <select id="tabRmMgr"></select>
       <label for="tabRmPin">PIN</label>
-      <input id="tabRmPin" data-keypad-ok="#tabRmGo" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="tabRmPin" data-keypad-ok="#tabRmGo" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <p class="err" id="tabRmErr"></p>
       <div class="row">
         <button type="button" id="tabRmGo">Take it off</button>
@@ -727,7 +729,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <label for="discMgr">Approved by</label>
     <select id="discMgr"></select>
     <label for="discPin">PIN</label>
-    <input id="discPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+    <input id="discPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
     <p class="err" id="discErr" role="alert"></p>
     <div class="row">
       <button type="submit" id="discGo">Approve the discount</button>
@@ -743,7 +745,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <div class="opgrid" id="opWho"></div>
     <div id="opPinBox" hidden>
       <label for="opPin" class="hint" style="display:block;margin:0 0 .25rem">PIN</label>
-      <input id="opPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+      <input id="opPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
     </div>
     <p class="err" id="opErr"></p>
     <button type="submit" id="opGo" style="width:100%;margin-top:.4rem" disabled>Start</button>
@@ -821,6 +823,9 @@ function toast(msg){
 async function refreshAuth(){
   var s = await db.auth.getSession();
   var authed = !!(s.data && s.data.session);
+  /* another login (or none): the register lists are filled again, so no one remembered by the last login stays chosen */
+  var who = authed && s.data.session.user ? s.data.session.user.id : null;
+  if (who !== regLogin){ regLogin = who; staffList = null; ['roStaff', 'rcStaff', 'cmStaff'].forEach(function(id){ document.getElementById(id).textContent = ''; }); }
   document.getElementById('loginView').hidden = authed;
   document.getElementById('appView').hidden = !authed;
   /* signed out (also by itself): no window stays over the sign-in box */
@@ -2070,7 +2075,7 @@ function nudgeRegister(){
   if (document.getElementById('appView').hidden) return;
   openDay();
 }
-var staffList = null;
+var staffList = null, regLogin;
 async function loadStaffList(){
   var r = await db.from('staff').select('id,name').eq('active', true).order('name');
   var list = r.error ? [] : (r.data || []);

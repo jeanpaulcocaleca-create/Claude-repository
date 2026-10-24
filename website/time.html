@@ -134,6 +134,8 @@ header.top h1{font-size:1.4rem;margin-right:auto}
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
+/* PIN boxes are plain boxes drawn as dots (keypad.js), never password boxes; here too, so a PIN never shows while an older keypad.js is cached */
+input[data-pin]{-webkit-text-security:disc}
 </style>
 </head>
 <body>
@@ -241,7 +243,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
     <p class="hint" id="pinSub"></p>
     <form id="pinForm">
       <label for="pinInput">PIN</label>
-      <input id="pinInput" class="pinbig" type="password" inputmode="none" autocomplete="off" maxlength="8" aria-describedby="pinSub">
+      <input id="pinInput" class="pinbig" type="text" data-pin data-keypad="off" inputmode="none" autocomplete="off" maxlength="8" aria-describedby="pinSub" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <div class="pinpad" id="pinPad" aria-label="Keypad">
         <button type="button" tabindex="-1" data-k="1">1</button><button type="button" tabindex="-1" data-k="2">2</button><button type="button" tabindex="-1" data-k="3">3</button>
         <button type="button" tabindex="-1" data-k="4">4</button><button type="button" tabindex="-1" data-k="5">5</button><button type="button" tabindex="-1" data-k="6">6</button>
@@ -272,7 +274,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
         <label for="shMgr">Approved by</label>
         <select id="shMgr"></select>
         <label for="shPin">Manager PIN</label>
-        <input id="shPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+        <input id="shPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       </div>
       <p class="err" id="shiftErr"></p>
       <div class="row">
@@ -293,7 +295,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="hpWho">Name</label>
       <select id="hpWho"></select>
       <label for="hpPin">PIN</label>
-      <input id="hpPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <input id="hpPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" required data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <p class="err" id="hpErr"></p>
       <div class="row">
         <button type="submit">Show hours</button>
@@ -311,9 +313,9 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="stName">Name</label>
       <input id="stName" required maxlength="60">
       <label for="stPin" id="stPinLabel">PIN (4–8 digits, they'll type it to clock in)</label>
-      <input id="stPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      <input id="stPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <label for="stPin2">Type the PIN again</label>
-      <input id="stPin2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      <input id="stPin2" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <p class="hint" style="margin:.3rem 0 0">Numbers only. Not 1234, 0000 or a birthday everyone knows.</p>
       <label for="stRole">Role</label>
       <select id="stRole">
@@ -334,7 +336,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
         <label for="stMgr">Approved by</label>
         <select id="stMgr"></select>
         <label for="stMgrPin">Manager PIN</label>
-        <input id="stMgrPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8">
+        <input id="stMgrPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       </div>
       <p class="hint" id="stBootstrap" hidden style="margin-top:.8rem">First setup: this person becomes the manager and no approval is needed this one time.</p>
       <p class="hint" id="stOwnerNote" hidden style="margin-top:.8rem">Owner login: saved directly and written to the approvals log.</p>
@@ -629,10 +631,11 @@ function openPin(st){
 document.getElementById('pinCancel').addEventListener('click', function(){ document.getElementById('pinModal').hidden = true; });
 document.getElementById('pinPad').addEventListener('mousedown', function(e){ if (e.target.closest('button')) e.preventDefault(); });   /* keys never steal focus from the PIN box */
 document.getElementById('pinPad').addEventListener('click', function(e){
-  var b = e.target.closest('button[data-k]'); if (!b) return;
-  var inp = document.getElementById('pinInput');
+  var b = e.target.closest('button[data-k]'); if (!b || !e.isTrusted) return;   /* a key pressed by a script types nothing */
+  var inp = document.getElementById('pinInput'), before = inp.value;
   if (b.dataset.k === 'del') inp.value = inp.value.slice(0, -1);
   else if (inp.value.length < 8) inp.value += b.dataset.k;
+  if (window.HG_KEYPAD && HG_KEYPAD.pinTyped) HG_KEYPAD.pinTyped(inp, before);     /* typed here, by a person: keypad.js lets only that PIN go */
   document.getElementById('pinErr').textContent = '';
 });
 document.getElementById('startAddBtn').addEventListener('click', function(){ openStaffEditor(null); });

@@ -84,6 +84,8 @@ tr.void .dreason{color:var(--sec)}
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
+/* PIN boxes are plain boxes drawn as dots (keypad.js), never password boxes; here too, so a PIN never shows while an older keypad.js is cached */
+input[data-pin]{-webkit-text-security:disc}
 </style>
 </head>
 <body>
@@ -144,7 +146,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <label for="gateMgr">Manager</label>
       <select id="gateMgr"></select>
       <label for="gatePin">PIN</label>
-      <input id="gatePin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" required>
+      <input id="gatePin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" required data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
       <button type="submit">Open the sales reports</button>
       <p class="err" id="gateErr"></p>
     </form>

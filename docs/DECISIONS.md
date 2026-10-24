@@ -1665,3 +1665,107 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Records:** this entry, the D-050 row of `docs/CHECKLIST.md` (commit `c1d9fb5`, live), the release runbook row,
   and `docs/PRODUCTION-READINESS.md` (live site `0ad8c88`, releases, public check). Documentation only, committed with
   the owner's authorization of 2026-10-22. Nothing merged, tagged or published from here.
+
+## D-052 · 2026-10-23 · PIN boxes are not password boxes, and an unlock never outlives its login
+
+- **Why:** the new café login (`+cafe`), tried in a private window on the owner's computer, showed «Áreas de dueños
+  abiertas · Jorge · hasta las 13:23». The log (the owner's read-only query) holds a real opening: Jorge, manager
+  role, on the café login, 11:09 → 11:24 Costa Rica time. The owner typed only the email and the password. Code review
+  and local tests: nothing opens unless the right PIN is sent from that browser, and an unlock only counts for the
+  login that made it (`_unlock_staff`: `user_id = auth.uid()`). So the PIN was sent from that browser profile. The
+  most likely cause is inferred, not proven. Every PIN box was `type="password"`, which browsers and password managers
+  take for a password (they ignore `autocomplete="off"` there). The team editor's name + PIN + repeat looks like a
+  sign-up form, so a PIN saved from it could be filled into the PIN screen and sent by an Enter, a click or «fill and
+  send». «Jorge» was preselected because the browser kept the last person who opened (`hg-unlock-who`) across logins.
+  The 13:23: the notice uses the device's clock and time zone, and that device was 2 hours ahead of Costa Rica (for
+  example US Eastern time); reproduced locally.
+- **Change (pages only, no database change):**
+  - **The 19 PIN boxes are plain boxes drawn as dots:** POS 8, Inventory 3, Sales 1, the time clock 6 (the team editor
+    included) and the PIN screen of `access.js`. They use `type="text"`, `data-pin`, `-webkit-text-security: disc` (in
+    `keypad.js`, `access.js` and each page's own CSS) and `autocomplete="off"`. They also carry the opt-outs of the
+    common password managers (`data-1p-ignore`, `data-lpignore`, `data-bwignore`, `data-form-type="other"`). Browsers
+    no longer offer to save a PIN or fill one in. A browser that cannot draw the dots keeps a password box
+    (`keypad.js`, via `CSS.supports`), still guarded as below. A PIN cannot be copied, cut or dragged out of its box,
+    as from a password box.
+  - **Only a PIN a person enters counts (`keypad.js`).**
+    - What counts: a real key, a phone keyboard, Backspace, paste, drop or undo, seen as a trusted `beforeinput`
+      followed by exactly that change (same box and kind; a typed key also with the same text). The person's taps on
+      the on-screen keys also count: `keypad.js`'s own keys, and the time clock's own keys through
+      `HG_KEYPAD.pinTyped`.
+    - What is wiped at once: an "input" with no key (autofill, `execCommand`, an extension), a value with no event,
+      `:autofill`, a key typed on top of such a value, a key mark left by a key that changed nothing (a 9th digit),
+      and on-screen keys pressed by a script.
+    - A box the page has emptied keeps nothing typed before.
+  - **What does not go (`keypad.js`).** A form does not go while one of its PIN boxes holds a PIN nobody typed: not by
+    Enter, a click or the on-screen ✓ (`requestSubmit`). The same holds for a button that reads the PIN itself: the
+    box's own button (`data-keypad-ok`), a cash move's Void, or a shift's Delete. A click in the PIN box's window is
+    stopped too. So such a PIN, or even an empty one (a wrong try), never reaches the database.
+  - **An unlock belongs to its login (`access.js`, `pos.html`).**
+    - `hg-unlock-login` (new) names the login signed in on this device. The unlock and the people remembered (who
+      opened the owner areas last, who opened or closed the register last: `hg-pos-reg-staff`) belong to it.
+    - Signing out (SIGNED_OUT), or any other login, takes the notice down at once with no reload, and forgets the
+      unlock and the people remembered. This also holds in another tab of the same browser, and when the other tab
+      forgot first.
+    - The remembered person is offered first only to the login that kept it (`HG_ACCESS.who()`, also used by
+      Inventory).
+    - The POS fills its register lists again after a change of login on the same page.
+    - A late "what is open here" answer for the login just gone is never shown, and the notice also goes whenever the
+      database says no PIN unlock is open.
+- **Unchanged:**
+  - the database and the PIN rules (5 tries → 10 minutes, 15 minutes open, who may open);
+  - the POS offline;
+  - typing the PIN on the keyboard, the on-screen keys or a phone keyboard;
+  - no new text on screen.
+  - With an owner-role PIN (an owner's own staff PIN) the tablet still opens the owner areas and Sales for 15 minutes,
+    as decided in D-022. The planned owner PIN on personal logins (not authorized yet) is what will keep owner PINs off
+    shared tablets.
+- **Known limits (accepted):**
+  - **Typing tools that set the text in one go** (Android Voice Access «type 1234», switch access) are wiped like any
+    other fill. Nobody at the café is known to use them; allowing them would weaken the guard, and that choice is the
+    owner's.
+  - **Anything the browser reports as a real key counts as a person:** an operating-system tool that types keystrokes
+    (KeePass auto-type), or a remote-control session.
+  - **A sign-out on a page that never checks the owner areas** (the kitchen screen, Accounting, the password reset page)
+    only takes effect on the next staff page. With the same login, an unlock still open (at most 15 minutes) is kept; with another login, it is
+    forgotten there.
+  - **The first requests a page sends before its first check** can still carry another login's unlock token. The
+    database ignores it for any other login (SQL 380, section 2), and from that check on nothing carries it.
+  - Only Chromium was tested here. Safari draws the dots the same way; Firefox gets the password-box fallback if it
+    cannot. Check one PIN on each café tablet after publishing.
+- **Seen, not changed (older behaviour):** the POS operator who rings the sales (`hg-pos-operator`) is also kept across
+  logins on a device, and the database does not tie it to a login. It names who rang a sale and opens nothing.
+- **Once, after publishing:** an unlock or remembered person saved by the older pages has no login attached, so it is
+  forgotten on the first load. An open unlock (at most 15 minutes) needs its PIN again, and the lists start at the top
+  once.
+- **For the owner, on the device that showed the opening:**
+  - remove any saved password for hanginggardencafe.com other than the login;
+  - give Jorge a new PIN.
+  - The tablet transition (E-05) stays paused until these pages are published.
+- **Reviews:** an independent review and then a four-lens review (bypass, legitimate use, login binding, test
+  validity), each serious finding checked by a separate skeptic. Fixed from them:
+  - the buttons that read a PIN themselves;
+  - the leftover key mark;
+  - a key on top of a fill;
+  - paste with a line break, and digits dropped while composing;
+  - script-pressed on-screen keys;
+  - the emptied box;
+  - the late answer after sign-out;
+  - the other tab;
+  - the POS register person (stored and on screen).
+  No bypass by a browser fill or a password manager was found.
+- **Tests:**
+  - **SQL `380_cafe_never_owner` (27):** the café login alone, with a phone code, with another login's unlock (both
+    ways), with a manager PIN and with an owner-role PIN never gets `owner_with_code`, the books, the bank, pay rates,
+    settings, tax rates or accountant access. A manager PIN gives the manager level only, and an owner-role PIN the
+    tablet's owner areas only. The log names who and which login; Lock closes it.
+  - **Browser `340_pin_autofill` (14):** each protection above, and each way a person enters a PIN (keys, the touch
+    pad and ✓, the time clock's keys, a phone keyboard, Backspace and undo, paste).
+  - **How the tests were checked:**
+    - The first tests failed on the pages before this change.
+    - Each protection, taken out of a copy of the pages one at a time, makes at least one test fail (mutation check, 14
+      cases).
+    - The three checks against a leftover key mark overlap: the key's release, the next tick, and the exact match.
+      Taking out the release together with either of the others makes a test fail.
+    - The full `tests/run.sh` passes.
+- **Records:** this entry and the checklist row. Prepared and tested locally on 2026-10-23; not committed, not
+  published. Waiting on the owner's authorization.
