@@ -4,7 +4,7 @@
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, STAFF } = require('../../e2e/lib');
+const { page, goto, until, settle, sql, STAFF } = require('../../e2e/lib');
 
 /* the local stand-in for Supabase answers on the site port + 1000 (tests/e2e/gateway.js; live-pages.sh points the pages there) */
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -81,6 +81,7 @@ module.exports.tests = [
       const pg = watchApi(await page(browser, { login: 'cafe' }));
       await goto(pg, '/pos.html');
       await until(async () => (await pg.locator('#menuGrid .pbtn').count()) > 0, 15000, 'the menu');
+      await settle(pg);   // every load-time check answered: the Today nudge, if any, is up before it is closed
       await closeDayNudge(pg);
       const before = Number(sql(`select count(*) from public.orders`)), beforeLines = withLines();
       setOffline(true);

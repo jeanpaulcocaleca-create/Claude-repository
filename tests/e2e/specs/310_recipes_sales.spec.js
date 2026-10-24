@@ -7,7 +7,7 @@
 'use strict';
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, settle, sql, openRegister, STAFF, PINS } = require('../lib');
 const gw = require('../gateway');
 
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -117,6 +117,7 @@ module.exports.tests = [
     run: async ({ browser }) => {
       setup();
       const b = await till(browser);
+      await settle(b);
       // this device loses its connection (the browser says it is offline; the other devices are still online)
       await b.context().setOffline(true);
       await tap(b, 'T Batido'); await tap(b, 'T Batido');
@@ -219,6 +220,7 @@ module.exports.tests = [
     run: async ({ browser }) => {
       setup();
       const b = await till(browser);
+      await settle(b);
       await b.context().setOffline(true);
       const ORDER = 'f1000000-0000-4000-8000-0000000e3105';
       await b.evaluate((o) => { queue.push(o); saveQueue(); return syncQueue(); }, localOrder(ORDER, 75));

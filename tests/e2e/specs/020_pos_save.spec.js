@@ -1,7 +1,7 @@
 /* The POS saves each sale once, with its lines, online or after being offline; old databases still work. */
 'use strict';
 const assert = require('assert');
-const { until, sql, pos, cashExact } = require('../lib');
+const { until, settle, sql, pos, cashExact } = require('../lib');
 
 async function ringFirstItem(pg, times, method) {
   const first = pg.locator('.pbtn').first();
@@ -30,6 +30,7 @@ module.exports.tests = [
     name: 'a sale rung without internet is saved once when the connection returns',
     run: async ({ browser, setOffline }) => {
       const pg = await pos(browser);
+      await settle(pg);
       setOffline(true);
       await ringFirstItem(pg, 2);
       await new Promise((r) => setTimeout(r, 1500));

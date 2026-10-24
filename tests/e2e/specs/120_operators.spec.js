@@ -1,7 +1,7 @@
 /* Who is ringing up (migration 0008): sign in with a PIN, every sale carries the operator, also offline. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, pos, cashExact, STAFF, PINS } = require('../lib');
+const { page, goto, until, settle, sql, pos, cashExact, STAFF, PINS } = require('../lib');
 
 async function ring(pg, method) {
   await pg.locator('.pbtn').first().click();
@@ -9,8 +9,10 @@ async function ring(pg, method) {
   if (/^cash/.test(method || 'card')) await cashExact(pg);
   if (await pg.locator('#numModal:not([hidden])').count()) await pg.click('#numNone');
 }
+/* every check of the mode answered first: a late answer opens the window again, and the person picked is lost */
 async function signIn(pg, who, pin) {
   await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+  await settle(pg);
   await pg.locator('#opWho button', { hasText: who }).click();
   await pg.fill('#opPin', pin);
   await pg.click('#opGo');
@@ -68,8 +70,11 @@ module.exports.tests = [
     run: async ({ browser, setOffline }) => {
       sql(`insert into settings (key, value) values ('operator_mode', '"record"')`);
       const pg = await pos(browser);
-      await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });   // the staff list is kept for offline use
+      await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+      await settle(pg);   // every check of the mode answered, and the staff list kept for offline use
       await pg.click('#opSkip');
+      await pg.waitForSelector('#opModal', { state: 'hidden', timeout: 5000 });
+      await pg.waitForSelector('#opBtn:not([hidden])', { timeout: 5000 });
       setOffline(true);
       await pg.evaluate(() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); });
       await pg.click('#opBtn');
@@ -84,8 +89,37 @@ module.exports.tests = [
       await until(() => sql(`select count(*) from orders`) === '1', 15000, 'sale uploaded');
       assert.strictEqual(sql(`select operator_name || '|' || array_to_string(flags, ',') from orders`), 'Ana|operator_unverified,operator_not_clocked_in');
     }
-  }
-,
+  },
+  {
+    name: 'without internet: the screen waking up keeps the mode, and the next sale still carries who rang it',
+    run: async ({ browser, setOffline }) => {
+      sql(`insert into settings (key, value) values ('operator_mode', '"record"')`);
+      const pg = await pos(browser);
+      await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+      await settle(pg);
+      await pg.click('#opSkip');
+      setOffline(true);
+      await pg.evaluate(() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); });
+      await pg.click('#opBtn');
+      await pg.locator('#opWho button', { hasText: 'Ana' }).click();
+      await pg.click('#opOffline');
+      // the tablet's screen wakes up: supabase-js announces the sign-in again, so the POS checks the mode again, and
+      // without internet nothing answers (this turned the mode off before D-054: no chip, and sales went up with nobody)
+      const check = pg.waitForEvent('requestfailed', (r) => /rpc\/setting$/.test(r.url()) && /operator_mode/.test(r.postData() || ''));
+      await pg.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+      await check;
+      await pg.evaluate(() => new Promise((r) => setTimeout(r, 300)));
+      assert.strictEqual(await pg.locator('#opBtn').isVisible(), true, 'the chip stays');
+      assert.strictEqual(await pg.locator('#opBtn').textContent(), 'Ana · not checked');
+      await ring(pg, 'cash_crc');
+      await until(async () => (await pg.evaluate(() => queue.length)) === 1, 5000, 'the sale waits on the device');
+      setOffline(false);
+      await pg.evaluate(() => { delete navigator.onLine; syncQueue(); });
+      await until(() => sql(`select count(*) from orders`) === '1', 15000, 'sale uploaded');
+      assert.strictEqual(sql(`select coalesce(operator_name, 'nobody') || '|' || array_to_string(flags, ',') from orders`), 'Ana|operator_unverified,operator_not_clocked_in');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
   {
     name: 'the owner switches the mode on Home, and the change is logged',
     run: async ({ browser }) => {
