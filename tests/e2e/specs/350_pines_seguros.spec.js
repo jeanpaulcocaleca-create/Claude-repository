@@ -10,14 +10,26 @@ const rowsOf = (tok) => Number(sql(`select count(*) from access_unlocks where to
 const putIn = (pg, sel, v) => pg.evaluate(([s, x]) => { const i = document.querySelector(s); i.value = x; i.dispatchEvent(new Event('input', { bubbles: true })); }, [sel, v]);
 function calls(pg, re) { const seen = []; pg.on('request', (r) => { if (re.test(r.url())) seen.push(r); }); return seen; }
 
+/* Home checks the sign-in two or three times as it loads and draws its PIN screen each time; a PIN typed into an
+   earlier one is lost when the next replaces it (seen on the slower CI machine). Type only into the last one. */
+async function lastGate(pg) {
+  await pg.waitForSelector('.hga-wrap #hgaPin', { timeout: 10000 });
+  await until(() => pg.evaluate(() => new Promise((ok) => {
+    const w = document.querySelector('.hga-wrap');
+    setTimeout(() => ok(!!w && w === document.querySelector('.hga-wrap') && w.querySelectorAll('#hgaWho option').length > 1), 700);
+  })), 12000, 'the last PIN screen, with its list of people');
+}
 async function homeUnlocked(pg, who) {
   await goto(pg, '/home.html');
-  await pg.waitForSelector('.hga-wrap #hgaPin', { timeout: 10000 });
-  await until(async () => (await pg.locator('#hgaWho option').count()) > 1, 8000, 'the list of people');
+  await lastGate(pg);
   if (who) await pg.selectOption('#hgaWho', STAFF[who]);
   await pg.type('#hgaPin', PINS[who || 'ana']);
   await pg.press('#hgaPin', 'Enter');
   await pg.waitForSelector('.hga-pill', { timeout: 8000 });
+  // Home checks the unlock again right after it opens; a test that goes offline before that check is answered sees
+  // the PIN screen come back (Home cannot confirm the unlock without a connection, as before)
+  await pg.waitForLoadState('networkidle');
+  await pg.waitForSelector('#appView:not([hidden])', { timeout: 8000 });
   return pg.evaluate(() => JSON.parse(localStorage.getItem('hg-unlock')).token);
 }
 
@@ -143,7 +155,7 @@ module.exports.tests = [
       // a PIN someone else uses
       await pg.locator('#teamBody .trow', { hasText: 'Luis' }).locator('button', { hasText: /^Editar$/ }).click();
       await pg.waitForSelector('#staffModal:not([hidden])', { timeout: 5000 });
-      assert.match(await pg.locator('#stLockLine').innerText(), /Bloqueado tras 5 PIN incorrectos\? Quitar el bloqueo del PIN \(con el PIN de otro encargado\)/);
+      await until(async () => /Bloqueado tras 5 PIN incorrectos\? Quitar el bloqueo del PIN \(con el PIN de otro encargado\)/.test(await pg.locator('#stLockLine').innerText()), 5000, 'the lock line in Spanish');
       await pg.type('#stPin', PINS.marta);
       await pg.type('#stPin2', PINS.marta);
       await pg.click('#staffForm button[type=submit]');
@@ -151,7 +163,7 @@ module.exports.tests = [
       // removing the lock asks for another manager's PIN; Enter (or ✓) in that box removes the lock, it does not save
       await pg.click('#stUnlockPin');
       await pg.waitForSelector('#stApprove:not([hidden])', { timeout: 5000 });
-      assert.strictEqual(await pg.locator('#staffErr').textContent(), 'Para quitar el bloqueo, otro encargado elige su nombre y escribe su PIN.');
+      await until(async () => (await pg.locator('#staffErr').textContent()) === 'Para quitar el bloqueo, otro encargado elige su nombre y escribe su PIN.', 5000, 'what to do, in Spanish');
       await pg.selectOption('#stMgr', STAFF.ana);
       await pg.type('#stMgrPin', PINS.ana);
       const saves = Number(sql(`select count(*) from audit_log where action = 'staff_save'`));
@@ -276,8 +288,7 @@ module.exports.tests = [
       await pg.type('#hpPin', PINS.ana);
       await pg.click('#hoursPinForm button[type=submit]');
       await until(async () => /anulación de prueba 350/.test(await pg.locator('#logBody').innerText()), 8000, 'the void still in the log');
-      assert.strictEqual(await pg.locator('#logBody .lrow', { hasText: 'PIN bloqueado' }).count(), 10, 'the locks: their last 10');
-      assert.match(await pg.locator('#logBody').innerText(), /PIN bloqueado otra vez 10 minutos/, 'in Spanish');
+      await until(async () => (await pg.locator('#logBody .lrow', { hasText: 'PIN bloqueado otra vez 10 minutos' }).count()) === 10, 5000, 'the locks: their last 10, in Spanish');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -296,7 +307,7 @@ module.exports.tests = [
       await until(async () => pg.locator('#hoursPinModal').isHidden(), 8000, 'the manager opened the hours');
       await pg.locator('#teamBody .trow', { hasText: 'Marta' }).locator('button', { hasText: /^Editar$/ }).click();
       await pg.waitForSelector('#staffModal:not([hidden])', { timeout: 5000 });
-      assert.strictEqual(await pg.locator('#stPinLabel').textContent(), 'Nuevo PIN (necesario para volver a activarla)');
+      await until(async () => (await pg.locator('#stPinLabel').textContent()) === 'Nuevo PIN (necesario para volver a activarla)', 5000, 'the PIN label in Spanish');
       await pg.check('#stActive');
       await pg.click('#staffForm button[type=submit]');
       await until(async () => (await pg.locator('#staffErr').textContent()) === 'Para volver a activar a alguien, póngale un PIN nuevo.', 5000, 'asked for a new PIN');

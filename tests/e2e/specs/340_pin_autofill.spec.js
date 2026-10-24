@@ -14,10 +14,18 @@ function calls(pg, fn) { const seen = []; pg.on('request', (r) => { if (r.url().
 const putIn = (pg, sel, v) => pg.evaluate(([s, x]) => { document.querySelector(s).value = x; }, [sel, v]);
 
 /* Home on a café device: the PIN screen with its list of people */
+/* Home checks the sign-in two or three times as it loads and draws its PIN screen each time; a PIN typed into an
+   earlier one is lost when the next replaces it (seen on the slower CI machine). Type only into the last one. */
+async function lastGate(pg) {
+  await pg.waitForSelector('.hga-wrap #hgaPin', { timeout: 10000 });
+  await until(() => pg.evaluate(() => new Promise((ok) => {
+    const w = document.querySelector('.hga-wrap');
+    setTimeout(() => ok(!!w && w === document.querySelector('.hga-wrap') && w.querySelectorAll('#hgaWho option').length > 1), 700);
+  })), 12000, 'the last PIN screen, with its list of people');
+}
 async function homeGate(pg) {
   await goto(pg, '/home.html');
-  await pg.waitForSelector('.hga-wrap #hgaPin', { timeout: 10000 });
-  await until(async () => (await pg.locator('#hgaWho option').count()) > 1, 8000, 'the list of people');
+  await lastGate(pg);
 }
 const picked = (pg) => pg.locator('#hgaWho option:checked').textContent();
 /* the POS's Today window, which a main register also opens by itself once a day */

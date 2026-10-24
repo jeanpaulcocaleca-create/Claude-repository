@@ -1946,6 +1946,14 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     (8/8, 2/2); browser 149/149.
   - **Two adversarial review rounds** (8 agents each, every finding checked by an independent skeptic), and probes with
     two database sessions for deadlocks and parallel saves. Every finding was fixed or is written down here.
+  - **GitHub «Tests» #149 (commit 5392056) failed 4 browser tests never seen locally.** The causes are in the tests'
+    timing on the slower CI machine; the pages are unchanged:
+    - Home draws its PIN screen two or three times as it loads (one sign-in check at load, one per sign-in event), and
+      a PIN typed into an earlier one is lost. The tests now type only into the last one. This is older than D-052 and
+      is in the published pages too: a PIN typed in the first second after Home opens may have to be typed again.
+    - Spanish texts are applied just after a text is set; two checks read too early and now wait.
+    - Home checks the unlock again right after it opens; going offline before that answer shows the PIN screen again,
+      as before. The offline test now waits for that check.
 - **Records:** this entry, D-052's corrections, the checklist row, E-36 in `docs/DEPENDENCIES.md` (E-05 stays paused),
   `docs/MIGRACIONES.md` (now «hoy en la 0032»), `docs/LANZAMIENTO.md`, `docs/ACTIVACION-RECETAS.md` (step 0),
   `docs/PERSONAL-NUEVO.md` and `reversion-0031.sql`'s message. Committed to the development branch on 2026-10-24 with
