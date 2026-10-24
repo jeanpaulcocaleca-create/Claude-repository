@@ -726,11 +726,33 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - after the tests, the editorial review is finished;
   - no new guides phase without a concrete reason.
 
+**BD-046 · 2026-10-24 · Owner · The editorial review of the five guides is finished; three final corrections; next work is bookings and privacy.**
+- **Closed:** the editorial review of the five guides.
+- **Authorized, only these three, in Spanish as written and with natural English:**
+  1. Home subtitle (ES): «Sirviendo café desde las 6:00 a. m., ideal para comenzar temprano su aventura en Monteverde».
+  2. Home café section: «Abre a las 6:00 a. m., ideal para comenzar temprano el día», instead of «una hora antes de que abra la reserva».
+  3. The Stay breakfast question: «Hanging Garden Café abre a las 6:00 a. m., así que puede desayunar allí antes de salir».
+- **Rules:**
+  - after the tests, this stage is closed for good;
+  - the guides stay TEST, the preview stays private and every publishing protection stays;
+  - no new editorial phases;
+  - the next work is only the booking and privacy requirements for launch.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-24 · Claude.** BD-046 applied in the private preview: `basecamp-website` commit a5f597c. The editorial stage is closed.
+  - **Home:**
+    - the Spanish subtitle uses «su aventura»;
+    - the "Coffee from 6:00" card says "It opens at 6:00 AM, perfect for an early start to the day" / «Abre a las 6:00 a. m., ideal para comenzar temprano el día».
+  - **The Stay:** the breakfast answer uses the owner's sentence, in Spanish and English.
+  - **The site no longer says "an hour before the reserve" anywhere.**
+  - **Noted for the booking and privacy work, not changed (outside BD-046):** the home "In the center of Santa Elena" card still says the reserve bus leaves "five times a day" / «cinco veces al día». That is the same unconfirmed timetable removed from the guides.
+  - **Checks:** `npm test` 88/88; `check:browser` all green; CI run 50: green (site tests pass, Cloudflare deployed, the preview still asks for its password).
+  - **Next:** the booking and privacy requirements for launch only. The guides stay TEST.
 
 - **2026-10-24 · Claude.** BD-045 applied in the private preview: `basecamp-website` commit ca1c78b. The editorial review of the guides is closed. All five guides stay TEST.
   - **Home:** the hero subtitle uses the owner's exact wording.
