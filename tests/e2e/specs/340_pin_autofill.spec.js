@@ -27,6 +27,13 @@ async function homeGate(pg) {
   await goto(pg, '/home.html');
   await lastGate(pg);
 }
+/* Right after the PIN opens Home, refreshAuth shows #appView, checks the unlock again (HG_ACCESS.load reads the hg-unlock*
+   keys when it sends access_state) and hides #appView again if that check finds none. A test that removes the keys or
+   clicks Sign out before the check has read them sees the PIN screen come back and #outBtn hidden (GitHub Tests #157 on
+   v2026.10.25-1, under load). Home writes #secEmail only once that check has passed: wait for it. */
+async function settled(pg) {
+  await until(() => pg.evaluate(() => !document.getElementById('appView').hidden && !!document.getElementById('secEmail').textContent), 8000, 'Home settled after its unlock check');
+}
 const picked = (pg) => pg.locator('#hgaWho option:checked').textContent();
 /* the POS's Today window, which a main register also opens by itself once a day */
 async function openDay(pg) {
@@ -414,6 +421,7 @@ module.exports.tests = [
       await pg.type('#hgaPin', PINS.ana);
       await pg.press('#hgaPin', 'Enter');
       await pg.waitForSelector('.hga-pill', { timeout: 8000 });
+      await settled(pg);
       await pg.evaluate(() => ['hg-unlock', 'hg-unlock-who', 'hg-unlock-login'].forEach((k) => localStorage.removeItem(k)));
       await pg.click('#outBtn');
       await pg.waitForSelector('#loginView:not([hidden])', { timeout: 8000 });
@@ -427,9 +435,11 @@ module.exports.tests = [
       await a.type('#hgaPin', PINS.ana);
       await a.press('#hgaPin', 'Enter');
       await a.waitForSelector('.hga-pill', { timeout: 8000 });
+      await settled(a);
       const b = await page(browser, { context: ctx, lang: 'es' });     // a second tab shares the first one's sign-in, as in a browser
       await goto(b, '/home.html');
       await b.waitForSelector('.hga-pill', { timeout: 10000 });
+      await settled(b);
       await b.click('#outBtn');
       await b.waitForSelector('#loginView:not([hidden])', { timeout: 8000 });
       await until(async () => (await a.locator('.hga-pill').count()) === 0, 8000, 'the first tab\'s notice gone');

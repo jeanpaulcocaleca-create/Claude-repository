@@ -9,8 +9,11 @@ no publica, no crea etiquetas `v*` y no toca la base de producción (CLAUDE.md);
 celdas, analiza errores y prepara correcciones.
 
 - **Versión a publicar:** el commit de la rama `claude/hanging-garden-coffee-proposal-1m8zd4` que se etiquete, con
-  «Tests» en verde. Sus `website/` y `supabase/` deben ser idénticos a `3d80f30` (D-052 + D-053, «Tests» #151 en verde);
-  el commit de este documento cumple eso (solo cambia `docs/`).
+  «Tests» en verde **sobre la etiqueta**. Sus `website/` y `supabase/` deben ser idénticos a `3d80f30` (D-052 + D-053,
+  «Tests» #151 en verde); los commits posteriores cumplen eso (solo cambian `docs/` y `tests/`).
+  - La etiqueta `v2026.10.25-1` (= `e03071e`) **no se publica**: su «Tests» #157 salió rojo por una condición de carrera
+    de una prueba de navegador (D-056; el mismo flujo de pruebas había dado verde a ese commit en #155). La etiqueta se queda
+    donde está, sin borrar ni mover; la ventana usa una etiqueta nueva sobre el commit con la prueba corregida.
   - Base de datos: `supabase/migrations/0033_pines_seguros.sql`. Solo funciones y una columna nueva; ningún registro
     cambia.
   - Páginas: D-052 (las casillas de PIN) y D-053, en `access.js`, `keypad.js`, `lang.js`, `pos.html`, `inventory.html`,
@@ -177,9 +180,9 @@ iguales) → 0033 otra vez → borrar el contenedor. Unos 30 minutos; Claude esc
    4. Publish release. Abrir la etiqueta y confirmar a qué commit señala.
    5. La etiqueta dispara «Tests» (unos 10 minutos): debe terminar en verde. Si sale rojo, no empezar la ventana: copiar
       el nombre del paso y de la prueba en rojo y pasarlo a Claude. «Re-run all jobs» solo si Claude confirma que es el
-      ritmo de las pruebas y que no hay nada que corregir; con un segundo rojo se pospone. (El rojo de #149 también fue
-      de ritmo, pero se resolvió con un commit nuevo, `3d80f30`, no con un re-run: si Claude pide corregir una prueba, no
-      se re-ejecuta, se pospone.)
+      ritmo de las pruebas y que no hay nada que corregir; con un segundo rojo se pospone. (Los rojos de #149 y de #157
+      también fueron de ritmo y se resuelven con un commit nuevo (y, para #157, una etiqueta nueva), no con un re-run: si
+      Claude pide corregir una prueba, no se re-ejecuta, se pospone.)
    6. **Nunca borrar ni mover la etiqueta.** Si la ventana no se completa, otra noche se publica la misma etiqueta,
       repitiendo ese día el ensayo y el respaldo.
 3. **Copia guardada del sitio actual** (decisión 4): Releases → Draft a new release → etiqueta `sitio-AAAA-MM-DD`

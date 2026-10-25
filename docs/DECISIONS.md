@@ -2003,3 +2003,44 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   a code change and waits for a separate authorization. Documentation commit only, authorized 2026-10-25; the PR stays
   unmerged; no tag, no production SQL, no publication, no permission change. Numbered D-055 because D-054 is taken by
   the «who rings up» offline decision on the sibling branch `claude/loving-bell-usoxey` (PR #4).
+
+## D-056 · 2026-10-25 · Tests #157 on v2026.10.25-1: a browser test raced Home's unlock check; the test waits now
+
+- **What happened:** the owner tagged `v2026.10.25-1` on `e03071e` (the docs commit of D-055, which «Tests» #155 had
+  passed) and the tag's «Tests» #157 failed one browser test of 149: `340_pin_autofill` › «another tab signing out
+  takes this tab's notice down too, even when that tab already forgot everything», a 30 s timeout clicking `#outBtn`
+  («waiting for element to be visible, enabled and stable»). The owner stopped the publication and asked whether it
+  was a race in the test or a real cross-tab sign-out problem.
+- **Diagnosis (a race in the test; the pages are right):** when a PIN opens Home, `access.js` draws the notice; Home's
+  `refreshAuth` then shows `#appView`, checks the unlock again (`HG_ACCESS.load` reads the `hg-unlock*` keys when it
+  sends `access_state`, 20–30 ms after the notice) and hides `#appView` again if that check finds none. The test waited
+  for the notice, removed the keys (its way of simulating «the other tab already forgot») and clicked «Cerrar sesión»
+  at once. When the keys go before Home's check reads them, Home finds no unlock, takes the notice down, hides
+  `#appView` and draws the PIN screen again, so `#outBtn` is visible for 30–55 ms and never again. That is the behaviour D-052 asks for
+  (an unlock never outlives its login); the sign-out itself works, and the two-tab half of the test was not the one
+  that failed (its click cannot start before ~2 s; #157's timed-out click began ~1 s into the test). Evidence: the
+  unchanged test repeated 30 times here with three CPU burners failed once, at the same click (spec line 418, the
+  single-tab half), with the same Playwright log as #157; two independent reviewers reproduced the losing order on the
+  real pages (keys removed before the check: `#appView` visible 32–55 ms, notice removed, PIN screen drawn; with the
+  keys kept: no re-hide) and timed the normal order (`#appView` shown 3–16 ms after the notice, `access_state` sent at
+  +22–28 ms). Same family as #149 (D-053).
+- **Fix (tests only):** `340_pin_autofill.spec.js` gets `settled(pg)` before touching the keys or clicking «Cerrar
+  sesión», in the three places of that test. A first version waited for network idle and `#appView` shown (as 350's
+  `homeUnlocked` does): 30 of 30 under load, but the reviewers showed it only narrows the race (Playwright's
+  `networkidle` returns at once when the page was idle before, and `#appView` is shown before the check), so `settled`
+  waits for an effect Home produces only after the check has passed: `#secEmail` written (home.html, end of
+  `refreshAuth`). `tests/e2e/run.js` prints 12 lines of a failure instead of 6, so Playwright's reason («element is
+  not visible») is no longer cut off, plus the stack frames inside the spec, so a CI log says which click (the same
+  12-line change PR #4's branch carries). A sweep of every spec found no other test that removes the keys after a PIN;
+  the one other spot with the same gap was 350's `homeUnlocked` (the #149 fix: the same two inert waits, then
+  `setOffline(true)` at once, so Home's check could fail offline and re-gate): it waits for `#secEmail` now too. No
+  page, migration or tool changes: `website/` and `supabase/` stay identical to `3d80f30`.
+- **Seen on the way, not for this release (they would change `website/`, which must stay identical to `3d80f30`):**
+  when a sign-out wins such a race, a stale `refreshAuth` whose `access_state` answers without a level after the
+  sign-out draws the PIN screen over the login form (home.html, `refreshAuth` after `HG_ACCESS.load`; a guard «session
+  gone → return» would end it); and the cross-tab take-down of the notice rides on supabase-js's BroadcastChannel, so a
+  browser without it (Safari before 15.4) keeps the notice until its next auth event or reload. The published pages
+  (`0ad8c88`) have neither the take-down nor this race: D-053 introduces both. Decisions for a later version.
+- **Release consequence:** `v2026.10.25-1` is never published and stays where it is (a tag is never deleted or moved:
+  CLAUDE.md, `docs/ACTIVACION-PINES.md` step 4.1.2); E-36 continues from a new tag on the commit that carries this fix,
+  after that tag's own «Tests» is green. `docs/ACTIVACION-PINES.md` says so in its heading and in step 4.1.2.

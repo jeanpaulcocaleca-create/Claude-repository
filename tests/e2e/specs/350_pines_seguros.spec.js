@@ -26,10 +26,11 @@ async function homeUnlocked(pg, who) {
   await pg.type('#hgaPin', PINS[who || 'ana']);
   await pg.press('#hgaPin', 'Enter');
   await pg.waitForSelector('.hga-pill', { timeout: 8000 });
-  // Home checks the unlock again right after it opens; a test that goes offline before that check is answered sees
-  // the PIN screen come back (Home cannot confirm the unlock without a connection, as before)
-  await pg.waitForLoadState('networkidle');
-  await pg.waitForSelector('#appView:not([hidden])', { timeout: 8000 });
+  // Home shows #appView, checks the unlock again (HG_ACCESS.load) and hides it again if that check fails; a test that goes
+  // offline before the check is answered sees the PIN screen come back (Home cannot confirm the unlock without a
+  // connection, as before). networkidle and #appView fire before the check: wait for #secEmail, which Home writes only
+  // once the check has passed (D-056)
+  await until(() => pg.evaluate(() => !document.getElementById('appView').hidden && !!document.getElementById('secEmail').textContent), 8000, 'Home settled after its unlock check');
   return pg.evaluate(() => JSON.parse(localStorage.getItem('hg-unlock')).token);
 }
 

@@ -96,7 +96,10 @@ async function startPostgrest(bin, db, port) {
         pass++; console.log(`  ok    ${f} › ${t.name} (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
       } catch (e) {
         fail++; failed.push(`${f} › ${t.name}`);
-        console.log(`  FAIL  ${f} › ${t.name}\n        ${String(e && e.stack || e).split('\n').slice(0, 6).join('\n        ')}`);
+        // 12 lines: a click that times out says why ("element is not visible", "... intercepts pointer events") on its 7th to 10th;
+        // then the frames inside the spec, which a long Playwright log pushes past the 12th line (Tests #157 could not say which click)
+        const lines = String(e && e.stack || e).split('\n');
+        console.log(`  FAIL  ${f} › ${t.name}\n        ${lines.slice(0, 12).concat(lines.slice(12).filter((l) => /specs\//.test(l))).join('\n        ')}`);
       } finally {
         pgrst.kill();
         await new Promise((r) => { if (pgrst.exitCode !== null) r(); else pgrst.once('exit', r); });
