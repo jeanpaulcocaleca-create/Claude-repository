@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="29bdde5aeb98">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cbafe712-72c1-4ab4-b8cb-715ff9c5c120.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="config.js?v=29bdde5aeb98"></script>
+<script src="version.js?v=29bdde5aeb98" defer></script>
+<script src="keypad.js?v=29bdde5aeb98" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js?v=29bdde5aeb98"></script>
+<script src="login.js?v=29bdde5aeb98"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F; --warn:#B98A35; --ok:#2F7A4F;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:40px;padding:.45em 1em}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{min-height:32px;padding:.3em .75em;font-size:.85rem}
+button.danger{background:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:1080px;margin:0 auto;padding:1.2rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.hint{color:var(--sec);font-size:.88rem}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent;min-height:0}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1.1rem}
+header.top img{width:44px;height:44px;border-radius:50%}
+header.top h1{font-size:1.4rem}
+header.top .sub{font-size:.85rem;color:var(--sec)}
+header.top .grow{flex:1}
+#appView.locked .tabs,#appView.locked .view{display:none}
+.gate{max-width:420px}
+.gate label,.modal label{display:block;font-size:.85rem;color:var(--sec);margin:.8rem 0 .25rem}
+.gate select,.gate input,.modal select,.modal input,.modal textarea,.tools input,.tools select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.gate button{margin-top:1rem;width:100%}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.tabs button{background:transparent;color:var(--sec);border:1.5px solid var(--muted);font-size:.9rem}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tabs button .n{display:inline-block;min-width:1.3em;padding:0 .35em;border-radius:99px;background:var(--bad);color:#fff;font-size:.72rem;margin-left:.35em;line-height:1.5}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin-bottom:1.2rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem}
+.kpi .l{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.6rem;margin-top:.2rem}
+.kpi .s{font-size:.82rem;color:var(--sec)}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+.card h2{font-size:1.05rem;margin-bottom:.8rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.card h2 .sp{flex:1}
+.tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.8rem}
+.tools input,.tools select{width:auto;min-width:140px}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;color:var(--sec);font-weight:600;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .5rem;border-bottom:1.5px solid var(--muted);white-space:nowrap}
+td{padding:.5rem .5rem;border-bottom:1px solid rgba(201,207,182,.5);vertical-align:middle}
+td.num,th.num{text-align:right;font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td .sub{display:block;font-size:.78rem;color:var(--sec)}
+.acts{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end}
+.pill{display:inline-block;padding:.12em .6em;border-radius:99px;font-size:.74rem;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+.pill.out{background:var(--bad);color:#fff}.pill.low{background:#E7C7A0;color:#5a3a12}.pill.soon{background:#F1E3B3;color:#5a4a12}.pill.ok{background:#D6E7D5;color:#1E4B33}.pill.exp{background:#E3D2EE;color:#4a2a63}
+.pill.draft{background:var(--muted);color:var(--ink)}.pill.sent{background:#D9E6F2;color:#1e3a5a}.pill.received{background:#D6E7D5;color:#1E4B33}.pill.cancelled{background:#eee;color:#666}
+.alert{display:grid;grid-template-columns:1fr auto;gap:.6rem;align-items:center;padding:.6rem 0;border-bottom:1px solid rgba(201,207,182,.5)}
+.alert .n{font-weight:600}.alert .d{font-size:.84rem;color:var(--sec)}
+.empty{color:var(--sec);font-size:.9rem;padding:.6rem 0}
+.tablewrap{overflow-x:auto}
+.modalbg{position:fixed;inset:0;background:rgba(20,30,20,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
+.modal{background:var(--panel);border-radius:16px;padding:1.2rem 1.3rem;width:100%;max-width:520px;max-height:92vh;overflow:auto}
+.modal h2{font-size:1.15rem;margin-bottom:.4rem}
+.modal .row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.modal .btns{display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.1rem;flex-wrap:wrap}
+.modal .btns .left{margin-right:auto}
+.checkline{display:flex;gap:.5rem;align-items:center;margin-top:.8rem}
+.checkline input{width:auto}
+.toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6em 1.1em;border-radius:99px;font-size:.9rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.po{border:1.5px solid var(--muted);border-radius:12px;padding:.8rem 1rem;margin-bottom:.8rem}
+.po .head{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.4rem}
+.po .head b{font-size:1rem}
+.po .lines{font-size:.88rem;color:var(--sec)}
+.recipe-row{display:grid;grid-template-columns:1fr 100px 90px 110px auto;gap:.5rem;align-items:center;margin-bottom:.4rem}
+.recipe-row select,.recipe-row input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.4em .6em;width:100%;background:#fff}
+.recipe-row .lc{font-size:.85rem;color:var(--sec);text-align:right;font-variant-numeric:tabular-nums}
+.recipe-row .lc.nocost{color:var(--bad)}
+.recipe-note{background:#FFF6E5;border:1px solid #F1D7A4;border-radius:10px;padding:.5rem .7rem;margin:.4rem 0;font-size:.9rem}
+.rv-list{display:flex;flex-direction:column;gap:.5rem;margin-top:.4rem}
+.rv-item{border:1px solid var(--muted);border-radius:10px;padding:.5rem .7rem;font-size:.9rem}
+.rv-item .rv-head{display:flex;flex-wrap:wrap;gap:.3rem .7rem;align-items:baseline}
+.rv-item .rv-diff{margin:.3rem 0 0;padding-left:1.1rem;color:var(--sec)}
+.menu-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.5rem}
+.menu-list button{background:#fff;color:var(--ink);border:1.5px solid var(--muted);text-align:left;font-weight:500;display:flex;justify-content:space-between;gap:.4rem;align-items:center}
+.menu-list button.on{border-color:var(--accent);background:#EEF3EA}
+.menu-list button .c{font-size:.78rem;color:var(--sec)}
+.setup ol{padding-left:1.2rem}
+.setup code{background:#fff;padding:.1em .4em;border-radius:6px}
+.mono-small{font-family:'Spline Sans Mono',monospace;font-size:.82rem}
+.recipe-note.ok{background:#E3F0E1;border-color:#B6D3B0}
+.recipe-actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+.menu-find{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%;margin-top:.8rem}
+/* phones: the recipe editor as touch cards (nothing scrolls sideways; every control is a finger wide) */
+@media (max-width:720px){
+.modal .row{grid-template-columns:1fr}
+.modal select,.modal input,.modal textarea{min-height:46px;font-size:1rem}
+.modal .btns button{flex:1 1 40%;min-height:48px}
+.recipe-row{grid-template-columns:1fr 1fr;grid-template-areas:"sel sel" "qty unit" "lc rm";border:1.5px solid var(--muted);border-radius:12px;padding:.6rem;margin-bottom:.6rem;background:#fff}
+.recipe-row select,.recipe-row input{min-height:46px;font-size:1rem;padding:.4em .7em}
+.recipe-row select.ing{grid-area:sel}.recipe-row input{grid-area:qty}.recipe-row select.unit{grid-area:unit}
+.recipe-row .lc{grid-area:lc;text-align:left;align-self:center;font-size:.95rem}
+.recipe-row button{grid-area:rm;justify-self:end;min-height:44px;font-size:.95rem}
+.recipe-actions{display:grid;grid-template-columns:1fr 1fr}
+.recipe-actions .hint{grid-column:1/-1;font-size:.95rem}
+.recipe-actions .sp{display:none}
+.recipe-actions button{min-height:48px;font-size:1rem}
+.menu-list button{min-height:52px;font-size:1rem}
+.menu-find{min-height:46px;font-size:1rem}
+#view-recipes button.small{min-height:44px;font-size:.95rem}
+}
+@media print{.pagenav,.tabs,header.top button,.tools,.acts,.hg-lang{display:none !important}}
+.rv-pay{display:grid;grid-template-columns:1.5fr 1fr 1fr auto;gap:.5rem;align-items:center;margin:.4rem 0}
+@media (max-width:720px){.rv-pay{grid-template-columns:1fr 1fr}}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.err.ok{color:var(--ok,#4A7A4E)}
+/* PIN boxes are plain boxes drawn as dots (keypad.js), never password boxes; here too, so a PIN never shows while an older keypad.js is cached */
+input[data-pin]{-webkit-text-security:disc}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>Hanging Garden</h1>
+  <p class="hint">Inventory · Monteverde, Costa Rica</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="cafeView" class="login" hidden>
+  <h1>Hanging Garden</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This login is not connected to the café yet.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="ghost btnlink" href="pos.html">Open the POS</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <nav class="pagenav" aria-label="Café pages">
+    <a href="home.html" data-owner>Home</a>
+    <a href="admin.html" data-owner>Menu Manager</a>
+    <a href="pos.html">POS</a>
+    <a href="sales.html">Sales</a>
+    <a href="time.html">Time clock</a>
+    <span class="here">Inventory</span>
+    <a href="tv.html" target="_blank" rel="noopener">TV board</a>
+  </nav>
+  <header class="top">
+    <img src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="">
+    <div class="grow">
+      <h1>Inventory</h1>
+      <div class="sub">What you have, what you sell, what to order</div>
+    </div>
+    <span class="hint" id="lockInfo" hidden></span>
+    <button class="ghost small" id="lockBtn" hidden>Lock now</button>
+    <button class="ghost small" id="outBtn">Sign out</button>
+  </header>
+
+  <div class="card setup" id="setupCard" hidden>
+    <h2>One step before the inventory works</h2>
+    <p class="hint">This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.</p>
+  </div>
+
+  <div class="card gate" id="gate" hidden>
+    <h2>Inventory is locked</h2>
+    <p class="hint">Type a manager PIN to open the inventory for 15 minutes. Every opening is written to the approvals log.</p>
+    <form id="gateForm">
+      <label for="gateMgr">Manager</label>
+      <select id="gateMgr"></select>
+      <label for="gatePin">PIN</label>
+      <input id="gatePin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
+      <button type="submit">Open the inventory</button>
+      <p class="err" id="gateErr"></p>
+    </form>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-view="today" class="on">Today<span class="n" id="alertCount" hidden></span></button>
+    <button data-view="stock">Stock</button>
+    <button data-view="orders">Orders<span class="n" id="poCount" hidden></span></button>
+    <button data-view="recipes">Recipes</button>
+    <button data-view="vendors">Vendors</button>
+    <button data-view="history">History</button>
+    <button data-view="month">By month</button>
+  </div>
+
+  <!-- TODAY -->
+  <section class="view" id="view-today">
+    <div class="kpis">
+      <div class="kpi"><div class="l">Items tracked</div><div class="v" id="kItems">–</div><div class="s" id="kItemsSub"></div></div>
+      <div class="kpi"><div class="l">Need attention</div><div class="v" id="kAttention">–</div><div class="s" id="kAttentionSub"></div></div>
+      <div class="kpi"><div class="l">Expiring soon</div><div class="v" id="kExpiring">–</div><div class="s">within 3 days</div></div>
+      <div class="kpi"><div class="l">Stock value</div><div class="v" id="kValue">–</div><div class="s">at last purchase cost</div></div>
+    </div>
+    <div class="card">
+      <h2>Before it runs out <span class="sp"></span><button class="small" id="goOrderBtn">Build the order</button></h2>
+      <div id="alertList"></div>
+    </div>
+    <div class="card">
+      <h2>Last 30 days</h2>
+      <div class="kpis" style="margin-bottom:0">
+        <div class="kpi"><div class="l" id="fcRevenueLabel">Sales</div><div class="v" id="fcRevenue">–</div></div>
+        <div class="kpi"><div class="l">Ingredients used</div><div class="v" id="fcUsage">–</div><div class="s" id="fcPct"></div></div>
+        <div class="kpi"><div class="l">Waste</div><div class="v" id="fcWaste">–</div><div class="s" id="fcWastePct"></div></div>
+      </div>
+      <p class="hint" style="margin:.8rem 0 0">Ingredient cost follows the recipes: link each menu item to what it uses in the Recipes tab and this becomes your real food cost.</p>
+    </div>
+  </section>
+
+  <!-- STOCK -->
+  <section class="view" id="view-stock" hidden>
+    <div class="card">
+      <h2>Stock <span class="sp"></span>
+        <button class="small ghost" id="csvStockBtn">Download CSV</button>
+        <button class="small" id="addItemBtn">+ Add item</button>
+      </h2>
+      <div class="tools">
+        <input id="stockSearch" placeholder="Search…">
+        <select id="stockCat"><option value="">All categories</option></select>
+        <select id="stockStatus"><option value="">Everything</option><option value="attention">Needs attention</option><option value="inactive">Inactive items</option></select>
+      </div>
+      <div class="tablewrap">
+        <table id="stockTable">
+          <thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Par · reorder</th><th class="num">Use / day</th><th class="num">Days left</th><th>Vendor</th><th class="num">Value</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="stockEmpty" hidden>No items yet. Tap + Add item, or start with the coffee, milk and pastries you buy every week.</p>
+    </div>
+  </section>
+
+  <!-- ORDERS -->
+  <section class="view" id="view-orders" hidden>
+    <div class="card">
+      <h2>Suggested order <span class="sp"></span><span class="hint">based on the last 30 days of sales and each vendor's lead time</span> <button class="small" id="allPoBtn" hidden>Create all orders</button></h2>
+      <div id="suggestList"></div>
+    </div>
+    <div class="card">
+      <h2>Open orders <span class="sp"></span><button class="small ghost" id="newPoBtn">+ Blank order</button></h2>
+      <div id="poList"></div>
+    </div>
+    <div class="card" id="pendCard" hidden>
+      <h2>Pending with suppliers <span class="sp"></span><span class="hint" id="pendOwed"></span></h2>
+      <div id="pendReceipts"></div>
+      <div id="pendInvoices"></div>
+    </div>
+    <div class="card">
+      <h2>Received orders <span class="sp"></span><span class="hint" id="doneHint"></span></h2>
+      <div class="tools" id="doneTools" hidden><select id="doneVendor"><option value="">All vendors</option></select><input id="doneMonth" type="month"><button class="small ghost" type="button" id="doneSearch">Search</button></div>
+      <div id="poDone"></div>
+    </div>
+  </section>
+
+  <!-- RECIPES -->
+  <section class="view" id="view-recipes" hidden>
+    <div class="card">
+      <h2>What each menu item uses <span class="sp"></span><button class="small ghost" id="autolinkBtn">Link same-name items</button></h2>
+      <p class="hint">Pick a menu item, then list what goes out of stock each time it sells. A croissant you buy ready-made is simply 1 croissant. A latte is grams of coffee and millilitres of milk. Sales then take stock out by themselves.</p>
+      <p class="recipe-note" id="draftNote" hidden></p>
+      <input id="menuFind" class="menu-find" type="search" placeholder="Find a product" autocomplete="off" aria-label="Find a product">
+      <div class="menu-list" id="menuList" style="margin-top:.5rem"></div>
+    </div>
+    <div class="card" id="recipeCard" hidden>
+      <h2 id="recipeTitle">Recipe</h2>
+      <p class="recipe-note" id="recipeNote" hidden></p>
+      <div id="recipeRows"></div>
+      <div class="recipe-actions">
+        <button class="small ghost" id="recipeAddRow">+ Ingredient</button>
+        <span class="hint" id="recipeCost"></span>
+        <span class="sp" style="flex:1"></span>
+        <button class="small" id="recipeSave">Save recipe</button>
+      </div>
+      <p class="hint" id="recipeCost2"></p>
+      <p class="err" id="recipeErr"></p>
+      <div id="recipeHistBox" hidden>
+        <h2 style="margin-top:1rem">History</h2>
+        <p class="hint">Every saved version, newest first. Sales already made keep what they took.</p>
+        <div class="rv-list" id="recipeHist"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VENDORS -->
+  <section class="view" id="view-vendors" hidden>
+    <div class="card">
+      <h2>Vendors <span class="sp"></span><button class="small" id="addVendorBtn">+ Add vendor</button></h2>
+      <div class="tablewrap">
+        <table id="vendorTable">
+          <thead><tr><th>Vendor</th><th>Contact</th><th>Orders on</th><th class="num">Lead days</th><th class="num">Items</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="vendorEmpty" hidden>No vendors yet. Add the people you buy from, with their WhatsApp, and orders go out in one tap.</p>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history" hidden>
+    <div class="card">
+      <h2>Every movement <span class="sp"></span><button class="small ghost" id="csvHistBtn">Download CSV</button></h2>
+      <div class="tools">
+        <select id="histItem"><option value="">All items</option></select>
+        <select id="histKind"><option value="">All kinds</option><option value="purchase">Received</option><option value="sale">Sold</option><option value="void">Returned (void)</option><option value="waste">Waste</option><option value="count">Count adjustments</option></select>
+      </div>
+      <div class="tablewrap">
+        <table id="histTable">
+          <thead><tr><th>When</th><th>Item</th><th>Kind</th><th class="num">Qty</th><th class="num">Unit cost</th><th>Note</th><th>By</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="empty" id="histEmpty" hidden>Nothing yet.</p>
+    </div>
+  </section>
+
+  <!-- MONTH -->
+  <section class="view" id="view-month" hidden>
+    <div class="card">
+      <h2><button class="small ghost" id="monthPrev" aria-label="Previous month">‹</button> <span id="monthLabel" class="mono"></span> <button class="small ghost" id="monthNext" aria-label="Next month">›</button>
+        <span class="sp"></span><button class="small ghost" id="csvMonthBtn">Download CSV</button></h2>
+      <p class="hint">What came in, what went out through sales, what was wasted, and what is on the shelf right now.</p>
+      <div class="tablewrap">
+        <table id="monthTable">
+          <thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Cost</th><th class="num">Sold</th><th class="num">Waste</th><th class="num">Count adj.</th><th class="num">In stock now</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modalbg" id="itemModal" hidden>
+  <form class="modal" id="itemForm">
+    <h2 id="itemTitle">Add item</h2>
+    <label for="itName">Name</label>
+    <input id="itName" required maxlength="80" placeholder="e.g. Whole milk">
+    <div class="row">
+      <div><label for="itCat">Category</label>
+        <select id="itCat">
+          <option value="coffee">Coffee</option><option value="dairy">Dairy</option><option value="bakery">Bakery</option><option value="sandwich">Sandwich</option>
+          <option value="produce">Produce</option><option value="drinks">Drinks</option><option value="packaging">Packaging</option><option value="cleaning">Cleaning</option><option value="other">Other</option>
+        </select></div>
+      <div><label for="itUnit">Counted in</label>
+        <select id="itUnit"><option value="unit">units</option><option value="g">grams</option><option value="kg">kilograms</option><option value="ml">millilitres</option><option value="L">litres</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="itPackLabel">What you buy</label><input id="itPackLabel" maxlength="60" placeholder="e.g. bottle 1 L"></div>
+      <div><label for="itPackQty">Units per pack</label><input id="itPackQty" type="number" min="0.001" step="any" value="1" required></div>
+    </div>
+    <p class="hint" id="itPackHint"></p>
+    <div class="row">
+      <div><label for="itCost">Cost per pack (₡)</label><input id="itCost" type="number" min="0" step="any" value="0"></div>
+      <div><label for="itVendor">Vendor</label><select id="itVendor"><option value="">No vendor</option></select></div>
+    </div>
+    <div class="row">
+      <div><label for="itPar">Par level (target after an order)</label><input id="itPar" type="number" min="0" step="any" value="0"></div>
+      <div><label for="itReorder">Reorder point (alert at)</label><input id="itReorder" type="number" min="0" step="any" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label for="itShelf">Shelf life (days, optional)</label><input id="itShelf" type="number" min="0" step="1"></div>
+      <div><label for="itStart">Starting stock (new items)</label><input id="itStart" type="number" min="0" step="any" value="0"></div>
+    </div>
+    <label for="itNotes">Notes</label>
+    <input id="itNotes" maxlength="200">
+    <div class="checkline" id="itActiveLine"><input id="itActive" type="checkbox" checked><label for="itActive" style="margin:0">Active (counted and ordered)</label></div>
+    <p class="err" id="itErr"></p>
+    <div class="btns">
+      <button type="button" class="ghost danger left small" id="itDelete" hidden>Delete item</button>
+      <button type="button" class="ghost" id="itCancel">Cancel</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- RECIPE PIN MODAL (save a recipe, link by name) -->
+<div class="modalbg" id="recPinModal" hidden>
+  <form class="modal" id="recPinForm">
+    <h2 id="recPinTitle">Save the recipe</h2>
+    <p class="hint" id="recPinHint">A manager or the owner authorizes every recipe change with their PIN. It is written to the recipe's history.</p>
+    <div class="row">
+      <div><label for="recMgr">Manager or owner</label><select id="recMgr"></select></div>
+      <div><label for="recPin">PIN</label><input id="recPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div>
+    </div>
+    <div id="recReasonBox"><label for="recReason" id="recReasonLabel">Reason (optional)</label><input id="recReason" maxlength="200" placeholder="e.g. new cup size"></div>
+    <p class="err" id="recPinErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="recPinCancel">Cancel</button><button type="submit" id="recPinGo">Save</button></div>
+  </form>
+</div>
+
+<!-- MOVE MODAL (count / receive / waste) -->
+<div class="modalbg" id="moveModal" hidden>
+  <form class="modal" id="moveForm">
+    <h2 id="moveTitle">Count</h2>
+    <p class="hint" id="moveHint"></p>
+    <div id="moveCountBox">
+      <div class="row" id="mvCountPackRow" hidden>
+        <div><label for="mvCountPacks">Closed packs</label><input id="mvCountPacks" type="number" min="0" step="any"></div>
+        <div><label for="mvCountLoose" id="mvCountLooseLabel">Loose</label><input id="mvCountLoose" type="number" min="0" step="any"></div>
+      </div>
+      <label for="mvCounted">Counted now</label>
+      <input id="mvCounted" type="number" min="0" step="any">
+    </div>
+    <div id="moveQtyBox" hidden>
+      <div class="row">
+        <div><label for="mvPacks">Packs</label><input id="mvPacks" type="number" min="0" step="any"></div>
+        <div><label for="mvQty">Units</label><input id="mvQty" type="number" min="0" step="any"></div>
+      </div>
+      <div class="row" id="moveCostRow">
+        <div><label for="mvCost">Cost per pack (₡)</label><input id="mvCost" type="number" min="0" step="any"></div>
+        <div><label for="mvExp">Expires on</label><input id="mvExp" type="date"></div>
+      </div>
+    </div>
+    <label for="mvNote">Note</label>
+    <input id="mvNote" maxlength="120" placeholder="optional">
+    <p class="err" id="mvErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="mvCancel">Cancel</button><button type="submit" id="mvSave">Save</button></div>
+  </form>
+</div>
+
+<!-- VENDOR MODAL -->
+<div class="modalbg" id="vendorModal" hidden>
+  <form class="modal" id="vendorForm">
+    <h2 id="vendorTitle">Add vendor</h2>
+    <label for="vName">Name</label><input id="vName" required maxlength="80">
+    <div class="row">
+      <div><label for="vContact">Contact person</label><input id="vContact" maxlength="80"></div>
+      <div><label for="vPhone">Phone</label><input id="vPhone" maxlength="40"></div>
+    </div>
+    <div class="row">
+      <div><label for="vWa">WhatsApp (with country code)</label><input id="vWa" maxlength="40" placeholder="+506 8888 8888"></div>
+      <div><label for="vEmail">Email</label><input id="vEmail" type="email" maxlength="120"></div>
+    </div>
+    <div class="row">
+      <div><label for="vLead">Lead days (order to delivery)</label><input id="vLead" type="number" min="0" step="1" value="2"></div>
+      <div><label for="vDays">Takes orders on</label><input id="vDays" maxlength="60" placeholder="e.g. Mon, Thu"></div>
+    </div>
+    <label for="vNotes">Notes</label><input id="vNotes" maxlength="200">
+    <div class="checkline"><input id="vActive" type="checkbox" checked><label for="vActive" style="margin:0">Active</label></div>
+    <p class="err" id="vErr"></p>
+    <div class="btns">
+      <button type="button" class="ghost danger left small" id="vDelete" hidden>Delete vendor</button>
+      <button type="button" class="ghost" id="vCancel">Cancel</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- RECEIVE PO MODAL -->
+<div class="modalbg" id="recvModal" hidden>
+  <form class="modal" id="recvForm" style="max-width:640px">
+    <h2 id="recvTitle">Receive a delivery</h2>
+    <p class="hint" id="recvHint">Type what arrived in this delivery. If part of the order comes later, receive it again then. Costs update the item's price.</p>
+    <div class="row"><div><label for="recvInv">Supplier invoice Nº</label><input id="recvInv" maxlength="40" autocomplete="off"></div>
+      <div><label for="recvInvDate">Invoice date</label><input id="recvInvDate" type="date"></div></div>
+    <div class="tablewrap" id="recvLinesBox"><table id="recvTable"><thead><tr><th>Item</th><th class="num">Ordered</th><th class="num">Already in</th><th class="num">Packs</th><th class="num">This delivery</th><th class="num">Cost / pack</th><th>Expires</th></tr></thead><tbody></tbody></table></div>
+    <label class="chk" id="recvFinalBox" style="display:flex;gap:.5rem;align-items:center;margin-top:.6rem"><input type="checkbox" id="recvFinal"> Nothing more is coming: close the order</label>
+    <details id="rvBox" open hidden>
+      <summary style="cursor:pointer;font-weight:600;margin-top:.8rem">Invoice and payment</summary>
+      <p class="hint" id="rvIntro">Costs above are without IVA. Type the supplier's invoice and say how it was paid. Nothing is posted to the books until the invoice is confirmed.</p>
+      <div id="rvInvFields">
+        <div class="row" id="rvModeBox"><div><label for="rvMode">Invoice</label><select id="rvMode"><option value="pending">Not here yet · it arrives later</option><option value="review">Captured · to review before confirming</option><option value="confirm">Confirmed now</option></select></div>
+          <div id="rvVendorBox" hidden><label for="rvVendor">Supplier</label><select id="rvVendor"></select></div></div>
+        <div class="row"><div><label for="rvDue">Due date</label><input id="rvDue" type="date"></div><div><label for="rvCur">Currency</label><select id="rvCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div></div>
+        <div class="row" id="rvFxRow" hidden><div><label for="rvFx">Exchange rate (₡ per $)</label><input id="rvFx" type="number" min="100" max="2000" step="0.01"></div><div></div></div>
+        <div class="row"><div><label for="rvNet">Subtotal (without IVA)</label><input id="rvNet" type="number" min="0" step="0.01" data-keypad="qty"></div><div><label for="rvIva">IVA</label><input id="rvIva" type="number" min="0" step="0.01" data-keypad="qty"></div></div>
+        <p class="hint" id="rvTotals"></p>
+      </div>
+      <div id="rvPayBox">
+        <label>Payments</label>
+        <div id="rvPays"></div>
+        <button type="button" class="small ghost" id="rvAddPay">+ Add a payment</button>
+        <p class="hint" id="rvPaySum"></p>
+      </div>
+      <div class="row" id="rvPinBox" hidden><div><label for="rvMgr">Manager who authorizes the payment</label><select id="rvMgr"></select></div><div><label for="rvPin">Manager PIN</label><input id="rvPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div></div>
+    </details>
+    <p class="err" id="recvErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="recvCancel">Cancel</button><button type="submit" id="recvGo">Confirm reception</button></div>
+  </form>
+</div>
+
+<!-- ORDER HISTORY MODAL (deliveries, invoice, payments, files) -->
+<div class="modalbg" id="histModal" hidden>
+  <div class="modal" style="max-width:720px">
+    <h2 id="histTitle">Order</h2>
+    <div id="histBody"></div>
+    <div class="btns"><button type="button" class="ghost" id="histClose">Close</button></div>
+  </div>
+</div>
+
+<!-- ADD LINE TO ORDER MODAL -->
+<div class="modalbg" id="lineModal" hidden>
+  <form class="modal" id="lineForm">
+    <h2>Add to order</h2>
+    <label for="lnItem">Item</label><select id="lnItem"></select>
+    <div class="row"><div><label for="lnPacks">Packs</label><input id="lnPacks" type="number" min="0.5" step="any" value="1"></div><div><label>&nbsp;</label><span class="hint" id="lnHint"></span></div></div>
+    <p class="err" id="lnErr"></p>
+    <div class="btns"><button type="button" class="ghost" id="lnCancel">Cancel</button><button type="submit">Add</button></div>
+  </form>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+var SUPA_URL = HG_CONFIG.url;
+var SUPA_KEY = HG_CONFIG.key;
+var db = window.supabase.createClient(SUPA_URL, SUPA_KEY, window.HG_LOGIN ? HG_LOGIN.options(window.HG_ACCESS ? HG_ACCESS.options() : undefined) : (window.HG_ACCESS ? HG_ACCESS.options() : undefined));
+
+/* ---------- who is signed in: owner login or café login ---------- */
+var ACCOUNT = null;
+async function whoami(){
+  var r = await db.rpc('account_kind');
+  ACCOUNT = r.error ? null : (r.data || 'none');
+  return ACCOUNT;
+}
+function isCafeLogin(){ return ACCOUNT === 'cafe' || ACCOUNT === 'none'; }
+function trimNav(){
+  if (!isCafeLogin()) return;
+  document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+}
+async function codeNeeded(){
+  try {
+    var r = await db.auth.mfa.getAuthenticatorAssuranceLevel();
+    return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2';
+  } catch (e){ return false; }
+}
+async function verifyCode(code){
+  var f = await db.auth.mfa.listFactors();
+  var totp = f.data && f.data.totp && f.data.totp[0];
+  if (!totp) return {error: {message: 'no factor'}};
+  return db.auth.mfa.challengeAndVerify({factorId: totp.id, code: code});
+}
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
+
+/* ---------- helpers ---------- */
+function $(id){ return document.getElementById(id); }
+function fmt(n){ return '₡' + Math.round(Number(n) || 0).toLocaleString('fr-FR'); }
+function num(n, d){ n = Number(n) || 0; return n.toLocaleString('fr-FR', {maximumFractionDigits: d === undefined ? 1 : d}); }
+function qtyU(n, unit){ return num(n, unit === 'unit' ? 0 : 1) + ' ' + unitLabel(unit); }
+var UNITS = {unit: 'units', g: 'g', kg: 'kg', ml: 'ml', L: 'L'};
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
+function unitLabel(u){ return UNITS[u] || u; }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(function(){ t.classList.remove('on'); }, 2600); }
+function fmtDT(iso){ var d = new Date(iso); return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function fmtD(iso){ if (!iso) return ''; var d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')); return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}); }
+function isMissing(err){ return err && /does not exist|schema cache|could not find/i.test(err.message || ''); }
+function statusLabel(s){ return {out: 'Out of stock', low: 'Low', soon: 'Running out', ok: 'OK'}[s] || s; }
+var CATS = {coffee: 'Coffee', dairy: 'Dairy', bakery: 'Bakery', sandwich: 'Sandwich', produce: 'Produce', drinks: 'Drinks', packaging: 'Packaging', cleaning: 'Cleaning', other: 'Other'};
+function catLabel(c){ return CATS[c] || c; }
+function download(name, rows){
+  var csv = rows.map(function(r){ return r.map(function(v){ return '"' + csvSafe(String(v == null ? '' : v)).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'})); a.download = name; a.click();
+}
+
+/* ---------- auth ---------- */
+async function refreshAuth(){
+  var s = await db.auth.getSession();
+  var authed = !!(s.data && s.data.session);
+  var needCode = authed && await codeNeeded();
+  $('loginView').hidden = authed && !needCode;
+  $('loginForm').hidden = needCode;
+  $('codeForm').hidden = !needCode;
+  $('cafeView').hidden = true;
+  $('appView').hidden = !authed || needCode;
+  if (needCode){ $('codeIn').focus(); return; }
+  if (!authed) return;
+  await whoami();
+  if (ACCOUNT === 'none'){ showCafeView(); return; }
+  trimNav(); armIdle();
+  checkGate();
+}
+$('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await verifyCode($('codeIn').value.trim());
+  if (r.error){ $('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; $('codeIn').value = ''; return; }
+  $('codeIn').value = ''; refreshAuth();
+});
+$('cafeOut').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
+function showCafeView(){
+  $('cafeMsg').textContent = 'This login is not connected to the café yet. From the owner login, run the accounts script in Supabase (see the setup notes), then sign in again.';
+  $('cafeView').hidden = false; $('appView').hidden = true;
+}
+$('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var res = await HG_LOGIN.signIn(db);   /* login.js: says why a sign-in failed */
+  if (res.ok) refreshAuth();
+});
+$('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); refreshAuth(); });
+db.auth.onAuthStateChange(function(){ refreshAuth(); });
+
+/* ---------- the PIN gate: open for 15 minutes after a manager PIN ---------- */
+var GATE_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_manager: 'That person is not a manager.', inactive: 'That person is not active on the team.',
+  unknown_staff: 'Pick the manager.', no_account: 'This login is not connected to the café yet.'};
+var openUntil = null, lockTimer = null;
+function fmtTime(d){ return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function setLocked(locked){
+  $('appView').classList.toggle('locked', locked);
+  $('gate').hidden = !locked;
+  $('lockBtn').hidden = locked || ACCOUNT !== 'cafe';
+  $('lockInfo').hidden = locked || ACCOUNT !== 'cafe' || !openUntil;
+  clearTimeout(lockTimer);
+  if (!locked && openUntil && ACCOUNT === 'cafe'){
+    $('lockInfo').textContent = 'open until ' + fmtTime(openUntil);
+    lockTimer = setTimeout(checkGate, Math.max(1000, openUntil - new Date() + 500));
+  }
+}
+async function checkGate(){
+  var r = await db.rpc('inventory_unlocked');
+  if (r.error){ if (isMissing(r.error)){ $('setupCard').hidden = false; $('appView').classList.add('locked'); } return; }
+  $('setupCard').hidden = true;
+  /* manager mode (supabase/manager-mode.sql): the PIN of an owner, GM or manager opens it on this device */
+  var st = await HG_ACCESS.load(db);
+  if (!st.missing && !st.error){
+    if (st.level){ openUntil = null; setLocked(false); $('lockBtn').hidden = true; $('lockInfo').hidden = true; HG_ACCESS.pill(db); loadAll(); return; }
+    setLocked(true); $('gate').hidden = true;
+    HG_ACCESS.gate(db, {title: 'Inventory · owners and managers'}).then(checkGate);
+    return;
+  }
+  openUntil = r.data ? new Date(r.data) : null;
+  if (openUntil && openUntil > new Date()){ setLocked(false); loadAll(); }
+  else { openUntil = null; setLocked(true); fillGateManagers(); }
+}
+async function fillGateManagers(){
+  var sel = $('gateMgr');
+  var r = await db.from('staff').select('id,name').eq('active', true).eq('role', 'manager').order('name');
+  var opts = (r.data || []).map(function(m){ var o = document.createElement('option'); o.value = m.id; o.textContent = m.name; return o; });
+  if (!opts.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; opts.push(o2); }
+  sel.replaceChildren.apply(sel, opts);
+  $('gatePin').value = ''; $('gatePin').focus();
+}
+$('gateForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var r = await db.rpc('inventory_unlock', {p_staff_id: $('gateMgr').value || null, p_pin: $('gatePin').value.trim()});
+  $('gatePin').value = '';
+  if (r.error || !r.data || !r.data.ok){ $('gateErr').textContent = r.error ? 'Could not check the PIN. Check the connection.' : (GATE_ERR[r.data.error] || 'Could not open the inventory.'); return; }
+  $('gateErr').textContent = '';
+  openUntil = new Date(r.data.until);
+  setLocked(false); loadAll();
+});
+$('lockBtn').addEventListener('click', async function(){ await db.rpc('inventory_lock'); checkGate(); });
+
+/* ---------- tabs ---------- */
+var view = 'today';
+document.querySelectorAll('#tabs button').forEach(function(b){
+  b.addEventListener('click', function(){ showView(b.dataset.view); });
+});
+function showView(v){
+  view = v;
+  document.querySelectorAll('#tabs button').forEach(function(x){ x.classList.toggle('on', x.dataset.view === v); });
+  document.querySelectorAll('.view').forEach(function(s){ s.hidden = s.id !== 'view-' + v; });
+  if (v === 'history') loadHistory();
+  if (v === 'month') loadMonth();
+  if (v === 'recipes') renderMenuList();
+}
+$('goOrderBtn').addEventListener('click', function(){ showView('orders'); });
+
+/* ---------- data ---------- */
+var STATS = [], VENDORS = [], MENU = [], RECIPES = [], POS = [], FOOD = null, ALERTS = null;
+var byId = {};
+async function loadAll(){
+  var rs = await Promise.all([
+    db.rpc('inventory_stats', {p_days: 30}),
+    db.from('vendors').select('*').order('name'),
+    db.rpc('inventory_alerts'),
+    db.rpc('inventory_food_cost', {p_days: 30}),
+    db.from('purchase_orders').select('*, purchase_lines(*)').order('created_at', {ascending: false}).limit(60)
+  ]);
+  if (rs[0].error){ if (isMissing(rs[0].error)){ $('setupCard').hidden = false; } else toast('Could not load the inventory. Check the connection.'); return; }
+  STATS = rs[0].data || []; VENDORS = rs[1].data || []; ALERTS = rs[2].data || null; FOOD = rs[3].data || null; POS = rs[4].data || [];
+  byId = {}; STATS.forEach(function(i){ byId[i.id] = i; });
+  renderToday(); renderStock(); renderOrders(); renderVendors(); fillSelects();
+  loadPending();
+  if (view === 'history') loadHistory();
+  if (view === 'month') loadMonth();
+  if (view === 'recipes'){ if (MENU.length) loadRecipeData().then(function(){ renderMenuList(); if (recipeItem) renderRecipeCost(); }); else renderMenuList(); }
+}
+function fillSelects(){
+  var cats = {}; STATS.forEach(function(i){ cats[i.category] = true; });
+  var sel = $('stockCat'); var keep = sel.value;
+  sel.replaceChildren(); var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'All categories'; sel.appendChild(o0);
+  Object.keys(cats).sort().forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = catLabel(c); sel.appendChild(o); });
+  sel.value = keep;
+  var hs = $('histItem'); var hk = hs.value; hs.replaceChildren(); var h0 = document.createElement('option'); h0.value = ''; h0.textContent = 'All items'; hs.appendChild(h0);
+  STATS.forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name; hs.appendChild(o); });
+  hs.value = hk;
+  var dv = $('doneVendor'); var dk = dv.value; dv.replaceChildren(); var d0 = document.createElement('option'); d0.value = ''; d0.textContent = 'All vendors'; dv.appendChild(d0);
+  VENDORS.forEach(function(v){ var o = document.createElement('option'); o.value = v.id; o.textContent = v.name; dv.appendChild(o); });
+  dv.value = dk;
+}
+
+/* ---------- today ---------- */
+function renderToday(){
+  var active = STATS.filter(function(i){ return i.active; });
+  var att = active.filter(function(i){ return i.status !== 'ok'; });
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var exp = active.filter(function(i){ return i.expires_on && i.on_hand > 0 && (new Date(i.expires_on + 'T12:00:00') - today) <= 3 * 86400000; });
+  $('kItems').textContent = active.length;
+  $('kItemsSub').textContent = VENDORS.length + ' vendors';
+  $('kAttention').textContent = att.length;
+  var outN = att.filter(function(i){ return i.status === 'out'; }).length, lowN = att.filter(function(i){ return i.status === 'low'; }).length;
+  $('kAttentionSub').textContent = att.length ? (outN + ' out · ' + lowN + ' low · ' + (att.length - outN - lowN) + ' running out') : 'all good';
+  $('kExpiring').textContent = exp.length;
+  $('kValue').textContent = fmt(active.reduce(function(s, i){ return s + Number(i.value_on_hand || 0); }, 0));
+  $('alertCount').hidden = !att.length; $('alertCount').textContent = att.length;
+  var list = $('alertList'); list.replaceChildren();
+  var rows = att.slice().sort(function(a, b){ var o = {out: 0, low: 1, soon: 2}; return (o[a.status] - o[b.status]) || ((a.days_left || 999) - (b.days_left || 999)); });
+  exp.forEach(function(i){ if (rows.indexOf(i) < 0) rows.push(i); });
+  if (!rows.length){ list.innerHTML = '<p class="empty">Nothing is running out. Enjoy the calm.</p>'; }
+  rows.forEach(function(i){
+    var d = document.createElement('div'); d.className = 'alert';
+    var isExp = exp.indexOf(i) >= 0;
+    var left = document.createElement('div');
+    left.innerHTML = '<span class="n">' + esc(i.name) + '</span> ' +
+      (i.status !== 'ok' ? '<span class="pill ' + i.status + '">' + statusLabel(i.status) + '</span> ' : '') +
+      (isExp ? '<span class="pill exp">Expires ' + esc(fmtD(i.expires_on)) + '</span>' : '') +
+      '<div class="d">' + esc(qtyU(i.on_hand, i.unit)) + ' on hand' +
+      (i.days_left != null && i.days_left > 0 ? ' · about ' + num(i.days_left, 0) + ' days left' : '') +
+      (i.vendor_name ? ' · ' + esc(i.vendor_name) : '') + '</div>';
+    var acts = document.createElement('div'); acts.className = 'acts';
+    acts.appendChild(actBtn('Count', function(){ openMove('count', i); }));
+    acts.appendChild(actBtn('Receive', function(){ openMove('receive', i); }));
+    d.appendChild(left); d.appendChild(acts); list.appendChild(d);
+  });
+  if (FOOD && FOOD.ok !== false){
+    /* the sales figure only comes with sales access (manager-mode.sql) */
+    /* since 0030 the food cost is compared with the sales without IVA (revenue_net_crc); an older database gives the charged total */
+    var rev = FOOD.revenue_net_crc != null ? FOOD.revenue_net_crc : FOOD.revenue;
+    $('fcRevenueLabel').textContent = FOOD.revenue_net_crc != null ? 'Sales without IVA' : 'Sales';
+    $('fcRevenue').textContent = rev == null ? '–' : fmt(rev); $('fcUsage').textContent = fmt(FOOD.usage_cost); $('fcWaste').textContent = fmt(FOOD.waste_cost);
+    $('fcPct').textContent = rev > 0 ? num(100 * FOOD.usage_cost / rev, 1) + '% of sales' : '';
+    $('fcWastePct').textContent = FOOD.usage_cost > 0 ? num(100 * FOOD.waste_cost / FOOD.usage_cost, 1) + '% of what was used' : '';
+  }
+}
+function actBtn(label, fn, cls){ var b = document.createElement('button'); b.type = 'button'; b.className = 'small ghost' + (cls ? ' ' + cls : ''); b.textContent = label; b.addEventListener('click', fn); return b; }
+
+/* ---------- stock ---------- */
+['stockSearch', 'stockCat', 'stockStatus'].forEach(function(id){ $(id).addEventListener('input', renderStock); });
+function renderStock(){
+  var q = $('stockSearch').value.trim().toLowerCase(), cat = $('stockCat').value, st = $('stockStatus').value;
+  var rows = STATS.filter(function(i){
+    if (st === 'inactive') { if (i.active) return false; } else if (!i.active) return false;
+    if (st === 'attention' && i.status === 'ok') return false;
+    if (cat && i.category !== cat) return false;
+    if (q && i.name.toLowerCase().indexOf(q) < 0 && !(i.vendor_name || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  var tb = $('stockTable').querySelector('tbody'); tb.replaceChildren();
+  $('stockEmpty').hidden = !!STATS.length;
+  rows.forEach(function(i){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + esc(i.name) + '</b><span class="sub">' + esc(catLabel(i.category)) + (i.pack_label ? ' · ' + esc(i.pack_label) : '') + '</span></td>' +
+      '<td class="num">' + esc(qtyU(i.on_hand, i.unit)) + '<span class="sub"><span class="pill ' + i.status + '">' + statusLabel(i.status) + '</span></span></td>' +
+      '<td class="num">' + num(i.par_level, 1) + ' · ' + num(i.reorder_point, 1) + '</td>' +
+      '<td class="num">' + num(i.avg_daily, 1) + '</td>' +
+      '<td class="num">' + (i.days_left != null ? num(i.days_left, 0) : '–') + '</td>' +
+      '<td>' + esc(i.vendor_name || '') + '</td>' +
+      '<td class="num">' + fmt(i.value_on_hand) + '</td>';
+    var td = document.createElement('td'); var acts = document.createElement('div'); acts.className = 'acts';
+    acts.appendChild(actBtn('Count', function(){ openMove('count', i); }));
+    acts.appendChild(actBtn('Receive', function(){ openMove('receive', i); }));
+    acts.appendChild(actBtn('Waste', function(){ openMove('waste', i); }));
+    acts.appendChild(actBtn('Edit', function(){ openItem(i); }));
+    td.appendChild(acts); tr.appendChild(td); tb.appendChild(tr);
+  });
+}
+$('csvStockBtn').addEventListener('click', function(){
+  download('stock.csv', [['item', 'category', 'unit', 'on_hand', 'par', 'reorder_point', 'use_per_day', 'days_left', 'vendor', 'cost_per_pack', 'pack_qty', 'value']].concat(
+    STATS.map(function(i){ return [i.name, i.category, i.unit, i.on_hand, i.par_level, i.reorder_point, i.avg_daily, i.days_left, i.vendor_name, i.cost_per_pack, i.pack_qty, i.value_on_hand]; })));
+});
+
+/* item modal */
+var itemTarget = null;
+$('addItemBtn').addEventListener('click', function(){ openItem(null); });
+function fillVendorSelect(sel, value){
+  sel.replaceChildren(); var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'No vendor'; sel.appendChild(o0);
+  VENDORS.filter(function(v){ return v.active; }).forEach(function(v){ var o = document.createElement('option'); o.value = v.id; o.textContent = v.name; sel.appendChild(o); });
+  sel.value = value || '';
+}
+function openItem(i){
+  itemTarget = i;
+  $('itemTitle').textContent = i ? 'Edit · ' + i.name : 'Add item';
+  $('itName').value = i ? i.name : ''; $('itCat').value = i ? i.category : 'other'; $('itUnit').value = i ? i.unit : 'unit';
+  $('itPackLabel').value = i ? (i.pack_label || '') : ''; $('itPackQty').value = i ? i.pack_qty : 1; $('itCost').value = i ? i.cost_per_pack : 0;
+  fillVendorSelect($('itVendor'), i ? i.vendor_id : '');
+  $('itPar').value = i ? i.par_level : 0; $('itReorder').value = i ? i.reorder_point : 0; $('itShelf').value = i && i.shelf_life_days != null ? i.shelf_life_days : '';
+  $('itStart').value = 0; $('itStart').parentNode.hidden = !!i;
+  $('itNotes').value = i ? (i.notes || '') : ''; $('itActive').checked = i ? i.active : true; $('itActiveLine').hidden = !i;
+  $('itDelete').hidden = !i; $('itErr').textContent = '';
+  packHint();
+  $('itemModal').hidden = false; $('itName').focus();
+}
+/* what "units per pack" means for the unit picked: a bag of frozen fruit is its usable grams */
+function packHint(){
+  var u = $('itUnit').value;
+  $('itPackHint').textContent = u === 'g' ? 'Counted in grams: type the usable grams in one pack (a 1 kg bag of frozen fruit = 1000).'
+    : u === 'ml' ? 'Counted in millilitres: type the millilitres in one pack (a 940 ml carton of milk = 940).'
+    : u === 'unit' ? 'Counted in units: type how many come in one pack (a box of 50 cups = 50).' : '';
+}
+$('itUnit').addEventListener('change', packHint);
+$('itCancel').addEventListener('click', function(){ $('itemModal').hidden = true; });
+$('itemForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var row = {name: $('itName').value.trim(), category: $('itCat').value, unit: $('itUnit').value, pack_label: $('itPackLabel').value.trim() || null,
+    pack_qty: Number($('itPackQty').value) || 1, cost_per_pack: Number($('itCost').value) || 0, vendor_id: $('itVendor').value || null,
+    par_level: Number($('itPar').value) || 0, reorder_point: Number($('itReorder').value) || 0,
+    shelf_life_days: $('itShelf').value === '' ? null : Number($('itShelf').value), notes: $('itNotes').value.trim() || null, active: $('itActive').checked};
+  if (!row.name){ $('itErr').textContent = 'The name cannot be empty.'; return; }
+  var r;
+  if (itemTarget){ r = await db.from('stock_items').update(row).eq('id', itemTarget.id).select('id'); }
+  else { r = await db.from('stock_items').insert(row).select('id'); }
+  if (r.error || !r.data || !r.data.length){
+    $('itErr').textContent = r.error && /unit_locked/.test(r.error.message || '') ? 'This item already has movements or recipes, so its unit stays. To count it in another unit, add a new item.'
+      : 'Could not save. Check the connection and try again.';
+    return;
+  }
+  var start = Number($('itStart').value) || 0;
+  if (!itemTarget && start > 0){ await stockRpc('stock_receive', {p_item_id: r.data[0].id, p_qty: start, p_unit_cost: row.pack_qty ? row.cost_per_pack / row.pack_qty : null, p_expires_on: null, p_note: 'starting stock'}, {p_request_id: uuid(), p_opening: true}); }
+  $('itemModal').hidden = true; toast(row.name + ' saved'); loadAll();
+});
+$('itDelete').addEventListener('click', async function(){
+  if (!itemTarget) return;
+  if (!confirm('Delete "' + itemTarget.name + '"? Items with history cannot be deleted: untick Active instead.')) return;
+  var r = await db.from('stock_items').delete().eq('id', itemTarget.id);
+  if (r.error){ $('itErr').textContent = /in_old_recipe/.test(r.error.message || '') ? 'This item was used in a recipe before, and sales of that time still name it. Untick Active to hide it.'
+      : /in_recipe/.test(r.error.message || '') ? 'This item is in a recipe. Take it out of the recipe first, or untick Active to hide it.'
+      : /history/.test(r.error.message || '') ? 'This item has history (sales, counts or orders), so it is kept. Untick Active to hide it.' : 'Could not delete. Try again.'; return; }
+  $('itemModal').hidden = true; toast('Item deleted'); loadAll();
+});
+
+/* count / receive / waste */
+function uuid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c){ var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+/* newer database: send the extra arguments; a database not yet updated answers "function not found", so retry without them */
+async function stockRpc(name, args, extra){
+  var r = await db.rpc(name, Object.assign({}, args, extra || {}));
+  if (r.error && (r.error.code === 'PGRST202' || /Could not find the function/i.test(r.error.message || ''))) r = await db.rpc(name, args);
+  return r;
+}
+var moveKind = null, moveItem = null, moveReq = null;
+function openMove(kind, item){
+  moveKind = kind; moveItem = item;
+  var titles = {count: 'Count', receive: 'Receive', waste: 'Waste'};
+  $('moveTitle').textContent = titles[kind] + ' · ' + item.name;
+  $('moveHint').textContent = kind === 'count' ? 'On the books: ' + qtyU(item.on_hand, item.unit) + '. Type what you actually see; the difference is logged.'
+    : kind === 'receive' ? 'Add what just arrived. Packs or units, either one. ' + (item.pack_label ? 'One pack = ' + esc(item.pack_label) + ' = ' + qtyU(item.pack_qty, item.unit) + '.' : '')
+    : 'Take out what was thrown away, spilled or expired.';
+  $('moveCountBox').hidden = kind !== 'count'; $('moveQtyBox').hidden = kind === 'count'; $('moveCostRow').hidden = kind !== 'receive';
+  $('mvCounted').value = ''; $('mvPacks').value = ''; $('mvQty').value = ''; $('mvNote').value = ''; $('mvErr').textContent = '';
+  $('mvCountPacks').value = ''; $('mvCountLoose').value = '';
+  $('mvCountPackRow').hidden = kind !== 'count' || !(Number(item.pack_qty) > 1);
+  $('mvCountLooseLabel').textContent = 'Loose (' + unitLabel(item.unit) + ')';
+  $('mvCost').value = item.cost_per_pack || ''; $('mvExp').value = item.shelf_life_days ? new Date(Date.now() + item.shelf_life_days * 86400000).toISOString().slice(0, 10) : '';
+  moveReq = uuid();   /* one id per form: a double tap or a retry is saved once */
+  $('moveModal').hidden = false;
+  (kind === 'count' ? $('mvCounted') : $('mvPacks')).focus();
+}
+$('mvPacks').addEventListener('input', function(){ if (moveItem) $('mvQty').value = $('mvPacks').value === '' ? '' : String(Math.round(Number($('mvPacks').value) * moveItem.pack_qty * 1000) / 1000); });
+$('mvQty').addEventListener('input', function(){ if (moveItem && moveItem.pack_qty) $('mvPacks').value = $('mvQty').value === '' ? '' : String(Math.round(Number($('mvQty').value) / moveItem.pack_qty * 1000) / 1000); });
+/* a count in closed packs plus what is loose fills the total (a bag of frozen fruit = its grams) */
+function countFromPacks(){
+  if (!moveItem) return;
+  var p = $('mvCountPacks').value, l = $('mvCountLoose').value;
+  if (p === '' && l === '') return;
+  $('mvCounted').value = String(Math.round(((Number(p) || 0) * Number(moveItem.pack_qty) + (Number(l) || 0)) * 1000) / 1000);
+}
+$('mvCountPacks').addEventListener('input', countFromPacks);
+$('mvCountLoose').addEventListener('input', countFromPacks);
+$('mvCounted').addEventListener('input', function(){ $('mvCountPacks').value = ''; $('mvCountLoose').value = ''; });
+$('mvCancel').addEventListener('click', function(){ $('moveModal').hidden = true; });
+$('moveForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var note = $('mvNote').value.trim() || null, r;
+  if (moveKind === 'count'){
+    if ($('mvCounted').value === ''){ $('mvErr').textContent = 'Type the quantity you counted.'; return; }
+    r = await stockRpc('stock_count', {p_item_id: moveItem.id, p_counted: Number($('mvCounted').value), p_note: note}, {p_request_id: moveReq});
+  } else {
+    var q = Number($('mvQty').value);
+    if (!(q > 0)){ $('mvErr').textContent = 'Type a quantity above zero.'; return; }
+    if (moveKind === 'receive'){
+      var cpp = Number($('mvCost').value);
+      r = await stockRpc('stock_receive', {p_item_id: moveItem.id, p_qty: q, p_unit_cost: cpp > 0 ? cpp / moveItem.pack_qty : null, p_expires_on: $('mvExp').value || null, p_note: note}, {p_request_id: moveReq});
+    } else r = await stockRpc('stock_waste', {p_item_id: moveItem.id, p_qty: q, p_note: note}, {p_request_id: moveReq});
+  }
+  if (r.error || !r.data || !r.data.ok){ $('mvErr').textContent = r.error ? 'Could not save. Check the connection and try again.' : (r.data && r.data.error === 'locked' ? 'The inventory is locked. Type a manager PIN again.' : 'Could not save. Try again.'); return; }
+  $('moveModal').hidden = true;
+  toast(moveKind === 'count' ? moveItem.name + ' counted' : moveKind === 'receive' ? moveItem.name + ' received' : moveItem.name + ' waste logged');
+  loadAll();
+});
+
+/* ---------- orders ---------- */
+function unitCost(i){ return i.pack_qty ? Number(i.cost_per_pack) / Number(i.pack_qty) : 0; }
+function renderOrders(){
+  var openPos = POS.filter(function(p){ return p.status === 'draft' || p.status === 'sent' || p.status === 'partially_received'; });
+  $('poCount').hidden = !openPos.length; $('poCount').textContent = openPos.length;
+  /* suggestions grouped by vendor */
+  var sug = STATS.filter(function(i){ return i.active && i.status !== 'ok' && Number(i.suggested_packs) > 0; });
+  var groups = {}; sug.forEach(function(i){ var k = i.vendor_id || ''; (groups[k] = groups[k] || []).push(i); });
+  var box = $('suggestList'); box.replaceChildren();
+  if (!sug.length) box.innerHTML = '<p class="empty">Nothing needs ordering right now.</p>';
+  $('allPoBtn').hidden = Object.keys(groups).length < 2;
+  Object.keys(groups).forEach(function(vid){
+    var v = VENDORS.filter(function(x){ return x.id === vid; })[0];
+    var d = document.createElement('div'); d.className = 'po';
+    var head = document.createElement('div'); head.className = 'head';
+    head.innerHTML = '<b>' + esc(v ? v.name : 'No vendor set') + '</b>' + (v && v.order_days ? '<span class="hint">orders on ' + esc(v.order_days) + '</span>' : '') + (v ? '<span class="hint">' + v.lead_days + ' day lead</span>' : '');
+    var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
+    var tb = document.createElement('table'); tb.innerHTML = '<thead><tr><th>Item</th><th class="num">On hand</th><th class="num">Par</th><th class="num">Packs to order</th></tr></thead>';
+    var body = document.createElement('tbody');
+    groups[vid].forEach(function(i){
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + esc(i.name) + '<span class="sub">' + esc(i.pack_label || ('pack of ' + qtyU(i.pack_qty, i.unit))) + ' · ' + fmt(i.cost_per_pack) + '</span></td><td class="num">' + esc(qtyU(i.on_hand, i.unit)) + '<span class="sub"><span class="pill ' + i.status + '">' + statusLabel(i.status) + '</span></span></td><td class="num">' + num(i.par_level, 1) + '</td>';
+      var td = document.createElement('td'); td.className = 'num'; var inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = 'any'; inp.value = i.suggested_packs; inp.style.width = '80px'; inp.dataset.item = i.id; td.appendChild(inp); tr.appendChild(td);
+      body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    var btn = actBtn('Create order', async function(){
+      var lines = []; body.querySelectorAll('input').forEach(function(inp){ var packs = Number(inp.value); if (packs > 0) lines.push({item: byId[inp.dataset.item], packs: packs}); });
+      if (!lines.length){ toast('Nothing to order.'); return; }
+      await createPo(vid || null, lines);
+    }, '');
+    d.dataset.vendor = vid;
+    btn.className = 'small';
+    head.appendChild(btn); d.appendChild(head); d.appendChild(tb); box.appendChild(d);
+  });
+  /* open orders */
+  var list = $('poList'); list.replaceChildren();
+  if (!openPos.length) list.innerHTML = '<p class="empty">No open orders.</p>';
+  openPos.forEach(function(p){ list.appendChild(poCard(p, true)); });
+  var done = $('poDone'); done.replaceChildren();
+  var recv = POS.filter(function(p){ return p.status === 'received' || p.status === 'cancelled'; }).slice(0, 12);
+  if (!recv.length) done.innerHTML = '<p class="empty">Nothing received yet.</p>';
+  recv.forEach(function(p){ done.appendChild(poCard(p, false)); });
+}
+function poTotal(p){ return (p.purchase_lines || []).reduce(function(s, l){ return s + Number(l.received_qty != null && p.status === 'received' ? l.received_qty : l.qty) * Number(l.unit_cost || 0); }, 0); }
+/* one order per vendor from every suggestion on the screen, in one tap */
+$('allPoBtn').addEventListener('click', async function(){
+  var made = 0;
+  for (var d of Array.prototype.slice.call($('suggestList').querySelectorAll('.po'))){
+    var lines = []; d.querySelectorAll('input[data-item]').forEach(function(inp){ var packs = Number(inp.value); if (packs > 0) lines.push({item: byId[inp.dataset.item], packs: packs}); });
+    if (lines.length && await createPo(d.dataset.vendor || null, lines, true)) made++;
+  }
+  toast(made === 1 ? '1 order created' : made + ' orders created'); await loadAll(); showView('orders');
+});
+function poCard(p, open){
+  var v = VENDORS.filter(function(x){ return x.id === p.vendor_id; })[0];
+  var d = document.createElement('div'); d.className = 'po';
+  var head = document.createElement('div'); head.className = 'head';
+  var statusText = {draft: 'Draft', sent: 'Sent', partially_received: 'Partly received', received: 'Received', cancelled: 'Cancelled'}[p.status] || p.status;
+  head.innerHTML = (p.po_number ? '<span class="hint">Nº ' + p.po_number + '</span>' : '') + '<b>' + esc(v ? v.name : 'No vendor') + '</b><span class="pill ' + p.status + '">' + statusText + '</span><span class="hint">' + esc(fmtDT(p.received_at || p.sent_at || p.created_at)) + '</span><span class="hint">' + fmt(poTotal(p)) + '</span>';
+  var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
+  var lines = document.createElement('div'); lines.className = 'lines';
+  lines.textContent = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return (i ? i.name : '?') + ' × ' + num(l.packs, 2) + ((p.status === 'received' || p.status === 'partially_received') && l.received_qty != null && Number(l.received_qty) !== Number(l.qty) ? ' (got ' + num(l.received_qty, 1) + (i ? ' ' + unitLabel(i.unit) : '') + ')' : ''); }).join(' · ') || 'No lines yet';
+  if (open){
+    head.appendChild(actBtn('+ Add line', function(){ openLine(p); }));
+    if (p.status !== 'partially_received'){
+      if (v && v.whatsapp) head.appendChild(actBtn('Send by WhatsApp', function(){ sendPo(p, v); }));
+      if (v && v.email) head.appendChild(actBtn('Email', function(){ mailPo(p, v); }));
+      head.appendChild(actBtn(navigator.share ? 'Share' : 'Copy text', function(){ sharePo(p, v); }));
+    }
+    head.appendChild(actBtn('Print / PDF', function(){ printPo(p, v); }));
+    var rb = actBtn('Receive', function(){ openRecv(p); }); rb.className = 'small'; head.appendChild(rb);
+    if (p.status !== 'partially_received') head.appendChild(actBtn('Cancel order', async function(){ if (!confirm('Cancel this order?')) return; await db.from('purchase_orders').update({status: 'cancelled'}).eq('id', p.id); loadAll(); }));
+  }
+  if (SETTLE_OK && (p.status === 'received' || p.status === 'partially_received')) head.appendChild(actBtn('Details', function(){ openHistory(p.id); }));
+  d.appendChild(head); d.appendChild(lines);
+  return d;
+}
+async function createPo(vendorId, lines, quiet){
+  var r = await db.from('purchase_orders').insert({vendor_id: vendorId, status: 'draft', by_name: (HG_ACCESS.state() && HG_ACCESS.state().name) || (ACCOUNT === 'cafe' ? 'café' : 'owner')}).select('id');
+  if (r.error || !r.data || !r.data.length){ toast('Could not create the order. Try again.'); return false; }
+  var rows = lines.map(function(l){ return {po_id: r.data[0].id, item_id: l.item.id, packs: l.packs, qty: l.packs * Number(l.item.pack_qty), unit_cost: unitCost(l.item) || null}; });
+  var r2 = await db.from('purchase_lines').insert(rows);
+  if (r2.error){ toast('Could not add the lines. Try again.'); return false; }
+  if (quiet) return true;
+  toast('Order created'); await loadAll(); showView('orders');
+  return true;
+}
+$('newPoBtn').addEventListener('click', async function(){
+  var v = VENDORS.filter(function(x){ return x.active; })[0];
+  await createPo(v ? v.id : null, []);
+});
+var lineTarget = null;
+function openLine(p){
+  lineTarget = p; var sel = $('lnItem'); sel.replaceChildren();
+  STATS.filter(function(i){ return i.active; }).forEach(function(i){ var o = document.createElement('option'); o.value = i.id; o.textContent = i.name + (i.vendor_name ? ' · ' + i.vendor_name : ''); sel.appendChild(o); });
+  $('lnPacks').value = 1; $('lnErr').textContent = ''; lnHint(); $('lineModal').hidden = false;
+}
+function lnHint(){ var i = byId[$('lnItem').value]; $('lnHint').textContent = i ? ('1 pack = ' + (i.pack_label || qtyU(i.pack_qty, i.unit)) + ' · ' + fmt(i.cost_per_pack)) : ''; }
+$('lnItem').addEventListener('change', lnHint);
+$('lnCancel').addEventListener('click', function(){ $('lineModal').hidden = true; });
+$('lineForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var i = byId[$('lnItem').value], packs = Number($('lnPacks').value);
+  if (!i || !(packs > 0)){ $('lnErr').textContent = 'Pick an item and a number of packs.'; return; }
+  var r = await db.from('purchase_lines').insert({po_id: lineTarget.id, item_id: i.id, packs: packs, qty: packs * Number(i.pack_qty), unit_cost: unitCost(i) || null});
+  if (r.error){ $('lnErr').textContent = 'Could not add it. Try again.'; return; }
+  $('lineModal').hidden = true; loadAll();
+});
+function poText(p, v){
+  var lines = (p.purchase_lines || []).map(function(l){ var i = byId[l.item_id]; return '• ' + (i ? i.name : '?') + ': ' + num(l.packs, 2) + ' × ' + (i && i.pack_label ? i.pack_label : 'pack') + ' (' + (i ? qtyU(l.qty, i.unit) : l.qty) + ')'; });
+  return 'Hola' + (v && v.contact_name ? ' ' + v.contact_name : '') + ', pedido' + (p.po_number ? ' Nº ' + p.po_number : '') + ' de Hanging Garden Café:\n' + lines.join('\n') + '\n\nGracias. / Order from Hanging Garden Café, thank you.';
+}
+async function markSent(p){ if (p.status === 'draft'){ await db.from('purchase_orders').update({status: 'sent', sent_at: new Date().toISOString()}).eq('id', p.id); loadAll(); } }
+function mailPo(p, v){
+  location.href = 'mailto:' + encodeURIComponent(v.email) + '?subject=' + encodeURIComponent('Pedido' + (p.po_number ? ' Nº ' + p.po_number : '') + ' · Hanging Garden Café') + '&body=' + encodeURIComponent(poText(p, v));
+  markSent(p);
+}
+async function sharePo(p, v){
+  var text = poText(p, v);
+  try {
+    if (navigator.share){ await navigator.share({title: 'Pedido · Hanging Garden Café', text: text}); }
+    else { await navigator.clipboard.writeText(text); toast('Order text copied'); }
+    markSent(p);
+  } catch (e) { /* the person closed the share sheet */ }
+}
+async function sendPo(p, v){
+  var url = 'https://wa.me/' + String(v.whatsapp).replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(poText(p, v));
+  window.open(url, '_blank', 'noopener');
+  if (p.status === 'draft'){ await db.from('purchase_orders').update({status: 'sent', sent_at: new Date().toISOString()}).eq('id', p.id); loadAll(); }
+}
+/* the purchase order as a document: print it, or "Save as PDF" in the print window */
+function poDocHtml(p, v){
+  var total = 0;
+  var rows = (p.purchase_lines || []).map(function(l){
+    var i = byId[l.item_id], cpp = l.unit_cost != null && i ? Number(l.unit_cost) * Number(i.pack_qty) : null, lt = cpp != null ? cpp * Number(l.packs) : null;
+    if (lt != null) total += lt;
+    return '<tr><td>' + esc(i ? i.name : '?') + '<br><small>' + esc(i ? (i.pack_label || qtyU(i.pack_qty, i.unit)) : '') + '</small></td><td class="n">' + num(l.packs, 2) +
+           '</td><td class="n">' + esc(i ? qtyU(l.qty, i.unit) : String(l.qty)) + '</td><td class="n">' + (cpp != null ? fmt(Math.round(cpp)) : '') + '</td><td class="n">' + (lt != null ? fmt(Math.round(lt)) : '') + '</td></tr>';
+  }).join('');
+  var when = new Date(p.created_at || Date.now());
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Pedido ' + (p.po_number || '') + ' · Hanging Garden Café</title><style>' +
+    'body{font:13px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2a24;margin:24px}h1{font-size:20px;margin:0}' +
+    '.top{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #1E4B33;padding-bottom:10px;margin-bottom:14px}' +
+    'table{width:100%;border-collapse:collapse;margin-top:10px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #ccc;vertical-align:top}' +
+    'th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#555}.n{text-align:right;white-space:nowrap}small{color:#666}' +
+    'tfoot td{font-weight:700;border-bottom:0}.foot{margin-top:24px;color:#555;font-size:12px}</style></head><body>' +
+    '<div class="top"><div><h1>Hanging Garden Café</h1><div>Monteverde, Costa Rica</div></div>' +
+    '<div style="text-align:right"><b>PEDIDO · PURCHASE ORDER' + (p.po_number ? ' Nº ' + p.po_number : '') + '</b><br>' + when.toLocaleDateString('es-CR') +
+    (p.expected_on ? '<br>Entrega esperada: ' + esc(p.expected_on) : '') + '</div></div>' +
+    '<div><b>Proveedor · Vendor:</b> ' + esc(v ? v.name : '—') + (v && v.contact_name ? ' · ' + esc(v.contact_name) : '') + (v && v.phone ? ' · ' + esc(v.phone) : '') + (v && v.email ? ' · ' + esc(v.email) : '') + '</div>' +
+    '<table><thead><tr><th>Producto · Item</th><th class="n">Paquetes</th><th class="n">Cantidad</th><th class="n">Costo / paquete</th><th class="n">Total</th></tr></thead><tbody>' + rows + '</tbody>' +
+    '<tfoot><tr><td colspan="4" class="n">Total estimado · Estimated total</td><td class="n">' + fmt(Math.round(total)) + '</td></tr></tfoot></table>' +
+    (p.note ? '<p><b>Nota:</b> ' + esc(p.note) + '</p>' : '') +
+    '<div class="foot">Por favor indique en la factura el número de pedido. · Please quote the order number on the invoice.</div></body></html>';
+}
+function printPo(p, v){
+  var w = window.open('', '_blank');
+  if (!w) { toast('Allow pop-ups to print the order.'); return; }
+  w.document.write(poDocHtml(p, v));
+  w.document.close(); w.focus(); w.print();
+}
+var recvTarget = null, recvReq = null;
+function openRecv(p){
+  recvMode = 'receive'; recvReceipt = null; recvTarget = p; recvReq = storedReq(recvKey(p)); var tb = $('recvTable').querySelector('tbody'); tb.replaceChildren();
+  (p.purchase_lines || []).forEach(function(l){
+    var i = byId[l.item_id]; if (!i) return;
+    var already = Number(l.received_qty || 0), left = Math.max(0, Number(l.qty) - already);
+    var tr = document.createElement('tr'); tr.dataset.line = l.id;
+    var exp = l.expires_on || (i.shelf_life_days ? new Date(Date.now() + i.shelf_life_days * 86400000).toISOString().slice(0, 10) : '');
+    var pq = Number(i.pack_qty) || 1;
+    tr.innerHTML = '<td>' + esc(i.name) + '<span class="sub">' + esc(unitLabel(i.unit)) + (pq !== 1 ? ' · ' + esc(i.pack_label || (num(pq, 3) + ' ' + unitLabel(i.unit))) : '') + '</span></td><td class="num">' + num(l.qty, 1) + '</td><td class="num">' + num(already, 1) + '</td>' +
+      '<td class="num"><input type="number" min="0" step="any" value="' + esc(Math.round(left / pq * 1000) / 1000) + '" data-f="packs" style="width:70px"' + (pq === 1 ? ' disabled' : '') + '></td>' +
+      '<td class="num"><input type="number" min="0" step="any" value="' + esc(left) + '" data-f="qty" style="width:90px"></td>' +
+      '<td class="num"><input type="number" min="0" step="any" value="' + esc(l.unit_cost != null ? Math.round(Number(l.unit_cost) * Number(i.pack_qty) * 100) / 100 : '') + '" data-f="cost" style="width:100px"></td>' +
+      '<td><input type="date" value="' + esc(exp) + '" data-f="exp" style="width:150px"></td>';
+    /* packs fill the units and units fill the packs: what is received is always units (packs × units per pack) */
+    var pIn = tr.querySelector('[data-f=packs]'), qIn = tr.querySelector('[data-f=qty]');
+    pIn.addEventListener('input', function(){ qIn.value = pIn.value === '' ? '' : String(Math.round(Number(pIn.value) * pq * 1000) / 1000); });
+    qIn.addEventListener('input', function(){ pIn.value = qIn.value === '' ? '' : String(Math.round(Number(qIn.value) / pq * 1000) / 1000); });
+    tb.appendChild(tr);
+  });
+  $('recvInv').value = ''; $('recvInvDate').value = todayIso(); $('recvFinal').checked = false;
+  var v = VENDORS.filter(function(x){ return x.id === p.vendor_id; })[0];
+  $('recvTitle').textContent = 'Receive a delivery' + (p.po_number ? ' · Nº ' + p.po_number : '') + (v ? ' · ' + v.name : '');
+  $('recvHint').textContent = 'Type what arrived in this delivery. If part of the order comes later, receive it again then. Costs update the item\'s price.';
+  $('recvLinesBox').hidden = false; $('recvFinalBox').hidden = false; $('rvBox').hidden = !SETTLE_OK; $('recvGo').textContent = SETTLE_OK ? 'Confirm reception' : 'Add to stock';
+  if (SETTLE_OK) resetRv({mode: 'pending', needVendor: !p.vendor_id});
+  $('recvErr').textContent = ''; $('recvModal').hidden = false;
+}
+$('recvCancel').addEventListener('click', function(){ $('recvModal').hidden = true; });
+var RECV_ERR = {already_received: 'This order was already received.', cancelled: 'This order was cancelled.', bad_qty: 'Quantities and costs cannot be negative.',
+                duplicate_invoice: 'That invoice of this supplier was already entered.', locked: 'The inventory is locked. Type a manager PIN again.',
+                not_open: 'The register is not open: cash from the register cannot be used now. Pay another way or leave it pending.',
+                bad_pin: 'That PIN is not right.', not_manager: 'That person is not a manager.', unknown_staff: 'Pick the manager who authorizes the payment.',
+                inactive: 'That person is not active on the team.', pin_locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+                over_invoice: 'The payments add up to more than the invoice.', payout_exists: 'Money from the register was already taken for this delivery. Confirm the invoice to document it.',
+                needs_invoice: 'Bank and card payments need the invoice confirmed first. Only cash from the register can be recorded before.',
+                no_vendor: 'Pick the supplier first.', bad_rate: 'Type the exchange rate (₡ per $).', bad_value: 'Check the invoice: date, subtotal and IVA.',
+                empty: 'Nothing arrived? Type the quantities, or tick "Nothing more is coming" to close the order.', future_date: 'The invoice date cannot be in the future.',
+                period_closed: 'The accountant closed that month: ask them before recording this invoice.', more_than_owed: 'That is more than what is owed to this supplier.',
+                bad_receipts: 'One of the deliveries is already invoiced.', payout_exceeds: 'The money taken from the register is more than the invoice: check with the owner.',
+                already_confirmed: 'This invoice was already confirmed.', not_confirmed: 'Confirm the invoice before recording payments.', not_found: 'That delivery was not found. Reload the page.',
+                no_account: 'This login is not connected to the café yet.', bad_payout: 'That payout is not available: reload the page.', bad_request: 'Could not save. Reload the page and try again.'};
+function recvErrText(why, step){
+  if (step === 'pin' && why === 'locked') return RECV_ERR.pin_locked;
+  return RECV_ERR[why] || 'Could not save. Check the connection and try again.';
+}
+$('recvForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  if (recvBusy) return;
+  recvBusy = true; $('recvGo').disabled = true; $('recvErr').textContent = '';
+  try {
+    var lines = [], legacy = [];
+    if (recvMode === 'receive'){
+      $('recvTable').querySelectorAll('tbody tr').forEach(function(tr){
+        var l = (recvTarget.purchase_lines || []).filter(function(x){ return x.id === tr.dataset.line; })[0];
+        var i = byId[l.item_id], cost = Number(tr.querySelector('[data-f=cost]').value), q = Number(tr.querySelector('[data-f=qty]').value) || 0;
+        var uc = cost > 0 && i ? cost / Number(i.pack_qty) : null, ex = tr.querySelector('[data-f=exp]').value || null;
+        lines.push({line_id: l.id, qty: q, unit_cost: uc, expires_on: ex});
+        legacy.push({line_id: l.id, received_qty: Number(l.received_qty || 0) + q, unit_cost: uc, expires_on: ex});
+      });
+    }
+    var c = null;
+    if (SETTLE_OK){
+      c = rvCollect(); c.invoice.number = $('recvInv').value.trim() || null; c.invoice.date = $('recvInvDate').value || null;
+      var bad = rvValidate(c); if (bad){ $('recvErr').textContent = bad; return; }
+    }
+    var r = null, withPin = c && c.payments.length;
+    if (recvMode === 'receive'){
+      if (SETTLE_OK){
+        r = await db.rpc('po_receive_and_settle', {p_po_id: recvTarget.id, p_lines: lines, p_receipt_id: recvReq, p_final: $('recvFinal').checked,
+              p_invoice: c.invoice, p_payments: c.payments, p_manager_id: withPin ? c.mgr : null, p_pin: withPin ? c.pin : null});
+        if (r.error && (r.error.code === 'PGRST202' || /Could not find the function/i.test(r.error.message || ''))){ SETTLE_OK = false; r = null; }
+      }
+      if (!r){
+        r = await db.rpc('po_receive_delivery', {p_po_id: recvTarget.id, p_lines: lines, p_receipt_id: recvReq,
+          p_invoice_no: $('recvInv').value.trim() || null, p_invoice_date: $('recvInvDate').value || null, p_final: $('recvFinal').checked});
+        /* a database without migration 0012: receive the whole order in one step, as before */
+        if (r.error && (r.error.code === 'PGRST202' || /Could not find the function/i.test(r.error.message || ''))) r = await db.rpc('po_receive', {p_po_id: recvTarget.id, p_lines: legacy});
+      }
+    } else if (recvMode === 'settle'){
+      r = await db.rpc('po_receipt_settle', {p_receipt_id: recvReceipt.id, p_invoice: c.invoice, p_payments: c.payments, p_manager_id: withPin ? c.mgr : null, p_pin: withPin ? c.pin : null});
+    } else {
+      r = await db.rpc('po_receipt_pay', {p_receipt_id: recvReceipt.id, p_payments: c.payments, p_request_id: payReq, p_manager_id: c.mgr, p_pin: c.pin, p_station: stationName()});
+    }
+    if (r.error || !r.data || !r.data.ok){
+      var why = r.data && r.data.error, step = r.data && r.data.step;
+      $('recvErr').textContent = r.error ? 'Could not save. Check the connection and try again.' : recvErrText(why, step);
+      if (why === 'locked' && step !== 'pin' && window.HG_ACCESS) HG_ACCESS.gate(db, {title: 'Inventory · owners and managers'}).then(function(){ $('recvErr').textContent = ''; });
+      if (why === 'already_received'){ dropReq(recvKey(recvTarget)); loadAll(); }
+      if (why === 'already_confirmed') loadAll();
+      return;
+    }
+    if (recvMode === 'receive') dropReq(recvKey(recvTarget));
+    $('rvPin').value = '';
+    $('recvModal').hidden = true;
+    if (r.data.repeat){
+      toast(recvMode === 'pay' ? 'That payment was already recorded earlier: nothing new was recorded. Check the balance before recording another one.'
+          : recvMode === 'settle' ? 'That invoice was already confirmed earlier: nothing new was recorded.'
+          : 'That delivery was already saved earlier: nothing new was recorded. Check it in Details.');
+      loadAll(); return;
+    }
+    var msg = recvMode === 'pay' ? 'Payment recorded · open ' + fmt(r.data.open_crc)
+            : r.data.invoice_status === 'confirmed' ? 'Invoice confirmed · paid ' + fmt(r.data.paid_crc) + ' · open ' + fmt(r.data.open_crc)
+            : r.data.invoice_status === 'review' ? 'Saved · the invoice waits to be reviewed'
+            : r.data.status === 'partially_received' ? 'Delivery received · the rest is still on order' : 'Order received, stock updated';
+    toast(msg); loadAll();
+  } finally { recvBusy = false; $('recvGo').disabled = false; }
+});
+
+/* ---------- recipes ----------
+   Migration 0030: a recipe is saved in one step with the PIN of a manager or the owner (recipe_save), quantities
+   are typed in g, ml or units and converted to the item's own unit, every save is a version in the history, and
+   the cost is the one sales use (the average cost). A database before 0030 keeps the old save (no PIN, no history). */
+var recipeItem = null, recipeDraft = [], recipeVersion = 0, RV_OK = null, RV_LATEST = {}, STOCKCOST = {}, TAXRATE = {};
+var recPinMode = 'save', recipeReq = null, recipeBusy = false;
+var FAM = {g: 'mass', kg: 'mass', ml: 'volume', L: 'volume', unit: 'count'};
+var BASE_UNIT = {mass: 'g', volume: 'ml', count: 'unit'};
+var ENTRY_UNITS = {mass: ['g', 'kg'], volume: ['ml', 'L'], count: ['unit']};
+var DRAFT_KEY = 'hg-recipe-draft';
+function unitFactor(u){ return u === 'kg' || u === 'L' ? 1000 : 1; }
+function r6(n){ return Math.round(Number(n) * 1e6) / 1e6; }
+function toStock(qty, unit, stockUnit){ return r6(Number(qty) * unitFactor(unit) / unitFactor(stockUnit)); }
+/* a stored quantity shown in grams, millilitres or units */
+function shownQty(qty, stockUnit){ var f = FAM[stockUnit] || 'count'; return {qty: r6(Number(qty) * unitFactor(stockUnit)), unit: BASE_UNIT[f]}; }
+function stockOf(id){ return STOCKCOST[id] || byId[id] || null; }
+/* the cost sales use: the average cost, or the last price when there is no average yet (null: no cost at all) */
+function avgUnitCost(i){
+  if (!i) return null;
+  if (Number(i.avg_cost) > 0) return Number(i.avg_cost);
+  return Number(i.cost_per_pack) > 0 && Number(i.pack_qty) > 0 ? Math.round(Number(i.cost_per_pack) / Number(i.pack_qty) * 10000) / 10000 : null;
+}
+function lastUnitCost(i){ return i && Number(i.cost_per_pack) > 0 && Number(i.pack_qty) > 0 ? Number(i.cost_per_pack) / Number(i.pack_qty) : null; }
+function netPrice(mi){ var rate = TAXRATE[mi.tax_code || 'IVA13']; if (!(rate >= 0)) rate = 0.13; return Number(mi.price_crc) / (1 + rate); }
+
+async function loadMenu(force){
+  if (MENU.length && !force) return;
+  var r = await db.from('menu_categories').select('id,name,sort,menu_items(id,name,price_crc,available,sort,tax_code)').order('sort');
+  if (r.error && isMissing(r.error)) r = await db.from('menu_categories').select('id,name,sort,menu_items(id,name,price_crc,available,sort)').order('sort');
+  MENU = r.data || [];
+  await loadRecipeData();
+}
+async function loadRecipeData(){
+  var rs = await Promise.all([
+    db.from('recipes').select('id,menu_item_id,stock_item_id,qty'),
+    db.from('stock_items').select('id,name,unit,active,avg_cost,cost_per_pack,pack_qty'),
+    db.from('tax_rates').select('code,rate'),
+    RV_OK === null ? db.rpc('canopy_schema_version') : Promise.resolve({data: null})
+  ]);
+  RECIPES = rs[0].data || [];
+  STOCKCOST = {}; (rs[1].data || []).forEach(function(i){ STOCKCOST[i.id] = i; });
+  TAXRATE = {}; (rs[2].data || []).forEach(function(t){ TAXRATE[t.code] = Number(t.rate); });
+  /* the database's version decides between the PIN save and the old one; a call that fails (no connection) leaves it
+     unknown, and saving waits for an answer rather than falling back to the save without PIN */
+  if (RV_OK === null && rs[3]){
+    if (!rs[3].error) RV_OK = Number(rs[3].data) >= 30;
+    else if (rs[3].error.code === 'PGRST202') RV_OK = false;   /* only "no such function" means an older database */
+  }
+}
+/* the latest version of one product (the page never reads the whole history: Supabase answers at most 1000 rows) */
+async function latestVersion(id){
+  if (RV_OK === false) return 0;
+  if (RV_OK === null) return null;
+  var r = await db.from('recipe_versions').select('version').eq('menu_item_id', id).order('version', {ascending: false}).limit(1);
+  if (r.error) return null;
+  RV_LATEST[id] = r.data && r.data.length ? r.data[0].version : 0;
+  return RV_LATEST[id];
+}
+function findMenuItem(id){
+  var hit = null;
+  MENU.forEach(function(c){ (c.menu_items || []).forEach(function(mi){ if (mi.id === id) hit = mi; }); });
+  return hit;
+}
+/* the draft (never the PIN) survives a reload: the 15-minute unlock reloads the page when it ends */
+function readDraft(){ try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { return null; } }
+function keepDraft(){
+  if (!recipeItem) return;
+  recipeReq = uuid();     /* a changed draft is a new save; the same draft sent again (a lost answer) is saved once */
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({menu_item_id: recipeItem.id, version: recipeVersion, lines: recipeDraft, request_id: recipeReq})); } catch (e) {}
+}
+/* the product finder: names and categories, accents and case aside */
+function norm(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+$('menuFind').addEventListener('input', function(){ renderMenuList(); });
+function dropDraft(){ try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+
+async function renderMenuList(){
+  await loadMenu();
+  var box = $('menuList'); box.replaceChildren();
+  var q = norm($('menuFind').value.trim()), shown = 0;
+  MENU.forEach(function(c){
+    (c.menu_items || []).slice().sort(function(a, b){ return (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name); }).forEach(function(mi){
+      if (q && norm(mi.name).indexOf(q) < 0 && norm(c.name).indexOf(q) < 0) return;
+      shown++;
+      var n = RECIPES.filter(function(r){ return r.menu_item_id === mi.id; }).length;
+      var b = document.createElement('button'); b.type = 'button'; b.classList.toggle('on', !!(recipeItem && recipeItem.id === mi.id));
+      b.innerHTML = '<span>' + esc(mi.name) + '<br><span class="c">' + esc(c.name) + '</span></span><span class="c">' + (n ? n + (n === 1 ? ' ingredient' : ' ingredients') : 'not linked') + '</span>';
+      b.addEventListener('click', function(){ openRecipe(mi); });
+      box.appendChild(b);
+    });
+  });
+  if (!shown) box.innerHTML = '<p class="empty">No product matches</p>';
+  var d = readDraft(), dmi = d && findMenuItem(d.menu_item_id), note = $('draftNote');
+  /* a draft of an older version (someone saved meanwhile) is out of date: drop it instead of offering it */
+  if (dmi && RV_OK && !(recipeItem && recipeItem.id === dmi.id)){
+    var lv = dmi.id in RV_LATEST ? RV_LATEST[dmi.id] : await latestVersion(dmi.id);
+    if (lv !== null && d.version !== lv){ dropDraft(); dmi = null; }
+  }
+  note.hidden = !(dmi && (!recipeItem || recipeItem.id !== dmi.id));
+  if (!note.hidden){
+    note.replaceChildren(document.createTextNode('Unsaved draft: ' + dmi.name + ' '));
+    var ob = actBtn('Open it', function(){ openRecipe(dmi); }); note.appendChild(ob);
+  }
+}
+async function openRecipe(mi, saved){
+  recipeItem = mi; recipeVersion = null; recipeDraft = []; recipeReq = null;
+  $('recipeAddRow').disabled = true; $('recipeSave').disabled = true;     /* until the recipe is read */
+  $('recipeTitle').textContent = mi.name + ' · ' + fmt(mi.price_crc);
+  $('recipeErr').textContent = ''; $('recipeCard').hidden = false; $('recipeRows').replaceChildren();
+  $('recipeNote').hidden = true; $('recipeNote').classList.remove('ok');
+  $('recipeCost').textContent = ''; $('recipeCost2').textContent = ''; renderMenuList();
+  $('recipeCard').scrollIntoView({behavior: 'smooth', block: 'start'});
+  if (RV_OK === null) await loadRecipeData();
+  if (recipeItem !== mi) return;
+  /* the version first, then the lines and today's costs: a save by someone else in between is reported as a conflict,
+     never overwritten; without an answer nothing is editable (the product is tapped again) */
+  var v = RV_OK === null ? null : await latestVersion(mi.id);
+  if (recipeItem !== mi) return;
+  var rs = v === null ? null : await Promise.all([db.from('recipes').select('id,menu_item_id,stock_item_id,qty').eq('menu_item_id', mi.id),
+                                                 db.from('stock_items').select('id,name,unit,active,avg_cost,cost_per_pack,pack_qty')]);
+  if (recipeItem !== mi) return;
+  if (!rs || rs[0].error){ $('recipeErr').textContent = 'Could not load the recipe. Check the connection and tap the product again.'; loadRecipeHistory(); return; }
+  recipeVersion = v; $('recipeAddRow').disabled = false; $('recipeSave').disabled = false;
+  RECIPES = RECIPES.filter(function(r){ return r.menu_item_id !== mi.id; }).concat(rs[0].data || []);
+  if (!rs[1].error){ STOCKCOST = {}; (rs[1].data || []).forEach(function(i){ STOCKCOST[i.id] = i; }); }
+  var d = readDraft(), restored = false;
+  if (d && d.menu_item_id === mi.id && Array.isArray(d.lines)){
+    if (d.version === recipeVersion){ recipeDraft = d.lines; recipeReq = d.request_id || null; restored = true; }
+    else dropDraft();      /* someone saved a newer version: that draft is out of date */
+  }
+  if (!restored){
+    recipeDraft = RECIPES.filter(function(r){ return r.menu_item_id === mi.id; }).map(function(r){
+      var i = stockOf(r.stock_item_id), sh = shownQty(r.qty, i ? i.unit : 'unit');
+      return {stock_item_id: r.stock_item_id, qty: sh.qty, unit: sh.unit};
+    });
+  }
+  if (!recipeDraft.length) recipeDraft.push({stock_item_id: '', qty: '', unit: ''});
+  if (!recipeReq) recipeReq = uuid();
+  if (restored){ $('recipeNote').textContent = 'Unsaved draft recovered. Save it, or open another product to drop it.'; $('recipeNote').hidden = false; }
+  else if (saved){ $('recipeNote').textContent = 'Recipe saved · version ' + saved.version + ' · ' + saved.who; $('recipeNote').classList.add('ok'); $('recipeNote').hidden = false; }
+  renderRecipeRows(); renderMenuList(); loadRecipeHistory();
+}
+function unitSelect(row, item){
+  var sel = document.createElement('select'); sel.className = 'unit'; sel.setAttribute('aria-label', 'Unit');
+  var fam = item ? FAM[item.unit] : null, opts = fam ? ENTRY_UNITS[fam] : [];
+  opts.forEach(function(u){ var o = document.createElement('option'); o.value = u; o.textContent = unitLabel(u); sel.appendChild(o); });
+  sel.disabled = opts.length < 2;
+  if (opts.length) sel.value = opts.indexOf(row.unit) > -1 ? row.unit : opts[0];
+  row.unit = sel.value || row.unit;
+  sel.addEventListener('change', function(){ row.unit = sel.value; renderRecipeCost(); keepDraft(); });
+  return sel;
+}
+function renderRecipeRows(){
+  var box = $('recipeRows'); box.replaceChildren();
+  recipeDraft.forEach(function(row, idx){
+    var d = document.createElement('div'); d.className = 'recipe-row';
+    var sel = document.createElement('select'); sel.className = 'ing'; sel.setAttribute('aria-label', 'Ingredient');
+    var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Pick a stock item'; sel.appendChild(o0);
+    STATS.filter(function(i){ return i.active || i.id === row.stock_item_id; }).forEach(function(i){
+      var o = document.createElement('option'); o.value = i.id; o.textContent = i.name + ' (' + unitLabel(i.unit) + ')' + (i.active ? '' : ' · inactive'); sel.appendChild(o);
+    });
+    sel.value = row.stock_item_id;
+    var q = document.createElement('input'); q.type = 'number'; q.min = '0'; q.step = 'any'; q.inputMode = 'decimal'; q.value = row.qty; q.setAttribute('aria-label', 'Quantity');
+    var us = unitSelect(row, stockOf(row.stock_item_id));
+    var lc = document.createElement('span'); lc.className = 'lc';
+    var x = actBtn('Remove', function(){ recipeDraft.splice(idx, 1); if (!recipeDraft.length) recipeDraft.push({stock_item_id: '', qty: '', unit: ''}); renderRecipeRows(); keepDraft(); });
+    sel.addEventListener('change', function(){
+      var was = stockOf(row.stock_item_id), now = stockOf(sel.value);
+      row.stock_item_id = sel.value;
+      /* changing the ingredient keeps the amount in the same family (g ↔ g); another family has to be typed again */
+      if (!(was && now && FAM[was.unit] === FAM[now.unit])){ row.qty = ''; row.unit = now ? BASE_UNIT[FAM[now.unit]] : ''; }
+      renderRecipeRows(); keepDraft();
+      if (row.qty === '' && now){ var inputs = $('recipeRows').querySelectorAll('input'); if (inputs[idx]) inputs[idx].focus(); }
+    });
+    q.addEventListener('input', function(){ row.qty = q.value === '' ? '' : Number(q.value); renderRecipeCost(); keepDraft(); });
+    d.appendChild(sel); d.appendChild(q); d.appendChild(us); d.appendChild(lc); d.appendChild(x); box.appendChild(d);
+  });
+  renderRecipeCost();
+}
+function renderRecipeCost(){
+  var cost = 0, last = 0, missing = [];
+  var lcs = $('recipeRows').querySelectorAll('.lc');
+  recipeDraft.forEach(function(r, idx){
+    var i = stockOf(r.stock_item_id), el = lcs[idx];
+    if (!i || !(Number(r.qty) > 0)){ if (el){ el.textContent = ''; el.classList.remove('nocost'); } return; }
+    var qs = toStock(r.qty, r.unit || i.unit, i.unit), uc = avgUnitCost(i), lu = lastUnitCost(i);
+    if (uc === null){ missing.push(i.name); if (el){ el.textContent = 'no cost'; el.classList.add('nocost'); } }
+    else { cost += qs * uc; if (el){ el.textContent = fmt(qs * uc); el.classList.remove('nocost'); } }
+    last += qs * (lu === null ? (uc || 0) : lu);
+  });
+  var net = recipeItem ? netPrice(recipeItem) : 0;
+  $('recipeCost').textContent = cost ? ('Estimated cost ' + fmt(cost) + ' (average cost)' + (net > 0 ? ' · ' + num(100 * cost / net, 1) + '% of the price without IVA' : '')) : '';
+  var extra = [];
+  if (net > 0) extra.push('Price without IVA: ' + fmt(net));
+  if (cost && Math.round(last) !== Math.round(cost)) extra.push('At the last purchase price: ' + fmt(last));
+  if (missing.length) extra.push('No cost yet: ' + missing.join(', '));
+  $('recipeCost2').textContent = extra.join(' · ');
+}
+/* the lines to save, checked here first so the message is immediate (the server checks everything again) */
+function recipeLines(){
+  var out = [], seen = {}, err = null;
+  recipeDraft.forEach(function(r){
+    if (err || (!r.stock_item_id && (r.qty === '' || r.qty == null))) return;
+    var i = stockOf(r.stock_item_id);
+    if (!i){ err = 'Pick the ingredient of every line, or remove the empty line.'; return; }
+    if (!(Number(r.qty) > 0)){ err = 'Type a quantity above zero for ' + i.name + '.'; return; }
+    if (seen[r.stock_item_id]){ err = i.name + ' is twice in the recipe. Keep one line.'; return; }
+    seen[r.stock_item_id] = true;
+    out.push({stock_item_id: r.stock_item_id, qty: Number(r.qty), unit: r.unit || i.unit});
+  });
+  return err ? {error: err} : {lines: out};
+}
+$('recipeAddRow').addEventListener('click', function(){ recipeDraft.push({stock_item_id: '', qty: '', unit: ''}); renderRecipeRows(); keepDraft(); });
+
+var RECIPE_ERR = {locked: 'The inventory is locked. Type a manager PIN again.', bad_pin: 'That PIN is not right.', not_manager: 'Only a manager or the owner can change recipes.',
+  inactive: 'That person is not active on the team.', unknown_staff: 'Pick who authorizes the change.', pin_locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
+  not_found: 'That product is no longer on the menu. Reload the page.', bad_version: 'Reload the page and try again.', bad_request: 'Could not save. Reload the page and try again.',
+  too_many: 'A recipe can have up to 30 ingredients.', bad_line: 'One line has no ingredient. Pick it or remove the line.', unknown_item: 'One ingredient no longer exists. Reload the page.',
+  duplicate: '{x} is twice in the recipe. Keep one line.', inactive_item: '{x} is inactive. Make it Active in Stock, or pick another ingredient.',
+  bad_qty: 'Check the quantity of {x}: it must be a number above zero.', too_much: 'The quantity of {x} is too large for one serving. Check the unit.',
+  bad_unit: '{x} cannot be measured in that unit.', empty_needs_reason: 'To leave a product without ingredients, type the reason.'};
+function recipeErrText(d){
+  if (d.step === 'pin' && d.error === 'locked') return RECIPE_ERR.pin_locked;
+  var t = RECIPE_ERR[d.error] || 'Could not save. Check the connection and try again.';
+  return t.replace('{x}', d.item || 'An ingredient');
+}
+/* the PIN window: who authorizes, their PIN, and why */
+async function fillRecMgrs(){
+  var sel = $('recMgr'); var list = await loadManagers(); sel.replaceChildren();
+  list.forEach(function(s){ var o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
+  if (!list.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2); }
+  var who = window.HG_ACCESS && HG_ACCESS.who ? HG_ACCESS.who() : '';     /* the last person who opened, only if this same login saved it */
+  if (who && list.some(function(s){ return s.id === who; })) sel.value = who;
+}
+async function openRecPin(mode, emptyRecipe){
+  recPinMode = mode; if (!recipeReq) recipeReq = uuid();      /* the draft's id: a lost answer retried is saved once */
+  $('recPinTitle').textContent = mode === 'autolink' ? 'Link same-name items' : 'Save the recipe · ' + recipeItem.name;
+  $('recReasonBox').hidden = mode === 'autolink';
+  $('recReasonLabel').textContent = emptyRecipe ? 'Reason (required: the product keeps no ingredients)' : 'Reason (optional)';
+  $('recReason').value = ''; $('recPin').value = ''; $('recPinErr').textContent = '';
+  await fillRecMgrs();
+  $('recPinModal').hidden = false; $('recPin').focus();
+}
+$('recPinCancel').addEventListener('click', function(){ $('recPin').value = ''; $('recPinModal').hidden = true; });
+$('recipeSave').addEventListener('click', async function(){
+  if (!recipeItem) return;
+  if (RV_OK !== false && recipeVersion === null){ $('recipeErr').textContent = 'Could not load the recipe. Check the connection and tap the product again.'; return; }
+  var c = recipeLines();
+  if (c.error){ $('recipeErr').textContent = c.error; return; }
+  $('recipeErr').textContent = '';
+  if (!c.lines.length && !confirm('Save ' + recipeItem.name + ' without ingredients? Its sales will not take anything out of stock.')) return;
+  if (RV_OK === null) await loadRecipeData();
+  if (RV_OK === null){ $('recipeErr').textContent = 'Could not check the database version. Check the connection and try again.'; return; }
+  if (RV_OK === false){ await saveRecipeOld(c.lines); return; }
+  openRecPin('save', !c.lines.length);
+});
+$('recPinForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  if (recipeBusy) return;
+  var mgr = $('recMgr').value || null, pin = $('recPin').value.trim();
+  if (!pin){ $('recPinErr').textContent = 'Type the PIN.'; return; }
+  recipeBusy = true; $('recPinGo').disabled = true; $('recPinErr').textContent = '';
+  try {
+    var r;
+    if (recPinMode === 'autolink'){
+      r = await db.rpc('recipes_autolink_pin', {p_staff_id: mgr, p_pin: pin});
+    } else {
+      var c = recipeLines();
+      if (c.error){ $('recPinErr').textContent = c.error; return; }
+      var why = $('recReason').value.trim();
+      if (!c.lines.length && !why){ $('recPinErr').textContent = RECIPE_ERR.empty_needs_reason; return; }
+      r = await db.rpc('recipe_save', {p_menu_item_id: recipeItem.id, p_lines: c.lines, p_expected_version: recipeVersion,
+                                       p_staff_id: mgr, p_pin: pin, p_reason: why || null, p_request_id: recipeReq});
+    }
+    $('recPin').value = '';
+    if (r.error){ $('recPinErr').textContent = navigator.onLine === false ? 'No connection. The draft is kept: try again when the internet is back.' : 'Could not save. Check the connection and try again.'; return; }
+    var d = r.data || {};
+    if (!d.ok){
+      if (d.error === 'changed'){
+        $('recPinModal').hidden = true;
+        $('recipeErr').textContent = 'Someone else saved this recipe meanwhile (now version ' + d.version + '). Your draft is kept here: copy what you need, then open the product again to see their version.';
+        RV_LATEST[recipeItem.id] = d.version; dropDraft(); await loadRecipeData(); renderMenuList(); loadRecipeHistory();
+        return;
+      }
+      $('recPinErr').textContent = recipeErrText(d);
+      if (d.error === 'locked' && d.step !== 'pin' && window.HG_ACCESS){ $('recPinModal').hidden = true; keepDraft(); HG_ACCESS.gate(db, {title: 'Inventory · owners and managers'}); }
+      return;
+    }
+    $('recPinModal').hidden = true;
+    if (recPinMode === 'autolink'){
+      await loadRecipeData(); toast(d.linked + ' linked'); renderMenuList(); if (recipeItem) loadRecipeHistory();
+      return;
+    }
+    dropDraft();
+    if (d.unchanged){ toast('Nothing changed in the recipe'); return; }
+    /* the answer carries what was saved: no need to read it back (an expired unlock would hide it) */
+    RECIPES = RECIPES.filter(function(x){ return x.menu_item_id !== recipeItem.id; }).concat((d.lines || []).map(function(l){
+      return {id: null, menu_item_id: recipeItem.id, stock_item_id: l.stock_item_id, qty: Number(l.qty)};
+    }));
+    RV_LATEST[recipeItem.id] = d.version; recipeVersion = d.version;
+    toast(d.repeat ? 'That save was already recorded' : 'Recipe saved · version ' + d.version);
+    var who = $('recMgr').selectedOptions && $('recMgr').selectedOptions[0] ? $('recMgr').selectedOptions[0].textContent : '';
+    openRecipe(recipeItem, {version: d.version, who: who});
+  } finally { recipeBusy = false; $('recPinGo').disabled = false; }
+});
+/* a database before migration 0030: the old save, as before (no PIN, no history) */
+async function saveRecipeOld(lines){
+  var del = await db.from('recipes').delete().eq('menu_item_id', recipeItem.id);
+  if (del.error){ toast('Could not save the recipe. Try again.'); return; }
+  if (lines.length){
+    var ins = await db.from('recipes').insert(lines.map(function(l){ var i = stockOf(l.stock_item_id); return {menu_item_id: recipeItem.id, stock_item_id: l.stock_item_id, qty: toStock(l.qty, l.unit, i.unit)}; }));
+    if (ins.error){ toast('Could not save the recipe. Try again.'); return; }
+  }
+  dropDraft(); await loadRecipeData();
+  toast('Recipe saved'); renderMenuList();
+}
+$('autolinkBtn').addEventListener('click', async function(){
+  if (RV_OK === null) await loadMenu();
+  if (RV_OK === null) await loadRecipeData();
+  if (RV_OK === null){ toast('Could not check the database version. Check the connection and try again.'); return; }
+  if (RV_OK){ openRecPin('autolink'); return; }
+  var r = await db.rpc('recipes_autolink');
+  if (r.error || !r.data || !r.data.ok){ toast('Could not link. Try again.'); return; }
+  await loadRecipeData();
+  toast(r.data.linked + ' linked'); renderMenuList();
+});
+
+/* the history of the open recipe */
+var RV_SOURCE = {baseline: 'Starting version', editor: 'Saved with PIN', direct: 'Direct change', deleted: 'Product deleted', autolink: 'Linked by name'};
+function lineText(l){ var sh = shownQty(l.qty, l.unit); return l.name + ' ' + num(sh.qty, 3) + ' ' + unitLabel(sh.unit); }
+function versionDiff(cur, prev){
+  var out = [], a = {}, b = {};
+  (prev ? prev.lines : []).forEach(function(l){ a[l.stock_item_id] = l; });
+  (cur.lines || []).forEach(function(l){ b[l.stock_item_id] = l; });
+  Object.keys(b).forEach(function(k){
+    if (!a[k]) out.push('+ ' + lineText(b[k]));
+    else if (Number(a[k].qty) !== Number(b[k].qty)) out.push(lineText(a[k]) + ' → ' + num(shownQty(b[k].qty, b[k].unit).qty, 3) + ' ' + unitLabel(shownQty(b[k].qty, b[k].unit).unit));
+  });
+  Object.keys(a).forEach(function(k){ if (!b[k]) out.push('− ' + lineText(a[k])); });
+  if (!prev) out = (cur.lines || []).map(lineText);
+  return out;
+}
+async function loadRecipeHistory(){
+  $('recipeHistBox').hidden = !RV_OK;
+  if (!RV_OK || !recipeItem) return;
+  var item = recipeItem;
+  var r = await db.from('recipe_versions').select('version,at,source,reason,by_name,lines,cost_crc,cost_before_crc,missing_cost')
+    .eq('menu_item_id', item.id).order('version', {ascending: false}).limit(25);
+  if (recipeItem !== item) return;
+  var box = $('recipeHist'); box.replaceChildren();
+  if (r.error){ box.innerHTML = '<p class="empty">Could not load the history. Check the connection.</p>'; return; }
+  var list = r.data || [];
+  RV_LATEST[item.id] = list.length ? list[0].version : 0;
+  if (!list.length){ box.innerHTML = '<p class="empty">No saved versions yet.</p>'; return; }
+  list.forEach(function(v, idx){
+    var d = document.createElement('div'); d.className = 'rv-item';
+    var label = v.source === 'direct' && !(v.lines || []).length ? 'Recipe emptied (direct change)' : (RV_SOURCE[v.source] || v.source);
+    d.innerHTML = '<div class="rv-head"><b>Version ' + esc(v.version) + '</b><span class="hint">' + esc(fmtDT(v.at)) + '</span><span>' + esc(label) + '</span>' +
+      (v.by_name ? '<span class="hint">' + esc(v.by_name) + '</span>' : '') +
+      '<span class="mono">' + (v.cost_before_crc != null ? fmt(v.cost_before_crc) + ' → ' : '') + fmt(v.cost_crc) + '</span></div>' +
+      (v.reason ? '<div class="hint">' + esc(v.reason) + '</div>' : '');
+    var diff = versionDiff(v, list[idx + 1] || null);
+    if (diff.length){ var ul = document.createElement('ul'); ul.className = 'rv-diff'; diff.forEach(function(t){ var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); }); d.appendChild(ul); }
+    box.appendChild(d);
+  });
+}
+
+/* ---------- vendors ---------- */
+var vendorTarget = null;
+function renderVendors(){
+  var tb = $('vendorTable').querySelector('tbody'); tb.replaceChildren();
+  $('vendorEmpty').hidden = !!VENDORS.length;
+  VENDORS.forEach(function(v){
+    var n = STATS.filter(function(i){ return i.vendor_id === v.id && i.active; }).length;
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + esc(v.name) + '</b>' + (!v.active ? ' <span class="pill cancelled">inactive</span>' : '') + (v.notes ? '<span class="sub">' + esc(v.notes) + '</span>' : '') + '</td>' +
+      '<td>' + esc(v.contact_name || '') + (v.whatsapp ? '<span class="sub"><a href="https://wa.me/' + esc(String(v.whatsapp).replace(/[^0-9]/g, '')) + '" target="_blank" rel="noopener">WhatsApp ' + esc(v.whatsapp) + '</a></span>' : '') + (v.phone ? '<span class="sub">' + esc(v.phone) + '</span>' : '') + (v.email ? '<span class="sub">' + esc(v.email) + '</span>' : '') + '</td>' +
+      '<td>' + esc(v.order_days || '') + '</td><td class="num">' + esc(v.lead_days) + '</td><td class="num">' + n + '</td>';
+    var td = document.createElement('td'); var acts = document.createElement('div'); acts.className = 'acts'; acts.appendChild(actBtn('Edit', function(){ openVendor(v); })); td.appendChild(acts); tr.appendChild(td); tb.appendChild(tr);
+  });
+}
+$('addVendorBtn').addEventListener('click', function(){ openVendor(null); });
+function openVendor(v){
+  vendorTarget = v;
+  $('vendorTitle').textContent = v ? 'Edit · ' + v.name : 'Add vendor';
+  $('vName').value = v ? v.name : ''; $('vContact').value = v ? (v.contact_name || '') : ''; $('vPhone').value = v ? (v.phone || '') : ''; $('vWa').value = v ? (v.whatsapp || '') : '';
+  $('vEmail').value = v ? (v.email || '') : ''; $('vLead').value = v ? v.lead_days : 2; $('vDays').value = v ? (v.order_days || '') : ''; $('vNotes').value = v ? (v.notes || '') : ''; $('vActive').checked = v ? v.active : true;
+  $('vDelete').hidden = !v; $('vErr').textContent = ''; $('vendorModal').hidden = false; $('vName').focus();
+}
+$('vCancel').addEventListener('click', function(){ $('vendorModal').hidden = true; });
+$('vendorForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var row = {name: $('vName').value.trim(), contact_name: $('vContact').value.trim() || null, phone: $('vPhone').value.trim() || null, whatsapp: $('vWa').value.trim() || null,
+    email: $('vEmail').value.trim() || null, lead_days: Number($('vLead').value) || 0, order_days: $('vDays').value.trim() || null, notes: $('vNotes').value.trim() || null, active: $('vActive').checked};
+  if (!row.name){ $('vErr').textContent = 'The name cannot be empty.'; return; }
+  var r = vendorTarget ? await db.from('vendors').update(row).eq('id', vendorTarget.id) : await db.from('vendors').insert(row);
+  if (r.error){ $('vErr').textContent = 'Could not save. Check the connection and try again.'; return; }
+  $('vendorModal').hidden = true; toast(row.name + ' saved'); loadAll();
+});
+$('vDelete').addEventListener('click', async function(){
+  if (!vendorTarget || !confirm('Delete "' + vendorTarget.name + '"? Its items stay, without a vendor.')) return;
+  var r = await db.from('vendors').delete().eq('id', vendorTarget.id);
+  if (r.error){ $('vErr').textContent = /history/.test(r.error.message || '') ? 'This vendor has purchase orders, so it is kept. Untick Active to hide it.' : 'Could not delete. Try again.'; return; }
+  $('vendorModal').hidden = true; toast('Vendor deleted'); loadAll();
+});
+
+/* ---------- history ---------- */
+var HIST = [];
+['histItem', 'histKind'].forEach(function(id){ $(id).addEventListener('change', loadHistory); });
+var KIND_LABEL = {purchase: 'Received', sale: 'Sold', void: 'Returned', waste: 'Waste', count: 'Count', adjust: 'Adjustment'};
+async function loadHistory(){
+  var q = db.from('stock_moves').select('*').order('at', {ascending: false}).limit(400);
+  if ($('histItem').value) q = q.eq('item_id', $('histItem').value);
+  if ($('histKind').value) q = q.eq('kind', $('histKind').value);
+  var r = await q; HIST = r.data || [];
+  var tb = $('histTable').querySelector('tbody'); tb.replaceChildren();
+  $('histEmpty').hidden = !!HIST.length;
+  HIST.forEach(function(m){
+    var i = byId[m.item_id]; var tr = document.createElement('tr');
+    /* a sale row that adds stock is what came back when an item was taken off a bill (exactly what it took, 0031) */
+    var kind = m.kind === 'sale' && Number(m.qty) > 0 ? 'Taken off a bill' : (KIND_LABEL[m.kind] || m.kind);
+    tr.innerHTML = '<td class="mono-small">' + esc(fmtDT(m.at)) + '</td><td>' + esc(i ? i.name : '?') + '</td><td>' + esc(kind) + '</td>' +
+      '<td class="num" style="color:' + (Number(m.qty) < 0 ? 'var(--bad)' : 'var(--ok)') + '">' + (Number(m.qty) > 0 ? '+' : '') + num(m.qty, 1) + (i ? ' ' + esc(unitLabel(i.unit)) : '') + '</td>' +
+      '<td class="num">' + (m.unit_cost != null ? fmt(Number(m.unit_cost) * (i ? Number(i.pack_qty) : 1)) + '<span class="sub">per pack</span>' : '') + '</td><td>' + esc(m.note || '') + (m.expires_on ? '<span class="sub">expires ' + esc(fmtD(m.expires_on)) + '</span>' : '') + '</td><td>' + esc(m.by_name || (m.order_id ? 'POS' : '')) + '</td>';
+    tb.appendChild(tr);
+  });
+}
+$('csvHistBtn').addEventListener('click', function(){
+  download('stock-history.csv', [['when', 'item', 'kind', 'qty', 'unit', 'unit_cost', 'note', 'by']].concat(HIST.map(function(m){ var i = byId[m.item_id]; return [m.at, i ? i.name : '', m.kind, m.qty, i ? i.unit : '', m.unit_cost, m.note, m.by_name]; })));
+});
+
+/* ---------- month ---------- */
+var monthDate = new Date(); monthDate.setDate(1); monthDate.setMonth(monthDate.getMonth() - 1);
+var MONTH = [];
+$('monthPrev').addEventListener('click', function(){ monthDate.setMonth(monthDate.getMonth() - 1); loadMonth(); });
+$('monthNext').addEventListener('click', function(){ monthDate.setMonth(monthDate.getMonth() + 1); loadMonth(); });
+async function loadMonth(){
+  var iso = monthDate.getFullYear() + '-' + String(monthDate.getMonth() + 1).padStart(2, '0') + '-01';
+  $('monthLabel').textContent = monthDate.toLocaleDateString('en-GB', {month: 'long', year: 'numeric'});
+  var r = await db.rpc('inventory_month', {p_month: iso}); MONTH = r.data || [];
+  var tb = $('monthTable').querySelector('tbody'); tb.replaceChildren();
+  var tot = {recv: 0, cost: 0, sold: 0, waste: 0};
+  MONTH.forEach(function(m){
+    tot.cost += Number(m.received_cost || 0);
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + esc(m.name) + '</b><span class="sub">' + esc(catLabel(m.category)) + '</span></td><td class="num">' + num(m.received_qty, 1) + ' ' + esc(unitLabel(m.unit)) + '</td><td class="num">' + fmt(m.received_cost) + '</td>' +
+      '<td class="num">' + num(m.sold_qty, 1) + '</td><td class="num">' + num(m.waste_qty, 1) + '</td><td class="num">' + (Number(m.count_diff) > 0 ? '+' : '') + num(m.count_diff, 1) + '</td><td class="num">' + num(m.on_hand, 1) + '</td>';
+    tb.appendChild(tr);
+  });
+  var tr = document.createElement('tr'); tr.innerHTML = '<td><b>Total spent</b></td><td></td><td class="num"><b>' + fmt(tot.cost) + '</b></td><td colspan="4"></td>'; tb.appendChild(tr);
+  if (!MONTH.length) tb.innerHTML = '<tr><td colspan="7" class="empty">Nothing in this month.</td></tr>';
+}
+$('csvMonthBtn').addEventListener('click', function(){
+  download('stock-' + $('monthLabel').textContent.replace(/\s+/g, '-').toLowerCase() + '.csv', [['item', 'category', 'unit', 'ordered', 'ordered_cost', 'sold', 'waste', 'count_adjustment', 'in_stock_now']].concat(MONTH.map(function(m){ return [m.name, m.category, m.unit, m.received_qty, m.received_cost, m.sold_qty, m.waste_qty, m.count_diff, m.on_hand]; })));
+});
+
+/* ---------- receive with the supplier invoice and the payment (migration 0029) ----------
+   The receive modal works in three ways: 'receive' (a delivery of an open order, as before, plus the invoice and
+   the payment), 'settle' (the invoice and the payment of a delivery already saved) and 'pay' (another payment on a
+   confirmed invoice). Everything the server saves is one transaction keyed by the delivery id, so a double tap or a
+   retry after a lost answer never doubles anything. */
+var SETTLE_OK = null, PEND = null, MGRS = null, recvMode = 'receive', recvReceipt = null, recvBusy = false, FX_TODAY = null;
+/* rvGen changes every time the window is reset: a slow lookup that finishes later writes nothing into another order's form */
+var rvGen = 0, payReq = null;
+var PAY_LABEL = {register: 'Cash from the register drawer', cash: 'Cash from the safe', bank: 'SINPE or bank transfer', card_debit: 'Debit card', card_credit: 'Credit card', payout: 'Cash from the register drawer'};
+var INV_STATUS = {pending: 'Invoice pending', review: 'Invoice to review', confirmed: 'Invoice confirmed'};
+function recvKey(p){ return 'hg-recv-' + p.id + ':' + (p.purchase_lines || []).reduce(function(s, l){ return s + Number(l.received_qty || 0); }, 0); }
+function storedReq(key){ var v = null; try { v = sessionStorage.getItem(key); } catch (e) {} if (!v){ v = uuid(); try { sessionStorage.setItem(key, v); } catch (e) {} } return v; }
+function dropReq(key){ try { sessionStorage.removeItem(key); } catch (e) {} }
+function stationName(){ try { var s = JSON.parse(localStorage.getItem('hg-pos-station') || 'null'); return s && s.name ? String(s.name) : null; } catch (e) { return null; } }
+function fmtMoney(n, cur){ return cur === 'USD' ? '$' + (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : fmt(n); }
+/* the device's local date (after 6 pm Costa Rica is already tomorrow in UTC, and a future invoice date is refused) */
+function todayIso(){ var d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function plusDays(iso, n){ var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+
+/* what is pending with suppliers; also tells whether the database has 0029 */
+async function loadPending(){
+  var r = await db.rpc('po_pending');
+  SETTLE_OK = r.error ? !isMissing(r.error) && !(r.error.code === 'PGRST202') : true;
+  $('pendCard').hidden = !SETTLE_OK; $('doneTools').hidden = !SETTLE_OK;
+  if (!SETTLE_OK) return;
+  if (r.error || !r.data || !r.data.ok){ if (PEND) renderPending(); $('pendOwed').textContent = 'Could not load what is pending with suppliers. Check the connection.'; return; }
+  PEND = r.data; renderPending();
+}
+function renderPending(){
+  var rb = $('pendReceipts'), ib = $('pendInvoices'); rb.replaceChildren(); ib.replaceChildren();
+  var p = PEND || {receipts: [], invoices: [], vendors: []};
+  var owed = (p.vendors || []).reduce(function(s, v){ return s + Number(v.open_crc || 0); }, 0);
+  $('pendOwed').textContent = owed ? 'Owed to suppliers: ' + fmt(owed) : 'Nothing owed to suppliers';
+  if (!p.receipts.length && !p.invoices.length){ rb.innerHTML = '<p class="empty">No invoice is waiting. Everything received has its invoice and its payment.</p>'; return; }
+  p.receipts.forEach(function(x){
+    var d = document.createElement('div'); d.className = 'po';
+    var head = document.createElement('div'); head.className = 'head';
+    head.innerHTML = '<span class="hint">Nº ' + esc(x.po_number || '') + '</span><b>' + esc(x.vendor || 'No vendor') + '</b><span class="pill ' + (x.invoice_status === 'review' ? 'soon' : 'low') + '">' + esc(INV_STATUS[x.invoice_status] || x.invoice_status) + '</span>' +
+      '<span class="hint">' + esc(fmtDT(x.received_at)) + '</span><span class="hint">received cost ' + fmt(x.total_crc) + '</span>' +
+      (x.payout_crc ? '<span class="hint">' + fmt(x.payout_crc) + ' taken from the register</span>' : '') + (x.draft && x.draft.number ? '<span class="hint">draft Nº ' + esc(x.draft.number) + '</span>' : '');
+    var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
+    var b1 = actBtn('Register invoice', function(){ openSettle(x.id, 'settle'); }); b1.className = 'small'; head.appendChild(b1);
+    head.appendChild(actBtn('Details', function(){ openHistory(x.po_id); }));
+    d.appendChild(head); rb.appendChild(d);
+  });
+  p.invoices.forEach(function(x){
+    var d = document.createElement('div'); d.className = 'po';
+    var head = document.createElement('div'); head.className = 'head';
+    head.innerHTML = '<b>' + esc(x.vendor) + '</b><span class="hint">invoice Nº ' + esc(x.number) + (x.po_number ? ' · Nº ' + esc(x.po_number) : '') + '</span>' +
+      '<span class="pill ' + (x.overdue ? 'out' : 'sent') + '">' + (x.overdue ? 'overdue' : 'due') + ' ' + esc(fmtD(x.due_date)) + '</span>' +
+      '<span class="hint">total ' + fmt(x.total_crc) + (x.currency === 'USD' ? ' · in dollars' : '') + '</span><b class="mono">open ' + fmt(x.open_crc) + '</b>';
+    var sp = document.createElement('span'); sp.style.flex = '1'; head.appendChild(sp);
+    if (x.receipt_id){ var b = actBtn('Record payment', function(){ openSettle(x.receipt_id, 'pay'); }); b.className = 'small'; head.appendChild(b); }
+    d.appendChild(head); ib.appendChild(d);
+  });
+}
+
+/* managers who may authorize a payment with their PIN */
+async function loadManagers(){
+  if (MGRS) return MGRS;
+  var r = await db.from('staff').select('id,name,role').eq('active', true).in('role', ['owner', 'manager']).order('name');
+  if (r.error) return [];
+  MGRS = (r.data || []); return MGRS;
+}
+async function fillMgrs(){
+  var sel = $('rvMgr'); var list = await loadManagers(); sel.replaceChildren();
+  list.forEach(function(s){ var o = document.createElement('option'); o.value = s.id; o.textContent = s.name; sel.appendChild(o); });
+  if (!list.length){ var o2 = document.createElement('option'); o2.value = ''; o2.textContent = 'No manager set up yet'; sel.appendChild(o2); }
+  var who = window.HG_ACCESS && HG_ACCESS.who ? HG_ACCESS.who() : '';     /* the last person who opened, only if this same login saved it */
+  if (who && list.some(function(s){ return s.id === who; })) sel.value = who;
+}
+
+/* the invoice and payment section: reset, collect, validate, totals */
+function resetRv(opts){
+  opts = opts || {}; rvGen++;
+  $('rvMode').value = opts.mode || 'pending';
+  $('rvDue').value = plusDays(todayIso(), 30); $('rvCur').value = 'CRC'; $('rvFx').value = '';
+  $('rvNet').value = ''; $('rvIva').value = ''; $('rvFxRow').hidden = true;
+  $('rvPays').replaceChildren(); $('rvPin').value = '';
+  $('rvInvFields').hidden = recvMode === 'pay'; $('rvModeBox').hidden = recvMode === 'pay';
+  $('rvVendorBox').hidden = !opts.needVendor;
+  if (opts.needVendor){
+    var sel = $('rvVendor'); sel.replaceChildren(); var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Pick the supplier'; sel.appendChild(o0);
+    VENDORS.filter(function(v){ return v.active; }).forEach(function(v){ var o = document.createElement('option'); o.value = v.id; o.textContent = v.name; sel.appendChild(o); });
+  }
+  if (opts.draft){
+    var d = opts.draft;
+    if (d.due_date) $('rvDue').value = d.due_date;
+    if (d.currency) $('rvCur').value = d.currency; if (d.fx_rate) $('rvFx').value = d.fx_rate; if (d.net != null) $('rvNet').value = d.net; if (d.iva != null) $('rvIva').value = d.iva;
+    $('rvFxRow').hidden = $('rvCur').value !== 'USD';
+  }
+  fillMgrs(); updateTotals();
+}
+function addPayRow(method, amount, ref){
+  var row = document.createElement('div'); row.className = 'rv-pay';
+  var sel = document.createElement('select'); sel.className = 'rv-method';
+  ['register', 'cash', 'bank', 'card_debit', 'card_credit'].forEach(function(k){ var o = document.createElement('option'); o.value = k; o.textContent = PAY_LABEL[k]; sel.appendChild(o); });
+  sel.value = method || 'register';
+  var amt = document.createElement('input'); amt.type = 'number'; amt.min = '0'; amt.step = '0.01'; amt.className = 'rv-amount'; amt.placeholder = 'Amount (₡)'; amt.setAttribute('data-keypad', 'qty'); if (amount) amt.value = amount;
+  var rf = document.createElement('input'); rf.className = 'rv-ref'; rf.maxLength = 80; rf.placeholder = 'Reference (optional)'; if (ref) rf.value = ref;
+  var x = actBtn('Remove', function(){ row.remove(); updateTotals(); });
+  [sel, amt].forEach(function(el){ el.addEventListener('input', updateTotals); el.addEventListener('change', updateTotals); });
+  row.appendChild(sel); row.appendChild(amt); row.appendChild(rf); row.appendChild(x);
+  $('rvPays').appendChild(row); updateTotals();
+  if (window.HG_KEYPAD && HG_KEYPAD.attach) HG_KEYPAD.attach(amt);
+  return row;
+}
+$('rvAddPay').addEventListener('click', function(){ addPayRow('register'); });
+function rvPayments(){
+  var out = [];
+  $('rvPays').querySelectorAll('.rv-pay').forEach(function(row){
+    var amt = Math.round((Number(row.querySelector('.rv-amount').value) || 0) * 100) / 100;
+    if (amt > 0) out.push({method: row.querySelector('.rv-method').value, amount_crc: amt, reference: row.querySelector('.rv-ref').value.trim() || null});
+  });
+  return out;
+}
+function receivedCost(){
+  if (recvMode === 'receive'){
+    var s = 0;
+    $('recvTable').querySelectorAll('tbody tr').forEach(function(tr){
+      var l = (recvTarget.purchase_lines || []).filter(function(x){ return x.id === tr.dataset.line; })[0]; var i = l && byId[l.item_id];
+      var cost = Number(tr.querySelector('[data-f=cost]').value), q = Number(tr.querySelector('[data-f=qty]').value) || 0;
+      var uc = cost > 0 && i ? cost / Number(i.pack_qty) : (l ? Number(l.unit_cost || 0) : 0);
+      s += q * uc;
+    });
+    return s;
+  }
+  return recvReceipt ? Number(recvReceipt.total_crc || 0) : 0;
+}
+function rvInvoiceTotals(){
+  var cur = $('rvCur').value, fx = Number($('rvFx').value) || 0;
+  var net = Number($('rvNet').value) || 0, iva = Number($('rvIva').value) || 0;
+  var k = cur === 'USD' ? fx : 1;
+  var netCrc = Math.round(net * k * 100) / 100, ivaCrc = Math.round(iva * k * 100) / 100;
+  return {cur: cur, fx: fx, net: net, iva: iva, total: net + iva, totalCrc: Math.round((netCrc + ivaCrc) * 100) / 100, netCrc: netCrc};
+}
+function updateTotals(){
+  var t = rvInvoiceTotals(), pays = rvPayments(), paid = pays.reduce(function(s, p){ return s + p.amount_crc; }, 0);
+  var parts = [];
+  if (recvMode === 'pay'){
+    var open = recvReceipt && recvReceipt.invoice ? Number(recvReceipt.invoice.open_crc || 0) : 0;
+    $('rvTotals').textContent = '';
+    $('rvPaySum').textContent = 'Open before: ' + fmt(open) + ' · Paying now: ' + fmt(paid) + ' · Left after: ' + fmt(open - paid);
+  } else {
+    if (t.total > 0){
+      parts.push('Invoice total: ' + fmtMoney(t.total, t.cur) + (t.cur === 'USD' && t.fx ? ' = ' + fmt(t.totalCrc) : ''));
+      var rc = receivedCost();
+      parts.push('Received cost (without IVA): ' + fmt(rc));
+      var diff = t.netCrc - rc;
+      if (Math.abs(diff) >= 1) parts.push('Difference: ' + (diff > 0 ? '+' : '−') + fmt(Math.abs(diff)) + ' (goes to price variance)');
+    }
+    $('rvTotals').textContent = parts.join(' · ');
+    var pending = recvReceipt && recvReceipt.payout && !recvReceipt.payout.documented && !recvReceipt.payout.voided ? Number(recvReceipt.payout.amount_crc || 0) : 0;
+    $('rvPaySum').textContent = (t.total > 0 || paid > 0 || pending > 0)
+      ? 'Paid: ' + fmt(paid + pending) + (pending ? ' (' + fmt(pending) + ' already taken from the register)' : '') + ' · Balance: ' + fmt(Math.max(0, t.totalCrc - paid - pending)) + ($('rvDue').value && t.totalCrc - paid - pending > 0 ? ' · due ' + fmtD($('rvDue').value) : '')
+      : '';
+  }
+  $('rvPinBox').hidden = !(paid > 0);
+  $('rvFxRow').hidden = $('rvCur').value !== 'USD';
+}
+['rvNet', 'rvIva', 'rvFx', 'rvDue'].forEach(function(id){ $(id).addEventListener('input', updateTotals); });
+$('rvCur').addEventListener('change', async function(){
+  $('rvFxRow').hidden = this.value !== 'USD';
+  if (this.value === 'USD' && !$('rvFx').value){
+    var gen = rvGen;
+    if (!FX_TODAY){ var r = await db.rpc('fx_today'); if (!r.error && r.data && r.data.ok) FX_TODAY = r.data; }
+    if (gen === rvGen && FX_TODAY && FX_TODAY.rate && !$('rvFx').value) $('rvFx').value = FX_TODAY.rate;
+  }
+  updateTotals();
+});
+function rvCollect(){
+  var mode = recvMode === 'pay' ? 'pay' : $('rvMode').value, t = rvInvoiceTotals();
+  var inv = {mode: mode, number: null, date: null, due_date: $('rvDue').value || null, currency: t.cur,
+             fx_rate: t.cur === 'USD' ? (t.fx || null) : null, net: $('rvNet').value === '' ? null : t.net, iva: $('rvIva').value === '' ? null : t.iva,
+             source: ($('recvInv').value || $('rvNet').value) ? 'manual' : null, station: stationName()};
+  if (!$('rvVendorBox').hidden && $('rvVendor').value) inv.vendor_id = $('rvVendor').value;
+  return {invoice: inv, payments: rvPayments(), totals: t, mgr: $('rvMgr').value || null, pin: $('rvPin').value.trim()};
+}
+function rvValidate(c){
+  var mode = c.invoice.mode, pays = c.payments, paid = pays.reduce(function(s, p){ return s + p.amount_crc; }, 0);
+  if (mode === 'confirm'){
+    if (!$('recvInvDate').value) return 'Type the invoice date.';
+    if (!(c.totals.total > 0)) return 'Type the invoice subtotal and IVA.';
+    if (c.totals.cur === 'USD' && !(c.totals.fx >= 100 && c.totals.fx <= 2000)) return 'Type the exchange rate (₡ per $).';
+    if (!$('rvVendorBox').hidden && !c.invoice.vendor_id) return 'Pick the supplier first.';
+    var pending = recvReceipt && recvReceipt.payout && !recvReceipt.payout.documented && !recvReceipt.payout.voided ? Number(recvReceipt.payout.amount_crc || 0) : 0;
+    if (paid + pending - c.totals.totalCrc >= 1) return 'The payments add up to more than the invoice.';
+  } else if (mode !== 'pay' && pays.length){
+    if (pays.length > 1 || pays[0].method !== 'register') return 'Bank and card payments need the invoice confirmed first. Only cash from the register can be recorded before.';
+    if (recvReceipt && recvReceipt.payout && !recvReceipt.payout.voided) return 'Money from the register was already taken for this delivery. Confirm the invoice to document it.';
+  }
+  if (mode === 'pay'){
+    if (!pays.length) return 'Add at least one payment.';
+    var open = recvReceipt && recvReceipt.invoice ? Number(recvReceipt.invoice.open_crc || 0) : 0;
+    if (paid - open >= 1) return 'That is more than what is open on this invoice.';
+  }
+  if (paid > 0 && (!c.mgr || !c.pin)) return 'A manager must authorize the payment with their PIN.';
+  return null;
+}
+
+/* files: photos, PDF or XML of the invoice */
+/* the receive modal in its three ways */
+function openSettle(receiptId, mode){
+  var fail = function(){ toast('Could not open that delivery. Reload the page.'); };
+  db.from('purchase_receipts').select('po_id').eq('id', receiptId).single().then(function(r){
+    if (r.error || !r.data) return fail();
+    return db.rpc('po_history', {p_po_id: r.data.po_id}).then(function(h){
+      if (h.error || !h.data || !h.data.ok) return fail();
+      var po = h.data.order, rec = (h.data.receipts || []).filter(function(x){ return x.id === receiptId; })[0];
+      if (!rec) return fail();
+      recvMode = mode; recvReceipt = rec; recvTarget = {id: po.id, po_number: po.po_number, vendor_id: po.vendor_id, purchase_lines: []};
+      var v = VENDORS.filter(function(x){ return x.id === po.vendor_id; })[0];
+      $('recvTitle').textContent = (mode === 'pay' ? 'Record a payment' : 'Invoice and payment') + ' · Nº ' + (po.po_number || '') + (v ? ' · ' + v.name : '');
+      $('recvHint').textContent = mode === 'pay' ? 'Invoice Nº ' + (rec.invoice ? rec.invoice.number : '') + ' · open ' + fmt(rec.invoice ? rec.invoice.open_crc : 0) + ' · Say how it was paid; a manager authorizes with their PIN.'
+                                                  : 'Delivery on ' + fmtDT(rec.received_at) + ' · received cost ' + fmt(rec.total_crc) + ' · Type the invoice and say how it was paid.';
+      $('recvLinesBox').hidden = true; $('recvFinalBox').hidden = true; $('rvBox').hidden = false; $('rvBox').open = true;
+      $('recvInv').value = rec.invoice_no || (rec.draft && rec.draft.number) || ''; $('recvInvDate').value = rec.invoice_date || (rec.draft && rec.draft.date) || todayIso();
+      resetRv({mode: rec.invoice_status === 'review' ? 'review' : 'confirm', needVendor: !po.vendor_id, draft: rec.draft});
+      if (mode === 'pay'){ payReq = uuid(); addPayRow('register', Math.round(Number(rec.invoice ? rec.invoice.open_crc : 0) * 100) / 100); }
+      $('recvErr').textContent = ''; $('recvGo').textContent = mode === 'pay' ? 'Record the payment' : 'Confirm'; $('recvModal').hidden = false;
+    });
+  });
+}
+
+/* the order's history: deliveries, invoice, payments */
+async function openHistory(poId){
+  var r = await db.rpc('po_history', {p_po_id: poId});
+  if (r.error || !r.data || !r.data.ok){ toast('Could not load the order. Check the connection.'); return; }
+  var h = r.data, body = $('histBody'); body.replaceChildren();
+  $('histTitle').textContent = 'Order Nº ' + (h.order.po_number || '') + (h.order.vendor ? ' · ' + h.order.vendor : '');
+  if (!h.receipts.length) body.innerHTML = '<p class="empty">No delivery yet.</p>';
+  h.receipts.forEach(function(rc){
+    var d = document.createElement('div'); d.className = 'po';
+    var head = document.createElement('div'); head.className = 'head';
+    head.innerHTML = '<b>Delivery on ' + esc(fmtDT(rc.received_at)) + '</b><span class="hint">' + esc(rc.by_name || '') + '</span><span class="hint">' + (Number(rc.lines) === 1 ? '1 line' : esc(rc.lines) + ' lines') + ' · ' + fmt(rc.total_crc) + '</span>' +
+      '<span class="pill ' + (rc.invoice_status === 'confirmed' ? 'received' : rc.invoice_status === 'review' ? 'soon' : 'low') + '">' + esc(INV_STATUS[rc.invoice_status] || rc.invoice_status) + '</span>' + (rc.final ? '<span class="hint">closed the order</span>' : '');
+    d.appendChild(head);
+    var info = document.createElement('div'); info.className = 'lines';
+    var lines = [];
+    if (rc.invoice){
+      var inv = rc.invoice;
+      lines.push('Invoice Nº ' + esc(inv.number) + ' · ' + esc(fmtD(inv.date)) + (inv.due_date ? ' · due ' + esc(fmtD(inv.due_date)) : '') + (inv.voided ? ' · voided' : ''));
+      lines.push('Subtotal ' + fmtMoney(inv.currency === 'USD' ? inv.net_fx : inv.net_crc, inv.currency) + ' · IVA ' + fmtMoney(inv.currency === 'USD' ? inv.iva_fx : inv.iva_crc, inv.currency) + ' · Total ' + fmtMoney(inv.currency === 'USD' ? Number(inv.net_fx) + Number(inv.iva_fx) : inv.total_crc, inv.currency) +
+                 (inv.currency === 'USD' ? ' at ₡' + esc(inv.fx_rate) + ' = ' + fmt(inv.total_crc) : '') + ' · <b>open ' + fmt(inv.open_crc) + '</b>');
+    } else if (rc.draft && (rc.draft.number || rc.draft.net)){
+      lines.push('Draft: invoice ' + (rc.draft.number ? 'Nº ' + esc(rc.draft.number) : '(no number)') + (rc.draft.date ? ' · ' + esc(fmtD(rc.draft.date)) : '') + (rc.draft.net != null ? ' · subtotal ' + fmtMoney(rc.draft.net, rc.draft.currency) + ' · IVA ' + fmtMoney(rc.draft.iva || 0, rc.draft.currency) : ''));
+    }
+    if (rc.payout) lines.push(fmt(rc.payout.amount_crc) + ' taken from the register on ' + esc(fmtD(rc.payout.business_date)) + (rc.payout.voided ? ' (voided)' : rc.payout.documented ? ' (documented)' : ' (waiting for the invoice)'));
+    (rc.payments || []).forEach(function(p){ lines.push('Payment on ' + esc(fmtD(p.date)) + ' · ' + esc(PAY_LABEL[p.paid_from] || p.paid_from) + ' · ' + fmt(p.amount_crc) + (p.reference ? ' · ' + esc(p.reference) : '') + (p.voided ? ' · voided' : '')); });
+    info.innerHTML = lines.map(function(l){ return '<div>' + l + '</div>'; }).join('');
+    d.appendChild(info);
+    var acts = document.createElement('div'); acts.className = 'acts'; acts.style.justifyContent = 'flex-start'; acts.style.marginTop = '.5rem';
+    if (rc.invoice_status !== 'confirmed'){ var b1 = actBtn('Register invoice', function(){ $('histModal').hidden = true; openSettle(rc.id, 'settle'); }); b1.className = 'small'; acts.appendChild(b1); }
+    else if (rc.invoice && Number(rc.invoice.open_crc) > 0 && !rc.invoice.voided){ var b2 = actBtn('Record payment', function(){ $('histModal').hidden = true; openSettle(rc.id, 'pay'); }); b2.className = 'small'; acts.appendChild(b2); }
+    d.appendChild(acts); body.appendChild(d);
+  });
+  $('histModal').hidden = false;
+}
+$('histClose').addEventListener('click', function(){ $('histModal').hidden = true; });
+/* received orders: search by supplier and month beyond the last 12 */
+$('doneSearch').addEventListener('click', async function(){
+  var q = db.from('purchase_orders').select('*, purchase_lines(*)').in('status', ['received', 'cancelled']).order('created_at', {ascending: false}).limit(100);
+  if ($('doneVendor').value) q = q.eq('vendor_id', $('doneVendor').value);
+  var m = $('doneMonth').value;
+  if (m){ var from = m + '-01', d = new Date(from + 'T12:00:00'); d.setMonth(d.getMonth() + 1); q = q.gte('created_at', from).lt('created_at', d.toISOString().slice(0, 10)); }
+  var r = await q; if (r.error){ toast('Could not search. Check the connection and try again.'); return; }
+  var done = $('poDone'); done.replaceChildren();
+  if (!(r.data || []).length) done.innerHTML = '<p class="empty">Nothing received in that search.</p>';
+  (r.data || []).forEach(function(p){ done.appendChild(poCard(p, false)); });
+  $('doneHint').textContent = (r.data || []).length === 1 ? '1 order' : (r.data || []).length + ' orders';
+});
+
+/* modals close on backdrop tap */
+document.querySelectorAll('.modalbg').forEach(function(m){ m.addEventListener('click', function(e){ if (e.target === m) m.hidden = true; }); });
+
+refreshAuth();
+</script>
+<script>
+/* forgot password: Supabase emails a link that opens reset.html with a short session to set a new one.
+   Needs, once, in Supabase > Authentication > URL Configuration: Site URL https://hanginggardencafe.com and
+   https://hanginggardencafe.com/reset.html in Redirect URLs. */
+(function(){
+  var b = document.getElementById('forgotBtn'); if (!b) return;
+  var msg = document.getElementById('loginErr');
+  b.addEventListener('click', async function(){
+    var em = (document.getElementById('em').value || '').trim();
+    if (!em){ em = (prompt('Email of the login:') || '').trim(); if (!em) return; document.getElementById('em').value = em; }
+    var dir = location.href.replace(/[#?].*$/, '').replace(/[^\/]*$/, '');
+    b.disabled = true;
+    var r = await db.auth.resetPasswordForEmail(em, {redirectTo: dir + 'reset.html'});
+    var limited = !!(r.error && (r.error.status === 429 || r.error.code === 'over_email_send_rate_limit' || /after \d+ seconds|security purposes/i.test(r.error.message || '')));
+    msg.classList.toggle('ok', !r.error);
+    msg.textContent = limited ? 'A link was already sent. Wait a minute and check the spam folder.'
+      : r.error ? 'Could not send the email. Check the address and try again.'
+      : 'If that email has a login, a link to set a new password is on its way. Check the spam folder too.';
+    setTimeout(function(){ b.disabled = false; }, (r.error && !limited) ? 0 : 60000);
+  });
+  document.getElementById('loginForm').addEventListener('submit', function(){ msg.classList.remove('ok'); }, true);
+})();
+</script>
+<script src="lang.js?v=29bdde5aeb98"></script>
+</body>
+</html>
