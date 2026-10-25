@@ -1959,3 +1959,47 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `docs/PERSONAL-NUEVO.md` and `reversion-0031.sql`'s message. Committed to the development branch on 2026-10-24 with
   the owner's authorization, which keeps the limit at 10 PINs an hour. 0033 is not applied and nothing is published:
   the owner and Claude go through E-36 together first. The tablet transition (E-05) stays stopped.
+
+## D-055 · 2026-10-25 · E-36 prepared: the owner's decisions, the reversal drill, the activation guide
+
+- **Why:** before authorizing the publication of D-052 + D-053 the owner reviewed the E-36 plan and asked for the
+  preparation to go on without touching production: the reversal of 0033 rehearsed on a test copy with representative
+  data, proof that the pages and the database can be rolled back independently without losing a sale, and the
+  procedure kept in the repository.
+- **The owner's decisions:** the window after closing with the register closed; Jean Paul and one manager present
+  (the non-manager test moves to the next day; no second manager that night to remove a PIN lock, so every PIN is
+  typed once); the reversal drill before publishing; a saved copy of today's site (`sitio-…` pre-release on `gh-pages`)
+  before publishing; if the menu-photo test fails, stop and diagnose before deciding whether to continue or revert;
+  this documentation commit only (the PR stays unmerged).
+- **The drill (local, `tests/rehearsal`'s representative copy, never production or real data):** 0000–0032 as the
+  non-superuser SQL-Editor-like account (3.8 s), `operator_mode` = `record` as in production; 0033 in 46 ms with no row of any table
+  changed and the structure changed only in its nine functions and `access_unlocks.session_id`; work under 0033 (a
+  session-bound unlock, a logged lock, a logged PIN clash, a sale, a punch); `reversion-0033.sql` sent as ONE query
+  string like the SQL Editor sends it, 42 ms: version 32, the three new functions gone, the six functions byte for
+  byte the 0032 ones (body, security, `search_path`, owner, grants, volatility), the structure differing from 0032
+  only by the unused column, no row deleted or changed, the production snapshot without unknown, changed or missing
+  functions; the café works on the reverted copy (the 0033 unlock still opens, sales the old and the new way, the
+  clock, the team editor, a second tablet's unlock and Bloquear); 0033 applied again (50 ms) with the same nine
+  fingerprints as the first time and both kinds of unlock accepted; the three refusals (not applied, twice, a later
+  migration) change nothing; `--single-transaction -f` gives the same result; the reversal ran while a sale's
+  transaction was open and 133 PIN checks ran, none failed; sales without a cashier are saved and flagged `no_operator`, as production's `record` mode does.
+- **Compatibility matrix and transitions, in a real browser:** the live build (`gh-pages` `0ad8c88`, `v2026.10.21-1`)
+  passes `live-pages.sh` 8/8 on 0032, on 0033 and on the reverted copy; the new pages run the whole browser suite on the
+  reverted test database (see `docs/ACTIVACION-PINES.md` §3.3). Seven transitions with tablets open, every sale saved
+  once with its lines: the night in its order (old pages on 0032, 0033 under them, new pages published, an offline sale
+  from before uploads, the tablet reloads only between sales); a pages rollback with a queued sale (uploaded by the new
+  pages, then the reload) and the same with the tablet reopened by hand while offline (the old pages read the queue the
+  new ones left); a database rollback under the new pages (the queued sale uploads; the 0033 unlock still opens; sign-out,
+  the clock and a void work; «Remove the PIN lock» explains; only `access_lock_all` and `pin_lock_clear` are refused);
+  both rollbacks together; a sale in progress during a pages change (no reload until it is paid); unlock continuity (a
+  new-pages unlock survives a pages rollback; an old-pages unlock is asked again by the new pages, as the team notice
+  says, its server row expiring on its own or ended by the sign-out).
+- **Found and recorded, not a defect:** the new `access.js` forgets an unlock no login signed for (D-052), so a tablet
+  unlocked with today's pages types its PIN once more after the publication; its `access_unlocks` row lives until it
+  expires, which is why the final query of the guide allows 15 minutes.
+- **Records:** `docs/ACTIVACION-PINES.md` (the guide, the owner's decisions, the drill, the recovery sequence),
+  E-36 in `docs/DEPENDENCIES.md`, the 0033 row of `docs/MIGRACIONES.md`, the D-053 checklist row. The drill's scripts
+  and logs stayed in Claude's scratchpad (`sim/`): a repeatable copy of the SQL part inside `tests/rehearsal` would be
+  a code change and waits for a separate authorization. Documentation commit only, authorized 2026-10-25; the PR stays
+  unmerged; no tag, no production SQL, no publication, no permission change. Numbered D-055 because D-054 is taken by
+  the «who rings up» offline decision on the sibling branch `claude/loving-bell-usoxey` (PR #4).
