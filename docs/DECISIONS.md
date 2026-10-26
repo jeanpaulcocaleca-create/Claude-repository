@@ -2125,3 +2125,49 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   sessions, the backup and restore of today, the register state and the window). The owner runs the steps; the pages
   work with and without 0034/0035 (the new page says which migration is missing; the old page does not notice them).
 
+
+## D-058 · 2026-10-26 · The staging rehearsal keeps production's own switches (the «Ensayo en pruebas» of 2026-10-26)
+- **What happened:** after E-38 (`anonimizar.sql` of D-057 uploaded to `canopy-respaldos`, ea6b449) the owner ran «Ensayo en
+  pruebas» with the D-057 version. The copy, the anonymization and the migrations (0034, 0035 on a copy that already had
+  0000–0033) passed; «Comparar antes y después» stopped with two differences: `ledger_auto_post` True where the comparison
+  expected False, and a `chart_of_accounts_approved` confirmation where it expected none.
+- **Where they came from:** production, not the rehearsal. From the pages only two functions write them,
+  `compliance_confirm` and `setting_set`; both refuse anyone but an owner account signed in with the phone code
+  (`owner_with_code()`) and both write a line in `audit_log` (`compliance_confirm`, `setting_change`); the activation box
+  of `accounting.html` («Record the approval and activate») sends exactly that pair plus `ledger_start_date`. The other
+  way is a paste in the SQL Editor as `postgres`, which writes the tables directly and leaves no log line. Nothing in the
+  rehearsal's path writes them: `anonimizar.sql` keeps the rows (it replaces the confirmer's name, the reference and the
+  note), the migrations only define the functions and the setting at its default `false`, `restore-stub.sql` and
+  `ensayo.sh` never touch `settings` or `compliance_confirmations`, and the destination is empty by construction (born
+  empty, emptied first, or the script stops before copying). So, between the previous rehearsal and this one, both were
+  recorded in production, by an owner with the phone code or in the SQL Editor; the anonymized copy cannot tell the two
+  apart (it blanks the log's texts), so the owner looks for the `compliance_confirm` and `setting_change` lines in
+  production's `audit_log` (present: the activation box; absent: the SQL Editor). The `release-check.json` of the failed
+  run carries the moment (`at`, UTC; the name reads «Persona» in the anonymized copy). The comparison had encoded the
+  launch-night expectation (D-038: everything regulated off, no confirmation) as a fixed rule, right for a copy from
+  before the launch and wrong for a copy of production that has been operated since D-040.
+- **Decision:** the rehearsal respects the real state before the window and flags only what the window changes.
+  `production-snapshot.sql` gains a `switches` cell (every setting's effective value, as `release-check.sql` reads it, and
+  the confirmations given, key and Costa Rica date only, never who; null before 0008). `compare.py` compares it before →
+  after: on a copy from before the launch every setting must come out at its declared safe value (`SAFE`: every setting
+  the migrations define, with its off value) and no confirmation may exist (CLAUDE.md, as before); on a copy of
+  production after the launch each setting must keep its value, a setting new in the window must arrive at its declared
+  safe value (a setting without one is refused, so a new switch is never accepted unseen), no confirmation may appear
+  (nobody is confirmed on their behalf), disappear (approvals are never deleted) or change its date (a rewrite is as
+  unauthorized as a new one), and the snapshot and the release check must read the same; what production itself has
+  decided is printed, never flagged («production's own switches, unchanged by the window: ledger_auto_post True, …;
+  confirmations: chart_of_accounts_approved (date)»). Nothing in production changes and no approval is touched.
+  `compare-selftest.py` covers the 2026-10-26 copy (kept and reported) and the differences still caught (the window
+  switching the books on, a confirmation appearing, disappearing or re-dated, a new switch not at its safe value or
+  without one, a fresh copy with a switch on, a confirmation or an undeclared setting, the two readings disagreeing). `tests/rehearsal/run.sh` also runs the owner's
+  rehearsal from a copy of production after the launch in which an owner with the code approved the chart and switched
+  the books on (a clone of the migrated main copy): no migration runs again, nothing is flagged, both are reported.
+- **What it means for the records:** the chart-of-accounts part of A-07 has been given in production without the
+  documents knowing (with `ledger_auto_post` on, each register close posts its day, 0013; the copy's ledger activity was
+  not examined here); the costing method and the revenue timing of pay-later bills in A-07 stay open. The owner confirms
+  the date, the accountant's reference and the log lines, and `docs/DEPENDENCIES.md` follows. The pages were built for
+  both states: the new page marks «books» figures final only for posted days and the old page's activation box reads
+  «posting each day».
+- **For `canopy-respaldos`:** nothing to upload. The comparison, the snapshot and the release check come from the public
+  repository at the version the owner chooses in the workflow; «Ensayo en pruebas» runs again with this version
+  (E-37, step 1).

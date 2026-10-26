@@ -1,6 +1,9 @@
 """Canopy OS rehearsal · compare the read-only checks taken before and after the migrations.
 python3 compare.py <out-dir> after|day-after|reset [fixture]     (exit 1 on any unexpected difference)
-  after      the main copy: snapshot and consistency before -> after the migrations, release check
+  after      the main copy: snapshot and consistency before -> after the migrations, release check. The switches (every
+             setting, the confirmations given) are compared before -> after too: a copy from before the launch must get
+             every regulated one at its safe value from the migrations; a copy of production after the launch keeps the
+             owner's own choices (reported, never flagged) and only a change inside the window is a difference
   day-after  the main copy after a day of work on the old and the new pages
   reset      the copy that went through the one-time reset (run.sh step 10, reset-*.json; the owner's "Ensayo en pruebas"
              with reinicio = si, plain names): the reset kept what it must and cleared the rest, then the migrations
@@ -45,6 +48,14 @@ PRESERVED = ('menu_categories', 'menu_items', 'recipes', 'vendors', 'staff', 'ap
 # things: they never leave production), so on the owner's anonymized copy they are always empty before the reset
 ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks')
 rows = lambda fp: int(fp.split(':')[0])   # a data fingerprint is 'rows:md5 of every original column'
+# every setting the migrations define and the value each one has until the owner or the accountant decides otherwise
+# (CLAUDE.md: prices as today, no automatic books, no e-invoices, no payroll rule, no receipt photos, operators not enforced,
+# the exchange rate as today, no first day of the books). The migrations may create them at these values; only setting_set
+# and compliance_confirm, by the owner with the phone code, may change them. A setting a migration adds must be declared here
+# with its safe value: the comparison refuses one it does not know, so no switch is ever accepted unseen
+SAFE = {'price_mode': 'inclusive', 'ledger_auto_post': False, 'einvoice_mode': 'off', 'payroll_renta_withhold': False,
+        'payroll_accrue_aguinaldo': False, 'operator_mode': 'off', 'expense_receipt_photos': False, 'fx_rate_kind': 'buy',
+        'ledger_start_date': ''}
 
 
 def migrated(sb, sa, cb, ca, rc):
@@ -94,13 +105,45 @@ def migrated(sb, sa, cb, ca, rc):
     # operational switches are the owner's own choices (operator_mode 'record' since 2026-10-15) and its Storage lives
     # outside the copied schemas (public, canopy, acct), so the Storage checks belong to production's own release check
     fresh = not isinstance(sb.get('migrations_applied'), list)
-    # regulated features stay switched OFF (CLAUDE.md): prices as today, no automatic books, no e-invoices, no payroll
-    # rule, nobody's confirmation recorded on their behalf
-    st = rc['settings']
-    for k, v in (('price_mode', 'inclusive'), ('ledger_auto_post', False), ('einvoice_mode', 'off'),
-                 ('payroll_renta_withhold', False), ('payroll_accrue_aguinaldo', False)) + ((('operator_mode', 'off'),) if fresh else ()):
-        check(st.get(k) == v, f'setting {k} should be {v!r} after the window, is {st.get(k)!r}')
-    check(rc['confirmations'] == [], f"no confirmation may exist before the owner/accountant gives it: {rc['confirmations']}")
+    # the switches: every setting's effective value and the confirmations given, read by the snapshot before and after
+    # the window ('switches': null before 0008) and by the release check after it; the two readings of "after" must agree
+    st, cf = rc['settings'], rc['confirmations']
+    wb, wa = sb.get('switches') or {'settings': {}, 'confirmations': {}}, sa.get('switches')
+    check(wa is not None and wa['settings'] == st and sorted(wa['confirmations']) == sorted(c['key'] for c in cf),
+          f"the snapshot and the release check read the switches differently after the window: settings {wa and wa['settings']} vs {st}; "
+          f"confirmations {wa and sorted(wa['confirmations'])} vs {sorted(c['key'] for c in cf)}")
+    own, conf = {}, {}
+    if fresh:
+        # a copy from before the launch: the migrations run here created every setting, so each regulated one must be at
+        # its safe value, and nobody's confirmation may be recorded on their behalf
+        for k, v in SAFE.items():
+            check(st.get(k) == v, f'setting {k} should be {v!r} after the window, is {st.get(k)!r}')
+        undeclared = sorted(set(st) - set(SAFE))
+        check(not undeclared, f'settings without a declared safe value (add them to SAFE in compare.py): {undeclared}')
+        check(cf == [], f"no confirmation may exist before the owner/accountant gives it: {cf}")
+    else:
+        # a copy of production after the launch (D-040): its switches are the owner's own choices, made with the phone code
+        # (setting_set, compliance_confirm; both logged) — 2026-10-26 the real copy had the books on and the chart of accounts
+        # approved. They are kept and reported, never flagged; a difference is only what the window itself changed: a setting
+        # with another value, a setting new in the window not at its declared safe value (or without one), a confirmation
+        # that appeared (nobody is confirmed on their behalf), disappeared (approvals are never deleted) or changed its date
+        # (compliance_confirm rewrites an existing key: a rewrite in the window is as unauthorized as a new one)
+        bs, ba = wb['settings'], (wa or {}).get('settings', {})
+        for k in sorted(set(bs) | set(ba)):
+            if k in bs:
+                check(ba.get(k) == bs[k], f'the window changed the setting {k}: {bs[k]!r} -> {ba.get(k)!r} (production\'s own value must stay)')
+            elif k in SAFE:
+                check(ba[k] == SAFE[k], f'setting {k}, new in the window, should be {SAFE[k]!r}, is {ba[k]!r}')
+            else:
+                check(False, f'setting {k}, new in the window, has no declared safe value (add it to SAFE in compare.py), is {ba[k]!r}')
+        bc, ac = wb['confirmations'], (wa or {}).get('confirmations', {})
+        appeared, gone = sorted(set(ac) - set(bc)), sorted(set(bc) - set(ac))
+        redated = [(k, bc[k], ac[k]) for k in sorted(set(bc) & set(ac)) if bc[k] != ac[k]]
+        check(not appeared, f'a confirmation appeared in the window (nobody is confirmed on their behalf): {appeared}')
+        check(not gone, f'a confirmation disappeared in the window (approvals are never deleted): {gone}')
+        check(not redated, f'a confirmation was rewritten in the window (its date changed): {redated}')
+        own = {k: v for k, v in sorted(ba.items()) if k in SAFE and v != SAFE[k]}
+        conf = dict(sorted(ac.items()))
     if fresh:
         # Storage: the receipts bucket and its two rules (0015), the upload rule of 0025; the menu photos rules are
         # listed by the release check only where the menu-photos bucket exists (a staging project never gets it)
@@ -109,7 +152,7 @@ def migrated(sb, sa, cb, ca, rc):
         check(rc['receipt_upload_rule_current'] is True, f"receipt upload rule current: {rc['receipt_upload_rule_current']}")
     return dict(drift=drift, tables=len(fb), checks=len(cb['kept']), open_rules=len(sec['policies_without_account_check']),
                 functions=sc['functions_by_version'], rc=rc, rights=sb.get('storage_rights') or {}, af=af, fresh=fresh,
-                had=sb.get('migrations_applied'))
+                had=sb.get('migrations_applied'), own=own, conf=conf)
 
 
 def report(r):
@@ -122,9 +165,13 @@ def report(r):
               f"{'and its rules present' if r['rc']['menu_photos_bucket'] else 'absent (not checked)'}")
     else:
         had = r['had'] or []
-        print(f"    the copy already had migrations {had[0]:04d}-{had[-1]:04d} (production after the launch): its operational settings are "
+        print(f"    the copy already had migrations {had[0]:04d}-{had[-1]:04d} (production after the launch): its switches are "
               f"production's own and its Storage is not in the copy (production's release-check.sql judges it)" if had else
               "    the copy already had the migration table, empty")
+        # what production itself has decided, kept exactly as it was: the switches away from their safe value and the
+        # confirmations given (key and date); the window changed none of them, or the comparison would have stopped above
+        print("    production's own switches, unchanged by the window: " + (', '.join(f'{k} {v!r}' for k, v in r['own'].items()) or 'every regulated one at its safe value')
+              + '; confirmations: ' + (', '.join(f'{k} ({d})' for k, d in r['conf'].items()) or 'none yet'))
     # on a staging project these are Supabase's real rights: compare them with production's (follow-up query);
     # expected in production: can_insert_buckets true, member_of_storage_owner false, policy_grants_storage_objects true
     print(f"    rights of this account in Storage: " + ', '.join(f'{k} {r["rights"].get(k)}' for k in

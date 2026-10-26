@@ -13,7 +13,10 @@
 --     (solo nombre y horario);
 --   * cuentas de ingreso: correo enmascarado (jo***@gmail.com), tipo, fechas, código del teléfono;
 --   * huellas de los datos: cuántas filas tiene cada tabla y un md5 de su contenido (sin mostrar el contenido)
---     para probar que un respaldo restaurado o una migración no perdió ni cambió nada.
+--     para probar que un respaldo restaurado o una migración no perdió ni cambió nada;
+--   * interruptores: el valor vigente de cada ajuste (ningún ajuste guarda credenciales) y qué confirmaciones del
+--     dueño o del contador existen (clave y fecha de Costa Rica, nunca quién), para comparar antes y después de una ventana de
+--     migraciones: lo que producción ya tenía se conserva, y solo cuenta un cambio ocurrido en la ventana.
 -- Las partes que dependen de tablas opcionales usan query_to_xml solo para leer.
 -- =====================================================================================================
 with
@@ -673,6 +676,18 @@ select jsonb_pretty(jsonb_build_object(
       replace(replace(replace((xpath('/row/j/text()', query_to_xml(
         'select coalesce(jsonb_agg(version order by version), ''[]'')::text as j from canopy.migrations', false, true, '')))[1]::text,
         '&lt;', '<'), '&gt;', '>'), '&amp;', '&')::jsonb end,
+  -- every setting with its effective value (the row, or the definition's default: the same reading as release-check.sql)
+  -- and the confirmations given (key and Costa Rica date only). Null before 0008 (no settings yet): the comparison then expects
+  -- the migrations to leave every regulated switch at its safe value; on a copy that already had them (production after
+  -- the launch, D-040) it keeps them as they were and flags only a change inside the window (tests/rehearsal/compare.py)
+  'switches', case when to_regclass('canopy.setting_defs') is null or to_regclass('public.settings') is null
+                     or to_regclass('public.compliance_confirmations') is null then null else
+      replace(replace(replace((xpath('/row/j/text()', query_to_xml($q$
+        select jsonb_build_object(
+          'settings', (select coalesce(jsonb_object_agg(d.key, coalesce(s.value, d.default_value)), '{}')
+                         from canopy.setting_defs d left join public.settings s on s.key = d.key),
+          'confirmations', (select coalesce(jsonb_object_agg(key, (confirmed_at at time zone 'America/Costa_Rica')::date), '{}') from public.compliance_confirmations))::text as j $q$,
+        false, true, '')))[1]::text, '&lt;', '<'), '&gt;', '>'), '&amp;', '&')::jsonb end,
   'backups_last_ok', case when to_regclass('canopy.backup_runs') is null then null else
       (xpath('/row/j/text()', query_to_xml(
         'select coalesce(max(finished_at)::text, ''never'') as j from canopy.backup_runs where status = ''ok''', false, true, '')))[1]::text end,

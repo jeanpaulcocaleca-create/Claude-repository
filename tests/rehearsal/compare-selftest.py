@@ -5,7 +5,9 @@ and runs compare.py: the owner's run passes and reports what had rows; a table p
 not a difference (2026-10-14: the first real-data rehearsal stopped on order_part_lines); the anonymizer's emptied tables
 are told apart; with 'fixture' the seeded copy must give the reset a row in every table; and what must still fail, fails
 (a cleared table left with rows, a preserved table changed, a copy with nothing to clear, the reset on a migrated
-database, the log without its new line, a snapshot missing one of the 26 tables)."""
+database, the log without its new line, a snapshot missing one of the 26 tables). The 'after' mode's switches rule too: a copy
+from before the launch must get every regulated switch at its safe value and no confirmation; a copy of production after the
+launch keeps and reports its own (2026-10-26: the books on, the chart approved) and flags only what the window changed."""
 import json
 import os
 import shutil
@@ -78,19 +80,58 @@ case('a snapshot without one of the 26 tables is a difference, not a crash', [],
      lambda f: [f[n]['data_fingerprint'].pop('tab_adds') for n in ('snapshot-before', 'snapshot-after-reset')], 1,
      "the original tables are not the reset's 14 cleared + 12 kept: ['tab_adds']")
 # the 'after' mode on the same copy (the state right after the reset stands for production before the migrations)
-def after_copy(f, had=None, **settings):
+def after_copy(f, had=None, before=None, confirmed_before=(), confirmed_after=None, redated=None, **settings):
+    """had: the copy already had these migrations (production after the launch). settings: values after the window (release
+    check and snapshot alike); before: values before it (default the same: production's own choices; None = absent before).
+    confirmed_before / confirmed_after: the confirmations' keys on each side (after defaults to before); redated: {key: date}
+    for a confirmation whose date differs after the window (before they are all dated 2026-10-24)"""
     f['snapshot-before'], f['consistency-before'] = f['snapshot-after-reset'], f['consistency-after-reset']
-    if had is not None:   # production after the launch: the copy already had migrations, settings of its own, no Storage
+    wa = f['snapshot-after']['switches']
+    wa['settings'].update(settings)
+    f['release-check']['settings'].update(settings)
+    confirmed_after = list(confirmed_before) if confirmed_after is None else list(confirmed_after)
+    wa['confirmations'] = {k: (redated or {}).get(k, '2026-10-24') for k in confirmed_after}
+    f['release-check']['confirmations'] = [{'key': k, 'by': 'Persona', 'at': '2026-10-24T20:15:00+00:00'} for k in confirmed_after]
+    if had is not None:   # production after the launch: the copy already had migrations, switches of its own, no Storage
         f['snapshot-before']['migrations_applied'] = had
         f['release-check'].update(storage_buckets_missing=['expense-receipts'], storage_policies_missing=['expense receipts add', 'expense receipts read'],
                                   receipt_upload_rule_current=False)
-    f['release-check']['settings'].update(settings)
+        f['snapshot-before']['switches'] = {'settings': {k: v for k, v in dict(wa['settings'], **(before or {})).items() if v is not None},
+                                            'confirmations': {k: '2026-10-24' for k in confirmed_before}}
 case('a copy from before the launch passes the after mode', [], after_copy, 0, 'storage: receipts bucket and rules in place', mode='after')
 case('a copy from before the launch with a switch already on is a difference', [], lambda f: after_copy(f, operator_mode='record'), 1,
      "setting operator_mode should be 'off'", mode='after')
+case('a copy from before the launch with a confirmation is a difference', [], lambda f: after_copy(f, confirmed_before=['chart_of_accounts_approved']), 1,
+     'no confirmation may exist before the owner/accountant gives it', mode='after')
 case("a copy of production after the launch keeps the owner's operational switches; its Storage is not in the copy", [],
      lambda f: after_copy(f, list(range(29)), operator_mode='record'), 0, 'the copy already had migrations 0000-0028 (production after the launch)', mode='after')
-case('a copy of production after the launch with automatic books on is still a difference', [],
-     lambda f: after_copy(f, list(range(29)), ledger_auto_post=True), 1, 'setting ledger_auto_post should be False', mode='after')
+# 2026-10-26: the owner's run stopped here, on production's own books switch and chart approval; they are kept and reported
+case('the copy of 2026-10-26: the books on and the chart approved before the window are kept and reported, not a difference', [],
+     lambda f: after_copy(f, list(range(34)), confirmed_before=['chart_of_accounts_approved'], ledger_auto_post=True), 0,
+     "production's own switches, unchanged by the window: ledger_auto_post True; confirmations: chart_of_accounts_approved (2026-10-24)", mode='after')
+case('a copy of production after the launch where the window switched the books on is a difference', [],
+     lambda f: after_copy(f, list(range(34)), before={'ledger_auto_post': False}, confirmed_before=['chart_of_accounts_approved'], ledger_auto_post=True), 1,
+     'the window changed the setting ledger_auto_post: False -> True', mode='after')
+case('a confirmation that appears in the window is a difference', [],
+     lambda f: after_copy(f, list(range(34)), confirmed_before=[], confirmed_after=['chart_of_accounts_approved']), 1,
+     "a confirmation appeared in the window (nobody is confirmed on their behalf): ['chart_of_accounts_approved']", mode='after')
+case('a confirmation that disappears in the window is a difference', [],
+     lambda f: after_copy(f, list(range(34)), confirmed_before=['chart_of_accounts_approved'], confirmed_after=[]), 1,
+     "a confirmation disappeared in the window (approvals are never deleted): ['chart_of_accounts_approved']", mode='after')
+case('a confirmation rewritten in the window (its date changed) is a difference', [],
+     lambda f: after_copy(f, list(range(34)), confirmed_before=['chart_of_accounts_approved'], redated={'chart_of_accounts_approved': '2026-10-25'}), 1,
+     "a confirmation was rewritten in the window (its date changed): [('chart_of_accounts_approved', '2026-10-24', '2026-10-25')]", mode='after')
+case('a switch new in the window with no declared safe value is a difference', [],
+     lambda f: after_copy(f, list(range(34)), before={'einvoice_send': None}, einvoice_send=True), 1,
+     'setting einvoice_send, new in the window, has no declared safe value (add it to SAFE in compare.py), is True', mode='after')
+case('a copy from before the launch with a setting outside the safe list is a difference', [],
+     lambda f: after_copy(f, einvoice_send=False), 1,
+     "settings without a declared safe value (add them to SAFE in compare.py): ['einvoice_send']", mode='after')
+case('a switch new in the window must arrive at its safe value', [],
+     lambda f: after_copy(f, list(range(34)), before={'expense_receipt_photos': None}, expense_receipt_photos=True), 1,
+     'setting expense_receipt_photos, new in the window, should be False, is True', mode='after')
+case('the snapshot and the release check must read the switches alike', [],
+     lambda f: (after_copy(f, list(range(34))), f['release-check']['settings'].__setitem__('ledger_auto_post', True)), 1,
+     'the snapshot and the release check read the switches differently after the window', mode='after')
 print(f'    compare.py self-test: {cases} cases behave (the owner-run report, the fixture coverage, six differences still caught, '
-      f'the after mode on a copy from before and after the launch)')
+      f'the after mode on a copy from before and after the launch: its own switches kept and reported, only a change in the window flagged)')

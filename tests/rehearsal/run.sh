@@ -14,7 +14,8 @@
 #   7. the accountant books 30 days of the old history: balanced and tied to the sales, colón for colón
 #   8. a backup + restore of the migrated copy
 #   9. the staging copy as the owner's "Ensayo en pruebas" makes it: anonymized, permissions identical, migrated;
-#      then again into the same project, emptied first under Supabase Storage's delete guard
+#      then again into the same project, emptied first under Supabase Storage's delete guard; then from a copy of
+#      production AFTER the launch with the books switched on and the chart approved (2026-10-26): kept and reported
 #  10. the one-time operational reset of the test period (supabase/tools/reinicio-operativo.sql, D-038) on a second
 #      copy of "production before the window": every refusal stops it and changes nothing (migrated database, café
 #      still working, register open, the paste as shipped, the wrong word, a second run); the real run as ONE query
@@ -176,6 +177,27 @@ ensayo "$OUT/staging-again" EMPTY_STAGING=si > "$OUT/staging-again.log" 2>&1 || 
 [ "$(wc -l < "$OUT/staging-again/timings.txt")" = "$(ls "$ROOT/supabase/migrations"/*.sql | wc -l)" ] || die "staging copy again: not every migration ran again"
 python3 "$HERE/compare.py" "$OUT/staging-again" after || die "staging copy again: differences after the migrations"
 
+step "staging copy of production AFTER the launch, with the books switched on (as the owner's run found production on 2026-10-26)"
+# a clone of the migrated main copy stands for production after the launch; in it the owner, with the phone code, records the
+# accountant's approval of the chart and switches the automatic books on (what accounting.html's activation box sends). The
+# rehearsal must keep both exactly as they are and report them: they are production's own decisions, not the window's
+LDB="${DB}_live"
+psql -X -q -d postgres -c "drop database if exists $LDB with (force)" -c "create database $LDB template $DB" >/dev/null
+act=$(psql -X -q -At -v ON_ERROR_STOP=1 -d "$LDB" 2>&1 <<'SQL'
+select set_config('request.jwt.claims', '{"sub":"0e000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}', false) \g /dev/null
+set role authenticated;
+select public.compliance_confirm('chart_of_accounts_approved', 'Contadora', 'correo del ensayo') ->> 'ok';
+select public.setting_set('ledger_auto_post', 'true'::jsonb) ->> 'ok';
+SQL
+) || die "activation of the books on the copy of production after the launch: $act"
+[ "$(echo $act)" = "true true" ] || die "the owner with the code could not approve the chart and switch the books on: $act"
+ensayo "$OUT/staging-live" CANOPY_DB_URL="postgresql://canopy_backup:test-only-backup@${PGHOST}:${PGPORT}/$LDB" EMPTY_STAGING=si > "$OUT/staging-live.log" 2>&1 \
+  || { cat "$OUT/staging-live.log"; die "staging copy of production after the launch"; }
+[ "$(wc -l < "$OUT/staging-live/timings.txt")" = 0 ] || die "staging copy of production after the launch: a migration ran again on an already migrated copy"
+python3 "$HERE/compare.py" "$OUT/staging-live" after | tee "$OUT/staging-live-compare.txt" || die "staging copy of production after the launch: differences (see above)"
+grep -q "production's own switches, unchanged by the window: ledger_auto_post True.*; confirmations: chart_of_accounts_approved (20" "$OUT/staging-live-compare.txt" \
+  || die "staging copy of production after the launch: the comparison does not report the books on and the approved chart as production's own"
+
 step "the owner's staging rehearsal with the reset (Ensayo en pruebas, vaciar = si, reinicio = si)"
 ensayo "$OUT/staging-reset" EMPTY_STAGING=si REINICIO=si > "$OUT/staging-reset.log" 2>&1 || { cat "$OUT/staging-reset.log"; die "staging copy with the reset"; }
 head -1 "$OUT/staging-reset/reinicio.txt" | grep -q '^reinicio hecho' || { cat "$OUT/staging-reset.log"; die "staging copy with the reset: the reset did not answer 'reinicio hecho'"; }
@@ -265,5 +287,5 @@ python3 "$HERE/compare.py" "$OUT" reset fixture || die "reset copy: differences 
 # difference (the first real-data rehearsal, 2026-10-14); the seeded copy must exercise every table; what must fail, fails
 python3 "$HERE/compare-selftest.py" "$OUT" || die "compare.py self-test (see above)"
 
-psql -X -q -d postgres -c "drop database if exists ${DB}_src with (force)" -c "drop database if exists ${DB}_staging with (force)" >/dev/null
+psql -X -q -d postgres -c "drop database if exists ${DB}_src with (force)" -c "drop database if exists ${DB}_staging with (force)" -c "drop database if exists ${DB}_live with (force)" >/dev/null
 echo "  ok    migration rehearsal (files in $OUT; $DB and $RDB kept for live-pages.sh and reset-pages.sh)"

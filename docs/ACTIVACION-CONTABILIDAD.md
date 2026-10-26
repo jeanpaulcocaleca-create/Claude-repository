@@ -20,12 +20,17 @@ correcciones.
   (recordatorio + formulario prellenado; nada se asienta solo) y el interruptor `expense_receipt_photos` (apagado).
 - **Qué no se activa:** nómina, comprobantes electrónicos, reglas fiscales, MFA/PIN/ingresos, conexión bancaria. Nada
   de eso cambia.
+- **Lo que producción ya tiene y no se toca:** los libros encendidos (`ledger_auto_post`) y el catálogo aprobado
+  (`chart_of_accounts_approved`), registrados en producción (solo un dueño con el código desde la página, o un pegado en el
+  SQL Editor, puede hacerlo; D-058). El dueño lo confirma en la bitácora de producción (acciones `compliance_confirm` y
+  `setting_change`). Las migraciones 0034/0035 no los cambian; el ensayo los conserva y los informa; la página nueva marca
+  «en libros» solo los días asentados.
 
 ## 1. Condiciones de la orden (§10) y qué falta confirmar
 
 | Condición | Estado desde el desarrollo | Qué hace el dueño |
 |---|---|---|
-| Pruebas completas en verde | ✅ `tests/run.sh` en verde (SQL, respaldo, ensayo de migraciones, navegador) sobre el commit de D-057 | Comprobar «Tests» en verde **sobre la etiqueta** |
+| Pruebas completas en verde | ✅ `tests/run.sh` en verde (SQL, respaldo, ensayo de migraciones, navegador) sobre el commit de D-057 y el de D-058. El «Ensayo en pruebas» del 2026-10-26 (ea6b449) copió, anonimizó y migró; se detuvo solo en la comparación, por los interruptores propios de producción (libros encendidos, catálogo aprobado), que la comparación ahora conserva e informa (D-058) | Comprobar «Tests» en verde **sobre la etiqueta** y repetir «Ensayo en pruebas» con esta versión |
 | Migraciones sin conflictos | ✅ 0034/0035 numeradas tras comprobar que ninguna rama ni PR usa 0034; la de descuentos pendiente tomará 0036+ | – |
 | Procedimiento de reversión probado | ✅ `reversion-0035.sql` y luego `reversion-0034.sql`: las funciones quedan byte por byte como en la 0033, ninguna fila se borra, se reaplican | Tenerlos a mano (sección 5) |
 | Respaldo y restauración verificados | ❌ no verificable desde aquí | «Respaldo inmediato» en verde el mismo día y comprobar que la clave del dueño abre el archivo (docs/RESPALDOS.md) |
@@ -50,13 +55,21 @@ correcciones.
   `tests/rehearsal/run.sh`); páginas en vivo sobre la base migrada; páginas sobre el café vacío.
 - Reversión: tras 0035 + 0034 revertidas, las 292 huellas de funciones coinciden con una base construida solo hasta la
   0033; las tablas y columnas nuevas quedan sin uso; ninguna fila cambia; las dos migraciones se vuelven a aplicar.
+- Ensayo del dueño desde una copia de producción **después** del lanzamiento, con los libros encendidos y el catálogo
+  aprobado (como producción el 2026-10-26): ninguna migración vuelve a correr, nada se marca, los dos se informan
+  («production's own switches, unchanged by the window: ledger_auto_post True …; confirmations: chart_of_accounts_approved»).
 - Intentos no autorizados comprobados: ingreso del café (con y sin PIN de encargado) y dueño sin código reciben
   `not_allowed` en `expense_save`, `expense_list`, `cash_position`, `acct_audit`, `vendor_defaults_save` y las
   funciones de la 0035; el contador no puede crear proveedores (`vendor_save`); `anon` no puede ejecutar ninguna.
 
 ## 4. Pasos (los ejecuta el dueño)
 
-1. Subir `ops/backup/repositorio-respaldos/anonimizar.sql` de esta versión al repositorio privado `canopy-respaldos` (E-38: conoce las columnas nuevas de 0034/0035; sin él el ensayo se detiene antes de copiar nada). Luego **«Ensayo en pruebas»** (GitHub → Actions) con la versión a publicar, reinicio = `no`: en verde.
+1. `anonimizar.sql` de D-057 ya está en `canopy-respaldos` (E-38, hecho el 2026-10-26, ea6b449); no hay nada más que subir
+   allí: la comparación (`compare.py`), la foto (`production-snapshot.sql`) y `release-check.sql` vienen del repositorio
+   público en la versión que se elige en el formulario. **«Ensayo en pruebas»** (GitHub → Actions) con la versión a
+   publicar (la de D-058 o posterior), reinicio = `no`: en verde. En el resumen debe leerse «production's own switches,
+   unchanged by the window: ledger_auto_post True …; confirmations: chart_of_accounts_approved (fecha de Costa Rica)» y ninguna línea
+   `DIFFERENCE`.
 2. **«Respaldo inmediato»** en verde; descargar el archivo y comprobar que la clave lo abre.
 3. **Fuera del horario**, Caja cerrada: Supabase → SQL Editor → New query → pegar **todo**
    `supabase/migrations/0034_contabilidad_lecturas.sql` → Run → *Success*. Luego igual con
@@ -85,6 +98,6 @@ correcciones.
 
 ## 6. Registros
 
-- Decisión: `docs/DECISIONS.md` D-057. Dependencias: E-37 (esta activación) y E-17 (fotos de recibos).
+- Decisión: `docs/DECISIONS.md` D-057 y D-058 (el ensayo conserva los interruptores de producción). Dependencias: E-37 (esta activación), E-38 (hecho) y E-17 (fotos de recibos).
 - Migraciones: `docs/MIGRACIONES.md` (filas 0034 y 0035). Pruebas: `tests/sql/410_*`, `tests/sql/420_*`,
   `tests/e2e/specs/360_contabilidad.spec.js`.

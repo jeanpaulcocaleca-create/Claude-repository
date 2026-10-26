@@ -88,13 +88,16 @@ Qué hace, en orden, dentro del trabajo:
 5. Compara (`compare.py`, modo `reset`): las 14 tablas que el reinicio borra deben quedar **vacías**, las 10 que conserva
    **idénticas** (huella por huella), las existencias en cero y la bitácora con una línea más; luego, lo que quedó
    **justo después del reinicio** debe ser idéntico a lo que hay **después de las migraciones** (ventas, caja, inventario
-   en cero, horas, personal, bitácora), y la estructura, las reglas de filas, los permisos y los ajustes (regulados
-   apagados) deben ser los esperados. Una tabla que en producción **nunca tuvo filas** (por ejemplo `order_part_lines`
+   en cero, horas, personal, bitácora), y la estructura, las reglas de filas, los permisos y los interruptores deben ser
+   los esperados (todo lo regulado apagado y sin confirmaciones: la copia del reinicio es siempre de antes de la 0000).
+   Una tabla que en producción **nunca tuvo filas** (por ejemplo `order_part_lines`
    si ninguna cuenta se dividió por platos, o `tab_adds`) no es un error: la comparación la nombra en su línea `reset:`
    («no rows in the copy of production, nothing to clear»), igual que las tres tablas de llaves de desbloqueo que
    `anonimizar.sql` vacía antes de que la copia salga del trabajo. Que el reinicio borre de verdad cada una de las 14
    tablas lo prueba CI sobre la copia sintética, donde todas tienen filas (`compare.py … reset fixture`). Con
-   reinicio = `no` compara ANTES con DESPUÉS y exige `unchanged: … original tables`.
+   reinicio = `no` compara ANTES con DESPUÉS y exige `unchanged: … original tables`; sobre una copia de producción ya
+   migrada conserva e informa los interruptores de producción («production's own switches, unchanged by the window: …»,
+   los libros encendidos y el catálogo aprobado incluidos) y solo cuenta un cambio ocurrido en la ventana (D-058).
 6. El trabajo termina y el PostgreSQL temporal desaparece con la copia.
 
 Qué leer, en el registro del paso «Copiar, anonimizar, cargar…»:
@@ -142,7 +145,8 @@ copia sintética de cuatro meses y 14 534 ventas, `tests/rehearsal/run.sh`):
   quedó cambió (`compare.py`, modo `reset`);
 - la estructura resultante, las reglas de filas (RLS) y los permisos de `anon`, `authenticated`, `service_role` y
   `canopy_backup` después de las migraciones (`release-check.sql`: `anon_can_run`, `tables_without_rls`…), y que lo
-  regulado llega apagado;
+  regulado llega apagado (la copia del reinicio es siempre de antes de la 0000; con reinicio = `no` sobre producción
+  ya migrada, los interruptores de producción se conservan e informan, D-058);
 - que la copia de producción se restaura con permisos idénticos a los de producción (si no, el ensayo se detiene),
   con la misma imitación de Supabase (`restore-stub.sql`) que verifica el respaldo nocturno.
 
