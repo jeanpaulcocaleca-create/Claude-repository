@@ -1,0 +1,9 @@
+# The pages live on hanginggardencafe.com: the gh-pages commit GitHub Pages serves (read-only check, 2026-10-26).
+# It is the build of v2026.10.25-2 (development commit 29bdde5), published 2026-10-25 21:08 UTC by «Publish website»:
+# the PIN releases (D-052, D-053, D-056). It is also the way back if the accounting release (D-057) is withdrawn, so the
+# rehearsal proves it on the copies migrated through 0035 (production since 2026-10-26).
+# Before it: v2026.10.20-1 (f9cfdef, gh-pages 2ade5f6, 2026-10-20, D-048/D-049), v2026.10.17-1 (671fc0e, gh-pages 1daae6f,
+# 2026-10-18, D-047), v2026.10.15-1 (3b67783, gh-pages 99f698b, 2026-10-16), v2026.10.14-1 (3c7e020, gh-pages ab97d44,
+# 2026-10-15) and the pre-launch build 8950054 (2026-10-09); on 2026-10-20 2ade5f6 passed these checks on the copies migrated to 0032.
+# Update this line only when a new release is published (docs/PUBLICAR.md).
+cd62d0dfddd57e89ed425980e8e0e8d21d6cd3fe
