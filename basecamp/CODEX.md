@@ -907,7 +907,7 @@ Newest first. Claude adds a line after every working session.
     - whether Migration or ICT rules require lodges to keep a guest register (only the inspection power was found). If they do, nationality could not be optional;
     - whether the 2012 rules that consent be in a separate document and be kept by the controller still apply;
     - whether Hotel Link's form has a consent step.
-  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 61: running at the time of writing.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 61: green.
 
 - **2026-10-26 · Claude.** BD-054: `basecamp-website` commit e512f6d, documentation only; the built site and the preview privacy page are unchanged.
   - **Privacy draft (ES and EN):**
