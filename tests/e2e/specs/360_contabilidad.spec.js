@@ -409,5 +409,18 @@ module.exports.tests = [
       await until(async () => (await pg.locator('#tbl-prov tbody tr.row').count()) === 1, 10000, 'loaded on retry');
       assert.deepStrictEqual(pg.errors.concat(tb.errors, ph.errors), []);
     }
+  },
+  {
+    name: "Home's accounting tile opens the new page and reads in Spanish (the tile text changed with D-057)",
+    run: async ({ browser }) => {
+      const pg = await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' });
+      await goto(pg, '/home');
+      const tile = pg.locator('a.tile[href="contabilidad.html"]');
+      await until(async () => (await tile.count()) === 1, 10000, 'the accounting tile');
+      // lang.js translates right after the page writes the English text
+      await until(async () => (await tile.locator('.d').textContent()) === 'Ingresos, gastos con sus comprobantes, proveedores, banco y efectivo, reportes y los libros para el contador.', 5000, 'tile text in Spanish');
+      assert.strictEqual(await pg.locator('a.tile[href="accounting.html"]').count(), 0, 'Home no longer opens the old page');
+      assert.deepStrictEqual(pg.errors, []);
+    }
   }
 ];

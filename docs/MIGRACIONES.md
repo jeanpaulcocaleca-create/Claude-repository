@@ -77,6 +77,8 @@ Con ese archivo comparo la estructura real contra la reconstrucción.
 
 La 0029 (recibir un pedido con la factura y el pago, D-041) la aplicó el dueño el 2026-10-15 (E-25); las 0030–0032
 (recetas, D-043/D-044) el 2026-10-18 (E-29/E-30, D-047). Las filas de 0030–0032 quedan abajo como referencia.
+Las 0034 y 0035 (Contabilidad nueva, D-057) las aplicó el dueño el 2026-10-26, después del «Ensayo en pruebas» #12 y del
+«Respaldo inmediato» #21, con `release-check.sql` y la foto limpios (E-37, D-059).
 
 | Archivo | Qué trae | Cómo se aplica |
 |---|---|---|

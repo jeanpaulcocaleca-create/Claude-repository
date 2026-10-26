@@ -1,11 +1,11 @@
 # Activación de la Contabilidad nueva (D-057, migraciones 0034 y 0035) · E-37
 
-**Estado:** construida, probada y ensayada en la rama de desarrollo; **nada aplicado ni publicado**. La «Orden maestra
-de construcción» (2026-10-26) autoriza publicar solo si se confirman todas las condiciones de su §10; varias no se
-pueden confirmar desde el entorno de desarrollo (sección 1), así que el sistema queda listo y los pasos en producción
-los hace **solo el dueño** (Jean Paul): respaldo, SQL Editor, etiqueta y publicación. Claude no publica, no crea
-etiquetas `v*` y no toca la base de producción (CLAUDE.md); sí acompaña: lee resultados, compara celdas y prepara
-correcciones.
+**Estado (2026-10-26):** **migraciones 0034 y 0035 aplicadas en producción** por el dueño (sección 4, «Hecho»);
+**la página nueva todavía no está publicada**: el procedimiento exacto está en la sección 4, «Publicación», y la vuelta
+atrás en la sección 5 (D-059). La «Orden maestra de construcción» (2026-10-26) autoriza publicar solo si se confirman
+todas las condiciones de su §10 (sección 1). Los pasos en producción los hace **solo el dueño** (Jean Paul): respaldo,
+SQL Editor, etiqueta y publicación. Claude no publica, no crea etiquetas y no toca la base de producción (CLAUDE.md);
+sí acompaña: lee resultados, compara celdas y prepara correcciones.
 
 ## Qué se activa
 
@@ -33,9 +33,9 @@ correcciones.
 | Pruebas completas en verde | ✅ `tests/run.sh` en verde (SQL, respaldo, ensayo de migraciones, navegador) sobre el commit de D-057 y el de D-058. El «Ensayo en pruebas» del 2026-10-26 (ea6b449) copió, anonimizó y migró; se detuvo solo en la comparación, por los interruptores propios de producción (libros encendidos, catálogo aprobado), que la comparación ahora conserva e informa (D-058) | Comprobar «Tests» en verde **sobre la etiqueta** y repetir «Ensayo en pruebas» con esta versión |
 | Migraciones sin conflictos | ✅ 0034/0035 numeradas tras comprobar que ninguna rama ni PR usa 0034; la de descuentos pendiente tomará 0036+ | – |
 | Procedimiento de reversión probado | ✅ `reversion-0035.sql` y luego `reversion-0034.sql`: las funciones quedan byte por byte como en la 0033, ninguna fila se borra, se reaplican | Tenerlos a mano (sección 5) |
-| Respaldo y restauración verificados | ❌ no verificable desde aquí | «Respaldo inmediato» en verde el mismo día y comprobar que la clave del dueño abre el archivo (docs/RESPALDOS.md) |
+| Respaldo y restauración verificados | ✅ para las migraciones: «Respaldo inmediato» #21 en verde con la restauración verificada (2026-10-26, informe del dueño) | Para publicar: la tarjeta Respaldos en verde ese día (docs/PUBLICAR.md, punto 3) |
 | Estado real de E-05 y sesiones activas | ❌ no verificable desde aquí | Confirmar qué ingreso usan las tabletas (E-04/E-05). La página nueva no toca `access.js` ni la transición de aparatos; abre solo a dueño con código y contador |
-| Ninguna operación de Caja en riesgo | ❌ no verificable desde aquí | Caja cerrada y cocina sin pedidos al aplicar (las migraciones solo cambian funciones y agregan tablas; la Caja no las usa) |
+| Ninguna operación de Caja en riesgo | ✅ al aplicar las migraciones (Caja cerrada, cocina sin pedidos: informe del dueño); ❌ para publicar, no verificable desde aquí | Al publicar: Caja cerrada, cocina sin pedidos y, en cada Caja, el aviso de conexión «todo guardado» (docs/PUBLICAR.md, punto 6) |
 | Ventana de baja actividad después del cierre | ❌ la fija el dueño | Después de cerrar, con el cierre de caja hecho |
 | Fotos de recibos desde la página nueva | ⏸ dependen de E-17 | Dejar el interruptor apagado hasta verificar respaldo y restauración de los archivos privados |
 
@@ -64,40 +64,85 @@ correcciones.
 
 ## 4. Pasos (los ejecuta el dueño)
 
-1. `anonimizar.sql` de D-057 ya está en `canopy-respaldos` (E-38, hecho el 2026-10-26, ea6b449); no hay nada más que subir
-   allí: la comparación (`compare.py`), la foto (`production-snapshot.sql`) y `release-check.sql` vienen del repositorio
-   público en la versión que se elige en el formulario. **«Ensayo en pruebas»** (GitHub → Actions) con la versión a
-   publicar (la de D-058 o posterior), reinicio = `no`: en verde. En el resumen debe leerse «production's own switches,
-   unchanged by the window: ledger_auto_post True …; confirmations: chart_of_accounts_approved (fecha de Costa Rica)» y ninguna línea
-   `DIFFERENCE`.
-2. **«Respaldo inmediato»** en verde; descargar el archivo y comprobar que la clave lo abre.
-3. **Fuera del horario**, Caja cerrada: Supabase → SQL Editor → New query → pegar **todo**
-   `supabase/migrations/0034_contabilidad_lecturas.sql` → Run → *Success*. Luego igual con
-   `0035_contabilidad_gastos.sql`. Si una falla, no cambia nada (cada una es una transacción); copiar el error y parar.
-4. `supabase/tools/release-check.sql` en el SQL Editor: `migrations_missing` = `[]`, `functions_missing` = `[]`.
-5. Etiqueta `v*` sobre el commit (con «Tests» en verde sobre la etiqueta) y «Publish website (PRODUCTION · manual only)».
-6. **Después de publicar (10 minutos):**
-   - Abrir `contabilidad.html` como contador y como dueño: las ocho secciones cargan; Resumen muestra los días cerrados
-     pendientes si los hay.
-   - Registrar un gasto de un proveedor conocido con «Nuevo gasto» y comprobarlo en Gastos y en el diario.
-   - En una tableta del café: la Caja cobra, la cocina ve el pedido, Inventario recibe un pedido con el PIN.
-   - Recargar a mano cada pestaña de personal (o esperar la recarga segura de `version.js`).
+### Hecho (2026-10-26)
+
+1. `anonimizar.sql` de D-057 en `canopy-respaldos` (E-38, ea6b449) y **«Ensayo en pruebas» #12 en verde**.
+2. **«Respaldo inmediato» #21 en verde**, restauración verificada.
+3. Caja cerrada y cocina sin pedidos; `0034_contabilidad_lecturas.sql` y luego `0035_contabilidad_gastos.sql` pegados
+   completos en el SQL Editor, *Success* cada uno.
+4. `release-check.sql` y `production-snapshot.sql` limpios: `functions_by_version` con 0034 = 11 y 0035 = 15,
+   `functions_unknown` = `[]`, `tables_missing` = `[]`, `tables_columns_differ` = `{}`; `ledger_auto_post` sigue en
+   `true`, `expense_receipt_photos` en `false` y `chart_of_accounts_approved` sigue confirmado. Desde ese momento una
+   tableta del café con PIN de encargado ya no registra gastos (regla de la 0034, en la base, publique o no la página).
+
+### Publicación
+
+Qué se publica: la versión publicada hoy (`v2026.10.25-2`, commit 29bdde5, sitio cd62d0d) **más** solo la Contabilidad
+nueva: `contabilidad.html`, `contabilidad.js`, `charts.js`, los textos en `lang.js` y el enlace de Inicio y de
+Información. Ningún cambio de otra rama ni de un PR abierto (el PR #4, «quién cobra» sin conexión, D-054, **no** va);
+nada de descuentos; las fotos de recibos siguen apagadas. El commit a etiquetar es el de **D-059** (el último de la
+rama `claude/hanging-garden-coffee-proposal-1m8zd4`, con «Tests» en verde); su código completo lo da el informe de
+Claude de ese día.
+
+0. **Condiciones.** Fuera del horario y **no entre las 00:00 y las 05:00 de Costa Rica** (tres pruebas automáticas
+   dependen de la hora y fallarían en la etiqueta). Las de docs/PUBLICAR.md, puntos 1 a 6: Caja cerrada, cocina sin
+   pedidos, en cada Caja «Todo lo que se tomó en este dispositivo está guardado en el sistema.», ningún formulario a
+   medio escribir. **Nadie sube nada a la rama** hasta que exista la etiqueta (no fusionar el PR #4).
+1. **Guardar el sitio de hoy** (una vuelta atrás exacta que no depende de volver a descargar las fotos):
+   Releases → **Draft a new release** → Choose a tag: `sitio-2026-10-26` → **Create new tag** → Target: rama
+   **gh-pages** → **Publish release**. No use nunca `sitio-2026-10-25`: es el sitio del 21 de octubre, de antes de los PIN.
+2. **Etiqueta:** Releases → **Draft a new release** → Choose a tag: `v2026.10.26-1` → **Create new tag** → Target: la
+   rama `claude/hanging-garden-coffee-proposal-1m8zd4`, **después** de comprobar que su último commit es el de D-059 →
+   **Publish release**. Luego, en **Tags**, `v2026.10.26-1` debe mostrar ese mismo commit. Si muestra otro: no publique;
+   cree `v2026.10.26-2` en el commit correcto (una etiqueta nunca se mueve).
+3. **Pruebas sobre la etiqueta:** Actions → **Tests** → la ejecución nueva de `v2026.10.26-1` (unos 12 minutos), en verde.
+   Si empezó entre las 00:00 y las 05:00 y solo fallaron `080_open_local`, `310_recipes_sales` o `340_pin_autofill`,
+   vuelva a correr una vez después de las 05:00. Cualquier otra falla: pare y avise.
+4. **Publicar:** Actions → **Publish website (PRODUCTION · manual only)** → **Run workflow** → Use workflow from:
+   **Tags → `v2026.10.26-1`** → casilla `PUBLICAR` → «restaurar» vacío → **Run workflow**.
+5. **Comprobar la versión:** `https://hanginggardencafe.com/version.json?t=1` dice `"version":"v2026.10.26-1"` y el
+   `sha` del commit de D-059. Las tabletas se recargan solas entre ventas (avisos «actualización lista»); si alguna no
+   cambia en 15 minutos, recárguela.
+6. **Comprobaciones sin crear registros de prueba** (10 minutos). Una venta, un gasto o una entrega de prueba en
+   producción serían registros reales que solo se corrigen con otro registro (CLAUDE.md; docs/ACTIVACION-RECETAS.md):
+   - Como dueño con el código (y como contador si hay ingreso de contador): `contabilidad.html` abre; las ocho secciones
+     cargan; Resumen lista los días pendientes si los hay; Proveedores muestra la lista; un reporte se descarga en CSV.
+   - Inicio en español: la ficha «Contabilidad» dice «Ingresos, gastos con sus comprobantes, proveedores…» y abre la
+     página nueva; «Página de contabilidad anterior» abre `accounting.html`.
+   - En una tableta del café: Inicio y la Caja cargan la versión nueva; la Contabilidad pide dueño con código o contador.
+   - El primer gasto real con su comprobante, registrado con «Nuevo gasto», y la primera venta de la apertura son la
+     comprobación final de escritura.
 
 ## 5. Cómo parar o revertir
 
-- **Antes del paso 3:** no hay nada que revertir.
-- **Después de las migraciones, antes de publicar:** opcional revertir con `supabase/tools/reversion-0035.sql` y luego
-  `supabase/tools/reversion-0034.sql` (cada uno pegado completo en el SQL Editor; una transacción cada uno). Las tablas
-  `expense_payments` y `expense_schedules`, las columnas nuevas y lo escrito en ellas quedan sin uso; ninguna fila se
-  borra. Aviso: si ya se pagó un gasto a crédito con `expense_pay`, su asiento sigue en los libros y la antigüedad vuelve
-  a contar ese gasto por su monto completo hasta reaplicar la 0035 (el archivo lo explica).
-- **Después de publicar:** las páginas publicadas funcionan con la base revertida (la nueva avisa qué migración falta; la
-  anterior no cambia). Si hay que volver atrás el sitio, publicar la etiqueta anterior.
-- **Criterios para detener:** un *Success* que no llega, `release-check.sql` con algo faltante, la Caja sin cobrar en la
-  prueba del paso 6, o cualquier recibo de un cliente que no se guarde.
+- **Antes del paso 4 de «Publicación»:** no hay nada que revertir; el sitio sigue siendo `v2026.10.25-2`.
+- **Volver al sitio anterior (si la página nueva da problemas):** Actions → **Publish website** → Use workflow from:
+  **Tags → `v2026.10.25-2`** → `PUBLICAR` → «restaurar» vacío → Run workflow. `version.json` vuelve a decir
+  `v2026.10.25-2` / 29bdde5…, y las tabletas se recargan solas. **La base se queda en 0035**: no hace falta revertirla.
+  Ese sitio es el que hoy funciona en producción con la 0035, y el ensayo lo prueba sobre una copia migrada hasta la
+  0035 (`tests/rehearsal/LIVE_PAGES` = cd62d0d, D-059). Vuelta exacta alternativa, sin descargar las fotos otra vez:
+  Publish desde `v2026.10.26-1` con «restaurar» = `sitio-2026-10-26` (paso 1 de «Publicación»).
+- **Lo que esa vuelta atrás no deshace** (todo vive en la base y se conserva):
+  - los pagos de gastos a crédito hechos en la página nueva: la página anterior muestra el gasto por su monto completo,
+    no puede anular el pago y tampoco el gasto mientras tenga pagos (`has_payments`); se corrige al volver a publicar la
+    página nueva;
+  - las cuentas recurrentes (la página anterior no las recuerda; nada se asienta solo), lo habitual de cada proveedor y
+    las columnas nuevas;
+  - la regla de la 0034: una tableta del café sigue sin poder registrar gastos;
+  - `contabilidad.html` deja de existir en el sitio (lo que se esté escribiendo ahí se pierde).
+- **Revertir la base** (solo por una falla de una función de la 0034/0035, nunca por un problema de la página):
+  1. con la página nueva todavía publicada, anular primero en ella los pagos de gastos a crédito vigentes;
+  2. volver al sitio anterior (arriba);
+  3. `supabase/tools/reversion-0035.sql` completo en el SQL Editor. `reversion-0034.sql` solo si la falla es de la 0034:
+     vuelve a abrir el registro de gastos a una tableta con PIN, contra la orden del dueño.
+  Cada reversión se niega si hay una migración posterior aplicada (por ejemplo la de descuentos, 0036 o siguiente).
+- **Criterios para detener o volver atrás:** «Tests» en rojo sobre la etiqueta por algo que no sea la hora;
+  `version.json` con otro commit; la Contabilidad que no carga para el dueño con código; la Caja o la cocina que no
+  cargan la versión nueva; cualquier recibo de un cliente que no se guarde.
 
 ## 6. Registros
 
-- Decisión: `docs/DECISIONS.md` D-057 y D-058 (el ensayo conserva los interruptores de producción). Dependencias: E-37 (esta activación), E-38 (hecho) y E-17 (fotos de recibos).
+- Decisión: `docs/DECISIONS.md` D-057, D-058 (el ensayo conserva los interruptores de producción) y D-059 (publicación
+  preparada). Dependencias: E-37 (esta activación), E-38 (hecho) y E-17 (fotos de recibos).
 - Migraciones: `docs/MIGRACIONES.md` (filas 0034 y 0035). Pruebas: `tests/sql/410_*`, `tests/sql/420_*`,
   `tests/e2e/specs/360_contabilidad.spec.js`.

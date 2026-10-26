@@ -2171,3 +2171,26 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **For `canopy-respaldos`:** nothing to upload. The comparison, the snapshot and the release check come from the public
   repository at the version the owner chooses in the workflow; «Ensayo en pruebas» runs again with this version
   (E-37, step 1).
+
+## D-059 · 2026-10-26 · Publication of contabilidad.html prepared (migrations 0034/0035 applied by the owner)
+- **What the owner did:** «Ensayo en pruebas» #12 and «Respaldo inmediato» #21 green (restore verified); with the register
+  closed and the kitchen idle, 0034 and 0035 pasted in the SQL Editor (*Success* each); `release-check.sql` and
+  `production-snapshot.sql` clean: `functions_by_version` 0034 = 11 and 0035 = 15, `functions_unknown` = `[]`,
+  `tables_missing` = `[]`, `tables_columns_differ` = `{}`, `ledger_auto_post` true, `expense_receipt_photos` false, the
+  chart approval kept. The page is not published.
+- **Release scope, verified:** the live site is gh-pages cd62d0d = `v2026.10.25-2` (29bdde5) with its build stamp. From
+  there to this branch: 939d231 (D-057), 63e100a (D-058) and this commit; `website/` changes only `contabilidad.html`,
+  `contabilidad.js`, `charts.js` (new), `lang.js`, and the Home and Insights links. `pages.yml` and `ASSETS.md` unchanged.
+  No commit of another branch or open PR is included (PR #4, D-054, stays out); no discounts work exists yet; the receipt
+  switch stays off. All 57 server functions the new page calls exist in production (13 of them outside the release
+  check's list are already used by the live pages). Three independent read-only reviews (scope, rollback, procedure).
+- **Fixed before the tag:** the new Home tile text had no Spanish entry, so the Spanish Home showed it in English
+  (CLAUDE.md: staff text Spanish first): added to `lang.js`, with a browser test that fails without it (spec 360).
+  `tests/rehearsal/LIVE_PAGES` pinned v2026.10.20-1's build (2ade5f6), not the site live today: now cd62d0d, so the
+  rehearsal proves the way back (today's site) on copies migrated through 0035 (8/8 locally before this commit).
+- **Procedure** (`docs/ACTIVACION-CONTABILIDAD.md` §4 «Publicación», §5): tag this commit `v2026.10.26-1` from the branch
+  only after checking its head, and check the tag's commit before publishing (a tag is never moved; a wrong one gets
+  `-2`); save today's site as `sitio-2026-10-26` first (`sitio-2026-10-25` is the 10-21 build, never to be used); avoid
+  00:00–05:00 Costa Rica for the tag's Tests; post-publication checks create no test sale, expense or delivery. Way
+  back: publish `v2026.10.25-2` again, database stays at 0035; what it does not undo (credit-expense payments made in
+  the new page cannot be voided from the old one) and when a database reversal would be advisable are written down.

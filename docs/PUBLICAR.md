@@ -46,7 +46,11 @@ en la nueva.
 ## Publicar
 
 1. GitHub → **Releases → Draft a new release**.
-2. Etiqueta `vAAAA.MM.DD-N` (por ejemplo `v2026.10.20-1`) sobre la rama aprobada → **Publish release**.
+2. Etiqueta `vAAAA.MM.DD-N` (por ejemplo `v2026.10.20-1`) sobre la rama aprobada → **Publish release**. Antes, compruebe
+   que el último commit de la rama es el aprobado (nadie sube nada a la rama mientras tanto); después, en **Tags**, que la
+   etiqueta muestra ese commit. Si muestra otro, no publique: cree la siguiente (`…-2`) en el commit correcto; una
+   etiqueta nunca se mueve. Conviene también guardar el sitio de hoy como `sitio-AAAA-MM-DD` (sección «Una sola vez»,
+   con Target = **gh-pages**) para tener una vuelta atrás exacta.
 3. GitHub → **Actions → "Publish website (PRODUCTION · manual only)" → Run workflow**.
    - En **Use workflow from**, elija **Tags → la etiqueta nueva**.
    - Escriba **PUBLICAR** en la casilla.

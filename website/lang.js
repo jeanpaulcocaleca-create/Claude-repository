@@ -617,6 +617,7 @@
 
     /* website: menu (between the two markers: the only entries the menu at the tables uses for dish text) */
     /* ---------- contabilidad.html: the accounting redesign (D-057): sections, tables, drawers, reports, books ---------- */
+    'Income, expenses with their receipts, suppliers, bank and cash, reports and the books for the accountant.': 'Ingresos, gastos con sus comprobantes, proveedores, banco y efectivo, reportes y los libros para el contador.',
     'Canopy OS · Accounting': 'Canopy OS · Contabilidad', 'Overview': 'Resumen', 'Income': 'Ingresos', 'Bank and cash': 'Banco y efectivo', 'Books': 'Contabilidad',
     'Previous accounting page': 'Página de contabilidad anterior', 'Last month': 'Mes pasado', '3 months': '3 meses', 'Owner · with the code': 'Dueño · con el código',
     'with the phone code': 'con el código del teléfono', 'Could not load this section.': 'No se pudo cargar esta sección.', 'What came in, what went out and what is pending': 'Lo que entró, lo que salió y lo pendiente', 'Each expense with its receipt and its IVA': 'Cada gasto con su comprobante y su IVA',
