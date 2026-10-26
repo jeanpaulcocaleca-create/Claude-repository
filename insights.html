@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="334624c08bff">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insights · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="config.js?v=334624c08bff"></script>
+<script src="version.js?v=334624c08bff" defer></script>
+<script src="keypad.js?v=334624c08bff" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js?v=334624c08bff"></script>
+<script src="login.js?v=334624c08bff"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F; --ok:#4A7A4E;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:40px;padding:.45em 1em}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+.wrap{max-width:920px;margin:0 auto;padding:1.2rem 1rem 4rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.8rem}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.5em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600}
+#appView.locked .tabs,#appView.locked .kpis,#appView.locked .card:not(.gate){display:none}
+.gate{max-width:420px}
+.gate label{display:block;font-size:.85rem;color:var(--sec);margin:.8rem 0 .25rem}
+.gate select,.gate input{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%}
+.gate button{margin-top:1rem;width:100%}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1.1rem}
+header.top h1{font-size:1.4rem;margin-right:auto}
+.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.2rem}
+.tabs button{background:transparent;color:var(--sec);border:1.5px solid var(--muted);font-size:.9rem}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;margin-bottom:1.2rem}
+.kpi{background:var(--panel);border-radius:14px;padding:1rem 1.1rem}
+.kpi .l{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec)}
+.kpi .v{font-family:'Spline Sans Mono',monospace;font-size:1.7rem;font-weight:400;margin-top:.2rem}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1rem}
+.card h2{font-size:1.05rem;margin-bottom:.9rem}
+.chart{width:100%;overflow:visible}
+.bar{fill:var(--accent)}
+.bar:hover{fill:var(--gold)}
+.grid line{stroke:var(--muted);stroke-opacity:.45;stroke-width:1}
+.axis text{fill:var(--sec);font-size:11px;font-family:'Spline Sans Mono',monospace}
+.blabel{fill:var(--sec);font-size:11px;font-family:'Spline Sans Mono',monospace}
+.hbar-row{display:grid;grid-template-columns:130px 1fr auto;gap:.7rem;align-items:center;padding:.32rem 0}
+.hbar-row .nm{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar-track{background:var(--canvas);border-radius:6px;height:14px;position:relative}
+.hbar-fill{background:var(--accent);border-radius:6px;height:14px;min-width:2px}
+.hbar-row .v{font-size:.85rem;color:var(--sec);white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;color:var(--sec);font-weight:600;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .5rem;border-bottom:1.5px solid var(--muted)}
+td{padding:.45rem .5rem;border-bottom:1px dotted var(--muted);vertical-align:top}
+td.r,th.r{text-align:right}
+.empty{color:var(--sec);text-align:center;padding:2rem 0}
+.tip{position:fixed;background:var(--ink);color:#FCF8EC;font-size:.8rem;padding:.3em .7em;border-radius:8px;pointer-events:none;transform:translate(-50%,-130%);white-space:nowrap;z-index:9}
+.pill{font-size:.75rem;padding:.15em .6em;border-radius:99px;background:var(--canvas);color:var(--sec)}
+td.ok{color:var(--ok)}
+td.bad{color:var(--bad);font-weight:600}
+tr.void td{opacity:.55}
+tr.void td.strike{text-decoration:line-through}
+tr.void .vreason{display:block;font-size:.8rem;color:var(--bad);text-decoration:none;opacity:1}
+.dreason{display:block;font-size:.8rem;color:var(--sec)}
+tr.void .dreason{color:var(--sec)}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+@media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.err.ok{color:var(--ok,#4A7A4E)}
+
+.badge{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;padding:.15em .6em;border-radius:99px;border:1.5px solid var(--muted);color:var(--sec);vertical-align:middle}
+.badge.final{border-color:var(--ok);color:var(--ok)}
+.kpi .s{font-size:.8rem;color:var(--sec);margin-top:.2rem}
+.legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.82rem;color:var(--sec);margin:.2rem 0 .4rem}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:.35rem}
+.heat{display:grid;grid-template-columns:2.6rem repeat(var(--hours),1fr);gap:2px;font-size:.7rem;color:var(--sec);font-family:'Spline Sans Mono',monospace}
+.heat .c{height:20px;border-radius:3px;background:#EEF0E2}
+.heat .c:hover{outline:2px solid var(--ink)}
+.status{font-size:.82rem;font-weight:600;white-space:nowrap}
+.status.now{color:var(--bad)} .status.soon{color:var(--gold)}
+h2 .sp{flex:1}
+.card h2{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.card h2 button{min-height:32px;font-size:.8rem;padding:.2em .8em}
+details summary{cursor:pointer;color:var(--accent);font-size:.85rem;margin-top:.4rem}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>Insights</h1>
+  <p style="color:var(--sec);font-size:.9rem">Hanging Garden Café</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <nav class="pagenav" aria-label="Café pages">
+    <a href="home.html" data-owner>Home</a>
+    <a href="sales.html">Sales</a>
+    <span class="here">Insights</span>
+    <a href="inventory.html">Inventory</a>
+    <a href="contabilidad.html" data-owner>Accounting</a>
+  </nav>
+  <header class="top">
+    <h1>Insights</h1>
+    <button class="ghost" id="outBtn">Sign out</button>
+  </header>
+  <p class="err" id="noAccess" hidden></p>
+
+  <div id="content" hidden>
+  <div class="card">
+    <h2>Today <span class="badge" id="tState"></span></h2>
+    <div class="kpis" style="margin:0">
+      <div class="kpi"><div class="l">Sales without IVA</div><div class="v" id="tNet">–</div><div class="s" id="tGross"></div></div>
+      <div class="kpi"><div class="l">Orders</div><div class="v" id="tOrders">–</div><div class="s" id="tAvg"></div></div>
+      <div class="kpi"><div class="l">Same day last week</div><div class="v" id="tLw">–</div><div class="s" id="tLwSub"></div></div>
+      <div class="kpi"><div class="l">To look at</div><div class="v" id="tWatch" style="font-size:1rem;font-family:inherit">–</div></div>
+    </div>
+    <p class="hint" id="tHint" style="color:var(--sec);font-size:.85rem;margin:.6rem 0 0"></p>
+  </div>
+
+  <div class="tabs" role="tablist" id="rangeTabs">
+    <button data-days="28" class="on">Last 4 weeks</button>
+    <button data-days="91">Last 13 weeks</button>
+  </div>
+
+  <div class="card">
+    <h2>Month by month <span class="sp"></span><button class="ghost" id="mCsv">CSV</button></h2>
+    <svg class="chart" id="mSales" height="190" role="img" aria-label="Sales without IVA by month"></svg>
+    <div class="legend" id="mLegend"></div>
+    <p class="hint" id="mLaborHint" style="color:var(--sec);font-size:.85rem;margin:0 0 .4rem" hidden>Labor % and prime cost need the owner's phone code or the accountant login.</p>
+    <svg class="chart" id="mPct" height="200" role="img" aria-label="Food cost, labor and prime cost as a percent of sales, by month"></svg>
+    <details><summary>See the numbers</summary><div style="overflow-x:auto"><table id="mTable"></table></div></details>
+  </div>
+
+  <div class="card">
+    <h2>When people buy</h2>
+    <p class="hint" style="color:var(--sec);font-size:.85rem;margin:0 0 .6rem">Average sales of each weekday and hour, with IVA. Darker is busier.</p>
+    <div class="heat" id="heat"></div>
+  </div>
+
+  <div class="card">
+    <h2>Products <span class="sp"></span><button class="ghost" id="pCsv">CSV</button></h2>
+    <div style="overflow-x:auto"><table id="pTable"><thead><tr><th>Product</th><th class="r">Units</th><th class="r">Sold, no IVA</th><th class="r">Margin</th><th class="r">Food cost</th></tr></thead><tbody></tbody></table></div>
+    <p class="hint" id="pHint" style="color:var(--sec);font-size:.85rem"></p>
+  </div>
+
+  <div class="card">
+    <h2>Categories</h2>
+    <div id="catBars"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stock to order <span class="sp"></span><button class="ghost" id="sCsv">CSV</button></h2>
+    <div style="overflow-x:auto"><table id="sTable"><thead><tr><th>Item</th><th>When</th><th class="r">Days left</th><th class="r">Use per day</th><th>Supplier</th><th class="r">To order</th></tr></thead><tbody></tbody></table></div>
+    <p class="hint" style="color:var(--sec);font-size:.85rem">From the use of the last 4 weeks (the last week weighs as much as the month), what is on its way, and the supplier's delivery days.</p>
+  </div>
+
+  <div class="card">
+    <h2>Suppliers <span class="sp"></span><button class="ghost" id="vCsv">CSV</button></h2>
+    <div style="overflow-x:auto"><table id="vTable"><thead><tr><th>Supplier</th><th class="r">Received</th><th class="r">Deliveries</th><th class="r">Days to deliver</th><th class="r">Owed</th><th>Price changes</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Money that leaks</h2>
+    <div class="kpis" style="margin:0">
+      <div class="kpi"><div class="l">Discounts</div><div class="v" id="lDisc">–</div></div>
+      <div class="kpi"><div class="l">Voided</div><div class="v" id="lVoid">–</div><div class="s" id="lVoidN"></div></div>
+      <div class="kpi"><div class="l">Refunded</div><div class="v" id="lRef">–</div><div class="s" id="lRefN"></div></div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+var db = window.supabase.createClient(HG_CONFIG.url, HG_CONFIG.key, window.HG_LOGIN ? HG_LOGIN.options(window.HG_ACCESS ? HG_ACCESS.options() : undefined) : (window.HG_ACCESS ? HG_ACCESS.options() : undefined));
+function $(id){ return document.getElementById(id); }
+function fmt(n){ return (Number(n) < 0 ? '−' : '') + '₡' + Math.abs(Math.round(Number(n) || 0)).toLocaleString('fr-FR'); }
+function esc(s){ var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
+function pct(v){ return v == null ? '–' : String(v).replace('.', ',') + ' %'; }
+function crToday(offset){ return new Date(Date.now() - 6 * 3600000 + (offset || 0) * 86400000).toISOString().slice(0, 10); }
+function csvSafe(s){ return /^[=+\-@\t\r]/.test(s) && !/^-?\d+([.,]\d+)?$/.test(s) ? "'" + s : s; }   /* a cell never starts a spreadsheet formula */
+function download(name, rows){
+  var t = '﻿' + rows.map(function(r){ return r.map(function(c){ var x = csvSafe(c == null ? '' : String(c)); return /[",\n;]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(','); }).join('\r\n');
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([t], {type: 'text/csv'})); a.download = name; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+}
+var tip = $('tip');
+function showTip(e, text){ tip.textContent = text; tip.hidden = false; tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
+function hideTip(){ tip.hidden = true; }
+
+/* ---------- sign in: the owner login, the accountant, or the café login once a manager with sales access opened it ---------- */
+var KIND = null;   /* account_kind: 'owner' | 'owner_needs_code' | 'accountant' | 'accountant_needs_code' | 'cafe' | 'none'; null before the accounts SQL */
+/* the owner's and the accountant's logins sign out by themselves after 30 minutes without a touch; the café tablet never does */
+var idleTimer = null;
+function armIdle(){
+  clearTimeout(idleTimer);
+  if (!/^(owner|accountant)/.test(KIND || '')) return;
+  idleTimer = setTimeout(async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); }, 30 * 60000);
+}
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function(ev){ document.addEventListener(ev, armIdle, {passive: true}); });
+async function codeNeeded(){
+  try { var r = await db.auth.mfa.getAuthenticatorAssuranceLevel(); return !r.error && !!r.data && r.data.nextLevel === 'aal2' && r.data.currentLevel !== 'aal2'; }
+  catch (e){ return false; }
+}
+async function refreshAuth(){
+  var s = await db.auth.getSession(), authed = !!(s.data && s.data.session), needCode = authed && await codeNeeded();
+  $('loginView').hidden = authed && !needCode; $('loginForm').hidden = needCode; $('codeForm').hidden = !needCode;
+  $('appView').hidden = !authed || needCode;
+  if (needCode){ $('codeIn').focus(); return; }
+  if (!authed) return;
+  var k = await db.rpc('account_kind');
+  KIND = k.error ? null : (k.data || 'none');
+  if (KIND === 'cafe') document.querySelectorAll('[data-owner]').forEach(function(a){ a.hidden = true; });
+  armIdle();
+  checkGate();
+}
+async function checkGate(){
+  /* the accountant: allowed by every insights function (0025), never a PIN; without the phone code, say so like the books do */
+  if (KIND === 'accountant'){ loadAll(); return; }
+  if (KIND === 'accountant_needs_code'){
+    $('content').hidden = true; $('noAccess').hidden = false;
+    $('noAccess').textContent = 'Insights open only with the code from your phone. Turn it on once in Accounting; then every sign-in asks for the code.';
+    return;
+  }
+  var st = await HG_ACCESS.load(db);
+  if (!st.missing && !st.error && !st.sales){
+    $('content').hidden = true;
+    HG_ACCESS.gate(db, {title: 'Insights · owners and managers', message: st.level ? 'This manager may not open the sales reports. The owner can allow it in the Time clock, Team section.' : ''}).then(checkGate);
+    return;
+  }
+  if (!st.missing && !st.error) HG_ACCESS.pill(db);
+  loadAll();
+}
+$('loginForm').addEventListener('submit', async function(e){ e.preventDefault(); var res = await HG_LOGIN.signIn(db); if (res.ok) refreshAuth(); });
+$('codeForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var f = await db.auth.mfa.listFactors(), t = f.data && f.data.totp && f.data.totp[0];
+  var r = t ? await db.auth.mfa.challengeAndVerify({factorId: t.id, code: $('codeIn').value.trim()}) : {error: {}};
+  $('codeIn').value = '';
+  if (r.error){ $('codeErr').textContent = 'That code did not work. Codes change every 30 seconds, try the newest one.'; return; }
+  refreshAuth();
+});
+$('outBtn').addEventListener('click', async function(){ await db.auth.signOut({scope: 'local'}); location.reload(); });
+db.auth.onAuthStateChange(function(ev){ if (ev === 'SIGNED_OUT') refreshAuth(); });
+
+var DAYS = 28, DATA = {};
+document.querySelectorAll('#rangeTabs button').forEach(function(b){
+  b.addEventListener('click', function(){ document.querySelectorAll('#rangeTabs button').forEach(function(x){ x.classList.toggle('on', x === b); }); DAYS = +b.dataset.days; loadRange(); });
+});
+async function loadAll(){
+  var r = await db.rpc('dashboard_today');
+  if (r.error || !r.data || !r.data.ok){
+    $('noAccess').hidden = false;
+    $('noAccess').textContent = r.error && /dashboard_today|Could not find/i.test(r.error.message || '') ? 'Insights need a database update (migration 0023).' : 'This page is for the owner and managers with access to the sales.';
+    return;
+  }
+  $('noAccess').hidden = true; $('content').hidden = false;
+  renderToday(r.data);
+  loadMonths(); loadRange(); loadStock();
+}
+/* ---------- today: an estimate while the register is open, final once it is closed ---------- */
+function renderToday(d){
+  var T = d.today, L = d.last_week;
+  $('tState').textContent = d.state === 'final' ? 'Final' : d.state === 'estimate' ? 'Estimate' : 'Register not opened';
+  $('tState').className = 'badge' + (d.state === 'final' ? ' final' : '');
+  $('tNet').textContent = fmt(T.net);
+  $('tGross').textContent = 'with IVA ' + fmt(T.gross);
+  $('tOrders').textContent = T.orders;
+  $('tAvg').textContent = T.orders ? 'average ' + fmt(T.gross / T.orders) : '';
+  var lw = d.state === 'final' ? Number(L.gross_day) : Number(L.gross_so_far);
+  $('tLw').textContent = fmt(lw);
+  var ch = lw > 0 ? Math.round(1000 * (Number(T.gross) - lw) / lw) / 10 : null;
+  $('tLwSub').textContent = (d.state === 'final' ? 'whole day' : 'up to this time') + (ch == null ? '' : ' · ' + (ch > 0 ? '▲ ' : ch < 0 ? '▼ ' : '') + pct(Math.abs(ch)) + (ch >= 0 ? ' more today' : ' less today'));
+  var w = [];
+  if (+d.voided.n) w.push(d.voided.n + ' voided (' + fmt(d.voided.total) + ')');
+  if (+d.unpaid.n) w.push(d.unpaid.n + ' not paid yet (' + fmt(d.unpaid.total) + ')');
+  if (d.register && d.register.cash_diff_crc != null && +d.register.cash_diff_crc !== 0) w.push('cash ' + (d.register.cash_diff_crc > 0 ? 'over ' : 'short ') + fmt(Math.abs(d.register.cash_diff_crc)));
+  if (d.register && d.register.card_diff_crc != null && +d.register.card_diff_crc !== 0) w.push('card terminal differs by ' + fmt(Math.abs(d.register.card_diff_crc)));
+  $('tWatch').textContent = w.length ? w.join(' · ') : 'Nothing';
+  $('tHint').textContent = d.state === 'final' ? 'The register is closed: these are the day\'s final numbers.' : 'Until the register is closed these numbers can still change (sales on their way from the tablets, bills not paid yet).';
+}
+/* ---------- months: sales bars, and cost percentages as lines (one unit: %) ---------- */
+var SERIES = [{k: 'food_cost_pct', label: 'Food cost', color: '#A07629'}, {k: 'labor_pct', label: 'Labor', color: '#1E4B33'}, {k: 'prime_pct', label: 'Prime cost (food + labor)', color: '#3B6EA8'}];
+async function loadMonths(){
+  var r = await db.rpc('trends_monthly', {p_months: 12});
+  if (r.error || !r.data || !r.data.ok) return;
+  DATA.months = r.data;
+  var M = r.data.months, svg = $('mSales'), W = svg.clientWidth || 600, H = 190, pad = {l: 8, r: 8, t: 22, b: 22};
+  var max = Math.max.apply(null, M.map(function(m){ return Number(m.net); }).concat([1])), bw = (W - pad.l - pad.r) / M.length;
+  var g = '';
+  M.forEach(function(m, i){
+    var h = (H - pad.t - pad.b) * Number(m.net) / max, x = pad.l + i * bw + 2, y = H - pad.b - h, w = Math.max(bw - 4, 2), r4 = Math.min(4, w / 2, h);
+    g += '<path class="bar" data-i="' + i + '" d="M' + x + ',' + (H - pad.b) + 'V' + (y + r4) + 'Q' + x + ',' + y + ' ' + (x + r4) + ',' + y + 'H' + (x + w - r4) + 'Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r4) + 'V' + (H - pad.b) + 'Z"></path>';
+    g += '<text class="blabel" x="' + (x + w / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(m.month.slice(5)) + '</text>';
+    if (i === M.length - 1 || Number(m.net) === max) g += '<text class="blabel" x="' + (i === M.length - 1 ? x + w : x + w / 2) + '" y="' + (y - 5) + '" text-anchor="' + (i === M.length - 1 ? 'end' : 'middle') + '">' + esc(fmt(m.net)) + '</text>';
+  });
+  svg.innerHTML = '<line x1="' + pad.l + '" x2="' + (W - pad.r) + '" y1="' + (H - pad.b) + '" y2="' + (H - pad.b) + '" stroke="#C9CFB6"></line>' + g;
+  svg.querySelectorAll('.bar').forEach(function(b){ var m = M[+b.dataset.i];
+    b.addEventListener('mousemove', function(e){ showTip(e, m.month + ' · ' + fmt(m.net) + ' without IVA · ' + m.orders + ' orders'); }); b.addEventListener('mouseleave', hideTip); });
+  var series = SERIES.filter(function(s){ return s.k === 'food_cost_pct' || r.data.labor_visible; });
+  $('mLaborHint').hidden = !!r.data.labor_visible;
+  $('mLegend').innerHTML = series.map(function(s){ return '<span><i style="background:' + s.color + '"></i>' + esc(s.label) + '</span>'; }).join('');
+  var ps = $('mPct'), PH = 200, pmax = 10;
+  M.forEach(function(m){ series.forEach(function(s){ if (m[s.k] != null) pmax = Math.max(pmax, Number(m[s.k])); }); });
+  pmax = Math.ceil(pmax / 10) * 10;
+  var x0 = 34, x1 = W - 70, yv = function(v){ return 10 + (PH - 32) * (1 - v / pmax); }, xs = function(i){ return x0 + (M.length > 1 ? i * (x1 - x0) / (M.length - 1) : 0); };
+  var out = '';
+  for (var t = 0; t <= pmax; t += pmax > 40 ? 20 : 10) out += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + yv(t) + '" y2="' + yv(t) + '" stroke="#C9CFB6" stroke-opacity=".45"></line><text class="blabel" x="' + (x0 - 6) + '" y="' + (yv(t) + 4) + '" text-anchor="end">' + t + '%</text>';
+  series.forEach(function(s){
+    var pts = M.map(function(m, i){ return m[s.k] == null ? null : [xs(i), yv(Number(m[s.k])), m]; }).filter(Boolean);
+    if (!pts.length) return;
+    out += '<polyline fill="none" stroke="' + s.color + '" stroke-width="2" points="' + pts.map(function(p){ return p[0] + ',' + p[1]; }).join(' ') + '"></polyline>';
+    pts.forEach(function(p){ out += '<circle class="pt" cx="' + p[0] + '" cy="' + p[1] + '" r="4" fill="' + s.color + '" stroke="#FCF8EC" stroke-width="2" data-t="' + esc(p[2].month + ' · ' + s.label + ' ' + pct(p[2][s.k])) + '"></circle>'; });
+    var last = pts[pts.length - 1];
+    out += '<text class="blabel" x="' + (last[0] + 8) + '" y="' + (last[1] + 4) + '">' + esc(pct(last[2][s.k])) + '</text>';
+  });
+  ps.innerHTML = out;
+  ps.querySelectorAll('.pt').forEach(function(c){ c.addEventListener('mousemove', function(e){ showTip(e, c.dataset.t); }); c.addEventListener('mouseleave', hideTip); });
+  var cols = [['month', 'Month'], ['net', 'Sales, no IVA'], ['orders', 'Orders'], ['avg_ticket', 'Average order'], ['cogs', 'Cost of sales'], ['food_cost_pct', 'Food cost'],
+              ['waste', 'Waste'], ['labor', 'Labor'], ['labor_pct', 'Labor %'], ['prime_pct', 'Prime cost'], ['expenses', 'Expenses'], ['purchases', 'Purchases']];
+  $('mTable').innerHTML = '<thead><tr>' + cols.map(function(c, i){ return '<th' + (i ? ' class="r"' : '') + '>' + esc(c[1]) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    M.map(function(m){ return '<tr>' + cols.map(function(c, i){ var v = m[c[0]]; return '<td' + (i ? ' class="r mono"' : '') + '>' + (i === 0 || c[0] === 'orders' ? esc(v) : /pct/.test(c[0]) ? esc(pct(v)) : v == null ? '–' : fmt(v)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
+}
+$('mCsv').addEventListener('click', function(){ if (!DATA.months) return;
+  download('tendencias.csv', [['month', 'net_crc', 'gross_crc', 'orders', 'avg_ticket', 'cogs', 'food_cost_pct', 'waste', 'purchases', 'labor', 'labor_pct', 'prime_pct', 'expenses']].concat(
+    DATA.months.months.map(function(m){ return [m.month, m.net, m.gross, m.orders, m.avg_ticket, m.cogs, m.food_cost_pct, m.waste, m.purchases, m.labor, m.labor_pct, m.prime_pct, m.expenses]; }))); });
+/* ---------- the range: patterns, products, suppliers ---------- */
+var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+async function loadRange(){
+  var from = crToday(-(DAYS - 1)), to = crToday(0);
+  var r = await Promise.all([db.rpc('sales_patterns', {p_from: from, p_to: to}), db.rpc('product_profitability', {p_from: from, p_to: to}),
+                             db.rpc('supplier_insights', {p_from: from, p_to: to})]);
+  if (!r[0].error && r[0].data && r[0].data.ok) renderPatterns(r[0].data);
+  if (!r[1].error && r[1].data && r[1].data.ok) renderProducts(r[1].data);
+  if (!r[2].error && r[2].data && r[2].data.ok) renderSuppliers(r[2].data);
+}
+function renderPatterns(d){
+  DATA.patterns = d;
+  var hours = d.week_hours.map(function(x){ return x.hour; }), h0 = Math.min.apply(null, hours.concat([7])), h1 = Math.max.apply(null, hours.concat([18]));
+  var max = Math.max.apply(null, d.week_hours.map(function(x){ return Number(x.avg_gross); }).concat([1])), cell = {};
+  d.week_hours.forEach(function(x){ cell[x.dow + ':' + x.hour] = x; });
+  var heat = $('heat'); heat.style.setProperty('--hours', h1 - h0 + 1);
+  var html = '<span></span>';
+  for (var h = h0; h <= h1; h++) html += '<span style="text-align:center">' + (h % 2 ? '' : h) + '</span>';
+  for (var dw = 1; dw <= 7; dw++){
+    html += '<span>' + esc(DOW[dw - 1]) + '</span>';
+    for (h = h0; h <= h1; h++){
+      var c = cell[dw + ':' + h], v = c ? Number(c.avg_gross) / max : 0;
+      /* one hue, light to dark (#EEF0E2 → #1E4B33) */
+      var mix = function(a, b){ return Math.round(a + (b - a) * Math.sqrt(v)); };
+      html += '<span class="c" data-t="' + esc(DOW[dw - 1] + ' ' + h + ':00 · ' + (c ? fmt(c.avg_gross) + ' on average' : 'no sales')) + '" style="background:rgb(' + mix(238, 30) + ',' + mix(240, 75) + ',' + mix(226, 51) + ')"></span>';
+    }
+  }
+  heat.innerHTML = html;
+  heat.querySelectorAll('.c').forEach(function(c){ c.addEventListener('mousemove', function(e){ showTip(e, c.dataset.t); }); c.addEventListener('mouseleave', hideTip); });
+  var cmax = Math.max.apply(null, d.categories.map(function(c){ return Number(c.gross); }).concat([1]));
+  $('catBars').innerHTML = d.categories.length ? d.categories.map(function(c){ return '<div class="hbar-row"><span class="nm">' + esc(c.category) + '</span><div class="hbar-track"><div class="hbar-fill" style="width:' +
+    (100 * Number(c.gross) / cmax) + '%"></div></div><span class="v mono">' + fmt(c.gross) + '</span></div>'; }).join('') : '<p class="empty">' + esc('No sales in these days.') + '</p>';
+  $('lDisc').textContent = fmt(d.leaks.discounts); $('lVoid').textContent = fmt(d.leaks.voids_total); $('lVoidN').textContent = d.leaks.voids_n + ' orders';
+  $('lRef').textContent = fmt(d.leaks.refunds_total); $('lRefN').textContent = d.leaks.refunds_n + ' sales';
+}
+function renderProducts(d){
+  DATA.products = d;
+  var sold = d.rows.filter(function(x){ return Number(x.units) > 0; });
+  var tb = $('pTable').querySelector('tbody');
+  tb.innerHTML = sold.slice(0, 12).map(function(x){ var high = x.food_cost_pct != null && Number(x.food_cost_pct) > 35;
+    return '<tr><td>' + esc(x.name) + (x.has_recipe ? '' : ' <span class="pill">' + esc('No recipe') + '</span>') + '</td><td class="r mono">' + esc(x.units) + '</td><td class="r mono">' + fmt(x.net_crc) +
+      '</td><td class="r mono">' + fmt(x.margin_crc) + '</td><td class="r mono' + (high ? ' bad' : '') + '">' + (x.has_recipe ? esc(pct(x.food_cost_pct)) + (high ? ' ▲' : '') : '–') + '</td></tr>'; }).join('') ||
+    '<tr><td colspan="5" class="empty">' + esc('No sales in these days.') + '</td></tr>';
+  var noRec = sold.filter(function(x){ return !x.has_recipe; }).length, hi = sold.filter(function(x){ return x.has_recipe && Number(x.food_cost_pct) > 35; }).length;
+  $('pHint').innerHTML = ['The 12 that left the most.', hi ? hi + ' with food cost over 35 % (▲).' : '', noRec ? noRec + ' sold without a recipe: their cost is unknown.' : '']
+    .filter(Boolean).map(function(t){ return '<span>' + esc(t) + '</span>'; }).join(' ');
+}
+$('pCsv').addEventListener('click', function(){ if (!DATA.products) return;
+  download('productos.csv', [['product', 'units', 'net_crc', 'cost_crc', 'margin_crc', 'food_cost_pct', 'recipe_cost_crc', 'unit_margin_crc', 'has_recipe']].concat(
+    DATA.products.rows.map(function(x){ return [x.name, x.units, x.net_crc, x.cost_crc, x.margin_crc, x.food_cost_pct, x.recipe_cost_crc, x.unit_margin_crc, x.has_recipe ? 'yes' : 'no']; }))); });
+function renderSuppliers(d){
+  DATA.suppliers = d;
+  var tb = $('vTable').querySelector('tbody');
+  var rows = d.vendors.filter(function(v){ return Number(v.received) > 0 || Number(v.owed) > 0 || v.prices.length; });
+  tb.innerHTML = rows.map(function(v){
+    var ch = v.prices.filter(function(p){ return p.change_pct != null && Math.abs(Number(p.change_pct)) >= 5; })
+      .map(function(p){ return esc(p.item + ' ' + (Number(p.change_pct) > 0 ? '▲ ' : '▼ ') + pct(Math.abs(Number(p.change_pct)))); }).join(' · ');
+    return '<tr><td>' + esc(v.name) + '</td><td class="r mono">' + fmt(v.received) + '</td><td class="r mono">' + esc(v.deliveries) + '</td><td class="r mono' + (+v.late ? ' bad' : '') + '">' +
+      (v.avg_days == null ? '–' : esc(String(v.avg_days).replace('.', ',') + ' / ' + v.lead_days)) + (+v.late ? esc(' · ' + v.late + ' late') : '') + '</td><td class="r mono">' + fmt(v.owed) + '</td><td>' + ch + '</td></tr>';
+  }).join('') || '<tr><td colspan="6" class="empty">' + esc('No purchases in these days.') + '</td></tr>';
+}
+$('vCsv').addEventListener('click', function(){ if (!DATA.suppliers) return;
+  var rows = [['supplier', 'received_crc', 'deliveries', 'avg_days', 'usual_days', 'late', 'owed_crc', 'item', 'first_unit_cost', 'last_unit_cost', 'change_pct']];
+  DATA.suppliers.vendors.forEach(function(v){ (v.prices.length ? v.prices : [{}]).forEach(function(p){ rows.push([v.name, v.received, v.deliveries, v.avg_days, v.lead_days, v.late, v.owed, p.item, p.first, p.last, p.change_pct]); }); });
+  download('proveedores.csv', rows); });
+/* ---------- stock: when each item runs out ---------- */
+var ST_LABEL = {order_now: 'Order now', soon: 'Order within 3 days', ok: 'Fine', no_use: 'Not used lately'};
+async function loadStock(){
+  var r = await db.rpc('stock_forecast');
+  if (r.error || !r.data || !r.data.ok) return;
+  DATA.stock = r.data;
+  var items = r.data.items.filter(function(x){ return x.status === 'order_now' || x.status === 'soon'; });
+  $('sTable').querySelector('tbody').innerHTML = items.map(function(x){
+    return '<tr><td>' + esc(x.name) + (x.below_zero ? ' <span class="pill">' + esc('Below zero: count it') + '</span>' : '') + '</td><td><span class="status ' + (x.status === 'order_now' ? 'now' : 'soon') + '">' + '<span aria-hidden="true">' + (x.status === 'order_now' ? '● ' : '◐ ') + '</span>' + esc(ST_LABEL[x.status]) +
+      '</span></td><td class="r mono">' + esc(String(x.days_left).replace('.', ',')) + '</td><td class="r mono">' + esc(Number(x.per_day).toLocaleString('fr-FR', {maximumFractionDigits: 1}) + ' ' + x.unit) +
+      '</td><td>' + esc(x.vendor || '') + '</td><td class="r mono">' + (x.suggest_packs ? esc(x.suggest_packs + ' × ' + (x.pack_label || 'pack')) : '') + '</td></tr>'; }).join('') ||
+    '<tr><td colspan="6" class="empty">' + esc('Nothing needs ordering in the next days.') + '</td></tr>';
+}
+$('sCsv').addEventListener('click', function(){ if (!DATA.stock) return;
+  download('pronostico-inventario.csv', [['item', 'status', 'on_hand', 'incoming', 'unit', 'per_day', 'days_left', 'runs_out', 'order_by', 'vendor', 'lead_days', 'suggest_packs']].concat(
+    DATA.stock.items.map(function(x){ return [x.name, x.status, x.on_hand, x.incoming, x.unit, x.per_day, x.days_left, x.runs_out, x.order_by, x.vendor, x.lead_days, x.suggest_packs]; }))); });
+refreshAuth();
+</script>
+<script src="lang.js?v=334624c08bff"></script>
+</body>
+</html>
