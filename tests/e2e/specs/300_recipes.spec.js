@@ -252,8 +252,8 @@ module.exports.tests = [
     name: 'a database without 0030 (or after its rollback): the page saves recipes the old way, without PIN or history',
     run: async ({ browser }) => {
       setup();
-      // newest first: 0032, 0031, then 0030
-      for (const f of ['reversion-0033.sql', 'reversion-0032.sql', 'reversion-0031.sql', 'reversion-0030.sql']) {
+      // newest first: 0035, 0034, 0033, 0032, 0031, then 0030 (each reversal refuses to run while a later migration is still applied)
+      for (const f of ['reversion-0035.sql', 'reversion-0034.sql', 'reversion-0033.sql', 'reversion-0032.sql', 'reversion-0031.sql', 'reversion-0030.sql']) {
         const r = spawnSync('psql', ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '--single-transaction', '-d', process.env.CANOPY_E2E_DB,
           '-f', path.join(ROOT, 'supabase/tools', f)], { encoding: 'utf8' });
         assert.strictEqual(r.status, 0, 'the rollback ' + f + ' runs: ' + r.stderr);

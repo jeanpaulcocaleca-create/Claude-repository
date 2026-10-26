@@ -35,8 +35,8 @@ reset role;
 
 -- 4) money is a number: NaN and infinity are refused
 select test.login('owner', 'aal2'); set role authenticated;
-select test.throws($$select public.expense_save('{"date":"2026-10-01","description":"x","account":"6299","amount_crc":"NaN","paid_from":"bank"}', gen_random_uuid())$$,
-                   'finite', 'an expense of NaN is refused');
+select test.eq(public.expense_save('{"date":"2026-10-01","description":"x","account":"6299","amount_crc":"NaN","iva_crc":0,"paid_from":"bank"}', gen_random_uuid())->>'error',
+               'bad_value', 'an expense of NaN is refused (0034/0035 answer bad_value before the finite check of 0025 is reached)');
 select test.throws($$select public.acct_entry_post(public.cr_today(), 'x', '[{"account":"1110","debit":"Infinity"},{"account":"3101","credit":"Infinity"}]', gen_random_uuid())$$,
                    'finite|unbalanced|infinity|overflow', 'an entry of infinity is refused');
 reset role;
@@ -49,7 +49,7 @@ insert into acct.periods (id, starts_on, ends_on, status) values
   on conflict (id) do update set status = 'locked';
 select test.login('owner', 'aal2'); set role authenticated;
 select test.eq(public.expense_save(jsonb_build_object('date', (date_trunc('month', public.cr_today()) - interval '2 months')::date, 'description', 'atrasado',
-       'account', '6299', 'amount_crc', 1000, 'paid_from', 'bank'), gen_random_uuid())->>'error', 'period_closed', 'a month before a locked one is born closed');
+       'account', '6299', 'amount_crc', 1000, 'iva_crc', 0, 'paid_from', 'bank'), gen_random_uuid())->>'error', 'period_closed', 'a month before a locked one is born closed');
 reset role;
 delete from acct.periods where id >= 200001;   -- test only: nothing was posted
 

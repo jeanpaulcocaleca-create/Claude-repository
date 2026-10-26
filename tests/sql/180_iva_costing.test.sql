@@ -30,7 +30,7 @@ select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(),
 select test.eq(public.supplier_invoice_save(jsonb_build_object('vendor_id', '5b000000-0000-4000-8000-000000001801', 'number', 'L-5', 'date', public.cr_today(),
        'net_crc', 2000, 'iva_crc', 260, 'account', '6206'), gen_random_uuid())->>'ok', 'true', 'a supplier invoice with IVA');
 select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Pan', 'vendor_name', 'Panadería', 'account', '6299',
-       'amount_crc', 3000, 'paid_from', 'cash'), gen_random_uuid())->>'ok', 'true', 'a purchase without IVA');
+       'amount_crc', 3000, 'iva_crc', 0, 'paid_from', 'cash'), gen_random_uuid())->>'ok', 'true', 'a purchase without IVA (said so: since 0034 the server never assumes the IVA)');
 
 -- 1) IVA: 4520 × 13/113 = 520 and 2260 → 260, given back: −260 ; credits 1300 + 260
 select public.iva_report(public.cr_today(), public.cr_today()) as iv \gset

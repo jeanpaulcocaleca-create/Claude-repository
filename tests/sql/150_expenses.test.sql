@@ -4,14 +4,19 @@ select test.login('cafe'); set role authenticated;
 select test.eq(public.expense_save('{"date":"2026-10-01","description":"x","account":"6204","amount_crc":1130,"paid_from":"cash"}', gen_random_uuid())->>'error',
                'not_allowed', 'a locked café device cannot record expenses');
 select test.unlock(test.staff('ana'), '4826');
+-- since 0034 a tablet with a manager PIN registers no expenses either (it could from 0014 to 0033): the owner with the phone code or the accountant do
+select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Jabón y cloro', 'account', '6204', 'amount_crc', 11300, 'iva_crc', 1300, 'paid_from', 'petty'),
+               gen_random_uuid())->>'error', 'not_allowed', 'a manager with a PIN cannot record expenses (0034)');
+reset role;
+select test.login('owner', 'aal2'); set role authenticated;
 select public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Jabón y cloro', 'vendor_name', 'Súper Monteverde', 'account', '6204',
        'amount_crc', 11300, 'iva_crc', 1300, 'paid_from', 'petty', 'invoice_no', '00100001010000012345'), '7e000000-0000-4000-8000-000000001501') as x1 \gset
-select test.eq((:'x1'::jsonb)->>'ok', 'true', 'a manager with a PIN records a petty-cash expense');
+select test.eq((:'x1'::jsonb)->>'ok', 'true', 'the owner with the phone code records a petty-cash expense');
 select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Jabón y cloro', 'vendor_name', 'Súper Monteverde', 'account', '6204',
        'amount_crc', 11300, 'iva_crc', 1300, 'paid_from', 'petty', 'invoice_no', '00100001010000012345'), '7e000000-0000-4000-8000-000000001501')->>'repeat', 'true',
        'sending it again changes nothing');
 select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'otra vez', 'vendor_name', 'súper monteverde', 'account', '6204',
-       'amount_crc', 11300, 'paid_from', 'cash', 'invoice_no', '00100001010000012345'), gen_random_uuid())->>'error', 'duplicate_invoice',
+       'amount_crc', 11300, 'iva_crc', 1300, 'paid_from', 'cash', 'invoice_no', '00100001010000012345'), gen_random_uuid())->>'error', 'duplicate_invoice',
        'the same invoice of the same supplier is refused');
 select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'x', 'account', '1101', 'amount_crc', 100, 'paid_from', 'cash'), gen_random_uuid())->>'error',
        'bad_account', 'only expense accounts');

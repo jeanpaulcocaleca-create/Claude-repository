@@ -47,9 +47,13 @@ declare
                        'public.payroll_rules.reference', 'public.payroll_lines.other_note', 'public.payroll_lines.extra_note',
                        'public.payroll_params.reference', 'public.staff_profile.notes', 'public.vacations.note', 'public.vacations.void_reason',
                        'public.payroll_special_runs.note', 'public.e_documents.last_error', 'public.recipe_versions.reason',
+                       -- 0034/0035: how a supplier is paid (may hold an account or a SINPE number), a recurring bill's text, a payment's reference
+                       'public.vendors.payment_notes', 'public.expense_schedules.description', 'public.expense_payments.reference',
+                       'public.expense_payments.void_reason',
                        'acct.entries.memo', 'acct.lines.memo'];
   -- emptied (nullable): a bank account's last digits, the e-invoice receiver and Hacienda's answer about it
-  cleared text[] := array['public.bank_accounts.last4', 'public.e_documents.receiver', 'public.e_documents.response'];
+  cleared text[] := array['public.bank_accounts.last4', 'public.e_documents.receiver', 'public.e_documents.response',
+                          'public.vendors.tax_id'];   -- 0034: a supplier's cédula
   -- handled one by one below
   special text[] := array['public.staff.name', 'public.staff.pin_hash', 'public.vendors.name', 'public.vendors.contact_name', 'public.vendors.phone',
                           'public.vendors.whatsapp', 'public.vendors.email', 'public.orders.guest_name', 'public.orders.guest_phone',
@@ -93,7 +97,11 @@ declare
                        'public.staff.role', 'public.staff_pay.kind', 'public.stock_items.category', 'public.stock_items.name',
                        'public.stock_items.pack_label', 'public.stock_items.unit', 'public.stock_moves.kind', 'public.supplier_invoices.account',
                        'public.supplier_invoices.number', 'public.supplier_payments.paid_from', 'public.tab_adds.result', 'public.tax_rates.code',
-                       'public.tax_rates.name', 'public.vendors.order_days'];
+                       'public.tax_rates.name', 'public.vendors.order_days',
+                       -- 0034/0035: a supplier's habitual account and payment method, a recurring bill's codes, a payment's method, a period key
+                       'public.vendors.default_account', 'public.vendors.default_paid_from', 'public.expense_schedules.account',
+                       'public.expense_schedules.paid_from', 'public.expense_schedules.every', 'public.expense_payments.paid_from',
+                       'public.expenses.period_key'];
   unknown text;
 begin
   if pin !~ '^[0-9]{4,8}$' then raise exception 'STAGING_PIN debe tener de 4 a 8 dígitos'; end if;

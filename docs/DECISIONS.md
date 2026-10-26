@@ -2044,3 +2044,84 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Release consequence:** `v2026.10.25-1` is never published and stays where it is (a tag is never deleted or moved:
   CLAUDE.md, `docs/ACTIVACION-PINES.md` step 4.1.2); E-36 continues from a new tag on the commit that carries this fix,
   after that tag's own «Tests» is green. `docs/ACTIVACION-PINES.md` says so in its heading and in step 4.1.2.
+
+## D-057 · 2026-10-26 · The accounting redesign built: contabilidad.html next to accounting.html, migrations 0034/0035, nothing published
+
+- **What the owner ordered (2026-10-26, «Orden maestra de construcción»):** build the whole redesign of the analysis
+  document (`docs/CONTABILIDAD-REDISENO.md`, prototype v5) end to end, without approvals per phase; keep the prototype's
+  design; eight sections (Resumen, Gastos, Proveedores, Ingresos, Compras, Banco y efectivo, Reportes, Contabilidad);
+  «Nuevo gasto» in 10–15 s with only supplier, amount, date, note and receipt, the rest from each supplier's habits, asking
+  only what is missing and never inventing IVA, category or payment method; only owners with the code and the accountant
+  register expenses, **checked on the server**; one supplier base shared with Inventory; income from the register, never
+  typed; estimates, register figures and the books told apart; the Costa Rican business day; a new page in parallel with
+  `accounting.html` as the fallback; Supabase only; the migration number checked before using 0034; and the production
+  conditions of §10 (real E-05 state, backup and restore verified, no register at risk, every test green, reversal
+  rehearsed, a low-activity window) before any publication — «if any cannot be confirmed, leave it finished, tested and
+  ready, and do not publish».
+- **Built:** `website/contabilidad.html` + `contabilidad.js` + `charts.js` (plain SVG, D-020), the Home tile and the
+  Insights link now open the new page (the old one stays reachable from the new page's sidebar and keeps working with
+  and without the new migrations); `0034_contabilidad_lecturas.sql` and `0035_contabilidad_gastos.sql` with their
+  reversal scripts (`supabase/tools/reversion-0034.sql`, `reversion-0035.sql`), `release-check.sql` and the snapshot's
+  known functions updated; SQL tests 410/420 and browser spec 360; the Spanish dictionary for every text of the page.
+  Numbering: no 0034 exists in any branch or open pull request (checked 2026-10-26); the pending discounts work has no
+  migration file yet, so it takes 0036 or later.
+- **Decisions inside the build:**
+  - *Expenses only with the books' door.* `expense_save`, `expense_list`, `cash_position`, `acct_audit`,
+    `vendor_defaults_save` and the 0035 functions require `acct.can_read()` (owner with the phone code or the accountant).
+    Before 0034 a café tablet unlocked with a manager PIN could register an expense (0019); the owner's order forbids it.
+    Supplier invoices and payments from Inventory (receive + pay with the PIN) are untouched, so the café's day does not
+    change. The receipts bucket follows the same rule (`_receipts_allowed`).
+  - *Habits per supplier, never a guess.* Six columns on `vendors`; the form fills category, IVA rate and payment method
+    from them and asks only what is missing; the first time it offers to remember what the person chose (checked by
+    default, saved only if ticked, by `vendor_defaults_save`, audited). The server refuses to post with a missing piece
+    (`needs_account`, `needs_paid_from`, `needs_iva`) instead of defaulting.
+  - *Credit expenses keep their receipt and category.* Option (b) of the analysis: `expense_payments` posts «D 2101 /
+    C cash-bank-petty-payout-card» against the same payable as the expense; `ap_aging.expenses_on_credit` nets the
+    payments so the tie-out holds; a payment is voided by a reversal, never deleted; never more than what is owed.
+  - *Recurring bills remind, people confirm.* `expense_schedules` + `expense_due` give a deterministic request id per
+    template and period (md5 of id, due date and attempt), so the pre-filled «Nuevo gasto» registers once even on a
+    double tap and the server's future-date rule still applies (the bill is registered on the day it is paid).
+  - *Figures labelled by their source.* «from the register» (closes), «estimate» (recipes, hours), «from the documents»
+    (expenses, invoices), «in the books» (posted days only), «draft» (IVA). Months without data are shown as such, never as
+    zeros; «Year» is read in pieces because several functions cap their range (92/366/400 days).
+  - *Costa Rican business day everywhere:* periods, tables and timestamps shown as the Costa Rican date (no summer time
+    there), which fixed a purchases filter that compared the UTC date.
+  - *Receipt photos from the new page wait for E-17.* The order says a receipt-photo feature is not published until the
+    backup and restore of the private files are verified, and that cannot be done from here (the owner's S3 keys). So the
+    camera and attach controls of the new page are behind the owner's switch `expense_receipt_photos` (0035, Home →
+    Settings, default off); opening an existing receipt and the old page's attach stay as they are today.
+  - *Accountant reads suppliers and purchases, not individual sales.* `vendors_list`, `vendor_history`, `purchases_list`
+    open to `_ap_allowed`; `vendor_save` stays owner-only; `order_search` (per-receipt) stays the owner's, as the analysis
+    recommended (4b).
+  - *Payroll untouched:* the new page links to `accounting.html#payroll`; no payroll, e-invoicing or tax rule changes.
+- **Independent reviews (security, accounting integrity, front end; 2026-10-26) and what they changed before the commit:**
+  the café tablet with a manager PIN no longer receives a supplier's expenses, cédula, payment notes or habits through
+  `vendor_history`/`vendors_list` (those fields need the books' door); `expense_void` refuses a credit expense with
+  payments standing (`has_payments`) and gives a voided reminder period back to the schedule; `cash_position` nets the
+  expense payments made from a register payout; a recurring template born from a bill paid today falls due next period,
+  not today; the reminder's period key must be the one offered; NaN amounts, payments dated before their expense and
+  the automatic accounts (cash differences, waste, counts, price differences) are refused with a named error; the
+  month state of a period is «estimate» while any sales day has no closed register; the overview's profit and costs are
+  tagged estimates; the income statement shows refunds as a memo inside revenue (no IVA) and the IVA of the period nets
+  the IVA given back; service invoices count in the expenses-by-category chart; the 0035 reversal keeps the switch rows.
+  Front end, after the UX review: sub-tab and report bodies keep a sequence guard (no mixed tab and body on two quick taps);
+  every write forgets the whole read cache; the amount typed is echoed as read («Monto leído») so a «1.500» read as ₡1,5
+  is seen before saving; «Recordar» is pre-ticked only the first time a supplier's habits are filled, a one-off change is
+  not remembered unless asked; suppliers match without accents and a name not on the list says so; a lost connection
+  says «Sin conexión» and a drawer that cannot read never fails in silence; the phone menu closes on the scrim; money
+  is never cut with an ellipsis; touch targets follow the pointer, not only the width; the bank posting asks for the
+  account; the expense-by-category and labour-cost reports, the aging table with its CSV and the lists of invoices and
+  payments of the last three months are back (parity with the old page); reports accept a free date range; dated tables
+  reload when the typed dates leave the period; the attachment is called «comprobante», the sales ticket «recibo».
+  Known and accepted: `expense_schedule_save` has no request id (a resubmitted template creates a second reminder, no
+  money); oversize texts are cut to their column length; a malformed boolean or number in `vendor_save` surfaces as a
+  generic error; `acct_overview.pending_days` lists a closed day with nothing to post forever (pre-existing).
+- **Side effects on what existed:** every reversal script refuses to run while a later migration is applied, so the
+  rollback chain in the recipe tests (`300_recipes` browser test, SQL 340/360/370/400) now reverts 0035 and 0034 first;
+  the staging anonymizer (`ops/backup/repositorio-respaldos/anonimizar.sql`) classifies the new text columns (E-38) and
+  the production snapshot tool knows the 0034/0035 function bodies.
+- **Not done, on purpose:** nothing applied to production, no tag, nothing published. The §10 conditions that cannot be
+  confirmed from here are listed in `docs/ACTIVACION-CONTABILIDAD.md` and in E-37 (the real E-05 state and the active
+  sessions, the backup and restore of today, the register state and the window). The owner runs the steps; the pages
+  work with and without 0034/0035 (the new page says which migration is missing; the old page does not notice them).
+

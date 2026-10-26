@@ -284,7 +284,7 @@ select test.eq(public.po_receive_and_settle('9a000000-0000-4000-8000-00000000321
 select payout_id as p3 from public.purchase_receipts where id = '7e000000-0000-4000-8000-000000003210' \gset
 reset role; select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.expense_save(jsonb_build_object('date', public.cr_today(), 'description', 'Lácteos, pagado de caja', 'vendor_name', 'Lácteos Monteverde', 'account', '6204', 'amount_crc', 1000,
-         'paid_from', 'payout', 'payout_id', :'p3'), gen_random_uuid())->>'ok', 'true', 'the accountant documents it as an expense');
+         'iva_crc', 0, 'paid_from', 'payout', 'payout_id', :'p3'), gen_random_uuid())->>'ok', 'true', 'the accountant documents it as an expense');
 reset role; select test.login('cafe'); set role authenticated; select test.unlock(test.staff('ana'), '4826');
 select test.eq((public.po_history('9a000000-0000-4000-8000-000000003210')->'receipts'->0->'payout'->>'documented'), 'true', 'the history knows it is documented');
 select public.po_receipt_settle('7e000000-0000-4000-8000-000000003210', jsonb_build_object('mode', 'confirm', 'number', 'P-1', 'date', :'today', 'net', 1000, 'iva', 0), '[]') as r10 \gset

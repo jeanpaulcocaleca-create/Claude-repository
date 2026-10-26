@@ -9,9 +9,11 @@ select test.eq(public.manager_save_staff(null, null, null, 'Nuevo', '5284', true
 reset role;
 
 \o /dev/null
+\ir ../../supabase/tools/reversion-0035.sql
+\ir ../../supabase/tools/reversion-0034.sql
 \ir ../../supabase/tools/reversion-0033.sql
 \o
-select test.eq(public.canopy_schema_version(), 32, 'the database is back at version 32');
+select test.eq(public.canopy_schema_version(), 32, 'the database is back at version 32 (0035 and 0034 reverted first: each reversal refuses while a later migration is applied)');
 select test.ok(to_regprocedure('public.pin_lock_clear(uuid, uuid, text)') is null and to_regprocedure('public.access_lock_all()') is null
                and to_regprocedure('public._jwt_session()') is null, 'the new functions are gone');
 select test.eq((select string_agg(left(md5(p.prosrc), 12), ' ' order by p.proname) from pg_proc p
