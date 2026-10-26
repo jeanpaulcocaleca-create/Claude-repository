@@ -16,6 +16,17 @@ const STAFF = {
 const PINS = { ana: '4826', luis: '5284', marta: '6173', dueno: '7391' };
 const LOGINS = { cafe: 'cafe@test.local', owner: 'owner@test.local', accountant: 'contador@test.local' };
 
+/* Costa Rica's business day (UTC−6 all year), counted as pos.html (crTodayStr, crDay) and supabase/register.sql
+   (cr_today, cr_day_start) count it. A spec builds the moments it seeds from it, never from the wall clock alone: run
+   right after midnight, "15 minutes ago" is yesterday's business day, and the till sends what was added to or paid on
+   a bill of another day as separate steps (D-060) */
+function crToday(days) { return new Date(Date.now() - 6 * 3600000 + (days || 0) * 86400000).toISOString().slice(0, 10); }
+function crDayStart(days) { return new Date(crToday(days) + 'T00:00:00-06:00'); }
+/* `minutes` ago, but no earlier than the start of today's business day */
+function earlierToday(minutes) { return new Date(Math.max(Date.now() - minutes * 60000, crDayStart().getTime())).toISOString(); }
+/* yesterday's business day, `minutes` before midnight */
+function lastNight(minutes) { return new Date(crDayStart().getTime() - minutes * 60000).toISOString(); }
+
 function sql(q, db) {
   const r = spawnSync('psql', ['-X', '-At', '-v', 'ON_ERROR_STOP=1', '-d', db || process.env.CANOPY_E2E_DB, '-c', q], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error('SQL failed: ' + r.stderr + '\n' + q);
@@ -78,13 +89,28 @@ function openRegister(floatCrc) {
        values (public.cr_today(), '${STAFF.ana}', 'Ana', ${floatCrc || 50000}) on conflict (business_date) do nothing`);
 }
 
-/* the POS with the menu loaded and the register open */
+/* The POS asks for today's register while the menu loads (loadRegister) and, on a main register, opens the Today
+   window by itself when no day is open or a day from before midnight is still open (nudgeRegister). The answer can
+   come after the products are drawn: a spec that looked for the window as soon as they showed could miss it, and the
+   window then took the till's clicks (the runs of 2026-10-26 around midnight, D-060). This waits for that decision. */
+async function registerLoaded(pg) {
+  await until(() => pg.evaluate(() => REG !== null || !REG_SUPPORT || REG_CHECK_FAILED || !(STATION && STATION.main)
+                                       || localStorage.getItem('hg-pos-reg-nudge') === todayKey()), 15000, 'the register to load');
+}
+/* ...and closes the Today window when the POS opened it */
+async function registerSettled(pg) {
+  await registerLoaded(pg);
+  if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
+}
+
+/* the POS with the menu loaded and the register open, its Today window closed */
 async function pos(browser, opts) {
   opts = Object.assign({ login: 'cafe', lang: 'en' }, opts || {});
   if (opts.register !== false) openRegister();
   const pg = await page(browser, opts);
   await goto(pg, '/pos');
   await pg.waitForSelector('.pbtn', { timeout: 15000 });
+  await registerSettled(pg);
   return pg;
 }
 
@@ -94,4 +120,5 @@ async function cashExact(pg) {
   await pg.click('#cashExact');
 }
 
-module.exports = { page, goto, until, sql, sqlJson, openRegister, pos, cashExact, SITE, STAFF, PINS, LOGINS, ROOT };
+module.exports = { page, goto, until, sql, sqlJson, openRegister, registerLoaded, registerSettled, pos, cashExact,
+                   crToday, crDayStart, earlierToday, lastNight, SITE, STAFF, PINS, LOGINS, ROOT };

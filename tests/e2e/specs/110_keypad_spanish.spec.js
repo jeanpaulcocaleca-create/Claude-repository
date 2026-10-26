@@ -1,7 +1,7 @@
 /* Touch screens get large on-screen pads; staff screens start in Spanish. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, registerSettled, STAFF, PINS } = require('../lib');
 
 async function touchPos(browser, opts) {
   openRegister();
@@ -19,6 +19,7 @@ module.exports.tests = [
       const pg = await touchPos(browser);
       await goto(pg, '/pos');
       await pg.waitForSelector('.pbtn', { timeout: 15000 });
+      await registerSettled(pg);
       await pg.click('#ordersBtn');
       await pg.locator('.orow', { hasText: 'Espresso' }).first().locator('button', { hasText: 'Void' }).click();
       await pg.fill('#vReason', 'prueba');
@@ -41,6 +42,7 @@ module.exports.tests = [
       const pg = await touchPos(browser);
       await goto(pg, '/pos');
       await pg.waitForSelector('.pbtn', { timeout: 15000 });
+      await registerSettled(pg);
       await pg.click('#dayBtn');
       await pg.waitForSelector('#rcCash', { state: 'visible', timeout: 5000 });
       await pg.focus('#rcCash');
@@ -61,6 +63,7 @@ module.exports.tests = [
       const pg = await page(browser, { login: 'cafe', lang: 'en' });
       await goto(pg, '/pos');
       await pg.waitForSelector('.pbtn', { timeout: 15000 });
+      await registerSettled(pg);
       await pg.click('#dayBtn');
       await pg.waitForSelector('#rcCash', { state: 'visible', timeout: 5000 });
       await pg.focus('#rcCash');

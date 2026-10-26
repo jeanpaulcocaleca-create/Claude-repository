@@ -1,9 +1,8 @@
 /* The bank (migration 0020): an account, a statement imported from the bank's CSV, matching and posting. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql } = require('../lib');
+const { page, goto, until, sql, crToday } = require('../lib');
 
-function crDay(offset) { return new Date(Date.now() - 6 * 3600000 + offset * 86400000).toISOString().slice(0, 10); }
 function dmy(iso) { const [y, m, d] = iso.split('-'); return d + '/' + m + '/' + y; }
 
 module.exports.tests = [
@@ -23,8 +22,8 @@ module.exports.tests = [
       await until(() => sql(`select name || ':' || gl_account from bank_accounts`) === 'BCR colones:1110', 8000, 'account saved');
       await until(async () => pg.locator('#bkFile').isVisible(), 8000, 'import card');
       const csv = '﻿Fecha;Descripción;Referencia;Débito;Crédito;Saldo\n' +
-        dmy(crDay(-1)) + ';DEPOSITO EFECTIVO;1001;;30.000,00;130.000,00\n' +
-        dmy(crDay(0)) + ';"COMISION; MANTENIMIENTO";1002;350,00;;129.650,00\n' +
+        dmy(crToday(-1)) + ';DEPOSITO EFECTIVO;1001;;30.000,00;130.000,00\n' +
+        dmy(crToday(0)) + ';"COMISION; MANTENIMIENTO";1002;350,00;;129.650,00\n' +
         ';;;;Total;\n';
       await pg.setInputFiles('#bkFile', { name: 'bcr-octubre.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') });
       await until(async () => /2 movimientos · 1 filas dejadas fuera/.test(await pg.locator('#bkPrevNote').textContent()), 8000, 'preview: 2 movements, the total row left out');

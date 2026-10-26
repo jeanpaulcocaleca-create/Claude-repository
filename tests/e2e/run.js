@@ -82,6 +82,11 @@ async function startPostgrest(bin, db, port) {
   const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
 
   const specs = fs.readdirSync(SPEC_DIR).filter((f) => f.endsWith('.spec.js') && f.includes(filter)).sort();
+  /* the café's business day turns at midnight in Costa Rica (UTC−6): a test that straddles it opens today's register and
+     then sells tomorrow. The specs build what they seed from the business day (lib.js, D-060); a run this close to it is
+     still read with that in mind */
+  const cr = new Date(Date.now() - 6 * 3600000), hm = cr.getUTCHours() * 60 + cr.getUTCMinutes();
+  if (hm >= 23 * 60 + 40 || hm < 10) console.log(`  note  it is ${cr.toISOString().slice(11, 16)} in Costa Rica: a test that straddles midnight sees two business days`);
   let pass = 0, fail = 0; const failed = [];
   for (const f of specs) {
     const spec = require(path.join(SPEC_DIR, f));

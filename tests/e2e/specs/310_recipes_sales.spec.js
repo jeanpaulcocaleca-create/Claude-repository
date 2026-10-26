@@ -7,7 +7,7 @@
 'use strict';
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, registerSettled, earlierToday, STAFF, PINS } = require('../lib');
 const gw = require('../gateway');
 
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -43,7 +43,7 @@ async function till(browser) {
   });
   await goto(pg, '/pos');
   await pg.waitForFunction(() => document.querySelectorAll('.pbtn').length > 0, null, { timeout: 15000 });
-  if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
+  await registerSettled(pg);
   if (await pg.isVisible('#stationModal')) await pg.click('#stationForm button[type=submit]');
   await pg.evaluate(() => clearInterval(liveTimer));
   return pg;
@@ -72,8 +72,8 @@ function session(script) {
 }
 const waiting = (marker) => until(() => sql(`select count(*) from pg_stat_activity where datname = current_database() and state = 'active' and query like '%${marker}%' and pid <> pg_backend_pid()`) === '1',
                                   5000, 'the other session to hold its transaction');
-/* a local order rung 5 minutes ago, kept on the device, to pay later */
-const localOrder = (id, num) => ({ local_id: 'o' + num, id, created_at: new Date(Date.now() - 5 * 60000).toISOString(), total_crc: 1500,
+/* a local order rung 5 minutes ago (within today's business day), kept on the device, to pay later */
+const localOrder = (id, num) => ({ local_id: 'o' + num, id, created_at: earlierToday(5), total_crc: 1500,
   payment_method: 'pending', pickup_number: num, needs_kitchen: false, status: 'ready', paid: false, none: true, station: 'Caja', guest_name: null,
   items: [{ id: id.slice(0, -2) + '99', item_name: 'Espresso', price_crc: 1500, qty: 1 }] });
 async function addOnDevice(b, num, name) {

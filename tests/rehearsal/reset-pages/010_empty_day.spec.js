@@ -5,7 +5,7 @@
    counted, and Home and Insights show the day. Logins and PINs are the rehearsal seed's (tests/rehearsal/seed-legacy.sql). */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, cashExact, STAFF, PINS } = require('../../e2e/lib');
+const { page, goto, until, sql, registerLoaded, cashExact, STAFF, PINS } = require('../../e2e/lib');
 
 /* the local stand-in for Supabase answers on the site port + 1000 (tests/e2e/gateway.js) */
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -17,10 +17,10 @@ function watchApi(pg) {
   return pg;
 }
 const quiet = (ms) => new Promise((r) => setTimeout(r, ms));
-/* the Today panel: on a day with no register opened yet, the POS opens it once by itself (a nudge to open the register),
-   covering the Today button; open it only if it is not already open */
+/* the Today panel: on a day with no register opened yet, the POS opens it once by itself (a nudge to open the register)
+   once it has asked for the register, covering the Today button; open it only if it is not already open */
 async function openDay(pg) {
-  await quiet(800);
+  await registerLoaded(pg);
   if (!(await pg.locator('#dayModal').isVisible())) await pg.click('#dayBtn');
   await until(async () => pg.locator('#dayModal').isVisible(), 12000, 'the Today panel');
 }

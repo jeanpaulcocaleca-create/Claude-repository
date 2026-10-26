@@ -4,7 +4,7 @@
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, STAFF } = require('../../e2e/lib');
+const { page, goto, until, sql, registerSettled, STAFF } = require('../../e2e/lib');
 
 /* the local stand-in for Supabase answers on the site port + 1000 (tests/e2e/gateway.js; live-pages.sh points the pages there) */
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -17,11 +17,10 @@ function watchApi(pg) {
 }
 const quiet = (ms) => new Promise((r) => setTimeout(r, ms));
 /* on a day with no register opened yet, the live POS opens its Today panel once by itself (a nudge to open the register)
-   over the product grid; a cashier closes it and sells, the register is opened by the manager (the empty café after
-   the reset, tests/rehearsal/reset-pages.sh) */
+   over the product grid, once it has asked for the register; a cashier closes it and sells, the register is opened by
+   the manager (the empty café after the reset, tests/rehearsal/reset-pages.sh) */
 async function closeDayNudge(pg) {
-  await quiet(800);
-  if (await pg.locator('#dayModal').isVisible()) await pg.click('#dayClose');
+  await registerSettled(pg);
 }
 /* sales saved with their lines (the old POS writes the order, then its lines, in two requests) */
 const withLines = () => Number(sql(`select count(*) from public.orders o where exists (select 1 from public.order_items i where i.order_id = o.id)`));

@@ -8,12 +8,13 @@
      refused 400, the database refused the sale (sure) */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, cashExact } = require('../lib');
+const { page, goto, until, sql, openRegister, registerSettled, cashExact, earlierToday, lastNight } = require('../lib');
 
 const id = (n) => 'f1000000-0000-4000-8000-0000000060' + String(n).padStart(2, '0');
 const CORS = { 'access-control-allow-origin': '*' };
-/* a sale rung 15 minutes ago, to pay later, with its number and lines [name, price, qty] */
-const later = (n, num, lines, extra) => Object.assign({ local_id: 'o' + n, id: id(n), created_at: new Date(Date.now() - 15 * 60000).toISOString(),
+/* a sale rung 15 minutes ago (never before today's business day began), to pay later, with its number and lines
+   [name, price, qty] */
+const later = (n, num, lines, extra) => Object.assign({ local_id: 'o' + n, id: id(n), created_at: earlierToday(15),
   total_crc: lines.reduce((s, l) => s + l[1] * l[2], 0), payment_method: 'pending', pickup_number: num, needs_kitchen: false,
   status: 'ready', paid: false, none: true, station: 'Caja', guest_name: null,
   items: lines.map((l, i) => ({ id: 'f1000000-0000-4000-8000-' + String(700000000000 + n * 10 + i), item_name: l[0], price_crc: l[1], qty: l[2] })) }, extra || {});
@@ -57,7 +58,7 @@ async function device(browser) {
   await goto(pg, '/pos');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.waitForFunction(() => document.querySelectorAll('.pbtn').length > 0, null, { timeout: 15000 });
-  if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
+  await registerSettled(pg);
   if (await pg.isVisible('#stationModal')) await pg.click('#stationForm button[type=submit]');
   await pg.evaluate(() => { clearInterval(liveTimer); });
   return pg;
@@ -150,17 +151,19 @@ module.exports.tests = [
       kitchenItem();
       const A = await device(browser);
       A.fail = 'refused';
-      await push(A, later(2, 72, [['Latte', 2200, 1]]));
+      const s2 = later(2, 72, [['Latte', 2200, 1]]);
+      await push(A, s2);
       await openLocal(A, 72);
       await addHere(A, 'T Sandwich');
       await closeLocal(A);
       A.fail = null;
       const add0 = A.calls.add || 0;
+      const at = await A.evaluate((i) => qFind(i).adds[0].at, id(2));   /* when the sandwich was added here */
       await round(A);
       await until(() => dbo(2) === '6200|false|pending|preparing|true|1xLatte,1xT Sandwich', 8000, 'in with the order, for the kitchen: ' + dbo(2));
       assert.strictEqual(A.calls.add || 0, add0, 'no separate "add items" step');
-      const acc = Number(sql(`select extract(epoch from (accepted_at - created_at))::int from orders where id = '${id(2)}'`));
-      assert.ok(acc > 600, 'its kitchen timer starts when the item was added, not when the order was rung (' + acc + ' s later)');
+      assert.strictEqual(sql(`select accepted_at = '${at}'::timestamptz from orders where id = '${id(2)}'`), 't',
+        'its kitchen timer starts when the item was added (' + Math.round((Date.parse(at) - Date.parse(s2.created_at)) / 1000) + ' s after the order was rung), not when the order was rung');
       noErrors(A);
     }
   },
@@ -250,16 +253,15 @@ module.exports.tests = [
     run: async ({ browser }) => {
       const A = await device(browser);
       A.fail = 'refused';
-      await push(A, later(6, 76, [['Latte', 2200, 1]], { created_at: new Date(Date.now() - 24 * 3600e3).toISOString() }));
+      await push(A, later(6, 76, [['Latte', 2200, 1]], { created_at: lastNight(15) }));   /* rung a quarter before midnight, yesterday */
       await openLocal(A, 76);
       await chargeHere(A, 'cash_crc');
       await closeLocal(A);
       A.fail = null;
-      const p6 = A.calls.pay || 0;
+      const p6 = A.calls.pay || 0, t0 = sql(`select now()`);
       await round(A);
       await until(() => dbo(6).startsWith('2200|true|cash_crc|done'), 8000, 'paid and closed: ' + dbo(6));
-      const d6 = sql(`select (created_at at time zone 'America/Costa_Rica')::date = (now() at time zone 'America/Costa_Rica')::date from orders where id = '${id(6)}'`);
-      assert.strictEqual(d6, 't', 'counted today');
+      assert.strictEqual(sql(`select created_at >= '${t0}'::timestamptz from orders where id = '${id(6)}'`), 't', 'counted today: dated when it was paid');
       assert.strictEqual(A.calls.pay || 0, p6 + 1, 'the payment went as its own step');
       noErrors(A);
     }
