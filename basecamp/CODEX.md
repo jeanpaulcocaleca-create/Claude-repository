@@ -863,11 +863,33 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - the password stays; no real bookings;
   - no DNS, Cloudflare, payment or design changes.
 
+**BD-054 · 2026-10-26 · Owner · The two privacy decisions left open by BD-053.**
+- **Nationality:** optional. Used only for statistics grouped by country and to decide where to invest in advertising, never for individual promotions.
+- **Booking data:** the sentence «Necesitamos su nombre, su correo electrónico y su teléfono para confirmar y atender su reserva» is approved.
+- **Asked:**
+  - update the draft in ES and EN;
+  - check whether Law 8968 requires stating the consequences of not giving the required data and, if so, propose a short, respectful wording before publishing;
+  - keep the retention and answer deadlines, consent and a possible PRODHAB registration as pending legal checks;
+  - invent no requirements and declare no legal compliance without confirmation.
+- **Rules:** the policy and the site are not published; Hotel Link stays in Prueba; no DNS, Cloudflare, payment or design changes.
+- **Then:** only the indispensable requirements still pending for launching Basecamp Monteverde.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-26 · Claude.** BD-054: `basecamp-website` commit e512f6d, documentation only; the built site and the preview privacy page are unchanged.
+  - **Privacy draft (ES and EN):**
+    - nationality is listed as optional and used only for country statistics;
+    - the approved sentence on name, email and phone is in the text.
+  - **Consequences of not giving the data:** yes, they must be stated. Law 8968 article 5.1 f lists «las consecuencias de la negativa a suministrar los datos» among what must be said before collecting data. This is the wording in the copies published by MICITT and SUTEL; the official SCIJ text is still unreachable from here.
+  - **Proposed as [P-7], pending the owner's approval:**
+    - ES: «Sin estos tres datos no podemos confirmarla.» and «La nacionalidad es opcional: si prefiere no indicarla, su reserva no cambia.»
+    - EN: "Without these three details we cannot confirm it." and "Your nationality is optional: if you prefer not to give it, nothing about your booking changes."
+  - **Still pending legal checks:** [P-2] retention; [P-6] answer deadline; written consent; possible PRODHAB registration. The draft declares no legal compliance.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 60: running at the time of writing.
 
 - **2026-10-24 · Claude.** BD-053: `basecamp-website` commit 5c9605c, documentation only; the built site and the preview privacy page are unchanged.
   - **Privacy draft (ES and EN, matching sections):**
