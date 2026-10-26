@@ -889,7 +889,7 @@ Newest first. Claude adds a line after every working session.
     - ES: «Sin estos tres datos no podemos confirmarla.» and «La nacionalidad es opcional: si prefiere no indicarla, su reserva no cambia.»
     - EN: "Without these three details we cannot confirm it." and "Your nationality is optional: if you prefer not to give it, nothing about your booking changes."
   - **Still pending legal checks:** [P-2] retention; [P-6] answer deadline; written consent; possible PRODHAB registration. The draft declares no legal compliance.
-  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 60: running at the time of writing.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 60: green.
 
 - **2026-10-24 · Claude.** BD-053: `basecamp-website` commit 5c9605c, documentation only; the built site and the preview privacy page are unchanged.
   - **Privacy draft (ES and EN, matching sections):**
