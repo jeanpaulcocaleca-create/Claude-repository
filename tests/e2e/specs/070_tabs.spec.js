@@ -3,7 +3,7 @@
    while the system does not take them (queue). Ported from the e2e3 suites tabs-e2e.js and tabs-e2e6.js. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, cashExact, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, registerSettled, cashExact, PINS } = require('../lib');
 const gw = require('../gateway');
 
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -62,7 +62,7 @@ async function till(browser, opts) {
      destroyed" then says where the page went) */
   pg.on('framenavigated', (f) => { if (f === pg.mainFrame() && pg.__loaded) console.log('        [page navigated to ' + f.url() + ']'); });
   pg.__loaded = true;
-  if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
+  await registerSettled(pg);
   if (await pg.isVisible('#stationModal')) await pg.click('#stationForm button[type=submit]');
   await pg.evaluate(() => {
     clearInterval(liveTimer);

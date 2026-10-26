@@ -1,7 +1,7 @@
 /* The POS saves each sale once, with its lines, online or after being offline; old databases still work. */
 'use strict';
 const assert = require('assert');
-const { until, sql, pos, cashExact } = require('../lib');
+const { page, goto, until, sql, pos, registerSettled, cashExact } = require('../lib');
 
 async function ringFirstItem(pg, times, method) {
   const first = pg.locator('.pbtn').first();
@@ -62,9 +62,8 @@ module.exports.tests = [
     run: async ({ browser }) => {
       sql(`delete from app_accounts where user_id = 'c0000000-0000-4000-8000-000000000001'`);   // a new login before cafe-login.sql
       const pg = await pos(browser);
-      // without a grant the POS cannot see today's register, so the register window opens by itself: close it
-      await until(async () => (await pg.locator('#dayModal:not([hidden])').count()) > 0, 10000, 'the register window');
-      await pg.click('#dayClose');
+      // without a grant the POS cannot see today's register (the register window opened by itself; pos() closed it)
+      assert.strictEqual(await pg.evaluate(() => REG), null, 'no register in sight');
       await ringFirstItem(pg, 1, 'card');
       await pg.evaluate(() => syncQueue());
       await new Promise((r) => setTimeout(r, 1500));
@@ -77,6 +76,29 @@ module.exports.tests = [
       // a sync asked for while a refused round is still running waits for the next round (every 20 s)
       await until(() => sql(`select count(*) from orders o join order_items i on i.order_id = o.id`) === '1', 25000, 'saved once connected');
       await until(async () => (await pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-queue') || '[]').length)) === 0, 8000, 'queue emptied');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    /* The register's answer can come after the products are drawn. A main register then opens the Today window by itself
+       when no day is open or a day from before midnight is still open, and a spec that looked for the window as soon as
+       the products showed went on with the window over the till (the runs of 2026-10-26 around midnight, D-060):
+       registerSettled waits for the answer. Here the answer is held until the products are drawn. */
+    name: 'the register answers after the menu, with a day from before midnight still open: the Today window comes up late and is closed before the first sale',
+    run: async ({ browser }) => {
+      sql(`insert into register_days (business_date, opened_by_name, float_crc) values (cr_today() - 1, 'Ana', 50000)`);
+      const pg = await page(browser, { login: 'cafe', lang: 'en' });
+      let release; const held = new Promise((ok) => { release = ok; });
+      await pg.route(/rest\/v1\/rpc\/register_today/, async (r) => { await held; return r.fallback(); });
+      await goto(pg, '/pos');
+      await pg.waitForSelector('.pbtn', { timeout: 15000 });
+      assert.ok(!(await pg.isVisible('#dayModal')), 'no Today window while the register has not answered');
+      release();
+      await registerSettled(pg);
+      assert.strictEqual(await pg.evaluate(() => staleDay()), true, 'the POS knows the open day is yesterday\'s');
+      assert.ok(!(await pg.isVisible('#dayModal')), 'its window came up and was closed');
+      await ringFirstItem(pg, 1, 'card');
+      await until(() => sql(`select count(*) from orders where payment_method = 'card'`) === '1', 10000, 'sale saved');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

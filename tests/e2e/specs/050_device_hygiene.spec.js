@@ -1,7 +1,7 @@
 /* Devices after a release reload themselves only between sales; PINs are never kept on screen or in memory. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, registerSettled, STAFF, PINS } = require('../lib');
 
 module.exports.tests = [
   {
@@ -13,6 +13,7 @@ module.exports.tests = [
       const pg = await page(browser, { login: 'cafe', lang: 'en' });
       await goto(pg, '/pos');
       await pg.waitForSelector('.pbtn', { timeout: 15000 });
+      await registerSettled(pg);
       assert.strictEqual(await pg.evaluate(() => HG_VERSION.build), 'b1');
 
       await pg.locator('.pbtn').first().click();

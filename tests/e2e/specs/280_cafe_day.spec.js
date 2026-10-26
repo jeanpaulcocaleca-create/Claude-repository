@@ -4,7 +4,7 @@
    reads the day by cashier. Every device is its own browser context. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, registerSettled, STAFF, PINS } = require('../lib');
 
 const ITEM = { sandwich: 'b0000000-0000-4000-8000-0000000000a1', latte: 'b0000000-0000-4000-8000-0000000000a2' };
 function testMenu() {
@@ -21,6 +21,7 @@ async function device(browser, station) {
   await goto(pg, '/pos');
   await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
   await pg.waitForFunction(() => document.querySelectorAll('.pbtn').length > 0, null, { timeout: 15000 });
+  await registerSettled(pg);
   return pg;
 }
 async function signInAndClockIn(pg, who, pin) {

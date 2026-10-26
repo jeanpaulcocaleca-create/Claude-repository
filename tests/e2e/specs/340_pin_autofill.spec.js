@@ -4,7 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { page, goto, until, sql, pos, openRegister, STAFF, PINS, SITE, ROOT } = require('../lib');
+const { page, goto, until, sql, pos, openRegister, registerLoaded, STAFF, PINS, SITE, ROOT } = require('../lib');
 
 const CAFE = 'c0000000-0000-4000-8000-000000000001';
 const opens = () => Number(sql(`select count(*) from audit_log where action = 'access_open'`));
@@ -35,9 +35,9 @@ async function settled(pg) {
   await until(() => pg.evaluate(() => !document.getElementById('appView').hidden && !!document.getElementById('secEmail').textContent), 8000, 'Home settled after its unlock check');
 }
 const picked = (pg) => pg.locator('#hgaWho option:checked').textContent();
-/* the POS's Today window, which a main register also opens by itself once a day */
+/* the POS's Today window, which a main register also opens by itself once a day (once it knows the register) */
 async function openDay(pg) {
-  await pg.waitForTimeout(800);
+  await registerLoaded(pg);
   if (!(await pg.locator('#dayModal').isVisible())) await pg.click('#dayBtn');
   await until(async () => pg.locator('#dayModal').isVisible(), 12000, 'the Today window');
 }

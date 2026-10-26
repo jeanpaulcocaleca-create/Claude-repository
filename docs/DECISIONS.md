@@ -2194,3 +2194,66 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   00:00–05:00 Costa Rica for the tag's Tests; post-publication checks create no test sale, expense or delivery. Way
   back: publish `v2026.10.25-2` again, database stays at 0035; what it does not undo (credit-expense payments made in
   the new page cannot be voided from the old one) and when a database reversal would be advisable are written down.
+
+
+## D-060 · 2026-10-26 · Browser tests around midnight: the specs follow the Costa Rica business day and wait for the register
+
+- **What happened:** `tests/run.sh` ran three times in a row on 2026-10-26 with the same code. Lint, SQL, backups and
+  the rehearsal were green every time; the browser section failed only when it ran close to midnight in Costa Rica
+  (`America/Costa_Rica`, the café's business day, `public.cr_today()`): at 23:5x, `310_recipes_sales` › «a sale rung
+  without internet keeps the recipe and the cost of its moment…» timed out clicking `[data-pay="card"]` («`<div
+  class="modal" id="dayModal">` intercepts pointer events»); at 00:0x, five tests of `080_open_local` (S1/N1, N2/F7,
+  M5, F4, «an old queued sale…») failed with «no separate "add items" step: 1 !== 0» and «timed out waiting for the
+  added item and the card payment reached the system». Both specs had passed at 23:2x; nothing in the code changed
+  between the runs.
+- **Diagnosis (the tests; the pages are right):**
+  - 080 at 00:0x: the spec's `later()` built the queued sales with `created_at = Date.now() − 15 min`. Right after
+    midnight that moment belongs to yesterday's business day (pos.html `crDay`, UTC−6), and the till folds into a sale
+    only the items added and the payment taken on the sale's own business day (`uploadOne`, `sentAs`: `crDay(a.at) ===
+    crDay(o.created_at)`); the rest goes after it as its own steps (`qSteps`), which is exactly what S7/F6 («rung
+    yesterday, paid here today») asserts on purpose. So for the first 15 minutes of every business day the «same day»
+    assertions were wrong; 310's `localOrder` (5 minutes ago) had the same gap for 5 minutes.
+  - 310 at 23:5x: the POS asks for the register while the menu loads (`loadRegister`, `rpc register_today`); a main
+    register then opens the Today window by itself when no day is open or a day from before midnight is still open
+    (`nudgeRegister` → `openDay`, once a day per device). The specs' `till()`/`device()` helpers looked for `#dayModal`
+    once, right after the first product button was drawn, and `lib.pos()` never did. When midnight passes between the
+    spec's `openRegister()` (which seeds `register_days` for `cr_today()`) and the page's `register_today`, the seeded
+    day is yesterday's and still open (`staleDay()`), so the window opens; and when the register's answer comes after
+    the products are drawn, it opens after the one-shot check and takes the next tap. Away from midnight the seeded day
+    is today's and the window never opens, so the late answer did not matter.
+- **Fix (tests only; `website/` and `supabase/` untouched):**
+  - `tests/e2e/lib.js`: `crToday(days)`, `crDayStart(days)`, `earlierToday(minutes)` (`minutes` ago, never before
+    today's business day began) and `lastNight(minutes)` (yesterday, before midnight): the Costa Rica business day as
+    pos.html and `register.sql` count it. `registerLoaded(pg)` waits for the POS's decision about the register (`REG`
+    set, or no register support, or the check failed, or not a main register, or the nudge already given today) and
+    `registerSettled(pg)` closes the Today window if the POS opened it; `pos()` calls it.
+  - `080_open_local`: `later()` → `earlierToday(15)`; S7/F6 rings yesterday's sale with `lastNight(15)` and «counted
+    today» checks `created_at` moved to the moment its payment went up (a `now()` read just before the round), not «the
+    Costa Rica date of now»; N2/F7 checks `accepted_at` equals the add's own `at` (exact; it asserted «more than 600 s
+    after `created_at`», which the clamp would shorten right after midnight); `device()` → `registerSettled`.
+  - `310_recipes_sales`: `localOrder` → `earlierToday(5)`; `till()` → `registerSettled`.
+  - the same wait in `070 till()`, `050` (the release test clicks right after loading), `110` (the three loads that
+    click), `280 device()`, `340 openDay` (its 800 ms guess), `020` («a login not connected…»: `pos()` closes the window
+    now; the test checks `REG` is null), and the rehearsal's `live-pages closeDayNudge` and `reset-pages openDay` (800 ms
+    guesses too; every published build back to `8950054` has the globals the helper reads).
+  - `220`, `230`, `260`: their three identical `crDay(offset)` → `lib.crToday`.
+  - new test in `020`: the register's answer held until the products are drawn, with a day from before midnight still
+    open: the window comes up late, `registerSettled` closes it and the first sale is rung.
+  - `tests/e2e/run.js` prints a note when a run starts within 20 minutes before or 10 after midnight in Costa Rica.
+- **Verified:** at the real clock, 080 10/10, 310 6/6 and the whole `tests/run.sh` green (RUN_SH_PLACEHOLDER). With
+  every clock shifted (a scratch `LD_PRELOAD` shim adds a fixed offset to the wall clock of PostgreSQL, restarted with
+  it, Node and Chromium; PostgREST is a static binary the shim cannot reach and refuses a token issued in its future,
+  `PGRST301 JWTIssuedAtFuture`, so the rig signs the test gateway's tokens with the real issue time): the specs as they
+  were, at 00:05, fail the five tests of the report (S1/N1, N2/F7, M5, «an old queued sale…», F4) with its messages
+  («no separate "add items" step: 1 !== 0», «timed out waiting for the added item and the card payment reached the
+  system»); the fixed specs pass at 00:05 and at 23:55 (080 10/10, 310 6/6, 020 5/5 with the new test, each time);
+  started at 23:59:45, so that midnight falls 15 s into the run, 310 passes 6/6 and 080 9/10: F4 rang its bill at
+  23:59:5x and paid it at 00:00:0x, so the system dated the payment today and closed the old ticket (`done`, as S7/F6
+  asserts) where the test expects `ready`. That last case is the straddle below, the same before and after the fix
+  (the old specs there: 8/10).
+- **Known and accepted:** a test that itself straddles midnight (it rings a bill before and pays it after, or opens
+  today's register and closes it after) sees two business days: that is the café's rule (a bill of another day is
+  dated when it is paid; `register_close` sums its own day), not a test fault; the note in `run.js` names the hour and
+  the run is repeated. The other `Date.now() −` uses in the specs measure elapsed time. No bug found in the POS: what
+  is added to or paid on a bill of another business day goes to the system as its own step (pos.html `uploadOne`,
+  `sentAs`), as S7/F6 expects.
