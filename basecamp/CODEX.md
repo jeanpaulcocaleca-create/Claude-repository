@@ -874,11 +874,40 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Rules:** the policy and the site are not published; Hotel Link stays in Prueba; no DNS, Cloudflare, payment or design changes.
 - **Then:** only the indispensable requirements still pending for launching Basecamp Monteverde.
 
+**BD-055 · 2026-10-26 · Owner · The two BD-054 sentences approved; legal research on the four open points.**
+- **Approved:** «Sin estos tres datos no podemos confirmarla.» and «La nacionalidad es opcional: si prefiere no indicarla, su reserva no cambia.», to go into the draft in ES and EN.
+- **Asked:** research retention, the answer deadline, consent and PRODHAB registration with official Costa Rican sources (Law 8968, its regulation, PRODHAB), separating:
+  1. what the rules expressly require;
+  2. what depends on the hotel's real practice;
+  3. what could not be verified.
+- **Rules:**
+  - no invented retention periods, consent mechanisms or registration duties;
+  - the policy is not published and keeps its test notice;
+  - no other site changes; Hotel Link stays in Prueba, the site stays private and the design unchanged.
+- **Then:** record the results and give the owner only the decisions they really need to take.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-10-26 · Claude.** BD-055: `basecamp-website` commit b2caba4, documentation only; the built site and the preview privacy page are unchanged.
+  - **Privacy draft:** the two approved sentences are in ES and EN, and [P-7] is closed.
+  - **New `docs/PRIVACIDAD-INVESTIGACION-LEGAL.md`:** the four open points, each split into what the rules require, what depends on the hotel and what is unverified.
+    - **Sources:** SCIJ (Law 8968, Regulation 37554-JP and its 2016 and 2019 reforms, Tax Code), PRODHAB (FAQ, procedures, resolutions 130-2019 and 078-02-2025), MICITT, Hacienda.
+    - **How read:** these sites are blocked from this environment, so they were read through the search engine's extracts of each official document, not the full text. Everything cited should be confirmed in SCIJ.
+  - **Findings:**
+    - **Retention:** no single period in the law. Data that could harm the holder are not kept over ten years (law article 6; the reformed regulation counts from the end of the purpose). Tax receipts and records are kept five years (Tax Code article 109, from extracts). The hotel chooses the rest.
+    - **Answer deadline:** five business days, free of charge (law article 7); PRODHAB applies it (file 078-02-2025).
+    - **Consent:** express and in writing, on paper or electronically, revocable (law article 5.2). The law's exceptions do not include a contract or booking. Online, the controller must offer a way to give it (regulation). How the hotel obtains it today is not documented.
+    - **PRODHAB registration:** required only for databases run to distribute, spread or sell data (law article 21; US$200 a year). With the confirmed practice the text does not require it, but PRODHAB has not confirmed it for this case. The law still applies: PRODHAB holds that a company's database is not personal or domestic (resolution 130-2019).
+  - **Not verified:**
+    - the current second paragraph of Tax Code article 51 (five or ten years, depending on the version);
+    - whether Migration or ICT rules require lodges to keep a guest register (only the inspection power was found). If they do, nationality could not be optional;
+    - whether the 2012 rules that consent be in a separate document and be kept by the controller still apply;
+    - whether Hotel Link's form has a consent step.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 61: running at the time of writing.
 
 - **2026-10-26 · Claude.** BD-054: `basecamp-website` commit e512f6d, documentation only; the built site and the preview privacy page are unchanged.
   - **Privacy draft (ES and EN):**
