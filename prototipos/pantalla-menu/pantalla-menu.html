@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="__BUILD__">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menú · Pantalla A · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<!--
+  Canopy OS · PANTALLA A (menú con precios para los clientes) · PROTOTIPO PRIVADO (docs/PANTALLAS.md)
+  Vive fuera de website/: ninguna publicación lo lleva al sitio (pages.yml publica solo website/). Las pruebas lo
+  sirven junto a una copia de website/ (tests/prototipos/run.sh). Publicarlo es una decisión del dueño, con su
+  autorización, sus pruebas y su demostración.
+  * Solo LEE el menú (menu_categories + menu_items, como la TV actual y el menú QR). No escribe nada, no inicia sesión.
+  * Precios: solo los de la última lectura correcta, con su edad medida; nunca guardados en el aparato.
+      hasta 2 min  → se muestran;
+      2 a 10 min   → se muestran con «Precios por confirmar en caja»;
+      más, o nunca → no se muestra ningún precio: «Consulte los precios en la caja».
+    La edad es la mayor entre el reloj del aparato y el reloj que no se mueve (performance.now): una TV que se
+    durmió o un reloj adelantado nunca hacen pasar precios viejos por actuales.
+  * Ajustes de cada TV en la dirección (el técnico los escribe al instalar):
+      ?tv=menu-1&pulgadas=55&distancia=3&giro=no|derecha|izquierda&escala=100&look=auto|dia|noche&pagina=28&diag=1
+    pulgadas: diagonal de la pantalla; distancia: metros hasta el cliente más lejano que debe leer.
+    La mayúscula mide 1 cm por metro de distancia (meta), nunca menos de 0,8 cm por metro; los títulos 1,5 veces;
+    el inglés al 75 %. escala corrige según la prueba de letra impresa (100 = sin cambio).
+    giro=derecha: imagen girada a la derecha, para una TV cuyo borde de arriba quedó a la IZQUIERDA (como tv.html).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Figtree:wght@500;700;800&display=swap">
+<style>
+:root{
+  --bg:#0F2418; --ink:#F6F1E2; --soft:#C9D3BC; --gold:#DBB365; --cat:#A9C9A4; --line:#2E4A36;
+  --warn:#F2C14E; --warn-ink:#1B1405; --f:32px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%;margin:0}
+body{background:#0A1A10;overflow:hidden;cursor:none}
+.hg-lang{display:none !important}   /* no language switch: the screen shows both languages at once */
+
+/* the stage is sized and turned in pixels by orientar(), from the real window (like tv.html) */
+#stage{position:absolute;top:0;left:0;overflow:hidden;transform-origin:0 0;display:flex;flex-direction:column;
+  padding:2.2% 2.6%;color:var(--ink);font-family:'Figtree',system-ui,sans-serif;
+  background:radial-gradient(120% 90% at 50% 0%,#1A3A26 0%,var(--bg) 70%)}
+/* daylight look: a bright screen outshines the reflection of a window (same colours as tv.html's) */
+#stage.dia{--bg:#FFFBF1;--ink:#0F2618;--soft:#2F3F33;--gold:#7A4A00;--cat:#1E4B33;--line:#C9A253;background:#FFFBF1}
+
+/* the header has one height in every state (page number, warning or not): the board below never changes size, so a
+   warning never moves the menu to other pages */
+header{display:flex;align-items:center;gap:calc(var(--f)*.8);font-size:calc(var(--f)*.72);height:calc(var(--f)*1.75);overflow:hidden;
+  padding-bottom:calc(var(--f)*.3);border-bottom:2px solid var(--line)}
+.marca{font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:.45em;white-space:nowrap;line-height:1.2;min-width:0;overflow:hidden}
+.marca svg{width:1.05em;height:1.05em;flex:none}
+.marca small{font-family:'Figtree',system-ui,sans-serif;font-weight:700;letter-spacing:.08em;color:var(--soft);font-size:.8em}
+#aviso{flex:1;min-width:0;font-size:calc(var(--f)*.66);font-weight:800;line-height:1.08;background:var(--warn);color:var(--warn-ink);
+  border-radius:calc(var(--f)*.2);padding:calc(var(--f)*.08) calc(var(--f)*.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#aviso small{display:block;font-size:.79em;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.esp{flex:1}
+#pag{display:block;height:1.2em;line-height:1.2;font-weight:800;font-size:calc(var(--f)*.9);font-variant-numeric:tabular-nums;color:var(--soft);white-space:nowrap}
+
+main{flex:1;min-height:0;position:relative;margin-top:calc(var(--f)*.55)}
+.page,#medida{position:absolute;inset:0;column-gap:calc(var(--f)*1.4);column-fill:auto;overflow:hidden}
+.page{opacity:0;visibility:hidden;transition:opacity .6s ease,visibility 0s linear .6s}
+.page.on{opacity:1;visibility:visible;transition:opacity .6s ease}
+#medida{visibility:hidden;pointer-events:none}
+
+.cat{padding-bottom:calc(var(--f)*.65)}
+.cab{break-inside:avoid}                     /* a title never stays alone at the bottom of a column */
+.cat h2{margin:0 0 calc(var(--f)*.2);font-size:calc(var(--f)*1.5);font-weight:800;line-height:1.08;color:var(--cat);
+  display:flex;flex-wrap:wrap;align-items:baseline;column-gap:.4em}
+.cat h2 .cen{font-size:.5em;font-weight:700;color:var(--soft);letter-spacing:.04em}
+.it{break-inside:avoid;padding:calc(var(--f)*.12) 0 calc(var(--f)*.26)}
+.l1{font-size:var(--f);font-weight:700;line-height:1.12}
+.pr{font-weight:800;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pr .cur{font-size:.8em;margin-right:.04em}
+.en{font-size:calc(var(--f)*.75);font-weight:500;color:var(--soft);line-height:1.12;margin-top:.04em}
+
+footer{display:flex;align-items:baseline;justify-content:space-between;gap:1em;border-top:2px solid var(--line);
+  padding-top:calc(var(--f)*.25);font-size:calc(var(--f)*.55);color:var(--soft);font-weight:500}
+
+#vacio{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.4em}
+#vacio .t1{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:calc(var(--f)*2.2);color:var(--gold)}
+#vacio .t2{font-size:calc(var(--f)*1.1);font-weight:700}
+#vacio .t3{font-size:calc(var(--f)*.85);color:var(--soft)}
+
+#diag{position:absolute;right:1%;bottom:1%;z-index:6;max-width:46%;background:rgba(0,0,0,.82);color:#fff;border-radius:8px;
+  font:500 calc(var(--f)*.36)/1.35 'Figtree',system-ui,sans-serif;padding:.6em .9em;white-space:pre-wrap}
+#diag b{color:#F2C14E}
+#fsHint{position:absolute;left:50%;top:1.5%;transform:translateX(-50%);z-index:5;background:rgba(10,26,16,.9);color:#F6F1E2;
+  font:700 calc(var(--f)*.5)/1.3 'Figtree',system-ui,sans-serif;padding:.5em 1.2em;border-radius:99px;white-space:nowrap;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+#fsHint.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.page,.page.on{transition:none}}
+</style>
+</head>
+<body>
+<div id="stage" data-no-translate>
+  <header>
+    <span class="marca" id="marca"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Hanging Garden Café <small>· Menú · Menu</small></span>
+    <span id="aviso" role="status" hidden></span>
+    <span class="esp" id="esp"></span>
+    <span id="pag"></span>
+  </header>
+  <main id="main"><div id="medida" aria-hidden="true"></div><div id="vacio" hidden></div></main>
+  <footer><span id="nota">Precios en colones, IVA incluido · Prices in colones, tax (IVA) included</span></footer>
+  <div id="diag" hidden></div>
+  <div id="fsHint">Pulse OK en el control para pantalla completa · Press OK for full screen</div>
+</div>
+
+<script src="config.js"></script>
+<script src="lang.js"></script>
+<script>
+/* the screen updates itself after a release (version.js), without a notice to the guests, at any moment */
+window.HG_VERSION_NOTICE = function () {};
+window.HG_SAFE_TO_RELOAD = function () { return true; };
+</script>
+<script src="version.js" defer></script>
+<script>
+(function () {
+  'use strict';
+  var CFG = window.HG_CONFIG || {};
+  var DEMO = window.PANTALLA_DEMO || null;          /* the private demonstration supplies its own menu */
+  /* times in ms; only the tests and the demonstration shorten them (window.PANTALLA_TEST) */
+  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 5000, pagina: 0, copiaMax: 3 * 86400000 };
+  try {
+    var over = window.PANTALLA_TEST || {};
+    Object.keys(over).forEach(function (k) { if (k in T && Number(over[k]) > 0) T[k] = Number(over[k]); });
+  } catch (e) {}
+  var SKIP = { 'Extras & Combos': 1 };               /* the till's helpers and the combo line: never on a screen */
+  var COPIA = 'hg-pantalla-menu';                    /* this TV's copy of the names (never the prices) */
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage'), main = $('main'), medida = $('medida');
+
+  /* ---------- this TV's settings, from its address ---------- */
+  var Q = (function () {
+    var o = {};
+    /* the private demonstration has no address of its own: it passes the settings itself */
+    String(DEMO && typeof DEMO.ajustes === 'string' ? DEMO.ajustes : location.search).replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return; var i = kv.indexOf('='), k = i < 0 ? kv : kv.slice(0, i), v = i < 0 ? '' : kv.slice(i + 1);
+      try { o[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) {}
+    });
+    return o;
+  })();
+  var malos = [];
+  function num(k, def, lo, hi) {
+    if (Q[k] === undefined || Q[k] === '') return def;
+    var n = Number(String(Q[k]).replace(',', '.'));
+    if (isFinite(n) && n >= lo && n <= hi) return n;
+    malos.push(k + '=' + Q[k]); return def;
+  }
+  var AJ = {
+    tv: String(Q.tv || '').slice(0, 40),
+    giro: Q.giro === 'derecha' || Q.giro === 'izquierda' ? Q.giro : 'no',
+    pulgadas: num('pulgadas', 55, 24, 110),
+    distancia: num('distancia', 3, 1, 15),
+    escala: num('escala', 100, 70, 160),
+    pagina: num('pagina', 28, 15, 60),
+    look: Q.look === 'dia' || Q.look === 'noche' ? Q.look : 'auto',
+    diag: Q.diag === '1',
+    supuesto: Q.pulgadas === undefined || Q.distancia === undefined
+  };
+  if (Q.giro && AJ.giro === 'no' && Q.giro !== 'no') malos.push('giro=' + Q.giro);
+  if (Q.look && AJ.look === 'auto' && Q.look !== 'auto') malos.push('look=' + Q.look);
+  var paginaMs = T.pagina || AJ.pagina * 1000;
+  /* the long side of a 16:9 screen, in cm, from its diagonal in inches */
+  var LARGO_CM = AJ.pulgadas * 2.54 * 16 / Math.sqrt(337);
+
+  /* ---------- the menu: read only ---------- */
+  var menu = null;                   /* [{es, en, items:[{es, en, precio}]}]; precio only from a read of this session */
+  var deCopia = false;               /* the names on screen come from this TV's copy: no prices */
+  var okPerf = null, okReloj = null; /* when the last read succeeded: monotonic clock and wall clock */
+  var conEs = true, leyendo = false, ultimoIntento = 0;
+
+  function plano(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+  function clave(s) {
+    s = plano(s).toLowerCase();
+    return s.normalize ? s.normalize('NFD').replace(/[̀-ͯ]/g, '') : s;
+  }
+  /* Spanish as on the QR menu: the Menu Manager's name_es, else the site's exact dictionary, else the name once */
+  function espanol(en, es) {
+    es = plano(es); if (es) return es;
+    var t = null; try { t = window.HG_EXACT ? window.HG_EXACT(en) : null; } catch (e) {}
+    return plano(t) || plano(en);
+  }
+  function limpiar(raw) {
+    if (!Array.isArray(raw)) throw new Error('respuesta inesperada');
+    var cats = raw.map(function (c, ci) {
+      if (!c || !plano(c.name) || SKIP[plano(c.name)]) return null;
+      var items = (Array.isArray(c.menu_items) ? c.menu_items : []).filter(function (i) {
+        var p = Number(i && i.price_crc);
+        return i && i.available === true && plano(i.name) && isFinite(p) && p > 0;
+      }).sort(function (a, b) {
+        return ((Number(a.sort) || 0) - (Number(b.sort) || 0)) || String(a.name).localeCompare(String(b.name));
+      }).map(function (i) {
+        var en = plano(i.name), es = espanol(en, i.name_es);
+        return { es: es, en: clave(es) === clave(en) ? '' : en, precio: Math.round(Number(i.price_crc)) };
+      });
+      var en = plano(c.name), es = espanol(en, null);
+      return { es: es, en: clave(es) === clave(en) ? '' : en, sort: Number(c.sort) || 0, ci: ci, items: items };
+    }).filter(function (c) { return c && c.items.length; });
+    cats.sort(function (a, b) { return (a.sort - b.sort) || (a.ci - b.ci); });
+    return cats.map(function (c) { return { es: c.es, en: c.en, items: c.items }; });
+  }
+  async function leer() {
+    if (DEMO && typeof DEMO.menu === 'function') return DEMO.menu();
+    for (var n = 0; n < 2; n++) {
+      var sel = 'name,sort,menu_items(name,price_crc,available,sort' + (conEs ? ',name_es' : '') + ')';
+      var ctl = window.AbortController ? new AbortController() : null;
+      var timer = ctl ? setTimeout(function () { ctl.abort(); }, 12000) : null;
+      var res;
+      try {
+        res = await fetch(CFG.url + '/rest/v1/menu_categories?select=' + encodeURIComponent(sel) + '&order=sort',
+          { headers: { apikey: CFG.key, Authorization: 'Bearer ' + CFG.key }, cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      } finally { if (timer) clearTimeout(timer); }
+      if (res.ok) return res.json();
+      var body = ''; try { body = await res.text(); } catch (e) {}
+      if (res.status === 400 && conEs && /name_es/.test(body)) { conEs = false; continue; }   /* menu-spanish.sql not applied */
+      throw new Error('menu ' + res.status);
+    }
+    throw new Error('menu');
+  }
+  function guardar(m) {
+    try {
+      localStorage.setItem(COPIA, JSON.stringify({ at: Date.now(), cats: m.map(function (c) {
+        return { es: c.es, en: c.en, items: c.items.map(function (i) { return { es: i.es, en: i.en }; }) };
+      }) }));
+    } catch (e) {}
+  }
+  function copia() {
+    try {
+      var v = JSON.parse(localStorage.getItem(COPIA) || 'null'), edad = v ? Date.now() - Number(v.at) : -1;
+      if (!v || !Array.isArray(v.cats) || !(edad >= 0 && edad <= T.copiaMax)) return null;
+      var cats = v.cats.map(function (c) {
+        return { es: plano(c && c.es), en: plano(c && c.en), items: (c && Array.isArray(c.items) ? c.items : []).map(function (i) {
+          return { es: plano(i && i.es), en: plano(i && i.en), precio: null };
+        }).filter(function (i) { return i.es; }) };
+      }).filter(function (c) { return c.es && c.items.length; });
+      return cats.length ? cats : null;
+    } catch (e) { return null; }
+  }
+
+  /* ---------- how old the prices are ---------- */
+  function edad() {
+    if (okPerf === null) return Infinity;
+    var a = performance.now() - okPerf, b = Date.now() - okReloj;
+    return Math.max(a, b >= 0 ? b : 0);
+  }
+  function estado() {
+    if (!menu || deCopia) return 'sin-verificar';
+    var e = edad();
+    return e <= T.fresco ? 'al-dia' : e <= T.vencido ? 'por-confirmar' : 'sin-verificar';
+  }
+
+  async function refrescar() {
+    if (leyendo) return;
+    leyendo = true; ultimoIntento = Date.now();
+    try {
+      var m = limpiar(await leer());
+      if (!m.length) throw new Error('menú vacío');
+      menu = m; deCopia = false; okPerf = performance.now(); okReloj = Date.now();
+      guardar(m);
+    } catch (e) { /* what is on screen stays; its age decides whether prices may show */ }
+    finally { leyendo = false; pintar(); }
+  }
+
+  /* ---------- the stage: size, turn, look ---------- */
+  var anchoE = 0, altoE = 0;
+  function orientar() {
+    var W = window.innerWidth || document.documentElement.clientWidth, H = window.innerHeight || document.documentElement.clientHeight;
+    if (AJ.giro !== 'no') {
+      stage.style.width = H + 'px'; stage.style.height = W + 'px';
+      stage.style.transform = AJ.giro === 'derecha' ? 'translate(' + W + 'px,0) rotate(90deg)' : 'translate(0,' + H + 'px) rotate(-90deg)';
+      anchoE = H; altoE = W;
+    } else {
+      stage.style.width = W + 'px'; stage.style.height = H + 'px'; stage.style.transform = '';
+      anchoE = W; altoE = H;
+    }
+  }
+  function aplicarLook() {
+    var dia = AJ.look === 'dia' ? true : AJ.look === 'noche' ? false : (function () { var h = new Date().getHours(); return h >= 6 && h < 18; })();
+    if (stage.classList.contains('dia') !== dia) stage.classList.toggle('dia', dia);
+  }
+
+  /* ---------- letter size: measured, not guessed ---------- */
+  var proporciones = {};
+  function proporcionH() {   /* cap height / font size of the font really in use (Figtree, or the TV's own if it did not load) */
+    var fam = getComputedStyle(stage).fontFamily, k = fam + '|' + (document.fonts ? document.fonts.status : '');
+    if (proporciones[k]) return proporciones[k];
+    var r = 0.7;
+    try {
+      var cx = document.createElement('canvas').getContext('2d');
+      cx.font = '700 200px ' + fam;
+      var m = cx.measureText('H');
+      if (m.actualBoundingBoxAscent > 60 && m.actualBoundingBoxAscent < 190) r = m.actualBoundingBoxAscent / 200;
+    } catch (e) {}
+    return (proporciones[k] = r);
+  }
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function precioNodo(p) {
+    var s = el('span', 'pr'); s.appendChild(el('span', 'cur', '₡')); s.appendChild(document.createTextNode(Number(p).toLocaleString('fr-FR')));
+    return s;
+  }
+  function itemNodo(i, conPrecios) {
+    var d = el('div', 'it'), l1 = el('div', 'l1');
+    l1.appendChild(el('span', 'es', i.es));
+    /* an en space: the price may go to the next line, never cut, and then starts at the margin */
+    if (conPrecios && i.precio > 0) { l1.appendChild(document.createTextNode('\u2002')); l1.appendChild(precioNodo(i.precio)); }
+    d.appendChild(l1);
+    if (i.en) d.appendChild(el('div', 'en', i.en));
+    return d;
+  }
+  /* a category, or the part of it from item a to item b */
+  function catNodo(c, a, b, conPrecios) {
+    var s = el('section', 'cat'), cab = el('div', 'cab'), h = el('h2');
+    h.appendChild(el('span', 'ces', c.es));
+    if (c.en) h.appendChild(el('span', 'cen', c.en));
+    cab.appendChild(h);
+    if (a < b) cab.appendChild(itemNodo(c.items[a], conPrecios));
+    s.appendChild(cab);
+    for (var k = a + 1; k < b; k++) s.appendChild(itemNodo(c.items[k], conPrecios));
+    return s;
+  }
+  /* a category title is 1.5 times the names; a word too long for its column («costarricenses») makes only that title
+     smaller, never under 1.25 times the names */
+  function titulos(root) {
+    var hs = root.querySelectorAll('h2 .ces');
+    for (var i = 0; i < hs.length; i++) {
+      var h = hs[i], w = h.parentNode.clientWidth;
+      h.style.fontSize = '';
+      var hw = h.getBoundingClientRect().width;
+      if (hw > w + 1) h.style.fontSize = Math.max(1.25 / 1.5, (w - 1) / hw) + 'em';
+    }
+  }
+  /* more columns than the page has (they appear to the right, past the gap), or a line wider than its column */
+  function desborda(box) {
+    box = box || medida;
+    var gap = parseFloat(getComputedStyle(box).columnGap) || 0;
+    if (box.scrollWidth > box.clientWidth + gap / 2 || box.scrollHeight > box.clientHeight + 1) return true;
+    var ls = box.querySelectorAll('.l1, .en, h2');
+    for (var i = 0; i < ls.length; i++) if (ls[i].scrollWidth > ls[i].clientWidth + 1) return true;
+    return false;
+  }
+  /* pages for a letter size and a number of columns: categories in order, a category moves whole to the next page;
+     only a category longer than a whole page is cut, and its parts follow each other */
+  function paginar(f, cols, conPrecios) {
+    stage.style.setProperty('--f', f + 'px');
+    medida.style.columnCount = cols;
+    medida.textContent = '';
+    var pags = [], cur = [], cabe = true;
+    function cerrar() { if (cur.length) pags.push(cur); cur = []; medida.textContent = ''; }
+    menu.forEach(function (c, ci) {
+      var a = 0;
+      while (a < c.items.length) {
+        var nodo = catNodo(c, a, c.items.length, conPrecios);
+        medida.appendChild(nodo); titulos(nodo);
+        if (!desborda()) { cur.push([ci, a, c.items.length]); return; }
+        medida.removeChild(nodo);
+        if (cur.length) { cerrar(); continue; }               /* try again on an empty page */
+        /* longer than a page: as many items as fit, the rest on the next page */
+        var b = a + 1;
+        titulos(medida.appendChild(catNodo(c, a, b, conPrecios)));
+        if (desborda()) cabe = false;                         /* not even one item fits: the letter is too big for this screen */
+        while (b < c.items.length) {
+          medida.textContent = ''; titulos(medida.appendChild(catNodo(c, a, b + 1, conPrecios)));
+          if (desborda()) break;
+          b++;
+        }
+        cur.push([ci, a, b]); cerrar(); a = b;
+      }
+    });
+    cerrar();
+    return { pags: pags, cabe: cabe };
+  }
+
+  var info = { estado: 'sin-verificar' };
+  var paginas = [], pagIx = 0, firma = '';
+  function maquetar(conPrecios) {
+    var r = proporcionH();
+    var pxCm = Math.max(anchoE, altoE) / LARGO_CM;
+    var base = AJ.distancia * AJ.escala / 100;                 /* cm of capital letter at 1 cm per metre */
+    var min = 0.8 * base, meta = 1.0 * base, max = 1.25 * base;
+    var fpx = function (cap) { return cap * pxCm / r; };
+    var opciones = altoE > anchoE ? [1, 2] : [3, 2];
+    var mejor = null, cache = {};
+    function n(cap, cols) { var k = cols + '|' + cap.toFixed(4); if (!cache[k]) cache[k] = paginar(fpx(cap), cols, conPrecios); return cache[k].pags.length; }
+    opciones.forEach(function (cols) {
+      var nMin = n(min, cols), nMeta = n(meta, cols), a, b, lim;
+      if (nMeta <= nMin) { a = meta; b = max; lim = nMeta; }  /* the target already gives the fewest pages: grow while it still fits */
+      else { a = min; b = meta; lim = nMin; }                 /* smaller, never under the minimum, only to save a page */
+      if (n(b, cols) <= lim) a = b;
+      else for (var k = 0; k < 7; k++) { var mid = (a + b) / 2; if (n(mid, cols) <= lim) a = mid; else b = mid; }
+      var cand = { cols: cols, cap: Math.floor(a * 1000) / 1000, n: lim };
+      if (!mejor || cand.n < mejor.n || (cand.n === mejor.n && cand.cap > mejor.cap + 1e-6)) mejor = cand;
+    });
+    var plan = paginar(fpx(mejor.cap), mejor.cols, conPrecios);
+    medida.textContent = '';
+    [].slice.call(main.querySelectorAll('.page')).forEach(function (p) { p.remove(); });
+    paginas = plan.pags.map(function (pg) {
+      var d = el('div', 'page'); d.style.columnCount = mejor.cols;
+      pg.forEach(function (part) { d.appendChild(catNodo(menu[part[0]], part[1], part[2], conPrecios)); });
+      main.appendChild(d); titulos(d);
+      return d;
+    });
+    info.capCm = mejor.cap; info.minCm = min; info.metaCm = meta; info.columnas = mejor.cols; info.paginas = paginas.length;
+    info.cabe = plan.cabe && !paginas.some(function (p) { return desborda(p); }); info.pxPorCm = pxCm; info.fuentePx = fpx(mejor.cap); info.proporcionH = r;
+    info.partes = plan.pags.map(function (pg) { return pg.map(function (p) { return { categoria: menu[p[0]].es, desde: p[1], hasta: p[2] }; }); });
+  }
+
+  function mostrar(i) {
+    pagIx = paginas.length ? ((i % paginas.length) + paginas.length) % paginas.length : 0;
+    paginas.forEach(function (p, k) { p.classList.toggle('on', k === pagIx); });
+    $('pag').textContent = paginas.length > 1 ? (pagIx + 1) + '/' + paginas.length : '';
+  }
+
+  function pintar(forzar) {
+    var st = estado(), conPrecios = st !== 'sin-verificar';
+    var f = JSON.stringify([st, anchoE, altoE, document.fonts ? document.fonts.status : '', menu && menu.map(function (c) {
+      return [c.es, c.en, c.items.map(function (i) { return [i.es, i.en, conPrecios ? i.precio : 0]; })];
+    })]);
+    info.estado = st; info.edadMs = edad(); info.deCopia = deCopia;
+    if (f === firma && !forzar) { diagnostico(); return; }
+    firma = f;
+    var av = $('aviso');
+    if (st === 'al-dia' || (!menu && st === 'sin-verificar')) { av.hidden = true; av.textContent = ''; }
+    else {
+      av.hidden = false; av.textContent = '';
+      av.appendChild(document.createTextNode(st === 'por-confirmar' ? 'Precios por confirmar en caja' : 'Consulte los precios en la caja'));
+      av.appendChild(el('small', '', st === 'por-confirmar' ? 'Please confirm prices at the counter' : 'Please ask for prices at the counter'));
+    }
+    $('marca').hidden = !av.hidden; $('esp').hidden = !av.hidden;
+    $('nota').hidden = !conPrecios;
+    var vacio = $('vacio');
+    if (!menu) {
+      [].slice.call(main.querySelectorAll('.page')).forEach(function (p) { p.remove(); });
+      paginas = []; mostrar(0);
+      stage.style.setProperty('--f', (Math.max(anchoE, altoE) / LARGO_CM * AJ.distancia * AJ.escala / 100 / proporcionH()) + 'px');
+      vacio.hidden = false; vacio.textContent = '';
+      vacio.appendChild(el('div', 't1', 'Hanging Garden Café'));
+      vacio.appendChild(el('div', 't2', 'Consulte el menú y los precios en la caja'));
+      vacio.appendChild(el('div', 't3', 'Please ask for the menu and prices at the counter'));
+      info.paginas = 0;
+      diagnostico();
+      return;
+    }
+    vacio.hidden = true;
+    maquetar(conPrecios);
+    mostrar(pagIx);
+    /* a page that does not hold what was measured (something around the board changed size): measure once more */
+    if (paginas.some(function (p) { return desborda(p); })) { maquetar(conPrecios); mostrar(pagIx); }
+    diagnostico();
+  }
+
+  function diagnostico() {
+    var d = $('diag');
+    if (!AJ.diag) { d.hidden = true; return; }
+    d.hidden = false;
+    var e = info.edadMs === Infinity ? 'nunca' : Math.round(info.edadMs / 1000) + ' s';
+    d.innerHTML = '';
+    var add = function (k, v) { d.appendChild(el('b', '', k + ': ')); d.appendChild(document.createTextNode(v + '\n')); };
+    add('TV', (AJ.tv || '(sin nombre)') + ' · ' + AJ.pulgadas + '" · ' + AJ.distancia + ' m' + (AJ.supuesto ? ' (supuesto: falta pulgadas o distancia)' : '') +
+        ' · giro ' + AJ.giro + ' · escala ' + AJ.escala + ' %');
+    add('Letra', info.capCm ? 'mayúscula ' + info.capCm.toFixed(2) + ' cm (mínimo ' + info.minCm.toFixed(2) + ', meta ' + info.metaCm.toFixed(2) + ')' : '–');
+    add('Páginas', (info.paginas || 0) + ' · ' + (info.columnas || '–') + ' columnas' + (info.paginas > 2 ? ' · MÁS DE 2: menos productos o TV más grande' : '') +
+        (info.cabe === false ? ' · NO CABE: baje la escala o la distancia' : ''));
+    add('Precios', info.estado + ' · última lectura hace ' + e + (deCopia ? ' · nombres de la copia del aparato' : ''));
+    add('Versión', (window.HG_VERSION && HG_VERSION.build) || '?');
+    if (malos.length) add('Ajustes no válidos', malos.join(', '));
+  }
+
+  /* ---------- full screen and a screen that stays on (as tv.html) ---------- */
+  function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function goFull() {
+    if (isFull()) return;
+    var de = document.documentElement, fn = de.requestFullscreen || de.webkitRequestFullscreen;
+    if (!fn) return;
+    try { var p = fn.call(de); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  }
+  addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 23) goFull(); });
+  addEventListener('click', goFull);
+  var wakeLock = null;
+  async function keepAwake() {
+    try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function () { wakeLock = null; }); } }
+    catch (e) { wakeLock = null; }
+  }
+  function fsHint() {
+    var can = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+    if (!can || isFull()) return;
+    var h = $('fsHint'); h.classList.add('on');
+    setTimeout(function () { h.classList.remove('on'); }, 12000);
+  }
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) {
+    document.addEventListener(ev, function () { $('fsHint').classList.remove('on'); setTimeout(function () { orientar(); pintar(); }, 300); });
+  });
+
+  /* ---------- start ---------- */
+  window.PANTALLA = {
+    info: function () { return JSON.parse(JSON.stringify(Object.assign({}, info, { pagina: pagIx, ajustes: AJ, tiempos: T, paginaMs: paginaMs }))); },
+    refrescar: refrescar, mostrar: mostrar
+  };
+  orientar(); aplicarLook();
+  var guardado = copia();
+  if (guardado) { menu = guardado; deCopia = true; }
+  pintar();
+  refrescar();
+  setInterval(function () { if (Date.now() - ultimoIntento >= T.cada - 50) refrescar(); }, Math.min(T.cada, 5000));
+  setInterval(function () { aplicarLook(); pintar(); }, T.revisar);
+  setInterval(function () { if (paginas.length > 1) mostrar(pagIx + 1); }, paginaMs);
+  addEventListener('resize', function () { orientar(); pintar(); });
+  addEventListener('online', refrescar);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { refrescar(); keepAwake(); } });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { pintar(); });
+  fsHint(); keepAwake();
+})();
+</script>
+</body>
+</html>

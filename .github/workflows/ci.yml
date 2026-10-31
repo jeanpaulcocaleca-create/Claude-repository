@@ -79,3 +79,6 @@ jobs:
       - name: Browser tests
         if: hashFiles('tests/e2e/run.js') != ''
         run: node tests/e2e/run.js
+      - name: Private prototypes (not published; the café's pages, migrations and pages.yml equal the published release)
+        if: hashFiles('tests/e2e/run.js') != ''
+        run: bash tests/prototipos/run.sh

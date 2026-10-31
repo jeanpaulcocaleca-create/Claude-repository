@@ -2194,3 +2194,91 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   00:00–05:00 Costa Rica for the tag's Tests; post-publication checks create no test sale, expense or delivery. Way
   back: publish `v2026.10.25-2` again, database stays at 0035; what it does not undo (credit-expense payments made in
   the new page cannot be voided from the old one) and when a database reversal would be advisable are written down.
+
+## D-060 · 2026-10-31 · Customer screens: phase 0 and a private prototype of Screen A (nothing published, no migration)
+- **The owner's approval (2026-10-31):** «Dirección aprobada», with ten conditions, quoted with how each is met in
+  `docs/PANTALLAS.md` §1:
+  1. Screen A first, in a private view;
+  2. the Caja, Cocina, Contabilidad, QR menu and current TV stay intact, proven by a file comparison and tests;
+  3. prices and availability are read only from the existing menu, never written;
+  4. a safe policy for a lost connection and stale data;
+  5. legible from a distance;
+  6. no new subscription, service or device without proof and approval;
+  7. combos and discounts reserved until the till charges them exactly as announced;
+  8. management behind the owner PIN, server permissions and a change log;
+  9. no migration or Supabase setting without express approval;
+  10. tests and a private demonstration before each publication request.
+
+  Next, per the owner: phase 0 and a prototype of Screen A; no migrations and no Screen B yet; the pending decisions
+  stay with the owner.
+- **Phase 0:**
+  - the per-TV form (§2.1);
+  - a printable letter test (`docs/pantallas/prueba-de-letra-pantalla-a.pdf`; capital heights measured at 2.01, 2.99,
+    4.00 and 5.00 cm, with a 10 cm bar to check the print scale);
+  - `supabase/tools/menu-pantallas.sql`, the read-only menu report the owner runs in the SQL Editor. Test 430 (11
+    checks): the transaction is read-only, a write is refused, no row is written, the counts are right, Extras & Combos
+    are kept apart, a sold-out item is listed, and nothing about people, sales or keys appears.
+- **Prototype:** `prototipos/pantalla-menu/pantalla-menu.html`. It lives outside `website/`, so no release can publish
+  it.
+  - **Reading:** one read of `menu_categories` with its items, using the public key; the same data as `tv.html` and
+    `m.html`. Spanish first (name_es, then the site's dictionary); English below at 75 %.
+  - **Letter:** sized from the screen's diagonal and the farthest reader's distance. The target is a 1 cm capital per
+    metre, never under 0.8, measured on the font in use.
+  - **Pages:** a category is never split across pages unless it is longer than a page.
+  - **Freshness:** prices come only from a read of this session.
+    - Up to 2 min: shown.
+    - Up to 10 min: shown, with «Precios por confirmar en caja».
+    - After that, or with no read yet: no price at all.
+    - The age is the larger of the monotonic and the wall clock. A TV that slept or a clock moved forward cannot make
+      old prices look current; a clock moved back cannot either, because the monotonic clock still counts.
+    - The device keeps only the names, for 3 days; prices are never stored.
+  - **Updates:** `version.js` reloads the page with no notice to guests.
+  - **Test hooks:** `PANTALLA_TEST` (timings) and `PANTALLA_DEMO` (menu and settings) are used only by the tests and the
+    demonstration.
+- **«No tocar» proven:** `tests/prototipos/no-tocar.sh` compares the working tree with the published release
+  `334624c` (`v2026.10.26-1`, recorded in `tests/prototipos/BASE`): `website/` (43 files), `supabase/migrations/`
+  (36) and `pages.yml` are identical, new files included. The full suite still runs the Caja, Cocina, Contabilidad, QR
+  menu and current-TV tests. `tests/run.sh` and CI now also run `tests/prototipos/run.sh`, which serves the prototype
+  next to a copy of `website/` on its own ports and runs 9 browser tests. Those cover:
+  - 7 TV sizes and turns;
+  - a sold-out item gone within one read;
+  - the connection lost and back;
+  - a slept TV and a clock moved back;
+  - a cold start offline;
+  - the name_es column missing;
+  - the reload after a release;
+  - the technician's settings.
+- **Layout fixes found by the tests:**
+  - The page number in the header changed the header's height after the menu was measured. The header now has one
+    height in every state, so the warning moves nothing; test A4 checks this.
+  - A long word in a title («costarricenses») was wider than its column. Only that title shrinks now, never under
+    1.25 times the names (the rule is 1.5).
+- **Finding for the owner:** the repository copy of the full menu (41 items, bilingual) does not fit in 2 pages at
+  queue distance. At 3 m: 55" needs 4 pages, 65" 3 and 75" 2. At 2 m almost any size gives 2. Full table in
+  `docs/PANTALLAS.md` §2.4. Decision P-02: accept more pages, choose categories for this TV, a larger TV, or a shorter
+  distance.
+- **Private demonstration:** https://claude.ai/artifact/6R3r3hBSyXCNcRX2V7q9tX. It runs the real prototype with the
+  repository's sample menu, labelled as not the café's prices, with accelerated timings. The owner can set the TV
+  size, distance, turn and look, mark an item sold out, change a price and cut the connection.
+- **Files changed outside the new ones:** `tests/run.sh` (a `prototipos` step) and `.github/workflows/ci.yml` (one more
+  step).
+- **Not done, on purpose:**
+  - no `website/` file;
+  - no migration and no Supabase setting;
+  - no tag and no publication;
+  - nothing of Screen B;
+  - no photos, recommendations, extras line, schedule or kiosk app (P-04 to P-11).
+- **Tests (2026-10-31):**
+  - `tests/run.sh`: lint, SQL 43/43 (430 included), backups, rehearsal, live pages 8/8, reset pages 8 + 2, prototypes
+    9/9.
+  - The browser suite had 4 failures; diagnosis: neither a regression nor a till change.
+    - `website/` and `tests/e2e/` are byte for byte the published release `334624c`.
+    - This container's test tools had been reinstalled, so the pinned Playwright 1.56.1 (built for Chromium 141) drove
+      the container's Chromium 153.
+    - 320 R2/R3 (review buttons opening a new tab) fail every time in that pairing, on `334624c` too.
+    - 070 Q-b (two till tabs, failing uploads) and 310 (recipes offline) failed once each, under the load of review
+      agents running at the same time. Alone they pass every time: 070 8/8, on this tree and on `334624c`.
+    - With the Playwright matching this Chromium (1.63) the whole browser suite passes, 159/159.
+    - CI installs the pinned Chromium for its pinned Playwright, so it is not affected.
+- **Pending:** the owner's data and decisions (E-39, `docs/PANTALLAS.md` §7). The steps before any publication request
+  are in §8.
