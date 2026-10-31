@@ -1,0 +1,62 @@
+/* Estilos compartidos de los rótulos 70 cm × 110 cm */
+
+@font-face {
+  font-family: 'Playfair';
+  src: url('fonts/PlayfairDisplay[wght].ttf') format('truetype');
+  font-weight: 400 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Playfair';
+  src: url('fonts/PlayfairDisplay-Italic[wght].ttf') format('truetype');
+  font-weight: 400 900;
+  font-style: italic;
+}
+
+:root {
+  --green: #1e4a3b;        /* verde bosque, como el azulejo del local */
+  --green-deep: #12332b;   /* verde profundo para fondos y degradados */
+  --cream: #f7f0e4;        /* crema cálido */
+  --gold: #d4a24c;         /* dorado caramelo */
+  --ink: #2a1c14;          /* café oscuro para texto */
+  --ink-soft: #5a4a3f;
+}
+
+@page { size: 700mm 1100mm; margin: 0; }
+
+html, body { margin: 0; padding: 0; }
+body {
+  width: 700mm;
+  height: 1100mm;
+  overflow: hidden;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  font-family: 'Inter', 'Liberation Sans', sans-serif;
+  color: var(--ink);
+  background: var(--cream);
+}
+
+.sign {
+  position: relative;
+  width: 700mm;
+  height: 1100mm;
+  overflow: hidden;
+  background: var(--cream);
+}
+
+/* Marca (sustituir por el logo real) */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 5mm;
+  font-weight: 700;
+  font-size: 10mm;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.brand .cup { width: 15mm; height: 15mm; flex: none; }
+
+img { display: block; }
+figure { margin: 0; }
+h1, h2, p { margin: 0; }

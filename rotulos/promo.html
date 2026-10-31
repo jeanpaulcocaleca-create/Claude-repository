@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Rótulo Promocional 70×110 cm</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  .sign { background: var(--green-deep); }
+
+  /* ---------- Hero ---------- */
+  .hero { position: relative; height: 380mm; overflow: hidden; background: var(--green-deep); }
+  .hero > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+  .shade {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(to top, rgba(18,51,43,.98) 0%, rgba(18,51,43,.9) 22%, rgba(18,51,43,.6) 42%, rgba(18,51,43,0) 66%),
+      linear-gradient(to bottom, rgba(0,0,0,.42) 0%, rgba(0,0,0,0) 24%);
+  }
+  .hero .brand { position: absolute; top: 24mm; left: 30mm; color: var(--cream); }
+  .copy { position: absolute; left: 30mm; right: 30mm; bottom: 28mm; color: var(--cream); }
+  .eyebrow {
+    margin-bottom: 9mm;
+    font-weight: 700;
+    font-size: 11mm;
+    line-height: 1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow: 0 0.6mm 2.5mm rgba(0,0,0,.45);
+  }
+  .copy h1 {
+    font-family: 'Playfair', serif;
+    font-weight: 900;
+    font-size: 66mm;
+    line-height: 0.98;
+    letter-spacing: -0.012em;
+  }
+
+  /* ---------- Bandas de productos ---------- */
+  .band { padding: 17mm 30mm 16mm; }
+  .band.cream { background: var(--cream); color: var(--ink); }
+  .band.green { background: var(--green); color: var(--cream); }
+  .band h2 {
+    display: flex; align-items: center; gap: 9mm;
+    margin-bottom: 8mm;
+    font-family: 'Playfair', serif;
+    font-weight: 700;
+    font-size: 25mm;
+    line-height: 1;
+  }
+  .band h2::after { content: ''; flex: 1; height: 1.1mm; background: var(--gold); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14mm; }
+  .ph { aspect-ratio: 3 / 2; border-radius: 7mm; overflow: hidden; background: #e5dccb; }
+  .ph img { width: 100%; height: 100%; object-fit: cover; }
+  .band figcaption {
+    margin-top: 5mm;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15.5mm;
+    line-height: 1.1;
+  }
+
+  /* ---------- Batidos a sangre ---------- */
+    .smoothies-title {
+    height: 26mm;
+    background: var(--cream);
+    color: var(--ink);
+    display: flex; align-items: center; gap: 9mm;
+    padding: 0 30mm;
+    font-family: 'Playfair', serif;
+    font-weight: 700;
+    font-size: 22mm;
+    line-height: 1;
+  }
+  .smoothies-title::before, .smoothies-title::after { content: ''; flex: 1; height: 1.1mm; background: var(--gold); }
+  .smoothies { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); height: 200mm; }
+  .smoothies figure { position: relative; overflow: hidden; }
+  .smoothies img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; }
+  .smoothies figcaption {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 42mm 8mm 11mm;
+    text-align: center;
+    color: #fff;
+    font-weight: 800;
+    font-size: 17mm;
+    line-height: 1.1;
+    background: linear-gradient(to top, rgba(18,51,43,.94) 0%, rgba(18,51,43,.55) 45%, rgba(18,51,43,0) 100%);
+    text-shadow: 0 1mm 3mm rgba(0,0,0,.35);
+  }
+
+  /* ---------- Pie ---------- */
+  footer {
+    height: 46mm;
+    display: flex; align-items: center; justify-content: center; gap: 8mm;
+    color: var(--cream);
+    font-family: 'Playfair', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 15mm;
+    line-height: 1;
+    background: var(--green-deep);
+  }
+  footer .cup { width: 14mm; height: 14mm; color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="sign">
+
+  <section class="hero">
+    <img src="fotos/the-hanging-stack.webp" alt="">
+    <div class="shade"></div>
+    <div class="brand">
+      <svg class="cup" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 4c0 14-2 30 4 44 2 5 6 9 12 11"/>
+        <path d="M33 14c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M33 26c7-1 12 2 14 8-7 2-12-1-14-8z"/>
+        <path d="M34 36c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M38 48c6-2 12 0 15 5-6 3-12 1-15-5z"/>
+      </svg>
+      <span>Hanging Garden Café</span>
+    </div>
+    <div class="copy">
+      <p class="eyebrow">Desayuna con nosotros</p>
+      <h1>Tu mañana<br>empieza aquí.</h1>
+    </div>
+  </section>
+
+  <section class="band cream">
+    <h2>Desayunos</h2>
+    <div class="grid">
+      <figure><div class="ph"><img src="fotos/bun-and-roll-breakfast.jpg" style="object-position:50% 50%" alt=""></div><figcaption>Bun &amp; Roll Breakfast</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/bagel.webp" style="object-position:50% 50%" alt=""></div><figcaption>Bagel</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/the-hanging-stack.webp" style="object-position:50% 40%" alt=""></div><figcaption>The Hanging Stack</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="band green">
+    <h2>Pastelería</h2>
+    <div class="grid">
+      <figure><div class="ph"><img src="fotos/croissant-triple-chocolate.jpg" style="object-position:50% 70%" alt=""></div><figcaption>Croissant Triple Chocolate</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/croissant-chocolate.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Croissant de Chocolate</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/cinnamon-roll.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Cinnamon Roll</figcaption></figure>
+    </div>
+  </section>
+
+  <div class="smoothies-title">Batidos</div>
+  <section class="smoothies">
+    <figure><img src="fotos/menti-verde.jpg" alt=""><figcaption>Menti Verde</figcaption></figure>
+    <figure><img src="fotos/golden-passion-bloom.jpg" alt=""><figcaption>Golden Passion Bloom</figcaption></figure>
+    <figure><img src="fotos/lemon-rose-blossom.jpg" alt=""><figcaption>Lemon Rose Blossom</figcaption></figure>
+  </section>
+
+  <footer>
+    <svg class="cup" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 4c0 14-2 30 4 44 2 5 6 9 12 11"/>
+        <path d="M33 14c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M33 26c7-1 12 2 14 8-7 2-12-1-14-8z"/>
+        <path d="M34 36c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M38 48c6-2 12 0 15 5-6 3-12 1-15-5z"/>
+      </svg>
+    <span>¡Te esperamos!</span>
+  </footer>
+
+</div>
+</body>
+</html>

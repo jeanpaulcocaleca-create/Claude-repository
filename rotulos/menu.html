@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Rótulo Menú 70×110 cm</title>
+<link rel="stylesheet" href="base.css">
+<style>
+  /* ---------- Cabecera ---------- */
+  .top {
+    height: 134mm;
+    background: var(--green);
+    color: var(--cream);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6mm;
+    position: relative;
+  }
+  .top .brand { color: var(--gold); font-size: 12.5mm; gap: 6mm; }
+  .top .brand .cup { width: 18mm; height: 18mm; }
+  .top h1 {
+    font-family: 'Playfair', serif;
+    font-weight: 900;
+    font-size: 86mm;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .kicker {
+    display: flex;
+    align-items: center;
+    gap: 7mm;
+    font-weight: 600;
+    font-size: 9.5mm;
+    line-height: 1;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    opacity: .92;
+  }
+  .kicker i { width: 2.6mm; height: 2.6mm; border-radius: 50%; background: var(--gold); }
+
+  /* ---------- Cuerpo ---------- */
+  main { padding: 18mm 30mm 0; }
+  section { margin-bottom: 20mm; }
+  section:last-child { margin-bottom: 0; }
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 9mm;
+    margin-bottom: 9mm;
+    font-family: 'Playfair', serif;
+    font-weight: 700;
+    font-size: 27mm;
+    line-height: 1;
+    color: var(--ink);
+  }
+  h2::after { content: ''; flex: 1; height: 1.1mm; background: var(--gold); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15mm; }
+  .ph {
+    aspect-ratio: 3 / 2;
+    border-radius: 7mm;
+    overflow: hidden;
+    background: #e5dccb;
+  }
+  .ph img { width: 100%; height: 100%; object-fit: cover; }
+  figcaption {
+    margin-top: 6mm;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15.5mm;
+    line-height: 1.15;
+    color: var(--ink);
+  }
+  section.batidos .ph { aspect-ratio: 5 / 4; }
+  section.batidos .ph img { object-position: 50% 52%; }
+
+  /* ---------- Pie ---------- */
+  footer {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 46mm;
+    background: var(--green);
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7mm;
+    font-family: 'Playfair', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 15mm;
+    line-height: 1;
+  }
+  footer .cup { width: 14mm; height: 14mm; color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="sign">
+
+  <header class="top">
+    <div class="brand">
+      <svg class="cup" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 4c0 14-2 30 4 44 2 5 6 9 12 11"/>
+        <path d="M33 14c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M33 26c7-1 12 2 14 8-7 2-12-1-14-8z"/>
+        <path d="M34 36c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M38 48c6-2 12 0 15 5-6 3-12 1-15-5z"/>
+      </svg>
+      <span>Hanging Garden Café</span>
+    </div>
+    <h1>Menú</h1>
+    <div class="kicker">
+      <span>Desayunos</span><i></i><span>Pastelería</span><i></i><span>Café</span><i></i><span>Batidos</span>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>Desayunos</h2>
+      <div class="grid">
+        <figure><div class="ph"><img src="fotos/bun-and-roll-breakfast.jpg" style="object-position:50% 50%" alt=""></div><figcaption>Bun &amp; Roll Breakfast</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/bagel.webp" style="object-position:50% 50%" alt=""></div><figcaption>Bagel</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/the-hanging-stack.webp" style="object-position:50% 40%" alt=""></div><figcaption>The Hanging Stack</figcaption></figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Pastelería</h2>
+      <div class="grid">
+        <figure><div class="ph"><img src="fotos/cinnamon-roll.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Cinnamon Roll</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/croissant-triple-chocolate.jpg" style="object-position:50% 70%" alt=""></div><figcaption>Croissant Triple Chocolate</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/croissant-chocolate.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Croissant de Chocolate</figcaption></figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Café</h2>
+      <div class="grid">
+        <figure><div class="ph"><img src="fotos/cortado.jpg" style="object-position:50% 86%" alt=""></div><figcaption>Cortado</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/cafe-con-leche.webp" style="object-position:50% 40%" alt=""></div><figcaption>Café con Leche</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/canela-cloud-latte.jpg" style="object-position:50% 69%" alt=""></div><figcaption>Canela Cloud Latte</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="batidos">
+      <h2>Batidos</h2>
+      <div class="grid">
+        <figure><div class="ph"><img src="fotos/menti-verde.jpg" alt=""></div><figcaption>Menti Verde</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/golden-passion-bloom.jpg" alt=""></div><figcaption>Golden Passion Bloom</figcaption></figure>
+        <figure><div class="ph"><img src="fotos/lemon-rose-blossom.jpg" alt=""></div><figcaption>Lemon Rose Blossom</figcaption></figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <svg class="cup" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M32 4c0 14-2 30 4 44 2 5 6 9 12 11"/>
+        <path d="M33 14c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M33 26c7-1 12 2 14 8-7 2-12-1-14-8z"/>
+        <path d="M34 36c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
+        <path d="M38 48c6-2 12 0 15 5-6 3-12 1-15-5z"/>
+      </svg>
+    <span>¡Te esperamos!</span>
+  </footer>
+
+</div>
+</body>
+</html>
