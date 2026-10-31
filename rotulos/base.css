@@ -1,0 +1,55 @@
+/* Estilos compartidos de los rótulos 70 cm × 110 cm · Hanging Garden Café
+   Paleta y tipografías tomadas de hanginggardencafe.com (page.css) */
+
+@font-face { font-family: 'Playfair'; src: url('fonts/PlayfairDisplay[wght].ttf') format('truetype'); font-weight: 400 900; font-style: normal; }
+@font-face { font-family: 'Playfair'; src: url('fonts/PlayfairDisplay-Italic[wght].ttf') format('truetype'); font-weight: 400 900; font-style: italic; }
+@font-face { font-family: 'Figtree'; src: url('fonts/Figtree[wght].ttf') format('truetype'); font-weight: 300 900; }
+@font-face { font-family: 'Dancing'; src: url('fonts/DancingScript[wght].ttf') format('truetype'); font-weight: 400 700; }
+@font-face { font-family: 'SplineMono'; src: url('fonts/SplineSansMono[wght].ttf') format('truetype'); font-weight: 300 700; }
+
+:root {
+  --canvas: #F6F1E2;       /* crema de la web */
+  --panel: #FCF8EC;
+  --ink: #26392C;          /* texto */
+  --accent: #1E4B33;       /* verde de la marca */
+  --accent-deep: #143726;
+  --accent-muted: #C9CFB6;
+  --mist: #9BB09A;
+  --gold: #B98A35;
+  --text-secondary: #54634F;
+
+  /* alias usados por los rótulos */
+  --green: var(--accent);
+  --green-deep: var(--accent-deep);
+  --cream: var(--canvas);
+}
+
+@page { size: 700mm 1100mm; margin: 0; }
+
+html, body { margin: 0; padding: 0; }
+body {
+  width: 700mm;
+  height: 1100mm;
+  overflow: hidden;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  font-family: 'Figtree', 'Inter', sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+.sign {
+  position: relative;
+  width: 700mm;
+  height: 1100mm;
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+img { display: block; }
+figure { margin: 0; }
+h1, h2, p, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+
+/* icono de hoja de la web */
+.leaf { width: 1em; height: 1em; flex: none; fill: currentColor; }
