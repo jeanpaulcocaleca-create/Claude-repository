@@ -1,25 +1,27 @@
-/* Estilos compartidos de los rótulos 70 cm × 110 cm */
+/* Estilos compartidos de los rótulos 70 cm × 110 cm · Hanging Garden Café
+   Paleta y tipografías tomadas de hanginggardencafe.com (page.css) */
 
-@font-face {
-  font-family: 'Playfair';
-  src: url('fonts/PlayfairDisplay[wght].ttf') format('truetype');
-  font-weight: 400 900;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Playfair';
-  src: url('fonts/PlayfairDisplay-Italic[wght].ttf') format('truetype');
-  font-weight: 400 900;
-  font-style: italic;
-}
+@font-face { font-family: 'Playfair'; src: url('fonts/PlayfairDisplay[wght].ttf') format('truetype'); font-weight: 400 900; font-style: normal; }
+@font-face { font-family: 'Playfair'; src: url('fonts/PlayfairDisplay-Italic[wght].ttf') format('truetype'); font-weight: 400 900; font-style: italic; }
+@font-face { font-family: 'Figtree'; src: url('fonts/Figtree[wght].ttf') format('truetype'); font-weight: 300 900; }
+@font-face { font-family: 'Dancing'; src: url('fonts/DancingScript[wght].ttf') format('truetype'); font-weight: 400 700; }
+@font-face { font-family: 'SplineMono'; src: url('fonts/SplineSansMono[wght].ttf') format('truetype'); font-weight: 300 700; }
 
 :root {
-  --green: #1e4a3b;        /* verde bosque, como el azulejo del local */
-  --green-deep: #12332b;   /* verde profundo para fondos y degradados */
-  --cream: #f7f0e4;        /* crema cálido */
-  --gold: #d4a24c;         /* dorado caramelo */
-  --ink: #2a1c14;          /* café oscuro para texto */
-  --ink-soft: #5a4a3f;
+  --canvas: #F6F1E2;       /* crema de la web */
+  --panel: #FCF8EC;
+  --ink: #26392C;          /* texto */
+  --accent: #1E4B33;       /* verde de la marca */
+  --accent-deep: #143726;
+  --accent-muted: #C9CFB6;
+  --mist: #9BB09A;
+  --gold: #B98A35;
+  --text-secondary: #54634F;
+
+  /* alias usados por los rótulos */
+  --green: var(--accent);
+  --green-deep: var(--accent-deep);
+  --cream: var(--canvas);
 }
 
 @page { size: 700mm 1100mm; margin: 0; }
@@ -31,9 +33,9 @@ body {
   overflow: hidden;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-  font-family: 'Inter', 'Liberation Sans', sans-serif;
+  font-family: 'Figtree', 'Inter', sans-serif;
   color: var(--ink);
-  background: var(--cream);
+  background: var(--canvas);
 }
 
 .sign {
@@ -41,22 +43,13 @@ body {
   width: 700mm;
   height: 1100mm;
   overflow: hidden;
-  background: var(--cream);
+  background: var(--canvas);
 }
-
-/* Marca (sustituir por el logo real) */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 5mm;
-  font-weight: 700;
-  font-size: 10mm;
-  line-height: 1;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-.brand .cup { width: 15mm; height: 15mm; flex: none; }
 
 img { display: block; }
 figure { margin: 0; }
-h1, h2, p { margin: 0; }
+h1, h2, p, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+
+/* icono de hoja de la web */
+.leaf { width: 1em; height: 1em; flex: none; fill: currentColor; }

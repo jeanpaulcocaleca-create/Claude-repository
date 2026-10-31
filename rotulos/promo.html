@@ -13,10 +13,10 @@
   .shade {
     position: absolute; inset: 0;
     background:
-      linear-gradient(to top, rgba(18,51,43,.98) 0%, rgba(18,51,43,.9) 22%, rgba(18,51,43,.6) 42%, rgba(18,51,43,0) 66%),
+      linear-gradient(to top, rgba(20,55,38,.98) 0%, rgba(20,55,38,.9) 22%, rgba(20,55,38,.6) 42%, rgba(20,55,38,0) 66%),
       linear-gradient(to bottom, rgba(0,0,0,.42) 0%, rgba(0,0,0,0) 24%);
   }
-  .hero .brand { position: absolute; top: 24mm; left: 30mm; color: var(--cream); }
+  .hero .logo { position: absolute; top: 22mm; left: 28mm; width: 84mm; height: 84mm; filter: drop-shadow(0 1.5mm 4mm rgba(0,0,0,.35)); }
   .copy { position: absolute; left: 30mm; right: 30mm; bottom: 28mm; color: var(--cream); }
   .eyebrow {
     margin-bottom: 9mm;
@@ -84,7 +84,7 @@
     font-weight: 800;
     font-size: 17mm;
     line-height: 1.1;
-    background: linear-gradient(to top, rgba(18,51,43,.94) 0%, rgba(18,51,43,.55) 45%, rgba(18,51,43,0) 100%);
+    background: linear-gradient(to top, rgba(20,55,38,.94) 0%, rgba(20,55,38,.55) 45%, rgba(20,55,38,0) 100%);
     text-shadow: 0 1mm 3mm rgba(0,0,0,.35);
   }
 
@@ -100,7 +100,10 @@
     line-height: 1;
     background: var(--green-deep);
   }
-  footer .cup { width: 14mm; height: 14mm; color: var(--gold); }
+  footer { font-family: 'Figtree', sans-serif; font-style: normal; font-weight: 600; font-size: 12.5mm; }
+  footer .logo { width: 30mm; height: 30mm; margin-right: 4mm; }
+  footer i { width: 2.4mm; height: 2.4mm; border-radius: 50%; background: var(--gold); }
+  footer .mono { font-family: 'SplineMono', monospace; font-weight: 400; font-size: 11.5mm; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -109,16 +112,7 @@
   <section class="hero">
     <img src="fotos/the-hanging-stack.webp" alt="">
     <div class="shade"></div>
-    <div class="brand">
-      <svg class="cup" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M32 4c0 14-2 30 4 44 2 5 6 9 12 11"/>
-        <path d="M33 14c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
-        <path d="M33 26c7-1 12 2 14 8-7 2-12-1-14-8z"/>
-        <path d="M34 36c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
-        <path d="M38 48c6-2 12 0 15 5-6 3-12 1-15-5z"/>
-      </svg>
-      <span>Hanging Garden Café</span>
-    </div>
+    <img class="logo" src="marca/logo.png" alt="Hanging Garden Café">
     <div class="copy">
       <p class="eyebrow">Desayuna con nosotros</p>
       <h1>Tu mañana<br>empieza aquí.</h1>
@@ -137,8 +131,8 @@
   <section class="band green">
     <h2>Pastelería</h2>
     <div class="grid">
-      <figure><div class="ph"><img src="fotos/croissant-triple-chocolate.jpg" style="object-position:50% 70%" alt=""></div><figcaption>Croissant Triple Chocolate</figcaption></figure>
-      <figure><div class="ph"><img src="fotos/croissant-chocolate.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Croissant de Chocolate</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/croissant-triple-chocolate.jpg" style="object-position:50% 70%" alt=""></div><figcaption>Triple Chocolate Croissant</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/croissant-chocolate.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Chocolate Croissant</figcaption></figure>
       <figure><div class="ph"><img src="fotos/cinnamon-roll.jpg" style="object-position:50% 56%" alt=""></div><figcaption>Cinnamon Roll</figcaption></figure>
     </div>
   </section>
@@ -151,14 +145,8 @@
   </section>
 
   <footer>
-    <svg class="cup" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M32 4c0 14-2 30 4 44 2 5 6 9 12 11"/>
-        <path d="M33 14c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
-        <path d="M33 26c7-1 12 2 14 8-7 2-12-1-14-8z"/>
-        <path d="M34 36c-7 0-12 4-13 10 7 1 12-3 13-10z"/>
-        <path d="M38 48c6-2 12 0 15 5-6 3-12 1-15-5z"/>
-      </svg>
-    <span>¡Te esperamos!</span>
+    <img class="logo" src="marca/logo.png" alt="">
+    <span>Abierto todos los días</span><i></i><span class="mono">6:00 – 19:00</span><i></i><span class="mono">hanginggardencafe.com</span>
   </footer>
 
 </div>
