@@ -2196,6 +2196,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   the new page cannot be voided from the old one) and when a database reversal would be advisable are written down.
 
 ## D-061 · 2026-10-31 · Customer screens: phase 0 and a private prototype of Screen A (nothing published, no migration)
+- **Superseded the same day by D-062:** the prototype `prototipos/pantalla-menu/pantalla-menu.html` became
+  `website/pantalla-menu.html`, and `tests/prototipos/` (its specs and `no-tocar.sh`) became `tests/e2e/specs/370` and
+  `tests/pantallas/no-tocar.sh`. The paths below are the ones of that day.
 - **The owner's approval (2026-10-31):** «Dirección aprobada», with ten conditions, quoted with how each is met in
   `docs/PANTALLAS.md` §1:
   1. Screen A first, in a private view;
@@ -2314,7 +2317,11 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   - *Texts without prices or discounts.* `_screen_text_problem` refuses ₡, $, %, colones, dólares, USD, CRC, euros and
     the combo/discount wording (combo, descuento, discount, 2x1, 3x2, 2 por 1, dos por uno, 2 for 1, bogo, gratis,
     oferta, rebaja, mitad de precio, medio precio, half price, precio especial, special price, happy hour), 140
-    characters at most. Left out on purpose: a general NxN («tour en 4x4») and English «free» («gluten-free»).
+    characters at most,
+    characters at most, plus, after the review: the colón sign as typed here (¢), ₵, €, the full-width ＄ and ％, an
+    amount with a thousands separator (4.500), NxM with two different numbers (2×1, 4 por 3), «lleve 2 … pague 1»,
+    de regalo, cortesía, sin costo, gratuito/a, buy one get one. Left out on purpose: NxN («tour en 4x4»), a plain
+    year («desde 1990») and English «free» («gluten-free»).
   - *Mandatory end dates.* A slide needs `starts_at` and `ends_at` (≤ 366 days), with days (1 = Monday … 7 = Sunday)
     and hours in Costa Rica time; it is retired, never deleted.
   - *Switched-off TV goes black.* `active = false` answers `tv_apagada`, distinct from an unknown address, and both

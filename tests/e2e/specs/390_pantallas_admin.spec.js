@@ -298,6 +298,8 @@ module.exports.tests = [
       await pg.check('input[name=edKind][value=invitacion]');
       await pg.fill('#ed-title_es', '¿Le gustó su visita?');
       await pg.fill('#ed-title_en', 'Loved your visit?');
+      assert.deepStrictEqual(await pg.$$eval('#edLink option', (o) => o.map((x) => x.textContent)), ['Reseña en Tripadvisor', 'El menú en el teléfono'],
+        'the QR goes to Tripadvisor (the only approved review link, E-35) or to the QR menu, and the page says so');
       await pg.selectOption('#edLink', 'resena');
       await pg.click('.days button[data-day="7"]');
       await pg.fill('#edFrom', '07:00');

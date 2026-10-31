@@ -9,6 +9,8 @@
 --     diapositiva_guardar, diapositiva_estado (la gestión de pantallas.html) y sus internas _screen_log, _slide_json,
 --     _screen_json y _screen_text_problem.
 --   * Quita la 0036 del registro de migraciones: la base vuelve a la versión 35.
+-- También vuelve a crear la regla de Storage «menu photos owner write» de la 0033 (para todo el depósito) y quita
+-- «screen photos owner write».
 -- Qué NO hace: no borra las tablas screens, screen_slides ni screen_changes (quedan con lo que tengan, sin uso y cerradas:
 --   ni los visitantes ni las cuentas de ingreso pueden leerlas ni escribirlas) y no borra ninguna fila. El registro de
 --   cambios (screen_changes) sigue sin poder modificarse ni borrarse: su guardia (_screen_changes_immutable y sus dos
@@ -40,6 +42,11 @@ drop function if exists public._screen_log(text, text, text, text, jsonb, jsonb)
 drop function if exists public._slide_json(public.screen_slides);
 drop function if exists public._screen_json(public.screens);
 drop function if exists public._screen_text_problem(text);
+-- the Storage rules as before the 0036: one rule for the whole bucket (manager-mode.sql, 0033), none for pantallas/
+drop policy if exists "screen photos owner write" on storage.objects;
+drop function if exists public._screen_owner_any_device();
+drop policy if exists "menu photos owner write" on storage.objects;
+create policy "menu photos owner write" on storage.objects for all to authenticated using (bucket_id = 'menu-photos' and ((select public.is_owner()) or (select public._unlocked_any_device()))) with check (bucket_id = 'menu-photos' and ((select public.is_owner()) or (select public._unlocked_any_device())));
 
 -- the three tables stay with every row; they were born closed (row security on, nothing granted to anon or authenticated)
 -- and stay so; the backup account keeps reading them. The change log keeps its guard: rows are only ever added.

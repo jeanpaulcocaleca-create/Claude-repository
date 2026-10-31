@@ -31,7 +31,10 @@ nada**.
 - **Páginas:** ningún archivo existente de `website/` cambia. Caja, Cocina, Contabilidad, menú QR, TV actual, Inicio,
   `config.js`, `lang.js`, `access.js` y `version.js` quedan byte por byte como en la versión publicada `v2026.10.26-1`.
   Lo comprueba `tests/pantallas/no-tocar.sh` en cada prueba: solo admite los archivos nuevos de las pantallas.
-- **Base de datos:** ninguna tabla, función, regla ni fila existente cambia; la migración solo agrega.
+- **Base de datos:** ninguna tabla, función ni fila existente cambia. La única regla existente que se toca es la de
+  Storage «menu photos owner write» (0033): se vuelve a crear igual pero sin la carpeta `pantallas/`, y una regla nueva
+  deja esa carpeta solo al dueño. Un encargado sigue cambiando las fotos del menú como hoy (la prueba SQL 440 lo
+  comprueba). La reversión la deja como en la 0033.
   - El ensayo con la copia de producción lo compara antes y después.
   - Las páginas publicadas hoy pasan sus pruebas sobre la copia migrada.
 - **Promociones y combos:** las pantallas no anuncian combos ni descuentos (su condición 7). El servidor rechaza un
@@ -55,10 +58,11 @@ No bloquea ventas: crea tablas nuevas y no toca ninguna existente. Aun así, mej
    GitHub) → **Run**. Debe decir *Success*.
 2. Pegar `supabase/tools/release-check.sql` → Run.
    - `migrations_missing` = `[]` y `functions_missing` = `[]`;
-   - `anon_can_run` gana una sola función: `pantalla_datos`.
+   - `anon_can_run` gana una sola función: `pantalla_datos`;
+   - `storage_policies_missing` = `[]` (la regla nueva «screen photos owner write» está).
 3. Pegar `supabase/tools/production-snapshot.sql` → Run.
    - `functions_unknown` = `[]`;
-   - `functions_by_version` muestra `0036` = 10;
+   - `functions_by_version` muestra `0036` = 11;
    - `tables_missing` = `[]`.
 
 Si algo sale distinto, no siga: copie el resultado y avíselo. Antes del paso 3 de la sección 3, la migración sola no
@@ -67,8 +71,8 @@ cambia nada visible: las tablas nuevas no las lee ninguna página publicada.
 ## 3. Publicar (una sola versión)
 
 **Qué se publica:**
-- la versión publicada hoy (`v2026.10.26-1`) **más** solo `pantalla-menu.html`, `pantalla-promos.html` y
-  `pantallas.html`, que son nuevos;
+- la versión publicada hoy (`v2026.10.26-1`) **más** solo `pantalla-menu.html`, `pantalla-promos.html`,
+  `pantallas.html` y `pantallas.js`, que son nuevos;
 - ningún cambio de otra rama ni de un PR abierto: los PR #4 y #5 **no** van;
 - nada de descuentos.
 
@@ -109,8 +113,8 @@ cambia nada visible: las tablas nuevas no las lee ninguna página publicada.
    - **producto** Cloud Forest Latte, con la línea de arriba «Recién hecho · Freshly made»: la TV muestra el nombre del menú (en español si el Gestor lo tiene), la foto y el precio al día; no se le escribe título;
    - **producto** Adventure Box con la línea de arriba «¿Sale temprano mañana? Pídala hoy · Leaving early tomorrow? Order it today», de 15:00 a 19:00;
    - **marca** «Café de altura de Monteverde · Highland coffee from Monteverde»;
-   - **invitación** «¿Le gustó su visita? · Loved your visit?» con el QR de reseña. El QR solo sirve si el cliente está a
-     3 m o menos.
+   - **invitación** «¿Le gustó su visita? · Loved your visit?» con el QR de reseña en Tripadvisor (el único enlace de
+     reseña aprobado, E-35). El QR solo sirve si el cliente está a 3 m o menos.
 5. **Hoy en pantalla:** compruebe qué sale ahora en cada TV.
 6. **Registro de cambios:** cada cambio aparece con su nombre.
 
@@ -136,11 +140,11 @@ letra y las pruebas de aceptación.
   30 s.
 - **Las páginas nuevas:** Actions → **Publish website** → Use workflow from: **Tags → `v2026.10.26-1`** → `PUBLICAR` →
   Run workflow.
-  - Las TV nuevas muestran «página no encontrada» hasta volver a publicar.
+  - Las TV nuevas muestran la página de error de GitHub (en inglés: «404 · File not found») hasta volver a publicar.
   - La base se queda en la 0036: las páginas publicadas hoy funcionan con ella, y el ensayo lo prueba.
 - **La base de datos** (solo por una falla de una función de la 0036): `supabase/tools/reversion-0036.sql` completo en el
   SQL Editor.
-  - Quita las funciones; las tablas quedan con lo que tengan, sin uso.
+  - Quita las funciones y deja la regla de Storage como en la 0033; las tablas quedan con lo que tengan, sin uso.
   - La Pantalla A sigue funcionando con los ajustes de su dirección (`?tv=menu-1&pulgadas=55&distancia=3`).
   - La Pantalla B muestra solo la marca.
   - Se niega si hay una migración posterior aplicada, por ejemplo la de descuentos (0037).

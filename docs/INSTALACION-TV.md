@@ -96,7 +96,7 @@ cuesta una licencia y solo se compra si él la aprueba (su condición 6). No ins
 | Solo «Hanging Garden Café · Monteverde» en la Pantalla B | No hay diapositivas vigentes para esa TV, o no hay internet desde que encendió |
 | La imagen sale de lado | Cambie **Posición** en `pantallas.html` |
 | Letra pequeña o páginas de más | **Escala de letra**, **Distancia**, **Tamaño** o **Categorías** en `pantallas.html` |
-| «Página no encontrada» | La dirección está mal escrita, o las páginas no se han publicado |
+| La página de error de GitHub («404 · File not found») | La dirección está mal escrita, o las páginas no se han publicado |
 | Pide OK cada vez que enciende | Es normal en el navegador de la TV; anótelo para el dueño (ver la prueba del corte de luz) |
 
 ## 8. Lo que no se debe hacer

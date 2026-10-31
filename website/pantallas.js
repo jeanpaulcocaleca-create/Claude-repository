@@ -12,6 +12,7 @@
   /* ---------- 0) only on a known address, before any client exists ----------
      config.js does not list this page among the staff pages, so on an unknown address (a copy, a proxy) it would hand
      out production's address: refuse here, like config.js does for the staff pages */
+  try { if (!localStorage.getItem('hg_lang')) localStorage.setItem('hg_lang', 'es'); } catch (e) {}   /* the shared PIN screen (lang.js) in Spanish */
   var CFG = window.HG_CONFIG || null;
   if (!CFG || CFG.env === 'unknown' || CFG.blocked || !CFG.url || !CFG.key) {
     document.body.innerHTML = '<div style="max-width:30rem;margin:15vh auto;padding:1.5rem;font:16px/1.5 system-ui,sans-serif;' +
@@ -125,16 +126,21 @@
 
   /* ---------- 2) the rules the server applies to every text (0036, _screen_text_problem), checked while typing ---------- */
   var W0 = '(^|[^\\p{L}\\p{N}_])', W1 = '(?=$|[^\\p{L}\\p{N}_])';
-  var RX_PRECIO = new RegExp('₡|\\$|%|' + W0 + '(usd|crc|col[oó]n|colones|d[oó]lar|d[oó]lares|dollars?|euros?)' + W1, 'iu');
-  var RX_COMBO = new RegExp(W0 + '(combos?|descuentos?|discounts?|2 ?x ?1|3 ?x ?2|2 ?por ?1|3 ?por ?2|dos por uno|tres por dos|2 for 1|' +
-    'two for one|bogo|gratis|ofertas?|rebaja|rebajas|promo precio|precio especial|special price|happy hour|mitad de precio|' +
+  var RX_PRECIO = new RegExp('[₡¢₵€＄％﹩﹪$%]|' + W0 + '(usd|crc|col[oó]n|colones|d[oó]lar|d[oó]lares|dollars?|euros?)' + W1 +
+    '|' + W0 + '\\d{1,3}[.,]\\d{3}' + W1, 'iu');
+  var RX_COMBO = new RegExp(W0 + '(combos?|descuentos?|discounts?|dos por uno|tres por dos|2 for 1|two for one|bogo|gratis|gratuit[oa]s?|' +
+    'de regalo|cortes[ií]a|sin (costo|cargo)|ofertas?|rebajas?|promo precio|precio especial|special price|happy hour|mitad de precio|' +
     'medio precio|half price)' + W1, 'iu');
+  var RX_NXM = new RegExp(W0 + '([1-9]) *(?:x|×|por) *([1-9])' + W1, 'giu');          /* 2x1, 3×2, 2 por 1: two different numbers */
+  var RX_LLEVE = new RegExp(W0 + '(lleve|llev[aá]|pague|pag[aá]) *\\d+[^\\d\\n]{0,30}' + W0 + '(pague|pag[aá]|lleve|llev[aá]) *\\d+' + W1, 'iu');
+  var RX_BOGO = new RegExp(W0 + 'buy *(one|\\d+),? *(and )?get *(one|\\d+)' + W1, 'iu');
+  function nxm(s) { var m, r = new RegExp(RX_NXM.source, 'giu'); while ((m = r.exec(s))) { if (m[2] !== m[3]) return true; } return false; }
   function textProblem(s) {
     s = s === null || s === undefined ? '' : String(s);
     if (!s.trim()) return null;
     if (Array.from(s.trim()).length > 140) return 'largo';      /* the page sends each text trimmed */
     if (RX_PRECIO.test(s)) return 'precio';
-    if (RX_COMBO.test(s)) return 'combo_descuento';
+    if (RX_COMBO.test(s) || nxm(s) || RX_LLEVE.test(s) || RX_BOGO.test(s)) return 'combo_descuento';
     return null;
   }
 
@@ -197,7 +203,9 @@
     var ds = dayStart(t), de = ds + DAY, c = [T(s.ends_at)], to = hm(s.to_time);
     if (to !== null && hm(s.from_time) !== null) { c.push(ds + to * 60000); c.push(ds + DAY + to * 60000); }
     c = c.filter(function (x) { return x > t; }).sort(function (a, b) { return a - b; });
-    return c.length && c[0] < de ? c[0] : null;
+    /* the slide's own hours may end after midnight: that end counts; only ends_at is cut at the day's end */
+    if (!c.length) return null;
+    return c[0] < de || (to !== null && (c[0] - ds) % DAY === to * 60000) ? c[0] : null;
   }
   function tvOn(tv, t) {
     var a = hm(tv.on_from), b = hm(tv.on_to);
@@ -571,8 +579,8 @@
       return;
     }
     delete drafts[tv.id];
-    toast('Guardado');
     await loadState();
+    toast('Guardado');
   }
   /* a new TV: its id and what it shows; everything else starts with the prudent values of 0036 */
   $('addTv').addEventListener('submit', async function (e) {
@@ -595,8 +603,8 @@
       err.textContent = errText(r); return;
     }
     $('addTv').reset();
-    toast('Guardado');
     await loadState();
+    toast('Guardado');
   });
   async function copy(text) {
     var ok = false;
@@ -647,7 +655,7 @@
   /* ---------- 8) the slides ---------- */
   var KIND = { producto: 'Producto', marca: 'Marca', invitacion: 'Invitación' };
   var STATUS = { activa: ['Activa', 'c-ok'], pausada: ['Pausada', 'c-warn'], retirada: ['Retirada', 'c-mute'] };
-  var LINK = [['resena', 'Reseña en Google'], ['menu', 'El menú en el teléfono']];
+  var LINK = [['resena', 'Reseña en Tripadvisor'], ['menu', 'El menú en el teléfono']];
   var showRetired = false, confirming = null;
   function promosTvs() { return S.screens.filter(function (x) { return x.kind === 'promos'; }); }
   function itemName(it) { return !it ? '' : it.name_es && it.name_es !== it.name ? it.name_es + ' · ' + it.name : it.name; }
@@ -746,8 +754,8 @@
       return;
     }
     if (ED && ED.id === s.id && estado === 'retirada') closeEditor();
-    toast('Guardado');
     await loadState();
+    toast('Guardado');
   }
   $('newSlide').addEventListener('click', function () { openEditor(null); });
 
@@ -877,7 +885,7 @@
         h('label', { class: 'line' }, [h('input', { type: 'checkbox', id: 'edPaused' }), 'Guardarla en pausa (todavía no sale)'])])])]));
 
     form.appendChild(h('div', { class: 'acts' }, [h('button', { type: 'submit', id: 'edSave', text: 'Guardar' }),
-      h('button', { type: 'button', class: 'ghost', id: 'edCancel', text: 'Cancelar', on: { click: closeEditor } }), h('span', { class: 'sp' })]));
+      h('button', { type: 'button', class: 'ghost', id: 'edCancel', text: 'Cancelar', on: { click: function () { dropUploaded(); closeEditor(); } } }), h('span', { class: 'sp' })]));
     form.appendChild(h('p', { class: 'err', id: 'edErr', role: 'alert' }));
     form.addEventListener('submit', function (e) { e.preventDefault(); saveSlide(); });
     host.appendChild(form);
@@ -1040,12 +1048,14 @@
         var e2 = fld && ($('ed-' + fld) || $(map[fld]));
         if (e2) e2.classList.add('bad');
         if (r.data && r.data.error === 'dates_required') { $('edEnd').classList.add('bad'); }
+        await dropUploaded();
         if (r.data && (r.data.error === 'not_found' || r.data.error === 'retired')) { closeEditor(); toast(err.textContent); await loadState(); }
         return;
       }
+      ED.uploadedPath = null;          /* the slide keeps it */
       closeEditor();
-      toast('Guardado');
       await loadState();
+      toast('Guardado');
     } finally {
       saving = false; BUSY--;
       var b2 = $('edSave'); if (b2) { b2.textContent = 'Guardar'; checkTexts(); }
@@ -1098,7 +1108,14 @@
     var path = 'pantallas/' + uuid() + '.jpg';
     var up = await db.storage.from('menu-photos').upload(path, blob, { upsert: false, contentType: 'image/jpeg' });
     if (up.error) throw up.error;
+    ED.uploadedPath = path;
     return db.storage.from('menu-photos').getPublicUrl(path).data.publicUrl;
+  }
+  /* a photo uploaded for a slide the server did not accept (or the owner gave up on) is taken away: no orphan file */
+  async function dropUploaded() {
+    if (!ED || !ED.uploadedPath) return;
+    var path = ED.uploadedPath; ED.uploadedPath = null; ED.uploaded = null;
+    try { await db.storage.from('menu-photos').remove([path]); } catch (e) {}
   }
 
   /* ---------- 11) today on each promotions TV ---------- */

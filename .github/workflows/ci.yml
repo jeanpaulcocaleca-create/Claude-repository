@@ -19,7 +19,7 @@ jobs:
     # a push to a branch of this repository already runs the suite: the pull_request event runs it only for a fork
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:17
@@ -51,6 +51,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Lint
         run: bash tests/lint.sh
+      - name: No-touch check (the café's pages, migrations and pages.yml equal the published release; only the screens' new files are added)
+        run: bash tests/pantallas/no-tocar.sh
       - name: The live site is an approved release
         run: bash tests/tools/live-site-check.sh
       - name: SQL tests
@@ -79,5 +81,3 @@ jobs:
       - name: Browser tests
         if: hashFiles('tests/e2e/run.js') != ''
         run: node tests/e2e/run.js
-      - name: No-touch check (the café's pages, migrations and pages.yml equal the published release; only the screens' new files are added)
-        run: bash tests/pantallas/no-tocar.sh

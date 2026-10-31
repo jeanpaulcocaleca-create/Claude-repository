@@ -91,22 +91,22 @@ create function pg_temp.shown(tv text) returns text language sql as $$
 -- 1) rights, from the catalog ---------------------------------------------------------------------------------------------
 select test.eq((select string_agg(p.oid::regprocedure::text, ', ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'),
-               '_screen_changes_immutable(), _screen_json(screens), _screen_log(text,text,text,text,jsonb,jsonb), _screen_text_problem(text), '
+               '_screen_changes_immutable(), _screen_json(screens), _screen_log(text,text,text,text,jsonb,jsonb), _screen_owner_any_device(), _screen_text_problem(text), '
                || '_slide_json(screen_slides), diapositiva_estado(uuid,text), diapositiva_guardar(jsonb), pantalla_datos(text), '
-               || 'pantalla_guardar(jsonb), pantallas_estado()', 'the ten functions of 0036, no other');
+               || 'pantalla_guardar(jsonb), pantallas_estado()', 'the eleven functions of 0036, no other');
 select test.eq((select string_agg(p.proname, ' ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and has_function_privilege('anon', p.oid, 'execute')), 'pantalla_datos', 'a visitor (the TVs) may run pantalla_datos and nothing else new');
 select test.eq((select string_agg(p.proname, ' ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and has_function_privilege('authenticated', p.oid, 'execute')),
-               'diapositiva_estado diapositiva_guardar pantalla_datos pantalla_guardar pantallas_estado',
-               'a login may call the five functions of the API (each checks the owner itself), never the internal ones');
+               '_screen_owner_any_device diapositiva_estado diapositiva_guardar pantalla_datos pantalla_guardar pantallas_estado',
+               'a login may call the five functions of the API (each checks the owner itself) and the Storage rule''s check (a yes/no about this sign-in, as 0033''s _unlocked_any_device), never the other internal ones');
 select test.eq((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and has_function_privilege('canopy_backup', p.oid, 'execute')), 0, 'the backup account can run none of them');
 select test.eq((select string_agg(p.proname, ' ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)' and p.prosecdef),
-               '_screen_log diapositiva_estado diapositiva_guardar pantalla_datos pantalla_guardar pantallas_estado', 'the owner-rights functions');
+               '_screen_log _screen_owner_any_device diapositiva_estado diapositiva_guardar pantalla_datos pantalla_guardar pantallas_estado', 'the owner-rights functions');
 select test.eq((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c = 'search_path=public')), 0,
                'every one of them fixes its search path');
@@ -278,6 +278,25 @@ select test.eq(pg_temp.text_rule('2x1 en empanadas'), pg_temp.want('text_combo_d
 select test.eq(pg_temp.text_rule('Galleta gratis'), pg_temp.want('text_combo_descuento'), 'nor something free');
 select test.eq(pg_temp.text_rule('3x2 en empanadas') || ' ' || pg_temp.text_rule('2 por 1 los martes'), pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'),
                'nor a 3x2 or a «2 por 1»');
+select test.eq(pg_temp.text_rule('Casado del día ¢4.500'), pg_temp.want('text_precio'), 'the colón sign typed on a keyboard here (¢) too');
+select test.eq(pg_temp.text_rule('Solo ＄4') || ' ' || pg_temp.text_rule('Café ₵900') || ' ' || pg_temp.text_rule('20％ hoy') || ' ' || pg_temp.text_rule('Menú 5€'),
+               pg_temp.want('text_precio') || ' ' || pg_temp.want('text_precio') || ' ' || pg_temp.want('text_precio') || ' ' || pg_temp.want('text_precio'),
+               'the full-width dollar and percent, ₵ and € too');
+select test.eq(pg_temp.text_rule('Casado 4,500 hoy') || ' ' || pg_temp.text_rule('Latte a 2.200'), pg_temp.want('text_precio') || ' ' || pg_temp.want('text_precio'),
+               'an amount with a thousands separator is a price');
+select test.eq(pg_temp.text_rule('Lleve 2 empanadas y pague 1') || ' ' || pg_temp.text_rule('Pague 1, lleve 2'),
+               pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'), 'nor «lleve 2 y pague 1» in either order');
+select test.eq(pg_temp.text_rule('3x1 en galletas') || ' ' || pg_temp.text_rule('2×1 los martes') || ' ' || pg_temp.text_rule('2  x  1') || ' ' || pg_temp.text_rule('4 por 3'),
+               pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'),
+               'nor NxM with two different numbers, with ×, extra spaces or «por»');
+select test.eq(pg_temp.text_rule('Café de regalo') || ' ' || pg_temp.text_rule('Postre de cortesía') || ' ' || pg_temp.text_rule('Refill sin costo') || ' ' || pg_temp.text_rule('Galleta gratuita') || ' ' || pg_temp.text_rule('Buy one get one'),
+               pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'),
+               'nor something free, on the house, at no cost, or buy one get one');
+reset role;   -- the helper itself is private: read it as the database owner
+select test.eq((select string_agg(coalesce(public._screen_text_problem(t), 'ok'), ' ')
+                  from unnest(array['Tour en 4x4 · desde 1990', 'Pan sin gluten · gluten-free', 'Abierto de 6 a 7', '¿Sale temprano mañana? Pida su Adventure Box']) t),
+               'ok ok ok ok', 'but 4x4, a year, «gluten-free», plain numbers and normal Spanish are fine');
+set role authenticated;
 select test.eq(pg_temp.text_rule(repeat('á', 141)), pg_temp.want('text_largo'), 'more than 140 characters is refused in every text');
 reset role;
 select test.eq((select count(*)::int from public.screen_slides), 1, 'none of those refusals saved a slide');
@@ -466,6 +485,47 @@ select test.eq((select count(*)::int from public.screen_slides where status = 'a
 
 -- 9) the change log: rows are only added, by nobody changed (not even the database owner) ---------------------------------
 select test.throws($$update public.screen_changes set summary = 'otro'$$, 'screen_changes_immutable', 'a log line cannot be changed');
+-- the slides' photos (menu-photos/pantallas/). Storage never gets the unlock token, only the sign-in session (0033), so the
+-- rule accepts an OWNER-role unlock of the same session or the owner login with the code; a manager's unlock keeps
+-- writing the menu's own photos (the Menu Manager) and never a slide's picture
+reset role;
+select test.login('cafe'); select test.session('tablet-a'); set role authenticated;
+select test.unlock(test.staff('ana'), '4826') \g /dev/null
+select set_config('request.headers', '{}', true) \g /dev/null
+select test.lives($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'm-440.jpg')$$, 'a manager''s unlock still puts a menu photo');
+select test.throws($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/a-440.jpg')$$, 'row-level security',
+                   'but cannot put a slide''s picture');
+reset role;
+insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/o-440.jpg');
+select test.login('cafe'); select test.session('tablet-a'); set role authenticated;
+update storage.objects set metadata = '{"x":1}' where bucket_id = 'menu-photos' and name = 'pantallas/o-440.jpg';
+delete from storage.objects where bucket_id = 'menu-photos' and name = 'pantallas/o-440.jpg';
+reset role;
+select test.eq((select count(*)::int from storage.objects where bucket_id = 'menu-photos' and name = 'pantallas/o-440.jpg' and metadata is null), 1,
+               'nor replace or delete one (the rule hides the row from the manager)');
+select test.login('cafe'); select test.session('tablet-b'); set role authenticated;
+select test.unlock(test.staff('dueno'), '7391') \g /dev/null
+select set_config('request.headers', '{}', true) \g /dev/null
+select test.lives($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/d-440.jpg')$$,
+                  'the owner''s unlock of this sign-in puts a slide''s picture, without the unlock header (Storage never has it)');
+select test.lives($$delete from storage.objects where bucket_id = 'menu-photos' and name = 'pantallas/d-440.jpg'$$, 'and may take it away');
+reset role;
+select test.login('cafe'); select test.session('tablet-c'); set role authenticated;
+select test.throws($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/e-440.jpg')$$, 'row-level security',
+                   'another sign-in of the same login, without its own owner unlock, cannot');
+reset role;
+select test.login('owner', 'aal2'); set role authenticated;
+select test.lives($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/c-440.jpg')$$, 'the owner login with the code too');
+reset role;
+select test.login('owner', 'aal1'); set role authenticated;
+select test.throws($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/n-440.jpg')$$, 'row-level security', 'the owner login without the code never');
+reset role;
+select test.login('anon'); set role anon;
+select test.throws($$insert into storage.objects (bucket_id, name) values ('menu-photos', 'pantallas/x-440.jpg')$$, 'row-level security', 'a visitor never');
+reset role;
+delete from storage.objects where bucket_id = 'menu-photos' and name in ('m-440.jpg', 'pantallas/o-440.jpg', 'pantallas/c-440.jpg');
+select test.eq((select string_agg(policyname, ' ' order by policyname) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like '%photos%'),
+               'menu photos owner write menu photos read screen photos owner write', 'the two writing rules and the public reading rule on the bucket');
 select test.throws($$delete from public.screen_changes$$, 'screen_changes_immutable', 'nor deleted');
 select test.throws($$truncate public.screen_changes$$, 'screen_changes_immutable', 'nor truncated');
 select test.login('owner', 'aal2'); set role authenticated;

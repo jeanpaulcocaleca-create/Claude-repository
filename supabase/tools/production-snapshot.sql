@@ -147,7 +147,8 @@ known_fn(fn, h, ver) as (values
   ('public._screen_changes_immutable()', '630bfb9b5e3e', '0036'),
   ('public._screen_json(s screens)', '8b9fd2f2bb00', '0036'),
   ('public._screen_log(p_kind text, p_id text, p_action text, p_summary text, p_before jsonb, p_after jsonb)', 'c5fbdcee8ce9', '0036'),
-  ('public._screen_text_problem(p text)', '1501284086eb', '0036'),
+  ('public._screen_owner_any_device()', '01c6a5829f8d', '0036'),
+  ('public._screen_text_problem(p text)', '2e079739e585', '0036'),
   ('public._settle_error(p_sqlerrm text)', 'd8544e8504a8', '0029'),
   ('public._settle_fail(p_step text, p_result jsonb)', '8ec773a3ddf4', '0029'),
   ('public._settle_uuid(p_base uuid, p_tag text, p_i integer)', '2b37fdadd2d6', '0029'),
@@ -654,7 +655,7 @@ open_policies as (
     from pg_policies
    where schemaname in ('public', 'storage', 'acct', 'canopy')
      and coalesce(qual, '') || coalesce(with_check, '') !~
-         '(is_cafe|is_owner|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed)'
+         '(is_cafe|is_owner|is_true_owner|_screen_owner_any_device|sales_open|inventory_open|auth\.uid|mfa_ok|account_kind|can_read|owner_with_code|_receipt_slot_open|_receipts_allowed)'
 )
 select jsonb_pretty(jsonb_build_object(
   'checked_at', now(),

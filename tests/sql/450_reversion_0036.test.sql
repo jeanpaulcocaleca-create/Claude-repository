@@ -67,7 +67,12 @@ select test.ok(to_regprocedure('public.pantalla_datos(text)') is null and to_reg
                and to_regprocedure('public.diapositiva_estado(uuid, text)') is null
                and to_regprocedure('public._screen_log(text, text, text, text, jsonb, jsonb)') is null
                and to_regprocedure('public._slide_json(public.screen_slides)') is null and to_regprocedure('public._screen_json(public.screens)') is null
-               and to_regprocedure('public._screen_text_problem(text)') is null, 'by name: the TVs'' reading, the management and the helpers');
+               and to_regprocedure('public._screen_text_problem(text)') is null and to_regprocedure('public._screen_owner_any_device()') is null,
+               'by name: the TVs'' reading, the management and the helpers');
+select test.eq((select string_agg(policyname, ' ' order by policyname) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like '%photos%'),
+               'menu photos owner write menu photos read', 'the Storage rules as before the 0036: one writing rule for the whole bucket, none for pantallas/');
+select test.ok((select qual !~ 'pantallas' from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'menu photos owner write'),
+               'and that rule covers the whole bucket again');
 select test.eq(pg_temp.anon_definer(), 'canopy_schema_version order_status place_room_order room_lookup', 'a visitor runs exactly what it ran before 0036');
 select test.ok(to_regclass('public.screens') is not null and to_regclass('public.screen_slides') is not null and to_regclass('public.screen_changes') is not null,
                'the three tables stay');

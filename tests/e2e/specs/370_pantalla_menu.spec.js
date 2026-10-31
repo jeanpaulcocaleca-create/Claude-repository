@@ -116,6 +116,8 @@ module.exports.tests = [
       assert.ok(onlyReads(pg) && reads(pg, 0) >= 1 && reads(pg, 1) >= 1, 'only GET reads of the menu and of pantalla_datos: ' + [...new Set(pg.api)].join(', '));
       assert.strictEqual(pg.supabaseHits, 0);
       /* this TV keeps the names for a start without internet, never the prices: the copy parsed holds names only */
+      assert.deepStrictEqual(await pg.evaluate(() => [Object.keys(localStorage).sort(), Object.keys(sessionStorage)]),
+        [['hg-pantalla-menu', 'hg-pantalla-menu-tv', 'hg_lang'], []], 'the device holds the names copy, the settings row and the language: nothing else');
       const raw = await pg.evaluate(() => localStorage.getItem('hg-pantalla-menu'));
       const copia = JSON.parse(raw);
       assert.deepStrictEqual(Object.keys(copia).sort(), ['at', 'cats']);
@@ -130,8 +132,8 @@ module.exports.tests = [
       const tv = JSON.parse(await pg.evaluate(() => localStorage.getItem('hg-pantalla-menu-tv')));
       assert.ok(tv.fila && !Object.keys(tv.fila).some((k) => /price|precio|item/.test(k)) && !/₡/.test(JSON.stringify(tv)), 'the settings copy holds no price');
       const i = await info(pg);
-      assert.deepStrictEqual([i.tiempos.cada, i.tiempos.fresco, i.tiempos.vencido, i.paginaMs, i.salto, i.tiempos.limite], [30000, 120000, 600000, 28000, 15000, 12000],
-        'reads every 30 s; prices shown up to 2 min, «por confirmar» up to 10 min; a page every 28 s; a pause over 3 ticks of 5 s; 12 s per read');
+      assert.deepStrictEqual([i.tiempos.cada, i.tiempos.fresco, i.tiempos.vencido, i.paginaMs, i.salto, i.tiempos.limite], [30000, 120000, 600000, 28000, 3000, 12000],
+        'reads every 30 s; prices shown up to 2 min, «por confirmar» up to 10 min; a page every 28 s; a pause over 3 s (3 ticks of 1 s); 12 s per read');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -429,6 +431,8 @@ module.exports.tests = [
       i = await info(pg);
       assert.deepStrictEqual([i.apagado, i.paginas, i.razon], [true, 0, 'tv-apagada']);
       assert.strictEqual(await pg.locator('#stage .pr').count(), 0, 'no price on a switched-off TV');
+      assert.deepStrictEqual(await pg.evaluate(() => [localStorage.getItem('hg-pantalla-menu'), localStorage.getItem('hg-pantalla-menu-tv')]), [null, null],
+        'and the device forgets its copies: a reboot without network stays black or shows the welcome, never the menu');
       await until(async () => /apagada en Pantallas/i.test(await diag(pg)), 4000, 'the diagnosis says the TV is switched off');
       sql(`update public.screens set active = true where id = 'menu-1'`);
       await until(async () => { const j = await info(pg); return !j.apagado && j.paginas > 0 && j.estado === 'al-dia'; }, 8000, 'switched on again: the menu is back');

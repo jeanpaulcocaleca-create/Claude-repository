@@ -127,7 +127,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   var CFG = window.HG_CONFIG || {};
   var DEMO = window.PANTALLA_DEMO || null;          /* the private demonstration supplies its own menu */
   /* times in ms; only the tests and the demonstration shorten them (window.PANTALLA_TEST) */
-  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 5000, pagina: 0, copiaMax: 3 * 86400000, limite: 12000 };
+  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 1000, pagina: 0, copiaMax: 3 * 86400000, limite: 12000 };
   try {
     var over = window.PANTALLA_TEST || {};
     Object.keys(over).forEach(function (k) { if (k in T && Number(over[k]) > 0) T[k] = Number(over[k]); });
@@ -341,12 +341,13 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
         apagadaDueno = false;
         if (b.tv.kind && b.tv.kind !== 'menu') fijarFila(null, 'otra-clase');
         else fijarFila(b.tv, null);
-      } else if (b.ok === false && b.error === 'tv_apagada') { apagadaDueno = true; razon = 'tv-apagada'; }
+      } else if (b.ok === false && b.error === 'tv_apagada') { apagadaDueno = true; fijarFila(null, 'tv-apagada'); try { localStorage.removeItem(COPIA); } catch (e) {} }
       else if (b.ok === false && b.error === 'unknown_tv') { apagadaDueno = false; fijarFila(null, 'tv-desconocida'); }
     } else if (r.status === 404 || r.status === 400) { apagadaDueno = false; fijarFila(null, 'sin-funcion'); }   /* migration 0036 not applied */
     /* anything else (a server error): the settings in use stay */
   }
   function guardar(m) {
+    if (apagadaDueno) return;        /* switched off by the owner: nothing kept, so a reboot without network stays black */
     try {
       localStorage.setItem(COPIA, JSON.stringify({ at: Date.now(), cats: m.map(function (c) {
         return { es: c.es, en: c.en, items: c.items.filter(function (i) { return !i.agotado; }).map(function (i) { return { es: i.es, en: i.en }; }) };
@@ -399,7 +400,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       }
     } catch (e) { /* what is on screen stays; its age decides whether prices may show */ }
     finally {
-      leyendo = false; pintar(); vivo();
+      leyendo = false; pintar();
       if (otraVez || d0 !== dudaN) { otraVez = false; setTimeout(refrescar, 0); }
     }
   }
@@ -707,7 +708,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     setTimeout(function () { h.classList.remove('on'); }, 12000);
   }
   ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) {
-    document.addEventListener(ev, function () { $('fsHint').classList.remove('on'); setTimeout(function () { orientar(); pintar(); vivo(); }, 300); });
+    document.addEventListener(ev, function () { $('fsHint').classList.remove('on'); setTimeout(function () { orientar(); pintar(); }, 300); });
   });
 
   /* ---------- the tick: reads on the monotonic clock; a pause in either clock makes prices unverified ---------- */
@@ -723,7 +724,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   var fuenteT = null;
   function fuentesCargadas() {   /* a web font finished loading: measure the letter again and lay out again */
     clearTimeout(fuenteT);
-    fuenteT = setTimeout(function () { proporciones = {}; fuentesN++; pintar(true); vivo(); }, 60);
+    fuenteT = setTimeout(function () { proporciones = {}; fuentesN++; pintar(true); }, 60);
   }
 
   /* ---------- start ---------- */
@@ -748,7 +749,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   refrescar();
   setInterval(tick, TICK);
   armarPaginas();
-  addEventListener('resize', function () { orientar(); pintar(); vivo(); });
+  addEventListener('resize', function () { orientar(); pintar(); });
   addEventListener('online', function () { refrescar(); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) alVolver(); });
   addEventListener('pageshow', function (e) { if (e.persisted) alVolver(); });

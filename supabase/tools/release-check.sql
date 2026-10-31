@@ -58,7 +58,8 @@ select jsonb_pretty(jsonb_build_object(
                                where 15 in (select version from applied) and not exists (select 1 from storage.buckets where id = x.b)),
   'storage_policies_missing', (select coalesce(jsonb_agg(p order by p), '[]') from (values
                                  ('expense receipts read', 15 in (select version from applied)), ('expense receipts add', 15 in (select version from applied)),
-                                 ('menu photos read', (select present from menu_photos)), ('menu photos owner write', (select present from menu_photos))) x(p, wanted)
+                                 ('menu photos read', (select present from menu_photos)), ('menu photos owner write', (select present from menu_photos)),
+                                 ('screen photos owner write', 36 in (select version from applied))) x(p, wanted)
                                 where wanted and p not in (select name from storage_rules)),
   -- 0025: uploads only into the folder of an expense that has no file yet
   'receipt_upload_rule_current', (select case when 25 in (select version from applied) then coalesce((

@@ -370,7 +370,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     if (n !== lecturaN) return;                     /* a newer read took over from this stuck one */
     try { if (r) usar(r, p0, r0, d0); } catch (e) {}
     finally {
-      leyendo = false; revisar(); vivo();
+      leyendo = false; revisar();
       if (otraVez || d0 !== dudaN) { otraVez = false; setTimeout(refrescar, 0); }
     }
   }
@@ -749,7 +749,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     setTimeout(function () { h.classList.remove('on'); }, 12000);
   }
   ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) {
-    document.addEventListener(ev, function () { $('fsHint').classList.remove('on'); setTimeout(function () { orientar(); revisar(); vivo(); }, 300); });
+    document.addEventListener(ev, function () { $('fsHint').classList.remove('on'); setTimeout(function () { orientar(); revisar(); }, 300); });
   });
 
   /* ---------- the tick: every second; reads on the monotonic clock; a pause in either clock makes prices unverified ---------- */
@@ -765,7 +765,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   var fuenteT = null;
   function fuentesCargadas() {   /* a web font finished loading: measure the letter again and draw again */
     clearTimeout(fuenteT);
-    fuenteT = setTimeout(function () { proporciones = {}; fuentesN++; revisar(); vivo(); }, 60);
+    fuenteT = setTimeout(function () { proporciones = {}; fuentesN++; revisar(); }, 60);
   }
 
   /* ---------- start ---------- */
@@ -799,7 +799,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   cargarQR();
   refrescar();
   setInterval(tick, TICK);
-  addEventListener('resize', function () { orientar(); revisar(); vivo(); });
+  addEventListener('resize', function () { orientar(); revisar(); });
   addEventListener('online', function () { refrescar(); });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) alVolver(); });
   addEventListener('pageshow', function (e) { if (e.persisted) alVolver(); });

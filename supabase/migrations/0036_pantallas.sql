@@ -20,9 +20,13 @@
 --     con el PIN del dueño (o el ingreso del dueño con el código del teléfono): is_true_owner(). El PIN de un encargado
 --     no alcanza. Cada cambio queda en screen_changes. Los textos no pueden llevar precios (₡, $, colones, dólares, %)
 --     ni anunciar combos o descuentos (condición 7 del dueño): el servidor los rechaza.
--- Qué NO cambia: ninguna tabla, función, regla ni fila existente. Ni el menú, ni la TV actual (board_settings,
+-- Qué NO cambia: ninguna tabla, función ni fila existente. Ni el menú, ni la TV actual (board_settings,
 --   board_group_slides, las estrellas), ni la Caja, ni la Cocina, ni la Contabilidad, ni el menú QR. Las tres tablas
 --   nuevas nacen con las dos TV y ninguna diapositiva.
+-- La única regla existente que se toca: «menu photos owner write» (Storage, 0033) se vuelve a crear igual pero sin la
+--   carpeta pantallas/ del depósito de fotos del menú, y una regla nueva, «screen photos owner write», deja esa carpeta
+--   solo al dueño (apertura de dueño de la misma sesión, o ingreso del dueño con el código). Un encargado sigue
+--   cambiando las fotos del menú como hoy. La reversión vuelve a dejar la regla de la 0033 tal cual.
 -- Qué ve una página anterior: nada distinto. Las páginas nuevas funcionan también sin esta migración (con los ajustes de
 --   la dirección de la TV), y la Pantalla B muestra entonces solo la presentación de la marca.
 -- Cuándo: cuando el dueño lo decida; no bloquea ventas (tablas nuevas, ningún bloqueo sobre las existentes).
@@ -135,12 +139,40 @@ returns text language sql immutable set search_path = public as $$
   select case
     when p is null or btrim(p) = '' then null
     when length(p) > 140 then 'largo'
-    when p ~* '(₡|\$|%|\m(usd|crc|col[oó]n|colones|d[oó]lar|d[oó]lares|dollars?|euros?)\M)' then 'precio'
-    when p ~* '\m(combos?|descuentos?|discounts?|2 ?x ?1|3 ?x ?2|2 ?por ?1|3 ?por ?2|dos por uno|tres por dos|2 for 1|two for one|bogo|gratis|ofertas?|rebaja|rebajas|promo precio|precio especial|special price|happy hour|mitad de precio|medio precio|half price)\M'
+    -- a price: the colón sign as typed on a keyboard here (¢) or as the sign (₡ ₵), dollars, euros, percents (full-width
+    -- forms included), the words, or an amount with a thousands separator (4.500 / 4,500; «desde 1990» stays allowed)
+    when p ~* '([₡¢₵€＄％﹩﹪$%]|\m(usd|crc|col[oó]n|colones|d[oó]lar|d[oó]lares|dollars?|euros?)\M|\m\d{1,3}[.,]\d{3}\M)' then 'precio'
+    -- a combo or a discount (the owner's condition 7), in the wording used here and in English: NxM with two different
+    -- numbers (a «tour en 4x4» stays allowed), «lleve 2 y pague 1», something free or on the house, buy one get one
+    when p ~* '\m(combos?|descuentos?|discounts?|dos por uno|tres por dos|2 for 1|two for one|bogo|gratis|gratuit[oa]s?|de regalo|cortes[ií]a|sin (costo|cargo)|ofertas?|rebajas?|promo precio|precio especial|special price|happy hour|mitad de precio|medio precio|half price)\M'
+      or p ~* '\m([1-9]) *(x|×|por) *([1-9])\M' and exists (select 1 from regexp_matches(p, '\m([1-9]) *(?:x|×|por) *([1-9])\M', 'gi') m where m[1] <> m[2])
+      or p ~* '\m(lleve|llev[aá]|pague|pag[aá]) *\d+([^\d\n]{0,30})\m(pague|pag[aá]|lleve|llev[aá]) *\d+\M'
+      or p ~* '\mbuy *(one|\d+),? *(and )?get *(one|\d+)\M'
       then 'combo_descuento'
     else null end;
 $$;
 revoke all on function public._screen_text_problem(text) from public, anon, authenticated;
+
+-- 2b) las fotos de las diapositivas: solo el dueño ----------------------------------------------------------------------
+-- They live in the existing public bucket under pantallas/. The bucket's rule «menu photos owner write» lets a MANAGER's
+-- unlock write menu photos (the Menu Manager needs that); a slide's picture is the owner's, like the slide: only an
+-- owner-role unlock or the owner login with the code may add, replace or delete one there (is_true_owner, 0033-bound).
+drop policy if exists "menu photos owner write" on storage.objects;
+create policy "menu photos owner write" on storage.objects for all to authenticated using (bucket_id = 'menu-photos' and name not like 'pantallas/%' and ((select public.is_owner()) or (select public._unlocked_any_device()))) with check (bucket_id = 'menu-photos' and name not like 'pantallas/%' and ((select public.is_owner()) or (select public._unlocked_any_device())));
+-- Storage never receives the device's unlock token (x-hg-unlock), only its sign-in session (0033): so, as the menu
+-- photos' rule does with _unlocked_any_device(), this one accepts an OWNER-role unlock of the same sign-in session, or
+-- the owner login with the phone code
+create or replace function public._screen_owner_any_device()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(public.account_kind() = 'owner' and coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2', false)
+      or exists (select 1 from public.access_unlocks u join public.staff s on s.id = u.staff_id
+                  where u.user_id = auth.uid() and u.expires_at > now() and s.active and s.role = 'owner'
+                    and u.session_id is not null and u.session_id = public._jwt_session());
+$$;
+revoke all on function public._screen_owner_any_device() from public, anon;
+grant execute on function public._screen_owner_any_device() to authenticated;
+drop policy if exists "screen photos owner write" on storage.objects;
+create policy "screen photos owner write" on storage.objects for all to authenticated using (bucket_id = 'menu-photos' and name like 'pantallas/%' and (select public._screen_owner_any_device())) with check (bucket_id = 'menu-photos' and name like 'pantallas/%' and (select public._screen_owner_any_device()));
 
 -- 3) lo que leen las TV (clave pública, solo lectura) ----------------------------------------------------------------
 create or replace function public._screen_json(s public.screens)
