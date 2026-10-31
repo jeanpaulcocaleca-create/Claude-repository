@@ -1,5 +1,0 @@
-# The last release published on the café's site: tag v2026.10.26-1 (D-059), published by the owner.
-# While the customer screens are prototypes (docs/PANTALLAS.md), website/, supabase/migrations/ and pages.yml stay
-# byte for byte as in this commit (the owner's condition 2 of 2026-10-31; checked by tests/prototipos/no-tocar.sh).
-# This line moves only to the commit of a later release the owner published, in the commit whose decision says so.
-334624c08bff633d965508409ebdaea5649d2483

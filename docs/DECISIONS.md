@@ -2195,7 +2195,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   back: publish `v2026.10.25-2` again, database stays at 0035; what it does not undo (credit-expense payments made in
   the new page cannot be voided from the old one) and when a database reversal would be advisable are written down.
 
-## D-060 · 2026-10-31 · Customer screens: phase 0 and a private prototype of Screen A (nothing published, no migration)
+## D-061 · 2026-10-31 · Customer screens: phase 0 and a private prototype of Screen A (nothing published, no migration)
 - **The owner's approval (2026-10-31):** «Dirección aprobada», with ten conditions, quoted with how each is met in
   `docs/PANTALLAS.md` §1:
   1. Screen A first, in a private view;
@@ -2282,3 +2282,64 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     - CI installs the pinned Chromium for its pinned Playwright, so it is not affected.
 - **Pending:** the owner's data and decisions (E-39, `docs/PANTALLAS.md` §7). The steps before any publication request
   are in §8.
+
+## D-062 · 2026-10-31 · Customer screens, the whole project in one version: Screen A, Screen B, the owner's management page, migration 0036 (nothing published, nothing applied)
+- **The owner's order (2026-10-31, after D-061):** finish the diagnosis of the 070 failure (done in D-061: not a
+  regression); complete the tests and the independent review; continue at once with the whole project (Screen B,
+  promotions, the management page, scheduling, per-TV settings, integration tests) without stopping between phases for
+  development approvals; keep prices and availability in sync with the Menu Manager; change no existing page or
+  operating system; prepare the migrations, their reversal and a simple TV installation guide; deliver everything
+  tested, integrated and ready to publish in a single version. Never apply migrations to production or publish without
+  the owner's approval.
+- **Built, as NEW files only** (the «no tocar» check proves `website/`, `supabase/migrations/` and `pages.yml` are byte
+  for byte `v2026.10.26-1`, tag verified):
+  - `website/pantalla-menu.html` (Screen A, promoted from the prototype with the review's fixes and the database
+    settings), `website/pantalla-promos.html` (Screen B), `website/pantallas.html` + `pantallas.js` (the management
+    page), `supabase/migrations/0036_pantallas.sql`, `supabase/tools/reversion-0036.sql`;
+  - tests: SQL 440 (155) and 450 (38); browser 370 (20), 380 (17), 390 (14); the reset-café check gains the three
+    pages; `tests/pantallas/no-tocar.sh` replaces `tests/prototipos/` (the prototype directory is deleted: it lives on
+    as `website/pantalla-menu.html`);
+  - docs: `docs/ACTIVACION-PANTALLAS.md` (the owner's exact steps), `docs/INSTALACION-TV.md` (the technician),
+    `docs/PANTALLAS.md` rewritten for the delivered system.
+- **Design decisions inside the build:**
+  - *One read function for the TVs.* `pantalla_datos(tv)` (anon, STABLE, SECURITY DEFINER, a GET) returns the TV's
+    settings, the server's time and, for a promotions TV, the slides in force or starting within a day with the
+    menu's live name, price, photo and availability. It is the only new function a visitor can run; the three tables
+    are never readable directly. A product slide stores no name or price (condition 3 and 7).
+  - *Owner only, on the server.* The four management functions require `is_true_owner()`: an owner-role PIN unlock
+    (0033, bound to the sign-in session) or the owner login with the phone code; a manager PIN gets `owner_only`.
+    Every write logs one row in `screen_changes`, whose update, delete and truncate are refused by triggers, for the
+    database owner too. The log holds settings and slide content, never a reason or a note, so it needs no
+    anonymizing beyond the three name columns.
+  - *Texts without prices or discounts.* `_screen_text_problem` refuses ₡, $, %, colones, dólares, USD, CRC, euros and
+    the combo/discount wording (combo, descuento, discount, 2x1, 3x2, 2 por 1, dos por uno, 2 for 1, bogo, gratis,
+    oferta, rebaja, mitad de precio, medio precio, half price, precio especial, special price, happy hour), 140
+    characters at most. Left out on purpose: a general NxN («tour en 4x4») and English «free» («gluten-free»).
+  - *Mandatory end dates.* A slide needs `starts_at` and `ends_at` (≤ 366 days), with days (1 = Monday … 7 = Sunday)
+    and hours in Costa Rica time; it is retired, never deleted.
+  - *Switched-off TV goes black.* `active = false` answers `tv_apagada`, distinct from an unknown address, and both
+    screens go black until switched on again (the first builder's version fell back to the address; changed in the
+    integration).
+  - *Freshness, both screens.* Age counted from the START of the last good request, with the larger of the monotonic
+    and wall-clock elapsed; after a resume, a pause or a clock jump, prices are unverified until the next read. Screen B
+    estimates the server's time: the larger elapsed for a slide's end (never late), the smaller for its start (never
+    early). Screen A keeps names and the TV's settings row for 3 days, never a price; Screen B keeps nothing.
+  - *The management page is Spanish-only*, written directly (P-18), with `lang.js` loaded only for the site's shared
+    PIN gate; it refuses an unknown host itself, because `config.js` (unchanged) does not list it; it adds no PIN box
+    of its own (340 still counts 19).
+  - *Day buttons* show «lun mar mié jue vie sáb dom» (single letters are ambiguous for martes/miércoles).
+  - *Photos* for slides are resized in the browser (≤ 1600 px, JPEG 0.82) and stored in the existing `menu-photos`
+    bucket under `pantallas/`, through the existing Storage policy (an unlock of the same sign-in, 0033).
+- **Tooling for the release:** `release-check.sql` (series to 36, 5 new functions, `anon_can_run` gains
+  `pantalla_datos`), `production-snapshot.sql` regenerated (10 functions under 0036), `compare.py` (ANON_DEFINER),
+  the six reversal chains now start with `reversion-0036`, `anonimizar.sql` classifies the new columns (names →
+  «Persona»; codes, texts and the log kept), `tests/rehearsal/LIVE_PAGES` pinned to gh-pages fc827d8 (=
+  `v2026.10.26-1`, the way back), `tests/e2e/package.json` gains `qrcode-generator@1.4.4` so the tests exercise the
+  real QR encoder. Migration numbering: no branch or open PR uses 0036 (checked 2026-10-31); the discounts work takes
+  0037. D-061 was renumbered from D-060 because PR #5 also uses D-060.
+- **Independent review:** a read-only adversarial review of this release (five dimensions, each finding verified by a
+  skeptic) ran before the commit; its confirmed findings and what was done with them are in the report of this
+  decision. The prototype's review (D-061) had 19 confirmed findings, all minor or documentation; every code one was
+  fixed in Screen A (and applied to Screen B) and tested in B8–B11.
+- **Not done, on purpose:** nothing applied to production, no tag, no publication (E-40). Photos or recommendations on
+  Screen A, an extras line, dollars, the kiosk app: owner decisions P-05, P-06, P-09, P-11.

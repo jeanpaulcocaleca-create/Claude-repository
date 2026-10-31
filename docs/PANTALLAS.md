@@ -1,12 +1,12 @@
-# Pantallas nuevas para los clientes · fase 0 y prototipo de la Pantalla A
+# Pantallas nuevas para los clientes: la Pantalla A (menú) y la Pantalla B (promociones)
 
-Estado al 2026-10-31 (D-060):
-- **Nada publicado** y **ninguna migración**.
-- **La Pantalla B no se empezó.**
-- La fase 0 está lista para el dueño y el técnico: formulario, prueba de letra impresa y revisión del menú (solo lectura).
-- El prototipo privado de la Pantalla A existe, con sus pruebas, en `prototipos/pantalla-menu/pantalla-menu.html`.
-  - Vive **fuera** de `website/`, así que ninguna publicación lo lleva al sitio: `pages.yml` publica solo `website/`.
-  - Publicarlo requiere la autorización expresa del dueño (sección 8).
+Estado al 2026-10-31 (D-061 fase 0 y prototipo; D-062 la versión completa):
+- **Nada publicado y ninguna migración aplicada en producción.** Todo está construido, probado e integrado en una sola
+  versión, lista para que el dueño la active con `docs/ACTIVACION-PANTALLAS.md`.
+- **Tres páginas nuevas** en `website/`: `pantalla-menu.html` (Pantalla A), `pantalla-promos.html` (Pantalla B) y
+  `pantallas.html` (la gestión, solo con el PIN del dueño). **Ningún archivo existente cambió** (sección 5).
+- **Una migración nueva**, `0036_pantallas.sql`, con su reversión `supabase/tools/reversion-0036.sql`.
+- La fase 0 sigue vigente para el dueño y el técnico: formulario, prueba de letra impresa y revisión del menú.
 
 Plan aprobado («Dirección aprobada»): el plan «Dos pantallas nuevas para los clientes» que Claude presentó, con las 10 condiciones del dueño del 2026-10-31.
 
@@ -14,16 +14,16 @@ Plan aprobado («Dirección aprobada»): el plan «Dos pantallas nuevas para los
 
 | # | Condición (2026-10-31) | Cómo se cumple en esta entrega |
 |---|---|---|
-| 1 | Primero la Pantalla A, en vista privada; nada de producción sin autorización | El prototipo está fuera de `website/`. No se creó ninguna etiqueta `v*` ni se ejecutó «Publish website». La Pantalla B no se empezó |
-| 2 | Caja, Cocina, Contabilidad, menú QR y TV actual intactos, verificado con comparación de archivos y pruebas | `tests/prototipos/no-tocar.sh` compara `website/`, `supabase/migrations/` y `pages.yml` con la versión publicada (`v2026.10.26-1`, commit en `tests/prototipos/BASE`); falla si cambia, aparece o desaparece un solo archivo. Además corre la suite completa de siempre (Caja, Cocina, Contabilidad, menú QR, TV actual) |
-| 3 | Precios y disponibilidad leídos solo del menú existente, sin escribir | La página hace una sola consulta de lectura: `GET menu_categories` con sus productos, como la TV actual y el menú QR. No inicia sesión ni llama funciones. La prueba A1 registra cada llamada y solo admite esa lectura |
-| 4 | Política segura ante pérdida de conexión y datos viejos; nunca promociones vencidas ni precios no verificados como actuales | Sección 4.3: precios solo de la última lectura correcta, con su edad medida. Por encima de 10 min no se muestra ningún precio. Los precios nunca se guardan en el aparato. Pruebas A4, A5 y A6. La Pantalla A no muestra promociones |
-| 5 | Lectura a distancia, precios grandes, sin exceso de información | Mayúscula de 1 cm por metro de distancia (mínimo 0,8), con el precio tan grande como el nombre y en negrita. Sin descripciones, fotos, reloj ni recomendados. Prueba A2 en 7 tamaños y giros |
-| 6 | Sin suscripciones, servicios ni aparatos nuevos sin demostrar que hacen falta y sin aprobación | El prototipo usa solo lo que ya existe: el sitio, Supabase con la clave pública y el navegador de la TV. La app de quiosco queda pendiente de prueba (P-09). Consumo estimado de datos en la sección 4.6 |
-| 7 | Combos y descuentos reservados hasta que la Caja los cobre exactamente como se anuncian | La pantalla nunca muestra «Extras & Combos» ni un precio cero o negativo (prueba A1). No hay texto libre con precios |
-| 8 | Gestión con PIN de propietario, permisos del servidor y registro de cambios | La Pantalla A de la fase 1 no tiene gestión: sus ajustes van en la dirección de cada TV. La página de gestión (fase 2) se hará así, y no antes de que el dueño la apruebe |
-| 9 | Ninguna migración ni cambio de configuración de Supabase sin aprobación expresa | Ninguno. La Pantalla A no necesita migración. La revisión del menú (`supabase/tools/menu-pantallas.sql`) es de solo lectura y la corre el dueño |
-| 10 | Pruebas y demostración privada antes de pedir autorización para cada publicación | Pruebas en la sección 5 y demostración privada en la sección 6. Esta entrega **no** pide autorización para publicar: faltan los datos de la fase 0 y las decisiones de la sección 7 |
+| 1 | Primero la Pantalla A, en vista privada; nada de producción sin autorización | La Pantalla A se entregó primero como prototipo privado con su demostración (D-061). Después, por orden del dueño del 2026-10-31 («continúa con todo el proyecto»), se construyó el resto. Nada se publicó ni se aplicó: lo hace el dueño con `docs/ACTIVACION-PANTALLAS.md` |
+| 2 | Caja, Cocina, Contabilidad, menú QR y TV actual intactos, verificado con comparación de archivos y pruebas | `tests/pantallas/no-tocar.sh`: los 43 archivos de `website/`, las 36 migraciones y `pages.yml` son byte por byte los de la versión publicada `v2026.10.26-1` (comprueba también que la etiqueta siga apuntando a ese commit); solo admite los 5 archivos nuevos de las pantallas. Corre en cada prueba y en la integración continua. Además, la suite completa de siempre y el ensayo con la copia de producción (las páginas publicadas hoy sobre la base con la 0036) |
+| 3 | Precios y disponibilidad leídos solo del menú existente, sin escribir | Las TV solo hacen lecturas `GET`: el menú (`menu_categories` con sus productos, como la TV actual y el menú QR) y `pantalla_datos` (sus ajustes y diapositivas). Ninguna función de las pantallas escribe en el menú ni en ninguna tabla existente; la prueba SQL 440 compara huellas de esas tablas antes y después de 35 escrituras |
+| 4 | Política segura ante pérdida de conexión y datos viejos; nunca promociones vencidas ni precios no verificados como actuales | Sección 4.4: precios solo de una lectura correcta, con su edad contada desde que empezó la petición y con dos relojes; a los 10 min ningún precio. Cada diapositiva tiene fin obligatorio y se apaga sola con la hora estimada del servidor, también sin internet. Nada se guarda en el aparato salvo nombres. Pruebas A4–A6, B8, B11, P5, P7–P9, P13, P16 |
+| 5 | Lectura a distancia, precios grandes, sin exceso de información | Mayúscula de 1 cm por metro (mínimo 0,8), precio del tamaño del nombre y en negrita; en la Pantalla B el precio 1,5 cm por metro. Sin descripciones, reloj ni recomendados. Pruebas A2, B9 y P11 en 7 tamaños y giros |
+| 6 | Sin suscripciones, servicios ni aparatos nuevos sin demostrar que hacen falta y sin aprobación | Solo el sitio, Supabase con la clave pública y el navegador de la TV. La app de quiosco sigue pendiente de la prueba en la TV real (P-09). Consumo en 4.7 |
+| 7 | Combos y descuentos reservados hasta que la Caja los cobre exactamente como se anuncian | Las TV nunca muestran «Extras & Combos» ni un precio cero o negativo. El servidor rechaza cualquier texto de diapositiva con precios (₡, $, %, colones, dólares…) o con palabras de combo o descuento (combo, descuento, 2x1, 3x2, 2 por 1, gratis, oferta, rebaja, mitad de precio…); la página lo avisa antes de enviar. Una diapositiva de producto no guarda precio: lo lee del menú |
+| 8 | Gestión con PIN de propietario, permisos del servidor y registro de cambios | `pantallas.html` abre solo con el PIN de una persona con puesto **dueño** (`is_true_owner()`), o con el ingreso del dueño y el código del teléfono; el PIN de un encargado recibe `owner_only` del servidor en cada función. Cada cambio queda en `screen_changes` con quién, cuándo, antes y después; dos disparadores impiden modificarlo o borrarlo, también al dueño |
+| 9 | Ninguna migración ni cambio de configuración de Supabase sin aprobación expresa | La 0036 está preparada y ensayada, **no aplicada**. La aplica el dueño (guía, sección 2). No cambia ninguna configuración de Supabase |
+| 10 | Pruebas y demostración privada antes de pedir autorización para cada publicación | Pruebas en la sección 5; demostración de la Pantalla A en la sección 6; capturas de las tres páginas en el informe de D-062. La autorización para publicar la pide esta entrega con `docs/ACTIVACION-PANTALLAS.md` |
 
 ## 2. Fase 0 · lo que necesitamos del local (dueño y técnico)
 
@@ -97,157 +97,121 @@ El menú real puede ser distinto; por eso hace falta la revisión de 2.3.
 ## 3. Dónde está cada cosa
 | Archivo | Qué es |
 |---|---|
-| `prototipos/pantalla-menu/pantalla-menu.html` | El prototipo de la Pantalla A. Nunca se publica desde ahí |
-| `tests/prototipos/run.sh` | Corre la prueba de «no tocar» y las pruebas del prototipo. Sirve el prototipo junto a una copia de `website/` sobre la base de pruebas, en puertos propios |
-| `tests/prototipos/no-tocar.sh`, `tests/prototipos/BASE` | La comparación con la versión publicada |
-| `tests/prototipos/specs/010_pantalla_menu.spec.js` | Las 9 pruebas de navegador de la Pantalla A |
+| `website/pantalla-menu.html` | Pantalla A: el menú con precios. Dirección en la TV: `pantalla-menu?tv=menu-1` |
+| `website/pantalla-promos.html` | Pantalla B: diapositivas de producto, marca e invitación. Dirección: `pantalla-promos?tv=promos-1` |
+| `website/pantallas.html`, `website/pantallas.js` | La gestión del dueño: cada TV, las diapositivas, «Hoy en pantalla» y el registro de cambios |
+| `supabase/migrations/0036_pantallas.sql` | Las tablas `screens`, `screen_slides` y `screen_changes`; la lectura pública `pantalla_datos`; la gestión `pantallas_estado`, `pantalla_guardar`, `diapositiva_guardar`, `diapositiva_estado` |
+| `supabase/tools/reversion-0036.sql` | La reversión: quita las funciones, deja las tablas con lo que tengan y el registro protegido |
+| `tests/sql/440_pantallas.test.sql`, `450_reversion_0036.test.sql` | 155 + 38 comprobaciones de permisos, reglas, registro, lectura de las TV y reversión |
+| `tests/e2e/specs/370_pantalla_menu.spec.js`, `380_pantalla_promos.spec.js`, `390_pantallas_admin.spec.js` | 20 + 17 + 14 pruebas de navegador |
+| `tests/pantallas/no-tocar.sh`, `tests/pantallas/BASE` | La comparación con la versión publicada (condición 2) |
 | `supabase/tools/menu-pantallas.sql`, `tests/sql/430_menu_pantallas.test.sql` | La revisión del menú, de solo lectura, y su prueba |
+| `docs/ACTIVACION-PANTALLAS.md` | Los pasos exactos del dueño: ensayo, migración, publicación, configuración, aceptación, vuelta atrás |
+| `docs/INSTALACION-TV.md` | La guía del técnico |
 
-`tests/run.sh` (todo, o `tests/run.sh prototipos`) y la integración continua («Tests») corren estas pruebas en cada envío.
+`tests/run.sh` y la integración continua («Tests») corren todo esto en cada envío.
 
-## 4. El prototipo de la Pantalla A
+## 4. Cómo funciona
 
-### 4.1 Qué muestra
-- Las categorías y productos **disponibles con precio mayor que cero**, en el orden del Gestor del menú.
-  - Nunca «Extras & Combos», ni un precio cero o negativo, ni un agotado: igual que la TV actual y el menú QR.
-- **Español primero; el inglés debajo, al 75 %.**
-  - El español sale como en el menú QR: `name_es` del Gestor del menú; si no hay, el diccionario del sitio; si no hay, el nombre una vez.
-  - Un nombre igual en los dos idiomas (Espresso, Latte, Tres Leches) se escribe una vez.
-- **El precio va pegado al nombre**, en negrita y del mismo tamaño que el nombre; el «₡» al 80 %.
-- Al pie: «Precios en colones, IVA incluido · Prices in colones, tax (IVA) included».
-  - Coincide con D-011: `price_crc` es el precio final con IVA.
-  - La redacción se confirma con el contador (P-10).
-- **Páginas:**
-  - una categoría nunca se parte entre páginas, salvo que sola sea más larga que una página, y entonces sus partes van seguidas;
-  - cada página dura 28 s y se indica «1/3»;
-  - 3 o 2 columnas en horizontal, 1 o 2 en vertical.
+### 4.1 Pantalla A: el menú con precios
+- Las categorías y productos **disponibles con precio mayor que cero**, en el orden del Gestor del menú. Nunca «Extras & Combos», ni un precio cero o negativo. (El menú QR y la TV actual siguen mostrando un producto a ₡0; esta regla es nueva de la Pantalla A.)
+- **Español primero; el inglés debajo, al 75 %.** El español sale como en el menú QR: `name_es` del Gestor; si no hay, el diccionario del sitio; si no hay, el nombre una vez. Un nombre igual en los dos idiomas se escribe una vez.
+- **El precio va pegado al nombre**, en negrita y del tamaño del nombre; el «₡» al 80 %.
+- Al pie: «Precios en colones, IVA incluido · Prices in colones, tax (IVA) included» (D-011; redacción a confirmar con el contador, P-10).
+- **Páginas:** una categoría nunca se parte, salvo que sola sea más larga que una página; «1/3»; 3 o 2 columnas en horizontal, 1 o 2 en vertical.
+- **Agotados:** ocultos, o tachados con «Agotado · Sold out» y nunca con precio, según la TV (`pantallas.html`).
+- **Categorías:** cada TV muestra todas, o solo las que el dueño elija, en el orden del Gestor.
 - **Sin** descripciones, fotos, recomendados, reloj, promociones ni combos.
 
-### 4.2 Ajustes de cada TV, en su dirección
-El técnico los escribe una vez al instalar. Ejemplo:
-`https://hanginggardencafe.com/pantalla-menu?tv=menu-1&pulgadas=55&distancia=3&giro=no`
+### 4.2 Pantalla B: productos, marca e invitaciones
+- Tres clases de diapositiva:
+  - **producto**: la foto, el nombre y el precio **se leen del menú en cada lectura**; no se escribe título. Desaparece sola si el producto se agota, queda sin precio o pasa a Extras & Combos. «Pídalo en la caja · Order at the counter».
+  - **marca**: título y texto en español e inglés, foto opcional, nunca un precio.
+  - **invitación**: título y un código QR a la reseña de Tripadvisor (E-35) o al menú QR, con la dirección corta escrita debajo. El QR mide al menos distancia ÷ 10.
+- **Vigencia obligatoria**: inicio y fin (a lo sumo un año), días de la semana y horas de Costa Rica; orden; estado activa, pausada o retirada. Nunca se borra: se retira.
+- Cada TV de promociones muestra todas las diapositivas o solo las que el dueño le asigne.
+- Sin nada vigente: la presentación de la marca «Hanging Garden Café · Monteverde, Costa Rica».
+- La letra: título 1,2 cm por metro, precio 1,5, textos 0,8; un título largo baja hasta 1,0 y luego se parte.
 
-| Ajuste | Valores | Para qué |
+### 4.3 La gestión (`pantallas.html`)
+- Abre con el ingreso del café o del dueño y el **PIN del dueño** (o el ingreso del dueño con el código del teléfono). Un PIN de encargado ve «Solo el dueño puede cambiar las pantallas».
+- **Pantallas:** por cada TV, tamaño, distancia, posición, escala de letra, colores, segundos, categorías (menú), agotados (menú), horario, activa; la dirección para la TV con un botón de copiar; una vista previa a escala; agregar una TV.
+- **Diapositivas:** lista con estado y «en pantalla ahora»; editor con buscador de productos (nunca Extras & Combos), textos con contador y aviso de precios o combos, foto (del producto o subida, reducida a 1600 px), fechas obligatorias, días, horas, TV y orden; pausar, reanudar, retirar (con confirmación en la página).
+- **Hoy en pantalla:** qué sale ahora y qué empieza más tarde hoy en cada TV de promociones, con la hora del servidor.
+- **Registro de cambios:** los últimos 200, con fecha de Costa Rica, quién, qué, antes y después. No se puede modificar ni borrar.
+- Escrita directamente en español (P-18 resuelta así): no agrega textos a `lang.js`, que solo se carga para la ventana del PIN. No tiene casilla de PIN propia (usa la del sitio).
+- Se niega a funcionar en una dirección que no sea la del café, antes de hablar con cualquier base de datos.
+
+### 4.4 Conexión, hora y datos viejos (condición 4)
+- Las dos TV leen cada **30 s**. Un precio cambiado o un agotado del Gestor del menú se ve en la lectura siguiente: en menos de 1 minuto.
+- **Edad de los precios:** tiempo desde que **empezó** la última petición correcta, con dos relojes (el del aparato y uno que no se mueve aunque cambien la hora) y cuenta el mayor; después de dormir, de volver a mostrarse o de un salto de reloj, los precios cuentan como no verificados hasta la lectura siguiente, que se hace de inmediato.
+
+| Edad de la última lectura correcta | Pantalla A | Pantalla B |
 |---|---|---|
-| `tv` | un nombre corto | Identifica la TV en el diagnóstico |
-| `pulgadas` | 24 a 110 (si falta: 55) | Diagonal de la pantalla; con ella la página sabe cuántos píxeles son un centímetro |
-| `distancia` | 1 a 15 m (si falta: 3) | Distancia al cliente más lejano que debe leer |
-| `giro` | `no`, `derecha`, `izquierda` | TV vertical. `derecha` gira la imagen a la derecha, para una TV cuyo borde de arriba quedó a la izquierda (igual que la TV actual) |
-| `escala` | 70 a 160 (%) | Corrección según la prueba de letra en el lugar |
-| `look` | `auto`, `dia`, `noche` | Claro de 6:00 a 18:00 y oscuro de noche, o uno fijo |
-| `pagina` | 15 a 60 (s, si falta: 28) | Tiempo de cada página |
-| `diag` | `1` | Muestra al técnico un cuadro con la medida de letra, las páginas, la edad de los precios, la versión y los ajustes no válidos. Sin `diag`, no se ve |
+| hasta 2 min | precios | el precio del producto |
+| de 2 a 10 min | precios con «Precios por confirmar en caja · Please confirm prices at the counter» | el precio con «Precio por confirmar en caja» |
+| más de 10 min, o ninguna | **ningún precio**: los nombres y «Consulte los precios en la caja · Please ask for prices at the counter» | **ninguna diapositiva de producto**; las de marca e invitación siguen mientras estén vigentes |
 
-- Un valor no válido se ignora (queda el valor por omisión) y el diagnóstico lo nombra.
-- **Letra:**
-  - la página mide la letra que de verdad usa: Figtree, o la letra de la TV si Figtree no carga;
-  - usa la meta de 1 cm por metro;
-  - baja hacia 0,8 cm por metro **solo si eso ahorra una página**, y sube hasta 1,25 cm por metro si sobra espacio;
-  - los títulos de categoría van a 1,5 veces; si una palabra no cabe en su columna («costarricenses»), solo ese título baja, nunca a menos de 1,25 veces.
+- **Hora de las diapositivas:** la Pantalla B estima la hora del servidor desde la última respuesta y cuenta el tiempo con los dos relojes: el mayor para el fin (nunca termina tarde) y el menor para el inicio (nunca empieza antes). Una diapositiva vence sola, con el router desconectado; cambiar la hora de la TV no la revive.
+- **Arranque sin internet:** la Pantalla A guarda **solo los nombres** del último menú y los ajustes de la TV, 3 días, nunca precios; muestra los nombres sin precios y el aviso, o la bienvenida. La Pantalla B no guarda nada: muestra la marca y sigue intentando.
+- **Horario y apagado:** fuera del horario de la TV, o si el dueño la desmarca como activa, la pantalla queda **negra** (sin texto ni precio), con la hora de Costa Rica del servidor.
+- **Sin la migración 0036** (o revertida): la Pantalla A funciona con los ajustes de su dirección; la Pantalla B muestra la marca; la gestión dice qué migración falta.
 
-### 4.3 Conexión y datos viejos (condición 4)
-- La pantalla lee el menú **cada 30 s**. Un precio cambiado o un producto marcado «Agotado» en el Gestor del menú se ve en la lectura siguiente, sin esperar el cambio de página: en menos de 1 minuto.
-- **Edad de los precios:**
-  - es el tiempo desde la última lectura correcta;
-  - se mide con dos relojes y cuenta el mayor: el reloj de la TV y un reloj que no se mueve aunque alguien cambie la hora;
-  - así, una TV que se durmió o una hora adelantada nunca hacen pasar precios viejos por actuales; una hora atrasada tampoco, porque cuenta el otro reloj.
+### 4.5 Ajustes de cada TV
+- En `pantallas.html`, con los rangos de la migración: pulgadas 24–110, distancia 1–15 m, giro no/derecha/izquierda, escala 70–160 %, look auto/día/noche, página 15–60 s, diapositiva 6–30 s, horario, categorías, agotados, activa.
+- La TV solo lleva `?tv=menu-1` en su dirección y toma los cambios sola en menos de un minuto.
+- El técnico puede corregir una TV desde la dirección (`&pulgadas=65&distancia=4&giro=derecha&escala=110&look=dia&pagina=30&diag=1`), que manda sobre la base, ajuste por ajuste. `&diag=1` muestra el cuadro de diagnóstico; sin él, no se ve.
+- **Letra:** mide la letra que de verdad usa (Figtree, o la de la TV); meta 1 cm por metro; baja hacia 0,8 solo si ahorra una página; títulos 1,5 veces (una palabra que no cabe en su columna baja hasta 1,25).
 
-| Edad de la última lectura correcta | Lo que muestra |
-|---|---|
-| hasta 2 min | Precios normales |
-| de 2 a 10 min | Precios con el aviso «Precios por confirmar en caja · Please confirm prices at the counter» |
-| más de 10 min, o ninguna lectura todavía | **Ningún precio** (ni un «₡» en la pantalla), los nombres y «Consulte los precios en la caja · Please ask for prices at the counter» |
+### 4.6 Lo que no hace (decisiones del dueño)
+- Fotos o recomendados en la Pantalla A, línea de extras, dólares, «sin cargo de servicio» (P-05, P-06, P-11).
+- Combos y descuentos: reservados (condición 7).
+- App de quiosco: solo si la prueba en la TV real la pide (P-09).
 
-- **Arranque sin internet** (por ejemplo después de un corte de luz):
-  - la TV guarda **solo los nombres** del último menú leído, nunca los precios, y por 3 días como máximo;
-  - si hay copia, muestra esos nombres sin precios y con el aviso;
-  - si no hay copia, muestra «Hanging Garden Café · Consulte el menú y los precios en la caja»;
-  - cuando vuelve la conexión, los precios regresan solos.
-- Una respuesta vacía o extraña no cuenta como lectura correcta: queda lo que había, con su edad.
-- Los límites de 2 y 10 minutos son una propuesta (P-03).
-
-### 4.4 Actualizaciones y funcionamiento sin atender
-- Después de cada publicación, la página se recarga sola con sus ajustes, con el mecanismo del sitio (`version.js`) y **sin el aviso en inglés** que ven los encargados (prueba A8).
-- Como en la TV actual, pide a la TV que no apague la pantalla y entra a pantalla completa con OK en el control. Un aviso bilingüe lo recuerda durante 12 s al abrir.
-- La app de quiosco solo se propondrá si la prueba de 8 horas y la de corte de luz en la TV real demuestran que hace falta (P-09).
-
-### 4.5 Lo que no hace (por decisión pendiente o por fase)
-- Fotos, recomendados, línea de extras, dólares, horario de apagado: decisiones P-04 a P-11.
-- Gestión, promociones y combos: fase 2, con la aprobación previa del dueño.
-
-### 4.6 Consumo
-- Una lectura del menú pesa unos 4 KB (menos de 1 KB comprimida).
-- Cada 30 s durante 13 horas son unos 70 MB al mes, y unos 130 MB si la TV queda encendida las 24 horas. Está dentro del plan de Supabase del café.
-- No hace falta ningún servicio nuevo.
+### 4.7 Consumo
+- Cada lectura pesa unos 4 KB (menos de 1 KB comprimida); dos lecturas cada 30 s por TV. Las dos TV, 13 horas al día: unos 150 MB al mes. Dentro del plan de Supabase del café. Ningún servicio nuevo.
 
 ## 5. Pruebas
-- `bash tests/prototipos/run.sh` es la prueba de «no tocar» más 9 pruebas de navegador, sobre una base de pruebas desechable. Nunca toca Supabase: el navegador bloquea `*.supabase.co`.
+`tests/run.sh` corre todo; en cada envío lo corre también la integración continua («Tests»). Nunca toca Supabase.
 
 | Prueba | Qué demuestra |
 |---|---|
-| no tocar | `website/` (43 archivos), `supabase/migrations/` (36) y `pages.yml` iguales a la versión publicada `334624c` (`v2026.10.26-1`) |
-| A1 | Todo lo disponible con su precio y en orden; nada de Extras & Combos, de agotados ni de precio cero; español primero y una vez si es igual; la nota del IVA; solo lecturas `GET` del menú; los precios nunca guardados en el aparato; tiempos reales: 30 s, 2 min, 10 min, 28 s |
-| A2 | 960×540, 1280×720, 1920×1080 y 3840×2160, en horizontal y girada a cada lado: mayúscula de al menos 0,8 cm por metro (medida en la pantalla), títulos 1,5 veces, inglés al 75 % o más, precios del tamaño del nombre, nada cortado, cada producto una vez |
-| A3 | Un agotado sale solo; un precio nuevo se ve solo; un producto que vuelve aparece |
-| A4 | Sin conexión: precios hasta el límite, luego «por confirmar», luego ninguno; vuelven solos |
-| A5 | TV dormida (reloj adelantado) y reloj atrasado: nunca precios viejos como actuales |
-| A6 | Arranque sin internet: nombres de la copia sin precios; sin copia, o con una copia de más de 3 días: pantalla de bienvenida sin precios |
-| A7 | Sin la columna `name_es` (si `menu-spanish.sql` no se aplicó), el menú sigue saliendo |
-| A8 | Recarga sola después de una publicación, con sus ajustes y sin aviso al cliente |
-| A9 | Look de día y de noche, diagnóstico solo con `diag=1`, ajustes no válidos nombrados |
-
-Además: la suite completa de siempre (`tests/run.sh`), que incluye la Caja, la Cocina, la Contabilidad, el menú QR y la TV actual, y la prueba SQL `430_menu_pantallas`.
+| no tocar | `website/` (43 archivos), `supabase/migrations/` (36) y `pages.yml` iguales byte por byte a `v2026.10.26-1` (334624c), en el árbol y en el índice; la etiqueta sigue apuntando a ese commit; solo los 5 archivos nuevos de las pantallas |
+| SQL 440 (155) | Permisos: un visitante solo lee `pantalla_datos`; el café sin PIN, un PIN de encargado, el contador y el dueño sin código reciben `owner_only`; el PIN del dueño y el dueño con código abren. Textos con precios o combos rechazados por campo; 140 letras; fechas obligatorias y hasta 366 días; la clase no cambia; una retirada no se edita; producto de Extras & Combos rechazado. Cada escritura deja una fila en el registro; el registro no se modifica ni se borra. Lo que lee cada TV: vigentes o por empezar en 24 h, por TV, sin pausadas, retiradas ni vencidas; agotado o sin precio oculta el producto; TV apagada = `tv_apagada`. Ninguna tabla existente se escribe (huellas iguales antes y después) |
+| SQL 450 (38) | La reversión se niega si falta la 0036 o hay una posterior; quita las funciones, deja las tablas y sus filas y el registro protegido; la 0036 se vuelve a aplicar |
+| SQL 430 (15), 240, 340–420 | La revisión del menú sigue de solo lectura y cuenta como la pantalla; las cadenas de reversión empiezan en la 0036; la lista de funciones públicas es exacta |
+| Ensayo | La copia de producción con la 0036: 26 tablas originales iguales, 27 comprobaciones de negocio, respaldo y restauración, anonimizador, las páginas publicadas hoy sobre la copia migrada, el café vacío con las páginas nuevas |
+| A1–A9 (370) | La Pantalla A como el prototipo: contenido, orden, exclusiones, legibilidad en 7 tamaños y giros, agotados, conexión, relojes, arranque sin internet, columna `name_es` ausente, recarga tras publicación, ajustes del técnico |
+| B1–B11 (370) | Ajustes desde la base y desde la dirección; sin migración o TV desconocida; TV apagada en negro; categorías; agotados tachados; horario; look por hora de Costa Rica; reloj atrasado no detiene las lecturas; sin precio tras dormir; títulos y aviso en TV girada; tablero nunca en blanco; edad desde el inicio de la petición |
+| P1–P17 (380) | Marca sin diapositivas; producto con precio y foto al día; marca e invitación con QR; pausadas, retiradas, vencidas, de otra TV y productos no vendibles ocultos; vence y empieza sola sin internet; días y horas de Costa Rica; política de precios sin conexión; arranque sin internet; relojes; horario; legibilidad; sin migración; reanudar; ajustes; TV apagada; edad de la lectura; recarga tras publicación |
+| 390 (14) | Dirección desconocida rechazada; ingreso; PIN de encargado rechazado; PIN del dueño y dueño con código abren; TV guardada y registrada; tres diapositivas; precio o combo bloqueado en la página y rechazado por el servidor; fechas obligatorias; pausar, reanudar, retirar; foto reducida y guardada; Hoy en pantalla; vista previa; de la página a lo que lee la TV; sin migración |
+| 340 | Las páginas nuevas no agregan ninguna casilla de PIN (siguen 19) |
 
 ## 6. Demostración privada
-- Es una página privada de Claude con un simulador de la Pantalla A, usando **el menú de muestra del repositorio, no los precios reales**.
-- El dueño puede elegir:
-  - el tamaño de la TV, la distancia, el giro y el look;
-  - marcar un producto agotado o cambiar un precio;
-  - cortar la conexión y ver los avisos, con los tiempos acelerados (el aviso lo dice).
-- Enlace (privado, solo lo abre el dueño): https://claude.ai/artifact/6R3r3hBSyXCNcRX2V7q9tX
-- Se construye con el archivo del prototipo, el `lang.js` del sitio y el menú de muestra. No usa `config.js` ni
-  `version.js`, y no habla con ninguna base de datos.
+- Simulador de la Pantalla A con el menú de muestra del repositorio (no son los precios reales), con tamaño, distancia, giro, look, agotados, precios y corte de conexión: https://claude.ai/artifact/6R3r3hBSyXCNcRX2V7q9tX
+- Capturas de las tres páginas en el informe de D-062.
 
 ## 7. Decisiones del dueño
-Cada función espera la decisión del dueño antes de construirse.
+Lo que el dueño decidió el 2026-10-31 ya está construido: combos y descuentos reservados (P-13), gestión con PIN de dueño, permisos del servidor y registro (P-14), ninguna migración sin aprobación (P-15), Pantalla B (P-16), publicación solo con su autorización (P-17), gestión en español sin `lang.js` (P-18).
 
-| # | Decisión | Estado | Mientras tanto, el prototipo… |
-|---|---|---|---|
-| P-01 | Lugar, tamaño, giro, altura y distancia de lectura de cada TV (formulario 2.1, con fotos) | Pendiente | usa 55" a 3 m si la dirección no dice otra cosa, y el diagnóstico lo marca como supuesto |
-| P-02 | Si el menú completo no cabe en 2 páginas a la distancia real (tabla de 2.4): (a) aceptar más páginas, (b) elegir qué categorías muestra la Pantalla A (por ejemplo, las bebidas y la repostería) y llevar el resto a otra pantalla o al menú QR, (c) TV más grande, o (d) leer de más cerca | Pendiente | muestra todo, en las páginas que hagan falta |
-| P-03 | Límites de la política de conexión: 2 min con precios, hasta 10 min «por confirmar», después sin precios; nombres guardados 3 días | Pendiente de confirmar | aplica esta propuesta |
-| P-04 | Agotados: ocultarlos (como hoy en la TV y el menú QR) o mostrarlos tachados con «Agotado» | Pendiente | los oculta |
-| P-05 | Fotos pequeñas y «Recomendado · Our pick» en 2 o 3 productos | Pendiente | ninguno |
-| P-06 | Una línea de «Extras» con los precios leídos de la Caja (leche en batidos, jamón, shot); y si se corrigen las descripciones con precios a mano, que también salen en el menú QR | Pendiente | ninguna; no muestra descripciones |
-| P-07 | Look: automático por hora (claro 6:00–18:00) o fijo para cada TV según su luz | Pendiente | automático |
-| P-08 | Horario: pantalla negra fuera de las horas del café y apagado con el temporizador de la TV | Pendiente | siempre encendida |
-| P-09 | Reproductor: el navegador de la TV (OK para pantalla completa, como la TV actual) o una app de quiosco con licencia, que solo se propone si la prueba de 8 horas y la de corte de luz demuestran que hace falta (condición 6) | Pendiente | funciona en el navegador de la TV |
-| P-10 | Redacción del pie «Precios en colones, IVA incluido», confirmada con el contador (Ley 7472: precio final con impuestos) | Pendiente | muestra esa nota, coherente con D-011 |
-| P-11 | Dólares: nada, o «Aceptamos dólares al tipo de cambio del día» (depende de A-06); «sin cargo de servicio» (A-05) | Pendiente | nada |
-| P-12 | Nombres en español: llenar `name_es` en el Gestor del menú (cambia también el menú QR) o quedarse con el diccionario | Pendiente | `name_es`, si no el diccionario, si no el nombre una vez |
-| P-13 | Combos y descuentos | **Decidido** (condición 7): reservados hasta que la Caja los cobre exactamente como se anuncian | nunca los muestra |
-| P-14 | Acceso a la gestión | **Decidido** (condición 8): PIN de propietario, permisos del servidor y registro de cambios | no hay gestión en la fase 1 |
-| P-15 | Migraciones y configuración de Supabase | **Decidido** (condición 9): ninguna sin aprobación expresa | no necesita ninguna |
-| P-16 | Pantalla B | **Decidido**: no avanzar todavía | no existe |
-| P-17 | Publicación | **Decidido** (condición 10): cada una con pruebas, demostración y autorización del dueño | no se publica |
-| P-18 | Página de gestión escrita directamente en español, sin `lang.js` (excepción a una regla del proyecto) | Pendiente (fase 2) | – |
-| P-19 | Presupuesto: pantallas, soportes, cable, supresores, técnico; licencias solo si P-09 lo pide | Pendiente | – |
-| P-20 | Fase 2 y siguientes: lugar de la Pantalla B, fotos de promociones (dónde se guardan y su respaldo), enlace de reseña de Google, medición de 6 semanas y quién la anota, qué muestra la TV actual durante la medición | Pendiente | – |
+Lo que sigue en manos del dueño, y cómo lo hace:
 
-## 8. Antes de pedir autorización para publicar la Pantalla A
-1. **Datos:** el formulario 2.1 lleno y la revisión 2.3 corrida en producción.
-2. **Decisiones:** P-01 a P-12 decididas, por lo menos P-01, P-02, P-03, P-04 y P-10. Cada cambio que pidan se construye y se prueba.
-3. **Prueba en la TV real**, con la página privada abierta desde la dirección de pruebas del técnico. Se acepta si:
-   - tres personas, una de más de 60 años o con lentes, leen 5 precios al azar desde el punto más lejano;
-   - un agotado sale en menos de 1 minuto;
-   - la TV pasa 8 horas sin tocar el control;
-   - después de un corte de luz vuelve sola en menos de 3 minutos.
-4. **Pruebas automáticas** completas en verde y una demostración nueva.
-5. **Solicitud de autorización:**
-   - se publica copiando `pantalla-menu.html` a `website/` en un commit propio;
-   - `tests/prototipos/BASE` pasa a esa versión solo después de que el dueño la publique;
-   - la solicitud dice qué otros cambios llevaría la etiqueta: una etiqueta publica todo el sitio de la rama, y por ejemplo el PR #4, que cambia la Caja, no debe entrar sin decirlo;
-   - etiqueta y publicación las hace el dueño, con `docs/PUBLICAR.md`.
-6. **Vuelta atrás:**
-   - apagar la TV nueva o cambiarle la dirección no afecta nada más;
-   - retirar la página es publicar otra vez la versión anterior.
+| # | Decisión | Dónde |
+|---|---|---|
+| P-01 | Lugar, tamaño, giro, altura y distancia de lectura de cada TV (formulario 2.1) | `pantallas.html` → Pantallas; el técnico con `docs/INSTALACION-TV.md` |
+| P-02 | Si el menú completo no cabe en 2 páginas a la distancia real (tabla 2.4): más páginas, o elegir las categorías de esa TV | `pantallas.html` → Pantallas → Categorías que muestra |
+| P-03 | Límites de la política de conexión (2 min / 10 min / 3 días de nombres) | Son los construidos; si quiere otros, se cambian con una versión nueva |
+| P-04 | Agotados ocultos o tachados | `pantallas.html` → Pantallas → Productos agotados |
+| P-05 | Fotos o recomendados en la Pantalla A | No construido; se decide después de ver la TV real |
+| P-06 | Línea de «Extras» y descripciones con precios a mano (también en el menú QR) | No construido; el Gestor del menú para las descripciones |
+| P-07 | Look automático o fijo por TV | `pantallas.html` → Pantallas → Colores |
+| P-08 | Horario de cada TV | `pantallas.html` → Pantallas → Encendida desde / hasta; el apagado real, con el temporizador de la TV |
+| P-09 | App de quiosco, solo si la prueba de 8 horas y la de corte de luz la piden | Prueba en la TV real (`docs/INSTALACION-TV.md` §6) y aprobación del dueño |
+| P-10 | Redacción del pie «Precios en colones, IVA incluido», con el contador | Hoy coherente con D-011; cambiarla es una versión nueva |
+| P-11 | Dólares y «sin cargo de servicio» | No construido (A-05, A-06) |
+| P-12 | Nombres en español | Gestor del menú → `name_es` (cambia también el menú QR), o el diccionario del sitio |
+| P-19 | Presupuesto: pantallas, soportes, cable, supresores, técnico; licencias solo si P-09 lo pide | – |
+| P-20 | Lugar de la Pantalla B; enlace de reseña de Google (solo Tripadvisor está aprobado); la medición de 6 semanas y quién la anota | `pantallas.html` para el contenido; lo demás, decisión |
+
+## 8. Activar
+Los pasos exactos, en orden, con las comprobaciones y la vuelta atrás: `docs/ACTIVACION-PANTALLAS.md`. La publicación la hace el dueño; esta versión la deja lista.

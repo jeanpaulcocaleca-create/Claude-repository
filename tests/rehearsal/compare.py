@@ -30,7 +30,8 @@ def check(cond, msg):
 
 
 # what may run without signing in, and the signed-in functions that need no account check (all reviewed: menu,
-# room orders, schema version, small helpers used inside triggers and rules; docs/DECISIONS.md D-022, D-023)
+# room orders, schema version, small helpers used inside triggers and rules; docs/DECISIONS.md D-022, D-023; 0036: what
+# the customer TVs read, pantalla_datos, read only, no table open to visitors)
 OPEN_POLICIES = {
     'app_settings · settings read · SELECT · anon,authenticated', 'board_group_slides · group slides read · SELECT · anon,authenticated',
     'board_settings · board settings read · SELECT · anon,authenticated', 'chat_questions · visitors can ask · INSERT · anon,authenticated',
@@ -38,7 +39,7 @@ OPEN_POLICIES = {
     'menu_items · menu items read · SELECT · anon,authenticated', 'objects · menu photos read · SELECT · anon,authenticated',
     'order_items · order items read · SELECT · authenticated', 'order_part_lines · part lines read · SELECT · authenticated',
     'tax_rates · tax rates read · SELECT · authenticated'}
-ANON_DEFINER = ['canopy_schema_version', 'order_status', 'place_room_order', 'room_lookup']
+ANON_DEFINER = ['canopy_schema_version', 'order_status', 'pantalla_datos', 'place_room_order', 'room_lookup']
 # the one-time reset (supabase/tools/reinicio-operativo.sql, D-038): the original tables it clears, the ones it keeps byte
 # for byte, and the two it writes (every stock item's on_hand to 0, one line in the log)
 CLEARED = ('order_part_lines', 'tab_adds', 'order_items', 'orders', 'discount_approvals', 'register_days', 'time_entries', 'stock_moves',

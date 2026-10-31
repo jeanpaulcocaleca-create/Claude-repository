@@ -42,7 +42,7 @@ function problems(pg, where) {
 
 module.exports.tests = [
   {
-    name: 'the empty café: POS, Home, Sales, Inventory, Time clock, Kitchen, TV board, QR menu, Insights and Accounting open with their empty states, no script errors, no refused API call',
+    name: 'the empty café: POS, Home, Sales, Inventory, Time clock, Kitchen, TV board, QR menu, Insights, Accounting and the customer screens (menu TV, promotions TV, the owner\'s page) open with their empty states, no script errors, no refused API call',
     run: async ({ browser }) => {
       // the reset copy as run.sh left it: nothing operational, everything configured
       assert.strictEqual(sql(`select count(*) from public.orders`) + '|' + sql(`select count(*) from public.register_days`) + '|' +
@@ -102,6 +102,26 @@ module.exports.tests = [
           await pg.click('#tabs [data-view=journal]');
           await quiet(1500);
           assert.strictEqual(sql(`select count(*) from acct.entries`), '0', 'no ledger entry on the empty café');
+        }],
+        /* the customer screens (migration 0036): the two TVs it seeds, no slide and no change yet */
+        [null, '/pantalla-menu?tv=menu-1', async (pg) => {   // Screen A: the menu with verified prices, this TV's row read
+          await until(() => pg.evaluate(() => !!window.PANTALLA && PANTALLA.info().estado === 'al-dia' && PANTALLA.info().fuente === 'base'), 15000, 'Screen A: prices verified, its settings read');
+          await until(async () => (await pg.locator('#main .page .it').count()) > 10, 10000, 'the menu on Screen A');
+          assert.strictEqual(await pg.locator('#aviso').isVisible(), false, 'no warning on Screen A');
+        }],
+        [null, '/pantalla-promos?tv=promos-1', async (pg) => {   // Screen B: nothing in force, so the built-in brand slide
+          await until(() => pg.evaluate(() => !!window.PANTALLA_B && PANTALLA_B.info().buenas > 0), 15000, 'Screen B: a good read');
+          const i = await pg.evaluate(() => PANTALLA_B.info());
+          assert.deepStrictEqual([i.estado, i.fuente, i.razon, i.leidas, i.actual, i.apagado], ['al-dia', 'db', null, [], 'marca', false], 'Screen B read, no slide');
+          await until(async () => (await pg.locator('#stage .capa.on .sl[data-kind="propia"]').count()) === 1, 8000, 'the brand slide on Screen B');
+          assert.strictEqual(await text(pg, '#stage .capa.on .sl .tit'), 'Hanging Garden Café');
+        }],
+        ['owner', '/pantallas', async (pg) => {   // the owner with the phone code: no PIN screen, both TVs, no slide
+          await pg.waitForSelector('#appView:not([hidden]) article.tv', { timeout: 15000 });
+          await until(async () => (await pg.locator('article.tv').count()) === 2, 8000, 'the two TVs');
+          assert.deepStrictEqual(await pg.locator('article.tv').evaluateAll((a) => a.map((e) => e.dataset.tv)), ['menu-1', 'promos-1']);
+          assert.strictEqual(await pg.locator('.hga-wrap').count(), 0, 'no PIN screen');
+          assert.strictEqual(sql(`select count(*) from public.screen_slides`) + '|' + sql(`select count(*) from public.screen_changes`), '0|0', 'nothing written by opening it');
         }]
       ];
       for (const [login, path, expect] of pages) {

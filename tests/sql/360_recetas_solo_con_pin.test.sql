@@ -50,6 +50,7 @@ select test.ok(not has_table_privilege('authenticated', 'public.recipes', 'inser
 
 -- the rollback gives the old rights back (and only that)
 \o /dev/null
+\ir ../../supabase/tools/reversion-0036.sql
 \ir ../../supabase/tools/reversion-0035.sql
 \ir ../../supabase/tools/reversion-0034.sql
 \ir ../../supabase/tools/reversion-0033.sql

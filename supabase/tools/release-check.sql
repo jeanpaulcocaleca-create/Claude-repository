@@ -7,13 +7,13 @@
 --   * los interruptores (ajustes) y las confirmaciones registradas;
 --   * las funciones que la página necesita y no existen;
 --   * funciones de la API que cualquiera sin iniciar sesión podría ejecutar (debe estar vacío salvo las públicas
---     del menú y los pedidos de habitación);
+--     del menú, los pedidos de habitación y lo que leen las pantallas de los clientes, pantalla_datos);
 --   * tablas expuestas sin RLS (debe estar vacío);
 --   * Storage (storage_buckets_missing y storage_policies_missing deben estar vacíos, receipt_upload_rule_current en
 --     true): el depósito de facturas de gastos y sus dos reglas (desde la 0015), la regla de subida de la 0025, y las
 --     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene).
 -- =====================================================================================================
-with expected as (select generate_series(0, 35) as v),
+with expected as (select generate_series(0, 36) as v),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),
@@ -29,7 +29,8 @@ needed(fn) as (values
   ('recipe_save'), ('recipes_autolink_pin'), ('pin_lock_clear'), ('access_lock_all'),
   ('vendors_list'), ('vendor_save'), ('vendor_defaults_save'), ('vendor_history'), ('purchases_list'), ('sales_by_method'), ('cash_position'),
   ('period_compare'), ('acct_audit'), ('expense_pay'), ('expense_payment_void'), ('expense_schedule_save'), ('expense_schedule_void'),
-  ('expense_schedules_list'), ('expense_due')),
+  ('expense_schedules_list'), ('expense_due'),
+  ('pantalla_datos'), ('pantallas_estado'), ('pantalla_guardar'), ('diapositiva_guardar'), ('diapositiva_estado')),
 menu_photos as (select exists (select 1 from storage.buckets where id = 'menu-photos') as present),
 storage_rules(name) as (select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects')
 select jsonb_pretty(jsonb_build_object(

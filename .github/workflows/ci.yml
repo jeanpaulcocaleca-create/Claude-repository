@@ -79,6 +79,5 @@ jobs:
       - name: Browser tests
         if: hashFiles('tests/e2e/run.js') != ''
         run: node tests/e2e/run.js
-      - name: Private prototypes (not published; the café's pages, migrations and pages.yml equal the published release)
-        if: hashFiles('tests/e2e/run.js') != ''
-        run: bash tests/prototipos/run.sh
+      - name: No-touch check (the café's pages, migrations and pages.yml equal the published release; only the screens' new files are added)
+        run: bash tests/pantallas/no-tocar.sh

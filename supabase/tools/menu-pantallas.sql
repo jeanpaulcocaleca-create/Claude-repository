@@ -4,10 +4,12 @@
 -- completa y péguela en el chat para Claude.
 --
 -- Qué muestra, con el menú tal como está hoy (lo mismo que leería la Pantalla A, sin escribir nada):
---   * por categoría, en el orden del Gestor del menú: los productos que la pantalla mostraría (disponibles y con
---     precio mayor que cero), los agotados, y de cada producto: nombre, nombre en español si se escribió en el
---     Gestor del menú (name_es), precio final, si tiene foto, el largo del nombre y si su descripción trae un precio
---     escrito a mano;
+--   * por categoría, en el orden del Gestor del menú: los productos que la pantalla mostraría (exactamente la regla de
+--     la Pantalla A: disponibles, con nombre y con precio mayor que cero), los agotados, y de cada producto: nombre,
+--     nombre en español si se escribió en el Gestor del menú (name_es), precio final, si tiene foto, el largo del
+--     nombre y si su descripción trae un precio escrito a mano;
+--   * aparte, los productos fuera de «Extras & Combos» que la pantalla NO muestra por su precio (cero o negativo) o
+--     porque no tienen nombre: para corregirlos en el Gestor del menú;
 --   * la categoría «Extras & Combos» aparte: la pantalla nunca la muestra (ayudas de la Caja y la línea de combo);
 --   * un resumen: cuántos productos y categorías saldrían, cuántos no tienen name_es (el sitio tiene además un
 --     diccionario propio que Claude revisa con este resultado), cuántas descripciones traen precios escritos a mano,
@@ -19,14 +21,17 @@ with cats as (
   select c.id, c.name, c.sort, c.name = 'Extras & Combos' as helpers
     from public.menu_categories c
 ), items as (
-  select i.category_id, i.name, nullif(btrim(coalesce(i.name_es, '')), '') as name_es, i.price_crc, coalesce(i.available, true) as available,
+  -- the screens' rule: available is true (not merely "not false"), a price above 0, a name that is not blank as the
+  -- screens' JavaScript trim() sees it (spaces, tabs, line breaks, no-break and other Unicode spaces)
+  select i.category_id, i.name, nullif(btrim(coalesce(i.name_es, '')), '') as name_es, i.price_crc, coalesce(i.available, false) as available,
+         coalesce(i.name, '') ~ '[^[:space:]\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]' as named,
          i.photo_url is not null and btrim(i.photo_url) <> '' as has_photo, i.sort, i.description,
          coalesce(i.description, '') ~ '(₡|\+\s*₡?\s*[0-9]|[0-9]\s?[0-9]{3}\s*(colones|crc))' as typed_price
     from public.menu_items i
 ), shown as (
   select i.*, c.name as category, c.sort as cat_sort
     from items i join cats c on c.id = i.category_id
-   where not c.helpers and i.available and i.price_crc > 0
+   where not c.helpers and i.available and i.price_crc > 0 and i.named
 )
 select jsonb_pretty(jsonb_build_object(
   'revisado', to_char(now() at time zone 'America/Costa_Rica', 'YYYY-MM-DD HH24:MI') || ' (hora de Costa Rica)',
@@ -38,6 +43,7 @@ select jsonb_pretty(jsonb_build_object(
     'descripciones_con_precio_a_mano', (select count(*) from items where typed_price),
     'sin_foto', (select count(*) from shown where not has_photo),
     'precio_cero_o_negativo_fuera_de_extras', (select count(*) from items i join cats c on c.id = i.category_id where not c.helpers and i.price_crc <= 0),
+    'sin_nombre_fuera_de_extras', (select count(*) from items i join cats c on c.id = i.category_id where not c.helpers and not i.named),
     'nombres_mas_largos', (select coalesce(jsonb_agg(name order by length(name) desc, name), '[]') from (select name from shown order by length(name) desc, name limit 5) l)),
   'categorias', (select coalesce(jsonb_agg(jsonb_build_object(
       'categoria', c.name,
@@ -48,6 +54,9 @@ select jsonb_pretty(jsonb_build_object(
           'precio_en_descripcion', case when s.typed_price then s.description end) order by s.sort, s.name), '[]')
         from shown s where s.category_id = c.id)) order by c.sort, c.name), '[]')
     from cats c where not c.helpers),
+  'no_se_muestran_por_precio_o_nombre', (select coalesce(jsonb_agg(jsonb_build_object('categoria', c.name, 'nombre', i.name, 'precio_crc', i.price_crc,
+                                             'motivo', case when not i.named then 'sin nombre' else 'precio cero o negativo' end) order by c.sort, i.sort, i.name), '[]')
+                                           from items i join cats c on c.id = i.category_id where not c.helpers and (i.price_crc <= 0 or not i.named)),
   'extras_y_combos_no_se_muestran', (select coalesce(jsonb_agg(jsonb_build_object('nombre', i.name, 'precio_crc', i.price_crc, 'disponible', i.available)
                                        order by i.sort, i.name), '[]')
                                        from items i join cats c on c.id = i.category_id where c.helpers),

@@ -101,7 +101,19 @@ declare
                        -- 0034/0035: a supplier's habitual account and payment method, a recurring bill's codes, a payment's method, a period key
                        'public.vendors.default_account', 'public.vendors.default_paid_from', 'public.expense_schedules.account',
                        'public.expense_schedules.paid_from', 'public.expense_schedules.every', 'public.expense_payments.paid_from',
-                       'public.expenses.period_key'];
+                       'public.expenses.period_key',
+                       -- 0036: the customer TVs (their codes and names: "menu-1", "Pantalla A · menú") and the slides' texts, which
+                       -- the café shows to every customer on the TV (public by design, no price, no person); who saved
+                       -- them (created_by, updated_by, by_name) is "Persona" by name, above. The change log's before/after
+                       -- hold only those settings and slide texts (built by the 0036 functions without any name, reason or
+                       -- note) and its summary is the TV's name or the slide's title: business data, kept
+                       'public.screens.id', 'public.screens.kind', 'public.screens.name', 'public.screens.turn', 'public.screens.look',
+                       'public.screens.sold_out', 'public.screen_slides.kind', 'public.screen_slides.kicker_es',
+                       'public.screen_slides.kicker_en', 'public.screen_slides.title_es', 'public.screen_slides.title_en',
+                       'public.screen_slides.body_es', 'public.screen_slides.body_en', 'public.screen_slides.photo_url',
+                       'public.screen_slides.link', 'public.screen_slides.screen_ids', 'public.screen_slides.status',
+                       'public.screen_changes.target_kind', 'public.screen_changes.target_id', 'public.screen_changes.action',
+                       'public.screen_changes.summary', 'public.screen_changes.before', 'public.screen_changes.after'];
   unknown text;
 begin
   if pin !~ '^[0-9]{4,8}$' then raise exception 'STAGING_PIN debe tener de 4 a 8 dígitos'; end if;

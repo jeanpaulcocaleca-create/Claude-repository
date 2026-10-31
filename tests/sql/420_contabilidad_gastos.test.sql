@@ -319,10 +319,12 @@ select test.eq((select details#>>'{before,amount_crc}' from public.audit_log whe
 -- 6) every entry of this test balances --------------------------------------------------------------------------------------
 select test.eq((select count(*)::int from (select entry_id from acct.lines group by entry_id having sum(debit) <> sum(credit)) x), 0, 'every entry balances');
 
--- 7) the reversal drill: 0035 then 0034 off, the database at version 33 as production has it, nothing lost; then both on again ----
+-- 7) the reversal drill: 0035 then 0034 off (0036 first: each reversal refuses while a later one is applied), the database at
+--    version 33 as production has it, nothing lost; then 0034 and 0035 on again (0036 stays off: nothing here needs it) ----
 select (select count(*) from public.expenses) || '|' || (select count(*) from acct.entries) || '|' || (select count(*) from public.audit_log) || '|'
     || (select count(*) from public.expense_payments) || '|' || (select count(*) from public.expense_schedules) as before \gset
 \o /dev/null
+\ir ../../supabase/tools/reversion-0036.sql
 \ir ../../supabase/tools/reversion-0035.sql
 \ir ../../supabase/tools/reversion-0034.sql
 \o
