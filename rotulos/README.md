@@ -4,7 +4,7 @@ Dos rótulos de **70 cm × 110 cm** (vertical) para colocar fuera del local, cer
 
 | Rótulo | Contenido | Archivos listos para imprenta |
 |---|---|---|
-| Menú | El menú completo de hanginggardencafe.com (8 categorías, sin precios, sin Adventure Box) con las 12 fotos de productos, el logo real y el marco de acuarela de la web | `salida/menu-70x110cm.pdf` · `salida/menu-70x110cm.png` |
+| Menú | El menú completo de hanginggardencafe.com (8 categorías, con precios en colones, sin Adventure Box) con las 12 fotos de productos, el logo real y el marco de acuarela de la web | `salida/menu-70x110cm.pdf` · `salida/menu-70x110cm.png` |
 | Promocional | Rótulo estilo Starbucks: foto grande + 3 desayunos, 3 pastelería, 3 batidos | `salida/promo-70x110cm.pdf` · `salida/promo-70x110cm.png` |
 
 Las vistas previas pequeñas (`salida/*-preview.jpg`) son solo para revisar en pantalla, no para imprimir.
@@ -19,6 +19,11 @@ The Hanging Stack, Cortado, Canela Cloud Latte, Menti Verde, Cinnamon Roll, Trip
 
 Se excluyen a propósito **Adventure Box** (a petición del dueño) y **Extras & Combos** (ayudas de caja que la
 web tampoco muestra).
+
+Los precios son los publicados en la web. Nueve productos nuevos no tienen precio en el repositorio y llevan el
+marcador **₡ ?** en dorado hasta que el dueño los confirme: Bun & Roll Breakfast, Bagel, The Hanging Stack,
+Cortado, Canela Cloud Latte, Menti Verde, Triple Chocolate Croissant, Cinnamon Roll y Flauta de Chocolate.
+Los precios de batidos son en agua; la nota bajo la lista indica el recargo con leche.
 
 Marca: logo `marca/logo.png`, acuarelas `marca/deco-sprig.png` y `marca/deco-quetzal.png`, paleta y
 tipografías (`Playfair Display`, `Figtree`, `Dancing Script`, `Spline Sans Mono`) tomadas de `page.css` de la web.

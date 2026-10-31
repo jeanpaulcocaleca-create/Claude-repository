@@ -8,7 +8,7 @@
   /* ---------- Marco de acuarela, como en la web ---------- */
   .deco { position: absolute; z-index: 0; pointer-events: none; }
   .deco.sprig-tr { top: -14mm; right: -18mm; width: 200mm; transform: rotate(180deg); opacity: .85; }
-  .deco.sprig-bl { bottom: 12mm; left: -34mm; width: 230mm; opacity: .7; }
+  .deco.sprig-bl { bottom: 12mm; left: -44mm; width: 230mm; opacity: .5; }
   .deco.quetzal { top: 30mm; left: 34mm; width: 64mm; opacity: .95; }
 
   /* ---------- Cabecera ---------- */
@@ -76,7 +76,7 @@
   main {
     position: relative; z-index: 1;
     display: grid; grid-template-columns: 1fr 1fr; gap: 0 24mm;
-    padding: 18mm 30mm 0;
+    padding: 16mm 30mm 0;
   }
   .cat { margin-bottom: 12mm; }
   .cat .photos { float: right; display: flex; flex-direction: column; gap: 7mm; margin: 0 0 6mm 10mm; }
@@ -86,8 +86,21 @@
     box-shadow: 0 0 0 1.6mm var(--canvas), 0 0 0 2.6mm var(--gold);
   }
   .cat li {
+    display: flex; align-items: baseline; gap: 4mm;
     font-weight: 600; font-size: 14mm; line-height: 18.5mm;
     color: var(--ink);
+  }
+  .cat li i { flex: 1; border-bottom: 1mm dotted var(--accent-muted); transform: translateY(-3.5mm); min-width: 8mm; }
+  .cat li b, .breakfast figcaption b {
+    font-family: 'SplineMono', monospace; font-weight: 500; font-size: 12.5mm;
+    color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .breakfast figcaption b { display: block; margin-top: 2mm; }
+  .tbd { color: var(--gold) !important; }
+  .note {
+    clear: both; margin-top: 4mm;
+    font-style: italic; font-weight: 400; font-size: 10mm; line-height: 12.5mm;
+    color: var(--text-secondary);
   }
   .cat::after { content: ''; display: block; clear: both; }
 
@@ -97,10 +110,10 @@
     height: 42mm;
     background: var(--accent); color: var(--canvas);
     display: flex; align-items: center; justify-content: center; gap: 9mm;
-    font-weight: 600; font-size: 12.5mm; line-height: 1;
+    font-weight: 600; font-size: 11.5mm; line-height: 1;
   }
   footer i { width: 2.4mm; height: 2.4mm; border-radius: 50%; background: var(--gold); }
-  footer .mono { font-family: 'SplineMono', monospace; font-weight: 400; font-size: 11.5mm; letter-spacing: .04em; }
+  footer .mono { font-family: 'SplineMono', monospace; font-weight: 400; font-size: 10.5mm; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -121,9 +134,9 @@
   <section class="breakfast">
     <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Breakfast <em>· Desayuno</em></h2>
     <div class="grid">
-      <figure><div class="ph"><img src="fotos/bun-and-roll-breakfast.jpg" style="object-position:50% 50%" alt=""></div><figcaption>Bun &amp; Roll Breakfast</figcaption></figure>
-      <figure><div class="ph"><img src="fotos/bagel.webp" style="object-position:50% 55%" alt=""></div><figcaption>Bagel</figcaption></figure>
-      <figure><div class="ph"><img src="fotos/the-hanging-stack.webp" style="object-position:50% 42%" alt=""></div><figcaption>The Hanging Stack</figcaption></figure>
+      <figure><div class="ph"><img src="fotos/bun-and-roll-breakfast.jpg" style="object-position:50% 50%" alt=""></div><figcaption>Bun &amp; Roll Breakfast<b class="tbd">₡ ?</b></figcaption></figure>
+      <figure><div class="ph"><img src="fotos/bagel.webp" style="object-position:50% 55%" alt=""></div><figcaption>Bagel<b class="tbd">₡ ?</b></figcaption></figure>
+      <figure><div class="ph"><img src="fotos/the-hanging-stack.webp" style="object-position:50% 42%" alt=""></div><figcaption>The Hanging Stack<b class="tbd">₡ ?</b></figcaption></figure>
     </div>
   </section>
 
@@ -137,45 +150,47 @@
           <img src="fotos/cafe-con-leche.webp" style="object-position:30% 50%" alt="">
         </div>
         <ul>
-          <li>Espresso</li>
-          <li>Americano</li>
-          <li>Cortado</li>
-          <li>Macchiato</li>
-          <li>Cappuccino</li>
-          <li>Latte</li>
-          <li>Flat White</li>
-          <li>Mocha</li>
-          <li>Café con Leche</li>
-          <li>Canela Cloud Latte</li>
-          <li>Iced Americano</li>
-          <li>Iced Latte</li>
-          <li>Iced Mocha</li>
+          <li><span>Espresso</span><i></i><b>₡1 300</b></li>
+          <li><span>Americano</span><i></i><b>₡1 500</b></li>
+          <li><span>Cortado</span><i></i><b class="tbd">₡ ?</b></li>
+          <li><span>Macchiato</span><i></i><b>₡1 800</b></li>
+          <li><span>Cappuccino</span><i></i><b>₡2 000</b></li>
+          <li><span>Latte</span><i></i><b>₡2 200</b></li>
+          <li><span>Flat White</span><i></i><b>₡2 200</b></li>
+          <li><span>Mocha</span><i></i><b>₡2 400</b></li>
+          <li><span>Café con Leche</span><i></i><b>₡1 700</b></li>
+          <li><span>Canela Cloud Latte</span><i></i><b class="tbd">₡ ?</b></li>
+          <li><span>Iced Americano</span><i></i><b>₡1 500</b></li>
+          <li><span>Iced Latte</span><i></i><b>₡2 200</b></li>
+          <li><span>Iced Mocha</span><i></i><b>₡2 400</b></li>
         </ul>
       </section>
 
       <section class="cat">
         <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Other Drinks <em>· Otras bebidas</em></h2>
         <ul>
-          <li>Costa Rican Hot Chocolate</li>
-          <li>Tea</li>
-          <li>Sweet Cane Drink</li>
+          <li><span>Costa Rican Hot Chocolate</span><i></i><b>₡1 500</b></li>
+          <li><span>Tea</span><i></i><b>₡1 000</b></li>
+          <li><span>Sweet Cane Drink</span><i></i><b>₡1 500</b></li>
         </ul>
       </section>
 
-      <section class="cat">
-        <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Savory <em>· Salado</em></h2>
-        <ul>
-          <li>Chicken Empanada</li>
-          <li>Beef Empanada</li>
-          <li>Ham &amp; Cheese Croissant</li>
-        </ul>
-      </section>
 
       <section class="cat">
-        <h2 class="long"><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Costa Rican Favorites <em>· Favoritos ticos</em></h2>
+        <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Pastries &amp; Cake <em>· Repostería</em></h2>
+        <div class="photos row">
+          <img src="fotos/cinnamon-roll.jpg" style="object-position:48% 58%" alt="">
+          <img src="fotos/croissant-triple-chocolate.jpg" style="object-position:50% 66%" alt="">
+          <img src="fotos/croissant-chocolate.jpg" style="object-position:45% 55%" alt="">
+        </div>
         <ul>
-          <li>Tres Leches</li>
-          <li>Tamal Asado</li>
+          <li><span>Butter Croissant</span><i></i><b>₡1 500</b></li>
+          <li><span>Chocolate Croissant</span><i></i><b>₡1 800</b></li>
+          <li><span>Triple Chocolate Croissant</span><i></i><b class="tbd">₡ ?</b></li>
+          <li><span>Cinnamon Roll</span><i></i><b class="tbd">₡ ?</b></li>
+          <li><span>Flauta de Chocolate</span><i></i><b class="tbd">₡ ?</b></li>
+          <li><span>Banana Bread</span><i></i><b>₡1 500</b></li>
+          <li><span>Carrot Cake</span><i></i><b>₡2 000</b></li>
         </ul>
       </section>
     </div>
@@ -189,53 +204,53 @@
           <img src="fotos/menti-verde.jpg" style="object-position:50% 45%" alt="">
         </div>
         <ul>
-          <li>Golden Passion Bloom</li>
-          <li>Berry Violet Blossom</li>
-          <li>White Plumeria Cream</li>
-          <li>Sunflower Citrus Bloom</li>
-          <li>Green Jasmine Mint</li>
-          <li>Coral Rose Splash</li>
-          <li>Pink Dahlia Delight</li>
-          <li>Emerald Orchid</li>
-          <li>Lemon Rose Blossom</li>
-          <li>Fresh Water Lily</li>
-          <li>Golden Magnolia</li>
-          <li>Menti Verde</li>
+          <li><span>Golden Passion Bloom</span><i></i><b>₡3 200</b></li>
+          <li><span>Berry Violet Blossom</span><i></i><b>₡3 500</b></li>
+          <li><span>White Plumeria Cream</span><i></i><b>₡3 500</b></li>
+          <li><span>Sunflower Citrus Bloom</span><i></i><b>₡2 700</b></li>
+          <li><span>Green Jasmine Mint</span><i></i><b>₡2 700</b></li>
+          <li><span>Coral Rose Splash</span><i></i><b>₡2 700</b></li>
+          <li><span>Pink Dahlia Delight</span><i></i><b>₡2 500</b></li>
+          <li><span>Emerald Orchid</span><i></i><b>₡2 700</b></li>
+          <li><span>Lemon Rose Blossom</span><i></i><b>₡2 700</b></li>
+          <li><span>Fresh Water Lily</span><i></i><b>₡2 200</b></li>
+          <li><span>Golden Magnolia</span><i></i><b>₡2 500</b></li>
+          <li><span>Menti Verde</span><i></i><b class="tbd">₡ ?</b></li>
         </ul>
+        <p class="note">Prices in water · with milk +₡300 (Emerald Orchid +₡400).<br>Berry Violet Blossom and White Plumeria Cream are made with milk.</p>
       </section>
 
       <section class="cat">
         <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Sandwiches <em>· Sándwiches</em></h2>
         <ul>
-          <li>Ham &amp; Cheese</li>
-          <li>Mano de Piedra</li>
-          <li>Chicken Pesto</li>
-          <li>Monteverde</li>
+          <li><span>Ham &amp; Cheese</span><i></i><b>₡4 000</b></li>
+          <li><span>Mano de Piedra</span><i></i><b>₡4 500</b></li>
+          <li><span>Chicken Pesto</span><i></i><b>₡4 500</b></li>
+          <li><span>Monteverde</span><i></i><b>₡3 750</b></li>
         </ul>
       </section>
 
       <section class="cat">
-        <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Pastries &amp; Cake <em>· Repostería</em></h2>
-        <div class="photos row">
-          <img src="fotos/cinnamon-roll.jpg" style="object-position:48% 58%" alt="">
-          <img src="fotos/croissant-triple-chocolate.jpg" style="object-position:50% 66%" alt="">
-          <img src="fotos/croissant-chocolate.jpg" style="object-position:45% 55%" alt="">
-        </div>
+        <h2><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Savory <em>· Salado</em></h2>
         <ul>
-          <li>Butter Croissant</li>
-          <li>Chocolate Croissant</li>
-          <li>Triple Chocolate Croissant</li>
-          <li>Cinnamon Roll</li>
-          <li>Flauta de Chocolate</li>
-          <li>Banana Bread</li>
-          <li>Carrot Cake</li>
+          <li><span>Chicken Empanada</span><i></i><b>₡1 800</b></li>
+          <li><span>Beef Empanada</span><i></i><b>₡1 800</b></li>
+          <li><span>Ham &amp; Cheese Croissant</span><i></i><b>₡2 500</b></li>
+        </ul>
+      </section>
+
+      <section class="cat">
+        <h2 class="long"><svg class="leaf" viewBox="0 0 24 24"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Costa Rican Favorites <em>· Favoritos ticos</em></h2>
+        <ul>
+          <li><span>Tres Leches</span><i></i><b>₡2 500</b></li>
+          <li><span>Tamal Asado</span><i></i><b>₡1 500</b></li>
         </ul>
       </section>
     </div>
   </main>
 
   <footer>
-    <span>Open every day</span><i></i><span class="mono">6:00 – 19:00</span><i></i><span class="mono">hanginggardencafe.com</span>
+    <span>Open every day</span><i></i><span class="mono">6:00 – 19:00</span><i></i><span>Prices in colones · dollars welcome</span><i></i><span class="mono">hanginggardencafe.com</span>
   </footer>
 
 </div>
