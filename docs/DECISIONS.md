@@ -2368,3 +2368,47 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     names the missing migration; re-apply → 36, everything back.
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-40). Photos or recommendations on
   Screen A, an extras line, dollars, the kiosk app: owner decisions P-05, P-06, P-09, P-11.
+
+## D-063 · 2026-11-01 · Production's `_slide_json` text accepted as a known 0036 variant (one invisible character normalised by the paste); lint against literal invisible characters in pasted SQL
+- **The owner's steps (2026-11-01):** rehearsal #14 green on `965415b` (disposable copy), «Respaldo inmediato», then
+  0036 pasted in the SQL Editor: *Success*. `release-check.sql` clean. `production-snapshot.sql`: `functions_unknown`
+  = `[]`, `tables_missing` = `[]`, but `functions_by_version` 0036 = 12 and `functions_changed` =
+  `public._slide_json(d screen_slides) · c1da988bed4c`.
+- **Cause, with proof:** line 216 of 0036 writes ten invisible Unicode characters literally inside the bracket
+  expression of the `sellable` check (U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF).
+  It is the only such line in the 62 SQL files the owner pastes, and `_slide_json` is the only function that differs;
+  the other 12 of 0036 are byte for byte the file's. Copying through the browser into the SQL Editor applied Unicode
+  NFC normalisation: U+2000 (en quad) became U+2002 (en space), its canonical equivalent, and nothing else changed.
+  NFC of the file's body gives md5 `c1da988bed4c04e34c53929eb789a5b4`, production's md5 exactly (the file's is
+  `27b0bb1336588c00c1f32773515f6a0f`). The owner's read-only diagnostic (pg_proc only) showed the same length (1495),
+  the same class length, the codes `a0 1680 2002 200a 2028 2029 202f 205f 3000 feff`, and that the stored class
+  compiles and classifies a normal name (true), a blank one (false) and an NBSP-only one (false) as the file does.
+- **Effect:** the range U+2000–U+200A became U+2002–U+200A, so the server's `sellable` no longer treats a name made
+  only of en/em quads (U+2000, U+2001) as blank. Unreachable: the Menu Manager trims names in the browser before
+  saving (JavaScript `trim()` removes every Unicode space), and Screen B hides a product whose name is blank after its
+  own trim (`plano()`, JavaScript `\s`). For every name the system can store or show, both texts give the same result;
+  `pantalla_datos`, `pantallas_estado` and the four management functions are the file's.
+- **Decision:** the production text is accepted as a known 0036 variant in `tests/tools/snapshot-known.sh` (ACCEPTED,
+  precedent D-031) and `production-snapshot.sql` regenerated, so the snapshot counts 0036 = 13 and `functions_changed`
+  = `[]`; nothing changes in production and 0036 stays as applied (history). The next migration that touches the
+  screens' functions rewrites `_slide_json` with `\u` escapes (ASCII only) so production and repository coincide again
+  without depending on the clipboard. Rehearsals were never at risk: `compare.py` only fails on a difference the
+  migrations introduce, not on one already in the copy.
+- **Lint rule 14:** no literal invisible character in any SQL the owner pastes (`supabase/migrations`, `supabase/tools`,
+  `ops/backup/repositorio-respaldos`), except 0036:216, which is history; regular expressions write them as `\uXXXX`
+  (PostgreSQL's ARE understands them). `docs/MIGRACIONES.md` gains the rule.
+- **Technical go-ahead for the screens:** given with the diagnostic's result: the tag goes on the commit of this
+  decision (website files unchanged since `965415b`: no-tocar still proves it) or on `965415b` itself; both publish the
+  same pages.
+- **Found on the way, fixed in the tests only (the 1st of the month):** three accounting tests assumed «yesterday» and
+  «three days ago» are this month, so they failed on 2026-11-01 (and would have failed CI on any tag that day): 140
+  closed «this month» while the day it had posted was last month's (months close in order: the test now closes that
+  month first when it differs); 410 expected this month's state to be «estimate» from sales dated d1 = today − 3 and
+  today − 2 (the expectation now follows which month those days fall in); 420 expected a recurring bill created on its
+  own due day without a date to be due today, while `expense_schedule_save` (0035) takes the next date strictly after
+  today (the test now states the rule as written). That last point is a limitation of 0035, not changed here: a
+  recurring bill saved on its due day without a date is due next month; the page shows the chosen date and the owner
+  can type today's. Noted in `docs/CHECKLIST.md` for the next accounting migration. No function changed. The browser
+  spec 360 (four scenarios) had the same assumption: the page opens on «this month» and the seeded days are yesterday
+  and two days ago; on the 1st and the 2nd the spec now widens the period to three months, as the accountant would, and
+  closes the seeded days' month by its number instead of the first button.

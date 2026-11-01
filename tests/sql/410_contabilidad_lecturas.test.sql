@@ -405,8 +405,12 @@ select test.eq(((:'pc'::jsonb)#>>'{previous,gross}')::numeric || '|' || ((:'pc':
 select test.eq(((:'pc'::jsonb)->>'books_visible') || '|' || ((:'pc'::jsonb)->>'labor_visible'), 'true|true', 'the accountant sees the books and the labor');
 select test.eq(((:'pc'::jsonb)#>>'{current,books,revenue}')::numeric, (public.acct_income_statement(:'m0', :'today')->>'revenue')::numeric, 'the books'' revenue is the income statement''s');
 select test.eq(jsonb_array_length((:'pc'::jsonb)->'months'), 3, 'three months in the range');
-select test.eq((select string_agg(m->>'state', ',' order by m->>'month') from jsonb_array_elements((:'pc'::jsonb)->'months') m), 'estimate,empty,estimate',
-               'a month with a register day still open: estimate; a month with nothing: empty; this month: estimate');
+-- the sales of d1 (today − 3) and today − 2 are this month's, except on the first days of a month, when they fall in the last one
+select test.eq((select string_agg(m->>'state', ',' order by m->>'month') from jsonb_array_elements((:'pc'::jsonb)->'months') m),
+               case when to_char(public.cr_today() - 3, 'YYYYMM') = to_char(public.cr_today(), 'YYYYMM') then 'estimate,empty,estimate'
+                    when to_char(public.cr_today() - 2, 'YYYYMM') = to_char(public.cr_today(), 'YYYYMM') then 'estimate,estimate,estimate'   -- the 3rd
+                    else 'estimate,estimate,empty' end,                                                                                  -- the 1st or the 2nd
+               'a month with a register day still open: estimate; a month with sales and no register: estimate; a month with nothing: empty');
 select test.eq(((:'pc'::jsonb)#>>'{months,0,from}') || '|' || ((:'pc'::jsonb)#>>'{months,2,to}'), :'m0' || '|' || :'today', 'the months are cut to the range');
 reset role;
 select test.eq(((:'pc'::jsonb)#>>'{current,expenses}')::numeric,

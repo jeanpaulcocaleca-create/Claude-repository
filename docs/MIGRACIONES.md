@@ -47,6 +47,10 @@ Ya no se ejecutan: después de la migración 0000 se detienen solos en la primer
 - **Cada archivo explica en español** qué hace, por qué, y cómo revertirlo si aplica.
 - **Solo SQL.** Ningún comando de psql (líneas que empiezan con `\`): el SQL Editor no los entiende y el ensayo en
   pruebas los rechaza (lo revisa `tests/lint.sh`).
+- **Solo caracteres visibles.** Ningún carácter Unicode invisible escrito tal cual (espacio duro, separadores de línea,
+  marca de orden de bytes…): al copiar y pegar en el SQL Editor el navegador los normaliza o los cambia, y el texto
+  guardado deja de coincidir con el archivo (pasó con `_slide_json` de la 0036, D-063). En una expresión regular se
+  escriben como `\uXXXX`. Lo revisa `tests/lint.sh` (regla 14).
 - **Se ensaya antes de llegar aquí.** `tests/run.sh rehearsal` aplica todas las migraciones sobre una copia con la
   estructura de producción y meses de historia, como una cuenta que no es superusuario, y compara los datos
   (D-023).

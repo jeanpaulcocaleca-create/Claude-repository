@@ -114,5 +114,20 @@ ALLOWED_SCRIPTS='^https://(cdn\.jsdelivr\.net/npm/@supabase/supabase-js@2\.49\.1
 for u in $(grep -hoE "https://(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|unpkg\.com)/[^\"' <>]+" website/*.html website/*.js | sort -u); do
   echo "$u" | grep -Eq "$ALLOWED_SCRIPTS" || bad "a script from the internet is not in the pinned allowlist (tests/lint.sh 13): $u"
 done
+# 14) what the owner pastes must survive the clipboard: no invisible Unicode character written literally (the browser
+#     normalises or alters them on the way to the SQL Editor and the stored text no longer matches the file: 0036's
+#     _slide_json, D-063). A regular expression writes them as \uXXXX. The one line already applied in production is history.
+python3 -I - supabase/migrations/*.sql supabase/tools/*.sql ops/backup/repositorio-respaldos/*.sql <<'PY' || bad "a pasted SQL file carries a literal invisible character (tests/lint.sh 14): write it as \\uXXXX"
+import sys
+INV = {0xa0, 0xad, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x2060, 0x3000, 0xfeff} | set(range(0x2000, 0x2010))
+HISTORY = {('supabase/migrations/0036_pantallas.sql', 216)}   # applied in production on 2026-11-01 as pasted (D-063)
+bad = 0
+for f in sys.argv[1:]:
+    for n, line in enumerate(open(f, encoding='utf-8').read().split('\n'), 1):
+        cps = sorted({ord(c) for c in line if ord(c) in INV})
+        if cps and (f, n) not in HISTORY:
+            print(f'  {f}:{n}: ' + ' '.join('U+%04X' % c for c in cps)); bad = 1
+sys.exit(bad)
+PY
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

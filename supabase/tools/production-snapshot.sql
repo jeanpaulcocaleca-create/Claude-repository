@@ -156,6 +156,8 @@ known_fn(fn, h, ver) as (values
   ('public._settle_uuid(p_base uuid, p_tag text, p_i integer)', '2b37fdadd2d6', '0029'),
   ('public._shift_day(p_at timestamp with time zone)', '41fdfa582f9a', '0021'),
   ('public._slide_json(d screen_slides)', '27b0bb133658', '0036'),
+  -- accepted production text (2026-11-01): 0036's text with U+2000 (en quad) normalised to U+2002 (en space) by the paste into the SQL Editor (Unicode NFC; nothing else differs); the blank-name class then starts at U+2002, which no name the Menu Manager can save or Screen B can show reaches (D-063)
+  ('public._slide_json(d screen_slides)', 'c1da988bed4c', '0036'),
   ('public._staff_started_on(p_staff_id uuid)', '8cafa18f96cf', '0026'),
   ('public._stock_cost_at(p_item_id uuid, p_at timestamp with time zone)', '10b755d4ba23', '0031'),
   ('public._stock_cost_edit_log(p_id uuid, p_name text, p_old numeric, p_new numeric, p_old_pack numeric, p_new_pack numeric)', '8b92d59d60c0', '0005'),

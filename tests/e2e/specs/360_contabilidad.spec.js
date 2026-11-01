@@ -49,6 +49,14 @@ async function drawerClosed(pg) {
 }
 const typeIn = (pg, sel, v) => pg.evaluate(([s, x]) => { const i = document.querySelector(s); i.value = x; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); }, [sel, v]);
 const crDay = (n) => sql(`select (cr_today() + ${n})::text`);
+// the page opens on «this month»; on the 1st and the 2nd the seeded days (yesterday, two days ago) fall in last month,
+// so the period is widened to three months, as the accountant would do
+const seededMonth = () => sql(`select to_char(cr_today() - 2, 'YYYYMM')`);
+async function periodCovering(pg) {
+  if (seededMonth() === sql(`select to_char(cr_today(), 'YYYYMM')`)) return;
+  await pg.click('#period button[data-p=quarter]');
+  await settled(pg);
+}
 
 module.exports.tests = [
   {
@@ -87,6 +95,7 @@ module.exports.tests = [
       seed();
       const pg = await open(browser);
       await settled(pg);
+      await periodCovering(pg);
       await until(async () => /2 closed days not in the books/.test(await pg.locator('#view').textContent()), 8000, 'pending days in the overview');
       assert.match((await pg.locator('#view .kpi').first().textContent()).replace(/\s/g, ''), /₡9000/, 'revenue without IVA of the two days (2000 + 4000 + 3000)');
       await section(pg, 'ingresos');
@@ -176,6 +185,7 @@ module.exports.tests = [
                     select expense_schedule_save(jsonb_build_object('vendor_id', '${VENDOR}', 'description', 'Alquiler', 'account', '6201', 'amount_crc', 350000, 'paid_from', 'bank', 'every', 'month', 'day_of', extract(day from cr_today() + 2)::int, 'next_due', (cr_today() + 2)::text))`);
       const pg = await open(browser);
       await section(pg, 'gastos');
+      await periodCovering(pg);
       await until(async () => (await pg.locator('#tbl-gastos [data-act=pay]').count()) === 1, 8000, 'the pay button on the credit row');
       await pg.click('#tbl-gastos [data-act=pay]');
       await drawerOpen(pg);
@@ -306,6 +316,7 @@ module.exports.tests = [
       asAccountant(`select acct_post_days(cr_today() - 2, cr_today())`);
       const pg = await open(browser);
       await section(pg, 'reportes');
+      await periodCovering(pg);
       await until(async () => /Gross margin/.test(await pg.locator('#repBody').textContent()), 8000, 'income statement');
       assert.match((await pg.locator('#repBody').textContent()).replace(/\s/g, ''), /Revenue,noIVA\(refundsalreadydeducted\)₡9000/);
       const [dl] = await Promise.all([pg.waitForEvent('download'), pg.click('#rCsv')]);
@@ -332,6 +343,7 @@ module.exports.tests = [
       asAccountant(`select acct_post_days(cr_today() - 2, cr_today())`);
       const pg = await open(browser);
       await section(pg, 'contabilidad');
+      await periodCovering(pg);
       await until(async () => (await pg.locator('#tbl-diario tbody tr.row').count()) === 3, 8000, 'three entries (deposit + two days)');
       await pg.click('#jNew');
       await drawerOpen(pg);
@@ -357,7 +369,7 @@ module.exports.tests = [
       await pg.click('#rv-cancel');
       await pg.click('#bookTabs [data-s=periodos]');
       await settled(pg);
-      await pg.locator('#bookBody button[data-to=closed]').first().click();
+      await pg.locator('#bookBody button[data-p="' + seededMonth() + '"][data-to=closed]').click();   // the seeded days' month (the only one, except on the 1st and the 2nd)
       await until(() => sql(`select count(*) from acct.periods where status = 'closed'`) === '1', 8000, 'month closed');
       assert.deepStrictEqual(pg.errors, []);
     }

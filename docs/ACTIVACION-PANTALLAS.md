@@ -63,7 +63,10 @@ No bloquea ventas: crea tablas nuevas y no toca ninguna existente. Aun así, mej
    - `storage_policies_missing` = `[]` (la regla nueva «screen photos owner write» está).
 3. Pegar `supabase/tools/production-snapshot.sql` → Run.
    - `functions_unknown` = `[]`;
-   - `functions_by_version` muestra `0036` = 13;
+   - `functions_by_version` muestra `0036` = 13 y `functions_changed` = `[]`. (Con el archivo anterior a D-063 decía
+     `0036` = 12 y `_slide_json · c1da988bed4c` en `functions_changed`: es el texto que quedó en producción al pegar,
+     con un carácter invisible normalizado por el navegador; está explicado y aceptado en D-063, sin cambio en
+     producción.)
    - `tables_missing` = `[]`.
 
 Si algo sale distinto, no siga: copie el resultado y avíselo. Antes del paso 3 de la sección 3, la migración sola no

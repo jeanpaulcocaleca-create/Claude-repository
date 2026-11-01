@@ -117,7 +117,9 @@ Todo esto lo hace usted; la guía larga con cada comprobación es `docs/ACTIVACI
 6. Pegar `supabase/tools/release-check.sql` → Run: `migrations_missing` = `[]`, `functions_missing` = `[]`,
    `anon_can_run` gana solo `pantalla_datos`, `storage_policies_missing` = `[]`.
 7. Pegar `supabase/tools/production-snapshot.sql` → Run: `functions_unknown` = `[]`, `functions_by_version` con
-   `0036` = 13.
+   `0036` = 13 y `functions_changed` = `[]`. (Su primera corrida, 2026-11-01, dio `0036` = 12 y `_slide_json`
+   cambiada: el navegador normalizó un carácter invisible al pegar la 0036. Investigado, probado inofensivo y
+   registrado como variante conocida en D-063; con esta versión del archivo da 13 y `[]`. Producción no cambió.)
 
 **Publicar (una sola versión; no entre las 00:00 y las 05:00 de Costa Rica)**
 8. Releases → **Draft a new release** → tag `sitio-AAAA-MM-DD` → Target **gh-pages** → Publish (el sitio de hoy, para
