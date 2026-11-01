@@ -1,9 +1,9 @@
-# Informe final · Pantallas para los clientes (D-062) · 2026-10-31
+# Informe final · Pantallas para los clientes (D-062) · 2026-10-31, verificación final 2026-11-01
 
 Para: Jean Paul, dueño de Hanging Garden Café.
 De: Claude. Todo lo descrito está construido, probado e integrado en una sola versión en la rama
 `claude/hanging-garden-coffee-proposal-1m8zd4` (PR #1). **Nada está publicado ni aplicado en producción**: lo hace
-usted con los pasos de la sección 5.
+usted con los pasos de la sección 4.
 
 ## 1. Qué se entrega
 
@@ -32,7 +32,7 @@ Suite completa (`tests/run.sh`), en verde en el árbol final y en la integració
 | Prueba | Resultado |
 |---|---|
 | Lint (secretos, reglas de publicación, migraciones) | ok |
-| SQL: 45 archivos, entre ellos **440_pantallas (172 comprobaciones)** y **450_reversion_0036 (40)** | 45 / 45 |
+| SQL: 45 archivos, entre ellos **440_pantallas (181 comprobaciones)** y **450_reversion_0036 (40)** | 45 / 45 |
 | Respaldos (copia, cifrado, restauración) | ok |
 | Ensayo con la copia de producción: 37 migraciones, 26 tablas originales iguales, 27 comprobaciones de negocio, anonimizador, 5 copias de pruebas | ok |
 | Páginas publicadas hoy sobre la base con la 0036 | 8 / 8 |
@@ -43,7 +43,7 @@ Suite completa (`tests/run.sh`), en verde en el árbol final y en la integració
 Lo que prueban las nuevas, en pocas palabras:
 - **Permisos:** un visitante solo lee `pantalla_datos`; el café sin PIN, un PIN de encargado, el contador y el dueño sin
   código reciben `owner_only` en las cuatro funciones de gestión; ninguna función escribe en el menú ni en ninguna
-  tabla existente (huellas iguales antes y después de 35 escrituras).
+  tabla existente (huellas iguales antes y después de 37 escrituras).
 - **Textos:** ₡, ¢, $, %, €, colones, dólares, montos con miles (4.500), combo, descuento, 2x1, 3×2, «lleve 2 y pague 1»,
   gratis, de regalo, cortesía, sin costo, buy one get one: rechazados campo por campo. «Tour en 4x4», «gluten-free» y
   «¿Sale temprano mañana? Pida su Adventure Box»: aceptados.
@@ -70,6 +70,23 @@ páginas, las pruebas, la comprobación de «no tocar» y los documentos, y cada
 - la página decía «Reseña en Google» donde el QR lleva a Tripadvisor (el único enlace aprobado).
 Detalle en D-062 (`docs/DECISIONS.md`).
 
+**Verificación final (2026-11-01, después de su ensayo #13):** una segunda revisión independiente, con cinco lentes
+(seguridad, permisos, fotografías, programación y reversión), comprobó una por una 72 propiedades del sistema:
+**72 verificadas, ninguna rechazada, 10 hallazgos menores, todos corregidos y probados** en esta versión:
+- el filtro de textos limpia caracteres invisibles, dígitos de ancho completo y espacios raros antes de revisar, y
+  también rechaza «dos por uno», «por ciento» y «rebajado»;
+- las listas de categorías, de TV y de días admiten 50 entradas a lo sumo y cada una cuenta una vez;
+- las horas se validan como HH:MM antes de guardarlas (24:00, 7:00 o segundos se rechazan con el campo);
+- la lectura de las TV llena sus 60 lugares primero con las diapositivas vigentes y después con las que empiezan;
+- el registro nombra el derecho que abrió la gestión («owner login · correo» o «Nombre (owner)»);
+- la gestión borra una foto recién subida si el servidor rechaza la diapositiva, y calcula «termina hoy» con la hora
+  del servidor;
+- la reversión quita las 13 funciones de la 0036 (incluidas las internas).
+
+**Ensayo de reversión en los dos sentidos**, sobre la copia de producción del ensayo: revertida → libro en 35, las
+8 páginas publicadas hoy pasan sus pruebas sobre la copia revertida, la Pantalla A sigue desde su dirección, la B
+muestra la marca y la gestión dice qué migración falta; aplicada de nuevo → 36, todo vuelve.
+
 ## 3. Riesgos pendientes (lo que ninguna prueba automática puede cerrar)
 
 | Riesgo | Qué hacer |
@@ -77,7 +94,7 @@ Detalle en D-062 (`docs/DECISIONS.md`).
 | **La TV no vuelve sola a la página después de un corte de luz**, o se duerme a las 8 horas. Depende de cada TV. | Las pruebas del técnico (`INSTALACION-TV.md` §6). Si fallan, una app de quiosco con licencia necesita su aprobación (condición 6) |
 | **El menú completo no cabe en 2 páginas a distancia de fila** (55" a 3 m: 4 páginas, casi 2 minutos de ciclo) | En `pantallas.html`, elegir las categorías de la fila para la Pantalla A; el resto queda en el menú QR |
 | **Lectura real:** la letra está calculada, no vista por personas de verdad | La prueba de aceptación: tres personas, una con lentes o mayor de 60, desde el punto más lejano |
-| **Foto de diapositiva desde la tableta del café:** Storage no recibe el token del PIN, solo la sesión; funciona con la apertura del dueño de la misma sesión (regla de la 0033). Probado en SQL, no en una TV real | La primera foto la sube usted desde la tableta con su PIN; si Storage la rechaza, cámbiela desde su ingreso con el código y avise |
+| **Foto de diapositiva desde la tableta del café:** Storage no recibe el token del PIN, solo la sesión; funciona con la apertura del dueño de la misma sesión (regla nueva de la 0036, solo el dueño). Probado en SQL, no en una tableta real. Una foto reemplazada queda en Storage hasta borrarla a mano | La primera foto la sube usted desde la tableta con su PIN; si Storage la rechaza, cámbiela desde su ingreso con el código y avise |
 | **Redacción del pie «Precios en colones, IVA incluido»** y las reglas de la Ley 7472 | Confirmar con el contador (P-10) |
 | **Sin la migración**, las páginas funcionan (A desde su dirección, B solo marca) pero sin gestión | Aplicar la 0036 antes de configurar |
 | **Costo:** dos TV leyendo cada 30 s, 13 h/día: unos 150 MB/mes de Supabase. Dentro del plan | Nada; vigilar el uso el primer mes |
@@ -100,7 +117,7 @@ Todo esto lo hace usted; la guía larga con cada comprobación es `docs/ACTIVACI
 6. Pegar `supabase/tools/release-check.sql` → Run: `migrations_missing` = `[]`, `functions_missing` = `[]`,
    `anon_can_run` gana solo `pantalla_datos`, `storage_policies_missing` = `[]`.
 7. Pegar `supabase/tools/production-snapshot.sql` → Run: `functions_unknown` = `[]`, `functions_by_version` con
-   `0036` = 11.
+   `0036` = 13.
 
 **Publicar (una sola versión; no entre las 00:00 y las 05:00 de Costa Rica)**
 8. Releases → **Draft a new release** → tag `sitio-AAAA-MM-DD` → Target **gh-pages** → Publish (el sitio de hoy, para

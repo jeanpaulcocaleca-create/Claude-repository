@@ -2299,7 +2299,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   - `website/pantalla-menu.html` (Screen A, promoted from the prototype with the review's fixes and the database
     settings), `website/pantalla-promos.html` (Screen B), `website/pantallas.html` + `pantallas.js` (the management
     page), `supabase/migrations/0036_pantallas.sql`, `supabase/tools/reversion-0036.sql`;
-  - tests: SQL 440 (155) and 450 (38); browser 370 (20), 380 (17), 390 (14); the reset-café check gains the three
+  - tests: SQL 440 (181) and 450 (40); browser 370 (20), 380 (17), 390 (14); the reset-café check gains the three
     pages; `tests/pantallas/no-tocar.sh` replaces `tests/prototipos/` (the prototype directory is deleted: it lives on
     as `website/pantalla-menu.html`);
   - docs: `docs/ACTIVACION-PANTALLAS.md` (the owner's exact steps), `docs/INSTALACION-TV.md` (the technician),
@@ -2336,9 +2336,13 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     of its own (340 still counts 19).
   - *Day buttons* show «lun mar mié jue vie sáb dom» (single letters are ambiguous for martes/miércoles).
   - *Photos* for slides are resized in the browser (≤ 1600 px, JPEG 0.82) and stored in the existing `menu-photos`
-    bucket under `pantallas/`, through the existing Storage policy (an unlock of the same sign-in, 0033).
+    bucket under `pantallas/`, through a NEW Storage policy «screen photos owner write» that admits only the owner
+    (`_screen_owner_any_device()`: an owner-role PIN unlock bound to the same sign-in, or the owner login with the
+    phone code); the 0033 policy «menu photos owner write» is recreated without that folder, so a manager keeps
+    changing menu photos as today. A photo replaced or cleared on a saved slide stays in the folder (removed by hand,
+    never one an active or paused slide uses); a photo uploaded for a save the server refuses is deleted by the page.
 - **Tooling for the release:** `release-check.sql` (series to 36, 5 new functions, `anon_can_run` gains
-  `pantalla_datos`), `production-snapshot.sql` regenerated (10 functions under 0036), `compare.py` (ANON_DEFINER),
+  `pantalla_datos`), `production-snapshot.sql` regenerated (13 functions under 0036), `compare.py` (ANON_DEFINER),
   the six reversal chains now start with `reversion-0036`, `anonimizar.sql` classifies the new columns (names →
   «Persona»; codes, texts and the log kept), `tests/rehearsal/LIVE_PAGES` pinned to gh-pages fc827d8 (=
   `v2026.10.26-1`, the way back), `tests/e2e/package.json` gains `qrcode-generator@1.4.4` so the tests exercise the
@@ -2348,5 +2352,19 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   skeptic) ran before the commit; its confirmed findings and what was done with them are in the report of this
   decision. The prototype's review (D-061) had 19 confirmed findings, all minor or documentation; every code one was
   fixed in Screen A (and applied to Screen B) and tested in B8–B11.
+  - *First round (before b217513):* 23 findings, 11 fixed (the ¢ sign and «lleve 2 y pague 1» in the text rule, the
+    manager's Storage write under `pantallas/`, the switched-off TV going black, the Tripadvisor label, …).
+  - *Second round (2026-11-01, after the owner's rehearsal #13 passed):* a fresh five-lens verification of 72 stated
+    properties (security, permissions, photos, scheduling, reversal): 72 verified, 0 rejected, 10 minor findings, all
+    fixed and tested in 440/450/390: the text rule normalises invisible characters, full-width digits and blanks
+    (NFKC) before matching and also refuses spelled-out NxM («dos por uno»), «por ciento» and «rebajado»; `category_ids`,
+    `screen_ids` and `days` are capped at 50 entries and de-duplicated in the order given (`too_many/<field>`); hours
+    are validated as `HH:MM` before the cast (`invalid/<field>`); `pantalla_datos` fills its 60 slots with the slides
+    in force before the ones starting later; the log names the right that granted the write («owner login · email»
+    or «Name (owner)»); the management page deletes a just-uploaded photo when the save is refused and computes
+    «termina hoy» with the server's time; `reversion-0036.sql` drops every 0036 internal (13 functions in all).
+  - *Reversal drill, both directions,* on the rehearsal's production copy: revert → ledger 35, the eight published
+    pages pass on the reverted copy, Screen A runs from its address, Screen B shows the brand, the management page
+    names the missing migration; re-apply → 36, everything back.
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-40). Photos or recommendations on
   Screen A, an extras line, dollars, the kiosk app: owner decisions P-05, P-06, P-09, P-11.

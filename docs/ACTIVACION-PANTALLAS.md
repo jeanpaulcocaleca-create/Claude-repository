@@ -24,7 +24,8 @@ nada**.
 - **Migración `0036_pantallas.sql`**:
   - tres tablas nuevas: las TV, las diapositivas y el registro;
   - una lectura pública, `pantalla_datos`;
-  - cuatro funciones de gestión, solo para el dueño.
+  - cuatro funciones de gestión, solo para el dueño, y ocho internas (13 en total: las que cuenta
+    `production-snapshot.sql`).
 
 ## Lo que NO cambia (comprobado)
 
@@ -62,7 +63,7 @@ No bloquea ventas: crea tablas nuevas y no toca ninguna existente. Aun así, mej
    - `storage_policies_missing` = `[]` (la regla nueva «screen photos owner write» está).
 3. Pegar `supabase/tools/production-snapshot.sql` → Run.
    - `functions_unknown` = `[]`;
-   - `functions_by_version` muestra `0036` = 11;
+   - `functions_by_version` muestra `0036` = 13;
    - `tables_missing` = `[]`.
 
 Si algo sale distinto, no siga: copie el resultado y avíselo. Antes del paso 3 de la sección 3, la migración sola no
@@ -116,6 +117,9 @@ cambia nada visible: las tablas nuevas no las lee ninguna página publicada.
    - **invitación** «¿Le gustó su visita? · Loved your visit?» con el QR de reseña en Tripadvisor (el único enlace de
      reseña aprobado, E-35). El QR solo sirve si el cliente está a 3 m o menos.
 5. **Hoy en pantalla:** compruebe qué sale ahora en cada TV.
+   - Una foto que usted reemplaza o quita de una diapositiva queda guardada en Storage (`menu-photos`, carpeta
+     `pantallas/`). Se borra solo a mano, desde Supabase → Storage, y nunca una que todavía use una diapositiva activa
+     o pausada.
 6. **Registro de cambios:** cada cambio aparece con su nombre.
 
 ## 5. Instalar las TV

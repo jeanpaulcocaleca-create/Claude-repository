@@ -91,9 +91,9 @@ create function pg_temp.shown(tv text) returns text language sql as $$
 -- 1) rights, from the catalog ---------------------------------------------------------------------------------------------
 select test.eq((select string_agg(p.oid::regprocedure::text, ', ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'),
-               '_screen_changes_immutable(), _screen_json(screens), _screen_log(text,text,text,text,jsonb,jsonb), _screen_owner_any_device(), _screen_text_problem(text), '
+               '_screen_actor(), _screen_changes_immutable(), _screen_hhmm(text), _screen_json(screens), _screen_log(text,text,text,text,jsonb,jsonb), _screen_owner_any_device(), _screen_text_problem(text), '
                || '_slide_json(screen_slides), diapositiva_estado(uuid,text), diapositiva_guardar(jsonb), pantalla_datos(text), '
-               || 'pantalla_guardar(jsonb), pantallas_estado()', 'the eleven functions of 0036, no other');
+               || 'pantalla_guardar(jsonb), pantallas_estado()', 'the thirteen functions of 0036, no other');
 select test.eq((select string_agg(p.proname, ' ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and has_function_privilege('anon', p.oid, 'execute')), 'pantalla_datos', 'a visitor (the TVs) may run pantalla_datos and nothing else new');
@@ -106,7 +106,7 @@ select test.eq((select count(*)::int from pg_proc p where p.pronamespace = 'publ
                    and has_function_privilege('canopy_backup', p.oid, 'execute')), 0, 'the backup account can run none of them');
 select test.eq((select string_agg(p.proname, ' ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)' and p.prosecdef),
-               '_screen_log _screen_owner_any_device diapositiva_estado diapositiva_guardar pantalla_datos pantalla_guardar pantallas_estado', 'the owner-rights functions');
+               '_screen_actor _screen_log _screen_owner_any_device diapositiva_estado diapositiva_guardar pantalla_datos pantalla_guardar pantallas_estado', 'the owner-rights functions');
 select test.eq((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c = 'search_path=public')), 0,
                'every one of them fixes its search path');
@@ -297,6 +297,15 @@ select test.eq((select string_agg(coalesce(public._screen_text_problem(t), 'ok')
                   from unnest(array['Tour en 4x4 · desde 1990', 'Pan sin gluten · gluten-free', 'Abierto de 6 a 7', '¿Sale temprano mañana? Pida su Adventure Box']) t),
                'ok ok ok ok', 'but 4x4, a year, «gluten-free», plain numbers and normal Spanish are fine');
 set role authenticated;
+select test.eq(pg_temp.text_rule(E'2\u00a0x\u00a01 en galletas') || ' ' || pg_temp.text_rule(E'2\u200bx1 hoy') || ' ' || pg_temp.text_rule('２ｘ１ los martes'),
+               pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'),
+               'a 2x1 typed with a non-breaking space, a zero-width space or fullwidth digits is still a 2x1');
+select test.eq(pg_temp.text_rule('Lleve dos pague uno') || ' ' || pg_temp.text_rule('2 por uno') || ' ' || pg_temp.text_rule('Dos por el precio de uno') || ' ' || pg_temp.text_rule('20 por ciento menos'),
+               pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'),
+               'spelled numbers, a mixed «2 por uno», «por el precio de» and «por ciento» too');
+select test.eq(pg_temp.text_rule('Rebajado hoy') || ' ' || pg_temp.text_rule('Descuentazo') || ' ' || pg_temp.text_rule('Ofertón de la casa') || ' ' || pg_temp.text_rule('2for1'),
+               pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento') || ' ' || pg_temp.want('text_combo_descuento'),
+               'nor rebajado, descuentazo, ofertón, 2for1');
 select test.eq(pg_temp.text_rule(repeat('á', 141)), pg_temp.want('text_largo'), 'more than 140 characters is refused in every text');
 reset role;
 select test.eq((select count(*)::int from public.screen_slides), 1, 'none of those refusals saved a slide');
@@ -354,7 +363,7 @@ select test.eq((select string_agg(coalesce(r ->> 'error', 'ok') || coalesce('/' 
                     (28, '"marca"'), (29, '{"id": "no-es-un-id", "title_es": "Hola"}'), (30, '{"id": "00000000-0000-4000-8000-000000000000", "title_es": "Hola"}')
                   ) x(o, v)) y),
                'invalid/kind invalid invalid invalid dates_required dates_required dates_required dates_required dates_required invalid invalid invalid invalid '
-               || 'invalid/days invalid/days invalid/days invalid/days invalid/days invalid invalid invalid invalid/photo_url invalid/photo_url '
+               || 'invalid/days invalid/days invalid/days invalid/days invalid/days invalid invalid invalid/to_time invalid/photo_url invalid/photo_url '
                || 'invalid/screen_ids invalid/screen_ids invalid/screen_ids invalid invalid invalid/id not_found',
                'refused: unknown kind, a brand slide without title, an invitation without (or with an unknown) link, missing dates, ends not after starts, '
                || 'more than 366 days, days outside 1-7 or not a list, half or equal hours, a photo that is not a plain web address, a TV that is not a '
@@ -421,14 +430,24 @@ select pg_temp.slide(pg_temp.marca(jsonb_build_object('title_es', 'Solo en la te
        pg_temp.slide(pg_temp.producto('1b000000-0000-4000-8000-000000004401', 53)) ->> 'ok' as ok9 \gset
 select test.eq(:'ok1' || :'ok2' || :'ok3' || :'ok4' || :'ok5' || :'ok6' || :'ok7' || :'ok8' || :'ok9', repeat('true', 9), 'nine more slides');
 select test.eq(pg_temp.brief(pg_temp.tv('{"id": "menu-2", "active": false}')), 'true · 1 logged · cambiar tv by owner login · owner@test.local', 'the patio TV switched off');
+-- hours as the screens read them: HH:MM at minute precision; 24:00, 7:00 and seconds are refused before the cast
+select test.eq(pg_temp.brief(pg_temp.tv('{"id": "menu-2", "on_from": "24:00", "on_to": "06:00"}')), 'false invalid/on_from · 0 logged', '24:00 is not an hour of the day');
+select test.eq(pg_temp.brief(pg_temp.tv('{"id": "menu-2", "on_from": "06:00:30", "on_to": "19:00"}')), 'false invalid/on_from · 0 logged', 'nor seconds');
+select test.eq(pg_temp.brief(pg_temp.tv('{"id": "menu-2", "on_from": "7:00", "on_to": "19:00"}')), 'false invalid/on_from · 0 logged', 'nor a one-digit hour');
+select test.eq((pg_temp.tv('{"id": "menu-2", "on_from": "06:00", "on_to": "19:00"}') ->> 'ok'), 'true', 'HH:MM is fine');
+-- the lists are capped and each entry counts once
+select test.eq(pg_temp.brief(pg_temp.tv(jsonb_build_object('id', 'menu-2', 'category_ids', (select jsonb_agg('a0000000-0000-4000-8000-000000000001'::text) from generate_series(1, 51))))),
+               'false too_many/category_ids · 0 logged', 'more than 50 categories is refused');
+select test.eq(((pg_temp.tv(jsonb_build_object('id', 'menu-2', 'category_ids', jsonb_build_array('a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002'))) -> 'tv' -> 'category_ids')::text),
+               '["a0000000-0000-4000-8000-000000000002", "a0000000-0000-4000-8000-000000000001"]'::text, 'a category given twice is stored once, in the order given');
 reset role;
 select test.eq((select count(*)::int from public.screen_changes), (select count(*)::int from public.screen_changes where by_name is not null and btrim(by_name) <> ''),
                'every line of the log names who did it');
--- 15 writes of TVs (2 created, 12 changes in section 4, the patio switched off) and 20 of slides (16 created, 1 text change, pause, resume,
+-- 17 writes of TVs (2 created, 12 changes in section 4, the patio switched off, its hours, a category list) and 20 of slides (16 created, 1 text change, pause, resume,
 -- retire); the refusals and the no-op logged nothing
-select test.eq((select count(*)::int from public.screen_changes), 35, 'every successful write logged exactly one line: 35 writes, 35 lines');
+select test.eq((select count(*)::int from public.screen_changes), 37, 'every successful write logged exactly one line: 37 writes, 37 lines');
 select test.eq((select count(*) filter (where target_kind = 'tv') || ' tv · ' || count(*) filter (where target_kind = 'diapositiva') || ' diapositiva · '
-                       || count(distinct action) || ' actions' from public.screen_changes), '15 tv · 20 diapositiva · 5 actions', 'by kind (crear, cambiar, pausar, reanudar, retirar)');
+                       || count(distinct action) || ' actions' from public.screen_changes), '17 tv · 20 diapositiva · 5 actions', 'by kind (crear, cambiar, pausar, reanudar, retirar)');
 select test.eq((select count(*)::int from public.screen_slides), 16, 'and the 16 slides are there (none deleted)');
 select test.ok(not exists (select 1 from public.screen_changes where coalesce(before::text, '') || coalesce(after::text, '') ~ '(Dueño|owner login|@test)'),
                'the log''s before/after hold the settings and the slides only, never who (that is by_name)');
@@ -480,7 +499,7 @@ select test.login('anon'); set role anon;
 select test.eq(pg_temp.shown('promos-1'), 'Café de altura de Monteverde | ¿Le gustó? Déjenos una reseña | Empieza en 23 horas | Tea',
                'back in stock it shows again; a negative price, a blank name or a move to «Extras & Combos» hides it');
 reset role;
-select test.eq((select count(*)::int from public.screen_changes), 35, 'the menu''s changes write nothing in the screens'' log');
+select test.eq((select count(*)::int from public.screen_changes), 37, 'the menu''s changes write nothing in the screens'' log');
 select test.eq((select count(*)::int from public.screen_slides where status = 'activa'), 11, 'and change no slide (they only hide)');
 
 -- 9) the change log: rows are only added, by nobody changed (not even the database owner) ---------------------------------
@@ -531,7 +550,7 @@ select test.throws($$truncate public.screen_changes$$, 'screen_changes_immutable
 select test.login('owner', 'aal2'); set role authenticated;
 select test.throws($$delete from public.screen_changes$$, 'permission denied', 'the owner''s login cannot touch it either');
 select test.throws($$update public.screen_slides set status = 'activa'$$, 'permission denied', 'nor the slides, except through the functions');
-select test.eq(jsonb_array_length(public.pantallas_estado() -> 'changes'), 35, 'the owner reads the log through pantallas_estado');
+select test.eq(jsonb_array_length(public.pantallas_estado() -> 'changes'), 37, 'the owner reads the log through pantallas_estado');
 reset role;
 
 -- 10) pantallas_estado: everything pantallas.html needs, nothing of the till's helpers ------------------------------------

@@ -67,7 +67,8 @@ select test.ok(to_regprocedure('public.pantalla_datos(text)') is null and to_reg
                and to_regprocedure('public.diapositiva_estado(uuid, text)') is null
                and to_regprocedure('public._screen_log(text, text, text, text, jsonb, jsonb)') is null
                and to_regprocedure('public._slide_json(public.screen_slides)') is null and to_regprocedure('public._screen_json(public.screens)') is null
-               and to_regprocedure('public._screen_text_problem(text)') is null and to_regprocedure('public._screen_owner_any_device()') is null,
+               and to_regprocedure('public._screen_text_problem(text)') is null and to_regprocedure('public._screen_owner_any_device()') is null
+               and to_regprocedure('public._screen_actor()') is null and to_regprocedure('public._screen_hhmm(text)') is null,
                'by name: the TVs'' reading, the management and the helpers');
 select test.eq((select string_agg(policyname, ' ' order by policyname) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like '%photos%'),
                'menu photos owner write menu photos read', 'the Storage rules as before the 0036: one writing rule for the whole bucket, none for pantallas/');

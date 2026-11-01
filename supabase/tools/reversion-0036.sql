@@ -7,7 +7,8 @@
 -- Qué hace
 --   * Quita las funciones de la 0036: pantalla_datos (lo que leen las TV nuevas), pantallas_estado, pantalla_guardar,
 --     diapositiva_guardar, diapositiva_estado (la gestión de pantallas.html) y sus internas _screen_log, _slide_json,
---     _screen_json y _screen_text_problem.
+--     _screen_json, _screen_text_problem, _screen_hhmm, _screen_actor y _screen_owner_any_device (la guardia de la regla de fotos
+--     «screen photos owner write»).
 --   * Quita la 0036 del registro de migraciones: la base vuelve a la versión 35.
 -- También vuelve a crear la regla de Storage «menu photos owner write» de la 0033 (para todo el depósito) y quita
 -- «screen photos owner write».
@@ -42,6 +43,8 @@ drop function if exists public._screen_log(text, text, text, text, jsonb, jsonb)
 drop function if exists public._slide_json(public.screen_slides);
 drop function if exists public._screen_json(public.screens);
 drop function if exists public._screen_text_problem(text);
+drop function if exists public._screen_actor();
+drop function if exists public._screen_hhmm(text);
 -- the Storage rules as before the 0036: one rule for the whole bucket (manager-mode.sql, 0033), none for pantallas/
 drop policy if exists "screen photos owner write" on storage.objects;
 drop function if exists public._screen_owner_any_device();

@@ -134,24 +134,38 @@ on conflict (id) do nothing;
 -- 2) reglas de los textos ---------------------------------------------------------------------------------------------
 -- null when the text may go on a screen; otherwise why not: a price (the screens read every price from the menu) or a
 -- combo/discount (reserved until the till charges them exactly as announced, the owner's condition 7)
-create or replace function public._screen_text_problem(p text)
+create or replace function public._screen_text_problem(p_raw text)
 returns text language sql immutable set search_path = public as $$
+  -- what is matched is the text as the screen will show it: format and zero-width characters dropped, fullwidth
+  -- letters and digits folded (NFKC), every kind of blank (NBSP, figure space…) a plain space
+  with n as (select regexp_replace(normalize(regexp_replace(p_raw, '[\u00ad\u200b-\u200f\u2060\ufeff]', '', 'g'), NFKC), '[[:space:]]+', ' ', 'g') as p)
   select case
-    when p is null or btrim(p) = '' then null
-    when length(p) > 140 then 'largo'
+    when p_raw is null or btrim(p_raw) = '' then null
+    when length(p_raw) > 140 then 'largo'
     -- a price: the colón sign as typed on a keyboard here (¢) or as the sign (₡ ₵), dollars, euros, percents (full-width
     -- forms included), the words, or an amount with a thousands separator (4.500 / 4,500; «desde 1990» stays allowed)
     when p ~* '([₡¢₵€＄％﹩﹪$%]|\m(usd|crc|col[oó]n|colones|d[oó]lar|d[oó]lares|dollars?|euros?)\M|\m\d{1,3}[.,]\d{3}\M)' then 'precio'
     -- a combo or a discount (the owner's condition 7), in the wording used here and in English: NxM with two different
     -- numbers (a «tour en 4x4» stays allowed), «lleve 2 y pague 1», something free or on the house, buy one get one
-    when p ~* '\m(combos?|descuentos?|discounts?|dos por uno|tres por dos|2 for 1|two for one|bogo|gratis|gratuit[oa]s?|de regalo|cortes[ií]a|sin (costo|cargo)|ofertas?|rebajas?|promo precio|precio especial|special price|happy hour|mitad de precio|medio precio|half price)\M'
-      or p ~* '\m([1-9]) *(x|×|por) *([1-9])\M' and exists (select 1 from regexp_matches(p, '\m([1-9]) *(?:x|×|por) *([1-9])\M', 'gi') m where m[1] <> m[2])
-      or p ~* '\m(lleve|llev[aá]|pague|pag[aá]) *\d+([^\d\n]{0,30})\m(pague|pag[aá]|lleve|llev[aá]) *\d+\M'
+    when p ~* '\m(combos?|descuentos?|descuentazos?|discounts?|dos por uno|tres por dos|por el precio de|2 ?for ?1|two for one|bogo|gratis|gratuit[oa]s?|de regalo|cortes[ií]a|sin (costo|cargo)|ofertas?|ofert[oó]n|ofertones|rebajas?|rebajad[oa]s?|por ciento|promo precio|precio especial|special price|happy hour|mitad de precio|medio precio|half price)\M'
+      or exists (select 1 from regexp_matches(p, '\m([1-9]|uno|una|dos|tres|cuatro|cinco) *(?:x|×|por) *([1-9]|uno|una|dos|tres|cuatro|cinco)\M', 'gi') m
+                  where translate(lower(m[1]), 'áéíóú', 'aeiou') <> translate(lower(m[2]), 'áéíóú', 'aeiou')
+                    and (m[1] !~ '^[1-9]$' or m[2] !~ '^[1-9]$' or m[1] <> m[2]))
+      or p ~* '\m(lleve|llev[aá]|pague|pag[aá]) *(\d+|uno|una|dos|tres|cuatro)([^\d\n]{0,30})\m(pague|pag[aá]|lleve|llev[aá]) *(\d+|uno|una|dos|tres|cuatro)\M'
       or p ~* '\mbuy *(one|\d+),? *(and )?get *(one|\d+)\M'
       then 'combo_descuento'
-    else null end;
+    else null end
+  from n;
 $$;
 revoke all on function public._screen_text_problem(text) from public, anon, authenticated;
+
+-- an hour as the pages read it: HH:MM, 00:00 to 23:59; null for empty; anything else refused by the caller
+create or replace function public._screen_hhmm(p text, out ok boolean, out t time)
+language sql immutable set search_path = public as $$
+  select case when nullif(btrim(coalesce(p, '')), '') is null then true else btrim(p) ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' end,
+         case when btrim(coalesce(p, '')) ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then btrim(p)::time end;
+$$;
+revoke all on function public._screen_hhmm(text) from public, anon, authenticated;
 
 -- 2b) las fotos de las diapositivas: solo el dueño ----------------------------------------------------------------------
 -- They live in the existing public bucket under pantallas/. The bucket's rule «menu photos owner write» lets a MANAGER's
@@ -225,7 +239,7 @@ begin
                      where d.status = 'activa' and (d.screen_ids is null or s.id = any (d.screen_ids))
                        and d.ends_at > now() and d.starts_at < now() + interval '1 day') y
              where y.j ->> 'kind' <> 'producto' or coalesce((y.j -> 'item' ->> 'sellable')::boolean, false)
-             order by y.sort, y.starts_at, y.id
+             order by (y.starts_at > now()), y.sort, y.starts_at, y.id   -- in force first: an upcoming one never pushes one out
              limit 60) x;
   end if;
   return jsonb_build_object('ok', true, 'now', now(), 'tv', public._screen_json(s), 'slides', sl);
@@ -234,10 +248,25 @@ revoke all on function public.pantalla_datos(text) from public;
 grant execute on function public.pantalla_datos(text) to anon, authenticated;
 
 -- 4) la gestión: solo el dueño --------------------------------------------------------------------------------------------
+-- who is managing: the right that opened is_true_owner(): the owner login with the code (whatever unlock the device also
+-- holds), else the owner-role unlock's name; never a manager's name
+create or replace function public._screen_actor()
+returns text language plpgsql stable security definer set search_path = public as $$
+declare r record; em text;
+begin
+  if public.account_kind() = 'owner' and coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2' then
+    begin select email into em from auth.users where id = auth.uid(); exception when others then em := null; end;
+    return 'owner login' || coalesce(' · ' || em, '');
+  end if;
+  select * into r from public._unlock_staff();
+  if r.staff_id is not null and r.staff_role = 'owner' then return r.staff_name || ' (owner)'; end if;
+  return public._owner_label();
+end $$;
+revoke all on function public._screen_actor() from public, anon, authenticated;
 create or replace function public._screen_log(p_kind text, p_id text, p_action text, p_summary text, p_before jsonb, p_after jsonb)
 returns void language sql security definer set search_path = public as $$
   insert into public.screen_changes (by_name, target_kind, target_id, action, summary, before, after)
-  values (public._owner_label(), p_kind, p_id, p_action, p_summary, p_before, p_after);
+  values (public._screen_actor(), p_kind, p_id, p_action, p_summary, p_before, p_after);
 $$;
 revoke all on function public._screen_log(text, text, text, text, jsonb, jsonb) from public, anon, authenticated;
 
@@ -245,7 +274,7 @@ create or replace function public.pantallas_estado()
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 begin
   if not public.is_true_owner() then return jsonb_build_object('ok', false, 'error', 'owner_only'); end if;
-  return jsonb_build_object('ok', true, 'now', now(), 'who', public._owner_label(),
+  return jsonb_build_object('ok', true, 'now', now(), 'who', public._screen_actor(),
     'screens', (select coalesce(jsonb_agg(public._screen_json(s) order by s.kind, s.id), '[]'::jsonb) from public.screens s),
     'slides', (select coalesce(jsonb_agg(public._slide_json(d) || jsonb_build_object('created_at', d.created_at, 'updated_at', d.updated_at)
                                          order by (d.status = 'retirada'), d.sort, d.starts_at, d.id), '[]'::jsonb)
@@ -283,13 +312,18 @@ begin
   end if;
   bad := public._screen_text_problem(p ->> 'name');
   if bad is not null then return jsonb_build_object('ok', false, 'error', 'text_' || bad, 'field', 'name'); end if;
+  if p ? 'on_from' and not (public._screen_hhmm(p ->> 'on_from')).ok then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'on_from'); end if;
+  if p ? 'on_to' and not (public._screen_hhmm(p ->> 'on_to')).ok then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'on_to'); end if;
   -- the categories Screen A shows: null (or an empty list) = all; otherwise categories of the menu, never the till's helpers
   if p ? 'category_ids' and jsonb_typeof(p -> 'category_ids') not in ('array', 'null') then
     return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'category_ids');
   end if;
   if jsonb_typeof(p -> 'category_ids') = 'array' then
+    if jsonb_array_length(p -> 'category_ids') > 50 then return jsonb_build_object('ok', false, 'error', 'too_many', 'field', 'category_ids'); end if;
     begin
-      select array_agg(x::uuid order by o) into cats from jsonb_array_elements_text(p -> 'category_ids') with ordinality t(x, o);
+      -- in the order given, each category once
+      select array_agg(x::uuid order by o) into cats
+        from (select x, min(o) as o from jsonb_array_elements_text(p -> 'category_ids') with ordinality t(x, o) group by x) u;
     exception when invalid_text_representation then
       return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'category_ids');
     end;
@@ -312,10 +346,10 @@ begin
             coalesce((p ->> 'slide_seconds')::int, old.slide_seconds, 10),
             case when p ? 'category_ids' then case when cardinality(cats) > 0 then cats end else old.category_ids end,
             coalesce(p ->> 'sold_out', old.sold_out, 'ocultar'),
-            case when p ? 'on_from' then (nullif(p ->> 'on_from', ''))::time else old.on_from end,
-            case when p ? 'on_to' then (nullif(p ->> 'on_to', ''))::time else old.on_to end,
+            case when p ? 'on_from' then (public._screen_hhmm(p ->> 'on_from')).t else old.on_from end,
+            case when p ? 'on_to' then (public._screen_hhmm(p ->> 'on_to')).t else old.on_to end,
             coalesce((p ->> 'active')::boolean, old.active, true),
-            now(), public._owner_label())
+            now(), public._screen_actor())
     on conflict (id) do update set
       name = excluded.name, inches = excluded.inches, distance_m = excluded.distance_m, turn = excluded.turn,
       scale_pct = excluded.scale_pct, look = excluded.look, page_seconds = excluded.page_seconds,
@@ -371,6 +405,8 @@ begin
     if v_item is null then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'menu_item_id'); end if;
     if v_cat = 'Extras & Combos' then return jsonb_build_object('ok', false, 'error', 'text_combo_descuento', 'field', 'menu_item_id'); end if;
   end if;
+  if p ? 'from_time' and not (public._screen_hhmm(p ->> 'from_time')).ok then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'from_time'); end if;
+  if p ? 'to_time' and not (public._screen_hhmm(p ->> 'to_time')).ok then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'to_time'); end if;
   v_link := case when p ? 'link' then nullif(p ->> 'link', '') else old.link end;
   v_photo := case when p ? 'photo_url' then nullif(btrim(p ->> 'photo_url'), '') else old.photo_url end;
   if v_photo is not null and (length(v_photo) > 500 or v_photo !~ '^https?://[^\s"''<>()\\]+$') then
@@ -384,6 +420,7 @@ begin
   end loop;
   if jsonb_typeof(p -> 'days') = 'array' then
     begin
+      if jsonb_array_length(p -> 'days') > 50 then return jsonb_build_object('ok', false, 'error', 'too_many', 'field', 'days'); end if;
       select array_agg(distinct x::smallint order by x::smallint) into dys from jsonb_array_elements_text(p -> 'days') x;
     exception when invalid_text_representation or numeric_value_out_of_range then
       return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'days');
@@ -394,7 +431,8 @@ begin
   end if;
   begin
     if jsonb_typeof(p -> 'screen_ids') = 'array' then
-      select array_agg(x) into scr from jsonb_array_elements_text(p -> 'screen_ids') x;
+      if jsonb_array_length(p -> 'screen_ids') > 50 then return jsonb_build_object('ok', false, 'error', 'too_many', 'field', 'screen_ids'); end if;
+      select array_agg(distinct x) into scr from jsonb_array_elements_text(p -> 'screen_ids') x;
       if exists (select 1 from unnest(scr) x where not exists (select 1 from public.screens s where s.id = x and s.kind = 'promos')) then
         return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'screen_ids');
       end if;
@@ -414,10 +452,10 @@ begin
               v_photo, v_link, case when cardinality(scr) > 0 then scr end,
               (p ->> 'starts_at')::timestamptz, (p ->> 'ends_at')::timestamptz,
               case when cardinality(dys) between 1 and 6 then dys end,
-              (nullif(p ->> 'from_time', ''))::time, (nullif(p ->> 'to_time', ''))::time,
+              (public._screen_hhmm(p ->> 'from_time')).t, (public._screen_hhmm(p ->> 'to_time')).t,
               coalesce((p ->> 'sort')::int, 100),
               case when p ->> 'status' = 'pausada' then 'pausada' else 'activa' end,
-              public._owner_label(), public._owner_label())
+              public._screen_actor(), public._screen_actor())
       returning * into new_row;
     else
       update public.screen_slides d set
@@ -433,10 +471,10 @@ begin
         starts_at = coalesce((nullif(p ->> 'starts_at', ''))::timestamptz, d.starts_at),
         ends_at   = coalesce((nullif(p ->> 'ends_at', ''))::timestamptz, d.ends_at),
         days      = case when p ? 'days' then case when cardinality(dys) between 1 and 6 then dys end else d.days end,
-        from_time = case when p ? 'from_time' then (nullif(p ->> 'from_time', ''))::time else d.from_time end,
-        to_time   = case when p ? 'to_time' then (nullif(p ->> 'to_time', ''))::time else d.to_time end,
+        from_time = case when p ? 'from_time' then (public._screen_hhmm(p ->> 'from_time')).t else d.from_time end,
+        to_time   = case when p ? 'to_time' then (public._screen_hhmm(p ->> 'to_time')).t else d.to_time end,
         sort      = coalesce((p ->> 'sort')::int, d.sort),
-        updated_at = now(), updated_by = public._owner_label()
+        updated_at = now(), updated_by = public._screen_actor()
       where d.id = old.id
       returning * into new_row;
     end if;
@@ -464,7 +502,7 @@ begin
   if old.id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
   if old.status = 'retirada' then return jsonb_build_object('ok', false, 'error', 'retired'); end if;
   if old.status = p_estado then return jsonb_build_object('ok', true, 'slide', public._slide_json(old), 'unchanged', true); end if;
-  update public.screen_slides set status = p_estado, updated_at = now(), updated_by = public._owner_label()
+  update public.screen_slides set status = p_estado, updated_at = now(), updated_by = public._screen_actor()
    where id = p_id returning * into new_row;
   perform public._screen_log('diapositiva', p_id::text,
                              case p_estado when 'activa' then 'reanudar' when 'pausada' then 'pausar' else 'retirar' end,

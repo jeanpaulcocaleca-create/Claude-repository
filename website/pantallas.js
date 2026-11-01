@@ -128,17 +128,22 @@
   var W0 = '(^|[^\\p{L}\\p{N}_])', W1 = '(?=$|[^\\p{L}\\p{N}_])';
   var RX_PRECIO = new RegExp('[₡¢₵€＄％﹩﹪$%]|' + W0 + '(usd|crc|col[oó]n|colones|d[oó]lar|d[oó]lares|dollars?|euros?)' + W1 +
     '|' + W0 + '\\d{1,3}[.,]\\d{3}' + W1, 'iu');
-  var RX_COMBO = new RegExp(W0 + '(combos?|descuentos?|discounts?|dos por uno|tres por dos|2 for 1|two for one|bogo|gratis|gratuit[oa]s?|' +
-    'de regalo|cortes[ií]a|sin (costo|cargo)|ofertas?|rebajas?|promo precio|precio especial|special price|happy hour|mitad de precio|' +
+  var RX_COMBO = new RegExp(W0 + '(combos?|descuentos?|descuentazos?|discounts?|dos por uno|tres por dos|por el precio de|2 ?for ?1|two for one|bogo|gratis|gratuit[oa]s?|' +
+    'de regalo|cortes[ií]a|sin (costo|cargo)|ofertas?|ofert[oó]n|ofertones|rebajas?|rebajad[oa]s?|por ciento|promo precio|precio especial|special price|happy hour|mitad de precio|' +
     'medio precio|half price)' + W1, 'iu');
-  var RX_NXM = new RegExp(W0 + '([1-9]) *(?:x|×|por) *([1-9])' + W1, 'giu');          /* 2x1, 3×2, 2 por 1: two different numbers */
-  var RX_LLEVE = new RegExp(W0 + '(lleve|llev[aá]|pague|pag[aá]) *\\d+[^\\d\\n]{0,30}' + W0 + '(pague|pag[aá]|lleve|llev[aá]) *\\d+' + W1, 'iu');
+  var NUM = '([1-9]|uno|una|dos|tres|cuatro|cinco)';
+  var RX_NXM = new RegExp(W0 + NUM + ' *(?:x|×|por) *' + NUM + W1, 'giu');          /* 2x1, 3×2, 2 por 1, dos por uno: two different numbers */
+  var RX_LLEVE = new RegExp(W0 + '(lleve|llev[aá]|pague|pag[aá]) *(\\d+|uno|una|dos|tres|cuatro)[^\\d\\n]{0,30}' + W0 + '(pague|pag[aá]|lleve|llev[aá]) *(\\d+|uno|una|dos|tres|cuatro)' + W1, 'iu');
   var RX_BOGO = new RegExp(W0 + 'buy *(one|\\d+),? *(and )?get *(one|\\d+)' + W1, 'iu');
-  function nxm(s) { var m, r = new RegExp(RX_NXM.source, 'giu'); while ((m = r.exec(s))) { if (m[2] !== m[3]) return true; } return false; }
+  function fold(x) { return String(x).toLowerCase().replace(/[áéíóú]/g, function (c) { return 'aeiou'['áéíóú'.indexOf(c)]; }); }
+  function nxm(s) { var m, r = new RegExp(RX_NXM.source, 'giu'); while ((m = r.exec(s))) { if (fold(m[2]) !== fold(m[3])) return true; } return false; }
+  /* the text as the server sees it: format characters dropped, fullwidth folded, every blank a plain space */
+  function norma(s) { return String(s).replace(/[\u00ad\u200b-\u200f\u2060\ufeff]/g, '').normalize('NFKC').replace(/\s+/g, ' '); }
   function textProblem(s) {
     s = s === null || s === undefined ? '' : String(s);
     if (!s.trim()) return null;
     if (Array.from(s.trim()).length > 140) return 'largo';      /* the page sends each text trimmed */
+    s = norma(s);
     if (RX_PRECIO.test(s)) return 'precio';
     if (RX_COMBO.test(s) || nxm(s) || RX_LLEVE.test(s) || RX_BOGO.test(s)) return 'combo_descuento';
     return null;
@@ -199,13 +204,14 @@
     return null;
   }
   /* when it goes off, if that is today */
-  function offToday(s, t) {
-    var ds = dayStart(t), de = ds + DAY, c = [T(s.ends_at)], to = hm(s.to_time);
-    if (to !== null && hm(s.from_time) !== null) { c.push(ds + to * 60000); c.push(ds + DAY + to * 60000); }
+  function offToday(s, tv, t) {
+    /* the same rule the screen applies (live): the first moment after now, up to tomorrow's hour, at which it is off:
+       its end, today's or tomorrow's closing hour, or midnight when tomorrow is not one of its days */
+    var ds = dayStart(t), de = ds + DAY, c = [T(s.ends_at), de], to = hm(s.to_time);
+    if (to !== null && hm(s.from_time) !== null) { c.push(ds + to * 60000); c.push(de + to * 60000); }
     c = c.filter(function (x) { return x > t; }).sort(function (a, b) { return a - b; });
-    /* the slide's own hours may end after midnight: that end counts; only ends_at is cut at the day's end */
-    if (!c.length) return null;
-    return c[0] < de || (to !== null && (c[0] - ds) % DAY === to * 60000) ? c[0] : null;
+    for (var i = 0; i < c.length; i++) if (!live(s, tv, c[i])) return c[i] <= de + DAY ? c[i] : null;
+    return null;
   }
   function tvOn(tv, t) {
     var a = hm(tv.on_from), b = hm(tv.on_to);
@@ -1041,7 +1047,7 @@
       var r;
       try { r = await db.rpc('diapositiva_guardar', { p: payload() }); } catch (e) { r = { error: e }; }
       if (r.error || !r.data || !r.data.ok) {
-        if (r.data && r.data.error === 'owner_only') { showOwnerOnly(); return; }
+        if (r.data && r.data.error === 'owner_only') { await dropUploaded(); showOwnerOnly(); return; }
         err.textContent = errText(r);
         var fld = r.data && r.data.field;
         var map = { menu_item_id: 'edSearch', link: 'edLink', sort: 'edSort', photo_url: 'edPick' };
@@ -1136,7 +1142,7 @@
       card.appendChild(h('h3', { text: 'Ahora' }));
       if (now.length) {
         card.appendChild(h('ol', { 'data-list': 'ahora' }, now.map(function (s) {
-          var off = offToday(s, t);
+          var off = offToday(s, tv, t);
           return h('li', { 'data-slide': s.id }, [h('b', { text: slideTitle(s) }), h('span', { text: KIND[s.kind] + (off ? ' · hasta las ' + hora(off) : ' · todo el día') })]);
         })));
       } else card.appendChild(h('p', { class: 'none', text: 'Ninguna: la TV muestra la presentación de la marca.' }));
