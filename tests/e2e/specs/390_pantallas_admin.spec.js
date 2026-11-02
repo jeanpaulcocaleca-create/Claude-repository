@@ -722,7 +722,7 @@ module.exports.tests = [
       assert.match(await text(pg, row + ' [data-when]'), /En pantalla ahora/);
       const d = await anonDatos(pg, 'promos-1');
       assert.deepStrictEqual([d.slides.length, d.slides[0].kind, d.slides[0].usable, d.slides[0].zones.map((z) => z.showable), d.slides[0].zones[0].entries[0].item.price_crc],
-        [1, 'composicion', true, [true, true, true, true], 1500], 'what the TV reads: every zone has something to show, the price live');
+        [1, 'composicion', true, [true, true, false, true], 1500], 'what the TV reads: three zones have something to show (the centre-bottom latte has no photo and no labels: its fallback photo shows), the price live');
       /* read back into the editor and saved again without a change: the same zones, in the same order; the photo stays */
       await pg.click(row + ' [data-act=editar]');
       await pg.waitForSelector('#slideForm #edZones .zone');
@@ -828,7 +828,9 @@ module.exports.tests = [
       assert.deepStrictEqual(await pg.$$eval('#edPvTv option', (o) => o.map((x) => x.value)), ['promos-1']);
       await pg.click('#edPreviewBtn');
       await pg.waitForSelector('#edPreview .pv iframe');
-      assert.strictEqual(await pg.getAttribute('#edPreview .pv iframe', 'src'), 'pantalla-promos?tv=promos-1&preview=1', 'the real page, in preview mode');
+      const pvSrc = await pg.getAttribute('#edPreview .pv iframe', 'src');
+      assert.ok(/^pantalla-promos\?tv=promos-1&preview=1(&|$)/.test(pvSrc) && /&pulgadas=\d+/.test(pvSrc) && /&distancia=[\d.]+/.test(pvSrc) && /&escala=\d+/.test(pvSrc) && /&giro=(no|derecha|izquierda)/.test(pvSrc) && /&look=(auto|dia|noche)/.test(pvSrc),
+        'the real page, in preview mode, with that TV\'s size, distance, scale, turn and look in the address: ' + pvSrc);
       assert.strictEqual(await text(pg, '#edPreviewBtn'), 'Cerrar la vista previa');
       const frame = await until(() => pg.frames().find((f) => f !== pg.mainFrame() && /preview=1/.test(f.url())), 8000, 'the frame');
       await until(() => frame.evaluate(() => !!window.PANTALLA_B && PANTALLA_B.info().actual === 'previa'), 12000, 'the posted composition');
@@ -886,7 +888,7 @@ module.exports.tests = [
       const calientes = ['Latte', 'Café con Leche', 'Espresso', 'Americano', 'Macchiato', 'Cappuccino', 'Flat White', 'Mocha', 'Cloud Forest Latte'];
       const batidos = ['Golden Passion Bloom', 'Berry Violet Blossom', 'White Plumeria Cream', 'Sunflower Citrus Bloom', 'Green Jasmine Mint', 'Coral Rose Splash', 'Pink Dahlia Delight', 'Emerald Orchid', 'Lemon Rose Blossom', 'Fresh Water Lily', 'Golden Magnolia'];
       assert.deepStrictEqual(names(rows[0]), [reposteria, frios, calientes, sandwiches], 'breakfast: left pastries (croissants first), centre top iced coffees (iced latte first), centre bottom hot coffees (latte and café con leche first), right sandwiches');
-      assert.deepStrictEqual(names(rows[1]), [sandwiches, batidos, ['Costa Rican Hot Chocolate', 'Tea', 'Sweet Cane Drink'].concat(frios)], 'lunch');
+      assert.deepStrictEqual(names(rows[1]), [sandwiches, batidos, frios.concat(['Costa Rican Hot Chocolate', 'Tea', 'Sweet Cane Drink'])], 'lunch: the iced coffees first among the cold drinks');
       assert.deepStrictEqual(names(rows[2]), [calientes, reposteria], 'afternoon');
       assert.deepStrictEqual(names(rows[3]), [sandwiches], 'dinner');
       rows.forEach((r) => r.zones.forEach((z) => {

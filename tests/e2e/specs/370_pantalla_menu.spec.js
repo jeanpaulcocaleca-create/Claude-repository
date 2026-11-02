@@ -6,9 +6,10 @@
    7) never Extras & Combos (combos and discounts are not announced);
    8) its settings come from the owner's page (pantallas, table screens), read with the public key, never written.
    A1-A9 are the prototype's tests (fixed per the review); B1-B11 the settings from the database and the review fixes;
-   B12-B21 the v2 board (migration 0037): category blocks in explicit balanced columns, one screen when the letter allows
+   B12-B22 the v2 board (migration 0037): category blocks in explicit balanced columns, one screen when the letter allows
    it, density and English per TV, promotions intercalated in the menu (drawn by Screen B's renderer, copied into the
-   page: B21 a composition as an interlude), the new address overrides. */
+   page: B21 a composition as an interlude, B22 the slides' prices aging with the read that brought them), the new
+   address overrides. */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql } = require('../lib');
@@ -283,7 +284,7 @@ module.exports.tests = [
         assert.ok(m.pr.length === want && Math.min(...m.pr) >= 1, `${where}: prices as big as the names`);
         assert.deepStrictEqual(m.cut, [], `${where}: nothing cut off or outside the board`);
         assert.strictEqual(i.cabe, true, `${where}: every page fits`);
-        assert.ok((giro === 'no' ? [3, 4, 5] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns for the orientation`);
+        assert.ok((giro === 'no' ? [2, 3, 4, 5] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns for the orientation`);
         /* a category is cut only when it is taller than a whole column, and its parts follow each other (v2: the next column, which may be on the same page) */
         const seen = {}; i.partes.forEach((pgParts, k) => pgParts.forEach((p) => { (seen[p.categoria] = seen[p.categoria] || []).push(k); }));
         Object.keys(seen).forEach((c) => {
@@ -458,7 +459,7 @@ module.exports.tests = [
         assert.strictEqual(i.fuente, 'base', where);
         assert.deepStrictEqual([i.ajustes.pulgadas, i.ajustes.distancia, i.ajustes.giro, i.ajustes.escala, i.paginaMs], [pulgadas, distancia, giro, escala, paginaMs], where);
         assert.ok(Math.abs(i.minCm - 0.8 * distancia * escala / 100) < 1e-9 && Math.abs(i.metaCm - distancia * escala / 100) < 1e-9, `${where}: the letter follows distance and scale`);
-        assert.ok((giro === 'no' ? [3, 4, 5] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns`);
+        assert.ok((giro === 'no' ? [2, 3, 4, 5] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns`);
         const st = await pg.evaluate(() => { const s = document.getElementById('stage'); return [s.offsetWidth, s.offsetHeight, s.style.transform]; });
         assert.deepStrictEqual(st, giro === 'no' ? [1920, 1080, ''] : [1080, 1920, 'translate(1920px, 0px) rotate(90deg)'], `${where}: the stage`);
         const c = await capitales(pg), pxCm = 1920 / LARGO_CM(pulgadas), tol = 1 / pxCm;
@@ -885,9 +886,12 @@ module.exports.tests = [
         const g = i.maqueta.gap, H = i.maqueta.alto;
         const piezas = []; i.maqueta.paginas.forEach((p, k) => p.forEach((c, j) => c.bloques.forEach((b, n) => piezas.push({ k, j, n, b, lim: c.limite }))));
         i.maqueta.paginas.forEach((p, k) => {
-          const lim = p[0].limite, usadas = p.filter((c) => c.bloques.length), alturas = usadas.map((c) => c.alto);
-          assert.ok(lim <= H + 0.5 && usadas.length, `${where}: page ${k + 1}: limit ${lim} within the board ${H}`);
-          assert.ok(alturas.every((a) => a <= lim + 0.5) && Math.max(...alturas) >= lim - 1, `${where}: page ${k + 1}: columns ${alturas} under the limit ${lim}, the tallest at it`);
+          const lim = p[0].limite, tope = p[0].tope, usadas = p.filter((c) => c.bloques.length), alturas = usadas.map((c) => c.alto);
+          assert.ok(lim <= tope + 0.5 && tope <= H + 0.5 && usadas.length, `${where}: page ${k + 1}: limit ${lim} and top ${tope} within the board ${H}`);
+          /* every column under the top, the tallest at it; a column over the balancing limit holds exactly one piece: a block (or
+             what was left of a cut one) that fits the real column and was placed whole rather than in pieces */
+          assert.ok(alturas.every((a) => a <= tope + 0.5) && Math.max(...alturas) >= tope - 1, `${where}: page ${k + 1}: columns ${alturas} under the top ${tope}, the tallest at it`);
+          usadas.forEach((c, j) => { if (c.alto > lim + 0.5) assert.ok(c.bloques.length === 1, `${where}: page ${k + 1} column ${j + 1} over the limit ${lim} with more than one piece: ${JSON.stringify(c.bloques.map((b) => b.categoria))}`); });
           let unidad = 0, item = 0;
           p.forEach((c, j) => {
             c.bloques.forEach((b, n) => {
@@ -907,7 +911,7 @@ module.exports.tests = [
               unidad = Math.max(unidad, b.n < 4 ? b.alto : Math.max(b.titulo, b.tituloCont) + dos + 3);
               item = Math.max(item, ...b.alturas);
             });
-            if (j === p.length - 1 || !c.bloques.length || !p[j + 1].bloques.length) return;
+            if (j === p.length - 1 || !c.bloques.length || !p[j + 1].bloques.length || c.alto > lim + 0.5) return;   /* a column over the limit closed on its one piece */
             const q = p[j + 1].bloques[0], ult = c.bloques[c.bloques.length - 1];
             let need;
             if (q.cont && ult.categoria === q.categoria && ult.hasta === q.desde) { if (q.hasta - q.desde === 2) return; need = q.alturas[0] + 1; }
@@ -945,7 +949,7 @@ module.exports.tests = [
       /* a tiny screen read from far: nothing fits by width at any letter; the minimum letter and the fewest columns, and the diagnosis says NO CABE */
       const tiny = await pantalla(browser, { viewport: { width: 960, height: 540 }, q: '?tv=menu-1&pulgadas=55&distancia=6&diag=1' });
       const t = await info(tiny);
-      assert.ok(t.cabe === false && t.columnas === 3 && Math.abs(t.capCm - t.minCm) < 1e-6, 'the least harm: ' + JSON.stringify([t.cabe, t.columnas, t.capCm, t.minCm]));
+      assert.ok(t.cabe === false && t.columnas === 2 && Math.abs(t.capCm - t.minCm) < 1e-6, 'the least harm (the minimum letter, the fewest columns): ' + JSON.stringify([t.cabe, t.columnas, t.capCm, t.minCm]));
       assert.ok(/NO CABE: baje la escala o la distancia/.test(await diag(tiny)));
       assert.deepStrictEqual(tiny.errors, []);
     }
@@ -1395,6 +1399,124 @@ module.exports.tests = [
       assert.deepStrictEqual(await pg.evaluate(() => Object.keys(localStorage).sort()), ['hg-pantalla-menu', 'hg-pantalla-menu-tv', 'hg_lang'], 'no slide kept on the device');
       assert.ok(!/fotos\.test|zones|Desayuno|₡|1650/.test(await pg.evaluate(() => localStorage.getItem('hg-pantalla-menu') + localStorage.getItem('hg-pantalla-menu-tv'))), 'nothing of the composition on the device');
       assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'B22: the slides\' prices age with the pantalla_datos read that brought them, not only with the menu read: the RPC failing (503) while the menu read goes on, the board shows a new price as current but the interlude\'s price goes «por confirmar» after the limit counted from the last good pantalla_datos read, then a product slide leaves and a composition\'s zone keeps its name without a price, never the old price as current; with the RPC back, the price comes back at once',
+    run: async ({ browser }) => {
+      sql(`update public.screens set promo_mode = 'intercalar' where id = 'menu-1'`);
+      const latte = diapo({ kind: 'producto', item: 'Latte', sort: 1 });
+      const T = { cada: 400, revisar: 100, fresco: 1800, vencido: 3400, promoCada: 600, promoSeg: 30000 };
+      /* the RPC answers as the stand-in does until the test cuts it: then 503 (what the stand-in answers when PostgREST
+         is down) while the menu read goes on untouched */
+      const caida = { on: false, n: 0 };   /* n: answers refused */
+      const setup = (pg) => pg.route(/\/rest\/v1\/rpc\/pantalla_datos/, (route) => {
+        if (!caida.on) return route.continue();
+        caida.n++; return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'PostgREST unavailable' }) });
+      });
+      /* cuts the RPC and waits for its first refusal (the reads never overlap: the last good read is then over, so a
+         price changed after the cut can never reach the slide); returns when the cut was made */
+      const cortar = async () => { const n = caida.n, t = Date.now(); caida.on = true; await until(() => caida.n > n, T.cada + 2500, 'the RPC refused'); return t; };
+      const NOTA = /Precio por confirmar en caja · Please confirm the price at the counter/;
+      /* from the moment the slide's price is marked until it leaves: the old price always marked, never the new one */
+      const marcado = (v) => !v.on || (digits(v.precio) === 2200 && NOTA.test(v.nota || ''));
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T, setup });
+      await until(async () => { const v = await promoVista(pg); return v.on && v.id === latte; }, 5000, 'the product slide');
+      let v = await promoVista(pg);
+      assert.ok(digits(v.precio) === 2200 && !v.nota, JSON.stringify(v));
+      const n0 = [reads(pg, 0), reads(pg, 1)];
+      const t0 = await cortar();
+      sql(`update menu_items set price_crc = 2500 where name = 'Latte'`);
+      /* the board follows the menu read: the new price, verified, no warning */
+      await until(async () => digits((await find(pg, 'Latte')).pr) === 2500, T.cada + 2500, 'the new price on the board');
+      let i = await info(pg);
+      assert.deepStrictEqual([i.estado, await aviso(pg)], ['al-dia', ''], 'the board\'s prices are current');
+      /* the slide's price came with the RPC: the old one, and it counts as verified only while that read is recent */
+      v = await promoVista(pg);
+      assert.ok(v.on && v.id === latte && digits(v.precio) === 2200, 'the slide keeps the price of its own read: ' + JSON.stringify(v));
+      await until(async () => NOTA.test((await promoVista(pg)).nota || ''), T.fresco + 2500, '«por confirmar» on the slide');
+      const dt = Date.now() - t0;
+      assert.ok(dt >= T.fresco - T.cada - 600, `the slide's price counts as verified up to the limit (${dt} ms)`);
+      assert.ok(dt <= T.fresco + 1500, `«por confirmar» no later than the limit, counted from the last good pantalla_datos read (${dt} ms)`);
+      v = await promoVista(pg); i = await info(pg);
+      assert.ok(v.on && v.id === latte && marcado(v), 'the old price, marked: ' + JSON.stringify(v));
+      assert.ok(i.estado === 'al-dia' && i.edadMs <= T.fresco, 'while the board\'s prices are still current: ' + JSON.stringify([i.estado, i.edadMs]));
+      assert.strictEqual(await aviso(pg), '', 'no warning on the board');
+      assert.strictEqual(digits((await find(pg, 'Latte')).pr), 2500, 'the board keeps the new price');
+      /* then no price at all: the product slide leaves, counted from the same read; meanwhile the old price was never current */
+      let dejo = null;
+      while (Date.now() - t0 < T.vencido + 2500) {
+        const x = await promoVista(pg);
+        assert.ok(marcado(x), 'never the old price as current, never the new one: ' + JSON.stringify(x));
+        if (!x.on) { dejo = Date.now(); break; }
+        await sleep(60);
+      }
+      assert.ok(dejo, 'the product slide left');
+      const dt2 = dejo - t0;
+      assert.ok(dt2 >= T.vencido - T.cada - 600 && dt2 <= T.vencido + 1500, `no price no later than the limit, counted from the last good pantalla_datos read (${dt2} ms)`);
+      i = await info(pg);
+      assert.deepStrictEqual([i.estado, i.promo.vigentes, i.promo.enPantalla], ['al-dia', [], null], 'the board current, the product slide out of the turn: ' + JSON.stringify(i.promo));
+      assert.ok(!/₡/.test(await pg.evaluate(() => document.getElementById('promo').innerText)) && digits((await find(pg, 'Latte')).pr) === 2500, 'no price on the layer, the board with its prices');
+      /* both reads went on meanwhile: the RPC asked and refused, the menu answered */
+      assert.ok(reads(pg, 0) >= n0[0] + 3 && reads(pg, 1) >= n0[1] + 3 && caida.n >= 3, 'both reads went on: ' + JSON.stringify([n0, reads(pg, 0), reads(pg, 1), caida.n]));
+      let seen = 0; const t1 = Date.now();
+      while (Date.now() - t1 < 2 * T.promoCada + 800) { if ((await promoVista(pg)).on) seen++; await sleep(80); }
+      assert.strictEqual(seen, 0, 'no product slide while the RPC fails');
+      /* the RPC answers again: the slide back at once, with the price the RPC now carries, verified */
+      caida.on = false;
+      const t2 = Date.now();
+      await until(async () => { const x = await promoVista(pg); return x.on && x.id === latte; }, T.cada + T.promoCada + 3000, 'the product slide back');
+      v = await promoVista(pg);
+      assert.ok(digits(v.precio) === 2500 && !v.nota, 'the new price, verified: ' + JSON.stringify(v));
+      assert.ok(Date.now() - t2 <= T.cada + T.promoCada + 1500, `at once, on the first good read (${Date.now() - t2} ms)`);
+      assert.ok(onlyReads(pg), [...new Set(pg.api)].join());
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.context().close();
+      /* a composition with a name and price in a zone: the zone keeps its name through it all and the composition never
+         leaves (its photos are not prices); its price marked, then gone, then back at once with the RPC */
+      sql(`update public.screen_slides set status = 'retirada' where id = '${latte}'`);
+      const c = compo({ template: '2-lado', kicker_es: 'Desayuno', zones: [{ entries: [{ item: 'Latte' }] }, { labels: false, entries: ['https://fotos.test/pan.png'] }] });
+      caida.on = false;
+      const pg2 = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3', test: T, setup });
+      await until(async () => { const x = await promoVista(pg2); return x.on && x.id === c; }, 5000, 'the composition');
+      await until(async () => { const j = await zonasPromo(pg2); return j && j.zonas.every((x) => x.estado === 'entrada'); }, 4000, 'its zones up');
+      let z = (await zonasPromo(pg2)).zonas;
+      assert.ok(z.length === 2 && z[0].tit === 'Latte' && digits(z[0].precio) === 2500 && !z[0].nota && z[1].src === 'https://fotos.test/pan.png', JSON.stringify(z));
+      const t3 = await cortar();
+      sql(`update menu_items set price_crc = 2700 where name = 'Latte'`);
+      await until(async () => digits((await find(pg2, 'Latte')).pr) === 2700, T.cada + 2500, 'the new price on the board');
+      await until(async () => NOTA.test((await zonasPromo(pg2)).zonas[0].nota || ''), T.fresco + 2500, '«por confirmar» in the zone');
+      const dt3 = Date.now() - t3;
+      assert.ok(dt3 >= T.fresco - T.cada - 600 && dt3 <= T.fresco + 1500, `«por confirmar» counted from the last good pantalla_datos read (${dt3} ms)`);
+      z = (await zonasPromo(pg2)).zonas; i = await info(pg2);
+      assert.ok(digits(z[0].precio) === 2500 && z[0].tit === 'Latte' && z[0].src === null && z[1].src === 'https://fotos.test/pan.png', 'the old price with its note, in place: ' + JSON.stringify(z));
+      assert.deepStrictEqual([i.estado, i.promo.enPantalla, await aviso(pg2)], ['al-dia', c, ''], 'the board current, the composition on');
+      /* then the name without a price; meanwhile the old price was never current and the composition stayed */
+      let sinPrecio = null;
+      while (Date.now() - t3 < T.vencido + 2500) {
+        const j = await zonasPromo(pg2);
+        assert.ok(j && j.id === c, 'the composition stays');
+        const a = j.zonas[0];
+        assert.ok(a.tit === 'Latte' && (a.precio === null ? !a.nota : digits(a.precio) === 2500 && NOTA.test(a.nota || '')), 'never the old price as current, never the new one: ' + JSON.stringify(a));
+        if (a.precio === null) { sinPrecio = Date.now(); break; }
+        await sleep(60);
+      }
+      assert.ok(sinPrecio, 'no price in the zone');
+      const dt4 = sinPrecio - t3;
+      assert.ok(dt4 >= T.vencido - T.cada - 600 && dt4 <= T.vencido + 1500, `no price no later than the limit, counted from the last good pantalla_datos read (${dt4} ms)`);
+      v = await promoVista(pg2); z = (await zonasPromo(pg2)).zonas;
+      assert.ok(v.on && v.id === c && z[0].tit === 'Latte' && z[0].precio === null && !z[0].nota && z[1].src === 'https://fotos.test/pan.png', 'the name without a price: ' + JSON.stringify(z));
+      assert.ok(!/₡/.test(await pg2.evaluate(() => document.getElementById('promo').innerText)), 'no price on the layer');
+      assert.ok(digits((await find(pg2, 'Latte')).pr) === 2700 && (await info(pg2)).estado === 'al-dia', 'the board with its new price, current');
+      /* the RPC back: the price the RPC now carries, written in place at once, verified; the interlude the same */
+      caida.on = false;
+      const t4 = Date.now();
+      await until(async () => { const j = await zonasPromo(pg2); return j && digits(j.zonas[0].precio) === 2700; }, T.cada + 2500, 'the price back in the zone');
+      z = (await zonasPromo(pg2)).zonas; v = await promoVista(pg2);
+      assert.ok(Date.now() - t4 <= T.cada + 1500, `at once, on the first good read (${Date.now() - t4} ms)`);
+      assert.ok(v.on && v.id === c && z[0].tit === 'Latte' && !z[0].nota && z[1].src === 'https://fotos.test/pan.png', 'in place, the new price verified: ' + JSON.stringify(z));
+      assert.ok(onlyReads(pg2), [...new Set(pg2.api)].join());
+      assert.deepStrictEqual(pg2.errors, []);
     }
   }
 ];

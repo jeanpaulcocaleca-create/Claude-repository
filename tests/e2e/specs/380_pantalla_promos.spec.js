@@ -5,8 +5,8 @@
    5) read from a distance: big prices, little else, nothing outside the screen;
    6) nothing new: the site, the public key and the TV's browser; nothing stored on the device;
    7) combos and discounts never announced (the till's helpers never show).
-   P1-P17: the slides of 0036. P18-P25: the compositions of 0037 (templates, independent presentations, labels and
-   live prices, what cannot show, the dwell, the owner's preview, the dissolve).
+   P1-P17: the slides of 0036. P18-P26: the compositions of 0037 (templates, independent presentations, labels and
+   live prices, what cannot show, the dwell, the owner's preview, the dissolve, photos that hang or fail).
    Slides are written straight into the test database (as its superuser): pantallas.html, which writes them for the
    owner, has its own tests. */
 'use strict';
@@ -1155,6 +1155,90 @@ module.exports.tests = [
       const seq = m.map((x) => x.z.zonas[0].src).filter((v, k, a) => k === 0 || v !== a[k - 1]);
       assert.ok(seq.length >= 3, 'the photos took turns: ' + seq.join(' '));
       seq.forEach((v, k) => { if (k) assert.strictEqual(v, `https://fotos.test/d${(Number(seq[k - 1].match(/d(\d)/)[1]) + 1) % 3}.png`, 'in order: ' + seq.join(' ')); });
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P26: a photo that never answers counts as failed once the limit has passed: a presentation zone keeps turning over its other photos (never an empty frame) and a product keeps its name without the photo; the reads still reach the zone (a new price, a sold-out); a photo that failed is asked for again once the retry time has passed, never sooner, and comes back into the turn when it answers; no zone is «changing» for good',
+    run: async ({ browser }) => {
+      const T = { cada: 600, limite: 1500, reintento: 2000, zona: 200, fundido: 100, revisar: 200, diapositiva: 600000, permanencia: 600000 };
+      const COLGADA = 'https://fotos.test/colgada.png', LATTE = 'https://fotos.test/latte-colgada.png', REINTENTO = 'https://fotos.test/reintento.png';
+      const c = compo({ template: '3-grande-izq', zones: [
+        { mode: 'auto', seconds: 4, labels: false, entries: ['https://fotos.test/a0.png', COLGADA, 'https://fotos.test/a2.png'] },   /* 4 s -> 800 ms a photo */
+        { mode: 'fija', labels: true, entries: [{ item: 'Latte', photo: LATTE }] },
+        { mode: 'auto', seconds: 4, labels: false, entries: ['https://fotos.test/b0.png', REINTENTO, 'https://fotos.test/b2.png'] }
+      ] });
+      /* in front of the usual photo route: two requests that never answer (left pending) and one answered 404 until
+         the test says otherwise; every request is kept with its time and the answer it got */
+      const pedidas = {}, respuesta = { reintento: 404 };
+      const fotosTest = (x) => x.route(/^https:\/\/fotos\.test\/(colgada|latte-colgada|reintento)\.png$/, (r) => {
+        const u = r.request().url(); (pedidas[u] = pedidas[u] || []).push({ t: Date.now(), status: u === REINTENTO ? respuesta.reintento : null });
+        if (u !== REINTENTO) return new Promise(() => {});
+        return respuesta.reintento === 404 ? r.fulfill({ status: 404, body: 'not found' }) : r.fulfill({ status: 200, contentType: 'image/png', body: PNG });
+      });
+      const pg = await pantalla(browser, { q: '?tv=promos-1&pulgadas=55&distancia=3&diag=1', test: T, setup: fotosTest });
+      await until(async () => { const z = await zonas(pg); return z && z.id === c && z.zonas[0].estado === 'entrada' && z.zonas[2].estado === 'entrada'; }, 6000, 'up');
+      await until(() => [COLGADA, LATTE, REINTENTO].every((u) => (pedidas[u] || []).length >= 1), 3000, 'every photo asked for');
+      assert.deepStrictEqual([pedidas[COLGADA].length, pedidas[LATTE].length, pedidas[REINTENTO].length], [1, 1, 1], 'each asked for once with the first read');
+      /* 5 s watched: what each zone shows and whether it is «changing» */
+      const t0 = Date.now(), m = [];
+      while (Date.now() - t0 < 5000) { m.push({ t: Date.now() - t0, z: await zonas(pg), c: await compoInfo(pg) }); await sleep(40); }
+      assert.ok(m.every((x) => x.z && x.z.id === c && x.c && x.c.zonas.length === 3), 'the composition stays on screen');
+      /* zone 1: the photo that never answers is given up at the limit and skipped; the other two take turns; never an empty frame */
+      m.forEach((x) => assert.ok(x.z.zonas[0].capas.some((k) => k.on && k.img && k.lista && k.opacity >= 0.99), `${x.t} ms: zone 1 shows an opaque loaded photo at every moment: ` + JSON.stringify(x.z.zonas[0].capas)));
+      assert.deepStrictEqual([...new Set(m.map((x) => x.z.zonas[0].entrada))].sort(), [0, 2], 'the two photos that answer take turns; the one that never answers is never up');
+      assert.ok(!m.some((x) => x.z.zonas[0].capas.some((k) => k.src === COLGADA)), 'the photo that never answered is never on a layer');
+      const c1 = cambios(m, 0);
+      assert.ok(c1.length >= 2, `zone 1 kept turning (800 ms a photo, at most the 1.5 s limit lost on the one that never answers): ${c1.length} changes, at ${c1.join(', ')} ms`);
+      /* zone 2: the product whose photo never answers shows its name and its live price without the photo once the limit passed */
+      const nombre = m.find((x) => x.z.zonas[1].estado === 'entrada');
+      assert.ok(nombre && nombre.t <= T.limite + 2000, 'the product shows once the limit passed: ' + (nombre ? nombre.t + ' ms' : 'never (the zone waits for its photo for good)'));
+      assert.ok(m.filter((x) => x.t < nombre.t).every((x) => x.z.zonas[1].estado === '' && x.c.zonas[1].cambiando), 'until then the zone was loading (never the brand design)');
+      const z2 = nombre.z.zonas[1];
+      assert.deepStrictEqual([z2.tit, z2.titEn, digits(z2.precio), z2.nota, z2.src, z2.encuadre], ['Latte', null, 2200, null, null, null], 'the name and the live price, no photo: ' + JSON.stringify(z2));
+      /* zone 3: the photo that answered 404 is skipped; the other two take turns; never an empty frame */
+      m.forEach((x) => assert.ok(x.z.zonas[2].capas.some((k) => k.on && k.img && k.lista && k.opacity >= 0.99), `${x.t} ms: zone 3 shows an opaque loaded photo at every moment: ` + JSON.stringify(x.z.zonas[2].capas)));
+      assert.deepStrictEqual([...new Set(m.map((x) => x.z.zonas[2].entrada))].sort(), [0, 2], 'zone 3 turns over the two photos that answer; the one that failed is never up');
+      assert.ok(cambios(m, 2).length >= 2, 'zone 3 kept turning: ' + cambios(m, 2).join(', '));
+      /* no zone «changing» for longer than the limit (and a dissolve): a switch that waits for a photo gives up */
+      [0, 1, 2].forEach((i) => {
+        let desde = null, mayor = 0;
+        m.forEach((x) => { const on = x.c.zonas[i].cambiando; if (on && desde === null) desde = x.t; if (!on && desde !== null) { mayor = Math.max(mayor, x.t - desde); desde = null; } });
+        if (desde !== null) mayor = Math.max(mayor, m[m.length - 1].t - desde);
+        assert.ok(mayor <= T.limite + T.fundido + 1500, `zone ${i + 1} was «changing» for ${mayor} ms at a stretch`);
+      });
+      await until(async () => (await compoInfo(pg)).zonas.every((x) => !x.cambiando), T.limite + 2500, 'every zone at rest');
+      await until(async () => /Zona 2: foto fija · 1 de 1 entrada con qué mostrar · con nombres y precios · muestra la 1 \(Latte, precio\)/.test(await diag(pg)), 3000, 'the diagnosis: the product shown, with its price');
+      let d = await diag(pg);
+      assert.ok(/Zona 1: presentación cada 4 s · [23] de 3 entradas/.test(d) && /Zona 3: presentación cada 4 s · [23] de 3 entradas con qué mostrar · sin textos · muestra la [13] \(solo foto\)/.test(d) && !/cargando/.test(d), d);
+      /* the reads reach the zone: a new price is written in place, a sold-out takes the product away (the brand design), its return brings it back */
+      sql(`update public.menu_items set price_crc = 2350 where name = 'Latte'`);
+      /* (when the read meets a retry of the photo under way, the zone waits for it once more and redraws the same
+         frame by a dissolve: the zone is read at rest) */
+      await until(async () => { const j = await zonas(pg); return j && digits(j.zonas[1].precio) === 2350 && j.zonas[1].capas.filter((k) => k.on).length === 1; }, 8000, 'the new price in the zone');
+      let z = await zonas(pg);
+      assert.deepStrictEqual([z.zonas[1].estado, z.zonas[1].tit, z.zonas[1].src, z.zonas[1].entrada, (await info(pg)).actual], ['entrada', 'Latte', null, 0, c], JSON.stringify(z.zonas[1]));
+      sql(`update public.menu_items set available = false where name = 'Latte'`);
+      await until(async () => { const j = await zonas(pg); return j && j.id === c && j.zonas[1].estado === 'marca' && j.zonas[1].capas.filter((k) => k.on).length === 1; }, 8000, 'sold out: the brand design in zone 2');
+      z = await zonas(pg);
+      assert.ok(z.zonas[1].marca && !/Latte|₡/.test(z.zonas[1].text), JSON.stringify(z.zonas[1]));
+      sql(`update public.menu_items set available = true where name = 'Latte'`);
+      await until(async () => { const j = await zonas(pg); return j && j.zonas[1].estado === 'entrada' && j.zonas[1].tit === 'Latte' && j.zonas[1].src === null && digits(j.zonas[1].precio) === 2350; }, 8000, 'back in stock: the name again, still without its photo');
+      /* the photo that answered 404 was asked for again, once per retry time and never sooner; when it answers at
+         last it comes back into the turn, its zone's clock with it */
+      const antes = pedidas[REINTENTO].length;
+      assert.ok(antes >= 2 && pedidas[REINTENTO].every((x) => x.status === 404), 'asked for again while it kept failing: ' + antes + ' requests');
+      respuesta.reintento = 200;
+      await until(async () => { const j = await zonas(pg); return j && j.zonas[2].entrada === 1 && j.zonas[2].src === REINTENTO && j.zonas[2].capas.some((k) => k.on && k.src === REINTENTO && k.lista); }, 10000, 'the photo back in the turn once it answered');
+      const ts = pedidas[REINTENTO], buena = ts.findIndex((x) => x.status === 200);
+      assert.ok(buena >= antes, 'asked for again after the answer changed: ' + JSON.stringify(ts.map((x) => x.status)));
+      ts.slice(0, buena + 1).forEach((x, k) => { if (k) assert.ok(x.t - ts[k - 1].t >= T.reintento - 100, `never asked for again before the retry time: ${x.t - ts[k - 1].t} ms between two requests`); });
+      await until(async () => { const j = await compoInfo(pg); return j.zonas[2].mostrables === 3 && (j.zonas[2].reloj || j.zonas[2].cambiando); }, 4000, 'the three photos in the turn, the clock running');
+      const m2 = await muestrear(pg, 2600, 40);
+      assert.deepStrictEqual([...new Set(m2.map((x) => x.z.zonas[2].entrada))].sort(), [0, 1, 2], 'zone 3 turns over the three photos now: ' + cambios(m2, 2).join(', '));
+      assert.ok(cambios(m2, 2).length >= 2 && m2.every((x) => x.z.id === c && x.z.zonas[2].capas.some((k) => k.on && k.img && k.lista && k.opacity >= 0.99)), 'the turn goes on, never an empty frame');
+      assert.ok(/Zona 3: presentación cada 4 s · 3 de 3 entradas con qué mostrar/.test(await diag(pg)), await diag(pg));
       assert.ok(onlyReads(pg));
       assert.deepStrictEqual(pg.errors, []);
     }

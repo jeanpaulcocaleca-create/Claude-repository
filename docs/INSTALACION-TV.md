@@ -67,6 +67,17 @@ La TV toma el cambio sola en menos de un minuto.
    `pantallas.html` la densidad compacta, el inglés en línea o solo español, o menos categorías para esa TV.
 4. Abra otra vez la dirección **sin** `&diag=1`. El cuadro no debe quedar a la vista de los clientes.
 
+### 4.1 Las TV de 32 pulgadas del café
+Las dos TV reales miden 32" (70,8 × 39,8 cm). A esa medida el menú completo **nunca cabe en una pantalla legible**: la
+Pantalla A lo reparte en páginas y nunca achica la letra bajo el mínimo (0,8 cm de mayúscula por metro). Medido con el
+menú real: a 1,5 m, 3 páginas (2 con densidad compacta y sin inglés); a 2 m, 6 páginas (3 compacta sin inglés); a 2,5 m,
+9 (6); a 3 m con inglés debajo la letra mínima ya no cabe en dos columnas y el diagnóstico dice «NO CABE». Por eso:
+- Coloque la TV del menú donde el cliente más lejano quede a **1,5–2 m** (barra, fila de la caja), no al fondo del local.
+- Pida al dueño **Densidad: compacta** y **Inglés: no** (o en línea) para esa TV; si siguen siendo más de 3 páginas, que
+  elija las **categorías** de esa TV (lo demás queda en el menú QR).
+- En la Pantalla B, las composiciones de 4 ventanas se ven bien a 1,5–2 m; con nombres y precios los rótulos ocupan la
+  mitad baja de cada ventana pequeña: el dueño puede quitarlos por ventana («Nombres y precios») para que manden las fotos.
+
 ## 5. Prueba de letra en el lugar
 
 1. Párese en el punto **más lejano** desde donde un cliente debe leer.

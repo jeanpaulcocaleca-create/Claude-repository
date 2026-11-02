@@ -23,7 +23,21 @@ Sin los batidos (28 productos), compacto con inglés: 65"/2,5 m 90 %, 75"/3 m 87
 compacto con inglés: 55"/2,5 m 83 %, 65"/3 m 82 %.
 
 **Veredicto:** a la distancia de la fila (3 m) el menú completo cabe en una pantalla legible solo en una TV de 75" sin
-inglés, o de más de 85". A 2–2,5 m cabe en 55–65" con el estilo compacto. Por eso la Pantalla A muestra **una sola
+inglés, o de más de 85". A 2–2,5 m cabe en 55–65" con el estilo compacto.
+
+**Las dos TV reales son de 32"** (su aviso del 2026-11-02): en una 32" (70,8 × 39,8 cm) el menú completo nunca cabe en una
+pantalla legible; la Pantalla A lo reparte en páginas sin bajar la letra del mínimo. Medido con el menú real en 1920 × 1080:
+
+| 32" a | Normal, inglés debajo | Compacta | Compacta, inglés en línea | Compacta, sin inglés |
+|---|---|---|---|---|
+| 1,5 m | 3 páginas (87 %) | 3 (97 %) | 2 (83 %) | **2 (90 %)** |
+| 2 m | 6 (89 %) | 4 (81 %) | 4 (81 %) | **3 (81 %)** |
+| 2,5 m | 9 (80 %) | 7 (83 %) | 7 (85 %) | 6 (83 %) |
+| 3 m | 14, con palabras cortadas | 11 (80 %) | 11 (82 %) | 8 (80 %) |
+
+Recomendación para 32": el cliente más lejano a 1,5–2 m, densidad **compacta** y **sin inglés** (o en línea): 2–3 páginas de
+28 s. A 2,5 m o más, elegir las categorías de esa TV o aceptar 6 páginas o más; a 3 m con inglés debajo la letra mínima ya no
+cabe en dos columnas (el diagnóstico lo dice). Las capturas a 32" están en la vista previa (V2.6). Por eso la Pantalla A muestra **una sola
 pantalla siempre que la mayúscula quede en o sobre el mínimo** y, si no, las menos páginas posibles con la letra más
 grande; **nunca reduce la letra bajo el mínimo** para que quepa. Usted elige por TV la distribución, la densidad, el
 inglés y las categorías. En la prueba con el menú real: una pantalla en 75" a 2 m; páginas en 55" a 3 m.
@@ -76,11 +90,11 @@ navegador. Lo nuevo de la v2:
 
 | Prueba | Qué demuestra | Resultado |
 |---|---|---|
-| SQL 460 | La 0037: columnas, reglas, ayudas cerradas, 16 rechazos de ajustes por campo, 46 rechazos de plantilla, zona y entrada con la ruta exacta, valores por omisión, pausar y reanudar una composición con su resumen, solo el dueño, lo que lee cada TV con cada entrada resuelta en vivo, ninguna escritura fuera de las tres tablas, cambios del menú reflejados sin escribir | 119 comprobaciones |
+| SQL 460 | La 0037: columnas, reglas, ayudas cerradas, 18 rechazos de ajustes por campo, 51 rechazos de plantilla, zona y entrada con la ruta exacta (ids que no son uuid incluidos), valores por omisión, pausar y reanudar una composición con su resumen, solo el dueño, lo que lee cada TV con cada entrada resuelta en vivo (un producto sin foto ni rótulos no se muestra), ninguna escritura fuera de las tres tablas, cambios del menú reflejados sin escribir | 126 comprobaciones |
 | SQL 470 | La reversión de la 0037: se niega sin la 0037 o con una posterior; vuelve las seis funciones a la 0036 (por comportamiento y por texto), deja columnas, filas, reglas de Storage y registro; la 0037 se vuelve a aplicar y encuentra todo | 73 comprobaciones |
 | SQL 440 y 450 | La 0036 bajo la 0037 y su reversión (la cadena empieza por la reversión de la 0037) | 181 + 40 |
-| Navegador 370 | Pantalla A: las 20 pruebas de la v1 y 10 nuevas (B12–B21): bloques, cortes limpios, columnas llenas y parejas, el menú real en una pantalla en 75"/2 m y en páginas en 55"/3 m, densidad, inglés, promociones intercaladas con sus tiempos y su fundido, nada vigente, agotados, frescura, ajustes por dirección, una composición dibujada como en la Pantalla B | 30 pruebas |
-| Navegador 380 | Pantalla B: las 17 de la v1 y 8 nuevas (P18–P25): plantillas y geometría, relojes independientes, nombres y precios, respaldo y marca, rechazo propio de composiciones inválidas, permanencia, modo vista previa, fundido con dos capas | 25 pruebas |
+| Navegador 370 | Pantalla A: las 20 pruebas de la v1 y 11 nuevas (B12–B22, la B22 por la revisión: la frescura de la promoción cuenta desde su propia lectura): bloques, cortes limpios, columnas llenas y parejas, el menú real en una pantalla en 75"/2 m y en páginas en 55"/3 m, densidad, inglés, promociones intercaladas con sus tiempos y su fundido, nada vigente, agotados, frescura, ajustes por dirección, una composición dibujada como en la Pantalla B | 31 pruebas |
+| Navegador 380 | Pantalla B: las 17 de la v1 y 9 nuevas (P18–P26, la P26 por la revisión: foto que no responde y foto reintentada): plantillas y geometría, relojes independientes, nombres y precios, respaldo y marca, rechazo propio de composiciones inválidas, permanencia, modo vista previa, fundido con dos capas | 26 pruebas |
 | Navegador 390 | Panel: las 14 de la v1 y 6 nuevas: ajustes de la TV, composición armada en el editor y guardada exacta, rechazos junto a la zona, vista previa sin leer nada, programación sugerida idempotente, «Hoy en pantalla» | 20 pruebas |
 | no tocar v3 | Solo cambian las cuatro páginas de las pantallas; solo es nueva la 0037; lo demás byte por byte `v2026.11.02-1` | ok |
 
@@ -88,19 +102,50 @@ Dos pruebas de fundido fallaron al correr dos navegadores a la vez bajo carga; l
 (V2.3 punto 7). La prueba P11 de la v1 (legibilidad en 4K) fallaba de vez en cuando bajo carga porque la regla de
 «pausa» de la TV (un tic retrasado cuenta como TV dormida y quita los productos hasta la lectura siguiente) se
 disparaba entre dos pasos de la prueba; la prueba ahora espera precios verificados, como haría la TV. La huella de
-producción (`production-snapshot.sql`) está regenerada: `0037` = 8 funciones.
+producción (`production-snapshot.sql`) está regenerada: tras la 0037 cuenta `0036` = 7 y `0037` = 8 (seis funciones de
+la 0036 se vuelven a crear y pasan a la 0037).
 
 ## V2.5 Revisión independiente
 
-Revisión adversarial de solo lectura con seis lentes (seguridad y permisos; precios, disponibilidad y frescura;
-maqueta de la Pantalla A; composiciones de la Pantalla B; el editor del dueño; la migración 0037 y su reversión), cada
-hallazgo contrastado por un escéptico independiente que intenta refutarlo. **En curso al cierre de este commit**: los
-hallazgos confirmados y lo que se corrigió por ellos quedan en el commit siguiente y en esta misma sección.
+Revisión adversarial de solo lectura con seis lentes (seguridad y permisos; precios, disponibilidad y frescura; maqueta
+de la Pantalla A; composiciones de la Pantalla B; el editor del dueño; la migración 0037 y su reversión). Cada uno de
+los **28 hallazgos** fue juzgado por un escéptico independiente que intentó refutarlo reproduciéndolo: **22 confirmados,
+6 rechazados**. Los 22 confirmados quedaron corregidos y con pruebas (las de regresión nuevas: SQL 460 +7 comprobaciones,
+navegador P26 y B22), salvo dos mejoras de pruebas anotadas como pendientes. Lo importante:
+
+| Hallazgo confirmado | Gravedad | Corrección |
+|---|---|---|
+| En la Pantalla A, el precio de una promoción envejecía con la lectura del menú y no con la de las diapositivas: si la lectura de diapositivas fallaba y la del menú seguía, un precio viejo salía como actual junto al precio nuevo de la pizarra | alta | La promoción es tan fresca como la más vieja de las dos lecturas: «por confirmar» a los 2 min y sin precio a los 10 min, contados desde la última lectura buena de diapositivas (prueba B22) |
+| Una foto que nunca respondía dejaba la zona esperando para siempre: ni un agotado ni un cambio de precio llegaban a ella | alta | Una foto sin respuesta en 12 s cuenta como fallida; la zona sigue (el producto con su nombre y sin foto) y las lecturas la alcanzan (prueba P26) |
+| Una foto que fallaba una vez no se volvía a pedir en todo el día | media | Se vuelve a pedir pasado un minuto, en la lectura siguiente; al llegar, las zonas la vuelven a mostrar (P26) |
+| El equilibrio de columnas partía en piezas de un producto una categoría que cabía entera (TV con pocas categorías); y dejaba columnas medio vacías por llenar «de izquierda a derecha» | media | El equilibrio nunca añade un corte que el primer llenado no tenía; un bloque que cabe en la columna va entero; el corte entre dos columnas vecinas se mueve a donde quedan más parejas (B12) |
+| Se perdió la opción de dos columnas de la v1: en TV pequeñas o lejanas (43"/3 m, 55"/3,5 m) la v2 cortaba palabras | media | Dos columnas vuelven a ser una opción (se usan solo cuando las demás no caben o paginan más); clave para las TV de 32" |
+| Las letras de una zona se medían también sobre la capa saliente: tras un nombre largo, uno corto salía pequeño toda su vuelta | media | Las letras se ajustan solo sobre la capa que se dibuja |
+| La vista previa del editor no usaba el tamaño, la distancia, la escala, el giro ni el look de la TV elegida | media | La dirección de la vista previa lleva esos cinco ajustes de la TV |
+| Un producto sin foto en una zona sin nombres ni precios «se mostraba» sin dibujar nada | baja | El servidor y la página solo lo cuentan si hay nombres o alguna foto; el editor lo avisa |
+| Un id de producto de 36 caracteres que no era un uuid daba un error crudo en vez de «invalid/zones.N.entries.M.item» | baja | Solo se acepta la forma canónica de uuid; 460 lo prueba con cinco variantes |
+| `pantalla_guardar` aceptaba un null como «dejar igual» en los segundos de promoción pero no en las cuatro palabras | baja | El null se rechaza por nombre en los seis ajustes (460) |
+| Fotos subidas para la vista previa quedaban en Storage al abrir otro editor, retirar la diapositiva en edición o cerrar sesión | baja | Se borran en los tres casos |
+| Al pasar a una plantilla con menos zonas se perdía «Derecha» y subía una vacía | baja | Se conservan las zonas del mismo lugar (Izquierda, Derecha…) |
+| El punto de enfoque solo se movía con el puntero | baja | También con las flechas del teclado (Mayús: de 1 en 1) |
+| La guía decía esperar `0036` = 13 tras la 0037 (la huella cuenta `0036` = 7 y `0037` = 8); la vuelta atrás de la v1 nombraba la 0037 como «descuentos» | baja | Guías corregidas, con el orden de las reversiones |
+| El panel v1 (vuelta atrás) no «ignora» una composición: la lista con rótulos vacíos | baja | Documentado: pausar o retirar las composiciones antes de volver a la v1 |
+| La prueba B21 era sensible a la carga de la máquina | baja | Espera a que las zonas estén quietas y al fundido real |
+
+Rechazados por el escéptico (no son defectos): una dirección de foto con usuario y contraseña (`https://u:p@…`) se publica tal cual
+(el contrato la admite; el dueño es el único que la escribe); un producto borrado del Gestor con foto propia sigue como foto sola
+(documentado); «páginas» y «automática» dan la misma pizarra (documentado en el panel); el costo de volver a maquetar
+(~0,2 s en un navegador de escritorio, solo cuando algo cambia); dos hallazgos que ya estaban corregidos en el árbol
+(segundos ocultos de una zona fija; el orden de los cafés fríos en la programación sugerida).
+
+Pendiente, anotado: una prueba que aplique la 0037 sobre una base con filas de la 0036 y que corra la huella tras la
+reversión (470); el ensayo de migración ya aplica la 0037 sobre la copia anonimizada de producción.
 
 ## V2.6 Vista previa privada
 
 Capturas reales de las páginas de la v2 con el menú real (fotos de color en lugar de las del café, que el navegador
-de pruebas no alcanza): https://claude.ai/artifact/V7sLCV4wHUmquYPYgZcYnx
+de pruebas no alcanza): https://claude.ai/artifact/V7sLCV4wHUmquYPYgZcYnx · **En las TV de 32" del café**, con la tabla de
+páginas por distancia y las cuatro ventanas con y sin rótulos: https://claude.ai/artifact/DUkFT3ujwoPZCar4K64sdm
 
 - Pantalla A: 75"/2 m una pantalla (día y noche); 65"/2,5 m compacta con inglés en línea (2 páginas); 55"/3 m
   (4 páginas) con y sin el diagnóstico; 55"/3 m compacta sin inglés (3 páginas); TV vertical.

@@ -159,12 +159,12 @@ select test.login('cafe', 'aal1', current_setting('test.h_dueno')::jsonb); set r
 select test.eq((select string_agg(k || '=' || pg_temp.err(r) || '/' || (r ->> '_logged'), ' ' order by o)
                   from (values (1, 'layout', '"grande"'::jsonb), (2, 'layout', '"Auto"'), (3, 'layout', 'null'), (4, 'density', '"x"'), (5, 'density', '1'), (6, 'english', '"arriba"'),
                                (7, 'promo_mode', '"si"'), (8, 'promo_mode', '"none"'), (9, 'promo_every', '29'), (10, 'promo_every', '901'), (11, 'promo_every', '"muchos"'),
-                               (12, 'promo_every', '30.5'), (13, 'promo_seconds', '5'), (14, 'promo_seconds', '31'), (15, 'promo_seconds', '-6'), (16, 'promo_seconds', 'true')) x(o, k, v)
+                               (12, 'promo_every', '30.5'), (13, 'promo_seconds', '5'), (14, 'promo_seconds', '31'), (15, 'promo_seconds', '-6'), (16, 'promo_seconds', 'true'), (17, 'promo_every', 'null'), (18, 'promo_seconds', 'null')) x(o, k, v)
                   cross join lateral (select pg_temp.tv(jsonb_build_object('id', 'menu-1') || jsonb_build_object(k, v))) y(r)),
                'layout=invalid/layout/0 layout=invalid/layout/0 layout=invalid/layout/0 density=invalid/density/0 density=invalid/density/0 english=invalid/english/0 '
                || 'promo_mode=invalid/promo_mode/0 promo_mode=invalid/promo_mode/0 promo_every=invalid/promo_every/0 promo_every=invalid/promo_every/0 promo_every=invalid/promo_every/0 '
-               || 'promo_every=invalid/promo_every/0 promo_seconds=invalid/promo_seconds/0 promo_seconds=invalid/promo_seconds/0 promo_seconds=invalid/promo_seconds/0 promo_seconds=invalid/promo_seconds/0',
-               'a choice outside its words or its range (or not a whole number) is refused by name and logs nothing');
+               || 'promo_every=invalid/promo_every/0 promo_seconds=invalid/promo_seconds/0 promo_seconds=invalid/promo_seconds/0 promo_seconds=invalid/promo_seconds/0 promo_seconds=invalid/promo_seconds/0 promo_every=invalid/promo_every/0 promo_seconds=invalid/promo_seconds/0',
+               'a choice outside its words or its range (not a whole number, or a null) is refused by name and logs nothing');
 select pg_temp.tv('{"id": "menu-1", "layout": "una-pantalla", "density": "compacta", "english": "en-linea", "promo_mode": "intercalar", "promo_every": 30, "promo_seconds": 6}') as r \gset
 select test.eq(pg_temp.brief(:'r'), 'true · 1 logged · cambiar tv by Dueño (owner)', 'the owner sets the six choices: one line in the log');
 select test.eq(pg_temp.v2((:'r'::jsonb) -> 'tv'), 'density=compacta english=en-linea layout=una-pantalla promo_every=30 promo_mode=intercalar promo_seconds=6', 'saved as asked (the lower ends of both ranges)');
@@ -268,6 +268,15 @@ select test.eq((select string_agg(pg_temp.err(public.diapositiva_guardar(pg_temp
                || 'a zoom outside 100..200 or not a number, a photo that is not a plain web address');
 select test.eq(pg_temp.err(public.diapositiva_guardar(pg_temp.comp('2-lado', jsonb_build_array(pg_temp.fija(pg_temp.ei(:'latte')), pg_temp.auto(jsonb_build_array(pg_temp.ei(:'tea'), jsonb_build_object('item', :'shot'))))))),
                'text_combo_descuento/zones.1.entries.1.item', 'the path names the zone and the entry: zones.1.entries.1.item');
+-- refused by its path, never a raw SQL error: an item of 36 hex characters and dashes that is not a uuid (only the canonical form passes)
+select test.eq((select string_agg(pg_temp.err(public.diapositiva_guardar(pg_temp.entrada(jsonb_build_object('item', v)))), ' ' order by o)
+                  from (values (1, '0123456789abcdef0123456789abcdef0123'), (2, '1b00000-00000-4000-8000-000000004601'), (3, '1b000000-0000-4000-8000-00000000460-'),
+                               (4, replace(:'latte', '-', '') || '0000'), (5, replace(:'latte', '-', ''))) x(o, v)),
+               'invalid/zones.0.entries.0.item invalid/zones.0.entries.0.item invalid/zones.0.entries.0.item invalid/zones.0.entries.0.item invalid/zones.0.entries.0.item',
+               'an item of 36 hex characters and dashes that is not a uuid (36 digits without dashes, the dashes in the wrong places, a dash at the end, the Latte''s id run '
+               || 'together) is refused by its path, never a raw SQL error; the id without dashes too (only the canonical form)');
+select test.eq(pg_temp.err(public.diapositiva_guardar(pg_temp.comp('2-lado', jsonb_build_array(pg_temp.fija(pg_temp.ei(:'latte')), pg_temp.auto(jsonb_build_array(pg_temp.ei(:'tea'), '{"item": "0123456789abcdef0123456789abcdef0123"}'::jsonb)))))),
+               'invalid/zones.1.entries.1.item', 'with the zone and the entry in the path: zones.1.entries.1.item');
 -- refused: dwell and the kicker
 select test.eq((select string_agg(pg_temp.err(public.diapositiva_guardar(pg_temp.comp('1', pg_temp.fijas(1), jsonb_build_object('dwell_seconds', v)))), ' ' order by o)
                   from (values (1, '9'::jsonb), (2, '601'), (3, '"largo"'), (4, '-10'), (5, '60.5')) x(o, v)),
@@ -398,6 +407,33 @@ select jsonb_array_length(public.pantalla_datos('menu-1') -> 'slides') as ro_sli
 rollback to savepoint ro;
 reset role;
 select test.eq(:'ro_on' || ' ' || :'ro_slides', 'on 8', 'the menu TV''s read with promotions answers inside a read-only transaction');
+-- stored by hand, as diapositiva_guardar never writes them (a hand edit, an older page): an item of 36 hex characters that is not a uuid,
+-- and windows without labels whose product has no photo of its own nor in the menu. Inside a savepoint undone after the read, so the
+-- counts below stay as they are (the values are captured first and asserted after the rollback, as the read-only check above)
+savepoint a_mano;
+insert into public.screen_slides (kind, kicker_es, starts_at, ends_at, template, zones, sort) values
+  ('composicion', 'A mano', now() - interval '1 hour', now() + interval '30 days', '4-cuadricula', jsonb_build_array(
+     pg_temp.fija('{"item": "0123456789abcdef0123456789abcdef0123"}'::jsonb),
+     pg_temp.fija(pg_temp.ei(:'latte'), '{"labels": false}'),
+     pg_temp.fija(pg_temp.ei(:'latte', '{"photo": "https://example.com/latte.jpg"}'), '{"labels": false}'),
+     pg_temp.fija(pg_temp.ep('https://example.com/mano.jpg'), '{"labels": false}')), 17),
+  ('composicion', 'Sin rótulo', now() - interval '1 hour', now() + interval '30 days', '2-lado', jsonb_build_array(
+     pg_temp.fija(pg_temp.ei(:'tea'), '{"labels": false}'),
+     pg_temp.auto(jsonb_build_array(pg_temp.ei(:'bread'), pg_temp.ei(:'ham')), '{"labels": false, "fallback": "https://example.com/marca.jpg"}')), 18);
+select pg_temp.muestra(public._slide_json(d)) as m_rotulo from public.screen_slides d where kicker_es = 'Sin rótulo' \gset
+select test.login('anon'); set role anon;
+select pg_temp.shown('promos-1') as m_shown, pg_temp.muestra(pg_temp.leida('promos-1', 'A mano')) as m_muestra,
+       coalesce(pg_temp.leida('promos-1', 'A mano') #> '{zones,0,entries,0}', '{}'::jsonb) as m_e0, (pg_temp.leida('promos-1', 'Sin rótulo') is null)::text as m_oculta \gset
+reset role;
+rollback to savepoint a_mano;
+select test.eq(:'m_shown'::text, 'Café de altura | Latte | Desayunos | Solo té | Solo en la B | De prueba | Terraza | De prueba con foto | A mano',
+               'a hand-stored item that is not a uuid does not break the TV''s read: the composition shows by its other windows, the rest as before');
+select test.eq(:'m_e0'::jsonb, '{"item": null, "photo": null, "focus": [50, 50], "zoom": 100}'::jsonb, 'that entry reads as no product and no photo');
+select test.eq(:'m_muestra'::text, 'false false true true · true',
+               'without labels: the bad item cannot show, nor the Latte without a photo of its own or in the menu (the page would draw nothing); '
+               || 'the Latte with its own photo and the photo alone can');
+select test.eq(:'m_rotulo' || ' · ' || :'m_oculta', 'false false · false · true',
+               'a composition whose windows have no labels and no photo at all (fixed or presentation) is not usable and hides from the TV');
 
 -- 7) nothing that existed was written, in all of the above ---------------------------------------------------------------
 select test.eq(pg_temp.writes()::text, :'writes_before', 'no existing table got a single write');
@@ -422,6 +458,16 @@ select test.eq(((:'d'::jsonb) #>> '{zones,1,entries,0,item,sellable}') || ' ' ||
 select test.eq(pg_temp.leida('promos-1', 'De prueba con foto') #> '{zones,0,entries,0}', '{"item": null, "photo": "https://example.com/prueba.jpg", "focus": [50, 50], "zoom": 100}'::jsonb,
                'a deleted product with its own photo reads as a photo alone (no name, no price)');
 reset role;
+-- a window without labels shows its product by the photo the menu gave it (stored by hand inside a savepoint, undone after the read)
+savepoint a_mano_menu;
+insert into public.screen_slides (kind, kicker_es, starts_at, ends_at, template, zones, sort) values
+  ('composicion', 'Sin rótulo', now() - interval '1 hour', now() + interval '30 days', '2-lado', jsonb_build_array(
+     pg_temp.fija(pg_temp.ei(:'latte'), '{"labels": false}'), pg_temp.fija(pg_temp.ei(:'bread', '{"photo": "https://example.com/pan.jpg"}'), '{"labels": false}')), 18);
+select test.login('anon'); set role anon;
+select pg_temp.muestra(pg_temp.leida('promos-1', 'Sin rótulo')) as m_menu \gset
+reset role;
+rollback to savepoint a_mano_menu;
+select test.eq(:'m_menu'::text, 'true false · true', 'without labels, the Latte now shows by the photo the menu gave it; the bread at price 0 still cannot, even with its own photo');
 update public.menu_items set available = true where id = :'tea';
 update public.menu_items set price_crc = -1 where id = :'bread';
 update public.menu_items set name = '   ' where id = :'latte';

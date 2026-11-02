@@ -270,7 +270,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   /* times in ms; only the tests and the demonstration shorten them (window.PANTALLA_TEST). pagina, promoCada and
      promoSeg: 0 = the TV's settings; zona: ms per declared second of a zone's presentation; fundido: the dissolve
      between a zone's photos (as on Screen B) */
-  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 1000, pagina: 0, copiaMax: 3 * 86400000, limite: 12000, promoCada: 0, promoSeg: 0,
+  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 1000, pagina: 0, copiaMax: 3 * 86400000, limite: 12000, reintento: 60000, promoCada: 0, promoSeg: 0,
             zona: 1000, fundido: 1000 };
   try {
     var over = window.PANTALLA_TEST || {};
@@ -407,6 +407,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   var menu = null;                   /* [{es, en, items:[{es, en, precio, agotado}]}] */
   var deCopia = false;               /* the names on screen come from this TV's copy: no prices */
   var okPerf = null, okReloj = null; /* when the last good read STARTED: monotonic clock and wall clock */
+  var okPerfDatos = null, okRelojDatos = null; /* the same for the last good pantalla_datos read (the slides' prices) */
   var conEs = true, leyendo = false, leyendoDesde = 0, ultimoIntento = -1e12, lecturaN = 0, otraVez = false;
   var dudoso = false, dudaN = 0;     /* after a pause or a resume: no price until a read that started after it */
   var info = { estado: 'sin-verificar', maquetas: 0, categorias: 'todas' };
@@ -484,7 +485,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     if (!TV_OK) return null;
     return pedir(CFG.url + '/rest/v1/rpc/pantalla_datos?p_tv=' + encodeURIComponent(TV));
   }
-  function usarDatos(r) {
+  function usarDatos(r, p0, r0) {
     if (!r) return;
     if (r.ok && r.body && typeof r.body === 'object') {
       var b = r.body, t = Date.parse(b.now);
@@ -492,7 +493,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       if (b.ok === true && b.tv && typeof b.tv === 'object') {
         apagadaDueno = false;
         if (b.tv.kind && b.tv.kind !== 'menu') { promo.datos = []; fijarFila(null, 'otra-clase'); }
-        else { promo.datos = normalizarPromos(b.slides); precargar(); fijarFila(b.tv, null); }
+        else { promo.datos = normalizarPromos(b.slides); precargar(); fijarFila(b.tv, null); if (p0 != null) { okPerfDatos = p0; okRelojDatos = r0; } }
       } else if (b.ok === false && b.error === 'tv_apagada') { apagadaDueno = true; promo.datos = []; fijarFila(null, 'tv-apagada'); try { localStorage.removeItem(COPIA); } catch (e) {} }
       else if (b.ok === false && b.error === 'unknown_tv') { apagadaDueno = false; promo.datos = []; fijarFila(null, 'tv-desconocida'); }
     } else if (r.status === 404 || r.status === 400) { apagadaDueno = false; promo.datos = []; fijarFila(null, 'sin-funcion'); }   /* migration 0036 not applied */
@@ -530,6 +531,19 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     var e = edad();
     return e <= T.fresco ? 'al-dia' : e <= T.vencido ? 'por-confirmar' : 'sin-verificar';
   }
+  /* the slides' prices come with the pantalla_datos read, which can fail while the menu read goes on (or the other
+     way round): a promotion is as fresh as the OLDER of the two reads, so an old price never passes as current */
+  function edadDatos() {
+    if (okPerfDatos === null) return Infinity;
+    var a = performance.now() - okPerfDatos, b = Date.now() - okRelojDatos;
+    return Math.max(a, b >= 0 ? b : 0);
+  }
+  function estadoPromos() {
+    var st = estado();
+    if (st === 'sin-verificar') return st;
+    var e = edadDatos(), sd = e <= T.fresco ? 'al-dia' : e <= T.vencido ? 'por-confirmar' : 'sin-verificar';
+    return sd === 'sin-verificar' || st === 'sin-verificar' ? 'sin-verificar' : (sd === 'por-confirmar' || st === 'por-confirmar') ? 'por-confirmar' : 'al-dia';
+  }
   function asentar(p) { return p.then(function (v) { return { ok: true, v: v }; }, function (e) { return { ok: false, e: e }; }); }
 
   /* both reads at once; prices count from the moment they STARTED */
@@ -542,7 +556,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     var rm = await a, rd = await b;
     if (n !== lecturaN) return;                     /* a newer read took over from this stuck one */
     try {
-      if (rd.ok) usarDatos(rd.v);
+      if (rd.ok) usarDatos(rd.v, p0, r0);
       if (rm.ok) {
         if (!Array.isArray(rm.v) || !rm.v.length) throw new Error('menú vacío');
         var m = limpiar(rm.v);
@@ -690,7 +704,8 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
      item never follows a repeated title); otherwise it moves whole to the next column. A block taller than a whole
      column is cut at the bottom of the column, as many items as fit. So every column starts with a title and no
      column keeps a hole that the next piece could have filled. */
-  function llenar(m, M, g, rangos) {
+  function llenar(m, M, g, rangos, H) {
+    H = H || M;
     var cs = [], cur = { partes: [], alto: 0 }, cabe = true;
     function cerrar() { cs.push(cur); cur = { partes: [], alto: 0 }; }
     function poner(ci, a, k) { var alto = altoParte(m.bl[ci], a, k); cur.partes.push({ ci: ci, a: a, b: k, cont: a > 0, alto: alto }); cur.alto += (cur.alto ? g : 0) + alto; }
@@ -706,6 +721,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
           if (k - a >= 2 && n - k >= 2) { poner(r.ci, a, k); cerrar(); a = k; continue; }   /* a clean cut */
           cerrar(); continue;                                         /* it moves whole to the next column */
         }
+        if (M < H && altoParte(b, a, n) <= H) { poner(r.ci, a, n); cerrar(); break; }   /* balancing: a block that fits the real column goes whole over the limit, never in pieces */
         if (k <= a) { k = a + 1; if (altoParte(b, a, k) > M) cabe = false; }   /* taller than a column: as many as fit, one at least */
         poner(r.ci, a, k); cerrar(); a = k;
       }
@@ -726,6 +742,27 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     pags = pags.map(function (pg) { return equilibrar(pg, m, H, g, cols); });
     return { pags: pags, cabe: todo.cabe && m.ancho, H: H, g: g, f: m.f, bl: m.bl };
   }
+  /* two neighbouring columns joined by a cut of the same block: the cut moves to where the two columns end closest
+     to each other (both still under the limit, two items or more on each side), so the slack of a first-fit filling
+     does not all land in the second column */
+  function emparejar(pg, m, g, lim) {
+    for (var j = 0; j + 1 < pg.length; j++) {
+      var c1 = pg[j], c2 = pg[j + 1];
+      if (!c1.partes.length || !c2.partes.length) continue;
+      var p1 = c1.partes[c1.partes.length - 1], p2 = c2.partes[0];
+      if (!(p2.cont && p1.ci === p2.ci && p1.b === p2.a)) continue;
+      var b = m.bl[p1.ci], base1 = c1.alto - p1.alto, base2 = c2.alto - p2.alto, mejor = p1.b, dif = Math.abs(c1.alto - c2.alto);
+      for (var t = p1.a + 2; t <= p2.b - 2; t++) {
+        var h1 = base1 + altoParte(b, p1.a, t), h2 = base2 + altoParte(b, t, p2.b);
+        if (h1 > lim + 0.5 || h2 > lim + 0.5) continue;
+        if (Math.abs(h1 - h2) < dif - 0.5) { dif = Math.abs(h1 - h2); mejor = t; }
+      }
+      if (mejor !== p1.b) {
+        p1.b = mejor; p1.alto = altoParte(b, p1.a, mejor); c1.alto = base1 + p1.alto;
+        p2.a = mejor; p2.alto = altoParte(b, mejor, p2.b); c2.alto = base2 + p2.alto;
+      }
+    }
+  }
   function equilibrar(pg, m, H, g, cols) {
     var rangos = [];
     pg.forEach(function (col) { col.partes.forEach(function (p) {
@@ -735,15 +772,19 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     var lim = H, piezas = function (r) { var n = 0; r.cols.forEach(function (c) { n += c.partes.length; }); return n; };
     if (rangos.length) {
       var base = llenar(m, H, g, rangos), np = piezas(base);
-      var cabe = function (M) { var r = llenar(m, M, g, rangos); return r.cabe && r.cols.length <= cols && piezas(r) <= np; };
+      var cabe = function (M) { var r = llenar(m, M, g, rangos, H); return r.cabe && r.cols.length <= cols && piezas(r) <= np; };
       if (base.cabe && base.cols.length <= cols) {
         var lo = 0, hi = H;
         for (var t = 0; t < 14 && hi - lo > 0.25; t++) { var mid = (lo + hi) / 2; if (cabe(mid)) hi = mid; else lo = mid; }
-        lim = hi; pg = llenar(m, lim, g, rangos).cols;
+        lim = hi; pg = llenar(m, lim, g, rangos, H).cols;
+        emparejar(pg, m, g, lim);
       }
     }
     while (pg.length < cols) pg.push({ partes: [], alto: 0 });
-    pg.forEach(function (col) { col.limite = lim; col.extra = col.partes.length > 1 ? Math.max(0, Math.min(1.2 * m.f, (H - col.alto) / (col.partes.length - 1))) : 0; });
+    /* limite: the height the balancing found; tope: what the tallest column reaches (a whole block that fits the real
+       column goes over the limit rather than in pieces) */
+    var tope = lim; pg.forEach(function (col) { tope = Math.max(tope, col.alto); });
+    pg.forEach(function (col) { col.limite = lim; col.tope = tope; col.extra = col.partes.length > 1 ? Math.max(0, Math.min(1.2 * m.f, (H - col.alto) / (col.partes.length - 1))) : 0; });
     return pg;
   }
 
@@ -762,7 +803,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     var base = AJ.distancia * AJ.escala / 100;                 /* cm of capital letter at 1 cm per metre */
     var min = 0.8 * base, meta = 1.0 * base, max = 1.25 * base;
     var fpx = function (cap) { return cap * pxCm / r; };
-    var opciones = altoE > anchoE ? [1, 2] : [3, 4, 5];
+    var opciones = altoE > anchoE ? [1, 2] : [3, 4, 5, 2];   /* 2 columns last: only when the narrower ones fail or page more */
     var mejor = null, cache = {};
     function plan(cap, cols) { var k = cols + '|' + cap.toFixed(4); if (!cache[k]) cache[k] = empacar(medir(fpx(cap), cols, conPrecios), cols); return cache[k]; }
     function n(cap, cols) { var p = plan(cap, cols); return p.pags.length + (p.cabe ? 0 : 1000); }
@@ -807,7 +848,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       var out = []; pg.forEach(function (col) { col.partes.forEach(function (p) { out.push({ categoria: menu[p.ci].es, desde: p.a, hasta: p.b, cont: p.cont }); }); }); return out;
     });
     info.maqueta = { alto: P.H, gap: P.g, paginas: P.pags.map(function (pg) {
-      return pg.map(function (col) { return { alto: col.alto, limite: col.limite, extra: col.extra || 0, bloques: col.partes.map(function (p) {
+      return pg.map(function (col) { return { alto: col.alto, limite: col.limite, tope: col.tope, extra: col.extra || 0, bloques: col.partes.map(function (p) {
         var b = P.bl[p.ci];
         return { categoria: menu[p.ci].es, desde: p.a, hasta: p.b, n: b.items.length, cont: p.cont, alto: p.alto, titulo: b.tit, tituloCont: b.titCont, alturas: b.items.slice(p.a, p.b) };
       }) }; });
@@ -846,7 +887,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   function pintar(forzar) {
     aplicarLook();
     var st = estado(), conPrecios = st !== 'sin-verificar', off = !encendida(), hay = !!(menu && menu.length);
-    promoRevisar(st, off);
+    promoRevisar(estadoPromos(), off);
     var f = JSON.stringify([st, off, anchoE, altoE, AJ.pulgadas, AJ.distancia, AJ.escala, AJ.densidad, AJ.ingles, AJ.layout, fuentesN, hay && menu.map(function (c) {
       return [c.es, c.en, c.items.map(function (i) { return [i.es, i.en, i.agotado, conPrecios ? i.precio : 0]; })];
     })]);
@@ -936,7 +977,8 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
         var fx = Array.isArray(e.focus) ? entero(e.focus[0], 0, 100, 50) : 50, fy = Array.isArray(e.focus) ? entero(e.focus[1], 0, 100, 50) : 50;
         var zoom = entero(e.zoom, 100, 200, 100);
         var en = { item: it, foto: f, focus: [fx === null ? 50 : fx, fy === null ? 50 : fy], zoom: zoom === null ? 100 : zoom,
-                   ok: e.item != null && typeof e.item === 'object' ? !!it : !!f };
+                   /* a product shows with its labels or its photo (its own or the menu's); without both there is nothing to draw */
+                   ok: e.item != null && typeof e.item === 'object' ? !!it && (zona.labels || !!(f || it.foto)) : !!f };
         zona.entradas.push(en);
         if (en.ok) alguna = true;
       });
@@ -1050,14 +1092,29 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
      whether it loaded (ok true), failed (ok false) or is still on its way (null): a zone switches to a photo only
      once it is here, and skips one that failed */
   var precargas = {};
+  /* a photo that failed and then answered on a retry: the zones on screen decide again what to show (a fixed zone,
+     or a presentation left with one entry, has no clock that would notice it by itself) */
+  function fotoVolvio() {
+    var zn = document.querySelectorAll('.zona');
+    for (var i = 0; i < zn.length; i++) {
+      var z = zn[i]._z;
+      if (!z || !z.nodo || !z.nodo.isConnected) continue;
+      if (z.cambiando) z.pendiente = true; else aplicarCuadro(z, cuadroDeseado(z), 'fundido');
+    }
+  }
   function cargar(u) {
     var r = precargas[u];
-    if (r) return r;
-    r = precargas[u] = { im: new Image(), ok: null, avisar: [] };
+    /* a photo that failed is asked for again on a later read (one bad answer never hides an entry for the day) */
+    if (r && !(r.ok === false && performance.now() - r.desde > T.reintento)) return r;
+    var era = !!r;   /* a retry of a photo that failed */
+    r = precargas[u] = { im: new Image(), ok: null, avisar: [], desde: performance.now() };
     r.im.referrerPolicy = 'no-referrer';
-    r.im.onload = function () { r.ok = true; r.avisar.splice(0).forEach(function (f) { try { f(true); } catch (e) {} }); };
-    r.im.onerror = function () { r.ok = false; r.avisar.splice(0).forEach(function (f) { try { f(false); } catch (e) {} }); };
+    r.im.onload = function () { if (r.ok !== null) return; r.ok = true; r.avisar.splice(0).forEach(function (f) { try { f(true); } catch (e) {} }); if (era) fotoVolvio(); };
+    r.im.onerror = function () { if (r.ok !== null) return; r.ok = false; r.avisar.splice(0).forEach(function (f) { try { f(false); } catch (e) {} }); };
     r.im.src = u;
+    /* a request that neither answers nor fails within the page's own limit counts as failed: a zone waiting for
+       it goes on (the product keeps its name, a photo-only entry is skipped) and the reads reach it again */
+    setTimeout(function () { if (r.ok === null) r.im.onerror(); }, T.limite);
     return r;
   }
   /* calls f(ok) once the photo is here or has failed (at once if already known) */
@@ -1352,7 +1409,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       if (!ok && c.tipo === 'respaldo') c = { tipo: 'marca', i: -1, foto: null };
       var entra = z.capas[1 - z.frente], sale = z.capas[z.frente];
       llenarCapa(entra, c, z);
-      ajustarZona(z);
+      ajustarZona(z, entra);
       cuandoPinte(entra, function () {
         if (z.gen !== gen || !z.nodo.isConnected) return;
         var corte = modo === 'corte';
@@ -1480,17 +1537,21 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       zonas.push({ grande: z.grande, k: z.k, cabe: z.cabe });
     }
     var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100, pad = Math.round(0.03 * Math.min(anchoE, altoE));
-    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick');
-    sup.style.fontSize = (FACT.s * base * pxCm / proporcion(sup)) + 'px';
+    /* the brand line (top left) and the kicker (top right) share the top edge: on a small TV read from close (the
+       café's 32") they do not fit side by side at their sizes, so both shrink together, down to 0.6, before anything
+       goes; then the brand line goes first (the TV's frame says it anyway) and the kicker, the slot's name, stays */
+    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick'), escalas = [1, 0.85, 0.72, 0.6], e;
     sup.style.display = ''; sup.style.left = pad + 'px'; sup.style.top = pad + 'px';
-    var ancho = sup.scrollWidth;
-    if (kk) {
-      kk.style.fontSize = (FACT.k * base * pxCm / proporcion(kk)) + 'px';
-      kk.style.display = ''; kk.style.right = pad + 'px'; kk.style.top = pad + 'px';
-      ancho += kk.scrollWidth + pad;
-      if (ancho > anchoE - 2 * pad) kk.style.display = 'none';
+    if (kk) { kk.style.display = ''; kk.style.right = pad + 'px'; kk.style.top = pad + 'px'; }
+    for (e = 0; e < escalas.length; e++) {
+      sup.style.fontSize = (FACT.s * escalas[e] * base * pxCm / proporcion(sup)) + 'px';
+      if (kk) kk.style.fontSize = (FACT.k * escalas[e] * base * pxCm / proporcion(kk)) + 'px';
+      if (sup.scrollWidth + (kk ? kk.scrollWidth + pad : 0) <= anchoE - 2 * pad) break;
     }
-    if (sup.scrollWidth > anchoE - 2 * pad) sup.style.display = 'none';
+    if (e === escalas.length) {
+      sup.style.display = 'none';
+      if (kk && kk.scrollWidth > anchoE - 2 * pad) kk.style.display = 'none';
+    }
     var kmin = 1, cabe = true;
     zonas.forEach(function (q) { kmin = Math.min(kmin, q.k); cabe = cabe && q.cabe; });
     medidas = { pxPorCm: pxCm, base: base, titulo: null, k: kmin, envuelto: false, cabe: cabe, qrCm: null, qrMinCm: null, qrModulos: null, qrPequeno: false,
@@ -1498,9 +1559,11 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   }
   /* a zone's letters: the name 1.0 cm/m in a large zone (0.8 in a small one), the price 1.2 x the name; when the
      labels or the brand design do not fit the zone, everything in it shrinks together (never past 35 %) */
-  function ajustarZona(z) {
+  /* the letters of ONE layer (the one being drawn, by default the front one): the outgoing layer, still laid out while
+     it fades, must not make a short name small for its whole turn */
+  function ajustarZona(z, capa) {
     var f = z.grande ? ZFACT.grande : ZFACT.pequena, pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100;
-    var zn = z.nodo, zh = zn.clientHeight || 1;
+    var zn = capa || z.capas[z.frente], zh = z.nodo.clientHeight || 1;
     function aplicar() {
       var ns = zn.querySelectorAll('[data-r]');
       for (var i = 0; i < ns.length; i++) {
@@ -1634,7 +1697,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   }
   function promoTexto() {
     if (AJ.promo !== 'intercalar') return 'no';
-    var vig = promoCandidatas(info.estado), s = 'intercalar · cada ' + Math.round(promo.cadaMs / 1000) + ' s · ' + Math.round(promo.segMs / 1000) + ' s cada una · ' +
+    var vig = promoCandidatas(estadoPromos()), s = 'intercalar · cada ' + Math.round(promo.cadaMs / 1000) + ' s · ' + Math.round(promo.segMs / 1000) + ' s cada una · ' +
         promo.datos.length + ' leídas · ' + vig.length + ' vigentes ahora';
     if (promo.actual) s += ' · en pantalla: ' + promo.actual.kind + ' ' + promo.actual.id.slice(0, 8);
     else if (!vig.length) s += ' · sin diapositivas vigentes: no interrumpe';
@@ -1727,7 +1790,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   /* ---------- start ---------- */
   window.PANTALLA = {
     info: function () {
-      var vig = promoCandidatas(info.estado);
+      var vig = promoCandidatas(estadoPromos());
       return JSON.parse(JSON.stringify(Object.assign({}, info, {
         pagina: pagIx, ajustes: AJ, origen: origen, fuente: filaDe || 'direccion', razon: razon, tiempos: T, paginaMs: paginaMs,
         horaCR: hhmm(minutoCR(ahoraMs())), horaDe: srv ? 'servidor' : 'aparato', salto: SALTO, malos: malos, malosBase: malosBase,

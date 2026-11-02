@@ -34,7 +34,8 @@ agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
 5. `release-check.sql`: `migrations_missing` = `[]` (serie hasta la 37), `functions_missing` = `[]`, `anon_can_run`
    sin cambios (solo `pantalla_datos` nueva desde la 0036), `storage_policies_missing` = `[]`.
 6. `production-snapshot.sql`: `functions_unknown` = `[]`, `functions_changed` = `[]`, `functions_by_version` con
-   `0036` = 13 y `0037` = 8, `tables_missing` = `[]`. Hasta publicar, las TV siguen igual: las páginas v1 ignoran los
+   `0036` = 7 y `0037` = 8 (la 0037 vuelve a crear seis funciones de la 0036, que la huella cuenta bajo la 0037),
+   `tables_missing` = `[]`. Hasta publicar, las TV siguen igual: las páginas v1 ignoran los
    campos nuevos y no muestran composiciones.
 7. Releases → `sitio-AAAA-MM-DD` sobre **gh-pages**; luego `vAAAA.MM.DD-1` sobre la rama con el commit de D-064;
    «Tests» en verde sobre la etiqueta; **Publish website** desde la etiqueta con `PUBLICAR`; `version.json` muestra
@@ -49,7 +50,8 @@ agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
 
 **Vuelta atrás**
 - Las páginas: Publish website desde **Tags → `v2026.11.02-1`**. La base se queda en la 0037: las páginas v1 funcionan con
-  ella (los campos nuevos sobran y una composición se ignora).
+  ella (los campos nuevos sobran y las dos TV ignoran una composición; el panel v1 la lista con rótulos vacíos y la
+  cuenta como «en pantalla»: antes de volver a la v1, pause o retire las composiciones desde el panel v2).
 - La base (solo por una falla de una función de la 0037): `supabase/tools/reversion-0037.sql` completo. Vuelve las
   funciones a la 0036 y deja las columnas y las filas; las composiciones guardadas quedan, sin mostrarse, hasta volver a
   aplicar la 0037.
@@ -207,7 +209,8 @@ letra y las pruebas de aceptación.
   - Quita las funciones y deja la regla de Storage como en la 0033; las tablas quedan con lo que tengan, sin uso.
   - La Pantalla A sigue funcionando con los ajustes de su dirección (`?tv=menu-1&pulgadas=55&distancia=3`).
   - La Pantalla B muestra solo la marca.
-  - Se niega si hay una migración posterior aplicada, por ejemplo la de descuentos (0037).
+  - Se niega si hay una migración posterior aplicada: con la 0037 (Pantallas v2) aplicada, primero
+    `supabase/tools/reversion-0037.sql` y después esta, en ese orden (así lo hacen las cadenas de las pruebas).
 - **Detenga y avise si:**
   - «Tests» queda en rojo sobre la etiqueta;
   - `version.json` muestra otro commit;

@@ -388,7 +388,7 @@
     $('codeErr').textContent = '';
     refreshAuth();
   });
-  async function signOut() { shown = ''; forget(); await db.auth.signOut({ scope: 'local' }); refreshAuth(); }
+  async function signOut() { shown = ''; await dropUploaded(); forget(); await db.auth.signOut({ scope: 'local' }); refreshAuth(); }
   $('outBtn').addEventListener('click', signOut);
   $('noOut').addEventListener('click', signOut);
   $('noRetry').addEventListener('click', function () { shown = ''; refreshAuth(); });
@@ -485,7 +485,7 @@
   /* the menu TV's v2 choices (0037): how the menu is laid out, how dense, where the English goes, and the promotions */
   var LAYOUT = [['auto', 'Automática: una sola pantalla si la letra alcanza; si no, páginas'],
                 ['una-pantalla', 'Una sola pantalla (si la letra no alcanza, avisa en el diagnóstico y pagina)'],
-                ['paginas', 'Páginas: las menos posibles, con la letra más grande']];
+                ['paginas', 'Páginas: las menos posibles, con la letra más grande (la regla de siempre; hoy da la misma pizarra que Automática)']];
   var DENSITY = [['normal', 'Normal'], ['compacta', 'Compacta: más líneas, menos aire']];
   var ENGLISH = [['debajo', 'Debajo del español'], ['en-linea', 'En la misma línea, en gris'], ['no', 'No se muestra: solo español']];
   var PROMO = [['no', 'No: el menú nunca se interrumpe'], ['intercalar', 'Intercalar las diapositivas asignadas a esta TV']];
@@ -882,7 +882,7 @@
       if (r.data && (r.data.error === 'not_found' || r.data.error === 'retired')) await loadState();
       return;
     }
-    if (ED && ED.id === s.id && estado === 'retirada') closeEditor();
+    if (ED && ED.id === s.id && estado === 'retirada') { await dropUploaded(); closeEditor(); }
     await loadState();
     toast('Guardado');
   }
@@ -939,7 +939,7 @@
   }
   function openEditor(s, kind) {
     var t = Math.floor(nowMs() / 60000) * 60000;
-    if (ED) closeEdPreview();
+    if (ED) { closeEdPreview(); dropUploaded(); }   /* photos uploaded for the preview of the editor being replaced */
     if (s) {
       var it = itemOf(s.menu_item_id, s.menu_item_id ? (s.item || {}) : null);
       ED = { id: s.id, kind: s.kind, item: it, link: s.link || 'resena', photoMode: s.photo_url ? 'propia' : (s.kind === 'producto' ? 'menu' : 'ninguna'),
@@ -1186,6 +1186,15 @@
   }
   function setTemplate(t) {
     if (!tplOf(t) || !ED) return;
+    var old = ED.template, n = places(t) || 1;
+    if (old !== t && ED.zones.length > n) {
+      /* the places that keep their name (Izquierda, Derecha…) keep their zone; the rest go to the stash in order */
+      var names = ED.zones.map(function (z, i) { return placeName(old, i); }), taken = [], kept = [];
+      for (var j = 0; j < n; j++) { var k = names.indexOf(placeName(t, j)); if (k >= 0 && taken.indexOf(k) < 0) { taken.push(k); kept[j] = ED.zones[k]; } }
+      for (var j2 = 0; j2 < n; j2++) if (!kept[j2]) { for (var k2 = 0; k2 < ED.zones.length; k2++) if (taken.indexOf(k2) < 0) { taken.push(k2); kept[j2] = ED.zones[k2]; break; } }
+      var rest = ED.zones.filter(function (z, i) { return taken.indexOf(i) < 0; });
+      ED.zones = kept; ED.stash = rest.concat(ED.stash);
+    }
     ED.template = t; fitZones(); renderCompo(); edChanged();
   }
   function rerenderZone(i) {
@@ -1217,7 +1226,7 @@
     var seconds = h('input', { id: 'edZ-' + i + '-seconds', type: 'number', inputmode: 'numeric', min: '4', max: '60', step: '1', value: String(z.seconds) });
     seconds.addEventListener('input', function () { z.seconds = seconds.value; edChanged(); });
     var labels = h('input', { type: 'checkbox', id: 'edZ-' + i + '-labels', checked: z.labels });
-    labels.addEventListener('change', function () { z.labels = labels.checked; edChanged(); });
+    labels.addEventListener('change', function () { z.labels = labels.checked; rerenderZone(i); });
     sec.appendChild(h('div', { class: 'row' }, [h('div', {}, [h('span', { class: 'lbl', text: 'Modo' }), modes]),
       h('div', { hidden: z.mode !== 'auto' }, [h('label', { for: seconds.id }, ['Cambia cada ', h('span', { class: 'range', text: '(4 a 60 s)' })]), seconds])]));
     sec.appendChild(h('label', { class: 'line' }, [labels, 'Nombres y precios del menú (solo en las entradas con producto; siempre al día)']));
@@ -1325,7 +1334,17 @@
       var img = h('img', { src: src, alt: '', draggable: 'false' });
       img.addEventListener('error', function () { img.remove(); fr.textContent = 'la foto no carga'; });
       fr.appendChild(img); fr.appendChild(h('i', { class: 'dot' }));
-    } else fr.textContent = e.item ? 'sin foto: el nombre sobre el fondo de la marca' : 'sin foto';
+      /* the focus point from the keyboard too: arrows move it 5 %, with Shift 1 % */
+      fr.setAttribute('tabindex', '0'); fr.setAttribute('role', 'img');
+      fr.setAttribute('aria-label', 'Punto de enfoque: muévalo con las flechas (con Mayús, de 1 en 1)');
+      fr.addEventListener('keydown', function (ev) {
+        var d = ev.shiftKey ? 1 : 5, k = ev.key, f = e.focus || [50, 50];
+        if (k === 'ArrowLeft') f = [f[0] - d, f[1]]; else if (k === 'ArrowRight') f = [f[0] + d, f[1]];
+        else if (k === 'ArrowUp') f = [f[0], f[1] - d]; else if (k === 'ArrowDown') f = [f[0], f[1] + d]; else return;
+        e.focus = [clampN(f[0], 0, 100, 50), clampN(f[1], 0, 100, 50)];
+        applyFrame(fr, e); edChanged(); ev.preventDefault();
+      });
+    } else fr.textContent = e.item ? (z.labels !== false ? 'sin foto: el nombre sobre el fondo de la marca' : 'sin foto ni nombre: no se muestra; se verá el respaldo o la marca') : 'sin foto';
     var down = false;
     function at(ev) {
       var r = fr.getBoundingClientRect(); if (!r.width || !r.height) return;
@@ -1357,7 +1376,13 @@
     var sel = $('edPvTv'), tv = S.screens.filter(function (x) { return x.id === sel.value; })[0] || promosTvs()[0] || { id: 'promos-1', kind: 'promos', name: 'TV de promociones', turn: 'no' };
     var vertical = tv.turn === 'derecha' || tv.turn === 'izquierda';
     var pv = h('div', { class: 'pv' + (vertical ? ' vertical' : ''), 'data-turn': tv.turn || 'no' });
-    var fr = h('iframe', { src: tvPath(tv) + '&preview=1', title: 'Vista previa en ' + tv.name, tabindex: '-1' });
+    /* the real page reads nothing in preview mode: the TV's size, distance, scale, turn and look go in the address, so the
+       letters, the places and the colours are the ones that TV will show */
+    var q = '';
+    [['pulgadas', tv.inches], ['distancia', tv.distance_m], ['escala', tv.scale_pct], ['giro', tv.turn], ['look', tv.look]].forEach(function (kv) {
+      if (kv[1] !== undefined && kv[1] !== null && kv[1] !== '') q += '&' + kv[0] + '=' + encodeURIComponent(String(kv[1]));
+    });
+    var fr = h('iframe', { src: tvPath(tv) + '&preview=1' + q, title: 'Vista previa en ' + tv.name, tabindex: '-1' });
     fr.addEventListener('load', previewPost);
     pv.appendChild(fr); box.appendChild(pv);
     fitPreview(pv);
@@ -1400,7 +1425,7 @@
         var entries = z.entries.map(function (e) {
           return { item: e.item && !e.lost ? itemJson(e.item) : null, photo: entryPhoto(e), focus: e.focus.slice(), zoom: e.zoom };
         });
-        return { mode: z.mode, seconds: Number(z.seconds) || 8, labels: !!z.labels, fallback: z.fbUploaded || z.fallback || null, entries: entries,
+        return { mode: z.mode, seconds: z.mode === 'fija' ? 8 : Number(z.seconds) || 8, labels: !!z.labels, fallback: z.fbUploaded || z.fallback || null, entries: entries,
                  showable: z.entries.some(entryShowable) };
       });
       s.usable = s.zones.some(function (z) { return z.showable; });
@@ -1485,7 +1510,7 @@
       p.template = ED.template;
       p.dwell_seconds = $('edDwell').value.trim();            /* empty: 60 on the TV */
       p.zones = ED.zones.map(function (z) {
-        return { mode: z.mode, seconds: Number(z.seconds) || 8, labels: !!z.labels, fallback: z.fbUploaded || z.fallback || '',
+        return { mode: z.mode, seconds: z.mode === 'fija' ? 8 : Number(z.seconds) || 8, labels: !!z.labels, fallback: z.fbUploaded || z.fallback || '',
                  entries: z.entries.map(function (e) {
                    return { item: e.item && !e.lost ? e.item.id : null, photo: entryPhoto(e), focus: [e.focus[0], e.focus[1]], zoom: e.zoom };
                  }) };
@@ -1590,7 +1615,7 @@
       cafesFrios: cafesFrios,
       cafesCalientes: firstOf(firstOf(calientes, /caf[eé] con leche/i), /^latte$/i),
       batidos: items.filter(function (it) { return catIs(it, /smoothie|batido|licuado/i); }),
-      bebidasFrias: items.filter(function (it) { return catIs(it, /other drinks|drinks|bebidas|refrescos/i); }).concat(cafesFrios)
+      bebidasFrias: cafesFrios.concat(items.filter(function (it) { return catIs(it, /other drinks|drinks|bebidas|refrescos/i); }))
     };
   }
   function zoneOfItems(list) {

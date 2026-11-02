@@ -197,7 +197,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
   /* times in ms; only the tests shorten them (window.PANTALLA_TEST). zona: ms per declared second of a zone's
      presentation; fundido: the dissolve between a zone's photos; permanencia: how long a composition stays when it
      shares the TV (0 = its own dwell_seconds, 60 s by default) */
-  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 1000, limite: 12000, diapositiva: 0, zona: 1000, fundido: 1000, permanencia: 0 };
+  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 1000, limite: 12000, reintento: 60000, diapositiva: 0, zona: 1000, fundido: 1000, permanencia: 0 };
   try {
     var over = window.PANTALLA_TEST || {};
     Object.keys(over).forEach(function (k) { if (k in T && Number(over[k]) > 0) T[k] = Number(over[k]); });
@@ -366,7 +366,8 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
         var fx = Array.isArray(e.focus) ? entero(e.focus[0], 0, 100, 50) : 50, fy = Array.isArray(e.focus) ? entero(e.focus[1], 0, 100, 50) : 50;
         var zoom = entero(e.zoom, 100, 200, 100);
         var en = { item: it, foto: f, focus: [fx === null ? 50 : fx, fy === null ? 50 : fy], zoom: zoom === null ? 100 : zoom,
-                   ok: e.item != null && typeof e.item === 'object' ? !!it : !!f };
+                   /* a product shows with its labels or its photo (its own or the menu's); without both there is nothing to draw */
+                   ok: e.item != null && typeof e.item === 'object' ? !!it && (zona.labels || !!(f || it.foto)) : !!f };
         zona.entradas.push(en);
         if (en.ok) alguna = true;
       });
@@ -495,14 +496,29 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
      whether it loaded (ok true), failed (ok false) or is still on its way (null): a zone switches to a photo only
      once it is here, and skips one that failed */
   var precargas = {};
+  /* a photo that failed and then answered on a retry: the zones on screen decide again what to show (a fixed zone,
+     or a presentation left with one entry, has no clock that would notice it by itself) */
+  function fotoVolvio() {
+    var zn = document.querySelectorAll('.zona');
+    for (var i = 0; i < zn.length; i++) {
+      var z = zn[i]._z;
+      if (!z || !z.nodo || !z.nodo.isConnected) continue;
+      if (z.cambiando) z.pendiente = true; else aplicarCuadro(z, cuadroDeseado(z), 'fundido');
+    }
+  }
   function cargar(u) {
     var r = precargas[u];
-    if (r) return r;
-    r = precargas[u] = { im: new Image(), ok: null, avisar: [] };
+    /* a photo that failed is asked for again on a later read (one bad answer never hides an entry for the day) */
+    if (r && !(r.ok === false && performance.now() - r.desde > T.reintento)) return r;
+    var era = !!r;   /* a retry of a photo that failed */
+    r = precargas[u] = { im: new Image(), ok: null, avisar: [], desde: performance.now() };
     r.im.referrerPolicy = 'no-referrer';
-    r.im.onload = function () { r.ok = true; r.avisar.splice(0).forEach(function (f) { try { f(true); } catch (e) {} }); };
-    r.im.onerror = function () { r.ok = false; r.avisar.splice(0).forEach(function (f) { try { f(false); } catch (e) {} }); };
+    r.im.onload = function () { if (r.ok !== null) return; r.ok = true; r.avisar.splice(0).forEach(function (f) { try { f(true); } catch (e) {} }); if (era) fotoVolvio(); };
+    r.im.onerror = function () { if (r.ok !== null) return; r.ok = false; r.avisar.splice(0).forEach(function (f) { try { f(false); } catch (e) {} }); };
     r.im.src = u;
+    /* a request that neither answers nor fails within the page's own limit counts as failed: a zone waiting for
+       it goes on (the product keeps its name, a photo-only entry is skipped) and the reads reach it again */
+    setTimeout(function () { if (r.ok === null) r.im.onerror(); }, T.limite);
     return r;
   }
   /* calls f(ok) once the photo is here or has failed (at once if already known) */
@@ -825,7 +841,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
       if (!ok && c.tipo === 'respaldo') c = { tipo: 'marca', i: -1, foto: null };
       var entra = z.capas[1 - z.frente], sale = z.capas[z.frente];
       llenarCapa(entra, c, z);
-      ajustarZona(z);
+      ajustarZona(z, entra);
       cuandoPinte(entra, function () {
         if (z.gen !== gen || !z.nodo.isConnected) return;
         var corte = modo === 'corte';
@@ -953,17 +969,21 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
       zonas.push({ grande: z.grande, k: z.k, cabe: z.cabe });
     }
     var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100, pad = Math.round(0.03 * Math.min(anchoE, altoE));
-    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick');
-    sup.style.fontSize = (FACT.s * base * pxCm / proporcion(sup)) + 'px';
+    /* the brand line (top left) and the kicker (top right) share the top edge: on a small TV read from close (the
+       café's 32") they do not fit side by side at their sizes, so both shrink together, down to 0.6, before anything
+       goes; then the brand line goes first (the TV's frame says it anyway) and the kicker, the slot's name, stays */
+    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick'), escalas = [1, 0.85, 0.72, 0.6], e;
     sup.style.display = ''; sup.style.left = pad + 'px'; sup.style.top = pad + 'px';
-    var ancho = sup.scrollWidth;
-    if (kk) {
-      kk.style.fontSize = (FACT.k * base * pxCm / proporcion(kk)) + 'px';
-      kk.style.display = ''; kk.style.right = pad + 'px'; kk.style.top = pad + 'px';
-      ancho += kk.scrollWidth + pad;
-      if (ancho > anchoE - 2 * pad) kk.style.display = 'none';
+    if (kk) { kk.style.display = ''; kk.style.right = pad + 'px'; kk.style.top = pad + 'px'; }
+    for (e = 0; e < escalas.length; e++) {
+      sup.style.fontSize = (FACT.s * escalas[e] * base * pxCm / proporcion(sup)) + 'px';
+      if (kk) kk.style.fontSize = (FACT.k * escalas[e] * base * pxCm / proporcion(kk)) + 'px';
+      if (sup.scrollWidth + (kk ? kk.scrollWidth + pad : 0) <= anchoE - 2 * pad) break;
     }
-    if (sup.scrollWidth > anchoE - 2 * pad) sup.style.display = 'none';
+    if (e === escalas.length) {
+      sup.style.display = 'none';
+      if (kk && kk.scrollWidth > anchoE - 2 * pad) kk.style.display = 'none';
+    }
     var kmin = 1, cabe = true;
     zonas.forEach(function (q) { kmin = Math.min(kmin, q.k); cabe = cabe && q.cabe; });
     medidas = { pxPorCm: pxCm, base: base, titulo: null, k: kmin, envuelto: false, cabe: cabe, qrCm: null, qrMinCm: null, qrModulos: null, qrPequeno: false,
@@ -971,9 +991,11 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
   }
   /* a zone's letters: the name 1.0 cm/m in a large zone (0.8 in a small one), the price 1.2 x the name; when the
      labels or the brand design do not fit the zone, everything in it shrinks together (never past 35 %) */
-  function ajustarZona(z) {
+  /* the letters of ONE layer (the one being drawn, by default the front one): the outgoing layer, still laid out while
+     it fades, must not make a short name small for its whole turn */
+  function ajustarZona(z, capa) {
     var f = z.grande ? ZFACT.grande : ZFACT.pequena, pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100;
-    var zn = z.nodo, zh = zn.clientHeight || 1;
+    var zn = capa || z.capas[z.frente], zh = z.nodo.clientHeight || 1;
     function aplicar() {
       var ns = zn.querySelectorAll('[data-r]');
       for (var i = 0; i < ns.length; i++) {

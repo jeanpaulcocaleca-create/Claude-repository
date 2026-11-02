@@ -2517,4 +2517,30 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   its template as the summary (the 0036 text knew titles and products only; the SQL-test builder found the NULL
   summary); the dissolve's clean-up waits for the incoming layer to be fully opaque (found by the browser tests under
   load: a wall-clock clean-up removed the old layer while the new one was at 0.99); the discounts work moves to 0038.
+- **Independent review (read-only, six lenses: security and permissions; prices, availability and freshness; Screen A
+  layout; Screen B compositions; the owner's editor; migration 0037 and its reversal; every finding verified by an
+  independent skeptic who tried to refute it by reproduction): 28 findings, 22 confirmed, 6 rejected. All 22 fixed
+  with tests, except two test improvements left noted (a test applying 0037 over a 0036 database that already holds
+  rows; the snapshot run inside 470 after the reversal). The important ones: Screen A's interlude prices aged with the
+  menu read instead of the pantalla_datos read (high; fixed with `okPerfDatos`/`estadoPromos()`, test B22); a photo
+  request that never answers froze its zone so reads, sold-outs and reprices never reached it (high; `cargar` times
+  out at T.limite, test P26); a failed photo was never retried (medium; retried after T.reintento, the zones woken by
+  `fotoVolvio()`); the balancing cut whole categories into one-item pieces on chosen-category TVs and left half-empty
+  columns (medium; no new cuts, a block that fits the real column goes whole, the cut between two neighbouring columns
+  slides to where they end closest); the landscape two-column option of v1 was gone, so small or far TVs cut words
+  (medium; back as the last option); a zone's letters were fitted on both layers (medium; now on the layer being
+  drawn); the preview frame ignored the TV's size, distance, scale, turn and look (medium; in the address); and nine
+  low ones (canonical uuid form; a null in the promotion numbers refused like the words; labels off + no photo not
+  showable, the editor says so; preview uploads dropped on retire and sign-out; template shrink keeps zones by place;
+  the focus point from the keyboard; the activation guide's snapshot counts and the way-back order; the v1 panel's
+  rendering of a composition documented; B21 made load-robust). Rejected: userinfo in a photo URL (the owner writes
+  it, the contract admits it), a deleted product with its own photo kept as photo-only (documented), «paginas» = «auto»
+  (labelled), the re-layout cost, and two already fixed in the tree.
+- **The real TVs are 32" (owner, 2026-11-02, after approving the design direction):** measured with the real menu at
+  1920×1080: 1.5 m → 3 pages normal, 2 pages compact without English; 2 m → 6 / 3; 2.5 m → 9 / 6; 3 m → 14 with cut words
+  (the minimum letter no longer fits two columns) / 8 compact without English. The engine already does what the owner
+  asked (legibility first, pages by distance, titles on top, even columns); the recommendation is 1.5–2 m, compact,
+  Spanish only (or English in line), or the per-TV categories. Screen B on a 32": the four zones keep their rules (labels
+  1.0/0.8 cm per metre, shrunk together when they do not fit, never under 35 %); the owner can hide names and prices
+  per zone («Nombres y precios») so the photos take the whole zone. Screenshots at 32" in the preview artifact.
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).

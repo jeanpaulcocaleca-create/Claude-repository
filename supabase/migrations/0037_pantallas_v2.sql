@@ -27,7 +27,8 @@
 -- Qué NO cambia: ninguna tabla, función ni fila existente fuera de las tres de las pantallas; ni el menú, ni la TV
 --   actual, ni la Caja, ni la Cocina, ni la Contabilidad, ni el menú QR. Las filas de screens y screen_slides quedan
 --   iguales (las columnas nuevas nacen con su valor por omisión). Ningún derecho cambia.
--- Qué ve una página anterior: nada distinto (los campos nuevos sobran; una clase que no conoce la ignora).
+-- Qué ve una página anterior: las dos TV v1 ignoran los campos nuevos y una composición; el panel v1 la lista con rótulos
+--   vacíos y la cuenta como «en pantalla» (pausarla o retirarla desde el panel v2 antes de volver a la v1).
 -- Cuándo: cuando el dueño lo decida; no bloquea ventas.
 -- Reversión: supabase/tools/reversion-0037.sql (vuelve las funciones a la 0036; las columnas y las filas quedan).
 -- =====================================================================================================
@@ -122,7 +123,7 @@ returns jsonb language sql stable set search_path = public as $$
     select zo, zx from jsonb_array_elements(case when jsonb_typeof(d.zones) = 'array' then d.zones else '[]'::jsonb end) with ordinality u(zx, zo)),
   e as (
     select z.zo, eo, ex,
-           case when ex ->> 'item' ~ '^[0-9a-fA-F-]{36}$' then public._screen_item_json((ex ->> 'item')::uuid) end as item
+           case when ex ->> 'item' ~ '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' then public._screen_item_json((ex ->> 'item')::uuid) end as item
       from z, jsonb_array_elements(case when jsonb_typeof(z.zx -> 'entries') = 'array' then z.zx -> 'entries' else '[]'::jsonb end) with ordinality v(ex, eo)),
   zr as (
     select z.zo,
@@ -133,7 +134,9 @@ returns jsonb language sql stable set search_path = public as $$
                                                                                       'zoom', coalesce(e.ex -> 'zoom', '100'::jsonb)) order by e.eo), '[]'::jsonb)
                                             from e where e.zo = z.zo),
                               'showable', exists (select 1 from e where e.zo = z.zo
-                                                    and (coalesce((e.item ->> 'sellable')::boolean, false)
+                                                    and ((coalesce((e.item ->> 'sellable')::boolean, false)
+                                                          and (coalesce((z.zx ->> 'labels')::boolean, true)
+                                                               or nullif(e.ex ->> 'photo', '') is not null or nullif(e.item ->> 'photo_url', '') is not null))
                                                          or (e.item is null and nullif(e.ex ->> 'photo', '') is not null)))) as j
       from z)
   select jsonb_build_object('id', d.id, 'kind', d.kind, 'menu_item_id', d.menu_item_id,
@@ -204,7 +207,7 @@ begin
   if p ? 'english' and coalesce(p ->> 'english', '') not in ('debajo', 'en-linea', 'no') then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'english'); end if;
   if p ? 'promo_mode' and coalesce(p ->> 'promo_mode', '') not in ('no', 'intercalar') then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'promo_mode'); end if;
   foreach f in array array['promo_every', 'promo_seconds'] loop
-    if p ? f and (p ->> f) !~ '^\d{1,4}$' then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', f); end if;
+    if p ? f and coalesce(p ->> f, '') !~ '^\d{1,4}$' then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', f); end if;
   end loop;
   if p ? 'promo_every' and (p ->> 'promo_every')::int not between 30 and 900 then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'promo_every'); end if;
   if p ? 'promo_seconds' and (p ->> 'promo_seconds')::int not between 6 and 30 then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'promo_seconds'); end if;
@@ -357,7 +360,7 @@ begin
         if jsonb_typeof(el -> n) <> 'object' then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', epath); end if;
         t_item := null; t_photo := nullif(btrim(coalesce(el -> n ->> 'photo', '')), '');
         if nullif(el -> n ->> 'item', '') is not null then
-          if (el -> n ->> 'item') !~ '^[0-9a-fA-F-]{36}$' then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', epath || '.item'); end if;
+          if (el -> n ->> 'item') !~ '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', epath || '.item'); end if;
           select i.id, c.name into t_item, v_cat from public.menu_items i left join public.menu_categories c on c.id = i.category_id
            where i.id = (el -> n ->> 'item')::uuid;
           if t_item is null then return jsonb_build_object('ok', false, 'error', 'invalid', 'field', epath || '.item'); end if;
