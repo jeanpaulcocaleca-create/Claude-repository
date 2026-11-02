@@ -9,9 +9,9 @@
    «composicion» (a template of 1 to 4 zones, each a fixed photo or a presentation of its own, edited in a visual
    editor with a live preview of the real TV page in a frame); «Programación sugerida» creates four paused ones.
    Spanish only, written here: the page root (#pg) carries data-no-translate; lang.js only translates the PIN screen.
-   Tests may set window.PANTALLAS_TEST = {sinRevisar: true} to send a slide or a TV without the page's checks, and
+   Tests may set window.PANTALLAS_TEST = {sinRevisar: true} to send a slide or a TV without the page's checks,
    {antesDeEnviar: fn} to alter a slide's payload before it goes, which proves the server refuses on its own what the
-   page blocks. */
+   page blocks, and {idleMs: n} to shorten the owner login's idle sign-out (read each time it is armed). */
 (function () {
   'use strict';
 
@@ -306,12 +306,17 @@
     if (!totp) return { error: { message: 'no factor' } };
     return db.auth.mfa.challengeAndVerify({ factorId: totp.id, code: code });
   }
-  /* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does (its PIN lasts 15) */
+  /* the owner login signs out by itself after 30 minutes without a touch; the café tablet never does (its PIN lasts 15).
+     Like «Cerrar sesión», it first takes away the photos uploaded for a preview and never saved: no orphan file */
   var idleTimer = null;
   function armIdle() {
     clearTimeout(idleTimer);
     if (ACCOUNT !== 'owner' && ACCOUNT !== 'owner_needs_code') return;
-    idleTimer = setTimeout(async function () { await db.auth.signOut({ scope: 'local' }); location.reload(); }, 30 * 60000);
+    var test = window.PANTALLAS_TEST || {}, ms = Number(test.idleMs) > 0 ? Number(test.idleMs) : 30 * 60000;
+    idleTimer = setTimeout(async function () {
+      try { await dropUploaded(); } catch (e) {}
+      await db.auth.signOut({ scope: 'local' }); location.reload();
+    }, ms);
   }
   ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (ev) { document.addEventListener(ev, armIdle, { passive: true }); });
 
@@ -329,6 +334,7 @@
   }
   /* nothing of the screens stays on the page once the server said no */
   function forget() {
+    stopPvInfo();
     S = null; ED = null; drafts = {}; previews = {}; prodsOpen = {};
     ['tvList', 'slideList', 'todayList', 'logList', 'editorHost', 'who'].forEach(function (id) { clear($(id)); });
   }
@@ -526,6 +532,7 @@
     return s;
   }
   function renderTvs() {
+    stopPvInfo();                                   /* an open preview is drawn again below, with a reading of its own */
     var host = clear($('tvList'));
     if (!S.screens.length) { host.appendChild(h('p', { class: 'empty', text: 'Todavía no hay TV. Agregue una abajo.' })); return; }
     S.screens.forEach(function (tv) { host.appendChild(tvCard(tv)); });
@@ -618,7 +625,9 @@
       box.appendChild(checks);
     });
     box.appendChild(h('p', { class: 'hint', text: 'Ninguno marcado = todos los productos de las categorías elegidas. ' +
-      'En una TV de 32" a 3 m: 2 páginas ≈ 8–10 productos en 2–3 categorías, 3 páginas ≈ 12 productos (menos categorías, menos páginas); el menú QR siempre lleva todos.' }));
+      'En una TV de 32" a 3 m, con densidad compacta y sin inglés: 2 páginas ≈ 8–10 productos en 2–3 categorías, 3 páginas ≈ 12; ' +
+      'con el inglés debajo, el doble y puede no caber. Un producto marcado cuya categoría no está marcada arriba no se muestra. ' +
+      'El menú QR siempre lleva todos.' }));
     var ofrecidos = {};
     Array.prototype.forEach.call(box.querySelectorAll('input[data-item]'), function (c) { ofrecidos[String(c.value).toLowerCase()] = true; });
     var idos = f.item_ids.filter(function (id) { return !ofrecidos[String(id).toLowerCase()]; }).length;   /* saved, but no longer a product the card offers */
@@ -743,16 +752,54 @@
     var pv = h('div', { class: 'pv' + (vertical ? ' vertical' : ''), 'data-turn': tv.turn });
     var fr = h('iframe', { src: tvPath(tv), title: 'Vista previa de ' + tv.name, tabindex: '-1', loading: 'lazy' });
     pv.appendChild(fr); box.appendChild(pv);
+    if (tv.kind === 'menu') {
+      var line = h('p', { class: 'pvinfo', 'data-pvinfo': '1', role: 'status', text: 'Midiendo…' });
+      box.appendChild(line);
+      watchPvInfo(tv.id, fr, line);
+    }
     box.appendChild(h('p', { class: 'hint', text: 'La página real de la TV, con lo guardado: un cambio se ve después de guardarlo. ' +
       (vertical ? 'Girada como cuelga la TV. ' : '') + 'Fuera de su horario queda negra.' }));
     fitPreview(pv);
     var b = card.querySelector('[data-preview]'); if (b) b.textContent = 'Cerrar la vista previa';
   }
   function closePreview(tv) {
+    stopPvInfo(tv.id);
     delete previews[tv.id];
     var card = document.querySelector('article.tv[data-tv="' + tv.id + '"]'); if (!card) return;
     var box = card.querySelector('.preview'); clear(box); box.hidden = true;
     var b = card.querySelector('[data-preview]'); if (b) b.textContent = 'Vista previa';
+  }
+  /* a menu TV's preview says, under the frame, what the real page measured with the saved row (its own
+     PANTALLA.info(), read in the same-origin frame every 2 s while the preview is open): its pages, columns and letter,
+     or that it does not fit at the minimum letter. Nothing is said before the page has read its row and the menu */
+  var pvInfo = {};
+  function stopPvInfo(id) {
+    if (id === undefined) { Object.keys(pvInfo).forEach(function (k) { stopPvInfo(k); }); return; }
+    clearInterval(pvInfo[id]); delete pvInfo[id];
+  }
+  function cm2(n) { return Number(n).toFixed(2).replace('.', ','); }       /* 2,45: the Spanish decimal comma */
+  function pvInfoText(i) {
+    if (!i || i.fuente !== 'base' || i.estado === 'sin-verificar') return 'Midiendo…';
+    if (i.apagado) return 'En la TV: ahora queda negra (fuera de su horario o desactivada): no hay páginas que medir.';
+    if (i.paginas === 0) return 'En la TV: ningún producto que mostrar; pide consultar el menú en la caja.';
+    if (!(i.paginas > 0) || !i.capCm) return 'Midiendo…';
+    if (i.cabe === false) return 'NO CABE a la letra mínima: use densidad compacta y sin inglés, o menos productos';
+    var s = Math.round(Number(i.paginaMs) / 1000);
+    return 'En la TV: ' + (i.paginas === 1 ? 'una sola página' : i.paginas + ' páginas' + (s > 0 ? ' de ' + s + ' s' : '')) +
+      ' · ' + i.columnas + (i.columnas === 1 ? ' columna' : ' columnas') + ' · letra ' + cm2(i.capCm) + ' cm (mínimo ' + cm2(i.minCm) + ')';
+  }
+  function watchPvInfo(id, fr, line) {
+    stopPvInfo(id);
+    function read() {
+      if (!line.isConnected) { stopPvInfo(id); return; }
+      var i = null;
+      try { var w = fr.contentWindow; i = w && w.PANTALLA && typeof w.PANTALLA.info === 'function' ? w.PANTALLA.info() : null; } catch (e) { i = null; }
+      var t = pvInfoText(i);
+      if (line.textContent !== t) line.textContent = t;
+      line.classList.toggle('bad', /^NO CABE/.test(t));
+    }
+    read();
+    pvInfo[id] = setInterval(read, 2000);
   }
   function fitPreview(pv) {
     var turn = pv.getAttribute('data-turn'), vertical = turn === 'derecha' || turn === 'izquierda';
@@ -815,11 +862,15 @@
     }
     return s.photo_url || (s.item && s.item.photo_url) || null;
   }
-  /* one zone of a composition, said in a few words (z as the server gives it: entries' items resolved) */
+  /* one zone of a composition, said in a few words (z as the server gives it: entries' items resolved, and showable:
+     whether any entry has something to show now). A zone with nothing to show says so, and what to do */
   function zoneSummary(z) {
     var en = z.entries || [], n = en.length;
     var what = n === 1 ? (en[0].item ? itemName(en[0].item) : 'una foto') : n + ' entradas';
-    return (z.mode === 'auto' ? 'presentación cada ' + (z.seconds || 8) + ' s · ' : 'foto fija · ') + what + (z.labels === false ? ' · sin nombres ni precios' : '');
+    var agotados = n > 0 && en.every(function (e) { return e && e.item && e.item.sellable === false; });
+    return (z.mode === 'auto' ? 'presentación cada ' + (z.seconds || 8) + ' s · ' : 'foto fija · ') + what + (z.labels === false ? ' · sin nombres ni precios' : '') +
+      (z.showable !== false ? '' : agotados ? ' · NADA QUE MOSTRAR: sus productos están agotados o sin precio'
+        : ' · NADA QUE MOSTRAR: suba fotos o active nombres y precios');
   }
   function zonesText(s) {
     return (s.zones || []).map(function (z, i) { return placeName(s.template, i) + ': ' + zoneSummary(z); }).join(' · ');
@@ -1190,7 +1241,7 @@
       var url = ED.blob ? ED.blobUrl : ED.photo_url;
       box.appendChild(thumb(url, 'ph', 'ninguna todavía'));
       box.appendChild(h('button', { type: 'button', class: 'ghost small', id: 'edPick', text: url ? 'Cambiar la foto' : 'Elegir una foto…',
-        on: { click: function () { photoTarget = null; $('photoFile').click(); } } }));
+        on: { click: function () { photoTarget = { own: true, ed: ED }; $('photoFile').click(); } } }));
     }
   }
 
@@ -1280,7 +1331,7 @@
       h('button', { type: 'button', class: 'ghost small', id: 'edZ-' + i + '-add', 'aria-pressed': String(z.pick === 'entry'), text: 'Agregar producto',
         on: { click: function () { z.pick = z.pick === 'entry' ? null : 'entry'; rerenderZone(i); } } }),
       h('button', { type: 'button', class: 'ghost small', 'data-act': 'subir', text: 'Subir foto',
-        on: { click: function () { photoTarget = { zone: i }; $('photoFile').click(); } } })]));
+        on: { click: function () { photoTarget = { zone: i, zoneObj: z, ed: ED }; $('photoFile').click(); } } })]));
     if (z.pick) sec.appendChild(zonePicker(z, i));
 
     /* the fallback photo */
@@ -1289,7 +1340,7 @@
     fb.appendChild(h('span', { class: 'fbt' }, [h('b', { text: 'Foto de respaldo' }), h('small', { text: fbUrl ? 'Se ve cuando ninguna entrada de la zona se puede mostrar.'
       : 'Sin foto de respaldo: cuando ninguna entrada se puede mostrar (agotada, sin precio…), se ve el diseño de la marca.' })]));
     fb.appendChild(h('span', { class: 'eacts' }, [
-      h('button', { type: 'button', class: 'ghost small', 'data-act': 'fb-subir', text: 'Subir foto', on: { click: function () { photoTarget = { zone: i, fallback: true }; $('photoFile').click(); } } }),
+      h('button', { type: 'button', class: 'ghost small', 'data-act': 'fb-subir', text: 'Subir foto', on: { click: function () { photoTarget = { zone: i, zoneObj: z, fallback: true, ed: ED }; $('photoFile').click(); } } }),
       h('button', { type: 'button', class: 'ghost small', 'data-act': 'fb-producto', text: 'Foto de un producto', on: { click: function () { z.pick = 'fallback'; rerenderZone(i); } } }),
       fbUrl ? h('button', { type: 'button', class: 'ghost small', 'data-act': 'fb-quitar', text: 'Quitar', on: { click: function () {
         if (z.fbBlobUrl) URL.revokeObjectURL(z.fbBlobUrl);
@@ -1359,6 +1410,15 @@
         on: { click: function () { z.entries.splice(j - 1, 0, z.entries.splice(j, 1)[0]); rerenderZone(i); } } }),
       h('button', { type: 'button', class: 'ghost small', 'data-act': 'abajo', text: '↓', 'aria-label': 'Bajar en el orden', disabled: j === z.entries.length - 1,
         on: { click: function () { z.entries.splice(j + 1, 0, z.entries.splice(j, 1)[0]); rerenderZone(i); } } }),
+      /* another photo for this entry, in its place: a product keeps its product (its own photo wins over the menu's) */
+      h('button', { type: 'button', class: 'ghost small', 'data-act': 'cambiar-foto', text: 'Cambiar foto',
+        on: { click: function () { photoTarget = { zone: i, zoneObj: z, entryObj: e, ed: ED }; $('photoFile').click(); } } }),
+      e.item && (e.photo || e.blob) ? h('button', { type: 'button', class: 'ghost small', 'data-act': 'foto-menu', text: 'Foto del menú',
+        title: 'Quitar la foto propia: la entrada vuelve a la foto del producto en el menú', on: { click: function () {
+          if (e.blobUrl) URL.revokeObjectURL(e.blobUrl);
+          e.photo = null; e.blob = null; e.blobUrl = null; e.uploaded = null; e.focus = [50, 50]; e.zoom = 100;
+          rerenderZone(i);
+        } } }) : null,
       h('button', { type: 'button', class: 'danger small', 'data-act': 'quitar', text: 'Quitar',
         on: { click: function () { if (e.blobUrl) URL.revokeObjectURL(e.blobUrl); z.entries.splice(j, 1); rerenderZone(i); } } })]));
     li.appendChild(info);
@@ -1658,9 +1718,14 @@
       bebidasFrias: cafesFrios.concat(items.filter(function (it) { return catIs(it, /other drinks|drinks|bebidas|refrescos/i); }))
     };
   }
-  /* the owner (2026-11-02): the four start without names and prices; «Nombres y precios» per zone in the editor turns them on */
-  function zoneOfItems(list) {
-    return { mode: 'auto', seconds: 8, labels: false, fallback: '', entries: list.slice(0, 12).map(function (it) { return { item: it.id, photo: null, focus: [50, 50], zoom: 100 }; }) };
+  /* the owner (2026-11-02): the four start without names and prices; «Nombres y precios» per zone in the editor turns them on.
+     Each window turns at a pace of its own, by its place in the template: at 3 m a window changing every 8 s, four of
+     them, read as a fade every 2 s, and equal seconds make the windows change together. A template reduced for a
+     group without products takes the smaller template's seconds */
+  var SEGUNDOS = { '4-centro': [14, 16, 18, 20], '3-grande-izq': [12, 15, 18], '2-lado': [12, 15], '1': [10] };
+  function zoneOfItems(list, i, tpl) {
+    return { mode: 'auto', seconds: (SEGUNDOS[tpl] || [])[i] || 12, labels: false, fallback: '',
+             entries: list.slice(0, 12).map(function (it) { return { item: it.id, photo: null, focus: [50, 50], zoom: 100 }; }) };
   }
   $('sugerir').addEventListener('click', async function () {
     if (!S) return;
@@ -1677,7 +1742,7 @@
         /* the server wants every zone with something in it: a group without products loses its place, and the
            owner fills a smaller template or changes it */
         var tpl = kept.length === lists.length ? plan.template : { 3: '3-grande-izq', 2: '2-lado', 1: '1' }[kept.length];
-        var p = { kind: 'composicion', kicker_es: plan.t, kicker_en: plan.en, template: tpl, dwell_seconds: '', zones: kept.map(zoneOfItems),
+        var p = { kind: 'composicion', kicker_es: plan.t, kicker_en: plan.en, template: tpl, dwell_seconds: '', zones: kept.map(function (l, i) { return zoneOfItems(l, i, tpl); }),
                   starts_at: new Date(t).toISOString(), ends_at: new Date(t + 365 * DAY).toISOString(), days: [1, 2, 3, 4, 5, 6, 7],
                   from_time: plan.from, to_time: plan.to, screen_ids: [], sort: plan.sort, status: 'pausada' };
         var r;
@@ -1686,24 +1751,29 @@
           if (r.data && r.data.error === 'owner_only') { showOwnerOnly(); return; }
           failed = 'No se pudo crear «' + plan.t + '»: ' + errText(r); break;
         }
-        made.push(plan.t + ' (' + plan.from + '–' + plan.to + (tpl !== plan.template ? ', con ' + kept.length + ' zonas: faltan productos de alguna categoría' : '') + ')');
+        made.push(plan.t + ' (' + plan.from + '–' + plan.to + (tpl !== plan.template ? ', con ' + kept.length + (kept.length === 1 ? ' zona' : ' zonas') + ': faltan productos de alguna categoría' : '') + ')');
       }
     } finally { BUSY--; btn.disabled = false; }
     if (made.length) await loadState();
     msg.textContent = (made.length ? 'Se crearon en pausa: ' + made.join(', ') + '. Revíselas, ajústelas y actívelas cuando quiera: ninguna sale sola. ' +
-                                     'Van sin nombres ni precios; actívelos por ventana en el editor.' : 'No se creó nada.')
+                                     'Van sin nombres ni precios; actívelos por ventana en el editor. Un producto sin foto no se muestra mientras ' +
+                                     'su ventana vaya sin nombres: súbale foto en el Gestor de menú o elija otra en el editor.' : 'No se creó nada.')
       + (had.length ? ' Ya existían: ' + had.join(', ') + '.' : '') + (empty.length ? ' Sin productos del menú para: ' + empty.join(', ') + '.' : '')
       + (failed ? ' ' + failed : '');
   });
 
   /* ---------- 10) a photo: made smaller here, then kept in Storage (menu-photos/pantallas/) ---------- */
   var MAX_BYTES = 8 * 1024 * 1024, MAX_W = 1600, MAX_H = 2400;
-  var photoTarget = null;    /* where the next chosen file goes: null = the slide's own photo; {zone, fallback?} = a composition's */
+  var photoTarget = null;    /* where the next chosen file goes, always with the editor it was chosen in (ed): {own} = the
+                                slide's own photo; {zone, zoneObj, fallback?} = a composition zone's new entry or fallback;
+                                {zone, zoneObj, entryObj} = the photo of that entry, replaced in its place («Cambiar foto»).
+                                A file that arrives after its editor was closed or replaced, or its zone or entry removed, goes nowhere */
   $('photoFile').addEventListener('change', async function () {
     var f = this.files && this.files[0], target = photoTarget; photoTarget = null;
     this.value = '';
-    if (!f || !ED) return;
-    var compo = ED.kind === 'composicion' && target && ED.zones[target.zone];
+    if (!target && ED) target = { own: true, ed: ED };      /* a file given to the input without its button: the slide's own photo */
+    if (!f || !ED || target.ed !== ED) return;              /* the file belongs to the editor it was chosen in */
+    var compo = ED.kind === 'composicion' && !target.own && ED.zones[target.zone];
     var msg = compo ? $('edZerr-' + target.zone) : $('edPhotoMsg');
     if (!msg) return;
     msg.classList.remove('ok');
@@ -1712,20 +1782,37 @@
     msg.textContent = 'Preparando la foto…';
     var out;
     try { out = await shrink(f); } catch (e) { msg.textContent = 'No se pudo leer esa foto. Pruebe con otra (JPEG o PNG).'; return; }
-    if (!ED) return;
+    if (!ED || target.ed !== ED) return;   /* that editor was closed or replaced while the photo was prepared */
     var ready = 'Lista: ' + out.w + ' × ' + out.h + ' px, ' + Math.max(1, Math.round(out.blob.size / 1024)) + ' KB.';
     if (compo) {
-      var z = ED.zones[target.zone], url = URL.createObjectURL(out.blob);
+      var zi = target.zoneObj ? ED.zones.indexOf(target.zoneObj) : target.zone;
+      if (zi < 0 && !target.entryObj) return;   /* its zone left the template while the photo was prepared */
+      if (target.entryObj) {
+        /* «Cambiar foto»: its entry found again where it is now (moved up or down, or its zone swapped, while the photo
+           was being prepared); taken out, or in an editor closed meanwhile, the photo goes nowhere */
+        if (target.ed !== ED) return;
+        zi = ED.zones.indexOf(target.zoneObj);
+        if (zi < 0 || target.zoneObj.entries.indexOf(target.entryObj) < 0) {
+          zoneMsg(zi < 0 ? target.zone : zi, 'Esa entrada ya no está. Elija la foto otra vez.'); return;
+        }
+      }
+      var z = ED.zones[zi], url = URL.createObjectURL(out.blob);
       if (target.fallback) {
         if (z.fbBlobUrl) URL.revokeObjectURL(z.fbBlobUrl);
         z.fbBlob = out.blob; z.fbBlobUrl = url; z.fbUploaded = null; z.fallback = null;
+      } else if (target.entryObj) {
+        /* the entry keeps its place and its product; a new picture, so the framing starts again */
+        var was = target.entryObj;
+        if (was.blobUrl) URL.revokeObjectURL(was.blobUrl);
+        was.blob = out.blob; was.blobUrl = url; was.uploaded = null; was.photo = null; was.lost = false;
+        was.focus = [50, 50]; was.zoom = 100;
       } else {
         if (z.entries.length >= 12) { URL.revokeObjectURL(url); msg.textContent = 'A lo sumo 12 entradas por zona.'; return; }
         var en = newEntry(null, null); en.blob = out.blob; en.blobUrl = url;
         z.entries.push(en);
       }
-      rerenderZone(target.zone);
-      zoneMsg(target.zone, ready + ' Se sube al guardar o al abrir la vista previa.', true);
+      rerenderZone(zi);
+      zoneMsg(zi, ready + ' Se sube al guardar o al abrir la vista previa.', true);
       return;
     }
     if (ED.blobUrl) URL.revokeObjectURL(ED.blobUrl);
@@ -1776,15 +1863,26 @@
   }
   async function uploadAll(err) {
     try {
-      if (!ED) return false;
-      if (ED.kind !== 'composicion') {
-        if (ED.photoMode === 'propia' && ED.blob && !ED.uploaded) ED.uploaded = await uploadPhoto(ED.blob);
-        return true;
-      }
-      for (var i = 0; i < ED.zones.length; i++) {
-        var z = ED.zones[i];
-        if (z.fbBlob && !z.fbUploaded) z.fbUploaded = await uploadPhoto(z.fbBlob);
-        for (var j = 0; j < z.entries.length; j++) { var e = z.entries[j]; if (e.blob && !e.uploaded) e.uploaded = await uploadPhoto(e.blob); }
+      /* an upload counts only for the photo it took: one replaced («Cambiar foto», another photo) or taken out («Foto del
+         menú», Quitar) while it went up is not kept as the new one, which goes up in the next round. The late file stays
+         in ED.uploadedPaths, so dropUnused / dropUploaded take it away. Rounds until one finds nothing new to upload */
+      for (var more = true; more;) {
+        more = false;
+        if (!ED) return false;
+        if (ED.kind !== 'composicion') {
+          if (ED.photoMode === 'propia' && ED.blob && !ED.uploaded) {
+            more = true; var b = ED.blob, u = await uploadPhoto(b); if (ED.blob === b) ED.uploaded = u;
+          }
+          continue;
+        }
+        for (var i = 0; i < ED.zones.length; i++) {
+          var z = ED.zones[i];
+          if (z.fbBlob && !z.fbUploaded) { more = true; var fb = z.fbBlob, fu = await uploadPhoto(fb); if (z.fbBlob === fb) z.fbUploaded = fu; }
+          for (var j = 0; j < z.entries.length; j++) {
+            var e = z.entries[j];
+            if (e.blob && !e.uploaded) { more = true; var eb = e.blob, eu = await uploadPhoto(eb); if (e.blob === eb) e.uploaded = eu; }
+          }
+        }
       }
       return true;
     } catch (e) {

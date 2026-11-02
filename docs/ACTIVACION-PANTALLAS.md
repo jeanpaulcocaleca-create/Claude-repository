@@ -41,9 +41,10 @@ agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
 7. Releases → `sitio-AAAA-MM-DD` sobre **gh-pages**; luego `vAAAA.MM.DD-1` sobre la rama con el commit de D-064;
    «Tests» en verde sobre la etiqueta; **Publish website** desde la etiqueta con `PUBLICAR`; `version.json` muestra
    la etiqueta y ese commit; Caja, Cocina y TV actual cargan como siempre.
-8. En `pantallas.html` con su PIN: **Pantalla A** → para las TV de 32" a 3 m: **Densidad compacta**, **Inglés no**,
+8. En `pantallas.html` con su PIN: **Pantalla A** → para las TV de 32" a 3 m: **Pulgadas 32** y **Distancia 3** (las filas
+   nacen con 55"), **Densidad compacta**, **Inglés no**,
    **Productos que muestra** con unos 12 productos (3 páginas de 28 s; 8–10 en 2–3 categorías para 2 páginas; los demás siguen en el menú QR); distribución y
-   promociones; vista previa.
+   promociones; «Vista previa» (debajo dice las páginas y la letra que calcula la TV, o «NO CABE»).
    **Diapositivas** → «Programación sugerida» → revise cada composición (zonas, productos, fotos, encuadre), «Vista
    previa en la TV», guarde y **reanude** las que quiera en pantalla. Las diapositivas de la v1 siguen como estaban.
 9. Aceptación en las TV: desde el punto más lejano se leen 5 precios; la Pantalla A muestra una pantalla o páginas según

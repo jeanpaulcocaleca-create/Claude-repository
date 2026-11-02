@@ -138,11 +138,13 @@ body.apagado,#stage.apagado{background:#000}
 .zcapa.ya{transition:none}
 .zcapa.sale .ztxt{opacity:0;transition-duration:.3s}
 .zfoto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-.zvelo{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,16,0) 42%,rgba(10,26,16,.5) 68%,rgba(10,26,16,.9) 100%)}
+/* the veil under the labels: dark from about half the zone, so even the first line of a long name reads over a light photo */
+.zvelo{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,16,0) 22%,rgba(10,26,16,.55) 52%,rgba(10,26,16,.9) 100%)}
 .ztxt{position:absolute;left:var(--zp);right:var(--zp);bottom:var(--zp);text-shadow:0 2px 14px rgba(8,16,10,.8);
   transition:opacity var(--fundido,1s) ease}
 .ztit{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.08;margin:0;color:var(--cream);text-wrap:balance}
 .ztit-en{font-weight:600;color:var(--soft);line-height:1.15;margin-top:.15em}
+.zsinen .ztit-en{display:none}   /* a layer whose name, English and price do not fit: the English goes first (ajustarZona) */
 .zprecio{font-weight:800;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.05;margin-top:.18em}
 .zprecio .cur{font-size:.8em;margin-right:.05em}
 .znota{width:fit-content;max-width:100%;background:var(--warn);color:var(--warn-ink);font-weight:800;line-height:1.2;
@@ -894,11 +896,13 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
     else if (!z.timer) programar(z, false);
   }
   /* the zone's clock: only a presentation («auto») with more than one entry to show has one. The first turn of
-     zone i lasts a quarter longer per position, so zones with the same seconds never change together */
+     zone i lasts a quarter longer per position on EVERY start of the composition (the first one, and each time it
+     comes back after other slides or as the next interlude, going on from the next entry), so zones with the same
+     seconds never change together */
   function programar(z, primera) {
     clearTimeout(z.timer); z.timer = null;
     if (z.modo !== 'auto' || mostrables(z) < 2) return;
-    var ms = z.seg * T.zona * (primera && z.ultima === undefined ? 1 + 0.25 * z.i : 1);
+    var ms = z.seg * T.zona * (primera ? 1 + 0.25 * z.i : 1);
     z.timer = setTimeout(function () {
       z.timer = null;
       if (!z.nodo.isConnected || z.cambiando) return;
@@ -943,7 +947,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
     var zn = sl.querySelectorAll('.zona');
     for (var i = 0; i < zn.length; i++) {
       var z = zn[i]._z, ultima = turnos[vm.id + ':' + i], j = siguienteEntrada(z, ultima === undefined ? -1 : ultima);
-      z.ultima = ultima; z.slide = vm.id;
+      z.slide = vm.id;
       mostrarCuadro(z, j >= 0 ? cuadroEntrada(z, j) : cuadroVacio(z), 'corte', true);
     }
   }
@@ -979,20 +983,26 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
       zonas.push({ grande: z.grande, k: z.k, cabe: z.cabe });
     }
     var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100, pad = Math.round(0.03 * Math.min(anchoE, altoE));
-    /* the brand line (top left) and the kicker (top right) share the top edge: on a small TV read from close (the
-       café's 32") they do not fit side by side at their sizes, so both shrink together, down to 0.6, before anything
-       goes; then the brand line goes first (the TV's frame says it anyway) and the kicker, the slot's name, stays */
-    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick'), escalas = [1, 0.85, 0.72, 0.6], e;
+    /* the brand line (top left) and the kicker (top right) share the top edge: on a small TV read from far (the café's
+       32" from 3 m) they do not fit side by side at their sizes. Both shrink together, to 0.85 at most; then the brand
+       line goes (the TV's frame says it anyway) and the kicker, the slot's name, alone, takes the largest of 1, 0.85,
+       0.72 and 0.6 that fits; only a kicker that does not fit even at 0.6 goes too. Without a kicker the brand line,
+       alone, takes the largest of 1, 0.85, 0.72 and 0.6 that fits, and only goes when it does not fit even at 0.6 */
+    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick'), juntas = kk ? [1, 0.85] : [1, 0.85, 0.72, 0.6], sola = [1, 0.85, 0.72, 0.6], libre = anchoE - 2 * pad, e;
+    var letra = function (nodo, f, s) { nodo.style.fontSize = (f * s * base * pxCm / proporcion(nodo)) + 'px'; };
     sup.style.display = ''; sup.style.left = pad + 'px'; sup.style.top = pad + 'px';
     if (kk) { kk.style.display = ''; kk.style.right = pad + 'px'; kk.style.top = pad + 'px'; }
-    for (e = 0; e < escalas.length; e++) {
-      sup.style.fontSize = (FACT.s * escalas[e] * base * pxCm / proporcion(sup)) + 'px';
-      if (kk) kk.style.fontSize = (FACT.k * escalas[e] * base * pxCm / proporcion(kk)) + 'px';
-      if (sup.scrollWidth + (kk ? kk.scrollWidth + pad : 0) <= anchoE - 2 * pad) break;
+    for (e = 0; e < juntas.length; e++) {
+      letra(sup, FACT.s, juntas[e]);
+      if (kk) letra(kk, FACT.k, juntas[e]);
+      if (sup.scrollWidth + (kk ? kk.scrollWidth + pad : 0) <= libre) break;
     }
-    if (e === escalas.length) {
+    if (e === juntas.length) {
       sup.style.display = 'none';
-      if (kk && kk.scrollWidth > anchoE - 2 * pad) kk.style.display = 'none';
+      if (kk) {
+        for (e = 0; e < sola.length; e++) { letra(kk, FACT.k, sola[e]); if (kk.scrollWidth <= libre) break; }
+        if (e === sola.length) kk.style.display = 'none';
+      }
     }
     var kmin = 1, cabe = true;
     zonas.forEach(function (q) { kmin = Math.min(kmin, q.k); cabe = cabe && q.cabe; });
@@ -1000,7 +1010,9 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
                 plantilla: vm.plantilla, zonas: zonas };
   }
   /* a zone's letters: the name 1.0 cm/m in a large zone (0.8 in a small one), the price 1.2 x the name; when the
-     labels or the brand design do not fit the zone, everything in it shrinks together (never past 35 %) */
+     labels do not fit the zone at that letter, the English line goes first (the name and the price keep their size:
+     a small zone of the 32" TV read from 3 m cannot hold all three); only when they still do not fit, or the brand
+     design does not, everything in it shrinks together (never past 35 %), the English still hidden */
   /* the letters of ONE layer (the one being drawn, by default the front one): the outgoing layer, still laid out while
      it fades, must not make a short name small for its whole turn */
   function ajustarZona(z, capa) {
@@ -1025,10 +1037,14 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
       for (var j = 0; j < ns.length; j++) if (ns[j].getClientRects().length && ns[j].scrollWidth > ns[j].clientWidth + 1) return false;
       return true;
     }
+    zn.classList.remove('zsinen');
     z.k = 1; aplicar();
+    if (!cabe() && zn.querySelector('.ztit-en')) zn.classList.add('zsinen');   /* this layer's English, not the zone's: a short name keeps it */
     if (!cabe()) { z.k = mayor(0.35, 1, function (v) { z.k = v; aplicar(); return cabe(); }); aplicar(); }
     z.cabe = cabe();
   }
+  /* the front layer of the zone writes a name whose English it had to hide (no room at the distance's letter) */
+  function sinIngles(z) { var c = z.capas[z.frente]; return c.classList.contains('zsinen') && !!c.querySelector('.ztit-en'); }
   /* the zones of the composition on screen, for the diagnosis and the tests */
   function estadoZonas() {
     if (!actual || actual.kind !== 'composicion') return null;
@@ -1036,7 +1052,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
     for (var i = 0; i < zn.length; i++) {
       var z = zn[i]._z, e = z.estado === 'entrada' && z.idx >= 0 ? z.entradas[z.idx] : null;
       out.push({ modo: z.modo, seg: z.seg, labels: z.labels, estado: z.estado, entrada: z.idx, entradas: z.entradas.length, mostrables: mostrables(z),
-                 grande: z.grande, k: z.k, cabe: z.cabe, titulo: e ? e.tit : '', precio: e ? e.precio : null, cambiando: z.cambiando, reloj: !!z.timer });
+                 grande: z.grande, k: z.k, cabe: z.cabe, sinIngles: sinIngles(z), titulo: e ? e.tit : '', precio: e ? e.precio : null, cambiando: z.cambiando, reloj: !!z.timer });
     }
     return { plantilla: actual.plantilla, permanenciaMs: tiempoDe(actual), zonas: out };
   }
@@ -1202,7 +1218,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
             (z.entradas === 1 ? ' entrada' : ' entradas') + ' con qué mostrar · ' + (z.labels ? 'con nombres y precios' : 'sin textos') + ' · ' +
             (z.estado === 'entrada' ? 'muestra la ' + (z.entrada + 1) + (z.titulo ? ' (' + z.titulo + (z.precio != null ? ', precio' : ', sin precio') + ')' : ' (solo foto)')
              : z.estado === 'respaldo' ? 'NADA QUE MOSTRAR: la foto de respaldo' : z.estado === 'marca' ? 'NADA QUE MOSTRAR: el diseño de marca' : 'cargando') +
-            (z.k < 1 ? ' · letra al ' + Math.round(z.k * 100) + ' % (no cabe)' : ''));
+            (z.sinIngles ? ' · sin inglés (no cabe)' : '') + (z.k < 1 ? ' · letra al ' + Math.round(z.k * 100) + ' % (no cabe)' : ''));
       });
     }
     if (cz && medidas.pxPorCm) add('Letra', 'nombres ' + (ZFACT.grande.zt * medidas.base * medidas.k).toFixed(2) + ' cm en zonas grandes, ' +

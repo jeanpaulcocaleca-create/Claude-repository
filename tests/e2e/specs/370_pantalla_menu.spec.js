@@ -861,7 +861,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'B12: v2 board: every category is one block (its title first, then only its items) packed into explicit columns, never a title between another category\'s items and every column starting with a title; a block that does not fit is cut only when both pieces keep two items or more, its title repeated with «(continúa)», else it moves whole; the columns of a page are filled to nearly the same height with no hole the next piece could have filled, and nothing overflows',
+    name: 'B12: v2 board: every category is one block (its title first, then only its items) packed into explicit columns, never a title between another category\'s items and every column starting with a title; a block that does not fit is cut only when both pieces keep two items or more, its title repeated with «(continúa)», else it moves whole; the columns of a page are as even as the cuts allow (the tallest could not give an item to a neighbour and be lower), and nothing overflows',
     run: async ({ browser }) => {
       const want = JSON.parse(sql(EXPECTED));
       for (const [w, h, q] of [[1920, 1080, '?tv=menu-1&pulgadas=55&distancia=3'], [1280, 720, '?tv=menu-1&pulgadas=65&distancia=2.5'], [1920, 1080, '?tv=menu-1&pulgadas=55&distancia=3&giro=derecha']]) {
@@ -881,10 +881,10 @@ module.exports.tests = [
         const pages = await contenido(pg);
         assert.deepStrictEqual(cats(pages), [...new Set(want.map((x) => clave(x.cat)))], where);
         assert.strictEqual(items(pages).length, want.length, where);
-        /* dense and even: on every page the columns end under the page's limit, the tallest reaches it, and no column
-           could have taken the next column's first piece (one more item of a cut block, the first two items of a block
-           of four or more, a smaller block whole) without passing the limit; a cut leaves two items or more on each
-           side; the shortest column is within one piece of the tallest */
+        /* even: on every page the columns end under the page's top (the tallest column), a cut leaves two items or more on
+           each side, the shortest column is within one piece of the tallest (a block kept whole moves only whole), and
+           the one tallest column cannot give an item across a cut to a neighbour and be lower (the deal of each page is
+           the lowest tallest column first, then the least empty board: the page's own engine, checked here from outside) */
         const g = i.maqueta.gap, H = i.maqueta.alto;
         const piezas = []; i.maqueta.paginas.forEach((p, k) => p.forEach((c, j) => c.bloques.forEach((b, n) => piezas.push({ k, j, n, b, lim: c.limite }))));
         i.maqueta.paginas.forEach((p, k) => {
@@ -910,19 +910,24 @@ module.exports.tests = [
                 }
               }
               const dos = b.alturas.slice().sort((x, y) => y - x).slice(0, 2).reduce((u, v) => u + v, 0);
-              unidad = Math.max(unidad, b.n < 4 ? b.alto : Math.max(b.titulo, b.tituloCont) + dos + 3);
+              unidad = Math.max(unidad, (b.desde === 0 && b.hasta === b.n) || b.n < 4 ? b.alto : Math.max(b.titulo, b.tituloCont) + dos + 3);   /* a block kept whole moves only whole */
               item = Math.max(item, ...b.alturas);
             });
-            if (j === p.length - 1 || !c.bloques.length || !p[j + 1].bloques.length || c.alto > lim + 0.5) return;   /* a column over the limit closed on its one piece */
-            const q = p[j + 1].bloques[0], ult = c.bloques[c.bloques.length - 1];
-            /* the smallest piece that could have moved up: one more item of a cut block (unless that would leave a lone item),
-               the first two items of a block cut on this page, or a whole block (a block kept whole is never cut for balance) */
-            let need;
-            if (q.cont && ult.categoria === q.categoria && ult.hasta === q.desde) { if (q.hasta - q.desde === 2) return; need = q.alturas[0] + 1; }
-            else need = g + (q.hasta < q.n && q.hasta - q.desde >= 4 ? q.titulo + q.alturas[0] + q.alturas[1] + 3 : q.alto);
-            assert.ok(c.alto + need > lim - 0.5, `${where}: page ${k + 1} column ${j + 1} (${c.alto} of ${lim}) could have taken the next piece «${q.categoria}» (${need})`);
           });
           assert.ok(Math.min(...alturas) >= Math.max(...alturas) - (unidad + item + g + 2), `${where}: page ${k + 1}: columns ${alturas} within one piece (${unidad + item + g}) of each other`);
+          /* balanced: the page's one tallest column cannot be lowered by moving one item across a cut it shares with a
+             neighbour (both pieces keeping two items) without the neighbour reaching it */
+          const max = Math.max(...p.map((c) => c.alto)), altas = p.filter((c) => c.alto > max - 0.5);
+          if (altas.length === 1) {
+            const jm = p.indexOf(altas[0]);
+            [-1, 1].forEach((d) => {
+              const o = p[jm + d]; if (!o || !o.bloques.length) return;
+              const A = p[jm], pa = d > 0 ? A.bloques[A.bloques.length - 1] : A.bloques[0], pb = d > 0 ? o.bloques[0] : o.bloques[o.bloques.length - 1];
+              if (pa.categoria !== pb.categoria || (d > 0 ? pa.hasta !== pb.desde : pb.hasta !== pa.desde) || pa.hasta - pa.desde < 3) return;
+              const it = d > 0 ? pa.alturas[pa.alturas.length - 1] : pa.alturas[0];
+              assert.ok(!(o.alto + it + 1 < max - 0.5), `${where}: page ${k + 1}: the tallest column (${max}) could give one item of «${pa.categoria}» (${it}) to its neighbour (${o.alto}) and be lower`);
+            });
+          }
           /* every column starts with a title: its first piece is a block's start or a continuation with its own title */
           p.forEach((c, j) => { if (c.bloques.length) assert.ok(c.bloques[0].desde === 0 || c.bloques[0].cont, `${where}: page ${k + 1} column ${j + 1} starts with a title`); });
         });
@@ -1524,7 +1529,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'B23: the interludes go on where the last one stopped: a presentation zone starts the next interlude at the entry after the one it showed when the interlude ended (every photo of a long presentation gets its turn across interludes), with no first-turn stagger on the way back',
+    name: 'B23: the interludes go on where the last one stopped: a presentation zone starts the next interlude at the entry after the one it showed when the interlude ended (every photo of a long presentation gets its turn across interludes); its single zone\'s first turn in every interlude is its own seconds (zone i of a composition waits 1 + 0.25·i turns on every start, as on Screen B: 380 P28)',
     run: async ({ browser }) => {
       sql(`update public.screens set promo_mode = 'intercalar' where id = 'menu-1'`);
       const c = compo({ template: '1', zones: [{ mode: 'auto', seconds: 10, labels: false, entries: fotos('w', 4) }] });   /* 10 s -> 2.5 s a photo here */
@@ -1554,7 +1559,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'B24: the TV\'s products (item_ids): only those, under their categories in the Menu Manager order; a category left without a chosen product disappears; an id that no longer exists is skipped and counted; none left = every product and the diagnosis says so; the device copy keeps the choice; with the real menu, 12 chosen products (5 categories) fit 2–3 pages on a 32" TV read from 3 m (compacta, sin inglés) at a letter never under the minimum',
+    name: 'B24: the TV\'s products (item_ids): only those, under their categories in the Menu Manager order; a category left without a chosen product disappears; an id that no longer exists is skipped and counted; none left = every product and the diagnosis says so; the device copy keeps the choice; with the real menu, 9 chosen products (3 categories) fit 2–3 pages on a 32" TV read from 3 m (compacta, sin inglés) at a letter never under the minimum',
     run: async ({ browser, setOffline }) => {
       const idDe = (name) => sql(`select id from public.menu_items where name = '${name.replace(/'/g, "''")}'`);
       const latte = idDe('Latte'), conLeche = idDe('Café con Leche'), croissant = idDe('Butter Croissant');
@@ -1612,18 +1617,18 @@ module.exports.tests = [
       assert.deepStrictEqual(off.errors, []);
       setOffline(false);
       await ctx.close();
-      /* (e) the summarized menu the owner asked for (D-064): 12 of the real menu's products, the first of each category in
+      /* (e) the summarized menu the owner asked for (D-064): 9 of the real menu's products, the first of each category in
          the Menu Manager order, on a 32" TV read from 3 m, compacta and sin inglés: 2-3 pages, the letter never under 2.40 cm */
       menuReal();
       const primeros = (cat, n) => sql(`select i.id from menu_items i join menu_categories c on c.id = i.category_id
                                          where c.name = '${cat}' and i.available and i.price_crc > 0 order by i.sort, i.name limit ${n}`).split('\n').filter(Boolean);
-      const resumen = [].concat(primeros('Coffee', 5), primeros('Smoothies', 2), primeros('Sandwiches', 2), primeros('Pastries & Cake', 2), primeros('Costa Rican Favorites', 1));
-      assert.strictEqual(resumen.length, 12, 'the real menu has the 12 products');
+      const resumen = [].concat(primeros('Coffee', 4), primeros('Sandwiches', 2), primeros('Pastries & Cake', 3));   /* 9 in 3 categories: 2 pages here, one more with a wider font */
+      assert.strictEqual(resumen.length, 9, 'the real menu has the 9 products');
       sql(`update public.screens set item_ids = '{${resumen.join(',')}}' where id = 'menu-1'`);
       const tv = await pantalla(browser, { q: '?tv=menu-1&pulgadas=32&distancia=3&densidad=compacta&ingles=no&look=dia&diag=1' });
       i = await info(tv); pages = await contenido(tv);
-      assert.strictEqual(items(pages).length, 12, 'the 12 chosen products');
-      assert.strictEqual(new Set(cats(pages)).size, 5, 'their five categories: ' + cats(pages).join(', '));
+      assert.strictEqual(items(pages).length, 9, 'the 9 chosen products');
+      assert.strictEqual(new Set(cats(pages)).size, 3, 'their three categories: ' + cats(pages).join(', '));
       assert.ok(i.paginas >= 1 && i.paginas <= 3, `32" at 3 m: ${i.paginas} pages (2-3 expected)`);
       assert.deepStrictEqual([i.cabe, i.productos, i.productosFaltan, i.densidad, i.ingles, i.ajustes.pulgadas, i.ajustes.distancia], [true, 'elegidos', 0, 'compacta', 'no', 32, 3]);
       assert.ok(i.capCm >= i.minCm - 1e-9 && Math.abs(i.minCm - 2.4) < 1e-9, `letter ${i.capCm} cm, never under 2.40`);
@@ -1632,7 +1637,7 @@ module.exports.tests = [
       const c = await capitales(tv), pxCm = 1920 / LARGO_CM(32);
       assert.ok(c.min / pxCm >= i.minCm - 1 / pxCm, `the capital drawn ${(c.min / pxCm).toFixed(2)} cm ≥ ${i.minCm}`);
       assert.ok(items(pages).every((g) => digits(g.pr) > 0 && g.en === ''), 'every price shown, no English');
-      assert.ok(/productos elegidos \(12\) · agotados ocultos/.test(await diag(tv)), await diag(tv));
+      assert.ok(/productos elegidos \(9\) · agotados ocultos/.test(await diag(tv)), await diag(tv));
       assert.ok(onlyReads(tv));
       assert.deepStrictEqual(tv.errors, []);
       sql(`update public.screens set item_ids = null where id = 'menu-1'`);

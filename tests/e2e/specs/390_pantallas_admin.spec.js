@@ -12,7 +12,11 @@
    the server next to the zone and the entry, previewed in the real TV page before saving; «Programación sugerida»
    creates four paused compositions from the menu (without names and prices, the owner's 2026-11-02 request); «Hoy en
    pantalla» lists a composition with its zones. The menu TV's products (item_ids, a summarised menu for a 32" at 3 m):
-   ticked per product under their categories, saved, logged and read by the TV; none = every product. */
+   ticked per product under their categories, saved, logged and read by the TV; none = every product. The final 32"/3 m
+   validation: the suggested windows turn at seconds of their own, a zone with nothing to show says so in the list, a
+   menu TV's preview says its pages and letter (or NO CABE) and reads it only while open, «Cambiar foto» replaces an
+   entry's photo in its place (the entry itself, even moved meanwhile) and an upload that ends late never puts the older
+   photo back, and the idle sign-out leaves no photo uploaded for a preview behind. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -720,7 +724,8 @@ module.exports.tests = [
       ] }, 'the zones exactly as written: ids, photos and framing, never a name or a price');
       assert.strictEqual(one(`select status || ' ' || created_by from screen_slides where id = '${id}'`), 'activa Dueño (owner)');
       const row = `article.slide[data-slide="${id}"]`;
-      assert.match(await inner(pg, row + ' .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: foto fija · Butter Croissant · Centro arriba: presentación cada 6 s · 2 entradas · Centro abajo: presentación cada 8 s · Latte · sin nombres ni precios · Derecha: presentación cada 8 s · 2 entradas · se queda 90 s$/);
+      assert.match(await inner(pg, row + ' .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: foto fija · Butter Croissant · Centro arriba: presentación cada 6 s · 2 entradas · Centro abajo: presentación cada 8 s · Latte · sin nombres ni precios · NADA QUE MOSTRAR: suba fotos o active nombres y precios · Derecha: presentación cada 8 s · 2 entradas · se queda 90 s$/,
+        'the zone with nothing to show (its fallback photo stands in) says so');
       assert.match(await text(pg, row + ' [data-when]'), /En pantalla ahora/);
       const d = await anonDatos(pg, 'promos-1');
       assert.deepStrictEqual([d.slides.length, d.slides[0].kind, d.slides[0].usable, d.slides[0].zones.map((z) => z.showable), d.slides[0].zones[0].entries[0].item.price_crc],
@@ -875,7 +880,8 @@ module.exports.tests = [
       await tab(pg, 'slides');
       await pg.click('#sugerir');
       await until(async () => /Se crearon en pausa: Desayuno \(06:00–10:00\), Almuerzo \(10:00–13:00\), Tarde \(13:00–17:00\), Cena \(17:00–19:00\)\. Revíselas/.test(await text(pg, '#sugerirMsg')), 20000, 'the four, told');
-      assert.match(await text(pg, '#sugerirMsg'), /ninguna sale sola\. Van sin nombres ni precios; actívelos por ventana en el editor\.$/, 'the owner is told the four go without names and prices');
+      assert.match(await text(pg, '#sugerirMsg'), /ninguna sale sola\. Van sin nombres ni precios; actívelos por ventana en el editor\. Un producto sin foto no se muestra mientras su ventana vaya sin nombres: súbale foto en el Gestor de menú o elija otra en el editor\.$/,
+        'the owner is told the four go without names and prices, and that a product without a photo does not show then');
       const rows = JSON.parse(one(`select json_agg(json_build_object('t', kicker_es, 'en', kicker_en, 'template', template, 'status', status, 'from', from_time, 'to', to_time, 'days', days, 'sort', sort,
                                        'screens', screen_ids, 'dias', round(extract(epoch from (ends_at - starts_at)) / 86400), 'zones', zones) order by sort)::text from screen_slides`));
       assert.deepStrictEqual(rows.map((r) => [r.t, r.en, r.template, r.status, r.from, r.to, r.days, r.sort, r.screens, r.dias]), [
@@ -894,14 +900,19 @@ module.exports.tests = [
       assert.deepStrictEqual(names(rows[1]), [sandwiches, batidos, frios.concat(['Costa Rican Hot Chocolate', 'Tea', 'Sweet Cane Drink'])], 'lunch: the iced coffees first among the cold drinks');
       assert.deepStrictEqual(names(rows[2]), [calientes, reposteria], 'afternoon');
       assert.deepStrictEqual(names(rows[3]), [sandwiches], 'dinner');
-      rows.forEach((r) => r.zones.forEach((z) => {
-        assert.deepStrictEqual([z.mode, z.seconds, z.labels, z.fallback], ['auto', 8, false, null], r.t + ': presentations without names and prices (the owner turns them on per zone), the brand as the fallback');
+      const secs = { Desayuno: [14, 16, 18, 20], Almuerzo: [12, 15, 18], Tarde: [12, 15], Cena: [10] };
+      rows.forEach((r) => r.zones.forEach((z, i) => {
+        assert.deepStrictEqual([z.mode, z.seconds, z.labels, z.fallback], ['auto', secs[r.t][i], false, null],
+          r.t + ', zone ' + (i + 1) + ': presentations at seconds of their own (never two windows together), without names and prices (the owner turns them on per zone), the brand as the fallback');
         z.entries.forEach((e) => assert.deepStrictEqual([e.photo, e.focus, e.zoom, Object.keys(e).sort()], [null, [50, 50], 100, ['focus', 'item', 'photo', 'zoom']], 'ids and framing only'));
       }));
       assert.strictEqual(one(`select count(*) || ' ' || string_agg(distinct action || ':' || by_name, ',') from screen_changes`), '4 crear:Dueño (owner)');
       assert.deepStrictEqual((await anonDatos(pg, 'promos-1')).slides, [], 'paused: nothing goes on the TV by itself');
       assert.strictEqual(await pg.locator('#slideList article.slide[data-kind=composicion]').count(), 4);
-      assert.match(await inner(pg, '#slideList article.slide[data-kind=composicion] .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: presentación cada 8 s · 7 entradas · sin nombres ni precios · Centro arriba: presentación cada 8 s · 3 entradas · sin nombres ni precios · Centro abajo: presentación cada 8 s · 9 entradas · sin nombres ni precios · Derecha: presentación cada 8 s · 4 entradas · sin nombres ni precios · se queda 60 s$/);
+      /* the seed's products have no photo: without names, no window has anything to show, and the list says so */
+      const nada = ' · sin nombres ni precios · NADA QUE MOSTRAR: suba fotos o active nombres y precios';
+      assert.strictEqual(await inner(pg, '#slideList article.slide[data-kind=composicion] .t'), 'Desayuno · Composición · plantilla Centro en dos · Izquierda: presentación cada 14 s · 7 entradas' + nada +
+        ' · Centro arriba: presentación cada 16 s · 3 entradas' + nada + ' · Centro abajo: presentación cada 18 s · 9 entradas' + nada + ' · Derecha: presentación cada 20 s · 4 entradas' + nada + ' · se queda 60 s');
       assert.match(await text(pg, '#slideList article.slide[data-kind=composicion] [data-status]'), /Pausada/);
       await pg.click('#sugerir');
       await until(async () => /^No se creó nada\. Ya existían: Desayuno, Almuerzo, Tarde, Cena\.$/.test(await text(pg, '#sugerirMsg')), 8000, 'nothing twice');
@@ -996,6 +1007,327 @@ module.exports.tests = [
       assert.strictEqual((await anonDatos(pg, 'menu-1')).tv.item_ids, null, 'the TV shows every product again');
       assert.strictEqual(await text(pg, sum), 'Productos que muestra: todos');
       assert.strictEqual(await pg.locator(card + ' input[data-item]:checked').count(), 0);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · «Programación sugerida» with a group without products: the template is reduced and takes the smaller template\'s seconds per window (3 zones 12/15/18 s, 1 zone 10 s)',
+    run: async ({ browser }) => {
+      one(`update menu_items set price_crc = 0 where category_id in (select id from menu_categories where name in ('Pastries & Cake', 'Savory'))`);
+      const pg = await asOwnerPin(browser);
+      await tab(pg, 'slides');
+      await pg.click('#sugerir');
+      await until(async () => /^Se crearon en pausa: Desayuno \(06:00–10:00, con 3 zonas: faltan productos de alguna categoría\), Almuerzo \(10:00–13:00\), Tarde \(13:00–17:00, con 1 zona: faltan productos de alguna categoría\), Cena \(17:00–19:00\)\./.test(await text(pg, '#sugerirMsg')),
+        20000, 'the four, two of them reduced');
+      const rows = JSON.parse(one(`select json_agg(json_build_object('t', kicker_es, 'template', template,
+                                     'secs', (select json_agg((z ->> 'seconds')::int order by o) from jsonb_array_elements(zones) with ordinality x(z, o))) order by sort)::text from screen_slides`));
+      assert.deepStrictEqual(rows.map((r) => [r.t, r.template, r.secs]), [
+        ['Desayuno', '3-grande-izq', [12, 15, 18]], ['Almuerzo', '3-grande-izq', [12, 15, 18]], ['Tarde', '1', [10]], ['Cena', '1', [10]]
+      ], 'breakfast without pastries in three windows and the afternoon in one, each with the seconds of the template it got');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · a menu TV\'s preview says under the frame what the real page measured with the saved row (pages, columns, letter: its own PANTALLA.info()), «Midiendo…» before; the whole menu on a 32" at 3 m, normal density and English below, says NO CABE; a promotions TV has no such line',
+    run: async ({ browser }) => {
+      const pg = await asOwnerPin(browser, { viewport: { width: 1280, height: 900 } });
+      const card = 'article.tv[data-tv="menu-1"]', line = card + ' [data-pvinfo]';
+      const first = await pg.evaluate((c) => { document.querySelector(c + ' [data-preview]').click(); const l = document.querySelector(c + ' [data-pvinfo]'); return l ? l.textContent : null; }, card);
+      assert.strictEqual(first, 'Midiendo…', 'nothing said before the page has drawn its board');
+      const frameOf = () => until(() => pg.frames().find((f) => /pantalla-menu\?tv=menu-1/.test(f.url())), 8000, 'the frame');
+      let frame = await frameOf();
+      const cm = (n) => n.toFixed(2).replace('.', ',');
+      /* the line and the frame's own measure, read until they agree (a font that arrives lays the board out again) */
+      const seen = await until(async () => {
+        const t = await text(pg, line), i = await frame.evaluate(() => window.PANTALLA ? PANTALLA.info() : null).catch(() => null);
+        if (!i || !(i.paginas > 1) || i.fuente !== 'base') return null;
+        const want = 'En la TV: ' + i.paginas + ' páginas de ' + Math.round(i.paginaMs / 1000) + ' s · ' + i.columnas + ' columnas · letra ' + cm(i.capCm) + ' cm (mínimo ' + cm(i.minCm) + ')';
+        return t === want ? { t, i } : null;
+      }, 15000, 'the line, as the frame measured it');
+      assert.ok(seen.i.cabe === true && seen.i.capCm >= seen.i.minCm, 'the seed\'s 55" at 3 m fits: ' + JSON.stringify([seen.i.paginas, seen.i.capCm, seen.i.cabe]));
+      assert.match(seen.t, /^En la TV: \d+ páginas de 28 s · \d columnas · letra \d,\d\d cm \(mínimo 2,40\)$/, 'the pages and the letter, with the Spanish decimal comma: ' + seen.t);
+      assert.doesNotMatch(await pg.getAttribute(line, 'class'), /\bbad\b/);
+      await pg.click('article.tv[data-tv="promos-1"] [data-preview]');
+      await pg.waitForSelector('article.tv[data-tv="promos-1"] .pv iframe');
+      assert.strictEqual(await pg.locator('article.tv[data-tv="promos-1"] [data-pvinfo]').count(), 0, 'only a menu TV has pages to count');
+      /* 32" at 3 m with the whole menu, normal density and English below: the preview reopened reads the row again */
+      one(`update screens set density = 'normal', english = 'debajo', inches = 32, distance_m = 3 where id = 'menu-1'`);
+      await pg.click(card + ' [data-preview]');
+      assert.strictEqual(await pg.locator(line).count(), 0, 'closed: no line');
+      await pg.click(card + ' [data-preview]');
+      await until(async () => (await text(pg, line)) === 'NO CABE a la letra mínima: use densidad compacta y sin inglés, o menos productos', 15000, 'NO CABE');
+      frame = await frameOf();
+      const j = await frame.evaluate(() => PANTALLA.info());
+      assert.deepStrictEqual([j.cabe, Number(j.ajustes.pulgadas), Number(j.ajustes.distancia), j.ajustes.densidad, j.ajustes.ingles], [false, 32, 3, 'normal', 'debajo'], 'as the frame measured it');
+      assert.match(await pg.getAttribute(line, 'class'), /\bbad\b/, 'said in red');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · a menu TV preview\'s line reads every 2 s only while that preview is open: «Cerrar la vista previa» stops it at once, a TV save that draws the open preview again leaves exactly one reading, «Cerrar sesión» none',
+    run: async ({ browser }) => {
+      /* the panel's own 2 s timers (not the frames'): which are alive, and how many times they ran */
+      const pg = await open(browser, { login: 'owner', aal: 'aal2', viewport: { width: 1280, height: 900 }, init: () => {
+        if (window.top !== window) return;
+        const set = window.setInterval, unset = window.clearInterval, pv = { live: new Set(), runs: 0 };
+        window.__pv = pv;
+        window.setInterval = function (fn, ms) {
+          if (ms !== 2000 || typeof fn !== 'function') return set.apply(window, arguments);
+          const id = set.call(window, function () { pv.runs++; return fn.apply(this, arguments); }, ms);
+          pv.live.add(id);
+          return id;
+        };
+        window.clearInterval = function (id) { pv.live.delete(id); return unset.call(window, id); };
+      } });
+      await pg.waitForSelector('#appView:not([hidden]) article.tv', { timeout: 12000 });
+      const card = 'article.tv[data-tv="menu-1"]', line = card + ' [data-pvinfo]';
+      const pv = () => pg.evaluate(() => ({ live: window.__pv.live.size, runs: window.__pv.runs }));
+      const measured = () => until(async () => /^(En la TV: |NO CABE)/.test((await text(pg, line)) || ''), 15000, 'the line, as the frame measured it');
+      /* how many times the readings ran in a window of ms (at least 2.5 s: one 2 s tick, even on a loaded machine) */
+      const ran = async (ms) => { const a = await pv(); await pg.waitForTimeout(ms); return (await pv()).runs - a.runs; };
+      assert.deepStrictEqual(await pv(), { live: 0, runs: 0 }, 'no preview open: no reading');
+      await pg.click(card + ' [data-preview]');
+      await measured();
+      assert.strictEqual((await pv()).live, 1, 'one reading for the open preview');
+      assert.ok((await ran(4500)) >= 1, 'it reads while the preview is open');
+      /* «Cerrar la vista previa»: stopped there and then, and it never runs again */
+      await pg.click(card + ' [data-preview]');
+      assert.strictEqual((await pv()).live, 0, 'stopped by «Cerrar la vista previa»');
+      assert.strictEqual(await ran(2600), 0, 'no reading after the close');
+      /* a TV save with the preview open draws the card again: the old reading goes, one starts for the new frame */
+      await pg.click(card + ' [data-preview]');
+      await measured();
+      const old = await pg.$(line);
+      await pg.fill('#tv-menu-1-page_seconds', '30');
+      await save(pg, card + ' button[type=submit]');
+      assert.strictEqual(await old.evaluate((e) => e.isConnected), false, 'the card drawn again');
+      assert.strictEqual(await pg.locator(card + ' .pv iframe').count(), 1, 'with its preview open');
+      assert.strictEqual((await pv()).live, 1, 'exactly one reading after the save');
+      await measured();
+      const n = await ran(4500);
+      assert.ok(n >= 1 && n <= 3, 'one reading every 2 s, not two: ' + n + ' runs in 4.5 s');
+      assert.strictEqual((await pv()).live, 1, 'still one');
+      /* «Cerrar sesión» with the preview open: nothing left reading */
+      await pg.click('#outBtn');
+      assert.strictEqual((await pv()).live, 0, 'stopped by «Cerrar sesión»');
+      await pg.waitForSelector('#loginView:not([hidden]) #loginForm:not([hidden])', { timeout: 8000 });
+      assert.strictEqual(await ran(2600), 0, 'no reading after signing out');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · «Cambiar foto» replaces an entry\'s photo in its place: a product keeps its product with a photo of its own (uploaded under menu-photos/pantallas/ on saving), «Foto del menú» takes it back to the menu\'s; a photo-only entry gets the new photo at the same index',
+    run: async ({ browser }) => {
+      one(`update menu_items set photo_url = 'https://fotos.test/latte.png' where name = 'Latte'`);
+      const pg = await asOwnerPin(browser, { viewport: { width: 1280, height: 900 } });
+      await tab(pg, 'slides');
+      const latte = itemId('Latte'), ham = itemId('Ham & Cheese'), banana = itemId('Banana Bread'), before = photos();
+      await pg.click('#newCompo');
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      await pg.click('#edTemplates .tpl[data-template="2-lado"]');
+      const zone = (i) => `#edZones .zone[data-zone="${i}"]`, entry = (i, j) => `${zone(i)} .entry[data-entry="${j}"]`;
+      const add = async (i, q, item) => {
+        if ((await pg.getAttribute(`#edZ-${i}-add`, 'aria-pressed')) !== 'true') await pg.click(`#edZ-${i}-add`);
+        await pg.fill(`#edZ-${i}-search`, q);
+        await pg.click(`#edZ-${i}-picker .pick[data-item="${item}"]`);
+      };
+      const labels = (i) => pg.$$eval(zone(i) + ' .entry .einfo b', (a) => a.map((x) => x.textContent));
+      const src = (sel) => pg.getAttribute(sel + ' .frame img', 'src');
+      /* left: the latte (the menu's photo) and the sandwich; right: an uploaded photo and the banana bread */
+      await add(0, 'latte', latte);
+      await add(0, 'ham & cheese', ham);
+      await pg.click(zone(1) + ' [data-act=subir]');
+      await pg.setInputFiles('#photoFile', { name: 'vieja.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => /Lista: 1 × 1 px/.test(await text(pg, '#edZerr-1')), 8000, 'the first photo made ready');
+      await add(1, 'banana', banana);
+      assert.strictEqual(await src(entry(0, 0)), 'https://fotos.test/latte.png', 'the menu\'s photo');
+      assert.strictEqual(await pg.locator(entry(0, 0) + ' [data-act=foto-menu]').count(), 0, 'no «Foto del menú» while it shows the menu\'s');
+      assert.strictEqual(await pg.locator(zone(0) + ' .entry [data-act=cambiar-foto]').count(), 2, '«Cambiar foto» on every entry');
+      await pg.evaluate((s) => { const z = document.querySelector(s + ' input[type=range]'); z.value = 150; z.dispatchEvent(new Event('input', { bubbles: true })); }, entry(0, 0));
+      /* «Cambiar foto» on the latte: the same place, the same product, a photo of its own, the framing from the start */
+      await pg.click(entry(0, 0) + ' [data-act=cambiar-foto]');
+      await pg.setInputFiles('#photoFile', { name: 'latte-propia.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => /^Lista: 1 × 1 px, \d+ KB\. Se sube al guardar o al abrir la vista previa\.$/.test(await text(pg, '#edZerr-0')), 8000, 'the new photo made ready, said at the zone');
+      assert.deepStrictEqual(await labels(0), ['1. Latte · ₡2 200 en el menú', '2. Ham & Cheese · ₡4 000 en el menú'], 'the entry stays first, with its product');
+      assert.match(await src(entry(0, 0)), /^blob:/, 'the new photo in its frame');
+      assert.deepStrictEqual(await encuadre(pg, entry(0, 0)), { zoom: '100', focus: 'Enfoque 50 %, 50 % · tamaño 100 % · toque o arrastre la miniatura', pos: '50% 50%', tr: '' }, 'framing reset for the new picture');
+      assert.strictEqual(await pg.locator(entry(0, 0) + ' [data-act=foto-menu]').count(), 1, '«Foto del menú» to go back');
+      assert.strictEqual(await pg.locator(entry(0, 1) + ' [data-act=foto-menu]').count(), 0, 'not on an entry that shows the menu\'s photo');
+      assert.strictEqual(await pg.locator(entry(1, 0) + ' [data-act=foto-menu]').count(), 0, 'not on a photo-only entry');
+      /* «Cambiar foto» on the photo-only entry: the new photo, in its place */
+      const old = await src(entry(1, 0));
+      await pg.click(entry(1, 0) + ' [data-act=cambiar-foto]');
+      await pg.setInputFiles('#photoFile', { name: 'nueva.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => (await src(entry(1, 0))) !== old, 8000, 'the new photo in the first entry\'s frame');
+      assert.match(await src(entry(1, 0)), /^blob:/);
+      const right = await labels(1);
+      assert.ok(right.length === 2 && right[0] === '1. Foto (nueva)' && /^2\. Banana Bread · /.test(right[1]), 'still first, the banana bread second: ' + right);
+      assert.deepStrictEqual(photos(), before, 'nothing uploaded before Guardar');
+      await pg.fill('#ed-kicker_es', 'Tarde');
+      await save(pg, '#edSave');
+      const id = one(`select id from screen_slides`);
+      const saved = slideJson(id), z0 = saved.zones[0].entries, z1 = saved.zones[1].entries;
+      const URL_RX = /^https?:\/\/[^/]+\/storage\/v1\/object\/public\/menu-photos\/(pantallas\/[0-9a-f-]{36}\.jpg)$/;
+      assert.deepStrictEqual([z0.length, z0[0].item, z0[0].focus, z0[0].zoom], [2, latte, [50, 50], 100], 'the latte keeps its product and its place');
+      assert.match(z0[0].photo || '', URL_RX, 'with a photo of its own, uploaded under menu-photos/pantallas/');
+      assert.deepStrictEqual(z0[1], { item: ham, photo: null, focus: [50, 50], zoom: 100 }, 'the sandwich as it was');
+      assert.deepStrictEqual([z1.length, z1[0].item, z1[1].item, z1[1].photo], [2, null, banana, null], 'the photo-only entry still first');
+      assert.match(z1[0].photo || '', URL_RX);
+      assert.notStrictEqual(z0[0].photo, z1[0].photo);
+      assert.deepStrictEqual(photos().filter((k) => !before.includes(k)).sort(), [z0[0].photo, z1[0].photo].map((u) => 'menu-photos/' + URL_RX.exec(u)[1]).sort(),
+        'two files, the two in use: the replaced first photo never went up');
+      /* «Foto del menú»: the latte back to the menu's photo */
+      await pg.click(`article.slide[data-slide="${id}"] [data-act=editar]`);
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      assert.strictEqual(await src(entry(0, 0)), z0[0].photo, 'read back with its own photo');
+      await pg.click(entry(0, 0) + ' [data-act=foto-menu]');
+      assert.strictEqual(await src(entry(0, 0)), 'https://fotos.test/latte.png', 'the menu\'s photo again');
+      assert.strictEqual(await pg.locator(entry(0, 0) + ' [data-act=foto-menu]').count(), 0);
+      assert.deepStrictEqual(await labels(0), ['1. Latte · ₡2 200 en el menú', '2. Ham & Cheese · ₡4 000 en el menú']);
+      await save(pg, '#edSave');
+      const back = slideJson(id);
+      assert.deepStrictEqual(back.zones[0].entries[0], { item: latte, photo: null, focus: [50, 50], zoom: 100 }, 'no photo of its own: the menu\'s, the product unchanged');
+      assert.deepStrictEqual([back.zones[0].entries[1], back.zones[1]], [saved.zones[0].entries[1], saved.zones[1]], 'the rest as it was');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · «Cambiar foto» follows its entry (moved or taken out meanwhile) and never puts an older photo back: after the preview uploaded the first, the second is saved and the first taken away; also when the first upload ends only after «Cambiar foto», or during Guardar, and Cancelar takes both away',
+    run: async ({ browser }) => {
+      const pg = await asOwnerPin(browser, { viewport: { width: 1280, height: 900 } });
+      await tab(pg, 'slides');
+      const zone = '#edZones .zone[data-zone="0"]', entry = (j) => `${zone} .entry[data-entry="${j}"]`;
+      const src = (j) => pg.getAttribute(entry(j) + ' .frame img', 'src');
+      const URL_RX = /\/storage\/v1\/object\/public\/menu-photos\/(pantallas\/[0-9a-f-]{36}\.jpg)$/;
+      /* every upload under menu-photos/pantallas/, in order (bucket path); the one numbered hold.n waits for hold.go */
+      const ups = []; let hold = null;
+      const holdNext = () => { let go; hold = { n: ups.length + 1, p: new Promise((ok) => { go = ok; }) }; return go; };
+      await pg.route(/\/storage\/v1\/object\/menu-photos\/pantallas\/[0-9a-f-]{36}\.jpg$/, async (r) => {
+        if (r.request().method() !== 'POST') return r.continue();
+        ups.push(/(pantallas\/[0-9a-f-]{36}\.jpg)$/.exec(r.request().url())[1]);
+        if (hold && ups.length === hold.n) await hold.p;
+        return r.continue();
+      });
+      const stored = (k) => photos().includes('menu-photos/' + k);
+      const deleted = (k) => pg.deletes.some((d) => d.includes(k));
+      const ready = () => until(async () => /^Lista: 1 × 1 px/.test((await text(pg, '#edZerr-0')) || ''), 8000, 'the photo made ready');
+      const pick = async (sel, file) => {
+        await pg.evaluate(() => { document.getElementById('edZerr-0').textContent = ''; });
+        await pg.click(sel);
+        await pg.setInputFiles('#photoFile', { name: file, mimeType: 'image/png', buffer: PHOTO });
+      };
+      /* a composition of one zone whose entries are photos */
+      const start = async (n) => {
+        await pg.click('#newCompo');
+        await pg.waitForSelector('#slideForm #edZones .zone');
+        await pg.click('#edTemplates .tpl[data-template="1"]');
+        for (let k = 0; k < n; k++) { await pick(zone + ' [data-act=subir]', 'foto-' + k + '.png'); await ready(); }
+        await pg.fill('#ed-kicker_es', 'Jardín');
+      };
+      const savedPhoto = (id) => { const p = slideJson(id).zones[0].entries[0].photo || '', m = URL_RX.exec(p); assert.ok(m, 'an uploaded photo: ' + p); return m[1]; };
+      const newest = (but) => one(`select id from screen_slides where id::text <> all('{${but.join(',')}}'::text[])`);   /* the one saved last */
+
+      /* 1) «Cambiar foto» goes to its entry, not to the place it had when it was clicked */
+      await start(2);
+      const a = await src(0), b = await src(1);
+      await pg.click(entry(0) + ' [data-act=cambiar-foto]');
+      await pg.click(entry(0) + ' [data-act=abajo]');               /* the entry moves to second while the file is chosen */
+      await pg.setInputFiles('#photoFile', { name: 'otra.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => (await src(1)) !== a, 8000, 'the new photo, on the moved entry');
+      assert.strictEqual(await src(0), b, 'the other entry keeps its photo');
+      await pg.click(entry(1) + ' [data-act=cambiar-foto]');
+      await pg.click(entry(1) + ' [data-act=quitar]');              /* and this one is taken out meanwhile */
+      const c = await src(0);
+      await pg.setInputFiles('#photoFile', { name: 'tarde.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => (await text(pg, '#edZerr-0')) === 'Esa entrada ya no está. Elija la foto otra vez.', 8000, 'said at the zone');
+      assert.deepStrictEqual([await pg.locator(zone + ' .entry').count(), await src(0)], [1, c], 'nothing else changed');
+      await pg.click('#edCancel');
+
+      /* 2) the preview uploads the first photo; «Cambiar foto» then: the second is saved, the first taken away */
+      await start(1);
+      await pg.click('#edPreviewBtn');
+      await until(() => ups.length === 1 && stored(ups[0]), 8000, 'the first photo uploaded for the preview');
+      await pick(entry(0) + ' [data-act=cambiar-foto]', 'segunda.png');
+      await ready();
+      await save(pg, '#edSave');
+      const id1 = newest([]), s1 = savedPhoto(id1);
+      assert.deepStrictEqual([ups.length, s1], [2, ups[1]], 'the second photo saved, not the first: ' + JSON.stringify(ups));
+      await until(() => deleted(ups[0]), 8000, 'the first one taken away (the test Storage keeps no DELETE: the request naming the file is the proof)');
+      assert.ok(!deleted(s1), 'the saved one stays');
+
+      /* 3) the first upload ends only after «Cambiar foto» (held here until then): still the second is saved */
+      let go = holdNext();
+      await start(1);
+      await pg.click('#edPreviewBtn');
+      await until(() => ups.length === hold.n, 8000, 'the first upload under way');
+      const late = ups[hold.n - 1];
+      await pick(entry(0) + ' [data-act=cambiar-foto]', 'cuarta.png');
+      await ready();
+      assert.ok(!stored(late), 'the first upload still held');
+      go();
+      await until(() => stored(late), 8000, 'the first upload ended');
+      await save(pg, '#edSave');
+      const id2 = newest([id1]), s2 = savedPhoto(id2);
+      assert.deepStrictEqual([ups.length - hold.n, s2], [1, ups[hold.n]], 'the second photo saved, not the late first: ' + JSON.stringify(ups));
+      await until(() => deleted(late), 8000, 'the late first one taken away');
+      assert.ok(!deleted(s2));
+
+      /* 4) the same during Guardar itself (no preview): the late first one never makes it into the slide */
+      go = holdNext();
+      await start(1);
+      await pg.evaluate(() => { const t = document.getElementById('toast'); t.classList.remove('show'); t.textContent = ''; });
+      await pg.click('#edSave');
+      await until(() => ups.length === hold.n, 8000, 'Guardar uploading the first photo');
+      const late2 = ups[hold.n - 1];
+      await pick(entry(0) + ' [data-act=cambiar-foto]', 'sexta.png');
+      await ready();
+      go();
+      await until(() => pg.evaluate(() => { const t = document.getElementById('toast'); return t.classList.contains('show') && t.textContent === 'Guardado'; }), 10000, '«Guardado»');
+      const id3 = newest([id1, id2]), s3 = savedPhoto(id3);
+      assert.deepStrictEqual([ups.length - hold.n, s3], [1, ups[hold.n]], 'Guardar uploaded the second one too and saved it: ' + JSON.stringify(ups));
+      await until(() => deleted(late2), 8000, 'the late first one taken away');
+      assert.ok(!deleted(s3));
+
+      /* 5) the race again, then Cancelar: the late first one and the second both taken away */
+      go = holdNext();
+      await start(1);
+      await pg.click('#edPreviewBtn');
+      await until(() => ups.length === hold.n, 8000, 'the first upload under way');
+      const late3 = ups[hold.n - 1];
+      await pick(entry(0) + ' [data-act=cambiar-foto]', 'octava.png');
+      await ready();
+      go();
+      await until(() => ups.length === hold.n + 1 && stored(late3) && stored(ups[hold.n]), 8000, 'both uploaded for the preview');
+      const second = ups[hold.n];
+      await pg.click('#edCancel');
+      await until(() => deleted(late3) && deleted(second), 8000, 'both taken away: no orphan file');
+      assert.strictEqual(slides(), 3, 'nothing more saved');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'the owner login\'s idle sign-out first takes away a photo uploaded for a preview and never saved: no orphan file in Storage',
+    run: async ({ browser }) => {
+      const pg = await open(browser, { login: 'owner', aal: 'aal2', viewport: { width: 1280, height: 900 } });
+      await pg.waitForSelector('#appView:not([hidden]) article.tv', { timeout: 12000 });
+      await tab(pg, 'slides');
+      await pg.click('#newCompo');
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      await pg.click('#edTemplates .tpl[data-template="1"]');
+      const before = photos();
+      await pg.click('#edZones .zone[data-zone="0"] [data-act=subir]');
+      await pg.setInputFiles('#photoFile', { name: 'abandonada.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => /Lista: 1 × 1 px/.test(await text(pg, '#edZerr-0')), 8000, 'the photo made ready');
+      await pg.click('#edPreviewBtn');
+      await until(() => photos().length === before.length + 1, 8000, 'uploaded for the preview');
+      const key = photos().filter((k) => !before.includes(k))[0].replace(/^menu-photos\//, '');
+      assert.ok(!pg.deletes.some((d) => d.includes(key)), 'nothing taken away yet');
+      /* the owner walks away: the test's idle time, armed again by a key */
+      await pg.evaluate(() => { window.PANTALLAS_TEST = { idleMs: 600 }; document.dispatchEvent(new KeyboardEvent('keydown')); });
+      await until(() => pg.deletes.some((d) => d.includes(key)), 8000, 'the photo taken away (the test Storage keeps no DELETE: the request naming the file is the proof)');
+      await pg.waitForSelector('#loginView:not([hidden]) #loginForm:not([hidden])', { timeout: 10000 });
+      assert.strictEqual(await pg.locator('#appView').isHidden(), true, 'signed out');
+      assert.strictEqual(slides(), 0, 'nothing saved');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

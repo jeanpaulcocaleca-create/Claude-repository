@@ -5,8 +5,9 @@
    5) read from a distance: big prices, little else, nothing outside the screen;
    6) nothing new: the site, the public key and the TV's browser; nothing stored on the device;
    7) combos and discounts never announced (the till's helpers never show).
-   P1-P17: the slides of 0036. P18-P26: the compositions of 0037 (templates, independent presentations, labels and
-   live prices, what cannot show, the dwell, the owner's preview, the dissolve, photos that hang or fail).
+   P1-P17: the slides of 0036. P18-P29: the compositions of 0037 (templates, independent presentations, labels and
+   live prices, what cannot show, the dwell, the owner's preview, the dissolve, photos that hang or fail, the turns
+   across stays, the café's 32" TV read from 3 m).
    Slides are written straight into the test database (as its superuser): pantallas.html, which writes them for the
    owner, has its own tests. */
 'use strict';
@@ -979,7 +980,7 @@ module.exports.tests = [
       assert.ok(cambios(m1, 0).length >= 2);
       assert.strictEqual((await zonas(pg)).kick, 'Desayuno · Breakfast');
       let d = await diag(pg);
-      assert.ok(/Composición: plantilla 2-lado · 2 zonas/.test(d) && /Zona 1: presentación cada 4 s · 2 de 3 entradas con qué mostrar · con nombres y precios · muestra la [12] \((Pan de banano casero|Banana Bread|Latte), precio\)/.test(d)
+      assert.ok(/Composición: plantilla 2-lado · 2 zonas/.test(d) && /Zona 1: presentación cada 4 s · 2 de 3 entradas con qué mostrar · con nombres y precios · muestra la [12] \((Pan de banano casero|Pan de banano|Banana Bread|Latte), precio\)/.test(d)
                 && /Zona 2: foto fija · 1 de 1 entrada con qué mostrar · con nombres y precios · muestra la 1 \((Tea|Té), precio\)/.test(d), d);
       /* one sold out: the zone goes on with the other, without restarting the composition */
       sql(`update public.menu_items set available = false where name = 'Banana Bread'`);
@@ -1244,7 +1245,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'P27: a composition that comes back after another slide goes on from the entry after the one it showed when it left (every photo of a long presentation gets its turn), with no first-turn stagger on the way back',
+    name: 'P27: a composition that comes back after another slide goes on from the entry after the one it showed when it left (every photo of a long presentation gets its turn); its single zone\'s first turn on every stay is its own seconds (the stagger of the other zones of a composition, on every stay: P28)',
     run: async ({ browser }) => {
       const c = compo({ template: '1', zones: [{ mode: 'auto', seconds: 5, labels: false, entries: fotos('v', 4) }] });   /* 5 s -> 2.5 s a photo here */
       const otra = marca('Otra');
@@ -1270,6 +1271,189 @@ module.exports.tests = [
       assert.deepStrictEqual([...vistas].sort(), [0, 1, 2, 3], 'every photo got its turn: ' + JSON.stringify(vueltas));
       assert.ok(onlyReads(pg));
       assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P28: zones with the same seconds never change together, also when the composition comes back after another slide: the first turn is staggered on every start (zone i waits 1 + 0.25·i turns)',
+    run: async ({ browser }) => {
+      const c = compo({ template: '3-grande-izq', sort: 1, zones: ['s', 't', 'u'].map((p) => ({ mode: 'auto', seconds: 5, labels: false, entries: fotos(p, 3) })) });   /* 5 s -> 2.5 s a turn here */
+      const otra = marca('Otra', { sort: 2 });
+      /* the composition stays 4 s, the brand slide 1.2 s: zone 1 turns at 2.5 s, zone 2 at 3.1 s, zone 3 at 3.75 s of each
+         stay (only zones 1 and 2 surely inside it). The first read is held back a second, so the sampling sees the
+         composition's first stay start too */
+      let primeraLectura = true;
+      const retener = (x) => x.route(/\/rest\/v1\/rpc\/pantalla_datos/, async (r) => { if (primeraLectura) { primeraLectura = false; await sleep(1000); } return r.continue(); });
+      const pg = await pantalla(browser, { wait: false, setup: retener, test: { diapositiva: 1200, permanencia: 4000, zona: 500, fundido: 200, revisar: 100 } });
+      /* every ~25 ms: the page's own clock, the slide on screen and each zone's entry */
+      const m = [], t0 = Date.now();
+      while (Date.now() - t0 < 14000) {
+        m.push(await pg.evaluate(() => { const i = PANTALLA_B.info(); return { t: performance.now(), actual: i.actual, e: i.composicion ? i.composicion.zonas.map((z) => z.entrada) : null }; }));
+        await sleep(25);
+      }
+      /* the stays: runs of samples with the same slide; one whose start was seen (not the first sample) and that ended (not the last run) */
+      const runs = [];
+      m.forEach((x, k) => {
+        if (!runs.length || runs[runs.length - 1].actual !== x.actual) runs.push({ actual: x.actual, desde: x.t, visto: k > 0, muestras: [] });
+        runs[runs.length - 1].muestras.push(x);
+      });
+      runs.forEach((r, k) => { r.completa = k < runs.length - 1; });
+      const estancias = runs.filter((r) => r.actual === c);
+      /* each zone's first change in a stay, in ms from the stay's start (null: not seen in it) */
+      const primerCambio = (r, i) => {
+        let e0 = null;
+        for (const x of r.muestras) {
+          if (!x.e || !(x.e[i] >= 0)) continue;
+          if (e0 === null) e0 = x.e[i]; else if (x.e[i] !== e0) return Math.round(x.t - r.desde);
+        }
+        return null;
+      };
+      const medidas = estancias.map((r, k) => ({ vuelta: k, visto: r.visto, completa: r.completa, primera: [0, 1, 2].map((i) => primerCambio(r, i)) }));
+      const resumen = JSON.stringify({ medidas, runs: runs.map((r) => [r.actual === c ? 'c' : r.actual === otra ? 'otra' : r.actual, Math.round(r.desde)]) });
+      const medibles = medidas.filter((x) => x.visto && (x.completa || (x.primera[0] !== null && x.primera[1] !== null)));
+      assert.ok(medidas.length >= 2 && medidas[0].visto && medidas[0].completa, 'the first stay seen from its start to its end: ' + resumen);
+      assert.ok(medibles.some((x) => x.vuelta >= 1 && x.completa), 'the composition came back after the brand slide and stayed: ' + resumen);
+      medibles.forEach((x) => {
+        const [a, b, d] = x.primera, cual = (x.vuelta ? 'stay ' + (x.vuelta + 1) + ' (back after the brand slide)' : 'the first stay') + ': ';
+        assert.ok(a !== null && b !== null, cual + 'zones 1 and 2 both changed inside the stay: ' + resumen);
+        assert.ok(a >= 2000, cual + 'zone 1 waited its turn (2.5 s) before its first change: ' + resumen);
+        assert.ok(b - a >= 400, cual + 'zone 2 changed well after zone 1 (a quarter of a turn later, 0.6 s): ' + resumen);
+        if (d !== null) assert.ok(d > b, cual + 'zone 3 changed after zone 2: ' + resumen);
+      });
+      /* never the three zones within the same 150 ms, in any stay */
+      const eventos = [];
+      estancias.forEach((r) => r.muestras.forEach((x, k) => {
+        const a = r.muestras[k - 1];
+        if (k && a.e && x.e) x.e.forEach((v, i) => { if (a.e[i] >= 0 && v >= 0 && v !== a.e[i]) eventos.push({ i, t: Math.round(x.t) }); });
+      }));
+      assert.ok(eventos.length >= 4, 'the zones turned: ' + JSON.stringify(eventos));
+      eventos.forEach((ev) => {
+        const juntas = new Set(eventos.filter((o) => o.t >= ev.t && o.t - ev.t <= 150).map((o) => o.i));
+        assert.ok(juntas.size < 3, `the three zones changed together at ${ev.t} ms: ` + JSON.stringify(eventos) + ' ' + resumen);
+      });
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P29: a small zone that cannot hold the name, its English and the price at the distance\'s letter drops the English first and keeps the name and the price at full size; a zone where everything fits keeps the English, also on the layer that hid it for a long name; without a kicker the brand line shrinks before it goes',
+    run: async ({ browser }) => {
+      /* names whose Spanish and English differ, set here (the test does not lean on the site's dictionary) */
+      sql(`update public.menu_items set name_es = 'Té' where name = 'Tea';
+           update public.menu_items set name_es = 'Latte frío' where name = 'Iced Latte';
+           update public.menu_items set name_es = 'Jamón y queso' where name = 'Ham & Cheese';
+           update public.menu_items set name_es = 'Moca' where name = 'Mocha'`);
+      ['Tea', 'Iced Latte', 'Ham & Cheese', 'Mocha'].forEach((n) => assert.ok(itemId(n), 'the test menu has ' + n));
+      /* 4-centro on the café's 32" TV read from 3 m: the two centre zones are small (476 x 538 px) */
+      const c = compo({ template: '4-centro', kicker_es: 'Desayuno', kicker_en: 'Breakfast', zones: [
+        { entries: [{ item: 'Tea', photo: 'https://fotos.test/te.png' }] },                  /* large: a short name */
+        { entries: [{ item: 'Tea', photo: 'https://fotos.test/te.png' }] },                  /* small: the same name */
+        { entries: [{ item: 'Iced Latte', photo: 'https://fotos.test/latte.png' }] },        /* small */
+        /* large: a long name, then two short ones; three entries on two layers, so the third (Tea) lands on the layer
+           that carried the long name with its English hidden */
+        { mode: 'auto', seconds: 4, entries: [{ item: 'Ham & Cheese', photo: 'https://fotos.test/jamon.png' }, { item: 'Mocha', photo: 'https://fotos.test/moca.png' },
+                                              { item: 'Tea', photo: 'https://fotos.test/te.png' }] }
+      ] });
+      const pg = await pantalla(browser, { q: '?tv=promos-1&pulgadas=32&distancia=3&diag=1', test: { diapositiva: 600000, permanencia: 600000, zona: 300, fundido: 100, revisar: 150 } });
+      const pxCm = 1920 / LARGO_CM(32), tol = 1;   /* 1 px */
+      const ZT = { grande: 1.0, pequena: 0.8 }, ZTE = 0.64 / 0.8, ZP = 1.2;   /* ZFACT: the name per metre, the English 0.8 x it, the price 1.2 x it */
+      /* each zone's front layer at rest: its texts, shown or not, and their capitals in px; the brand line and the kicker */
+      const leer = () => pg.evaluate(() => {
+        const cx = document.createElement('canvas').getContext('2d');
+        const cap = (e) => { const cs = getComputedStyle(e); cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; return cx.measureText('H').actualBoundingBoxAscent; };
+        const vis = (e) => !!e && e.getClientRects().length > 0;
+        const sl = document.querySelector('#stage:not(.apagado) .capa.on .sl.k-composicion');
+        if (!sl) return null;
+        const kk = sl.querySelector('.zkick'), kr = kk && kk.getBoundingClientRect();
+        return {
+          id: sl.dataset.id, sup: vis(sl.querySelector('.sup')),
+          kick: vis(kk) ? { t: kk.textContent, cap: cap(kk), dentro: kr.left >= -1 && kr.right <= innerWidth + 1 && kr.top >= -1, cortado: kk.scrollWidth > kk.clientWidth + 1 } : null,
+          zonas: [...sl.querySelectorAll('.zona')].map((z) => {
+            const on = z.querySelectorAll('.zcapa.on'), f = on.length === 1 ? on[0] : null, g = (r) => f && f.querySelector('[data-r="' + r + '"]');
+            const tx = f && f.querySelector('.ztxt');
+            return { tamano: z.dataset.tamano, quieta: !!f && !f.classList.contains('sale'), capa: f ? [...z.querySelectorAll('.zcapa')].indexOf(f) : -1, zsinen: !!f && f.classList.contains('zsinen'),
+                     tit: g('zt') ? g('zt').textContent : null, en: g('zte') ? g('zte').textContent : null,
+                     enVisible: vis(g('zte')), zt: vis(g('zt')) ? cap(g('zt')) : null, zte: vis(g('zte')) ? cap(g('zte')) : null, zp: vis(g('zp')) ? cap(g('zp')) : null,
+                     cortado: !!f && [...f.querySelectorAll('[data-r]')].some((e) => vis(e) && e.scrollWidth > e.clientWidth + 1),
+                     mitad: tx ? tx.scrollHeight <= z.clientHeight / 2 + 1 : null };
+          })
+        };
+      });
+      await until(async () => { const v = await leer(); return v && v.id === c && v.zonas.every((x) => x.quieta && x.tit); }, 8000, 'the four zones up with their labels');
+      const v = await leer(), ci = await compoInfo(pg), z = v.zonas, txt = JSON.stringify(v);
+      assert.deepStrictEqual(z.map((x) => x.tamano), ['grande', 'pequena', 'pequena', 'grande'], txt);
+      /* the small zones: the English line is there but not shown; the name and the price at the full letter of a small zone for 3 m */
+      [1, 2].forEach((i) => {
+        const x = z[i], at = `small zone ${i + 1} (${x.tit}): `;
+        assert.ok(x.en && !x.enVisible && x.zte === null, at + 'the English is not shown: ' + txt);
+        assert.ok(x.zt >= ZT.pequena * 3 * pxCm - tol, at + `the name at ${(x.zt / pxCm).toFixed(2)} cm, the distance's letter is ${(ZT.pequena * 3).toFixed(2)} cm`);
+        assert.ok(x.zp >= ZT.pequena * ZP * 3 * pxCm - tol, at + `the price at ${(x.zp / pxCm).toFixed(2)} cm, the distance's letter is ${(ZT.pequena * ZP * 3).toFixed(2)} cm`);
+        assert.ok(!x.cortado && x.mitad, at + 'nothing cut, the labels in the lower half: ' + txt);
+        assert.deepStrictEqual([ci.zonas[i].sinIngles, ci.zonas[i].k, ci.zonas[i].cabe], [true, 1, true], at + JSON.stringify(ci.zonas[i]));
+      });
+      assert.deepStrictEqual([z[1].tit, z[1].en, z[2].tit, z[2].en], ['Té', 'Tea', 'Latte frío', 'Iced Latte'], txt);
+      /* the large zone with a short name: everything fits, the English stays, all at the full letter */
+      const g = z[0];
+      assert.ok(g.tit === 'Té' && g.en === 'Tea' && g.enVisible, 'the large zone keeps its English: ' + txt);
+      assert.ok(g.zt >= ZT.grande * 3 * pxCm - tol && g.zte >= ZT.grande * ZTE * 3 * pxCm - tol && g.zp >= ZT.grande * ZP * 3 * pxCm - tol && !g.cortado && g.mitad,
+        `the large zone at the full letter: name ${(g.zt / pxCm).toFixed(2)} cm, English ${(g.zte / pxCm).toFixed(2)}, price ${(g.zp / pxCm).toFixed(2)}`);
+      assert.deepStrictEqual([ci.zonas[0].sinIngles, ci.zonas[0].k], [false, 1], JSON.stringify(ci.zonas[0]));
+      /* the decision is per photo: in the large presentation zone the long name loses its English, the short one keeps it */
+      const enZona4 = async (tit) => { await until(async () => { const j = await leer(); return j && j.zonas[3].quieta && j.zonas[3].tit === tit; }, 8000, tit + ' in zone 4'); return [(await leer()).zonas[3], (await compoInfo(pg)).zonas[3]]; };
+      let [x4, c4] = await enZona4('Jamón y queso');
+      assert.ok(x4.en === 'Ham & Cheese' && !x4.enVisible && x4.zsinen && c4.sinIngles && x4.zt >= ZT.grande * 3 * pxCm - tol && !x4.cortado, 'a long name in a large zone: no English, the name at the full letter: ' + JSON.stringify(x4));
+      const capaJamon = x4.capa;
+      assert.ok(capaJamon === 0 || capaJamon === 1, 'the layer of the long name: ' + JSON.stringify(x4));
+      [x4, c4] = await enZona4('Moca');
+      assert.ok(x4.en === 'Mocha' && x4.enVisible && !c4.sinIngles && x4.zte >= ZT.grande * ZTE * 3 * pxCm - tol, 'the next photo, a short name, keeps its English: ' + JSON.stringify(x4));
+      /* the third photo, a short name, is drawn on the very layer that hid the English for «Jamón y queso»: the layer's
+         «no English» goes with the long name, the short one shows its English at the full letter */
+      await until(async () => { const j = await leer(); return j && j.zonas[3].quieta && j.zonas[3].tit === 'Té' && j.zonas[3].capa === capaJamon; }, 8000, 'Té in zone 4 on the layer of «Jamón y queso»');
+      [x4, c4] = [(await leer()).zonas[3], (await compoInfo(pg)).zonas[3]];
+      assert.ok(x4.tit === 'Té' && x4.capa === capaJamon && x4.en === 'Tea' && x4.enVisible && !x4.zsinen && !x4.cortado && x4.zte >= ZT.grande * ZTE * 3 * pxCm - tol,
+        'a short name on the layer that hid the English keeps its English: ' + JSON.stringify(x4));
+      assert.deepStrictEqual([c4.titulo, c4.sinIngles, c4.k, c4.cabe], ['Té', false, 1, true], JSON.stringify(c4));
+      /* the diagnosis names the zone that dropped its English, and not the one that kept it */
+      const lineas = (await diag(pg)).split('\n'), linea = (n) => lineas.find((l) => l.indexOf('Zona ' + n + ':') === 0) || '';
+      assert.ok(/\(Té, precio\)$/.test(linea(1)) && /\(Té, precio\) · sin inglés \(no cabe\)$/.test(linea(2)) && /\(Latte frío, precio\) · sin inglés \(no cabe\)$/.test(linea(3)), lineas.join('\n'));
+      /* the top edge of the same TV: the brand line and the kicker do not fit side by side even at 0.85, so the brand line
+         goes and the kicker, alone, keeps the distance's full letter (0.8 cm per metre) */
+      assert.ok(!v.sup, 'the brand line gives way on the 32" TV from 3 m: ' + txt);
+      assert.ok(v.kick && v.kick.t === 'Desayuno · Breakfast' && v.kick.dentro && !v.kick.cortado, 'the kicker shown, inside the screen: ' + JSON.stringify(v.kick));
+      assert.ok(v.kick.cap >= 0.8 * 3 * pxCm - tol, `the kicker at ${(v.kick.cap / pxCm).toFixed(2)} cm, the distance's letter is ${(0.8 * 3).toFixed(2)} cm`);
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+      /* a composition WITHOUT a kicker: the brand line has the top edge to itself; it takes the largest of 1, 0.85, 0.72
+         and 0.6 of the distance's letter (0.8 cm per metre) that fits, and goes only when it does not fit even at 0.6 */
+      const sk = compo({ template: '1', zones: [{ entries: [{ item: 'Tea', photo: 'https://fotos.test/te.png' }] }] });
+      const marcaSola = async (dist) => {
+        const p2 = await pantalla(browser, { q: `?tv=promos-1&pulgadas=32&distancia=${dist}&diag=1`, test: { diapositiva: 600000, permanencia: 600000, zona: 300, fundido: 100, revisar: 150 } });
+        await mostrar(p2, sk);
+        const leerSup = () => p2.evaluate(() => {
+          const cx = document.createElement('canvas').getContext('2d');
+          const sl = document.querySelector('#stage:not(.apagado) .capa.on .sl.k-composicion');
+          if (!sl) return null;
+          const s = sl.querySelector('.sup'), vis = !!s && s.getClientRects().length > 0, r = vis ? s.getBoundingClientRect() : null, cs = s && getComputedStyle(s);
+          if (vis) cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+          return { id: sl.dataset.id, kick: !!sl.querySelector('.zkick'), vis: vis, t: s ? s.textContent : null, cap: vis ? cx.measureText('H').actualBoundingBoxAscent : null,
+                   ancho: vis ? s.scrollWidth : null, dentro: !!r && r.left >= -1 && r.right <= innerWidth + 1 && r.top >= -1 };
+        });
+        await until(async () => { const j = await leerSup(); return j && j.id === sk; }, 8000, 'the composition without a kicker on the 32" TV from ' + dist + ' m');
+        const b = await leerSup();
+        assert.deepStrictEqual(p2.errors, []);
+        return Object.assign(b, { letra: 0.8 * dist * pxCm });
+      };
+      const libre = 1920 - 2 * Math.round(0.03 * 1080);   /* the top edge less the margins */
+      /* the café's 32" from 3 m: alone, the brand line fits at the full letter (about 1500 px of the 1856 free), so it
+         shows unshrunk; it is the kicker that sends it away (above) */
+      const m3 = await marcaSola(3);
+      assert.ok(!m3.kick && m3.vis && m3.t === 'Hanging Garden Café' && m3.dentro && m3.ancho <= libre, 'without a kicker the brand line shows on the 32" TV from 3 m: ' + JSON.stringify(m3));
+      assert.ok(m3.cap >= m3.letra - tol, `the brand line at ${(m3.cap / pxCm).toFixed(2)} cm, the distance's letter is ${(m3.letra / pxCm).toFixed(2)} cm: ` + JSON.stringify(m3));
+      /* the same TV from 5 m: the brand line does not fit even at 0.85, but it does at 0.72 or 0.6: it shrinks and stays
+         (it used to go as soon as 0.85 failed) */
+      const m5 = await marcaSola(5);
+      assert.ok(!m5.kick && m5.vis && m5.t === 'Hanging Garden Café' && m5.dentro && m5.ancho <= libre, 'without a kicker the brand line shrinks, not hidden, on the 32" TV from 5 m: ' + JSON.stringify(m5));
+      assert.ok(m5.cap >= 0.6 * m5.letra - tol && m5.cap <= 0.72 * m5.letra + tol,
+        `the brand line at ${(m5.cap / m5.letra).toFixed(2)} of the distance's letter (0.72 or 0.6 expected): ` + JSON.stringify(m5));
     }
   },
 ];

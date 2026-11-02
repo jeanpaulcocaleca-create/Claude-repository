@@ -2466,8 +2466,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     block that does not fit in what is left of a column is cut there and continues on top of the next column under
     its title with «(continúa)», only when both pieces keep two items or more, else it moves whole (a block of three
     taller than a column goes 2 + 1, the fuller column first); the pieces the first filling put on a page are then
-    dealt again over its columns, in order, by the deal that leaves the least empty board under the columns (the sum
-    of the squares; every deal is tried, not a greedy pass), never cutting a block the first filling kept whole (CI
+    dealt again over its columns, in order, by an exact two-pass deal (every deal is tried, not a greedy pass): the
+    lowest possible tallest column first, then, under it, the least empty board under the columns (the sum of the
+    squares of what each column leaves empty, real heights, an empty column counting as a whole board), never cutting a block the first filling kept whole (CI
     had shown a three-item block cut 1 + 2 to lower a column by 67 px), never fewer columns than the first filling
     used, and cutting a block it did cut only where both sides keep two items (one, only when nothing else keeps the
     columns), so the columns end at nearly the same height and no column keeps a hole the next piece could have
@@ -2584,4 +2585,32 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   changed) lost its zones' memory; a cold start's diagnosis said «elegidos» when the last online state was
   «no-existen» (the copy keeps what it was filtered by); the diagnosis now adds «N en pantalla» when a chosen product
   exists but is not on the board; the panel's summary counts saved ids the card no longer offers («ya no existen»).
+- **The 32"/3 m validation (2026-11-02, four read-only validators on the code and the 3 m captures, measured in pixels):**
+  legibility, photographs and the panel confirmed with notes; rotation times found one defect, fixed: a composition
+  coming back (Screen B the next day without a reload, Screen A from the second interlude) started its zones without
+  the first-turn stagger, so zones with equal seconds changed together; the stagger now applies on every start, the
+  resume-from-next-entry memory kept (P28), and «Programación sugerida» gives each window its own seconds (4-centro
+  14/16/18/20, 3-grande 12/15/18, 2-lado 12/15, 1: 10; was 8 everywhere: a fade every ~2 s). Notes fixed: a small zone
+  with labels drops its English before shrinking the name and the price (they fell to 1.9 cm at 3 m; P29); the label
+  veil starts darker at ~22 % (first line measured at 2:1–3:1 over light photos); the brand line is hidden before the
+  kicker shrinks under 0.85 (it reached 1.44 cm); the menu TV preview in the panel shows the TV's own page count and
+  letter or «NO CABE» (read from the same-origin preview page); «Cambiar foto» replaces a position's photo in place and
+  «Foto del menú» returns a product to its menu photo; a zone with nothing to show says so in the list; the products
+  hint states its assumptions; the idle sign-out drops abandoned preview uploads. Left as notes: the Menu Manager
+  uploads product photos unreduced (outside the screens; the owner uploads ≤ 1 MB JPEG until it is changed in a
+  separate version); English under the names at 32"/3 m does not fit the summary at the minimum letter (the initial
+  configuration is compacta without English, and the preview says NO CABE); new TV rows start at 55" (the activation
+  step sets 32"); a slot change is a clean cut, never black; a two-product category with long Spanish names is cut
+  1 + 1 at 3 m. Figures in `docs/INFORME-PANTALLAS.md` V2.9.
+- **CI on cc59042 (2026-11-02):** three browser tests failed on GitHub's runner and passed here, because its browser
+  measures the letters wider: B12's rule «no column could have taken the next column's first piece» assumed the old
+  left-to-right filling, which an even deal breaks by design (a fuzz of the engine on 20 000 random menus broke it in
+  7 217); it also showed the single-pass squares deal could keep a tallest column that one item moved to a neighbour
+  would lower (726 of 42 916 pages). The deal is now the exact two-pass one above (0 of 64 650 random pages break the
+  new invariant, leave an empty column, overflow or exceed one piece of unevenness), and B12 asserts what an even deal
+  guarantees: the one tallest column cannot give an item across a cut to a neighbour and be lower, the shortest within
+  one piece (a block kept whole moves only whole). B24 measured 12 products in 5 categories as 3 pages here and 4 on
+  the runner: the summary's page count depends on the browser's font by one page, so B24 checks 9 products in 3
+  categories (2 pages here, ≤ 3 anywhere) and the owner reads the real count under the panel's preview. P21's regex
+  missed «Pan de banano», the dictionary's name when the seed has no `name_es`.
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).

@@ -76,8 +76,12 @@ menú real: a 1,5 m, 3 páginas (2 con densidad compacta y sin inglés); a 2 m, 
   páginas o más, así que la TV del menú muestra el **menú resumido**: en Pantallas → «Productos que muestra», unos 12
   productos elegidos por el dueño (3 páginas de 28 s; 8–10 en 2–3 categorías para 2 páginas; letra de 2,4–2,7 cm), con **Densidad: compacta** e **Inglés: no**;
   el menú completo sigue en el QR. Si la TV queda a 1,5–2 m, el menú completo cabe en 2–3 páginas con esos mismos ajustes.
-- En la Pantalla B, las composiciones de 4 ventanas se ven bien a 1,5–2 m; con nombres y precios los rótulos ocupan la
-  mitad baja de cada ventana pequeña: el dueño puede quitarlos por ventana («Nombres y precios») para que manden las fotos.
+- En la Pantalla B, a 3 m las cuatro ventanas nacen **sin nombres ni precios** (mandan las fotos); con rótulos ocupan la
+  mitad baja de cada ventana y en las pequeñas se quita el inglés para no achicar el nombre ni el precio. Fotos: verticales
+  2:3 para las ventanas laterales de «4 centro», cuadradas o 3:4 para las del centro; en el Gestor de menú, fotos de
+  1 MB o menos en JPEG (el Gestor no las reduce y una foto pesada tarda en la TV).
+- Al poner la TV: en la ficha, **Pulgadas 32** y **Distancia 3** (una fila nueva nace con 55"); la vista previa del panel
+  dice debajo las páginas y la letra que calcula la TV.
 
 ## 5. Prueba de letra en el lugar
 
