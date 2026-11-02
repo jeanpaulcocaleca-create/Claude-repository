@@ -109,6 +109,10 @@ declare
                        -- note) and its summary is the TV's name or the slide's title: business data, kept
                        'public.screens.id', 'public.screens.kind', 'public.screens.name', 'public.screens.turn', 'public.screens.look',
                        'public.screens.sold_out', 'public.screen_slides.kind', 'public.screen_slides.kicker_es',
+                       -- 0037: the v2 choices per TV and a composition's template and zones (menu item ids, photo addresses,
+                       -- framing numbers, seconds): shown on the TV, no person, no price; kept
+                       'public.screens.layout', 'public.screens.density', 'public.screens.english', 'public.screens.promo_mode',
+                       'public.screen_slides.template', 'public.screen_slides.zones',
                        'public.screen_slides.kicker_en', 'public.screen_slides.title_es', 'public.screen_slides.title_en',
                        'public.screen_slides.body_es', 'public.screen_slides.body_en', 'public.screen_slides.photo_url',
                        'public.screen_slides.link', 'public.screen_slides.screen_ids', 'public.screen_slides.status',

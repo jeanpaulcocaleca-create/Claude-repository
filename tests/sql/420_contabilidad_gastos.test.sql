@@ -326,6 +326,7 @@ select test.eq((select count(*)::int from (select entry_id from acct.lines group
 select (select count(*) from public.expenses) || '|' || (select count(*) from acct.entries) || '|' || (select count(*) from public.audit_log) || '|'
     || (select count(*) from public.expense_payments) || '|' || (select count(*) from public.expense_schedules) as before \gset
 \o /dev/null
+\ir ../../supabase/tools/reversion-0037.sql
 \ir ../../supabase/tools/reversion-0036.sql
 \ir ../../supabase/tools/reversion-0035.sql
 \ir ../../supabase/tools/reversion-0034.sql

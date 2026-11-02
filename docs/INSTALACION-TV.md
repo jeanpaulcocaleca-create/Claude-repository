@@ -62,7 +62,9 @@ La TV toma el cambio sola en menos de un minuto.
    - las páginas;
    - el estado de los precios y la edad de la última lectura;
    - la versión.
-3. Debe decir **Precios: al-dia**.
+3. Debe decir **Precios: al-dia**. En la Pantalla A, desde la v2 también dice **«cabe en una pantalla: sí/no»** con la
+   letra como % de la meta: si dice «no», la TV pagina (nunca achica la letra bajo el mínimo); el dueño puede elegir en
+   `pantallas.html` la densidad compacta, el inglés en línea o solo español, o menos categorías para esa TV.
 4. Abra otra vez la dirección **sin** `&diag=1`. El cuadro no debe quedar a la vista de los clientes.
 
 ## 5. Prueba de letra en el lugar
@@ -95,7 +97,8 @@ cuesta una licencia y solo se compra si él la aprueba (su condición 6). No ins
 | Pantalla negra | Está fuera del **horario** de esa TV, o el dueño la desmarcó como **Activa** (las dos cosas en `pantallas.html`), o la TV no tiene corriente |
 | Solo «Hanging Garden Café · Monteverde» en la Pantalla B | No hay diapositivas vigentes para esa TV, o no hay internet desde que encendió |
 | La imagen sale de lado | Cambie **Posición** en `pantallas.html` |
-| Letra pequeña o páginas de más | **Escala de letra**, **Distancia**, **Tamaño** o **Categorías** en `pantallas.html` |
+| Letra pequeña o páginas de más | **Escala de letra**, **Distancia**, **Tamaño**, **Categorías**, **Densidad** o **Inglés** en `pantallas.html` |
+| Una zona de la Pantalla B muestra la hoja y el nombre del café | Esa zona no tiene nada que mostrar ahora (productos agotados o sin precio) y no tiene foto de respaldo: el dueño la revisa en `pantallas.html` |
 | La página de error de GitHub («404 · File not found») | La dirección está mal escrita, o las páginas no se han publicado |
 | Pide OK cada vez que enciende | Es normal en el navegador de la TV; anótelo para el dueño (ver la prueba del corte de luz) |
 

@@ -22,6 +22,7 @@ DB=canopy_chain
 ACCEPTED="
 public.audit_menu()|4807ea7301cd2ae6fe56052d3a165352|legacy|2026-10-13|supabase/accounts.sql's body without the inline comment after 'return new;' (same code: h_code 559f340e7bbd; D-031)
 public._slide_json(d screen_slides)|c1da988bed4c04e34c53929eb789a5b4|0036|2026-11-01|0036's text with U+2000 (en quad) normalised to U+2002 (en space) by the paste into the SQL Editor (Unicode NFC; nothing else differs); the blank-name class then starts at U+2002, which no name the Menu Manager can save or Screen B can show reaches (D-063)
+public._slide_json(d screen_slides)|39629a8fdb08add56c649f797779ab4d|0036|2026-11-02|0036's text as supabase/tools/reversion-0037.sql re-creates it: the blank-name class written with \uXXXX escapes instead of the literal characters (same rule, same behaviour; lint 14, D-063/D-064)
 "
 OUT="$(mktemp -d)"
 psql -q -X -d postgres -v ON_ERROR_STOP=1 -c "drop database if exists $DB with (force)" -c "create database $DB"

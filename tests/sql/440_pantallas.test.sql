@@ -91,9 +91,9 @@ create function pg_temp.shown(tv text) returns text language sql as $$
 -- 1) rights, from the catalog ---------------------------------------------------------------------------------------------
 select test.eq((select string_agg(p.oid::regprocedure::text, ', ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'),
-               '_screen_actor(), _screen_changes_immutable(), _screen_hhmm(text), _screen_json(screens), _screen_log(text,text,text,text,jsonb,jsonb), _screen_owner_any_device(), _screen_text_problem(text), '
+               '_screen_actor(), _screen_changes_immutable(), _screen_hhmm(text), _screen_item_json(uuid), _screen_json(screens), _screen_log(text,text,text,text,jsonb,jsonb), _screen_owner_any_device(), _screen_template_places(text), _screen_text_problem(text), '
                || '_slide_json(screen_slides), diapositiva_estado(uuid,text), diapositiva_guardar(jsonb), pantalla_datos(text), '
-               || 'pantalla_guardar(jsonb), pantallas_estado()', 'the thirteen functions of 0036, no other');
+               || 'pantalla_guardar(jsonb), pantallas_estado()', 'the thirteen functions of 0036 and the two helpers of 0037, no other');
 select test.eq((select string_agg(p.proname, ' ' order by p.proname) from pg_proc p
                  where p.pronamespace = 'public'::regnamespace and p.proname ~ '^(pantalla|diapositiva|_screen|_slide)'
                    and has_function_privilege('anon', p.oid, 'execute')), 'pantalla_datos', 'a visitor (the TVs) may run pantalla_datos and nothing else new');
@@ -138,7 +138,7 @@ select test.login('anon'); set role anon;
 select test.eq(public.pantalla_datos('menu-1') ->> 'ok', 'true', 'a visitor reads the menu TV''s settings');
 select test.eq((select string_agg(k, ' ' order by k) from jsonb_object_keys(public.pantalla_datos('menu-1')) k), 'now ok slides tv', 'the answer: ok, now, tv, slides');
 select test.eq((select string_agg(k, ' ' order by k) from jsonb_object_keys(public.pantalla_datos('menu-1') -> 'tv') k),
-               'active category_ids distance_m id inches kind look name on_from on_to page_seconds scale_pct slide_seconds sold_out turn updated_at',
+               'active category_ids density distance_m english id inches kind layout look name on_from on_to page_seconds promo_every promo_mode promo_seconds scale_pct slide_seconds sold_out turn updated_at',
                'the TV''s settings, exactly the contract''s');
 select test.eq(public.pantalla_datos('menu-1') #>> '{tv,scale_pct}', '100', 'with the prudent values of the plan');
 select test.ok((public.pantalla_datos('promos-1') ->> 'now')::timestamptz = now(), 'and the server''s clock (a TV with a wrong clock still ends a slide on time)');
@@ -194,7 +194,8 @@ select test.eq(pg_temp.brief(:'r'), 'true · 1 logged · cambiar tv by Dueño (o
 select test.eq(((:'r'::jsonb) -> 'tv') - 'updated_at',
                jsonb_build_object('id', 'menu-1', 'kind', 'menu', 'name', 'Pantalla A · menú', 'inches', 55.0, 'distance_m', 4.5, 'turn', 'no', 'scale_pct', 120,
                                   'look', 'noche', 'page_seconds', 30, 'slide_seconds', 10, 'category_ids', jsonb_build_array(:'cat_coffee', :'cat_smoothies'),
-                                  'sold_out', 'tachar', 'on_from', '06:30', 'on_to', '18:00', 'active', true), 'saved as asked, the rest kept');
+                                  'sold_out', 'tachar', 'on_from', '06:30', 'on_to', '18:00', 'active', true,
+                                  'layout', 'auto', 'density', 'normal', 'english', 'debajo', 'promo_mode', 'no', 'promo_every', 180, 'promo_seconds', 10), 'saved as asked, the rest kept (the v2 choices at their defaults)');
 select test.ok((:'r'::jsonb) #>> '{_log,before,scale_pct}' = '100' and (:'r'::jsonb) #>> '{_log,after,scale_pct}' = '120'
                and (:'r'::jsonb) #>> '{_log,target_id}' = 'menu-1' and (:'r'::jsonb) #>> '{_log,summary}' = 'Pantalla A · menú',
                'the log keeps what it was and what it is now');
@@ -261,7 +262,7 @@ select test.eq((select created_by || ' / ' || updated_by || ' / ' || status from
                'owner login · owner@test.local / owner login · owner@test.local / activa', 'who created it, and active');
 set role authenticated;
 select test.eq((select string_agg(k, ' ' order by k) from jsonb_object_keys((:'r'::jsonb) -> 'slide') k),
-               'body_en body_es days ends_at from_time id item kicker_en kicker_es kind link menu_item_id photo_url screen_ids sort starts_at status title_en title_es to_time',
+               'body_en body_es days dwell_seconds ends_at from_time id item kicker_en kicker_es kind link menu_item_id photo_url screen_ids sort starts_at status template title_en title_es to_time usable zones',
                'a slide as the screens see it, exactly the contract''s');
 select test.ok((:'r'::jsonb) #> '{_log,before}' = 'null'::jsonb and (:'r'::jsonb) #>> '{_log,after,title_es}' = 'Café de altura de Monteverde'
                and (:'r'::jsonb) #>> '{_log,summary}' = 'Café de altura de Monteverde' and not ((:'r'::jsonb) -> '_log' -> 'after') ? 'item',
@@ -356,7 +357,7 @@ select test.eq((select string_agg(coalesce(r ->> 'error', 'ok') || coalesce('/' 
                     (21, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "from_time": "07:00", "to_time": "24:30"}'),
                     (22, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "photo_url": "javascript:alert(1)"}'),
                     (23, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "photo_url": "https://x.cr/a b.jpg"}'),
-                    (24, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "screen_ids": ["menu-1"]}'),
+                    (24, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "screen_ids": [""]}'),
                     (25, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "screen_ids": ["promos-9"]}'),
                     (26, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "screen_ids": "promos-1"}'),
                     (27, '{"kind": "marca", "title_es": "Hola", "starts_at": "2026-11-01T08:00:00-06:00", "ends_at": "2026-11-02T08:00:00-06:00", "sort": "primero"}'),
@@ -366,8 +367,8 @@ select test.eq((select string_agg(coalesce(r ->> 'error', 'ok') || coalesce('/' 
                || 'invalid/days invalid/days invalid/days invalid/days invalid/days invalid invalid invalid/to_time invalid/photo_url invalid/photo_url '
                || 'invalid/screen_ids invalid/screen_ids invalid/screen_ids invalid invalid invalid/id not_found',
                'refused: unknown kind, a brand slide without title, an invitation without (or with an unknown) link, missing dates, ends not after starts, '
-               || 'more than 366 days, days outside 1-7 or not a list, half or equal hours, a photo that is not a plain web address, a TV that is not a '
-               || 'promotions one or not a list, a bad id, an unknown slide');
+               || 'more than 366 days, days outside 1-7 or not a list, half or equal hours, a photo that is not a plain web address, a TV that does not '
+               || 'exist or not a list, a bad id, an unknown slide');
 reset role;
 select test.eq((select count(*)::int from public.screen_slides), 3, 'none of those saved anything');
 set role authenticated;

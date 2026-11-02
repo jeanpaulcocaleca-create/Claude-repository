@@ -1,17 +1,19 @@
-/* Screen B (website/pantalla-promos.html, docs/PANTALLAS.md, migration 0036): products, brand and invitations for the
-   guests. The owner's conditions it is held to here:
+/* Screen B (website/pantalla-promos.html, docs/PANTALLAS.md, migrations 0036 and 0037): products, brand, invitations
+   and compositions (1 to 4 zones, each a presentation of its own) for the guests. The owner's conditions it is held to here:
    3) names, prices, photos and availability read only from the menu (through pantalla_datos), never written; it polls;
    4) a lost connection or old data never shows an expired slide or an unverified price as current;
    5) read from a distance: big prices, little else, nothing outside the screen;
    6) nothing new: the site, the public key and the TV's browser; nothing stored on the device;
    7) combos and discounts never announced (the till's helpers never show).
+   P1-P17: the slides of 0036. P18-P25: the compositions of 0037 (templates, independent presentations, labels and
+   live prices, what cannot show, the dwell, the owner's preview, the dissolve).
    Slides are written straight into the test database (as its superuser): pantallas.html, which writes them for the
    owner, has its own tests. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { page, goto, until, sql } = require('../lib');
+const { page, goto, until, sql, SITE } = require('../lib');
 
 const API_PORT = String(Number(process.env.E2E_SITE_PORT || 8090) + 1000);
 const PGRST = 'http://127.0.0.1:' + (process.env.E2E_PGRST_PORT || 3013);
@@ -101,6 +103,7 @@ async function pantalla(browser, opts) {
     ? r.fulfill({ status: 200, contentType: 'application/javascript', body: QR_JS }) : r.abort()));
   if (opts.test) await pg.addInitScript((t) => { window.PANTALLA_TEST = t; }, opts.test);
   if (opts.setup) await opts.setup(pg);
+  if (opts.url) { await pg.goto(opts.url, { waitUntil: 'domcontentloaded' }); return pg; }   /* another page (a frame's parent) */
   await goto(pg, '/pantalla-promos' + (opts.q === undefined ? '?tv=promos-1&pulgadas=55&distancia=3' : opts.q));
   await until(() => pg.evaluate(() => !!window.PANTALLA_B), 10000, 'the page script');
   if (opts.wait !== false) await until(() => pg.evaluate(() => PANTALLA_B.info().buenas > 0), 15000, 'the first good read');
@@ -179,6 +182,68 @@ const medir = (pg) => pg.evaluate(() => {
   return out;
 });
 
+/* ---------- compositions (0037) ---------- */
+const itemId = (name) => sql(`select id from public.menu_items where name = ${q(name)}`);
+const sqlJson = (query) => JSON.parse(sql(query));
+/* a composition written straight into the database, its zones as the owner's panel stores them (products by name;
+   a string entry is a photo when it is an address, a product otherwise); returns its id */
+function compo(o) {
+  const entry = (e) => {
+    if (typeof e === 'string') return /^https?:/.test(e) ? { item: null, photo: e, focus: [50, 50], zoom: 100 } : { item: itemId(e), photo: null, focus: [50, 50], zoom: 100 };
+    return { item: e.item ? itemId(e.item) : null, photo: e.photo || null, focus: e.focus || [50, 50], zoom: e.zoom || 100 };
+  };
+  const zones = o.zones.map((z) => ({ mode: z.mode || 'fija', seconds: z.seconds == null ? 8 : z.seconds, labels: z.labels !== false,
+                                       fallback: z.fallback || null, entries: z.entries.map(entry) }));
+  return sql(`with x as (insert into public.screen_slides (kind, template, zones, dwell_seconds, kicker_es, kicker_en, screen_ids, starts_at, ends_at,
+                                   days, from_time, to_time, sort, status)
+    values ('composicion', ${q(o.template)}, ${q(JSON.stringify(zones))}::jsonb, ${o.dwell == null ? 'null' : o.dwell}, ${q(o.kicker_es)}, ${q(o.kicker_en)},
+            ${arr(o.screens)}, ${o.starts || "now() - interval '1 hour'"}, ${o.ends || "now() + interval '1 day'"},
+            ${arr(o.days)}, ${q(o.from)}, ${q(o.to)}, ${o.sort == null ? 100 : o.sort}, ${q(o.status || 'activa')}) returning id) select id from x`);
+}
+/* a slide exactly as pantalla_datos gives it to the screens (the owner's panel posts this shape to the preview) */
+const slideJson = (id) => sqlJson(`select public._slide_json(d)::text from public.screen_slides d where id = '${id}'`);
+const fotos = (pre, n) => Array.from({ length: n }, (_, i) => `https://fotos.test/${pre}${i}.png`);
+const PLAZAS = { '1': 1, '2-lado': 2, '3-grande-izq': 3, '3-grande-der': 3, '4-cuadricula': 4, '4-centro': 4 };
+/* the composition on screen: each zone's place (px inside the stage), what it shows and its two image layers */
+const zonas = (pg) => pg.evaluate(() => {
+  const sl = document.querySelector('#stage:not(.apagado) .capa.on .sl.k-composicion');
+  if (!sl) return null;
+  const st = document.getElementById('stage'), W = innerWidth, H = innerHeight;
+  const cx = document.createElement('canvas').getContext('2d');
+  const cap = (e) => { const cs = getComputedStyle(e); cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; return cx.measureText('H').actualBoundingBoxAscent; };
+  return {
+    id: sl.dataset.id, template: sl.dataset.template, kick: (sl.querySelector('.zkick') || {}).textContent || null, sup: (sl.querySelector('.sup') || {}).textContent || null,
+    stage: [st.offsetWidth, st.offsetHeight], text: sl.innerText,
+    zonas: [...sl.querySelectorAll('.zona')].map((z) => {
+      const front = z.querySelector('.zcapa.on.entra') || z.querySelector('.zcapa.on:not(.sale)') || z.querySelector('.zcapa.on');
+      const f = (s) => { const e = front && front.querySelector(s); return e ? e.textContent : null; };
+      const r = z.getBoundingClientRect(), im = front && front.querySelector('img');
+      return { i: Number(z.dataset.zona), modo: z.dataset.modo, estado: z.dataset.estado, entrada: z.dataset.entrada === '' ? null : Number(z.dataset.entrada),
+               tamano: z.dataset.tamano, box: [z.offsetLeft, z.offsetTop, z.offsetWidth, z.offsetHeight],
+               dentro: r.left >= -1 && r.top >= -1 && r.right <= W + 1 && r.bottom <= H + 1,
+               src: front ? front.dataset.src || null : null, tit: f('.ztit'), titEn: f('.ztit-en'), precio: f('.zprecio'), nota: f('.znota'),
+               marca: !!(front && front.querySelector('.zmarca')), lugar: f('.lugar'),
+               encuadre: im ? [im.style.objectPosition, im.style.transform] : null,
+               caps: [...z.querySelectorAll('[data-r]')].filter((e) => e.getClientRects().length).map((e) => ({ r: e.dataset.r, cap: cap(e), cortado: e.scrollWidth > e.clientWidth + 1 })),
+               capas: [...z.querySelectorAll('.zcapa')].map((c) => { const i = c.querySelector('img'); return { on: c.classList.contains('on'), entra: c.classList.contains('entra'),
+                 sale: c.classList.contains('sale'), opacity: Number(getComputedStyle(c).opacity), src: c.dataset.src || null,
+                 img: !!i, lista: !!i && i.complete && i.naturalWidth > 0, marca: !!c.querySelector('.zmarca') }; }),
+               text: z.innerText };
+    })
+  };
+});
+const compoInfo = (pg) => pg.evaluate(() => PANTALLA_B.info().composicion);
+/* every zone of the composition on screen is at rest (one layer up, no dissolve under way) */
+const quieta = (z) => !!z && z.zonas.every((x) => x.capas.filter((c) => c.on).length === 1);
+/* samples what each zone shows every `cada` ms for `ms` ms */
+async function muestrear(pg, ms, cada) {
+  const out = [], t0 = Date.now();
+  while (Date.now() - t0 < ms) { const z = await zonas(pg); out.push({ t: Date.now() - t0, z }); await sleep(cada || 40); }
+  return out;
+}
+/* the moments (ms into the sampling) a zone's entry changed */
+const cambios = (muestras, i) => muestras.filter((m, k) => k > 0 && m.z && muestras[k - 1].z && m.z.zonas[i].entrada !== muestras[k - 1].z.zonas[i].entrada).map((m) => m.t);
+
 module.exports.tests = [
   {
     name: 'P1: no slide in force: the built-in brand slide «Hanging Garden Café · Monteverde, Costa Rica», no price, no date; only GET reads of pantalla_datos; nothing stored on the device; the real timings',
@@ -232,7 +297,7 @@ module.exports.tests = [
       assert.strictEqual((await info(pg)).actual, banana, 'drawn again in place');
       sql(`update public.screen_slides set photo_url = 'https://fotos.test/promo.png' where id = '${banana}'`);
       await until(async () => (await vista(pg)).foto === 'https://fotos.test/promo.png', 8000, 'the slide\'s own photo first');
-      assert.ok(await pg.evaluate(() => document.querySelector('.capa.on img.foto').classList.contains('ok')), 'the photo loaded and shows');
+      await until(() => pg.evaluate(() => document.querySelector('.capa.on img.foto').classList.contains('ok')), 3000, 'the photo loaded and shows');
       sql(`update public.screen_slides set photo_url = 'https://fotos.test/roto.png' where id = '${banana}'`);
       await until(async () => { const j = await vista(pg); return j.id === banana && j.foto === null; }, 8000, 'a broken photo: the brand background');
       assert.strictEqual(digits((await vista(pg)).precio), 1650, 'the slide stays, with its price');
@@ -550,8 +615,18 @@ module.exports.tests = [
         assert.deepStrictEqual(st.slice(4), giro === 'no' ? [w, h, ''] : [h, w, giro === 'derecha' ? `translate(${w}px, 0px) rotate(90deg)` : `translate(0px, ${h}px) rotate(-90deg)`], where);
         const pxCm = Math.max(w, h) / LARGO_CM(55), tol = 1 / pxCm;
         for (const key of Object.keys(ids).concat('marca-propia')) {
-          await mostrar(pg, key === 'marca-propia' ? 'marca' : ids[key]);
-          const m = await medir(pg), i = await info(pg), at = `${where} ${key}`;
+          const kind = key === 'marca-propia' ? 'propia' : /^(prod|largo)$/.test(key) ? 'producto' : /^(resena|menu)$/.test(key) ? 'invitacion' : 'marca';
+          let m, i;
+          for (let intento = 0; intento < 3; intento++) {
+            /* a tick delayed by a loaded test machine counts as a pause (B8/P13): the products leave at once until the
+               read that follows; wait for verified prices, show the slide, and show it again if that happened meanwhile */
+            await until(async () => (await info(pg)).estado === 'al-dia', 8000, 'prices verified');
+            await mostrar(pg, key === 'marca-propia' ? 'marca' : ids[key]);
+            m = await medir(pg); i = await info(pg);
+            if (m.kind === kind) break;
+          }
+          const at = `${where} ${key}`;
+          assert.strictEqual(m.kind, kind, `${at}: the slide on screen`);
           const caps = (r) => m.textos.filter((t) => t.r === r).map((t) => t.cap / pxCm);
           assert.deepStrictEqual([m.fuera, m.cortados], [[], []], `${at}: nothing outside the screen or cut`);
           assert.ok(i.medidas.cabe && i.medidas.k === 1, `${at}: fits at the sizes for the distance ` + JSON.stringify(i.medidas));
@@ -566,7 +641,7 @@ module.exports.tests = [
           } else assert.ok(t[0] >= 1.2 * 3 - tol, `${at}: title capital ${t[0].toFixed(2)} cm at 3 m (1.2 cm/m)`);
           if (key === 'marca') assert.ok(t[0] >= 1.2 * 3 - tol && !i.medidas.envuelto, `${at}: a short title at full size on one line`);
           if (key === 'prod' || key === 'largo') {
-            assert.ok(caps('p').length === 1 && caps('p')[0] >= 1.5 * 3 - tol, `${at}: price capital ${caps('p')[0]} cm (1.5 cm/m)`);
+            assert.ok(caps('p').length === 1 && caps('p')[0] >= 1.5 * 3 - tol, `${at}: price capital ${caps('p')[0]} cm (1.5 cm/m); on screen ${m.id} ${m.kind}: ${JSON.stringify(m.textos.map((x) => x.r + ':' + x.t.slice(0, 24)))} ${JSON.stringify(i.medidas)}`);
           } else assert.strictEqual(caps('p').length, 0, `${at}: no price`);
           const small = m.textos.filter((x) => !['t', 'p'].includes(x.r));
           assert.ok(small.length >= (key === 'marca-propia' ? 1 : 2), at);
@@ -757,6 +832,331 @@ module.exports.tests = [
       const q = await pg.evaluate(() => location.search);
       assert.ok(/tv=promos-1/.test(q) && /pulgadas=65/.test(q) && /distancia=4/.test(q), 'the TV keeps its settings: ' + q);
       assert.strictEqual((await info(pg)).tv.pulgadas, 65);
+    }
+  },
+  {
+    name: 'P18: the six templates tile the whole screen with 1 to 4 zones in their places (4-centro: 3/8 · two of 2/8 stacked · 3/8), each zone with its own photo, nothing outside the stage; on a turned TV the zones stack in order',
+    run: async ({ browser }) => {
+      const ids = {}; let sort = 1;
+      for (const t of Object.keys(PLAZAS)) ids[t] = compo({ template: t, sort: sort++, zones: fotos(t.replace(/\W/g, '') + '-', PLAZAS[t]).map((f) => ({ entries: [f] })) });
+      const pg = await pantalla(browser, { test: { diapositiva: 600000, permanencia: 600000 } });
+      assert.deepStrictEqual((await info(pg)).visibles, Object.values(ids), 'all six in force');
+      const W = 1920, H = 1080, near = (a, b, tol) => Math.abs(a - b) <= (tol || 8);
+      const want = {   /* [x, y, w, h] as fractions of the stage, in the zones' order */
+        '1': [[0, 0, 1, 1]], '2-lado': [[0, 0, 1 / 2, 1], [1 / 2, 0, 1 / 2, 1]],
+        '3-grande-izq': [[0, 0, 2 / 3, 1], [2 / 3, 0, 1 / 3, 1 / 2], [2 / 3, 1 / 2, 1 / 3, 1 / 2]],
+        '3-grande-der': [[0, 0, 1 / 3, 1 / 2], [0, 1 / 2, 1 / 3, 1 / 2], [1 / 3, 0, 2 / 3, 1]],
+        '4-cuadricula': [[0, 0, 1 / 2, 1 / 2], [1 / 2, 0, 1 / 2, 1 / 2], [0, 1 / 2, 1 / 2, 1 / 2], [1 / 2, 1 / 2, 1 / 2, 1 / 2]],
+        '4-centro': [[0, 0, 3 / 8, 1], [3 / 8, 0, 2 / 8, 1 / 2], [3 / 8, 1 / 2, 2 / 8, 1 / 2], [5 / 8, 0, 3 / 8, 1]]
+      };
+      for (const t of Object.keys(PLAZAS)) {
+        await mostrar(pg, ids[t]);
+        await until(async () => { const z = await zonas(pg); return z && z.id === ids[t] && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, t + ' on screen');
+        const z = await zonas(pg), v = await vista(pg);
+        assert.deepStrictEqual([v.kind, z.template, z.zonas.length, (await info(pg)).tipo], ['composicion', t, PLAZAS[t], 'composicion'], t);
+        let area = 0;
+        z.zonas.forEach((x, i) => {
+          const [fx, fy, fw, fh] = want[t][i], at = `${t} zone ${i + 1} ${JSON.stringify(x.box)}`;
+          assert.ok(near(x.box[0], fx * W) && near(x.box[1], fy * H) && near(x.box[2], fw * W) && near(x.box[3], fh * H), at + ' expected ' + JSON.stringify([fx * W, fy * H, fw * W, fh * H]));
+          assert.ok(x.box[0] >= 0 && x.box[1] >= 0 && x.box[0] + x.box[2] <= W && x.box[1] + x.box[3] <= H && x.dentro, at + ': inside the stage');
+          assert.strictEqual(x.src, `https://fotos.test/${t.replace(/\W/g, '')}-${i}.png`, at + ': its own photo, in order');
+          assert.strictEqual(x.tamano, fw * fh >= 1 / 3 - 1e-9 ? 'grande' : 'pequena', at);
+          assert.ok(x.capas.some((c) => c.on && c.lista), at + ': the photo painted');
+          area += x.box[2] * x.box[3];
+        });
+        assert.ok(area >= 0.985 * W * H, `${t}: the zones fill the screen (${(100 * area / (W * H)).toFixed(1)} %)`);
+        assert.ok(/Hanging Garden Café/.test(z.sup || ''), t + ': the brand line on top');
+        assert.ok(!/₡|\d/.test(z.text), t + ': photos only, no text: ' + z.text);
+      }
+      const m = (await info(pg)).medidas;
+      assert.ok(m.cabe && m.k === 1 && m.plantilla === '4-centro' && m.zonas.length === 4, JSON.stringify(m));
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.context().close();
+      /* a vertical TV: the zones one above the other, in their order, each the full width */
+      const pg2 = await pantalla(browser, { q: '?tv=promos-1&pulgadas=55&distancia=3&giro=derecha', test: { diapositiva: 600000, permanencia: 600000 } });
+      await mostrar(pg2, ids['4-centro']);
+      await until(async () => { const z = await zonas(pg2); return z && z.id === ids['4-centro'] && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, 'turned');
+      const z2 = await zonas(pg2);
+      assert.deepStrictEqual(z2.stage, [1080, 1920]);
+      z2.zonas.forEach((x, i) => {
+        assert.ok(near(x.box[0], 0) && near(x.box[1], i * 480) && near(x.box[2], 1080) && near(x.box[3], 480) && x.dentro, `turned zone ${i + 1}: ${JSON.stringify(x.box)}`);
+        assert.strictEqual(x.src, `https://fotos.test/4centro-${i}.png`);
+      });
+      assert.deepStrictEqual(pg2.errors, []);
+    }
+  },
+  {
+    name: 'P19: a fixed zone keeps its photo; each presentation zone takes turns among its own entries at its own seconds, in order, with a clock of its own (the zones never move together)',
+    run: async ({ browser }) => {
+      const c = compo({ template: '3-grande-izq', zones: [
+        { mode: 'fija', entries: ['https://fotos.test/fija.png', 'https://fotos.test/nunca.png'] },   /* a fixed zone: its first entry only */
+        { mode: 'auto', seconds: 4, entries: fotos('a', 3) },
+        { mode: 'auto', seconds: 6, entries: fotos('b', 2) }
+      ] });
+      /* a declared second lasts 100 ms here: 4 s -> 400 ms, 6 s -> 600 ms; the dissolve 120 ms */
+      const pg = await pantalla(browser, { test: { diapositiva: 600000, zona: 100, fundido: 120, revisar: 200 } });
+      await until(async () => { const z = await zonas(pg); return z && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, 'the composition up');
+      const t0 = Date.now(), m = await muestrear(pg, 3000, 30);
+      assert.ok(Date.now() - t0 >= 3000);
+      const fija = new Set(m.map((x) => x.z.zonas[0].src + '|' + x.z.zonas[0].entrada));
+      assert.deepStrictEqual([...fija], ['https://fotos.test/fija.png|0'], 'the fixed zone never changes');
+      assert.ok(!m.some((x) => /nunca/.test(JSON.stringify(x.z.zonas[0]))), 'a fixed zone shows its first entry only');
+      const c1 = cambios(m, 1), c2 = cambios(m, 2);
+      assert.ok(c1.length >= 5 && c1.length <= 9, `the 4 s zone changed ${c1.length} times in 3 s (every 400 ms): ${c1.join(', ')}`);
+      assert.ok(c2.length >= 3 && c2.length <= 6, `the 6 s zone changed ${c2.length} times in 3 s (every 600 ms): ${c2.join(', ')}`);
+      assert.ok(c1.length > c2.length, 'each at its own pace');
+      const seq = (i) => m.map((x) => x.z.zonas[i].entrada).filter((v, k, a) => k === 0 || v !== a[k - 1]);
+      seq(1).forEach((v, k, a) => { if (k) assert.strictEqual(v, (a[k - 1] + 1) % 3, 'zone 2 in order: ' + a.join('')); });
+      seq(2).forEach((v, k, a) => { if (k) assert.strictEqual(v, (a[k - 1] + 1) % 2, 'zone 3 in order: ' + a.join('')); });
+      m.forEach((x) => x.z.zonas.forEach((zz, i) => assert.strictEqual(zz.src, `https://fotos.test/${['fija', 'a', 'b'][i]}${i ? zz.entrada : ''}.png`, 'the photo of the entry shown')));
+      /* one zone advanced while the other did not, both ways */
+      const solo = (a, b) => m.some((x, k) => k && x.z.zonas[a].entrada !== m[k - 1].z.zonas[a].entrada && x.z.zonas[b].entrada === m[k - 1].z.zonas[b].entrada);
+      assert.ok(solo(1, 2) && solo(2, 1), 'independent clocks');
+      const ci = await compoInfo(pg);
+      assert.deepStrictEqual(ci.zonas.map((z) => [z.modo, z.seg, z.mostrables, z.reloj || z.cambiando]), [['fija', 8, 1, false], ['auto', 4, 3, true], ['auto', 6, 2, true]], JSON.stringify(ci));
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P20: with labels a zone writes the live name (Spanish first, English below) and the price; without them only the photo, framed as the owner set it; a new price shows in place without restarting; offline the price ages like a product slide (note, then none) while the photo and the name stay',
+    run: async ({ browser, setOffline }) => {
+      sql(`update public.menu_items set name_es = 'Pan de banano casero', photo_url = 'https://fotos.test/banana.png' where name = 'Banana Bread'`);
+      const c = compo({ template: '2-lado', zones: [
+        { mode: 'fija', labels: true, entries: [{ item: 'Banana Bread' }] },
+        { mode: 'fija', labels: false, entries: [{ item: 'Latte', photo: 'https://fotos.test/latte.png', focus: [20, 80], zoom: 150 }] }
+      ] });
+      const T = { cada: 400, fresco: 2500, vencido: 5000, revisar: 150, diapositiva: 600000 };
+      const pg = await pantalla(browser, { test: T });
+      await until(async () => { const z = await zonas(pg); return z && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, 'up');
+      let z = await zonas(pg);
+      const a = z.zonas[0], b = z.zonas[1];
+      assert.deepStrictEqual([a.tit, a.titEn, digits(a.precio), a.nota, a.src], ['Pan de banano casero', 'Banana Bread', 1500, null, 'https://fotos.test/banana.png'], JSON.stringify(a));
+      assert.ok(/^₡1\s?500$/.test(a.precio), 'the price as on the menu: ' + a.precio);
+      assert.deepStrictEqual([b.tit, b.precio, b.src, b.encuadre], [null, null, 'https://fotos.test/latte.png', ['20% 80%', 'scale(1.5)']], 'labels off: the photo only, framed');
+      assert.ok(!/Latte/.test(z.text), 'no name without labels: ' + z.text);
+      const pxCm = 1920 / LARGO_CM(55), tol = 1 / pxCm, cm = (r) => a.caps.filter((x) => x.r === r).map((x) => x.cap / pxCm);
+      assert.ok(cm('zt')[0] >= 1.0 * 3 - tol, 'the name 1.0 cm/m in a large zone: ' + cm('zt'));
+      assert.ok(cm('zp')[0] >= 1.2 * 3 - tol, 'the price 1.2 x the name: ' + cm('zp'));
+      assert.ok(a.caps.every((x) => !x.cortado) && b.caps.length === 0);
+      /* the Menu Manager changes the price: written again in place, the photo untouched, the zone not restarted */
+      sql(`update public.menu_items set price_crc = 1650 where name = 'Banana Bread'`);
+      await until(async () => digits((await zonas(pg)).zonas[0].precio) === 1650, 8000, 'the new price');
+      z = await zonas(pg);
+      assert.deepStrictEqual([z.zonas[0].entrada, z.zonas[0].src, z.zonas[0].capas.filter((x) => x.on).length], [0, 'https://fotos.test/banana.png', 1]);
+      assert.strictEqual((await info(pg)).actual, c);
+      /* no connection: the price ages (note at 2 min, none at 10 min); the zone keeps its photo and its name */
+      setOffline(true);
+      await until(async () => (await info(pg)).estado === 'por-confirmar' && (await zonas(pg)).zonas[0].nota === NOTA, 8000, '«por confirmar» in the zone');
+      z = await zonas(pg);
+      assert.deepStrictEqual([digits(z.zonas[0].precio), z.zonas[0].tit], [1650, 'Pan de banano casero']);
+      await until(async () => (await info(pg)).estado === 'sin-verificar' && (await zonas(pg)).zonas[0].precio === null, 8000, 'no price');
+      z = await zonas(pg);
+      assert.deepStrictEqual([z.zonas[0].tit, z.zonas[0].nota, z.zonas[0].src, z.id, (await info(pg)).actual], ['Pan de banano casero', null, 'https://fotos.test/banana.png', c, c],
+        'the composition stays, the photo and the name stay, no price: ' + JSON.stringify(z.zonas[0]));
+      assert.ok(!/₡/.test(await stageText(pg)));
+      setOffline(false);
+      await until(async () => { const j = await zonas(pg); return j && digits(j.zonas[0].precio) === 1650 && j.zonas[0].nota === null; }, 8000, 'the price back');
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P21: an entry whose product cannot be sold (sold out, the till\'s Extras & Combos) is skipped; a zone with nothing to show shows its fallback photo or the brand design; a composition with no zone to show leaves the screen and comes back by itself; the diagnosis names it all',
+    run: async ({ browser }) => {
+      const c = compo({ template: '2-lado', kicker_es: 'Desayuno', kicker_en: 'Breakfast', zones: [
+        { mode: 'auto', seconds: 4, labels: true, fallback: 'https://fotos.test/respaldo.png', entries: [{ item: 'Banana Bread' }, { item: 'Latte' }, { item: 'Flavor shot' }] },
+        { mode: 'fija', entries: [{ item: 'Tea' }] }
+      ], sort: 1 });
+      const m = marca('Pura vida', { sort: 2 });
+      const pg = await pantalla(browser, { q: '?tv=promos-1&pulgadas=55&distancia=3&diag=1', test: { cada: 500, zona: 100, fundido: 100, revisar: 150, diapositiva: 600000, permanencia: 600000 } });
+      await until(async () => { const z = await zonas(pg); return z && z.id === c && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, 'up');
+      let m1 = await muestrear(pg, 1500, 40);
+      const vistas = new Set(m1.map((x) => x.z.zonas[0].entrada));
+      assert.deepStrictEqual([...vistas].sort(), [0, 1], 'the two products take turns; the till helper never');
+      assert.ok(!m1.some((x) => /Flavor|Combo/i.test(x.z.text)), 'never a till helper');
+      assert.ok(cambios(m1, 0).length >= 2);
+      assert.strictEqual((await zonas(pg)).kick, 'Desayuno · Breakfast');
+      let d = await diag(pg);
+      assert.ok(/Composición: plantilla 2-lado · 2 zonas/.test(d) && /Zona 1: presentación cada 4 s · 2 de 3 entradas con qué mostrar · con nombres y precios · muestra la [12] \((Pan de banano casero|Banana Bread|Latte), precio\)/.test(d)
+                && /Zona 2: foto fija · 1 de 1 entrada con qué mostrar · con nombres y precios · muestra la 1 \((Tea|Té), precio\)/.test(d), d);
+      /* one sold out: the zone goes on with the other, without restarting the composition */
+      sql(`update public.menu_items set available = false where name = 'Banana Bread'`);
+      await until(async () => (await compoInfo(pg)).zonas[0].mostrables === 1, 8000, 'one left');
+      await sleep(400);
+      m1 = await muestrear(pg, 1200, 40);
+      assert.ok(m1.every((x) => x.z.id === c && x.z.zonas[0].entrada === 1 && x.z.zonas[0].tit === 'Latte'), 'only Latte now: ' + JSON.stringify(m1[0].z.zonas[0]));
+      assert.ok(!/banano|Banana/.test(await stageText(pg)));
+      /* the other zone's product sold out: that zone shows the brand design (no fallback photo), the composition stays */
+      sql(`update public.menu_items set available = false where name = 'Tea'`);
+      await until(async () => { const z = await zonas(pg); return z && z.id === c && z.zonas[1].estado === 'marca' && quieta(z); }, 8000, 'the brand design in zone 2');
+      let z = await zonas(pg);
+      assert.deepStrictEqual([z.zonas[1].marca, z.zonas[1].tit, z.zonas[1].lugar, z.zonas[1].src], [true, null, 'Monteverde, Costa Rica', null], JSON.stringify(z.zonas[1]));
+      assert.ok(/Hanging Garden Café/.test(z.zonas[1].text) && !/Tea|Té/.test(z.text));
+      assert.ok(/Zona 2: foto fija · 0 de 1 entrada con qué mostrar · con nombres y precios · NADA QUE MOSTRAR: el diseño de marca/.test(await diag(pg)), await diag(pg));
+      /* the last product of zone 1 sold out: nothing to show anywhere: the composition leaves (the server says so too) */
+      sql(`update public.menu_items set available = false where name = 'Latte'`);
+      await until(async () => { const i = await info(pg); return i.actual === m && !i.visibles.includes(c); }, 8000, 'the composition gone');
+      assert.ok(!/₡|Latte/.test(await stageText(pg)));
+      await until(() => pg.evaluate(() => document.querySelectorAll('.zona').length === 0), 3000, 'its zones cleared (the hidden layer is emptied after the cut)');
+      /* back in stock: it comes back, zone 1 with the fallback until its products return */
+      sql(`update public.menu_items set available = true where name = 'Tea'`);
+      await until(async () => (await info(pg)).visibles.includes(c), 8000, 'back');
+      await mostrar(pg, c);
+      await until(async () => { const j = await zonas(pg); return j && j.id === c && j.zonas[0].estado === 'respaldo' && j.zonas[1].estado === 'entrada' && quieta(j); }, 8000, 'the fallback photo in zone 1');
+      z = await zonas(pg);
+      assert.deepStrictEqual([z.zonas[0].src, z.zonas[0].tit, z.zonas[0].precio, z.zonas[1].tit], ['https://fotos.test/respaldo.png', null, null, 'Té'], JSON.stringify(z.zonas));
+      assert.ok(/Zona 1: presentación cada 4 s · 0 de 3 entradas con qué mostrar · con nombres y precios · NADA QUE MOSTRAR: la foto de respaldo/.test(await diag(pg)), await diag(pg));
+      sql(`update public.menu_items set available = true where name = 'Latte'`);
+      await until(async () => { const j = await zonas(pg); return j && j.id === c && j.zonas[0].estado === 'entrada' && j.zonas[0].tit === 'Latte' && quieta(j); }, 8000, 'Latte back in zone 1');
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P22: the screen checks a composition itself: one the server marks unusable, one without zones, one whose entries have nothing to show, one with the wrong number of zones and an unknown kind are left out',
+    run: async ({ browser }) => {
+      const c = compo({ template: '2-lado', zones: [{ entries: ['https://fotos.test/a.png'] }, { entries: [{ item: 'Latte' }] }], sort: 1 });
+      const base = slideJson(c);
+      const extra = [
+        Object.assign({}, base, { id: '11111111-1111-4111-8111-111111111111', usable: false }),
+        Object.assign({}, base, { id: '22222222-2222-4222-8222-222222222222', zones: [] }),
+        Object.assign({}, base, { id: '33333333-3333-4333-8333-333333333333', zones: base.zones.map((z) => Object.assign({}, z, { entries: [{ item: Object.assign({}, base.zones[1].entries[0].item, { sellable: false }), photo: null, focus: [50, 50], zoom: 100 }] })) }),
+        Object.assign({}, base, { id: '44444444-4444-4444-8444-444444444444', zones: base.zones.slice(0, 1) }),
+        Object.assign({}, base, { id: '55555555-5555-4555-8555-555555555555', kind: 'grupo' })
+      ];
+      const inject = (x) => x.route(/\/rest\/v1\/rpc\/pantalla_datos/, async (route) => {
+        let r; try { r = await route.fetch(); } catch (e) { return route.abort(); }
+        let j = null; try { j = await r.json(); } catch (e) {}
+        if (j && Array.isArray(j.slides)) j.slides = j.slides.concat(extra);
+        return j ? route.fulfill({ response: r, json: j }) : route.fulfill({ response: r });
+      });
+      const pg = await pantalla(browser, { test: { diapositiva: 600000 }, setup: inject });
+      const i = await info(pg);
+      assert.deepStrictEqual([i.leidas, i.visibles, i.actual], [[c], [c], c], 'only the sound one: ' + JSON.stringify(i.leidas));
+      await sleep(800);
+      assert.deepStrictEqual((await info(pg)).leidas, [c]);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'P23: a composition alone in force stays; sharing the TV it stays its dwell (60 s unless it says otherwise) while the other slides keep their seconds',
+    run: async ({ browser }) => {
+      const c = compo({ template: '1', zones: [{ entries: ['https://fotos.test/a.png'] }], sort: 1 });
+      const pg = await pantalla(browser, { test: { cada: 1000, revisar: 200, diapositiva: 1000 } });
+      let i = await info(pg);
+      assert.deepStrictEqual([i.actual, i.permanenciaMs, i.diapositivaMs], [c, 60000, 1000], '60 s by default');
+      sql(`update public.screen_slides set dwell_seconds = 15 where id = '${c}'`);
+      await until(async () => (await info(pg)).permanenciaMs === 15000, 8000, 'its own dwell on the next read');
+      await sleep(3000);
+      assert.strictEqual((await info(pg)).actual, c, 'alone: it stays past the seconds of a slide');
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.context().close();
+      /* with a brand slide: the composition 1.5 s (the test\'s dwell), the brand slide 1 s */
+      const m = marca('Pura vida', { sort: 2 });
+      const pg2 = await pantalla(browser, { test: { cada: 1000, revisar: 100, diapositiva: 1000, permanencia: 1500 } });
+      assert.deepStrictEqual((await info(pg2)).visibles, [c, m]);
+      await until(async () => (await info(pg2)).actual === m, 5000, 'the brand slide');
+      await until(async () => (await info(pg2)).actual === c, 5000, 'the composition again');
+      const t1 = Date.now();
+      await until(async () => (await info(pg2)).actual === m, 5000, 'the brand slide again');
+      const t2 = Date.now();
+      await until(async () => (await info(pg2)).actual === c, 5000, 'and back');
+      const t3 = Date.now();
+      assert.ok(t2 - t1 >= 1300 && t2 - t1 <= 2300, `the composition stayed its dwell: ${t2 - t1} ms`);
+      assert.ok(t3 - t2 >= 800 && t3 - t2 <= 1800, `the brand slide its seconds: ${t3 - t2} ms`);
+      assert.ok(onlyReads(pg2));
+      assert.deepStrictEqual(pg2.errors, []);
+    }
+  },
+  {
+    name: 'P24: the owner\'s preview (?preview=1): the page reads nothing and writes nothing; it draws the slide its parent window posts (same origin, tipo pantalla-preview), presentations running, a later one replaces it; anything else (no tipo, another origin) is ignored',
+    run: async ({ browser }) => {
+      sql(`update public.menu_items set photo_url = 'https://fotos.test/croissant.png' where name = 'Butter Croissant'`);
+      /* paused, for another TV and not started: the preview shows it anyway (nothing else ever does) */
+      const c = compo({ template: '4-centro', kicker_es: 'Desayuno', kicker_en: 'Breakfast', status: 'pausada', screens: ['promos-2'], starts: "now() + interval '2 days'", ends: "now() + interval '3 days'",
+        zones: [{ mode: 'auto', seconds: 4, entries: [{ item: 'Butter Croissant' }, { item: 'Banana Bread' }] }, { entries: [{ item: 'Iced Latte' }] },
+                { entries: [{ item: 'Latte' }] }, { entries: [{ item: 'Ham & Cheese' }] }] });
+      const uno = compo({ template: '1', status: 'pausada', zones: [{ entries: ['https://fotos.test/solo.png'] }] });
+      const slide = slideJson(c), slide2 = slideJson(uno);
+      assert.ok(slide.kind === 'composicion' && slide.zones.length === 4 && slide.zones[0].entries[0].item.name === 'Butter Croissant', JSON.stringify(slide).slice(0, 300));
+      const T = { zona: 100, fundido: 100, revisar: 150, cada: 500 };
+      const q = '?tv=promos-1&pulgadas=55&distancia=3&preview=1&diag=1';
+      const pg = await pantalla(browser, { q, wait: false, test: T });
+      await sleep(1200);
+      let i = await info(pg);
+      assert.deepStrictEqual([i.preview, i.razon, i.actual, i.intentos, pg.api], [true, 'vista-previa', 'marca', 0, []], 'nothing read: ' + JSON.stringify(i));
+      assert.ok(/vista previa del Gestor/.test(await diag(pg)));
+      /* the parent (this same page, the same origin) frames the preview and posts the slide */
+      await pg.evaluate((src) => { const f = document.createElement('iframe'); f.id = 'pv'; f.src = src; f.width = 960; f.height = 540; document.body.appendChild(f); }, '/pantalla-promos' + q);
+      const frame = await until(() => pg.frames().find((f) => f !== pg.mainFrame() && /preview=1/.test(f.url())), 8000, 'the frame');
+      await until(() => frame.evaluate(() => !!window.PANTALLA_B), 10000, 'the frame\'s script');
+      const post = (msg) => pg.evaluate((m) => { document.getElementById('pv').contentWindow.postMessage(m, location.origin); }, msg);
+      await post({ slide });                                            /* no tipo: ignored */
+      await post({ tipo: 'otra-cosa', slide });
+      await sleep(600);
+      assert.strictEqual(await frame.evaluate(() => PANTALLA_B.info().actual), 'marca', 'a message without the tipo is ignored');
+      await pg.evaluate((s) => { document.getElementById('pv').contentWindow.postMessage({ tipo: 'pantalla-preview', slide: s }, location.origin); }, slide);
+      await until(() => frame.evaluate((id) => PANTALLA_B.info().actual === id, c), 6000, 'the posted composition');
+      await until(async () => { const z = await zonas(frame); return z && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, 'its zones up');
+      let z = await zonas(frame);
+      assert.deepStrictEqual([z.template, z.zonas.length, z.kick, z.zonas[1].tit, z.zonas[1].titEn, z.zonas[2].tit, z.zonas[2].titEn, z.zonas[3].tit, z.zonas[3].titEn],
+        ['4-centro', 4, 'Desayuno · Breakfast', 'Latte frío', 'Iced Latte', 'Latte', null, 'Jamón y queso', 'Ham & Cheese'], 'Spanish first (the site\'s dictionary), English below: ' + JSON.stringify(z.zonas.map((x) => [x.tit, x.titEn])));
+      assert.ok(/^₡2\s?200$/.test(z.zonas[2].precio) && z.zonas[1].src === null && z.zonas[0].src === 'https://fotos.test/croissant.png', 'the live prices and photos the panel read: ' + JSON.stringify(z.zonas));
+      i = await frame.evaluate(() => PANTALLA_B.info());
+      assert.deepStrictEqual([i.preview, i.estado, i.visibles, i.intentos, i.buenas], [true, 'al-dia', [c], 0, 0]);
+      const m = await muestrear(frame, 1500, 40);
+      assert.ok(cambios(m, 0).length >= 2, 'the presentation zone takes turns in the preview: ' + cambios(m, 0).join(','));
+      assert.ok(/Composición: plantilla 4-centro · 4 zonas/.test(await frame.evaluate(() => document.getElementById('diag').innerText)));
+      /* a later message replaces it */
+      await pg.evaluate((s) => { document.getElementById('pv').contentWindow.postMessage({ tipo: 'pantalla-preview', slide: s }, location.origin); }, slide2);
+      await until(() => frame.evaluate((id) => PANTALLA_B.info().actual === id, uno), 6000, 'the second composition');
+      await until(async () => { const j = await zonas(frame); return j && j.template === '1' && j.zonas[0].src === 'https://fotos.test/solo.png'; }, 6000, 'drawn');
+      assert.deepStrictEqual(pg.api, [], 'not one call to the database from the preview or its parent');
+      assert.deepStrictEqual(await pg.evaluate(() => Object.keys(localStorage)), ['hg_lang']);
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.context().close();
+      /* a parent of another origin: the same site served as «localhost» (another host than 127.0.0.1, so another
+         origin, still on the loopback, which Chromium lets frame a loopback page); its message is ignored */
+      const pg2 = await pantalla(browser, { url: SITE.replace('127.0.0.1', 'localhost') + '/pantalla-promos' + q, test: T });
+      assert.notStrictEqual(await pg2.evaluate(() => location.origin), new URL(SITE).origin, 'another origin than the screen');
+      await pg2.evaluate((src) => { const f = document.createElement('iframe'); f.id = 'pv'; f.src = src; f.width = 960; f.height = 540; document.body.appendChild(f); }, SITE + '/pantalla-promos' + q);
+      const frame2 = await until(() => pg2.frames().find((f) => f !== pg2.mainFrame() && /preview=1/.test(f.url())), 8000, 'the frame');
+      await until(() => frame2.evaluate(() => !!window.PANTALLA_B), 10000, 'the frame\'s script');
+      await pg2.evaluate((s) => { document.getElementById('pv').contentWindow.postMessage({ tipo: 'pantalla-preview', slide: s }, '*'); }, slide);
+      await sleep(1000);
+      assert.strictEqual(await frame2.evaluate(() => PANTALLA_B.info().actual), 'marca', 'a message from another origin is ignored');
+      assert.deepStrictEqual(pg2.api, []);
+      assert.deepStrictEqual(pg2.errors, []);
+    }
+  },
+  {
+    name: 'P25: a zone changes photo with a dissolve: the next photo is already loaded, the new layer fades in over the old one, which stays opaque until the fade ends; never an empty frame',
+    run: async ({ browser }) => {
+      const c = compo({ template: '1', zones: [{ mode: 'auto', seconds: 5, entries: fotos('d', 3) }] });
+      /* 5 s -> 1000 ms a photo, the dissolve 600 ms */
+      const pg = await pantalla(browser, { test: { diapositiva: 600000, zona: 200, fundido: 600, revisar: 200 } });
+      await until(async () => { const z = await zonas(pg); return z && z.zonas[0].estado === 'entrada' && quieta(z); }, 6000, 'up');
+      /* right after a switch both layers carry .ya (no transition) for two frames: wait for a layer that transitions */
+      await until(() => pg.evaluate(() => !!document.querySelector('.zcapa:not(.ya)')), 2000, 'a layer with its transition');
+      assert.strictEqual(await pg.evaluate(() => getComputedStyle(document.querySelector('.zcapa:not(.ya)')).transitionDuration.split(',')[0]), '0.6s', 'the dissolve lasts what the test set');
+      const m = await muestrear(pg, 2600, 25);
+      let fundidos = 0;
+      m.forEach((x) => {
+        const cs = x.z.zonas[0].capas;
+        assert.strictEqual(cs.length, 2, 'two layers');
+        assert.ok(cs.some((k) => k.on && k.img && k.lista && k.opacity >= 0.99), `${x.t} ms: an opaque loaded photo at every moment: ` + JSON.stringify(cs));
+        const e = cs.find((k) => k.entra), s = cs.find((k) => k.sale);
+        if (e && s) { fundidos++; assert.ok(s.on && s.opacity >= 0.99 && e.on && e.lista, `${x.t} ms: the old photo stays opaque under the new one while it fades in: ` + JSON.stringify(cs)); }
+      });
+      assert.ok(fundidos >= 3, 'the fade was seen while under way: ' + fundidos + ' samples');
+      assert.ok(m.some((x) => { const e = x.z.zonas[0].capas.find((k) => k.entra); return e && e.opacity > 0.05 && e.opacity < 0.95; }), 'a crossfade, not a cut');
+      const seq = m.map((x) => x.z.zonas[0].src).filter((v, k, a) => k === 0 || v !== a[k - 1]);
+      assert.ok(seq.length >= 3, 'the photos took turns: ' + seq.join(' '));
+      seq.forEach((v, k) => { if (k) assert.strictEqual(v, `https://fotos.test/d${(Number(seq[k - 1].match(/d(\d)/)[1]) + 1) % 3}.png`, 'in order: ' + seq.join(' ')); });
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
     }
   }
 ];

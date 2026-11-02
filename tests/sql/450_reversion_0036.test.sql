@@ -41,7 +41,7 @@ select pg_temp.rows() as rows_before, pg_temp.fp() as fp_before, pg_temp.fns() a
 select test.eq(pg_temp.anon_definer(), 'canopy_schema_version order_status pantalla_datos place_room_order room_lookup', 'under 0036 a visitor runs pantalla_datos too');
 
 -- 1) a later migration is applied: the script stops at its first statement and changes nothing ------------------------------
-insert into canopy.migrations (version, name) values (37, 'siguiente de prueba');
+insert into canopy.migrations (version, name) values (38, 'siguiente de prueba');
 savepoint later;
 \set ON_ERROR_STOP 0
 \o /dev/null
@@ -53,15 +53,16 @@ savepoint later;
 rollback to savepoint later;
 select test.eq(:'later_state'::text, '25P02', 'with a later migration applied the script stops at its guard: nothing after it ran');
 select test.eq(pg_temp.fns(), :'fns_0036', 'every function of 0036 is still there');
-select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 35), '35 36 37', 'and the ledger is as it was');
-delete from canopy.migrations where version = 37;
+select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 35), '35 36 37 38', 'and the ledger is as it was');
+delete from canopy.migrations where version = 38;
 
 -- 2) the reversal ---------------------------------------------------------------------------------------------------------
 \o /dev/null
+\ir ../../supabase/tools/reversion-0037.sql
 \ir ../../supabase/tools/reversion-0036.sql
 \o
 select test.eq(public.canopy_schema_version(), 35, 'the database is back at version 35');
-select test.eq(pg_temp.fns(), '_screen_changes_immutable()', 'every function of 0036 is gone but the change log''s guard');
+select test.eq(pg_temp.fns(), '_screen_changes_immutable() _screen_template_places(text)', 'every function of 0036 is gone but the change log''s guard (and 0037''s template helper, kept by its reversal because the kind rule uses it)');
 select test.ok(to_regprocedure('public.pantalla_datos(text)') is null and to_regprocedure('public.pantallas_estado()') is null
                and to_regprocedure('public.pantalla_guardar(jsonb)') is null and to_regprocedure('public.diapositiva_guardar(jsonb)') is null
                and to_regprocedure('public.diapositiva_estado(uuid, text)') is null
@@ -109,7 +110,7 @@ reset role;
 \set rc `cat :'rc_file'`
 \pset tuples_only off
 \pset format aligned
-select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[36]'::jsonb, 'release-check.sql: 36 is missing');
+select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[36, 37]'::jsonb, 'release-check.sql: 36 and 37 are missing');
 select test.eq((:'rc'::jsonb) -> 'functions_missing', '["diapositiva_estado", "diapositiva_guardar", "pantalla_datos", "pantalla_guardar", "pantallas_estado"]'::jsonb,
                'and the five functions of the screens');
 select test.eq((:'rc'::jsonb) -> 'anon_can_run', '["canopy_schema_version", "order_status", "place_room_order", "room_lookup"]'::jsonb,
@@ -128,11 +129,12 @@ select test.ok(:'LAST_ERROR_MESSAGE' ~ '^La migración 0036 no está aplicada: n
 select test.eq(public.canopy_schema_version(), 35, 'still at version 35');
 select test.eq(pg_temp.rows(), :'rows_before', 'and the tables are untouched');
 
--- 4) 0036 applies again and finds everything as it was ----------------------------------------------------------------------
+-- 4) 0036 and then 0037 apply again and find everything as it was ---------------------------------------------------------
 \o /dev/null
 \ir ../../supabase/migrations/0036_pantallas.sql
+\ir ../../supabase/migrations/0037_pantallas_v2.sql
 \o
-select test.eq(public.canopy_schema_version(), 36, 'applied again: version 36');
+select test.eq(public.canopy_schema_version(), 37, 'applied again: version 37');
 select test.eq(pg_temp.fns(), :'fns_0036', 'with every function, the same ten');
 select test.eq(pg_temp.rows(), :'rows_before', 'the tables and rows exactly as the reversal left them (the two TVs are not seeded twice)');
 select test.eq(pg_temp.anon_definer(), 'canopy_schema_version order_status pantalla_datos place_room_order room_lookup', 'a visitor runs pantalla_datos again');

@@ -5,7 +5,10 @@
    5) read from a distance: big prices, little else;
    7) never Extras & Combos (combos and discounts are not announced);
    8) its settings come from the owner's page (pantallas, table screens), read with the public key, never written.
-   A1-A9 are the prototype's tests (fixed per the review); B1-B10 the settings from the database and the review fixes. */
+   A1-A9 are the prototype's tests (fixed per the review); B1-B11 the settings from the database and the review fixes;
+   B12-B21 the v2 board (migration 0037): category blocks in explicit balanced columns, one screen when the letter allows
+   it, density and English per TV, promotions intercalated in the menu (drawn by Screen B's renderer, copied into the
+   page: B21 a composition as an interlude), the new address overrides. */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql } = require('../lib');
@@ -20,6 +23,10 @@ const READS = ['GET /rest/v1/menu_categories', 'GET /rest/v1/rpc/pantalla_datos'
 /* Costa Rica is UTC-6 all year */
 const crMin = (ms) => (((Math.floor(ms / 60000) - 360) % 1440) + 1440) % 1440;
 const hhmm = (m) => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+/* the columns of the TV's row the device may keep (never a price) */
+const CAMPOS_FILA = ['id', 'kind', 'inches', 'distance_m', 'turn', 'scale_pct', 'look', 'page_seconds', 'category_ids', 'sold_out', 'on_from', 'on_to', 'updated_at',
+                     'layout', 'density', 'english', 'promo_mode', 'promo_every', 'promo_seconds'];
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGOQ8zaGIwacHACNwwdR68r19QAAAABJRU5ErkJggg==', 'base64');
 const CAT = { coffee: 'a0000000-0000-4000-8000-000000000001', pastries: 'a0000000-0000-4000-8000-000000000006',
               extras: 'a0000000-0000-4000-8000-000000000009', gone: '0b000000-0000-4000-8000-0000000000ff' };
 
@@ -29,6 +36,8 @@ async function pantalla(browser, opts) {
   const pg = await page(browser, { context: opts.context, viewport: opts.viewport || { width: 1920, height: 1080 }, station: null, lang: 'es' });
   pg.api = [];
   pg.on('request', (r) => { const u = new URL(r.url()); if (u.port === API_PORT) pg.api.push(r.method() + ' ' + u.pathname); });
+  /* photos of the slides: a small real image (they live on hosts the tests never reach) */
+  await pg.route(/^https:\/\/fotos\.test\//, (r) => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
   if (opts.test) await pg.addInitScript((t) => { window.PANTALLA_TEST = t; }, opts.test);
   if (opts.reloj) await pg.addInitScript((ms) => { const real = Date.now.bind(Date), t0 = real(); Date.now = () => ms + (real() - t0); }, opts.reloj);
   if (opts.setup) await opts.setup(pg);
@@ -77,6 +86,94 @@ const EXPECTED = `select coalesce(json_agg(json_build_object('cat', c.name, 'nam
                    order by c.sort, i.sort, i.name), '[]')
                     from menu_items i join menu_categories c on c.id = i.category_id
                    where c.name <> 'Extras & Combos' and i.available and i.price_crc > 0`;
+
+/* the café's real menu as the public page shows it: the 7 categories and 39 products (the test seed carries two more
+   lines, the Adventure Box, which the public page does not sell as menu lines) with the Spanish names of the public page */
+const REAL_ES = { Cappuccino: 'Capuchino', Mocha: 'Moca', 'Café con Leche': 'Café con leche', 'Cloud Forest Latte': 'Latte del Bosque Nuboso',
+  'Iced Americano': 'Americano frío', 'Iced Latte': 'Latte frío', 'Iced Mocha': 'Moca frío', 'Costa Rican Hot Chocolate': 'Chocolate caliente costarricense',
+  Tea: 'Té', 'Sweet Cane Drink': 'Agua dulce', 'Ham & Cheese': 'Jamón y queso', 'Chicken Pesto': 'Pollo al pesto', 'Chicken Empanada': 'Empanada de pollo',
+  'Beef Empanada': 'Empanada de carne', 'Ham & Cheese Croissant': 'Croissant de jamón y queso', 'Butter Croissant': 'Croissant de mantequilla',
+  'Chocolate Croissant': 'Croissant de chocolate', 'Banana Bread': 'Pan de banano', 'Carrot Cake': 'Queque de zanahoria', 'Tres Leches': 'Tres leches', 'Tamal Asado': 'Tamal asado' };
+function menuReal() {
+  sql(`update menu_items set available = false where category_id = (select id from menu_categories where name = 'Adventure Box');
+       update menu_items set name_es = null where name not in (${Object.keys(REAL_ES).map((k) => `'${k.replace(/'/g, "''")}'`).join(', ')});
+       ${Object.keys(REAL_ES).map((k) => `update menu_items set name_es = '${REAL_ES[k]}' where name = '${k.replace(/'/g, "''")}';`).join('\n')}`);
+}
+/* the explicit columns of every page: each column's blocks (a title first, then only items), their places and the column's room */
+const columnas = (pg) => pg.evaluate(() => [...document.querySelectorAll('#main .page')].map((p) => [...p.querySelectorAll('.col')].map((c) => ({
+  secciones: [...c.children].map((s) => ({ ok: s.classList.contains('cat') && !!s.firstElementChild && s.firstElementChild.tagName === 'H2' && [...s.children].slice(1).every((e) => e.classList.contains('it')),
+                                          cat: (s.querySelector('h2 .ces') || {}).textContent || '', cont: !!s.querySelector('h2 .cont'), n: s.querySelectorAll('.it').length,
+                                          top: s.offsetTop - c.offsetTop, bottom: s.offsetTop - c.offsetTop + s.offsetHeight })),
+  alto: c.clientHeight, scroll: c.scrollHeight, w: c.clientWidth }))));
+/* the promotion layer over the menu and what it shows: Screen B's renderer, copied into the page, so the slide has
+   Screen B's classes (.sl, .tit, .precio, .zona …) and 380's helpers read it the same way */
+const promoVista = (pg) => pg.evaluate(() => {
+  const p = document.getElementById('promo'), sl = p.querySelector('.sl'), t = (s) => { const e = sl && sl.querySelector(s); return e ? e.textContent : null; };
+  return { on: p.classList.contains('on'), opacity: Number(getComputedStyle(p).opacity), id: sl ? sl.dataset.id : null, kind: sl ? sl.dataset.kind : null,
+           kick: t('.kick'), tit: t('.tit'), titEn: t('.tit-en'), precio: t('.precio'), cur: t('.precio .cur'), nota: t('.nota'), pida: t('.pida'), sup: t('.sup'),
+           qr: !!(sl && sl.querySelector('.qrcard svg')), dir: sl ? [...sl.querySelectorAll('.dir, .dirsola')].map((d) => d.textContent) : [], text: p.innerText };
+});
+/* the composition on the promotion layer (as 380's zonas helper reads Screen B's): each zone's place (px inside the
+   stage), what it shows (its front image layer) and its two image layers */
+const zonasPromo = (pg) => pg.evaluate(() => {
+  const sl = document.querySelector('#promo .sl.k-composicion');
+  if (!sl) return null;
+  const W = innerWidth, H = innerHeight, cx = document.createElement('canvas').getContext('2d');
+  const cap = (e) => { const cs = getComputedStyle(e); cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; return cx.measureText('H').actualBoundingBoxAscent; };
+  return {
+    id: sl.dataset.id, template: sl.dataset.template, kick: (sl.querySelector('.zkick') || {}).textContent || null, sup: (sl.querySelector('.sup') || {}).textContent || null,
+    text: sl.innerText,
+    zonas: [...sl.querySelectorAll('.zona')].map((z) => {
+      const front = z.querySelector('.zcapa.on.entra') || z.querySelector('.zcapa.on:not(.sale)') || z.querySelector('.zcapa.on');
+      const f = (s) => { const e = front && front.querySelector(s); return e ? e.textContent : null; };
+      const r = z.getBoundingClientRect(), im = front && front.querySelector('img');
+      return { i: Number(z.dataset.zona), modo: z.dataset.modo, estado: z.dataset.estado, entrada: z.dataset.entrada === '' ? null : Number(z.dataset.entrada),
+               tamano: z.dataset.tamano, box: [z.offsetLeft, z.offsetTop, z.offsetWidth, z.offsetHeight],
+               dentro: r.left >= -1 && r.top >= -1 && r.right <= W + 1 && r.bottom <= H + 1,
+               src: front ? front.dataset.src || null : null, tit: f('.ztit'), titEn: f('.ztit-en'), precio: f('.zprecio'), nota: f('.znota'),
+               marca: !!(front && front.querySelector('.zmarca')), lugar: f('.lugar'),
+               encuadre: im ? [im.style.objectPosition, im.style.transform] : null,
+               caps: [...z.querySelectorAll('[data-r]')].filter((e) => e.getClientRects().length).map((e) => ({ r: e.dataset.r, cap: cap(e), cortado: e.scrollWidth > e.clientWidth + 1 })),
+               capas: [...z.querySelectorAll('.zcapa')].map((c) => { const i = c.querySelector('img'); return { on: c.classList.contains('on'), entra: c.classList.contains('entra'),
+                 sale: c.classList.contains('sale'), opacity: Number(getComputedStyle(c).opacity), src: c.dataset.src || null,
+                 img: !!i, lista: !!i && i.complete && i.naturalWidth > 0, marca: !!c.querySelector('.zmarca') }; }),
+               text: z.innerText };
+    })
+  };
+});
+/* samples what each zone of the composition on the layer shows every `cada` ms for `ms` ms, and the moments a zone's entry changed */
+async function muestrearPromo(pg, ms, cada) {
+  const out = [], t0 = Date.now();
+  while (Date.now() - t0 < ms) { const z = await zonasPromo(pg); out.push({ t: Date.now() - t0, z }); await sleep(cada || 40); }
+  return out;
+}
+const cambiosPromo = (muestras, i) => muestras.filter((m, k) => k > 0 && m.z && muestras[k - 1].z && m.z.zonas[i].entrada !== muestras[k - 1].z.zonas[i].entrada).map((m) => m.t);
+const fotos = (pre, n) => Array.from({ length: n }, (_, i) => `https://fotos.test/${pre}${i}.png`);
+const q = (v) => (v == null ? 'null' : "'" + String(v).replace(/'/g, "''") + "'");
+const arr = (a) => (a == null ? 'null' : q('{' + a.join(',') + '}'));
+/* a slide written straight into the database (pantallas.html, which writes them for the owner, has its own tests); returns its id */
+function diapo(o) {
+  return sql(`with x as (insert into public.screen_slides (kind, menu_item_id, kicker_es, kicker_en, title_es, title_en, body_es, body_en,
+                                   photo_url, link, screen_ids, starts_at, ends_at, days, from_time, to_time, sort, status)
+    values (${q(o.kind)}, ${o.item ? `(select id from public.menu_items where name = ${q(o.item)})` : 'null'},
+            ${q(o.kicker_es)}, ${q(o.kicker_en)}, ${q(o.title_es)}, ${q(o.title_en)}, ${q(o.body_es)}, ${q(o.body_en)},
+            ${q(o.photo)}, ${q(o.link)}, ${arr(o.screens)}, ${o.starts || "now() - interval '1 hour'"}, ${o.ends || "now() + interval '1 day'"},
+            ${arr(o.days)}, ${q(o.from)}, ${q(o.to)}, ${o.sort == null ? 100 : o.sort}, ${q(o.status || 'activa')}) returning id) select id from x`);
+}
+const marca = (title, o) => diapo(Object.assign({ kind: 'marca', title_es: title, title_en: title + ' (en)' }, o || {}));
+const itemId = (name) => sql(`select id from public.menu_items where name = ${q(name)}`);
+/* a composition (migration 0037) written straight into the database; a string entry is a photo when it is an address, a product otherwise */
+function compo(o) {
+  const entry = (e) => {
+    if (typeof e === 'string') return /^https?:/.test(e) ? { item: null, photo: e, focus: [50, 50], zoom: 100 } : { item: itemId(e), photo: null, focus: [50, 50], zoom: 100 };
+    return { item: e.item ? itemId(e.item) : null, photo: e.photo || null, focus: e.focus || [50, 50], zoom: e.zoom || 100 };
+  };
+  const zones = o.zones.map((z) => ({ mode: z.mode || 'fija', seconds: z.seconds == null ? 8 : z.seconds, labels: z.labels !== false, fallback: z.fallback || null, entries: z.entries.map(entry) }));
+  return sql(`with x as (insert into public.screen_slides (kind, template, zones, dwell_seconds, kicker_es, kicker_en, screen_ids, starts_at, ends_at, days, from_time, to_time, sort, status)
+    values ('composicion', ${q(o.template)}, ${q(JSON.stringify(zones))}::jsonb, ${o.dwell == null ? 'null' : o.dwell}, ${q(o.kicker_es)}, ${q(o.kicker_en)},
+            ${arr(o.screens)}, ${o.starts || "now() - interval '1 hour'"}, ${o.ends || "now() + interval '1 day'"},
+            ${arr(o.days)}, ${q(o.from)}, ${q(o.to)}, ${o.sort == null ? 100 : o.sort}, ${q(o.status || 'activa')}) returning id) select id from x`);
+}
 
 module.exports.tests = [
   {
@@ -186,11 +283,11 @@ module.exports.tests = [
         assert.ok(m.pr.length === want && Math.min(...m.pr) >= 1, `${where}: prices as big as the names`);
         assert.deepStrictEqual(m.cut, [], `${where}: nothing cut off or outside the board`);
         assert.strictEqual(i.cabe, true, `${where}: every page fits`);
-        assert.ok((giro === 'no' ? [2, 3] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns for the orientation`);
-        /* a category is cut only when it is longer than a whole page, and its parts follow each other */
+        assert.ok((giro === 'no' ? [3, 4, 5] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns for the orientation`);
+        /* a category is cut only when it is taller than a whole column, and its parts follow each other (v2: the next column, which may be on the same page) */
         const seen = {}; i.partes.forEach((pgParts, k) => pgParts.forEach((p) => { (seen[p.categoria] = seen[p.categoria] || []).push(k); }));
         Object.keys(seen).forEach((c) => {
-          const ks = seen[c]; assert.ok(ks.every((k, j) => j === 0 || k === ks[j - 1] + 1), `${where}: ${c} on consecutive pages`);
+          const ks = seen[c]; assert.ok(ks.every((k, j) => j === 0 || k === ks[j - 1] || k === ks[j - 1] + 1), `${where}: ${c} on consecutive pages`);
         });
         assert.strictEqual(await pg.evaluate(() => document.getElementById('pag').textContent), i.paginas > 1 ? `1/${i.paginas}` : '', `${where}: page number`);
         assert.deepStrictEqual(pg.errors, [], where);
@@ -361,7 +458,7 @@ module.exports.tests = [
         assert.strictEqual(i.fuente, 'base', where);
         assert.deepStrictEqual([i.ajustes.pulgadas, i.ajustes.distancia, i.ajustes.giro, i.ajustes.escala, i.paginaMs], [pulgadas, distancia, giro, escala, paginaMs], where);
         assert.ok(Math.abs(i.minCm - 0.8 * distancia * escala / 100) < 1e-9 && Math.abs(i.metaCm - distancia * escala / 100) < 1e-9, `${where}: the letter follows distance and scale`);
-        assert.ok((giro === 'no' ? [2, 3] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns`);
+        assert.ok((giro === 'no' ? [3, 4, 5] : [1, 2]).includes(i.columnas), `${where}: ${i.columnas} columns`);
         const st = await pg.evaluate(() => { const s = document.getElementById('stage'); return [s.offsetWidth, s.offsetHeight, s.style.transform]; });
         assert.deepStrictEqual(st, giro === 'no' ? [1920, 1080, ''] : [1080, 1920, 'translate(1920px, 0px) rotate(90deg)'], `${where}: the stage`);
         const c = await capitales(pg), pxCm = 1920 / LARGO_CM(pulgadas), tol = 1 / pxCm;
@@ -370,7 +467,7 @@ module.exports.tests = [
         return i;
       };
       await check(65, 4, 'derecha', 110, 17000);
-      assert.deepStrictEqual((await info(pg)).origen, { pulgadas: 'base', distancia: 'base', escala: 'base', pagina: 'base', giro: 'base', look: 'base' });
+      assert.deepStrictEqual((await info(pg)).origen, { pulgadas: 'base', distancia: 'base', escala: 'base', pagina: 'base', promo_cada: 'base', promo_seg: 'base', giro: 'base', look: 'base', densidad: 'base', ingles: 'base', layout: 'base', promo: 'base' });
       let d = await diag(pg);
       assert.ok(/Origen: base de datos \(TV menu-1/.test(d) && /65" · 4 m/.test(d) && /17 s cada una/.test(d), d);
       /* the owner changes it in pantallas: the screen follows on its next read */
@@ -391,7 +488,7 @@ module.exports.tests = [
       assert.ok(/Origen: copia del aparato/.test(d), d);
       const kept = JSON.parse(await off.evaluate(() => localStorage.getItem('hg-pantalla-menu-tv')));
       assert.strictEqual(kept.tv, 'menu-1');
-      assert.ok(Object.keys(kept.fila).every((k) => ['id', 'kind', 'inches', 'distance_m', 'turn', 'scale_pct', 'look', 'page_seconds', 'category_ids', 'sold_out', 'on_from', 'on_to', 'updated_at'].includes(k)), Object.keys(kept.fila).join());
+      assert.ok(Object.keys(kept.fila).every((k) => CAMPOS_FILA.includes(k)), Object.keys(kept.fila).join());
       assert.deepStrictEqual(off.errors, []);
     }
   },
@@ -402,7 +499,7 @@ module.exports.tests = [
       const pg = await pantalla(browser, { q: '?tv=menu-1&distancia=2&giro=no&look=dia&pagina=20&escala=90&diag=1' });
       const i = await info(pg);
       assert.deepStrictEqual([i.ajustes.pulgadas, i.ajustes.distancia, i.ajustes.giro, i.ajustes.look, i.ajustes.escala, i.paginaMs], [65, 2, 'no', 'dia', 90, 20000]);
-      assert.deepStrictEqual(i.origen, { pulgadas: 'base', distancia: 'direccion', escala: 'direccion', pagina: 'direccion', giro: 'direccion', look: 'direccion' });
+      assert.deepStrictEqual(i.origen, { pulgadas: 'base', distancia: 'direccion', escala: 'direccion', pagina: 'direccion', promo_cada: 'base', promo_seg: 'base', giro: 'direccion', look: 'direccion', densidad: 'base', ingles: 'base', layout: 'base', promo: 'base' });
       assert.ok(Math.abs(i.minCm - 0.8 * 2 * 0.9) < 1e-9);
       assert.ok(await pg.evaluate(() => document.getElementById('stage').classList.contains('dia')), 'look from the address');
       assert.strictEqual(await pg.evaluate(() => document.getElementById('stage').style.transform), '', 'not turned: the address said no');
@@ -758,6 +855,540 @@ module.exports.tests = [
       await until(async () => (await info(pg2)).estado === 'al-dia', 5000, 'verified once the answers arrive whole');
       assert.ok(onlyReads(pg2));
       assert.deepStrictEqual(pg2.errors, []);
+    }
+  },
+  {
+    name: 'B12: v2 board: every category is one block (its title first, then only its items) packed into explicit columns, never a title between another category\'s items and every column starting with a title; a block that does not fit is cut only when both pieces keep two items or more, its title repeated with «(continúa)», else it moves whole; the columns of a page are filled to nearly the same height with no hole the next piece could have filled, and nothing overflows',
+    run: async ({ browser }) => {
+      const want = JSON.parse(sql(EXPECTED));
+      for (const [w, h, q] of [[1920, 1080, '?tv=menu-1&pulgadas=55&distancia=3'], [1280, 720, '?tv=menu-1&pulgadas=65&distancia=2.5'], [1920, 1080, '?tv=menu-1&pulgadas=55&distancia=3&giro=derecha']]) {
+        const pg = await pantalla(browser, { viewport: { width: w, height: h }, q });
+        const i = await info(pg), where = `${w}×${h} ${q}`;
+        const cols = await columnas(pg);
+        assert.strictEqual(cols.length, i.paginas, where + ': one DOM page per page');
+        cols.forEach((p, k) => {
+          assert.strictEqual(p.length, i.columnas, `${where}: page ${k + 1} has ${i.columnas} explicit columns`);
+          p.forEach((c, j) => {
+            assert.ok(c.secciones.every((s) => s.ok), `${where}: page ${k + 1} column ${j + 1}: a title first, then only that category's items: ${JSON.stringify(c.secciones)}`);
+            assert.ok(c.secciones.every((s, n) => n === 0 || s.top >= c.secciones[n - 1].bottom - 1), `${where}: the blocks follow each other down the column`);
+            assert.ok(c.scroll <= c.alto + 1 && c.secciones.every((s) => s.bottom <= c.alto + 1), `${where}: page ${k + 1} column ${j + 1} holds its blocks (${c.scroll} in ${c.alto})`);
+          });
+        });
+        /* the Menu Manager's order, column after column and page after page; every item once */
+        const pages = await contenido(pg);
+        assert.deepStrictEqual(cats(pages), [...new Set(want.map((x) => clave(x.cat)))], where);
+        assert.strictEqual(items(pages).length, want.length, where);
+        /* dense and even: on every page the columns end under the page's limit, the tallest reaches it, and no column
+           could have taken the next column's first piece (one more item of a cut block, the first two items of a block
+           of four or more, a smaller block whole) without passing the limit; a cut leaves two items or more on each
+           side; the shortest column is within one piece of the tallest */
+        const g = i.maqueta.gap, H = i.maqueta.alto;
+        const piezas = []; i.maqueta.paginas.forEach((p, k) => p.forEach((c, j) => c.bloques.forEach((b, n) => piezas.push({ k, j, n, b, lim: c.limite }))));
+        i.maqueta.paginas.forEach((p, k) => {
+          const lim = p[0].limite, usadas = p.filter((c) => c.bloques.length), alturas = usadas.map((c) => c.alto);
+          assert.ok(lim <= H + 0.5 && usadas.length, `${where}: page ${k + 1}: limit ${lim} within the board ${H}`);
+          assert.ok(alturas.every((a) => a <= lim + 0.5) && Math.max(...alturas) >= lim - 1, `${where}: page ${k + 1}: columns ${alturas} under the limit ${lim}, the tallest at it`);
+          let unidad = 0, item = 0;
+          p.forEach((c, j) => {
+            c.bloques.forEach((b, n) => {
+              const cut = b.desde > 0 || b.hasta < b.n;
+              if (cut && b.hasta - b.desde < 2) {
+                /* a piece of one item only when the block is taller than a column: it opens its column and one more item would not fit */
+                const at = piezas.findIndex((x) => x.k === k && x.j === j && x.n === n), sig = piezas[at + 1];
+                assert.ok(n === 0, `${where}: page ${k + 1} column ${j + 1}: a piece of one item of «${b.categoria}» in the middle of a column: ${JSON.stringify(b)}`);
+                if (b.hasta < b.n) assert.ok(sig && sig.b.categoria === b.categoria && sig.b.desde === b.hasta && b.alto + sig.b.alturas[0] + 1 > lim - 0.5,
+                  `${where}: page ${k + 1} column ${j + 1}: «${b.categoria}» cut to one item although one more would fit (${b.alto} + ${sig && sig.b.alturas[0]} in ${lim})`);
+              }
+              const dos = b.alturas.slice().sort((x, y) => y - x).slice(0, 2).reduce((u, v) => u + v, 0);
+              unidad = Math.max(unidad, b.n < 4 ? b.alto : Math.max(b.titulo, b.tituloCont) + dos + 3);
+              item = Math.max(item, ...b.alturas);
+            });
+            if (j === p.length - 1 || !c.bloques.length || !p[j + 1].bloques.length) return;
+            const q = p[j + 1].bloques[0], ult = c.bloques[c.bloques.length - 1];
+            let need;
+            if (q.cont && ult.categoria === q.categoria && ult.hasta === q.desde) { if (q.hasta - q.desde === 2) return; need = q.alturas[0] + 1; }
+            else need = g + (q.n >= 4 ? q.titulo + q.alturas[0] + q.alturas[1] + 3 : q.alto);
+            assert.ok(c.alto + need > lim - 0.5, `${where}: page ${k + 1} column ${j + 1} (${c.alto} of ${lim}) could have taken the next piece «${q.categoria}» (${need})`);
+          });
+          assert.ok(Math.min(...alturas) >= Math.max(...alturas) - (unidad + item + g + 2), `${where}: page ${k + 1}: columns ${alturas} within one piece (${unidad + item + g}) of each other`);
+          /* every column starts with a title: its first piece is a block's start or a continuation with its own title */
+          p.forEach((c, j) => { if (c.bloques.length) assert.ok(c.bloques[0].desde === 0 || c.bloques[0].cont, `${where}: page ${k + 1} column ${j + 1} starts with a title`); });
+        });
+        assert.ok(i.cabe && i.capCm >= i.minCm - 1e-9, where);
+        assert.deepStrictEqual(pg.errors, [], where);
+        await pg.context().close();
+      }
+      /* a turned TV read from 4 m: one column, the letter big, categories taller than the column and so cut, each continuation titled «(continúa)» */
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=4&giro=derecha' });
+      const i = await info(pg);
+      assert.ok(i.cabe && i.columnas === 1, `one column, nothing cut (${i.columnas} columns, cabe ${i.cabe})`);
+      const cortes = i.partes.flat().filter((p) => p.cont);
+      assert.ok(cortes.length >= 1 && cortes.every((p) => p.desde > 0), 'a category cut, its continuation starting where the first part ended: ' + JSON.stringify(cortes));
+      const titles = await pg.evaluate(() => [...document.querySelectorAll('#main .page h2')].map((h) => ({ ces: h.querySelector('.ces').textContent, cont: (h.querySelector('.cont') || {}).textContent || '' })));
+      assert.ok(titles.some((t) => t.cont === '(continúa)'), 'the continuation says so');
+      assert.ok(titles.every((t) => t.cont === '' || t.cont === '(continúa)'));
+      const cols = await columnas(pg);
+      cols.forEach((p) => p.forEach((c) => assert.ok(c.secciones.every((s) => s.ok) && c.scroll <= c.alto + 1, JSON.stringify(c))));
+      /* the pieces of a cut category are consecutive: the continuation starts where the first part ended, in the next column (or page) */
+      const flat = []; i.partes.forEach((p, k) => p.forEach((x) => flat.push(Object.assign({ pagina: k }, x))));
+      flat.forEach((x, n) => { if (x.cont) assert.ok(n > 0 && flat[n - 1].categoria === x.categoria && flat[n - 1].hasta === x.desde && flat[n - 1].pagina >= x.pagina - 1, JSON.stringify([flat[n - 1], x])); });
+      const pages = await contenido(pg);
+      assert.deepStrictEqual(cats(pages), [...new Set(want.map((x) => clave(x.cat)))], 'a continuation is still the same category');
+      assert.strictEqual(items(pages).length, want.length);
+      assert.ok(i.capCm >= i.minCm - 1e-9, 'never under the minimum letter');
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.context().close();
+      /* a tiny screen read from far: nothing fits by width at any letter; the minimum letter and the fewest columns, and the diagnosis says NO CABE */
+      const tiny = await pantalla(browser, { viewport: { width: 960, height: 540 }, q: '?tv=menu-1&pulgadas=55&distancia=6&diag=1' });
+      const t = await info(tiny);
+      assert.ok(t.cabe === false && t.columnas === 3 && Math.abs(t.capCm - t.minCm) < 1e-6, 'the least harm: ' + JSON.stringify([t.cabe, t.columnas, t.capCm, t.minCm]));
+      assert.ok(/NO CABE: baje la escala o la distancia/.test(await diag(tiny)));
+      assert.deepStrictEqual(tiny.errors, []);
+    }
+  },
+  {
+    name: 'B13: the café\'s real menu (7 categories, 39 products with the public page\'s names) fits ONE screen on a 75" TV read from 2 m and pages on a 55" from 3 m, the letter never under the minimum; layout «una-pantalla» says so in the diagnosis when it had to page; «paginas» (today\'s rule) gives the same board as «auto», which already pages only when one screen would need a letter under the minimum',
+    run: async ({ browser }) => {
+      menuReal();
+      const want = JSON.parse(sql(EXPECTED));
+      assert.strictEqual(want.length, 39, 'the real menu: 39 products');
+      assert.strictEqual(new Set(want.map((w) => w.cat)).size, 7, 'in 7 categories');
+      const one = await pantalla(browser, { q: '?tv=menu-1&pulgadas=75&distancia=2&diag=1' });
+      let i = await info(one), pages = await contenido(one);
+      assert.strictEqual(items(pages).length, 39);
+      assert.ok(pages.flat().some((c) => c.cat === 'Repostería y queques' && c.catEn === 'Pastries & Cake') && items(pages).some((g) => g.es === 'Latte del Bosque Nuboso'), 'the public page\'s names');
+      assert.deepStrictEqual([i.paginas, i.unaPantalla, i.cabe, i.layout], [1, true, true, 'auto'], '75" at 2 m: one screen');
+      assert.ok(i.capCm >= i.minCm - 1e-9 && i.letraPct >= 80, `letter ${i.letraPct} % of the target`);
+      assert.ok(/Maqueta: layout auto · densidad normal · inglés debajo · \d columnas · cabe en una pantalla: sí \(letra \d+ % de la meta\)/.test(await diag(one)), await diag(one));
+      assert.ok(!/NO CABE EN UNA PANTALLA/.test(await diag(one)));
+      const c = await capitales(one), pxCm = 1920 / LARGO_CM(75);
+      assert.ok(c.min / pxCm >= i.minCm - 1 / pxCm, `the capital drawn ${(c.min / pxCm).toFixed(2)} cm ≥ ${i.minCm}`);
+      assert.deepStrictEqual(one.errors, []);
+      await one.context().close();
+      /* «paginas» (today's rule: fewest pages, then the largest letter) chooses the same board */
+      const pg2 = await pantalla(browser, { q: '?tv=menu-1&pulgadas=75&distancia=2&layout=paginas&diag=1' });
+      const j = await info(pg2);
+      assert.deepStrictEqual([j.paginas, j.columnas, j.capCm, j.layout], [1, i.columnas, i.capCm, 'paginas'], 'paginas = auto when one screen fits');
+      assert.ok(/Maqueta: layout paginas/.test(await diag(pg2)));
+      await pg2.context().close();
+      /* 55" at 3 m: it does not fit one screen at the minimum letter: pages, and the letter stays at or over the minimum */
+      const far = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1' });
+      i = await info(far);
+      assert.ok(i.paginas >= 2 && i.unaPantalla === false && i.cabe, `55" at 3 m: ${i.paginas} pages`);
+      assert.ok(i.capCm >= i.minCm - 1e-9 && Math.abs(i.minCm - 2.4) < 1e-9, `letter ${i.capCm} cm, never under 2.40`);
+      assert.ok(/cabe en una pantalla: no \(letra \d+ % de la meta\)/.test(await diag(far)) && !/NO CABE EN UNA PANTALLA/.test(await diag(far)), await diag(far));
+      assert.strictEqual(items(await contenido(far)).length, 39);
+      assert.deepStrictEqual(far.errors, []);
+      await far.context().close();
+      sql(`update public.screens set layout = 'una-pantalla' where id = 'menu-1'`);
+      const flag = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1' });
+      const k = await info(flag);
+      assert.deepStrictEqual([k.layout, k.paginas, k.capCm, k.columnas], ['una-pantalla', i.paginas, i.capCm, i.columnas], 'una-pantalla pages the same, never under the minimum');
+      assert.ok(/NO CABE EN UNA PANTALLA AL MÍNIMO/.test(await diag(flag)), await diag(flag));
+      const pg3 = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&layout=paginas&diag=1' });
+      const m = await info(pg3);
+      assert.deepStrictEqual([m.paginas, m.columnas, m.capCm], [i.paginas, i.columnas, i.capCm], 'paginas = auto when it must page');
+      assert.deepStrictEqual(flag.errors.concat(pg3.errors), []);
+    }
+  },
+  {
+    name: 'B14: density «compacta»: titles 1.3× the names, lines 1.06, English 72 %, less padding and a tighter header; the same TV fits more (fewer pages or a bigger letter); «normal» keeps today\'s board',
+    run: async ({ browser }) => {
+      menuReal();
+      const medidas = (pg) => pg.evaluate(() => {
+        const f = parseFloat(document.getElementById('stage').style.getPropertyValue('--f'));
+        const fs = (e) => parseFloat(getComputedStyle(e).fontSize);
+        const l1 = document.querySelector('#main .page .it .l1'), it = document.querySelector('#main .page .it');
+        const en = document.querySelector('#main .page .it .en');
+        const titles = [...document.querySelectorAll('#main .page h2 .ces')].filter((e) => !e.style.fontSize);
+        const hd = document.querySelector('header');
+        return { f, compacta: document.getElementById('stage').classList.contains('compacta'),
+                 tit: titles.length ? fs(titles[0]) / f : null, lh: parseFloat(getComputedStyle(l1).lineHeight) / fs(l1),
+                 en: en ? fs(en) / f : null, padA: parseFloat(getComputedStyle(it).paddingTop) / f, padB: parseFloat(getComputedStyle(it).paddingBottom) / f,
+                 header: hd.offsetHeight / f, gap: PANTALLA.info().maqueta.gap / f };
+      });
+      const normal = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3' });
+      const n = await info(normal), mn = await medidas(normal);
+      assert.ok(!mn.compacta && Math.abs(mn.tit - 1.5) < 0.02 && Math.abs(mn.lh - 1.12) < 0.02 && Math.abs(mn.en - 0.75) < 0.02 && Math.abs(mn.padA - 0.12) < 0.02 && Math.abs(mn.padB - 0.26) < 0.02 && Math.abs(mn.header - 1.75) < 0.05,
+        'normal: today\'s board: ' + JSON.stringify(mn));
+      assert.ok(Math.abs(mn.gap - 0.65) < 0.01, 'blocks 0.65 names apart: ' + mn.gap);
+      await normal.context().close();
+      sql(`update public.screens set density = 'compacta' where id = 'menu-1'`);
+      const comp = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1' });
+      const c = await info(comp), mc = await medidas(comp);
+      assert.ok(mc.compacta && Math.abs(mc.tit - 1.3) < 0.02 && Math.abs(mc.lh - 1.06) < 0.02 && Math.abs(mc.en - 0.72) < 0.02 && Math.abs(mc.padA - 0.05) < 0.02 && Math.abs(mc.padB - 0.12) < 0.02 && Math.abs(mc.header - 1.5) < 0.05,
+        'compacta: ' + JSON.stringify(mc));
+      assert.ok(Math.abs(mc.gap - 0.35) < 0.01, 'blocks 0.35 names apart: ' + mc.gap);
+      assert.strictEqual(c.densidad, 'compacta');
+      assert.ok(c.paginas < n.paginas || (c.paginas === n.paginas && c.capCm >= n.capCm), `fits more: ${c.paginas} pages at ${c.capCm} cm vs ${n.paginas} at ${n.capCm}`);
+      assert.ok(c.capCm >= c.minCm - 1e-9 && c.cabe, 'never under the minimum, nothing cut');
+      assert.ok(/densidad compacta/.test(await diag(comp)));
+      assert.strictEqual(items(await contenido(comp)).length, 39);
+      /* a title with a word too long for its column is still made smaller, never under 1.25× */
+      const t = await comp.evaluate(() => [...document.querySelectorAll('#main .page h2 .ces')].map((e) => ({ small: e.style.fontSize, r: parseFloat(getComputedStyle(e).fontSize) / parseFloat(document.getElementById('stage').style.getPropertyValue('--f')) })));
+      assert.ok(t.every((x) => x.r >= 1.25 - 0.02 && x.r <= 1.3 + 0.02), JSON.stringify(t));
+      assert.deepStrictEqual(comp.errors, []);
+    }
+  },
+  {
+    name: 'B15: the English per TV: «debajo» (today), «en-linea» after the name in grey and smaller, on the same line when it fits and wrapping when not, «no» (Spanish only, no English title either); a name the same in both languages is one line in every mode',
+    run: async ({ browser }) => {
+      menuReal();
+      const linea = (pg) => pg.evaluate(() => {
+        const fs = (e) => parseFloat(getComputedStyle(e).fontSize);
+        const by = (es) => [...document.querySelectorAll('#main .page .it')].find((i) => i.querySelector('.es').textContent === es);
+        const one = (es) => { const it = by(es); if (!it) return null; const e = it.querySelector('.es'), en = it.querySelector('.en'), pr = it.querySelector('.pr'), l1 = it.querySelector('.l1');
+          const re = e.getBoundingClientRect(), rn = en ? en.getBoundingClientRect() : null;   /* a smaller inline box sits lower on the same line: compare line boxes, not tops */
+          return { inline: !!(en && en.parentNode.classList.contains('l1')), below: !!(en && en.parentNode.classList.contains('it')), en: en ? en.textContent : '',
+                   sameLine: !!(rn && rn.top >= re.top - 1 && rn.bottom <= re.bottom + 1 && l1.offsetHeight < 1.6 * fs(e)), wrapped: l1.offsetHeight > 1.6 * fs(e),
+                   ratio: en ? fs(en) / fs(e) : null, grey: en ? getComputedStyle(en).color : null,
+                   ink: getComputedStyle(e).color, price: pr ? pr.textContent : '', priceAfter: !!(pr && en && pr.compareDocumentPosition(en) & Node.DOCUMENT_POSITION_PRECEDING) }; };
+        return { te: one('Té'), choc: one('Chocolate caliente costarricense'), latte: one('Latte'), cen: document.querySelectorAll('#main .page h2 .cen').length,
+                 ens: document.querySelectorAll('#main .page .en').length, items: document.querySelectorAll('#main .page .it').length };
+      });
+      const de = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=2&diag=1' });
+      let m = await linea(de), i = await info(de);
+      const ens = m.ens, cen = m.cen;
+      assert.ok(i.ingles === 'debajo' && m.te.below && !m.te.inline && m.te.en === 'Tea' && !m.te.sameLine && m.choc.below && m.latte.en === '' && ens > 10 && cen > 0 && m.items === 39,
+        'debajo, as today: ' + JSON.stringify(m));
+      assert.ok(/inglés debajo/.test(await diag(de)));
+      await de.context().close();
+      sql(`update public.screens set english = 'en-linea' where id = 'menu-1'`);
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=2&diag=1' });
+      m = await linea(pg); i = await info(pg);
+      assert.strictEqual(i.ingles, 'en-linea');
+      assert.ok(m.te.inline && !m.te.below && m.te.en === 'Tea' && m.te.sameLine && m.te.priceAfter && digits(m.te.price) === 1000, 'Té · Tea · price on one line: ' + JSON.stringify(m.te));
+      assert.ok(m.te.ratio < 1 && m.te.ratio >= 0.72 && m.te.grey !== m.te.ink, 'the English smaller and grey: ' + JSON.stringify(m.te));
+      assert.ok(m.choc.inline && m.choc.en === 'Costa Rican Hot Chocolate' && m.choc.wrapped, 'a long pair wraps: ' + JSON.stringify(m.choc));
+      assert.ok(m.latte.en === '' && !m.latte.inline && !m.latte.below, 'Latte once');
+      assert.deepStrictEqual([m.cen, m.ens, m.items], [cen, ens, 39], 'every English name once, in the line; the titles keep their English');
+      assert.ok(/inglés en-linea/.test(await diag(pg)));
+      assert.ok(i.cabe && i.capCm >= i.minCm - 1e-9);
+      await pg.context().close();
+      sql(`update public.screens set english = 'no' where id = 'menu-1'`);
+      const no = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=2&diag=1' });
+      m = await linea(no); i = await info(no);
+      assert.deepStrictEqual([i.ingles, m.cen, m.ens, m.items, m.te.en, m.choc.en], ['no', 0, 0, 39, '', ''], 'Spanish only: ' + JSON.stringify(m));
+      assert.ok(!/Costa Rican Hot Chocolate|Pastries|Cappuccino/.test(await stageText(no)), 'no English on the screen');
+      assert.ok(/Chocolate caliente costarricense/.test(await stageText(no)) && /Capuchino/.test(await stageText(no)));
+      assert.ok(/inglés no/.test(await diag(no)));
+      assert.deepStrictEqual(de.errors.concat(no.errors, pg.errors), []);
+    }
+  },
+  {
+    name: 'B16: promotions intercalated (promo_mode = intercalar): every promo_every s one of this TV\'s slides in force shows for promo_seconds s with a fade, by turns, and the same page of the menu comes back (the pages wait meanwhile); the slide carries the live name and price; the device never keeps a slide',
+    run: async ({ browser }) => {
+      sql(`update public.screens set promo_mode = 'intercalar', promo_every = 45, promo_seconds = 8 where id = 'menu-1'`);
+      const a = marca('Bienvenidos', { sort: 1, screens: ['menu-1'] });
+      const b = diapo({ kind: 'producto', item: 'Latte', kicker_es: 'Hoy', kicker_en: 'Today', sort: 2 });
+      const T = { cada: 600, revisar: 100, promoCada: 1600, promoSeg: 2500, pagina: 1500 };
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T });
+      const i0 = await info(pg);
+      assert.deepStrictEqual([i0.promo.modo, i0.promo.cadaMs, i0.promo.segMs, i0.promo.leidas, i0.promo.vigentes, i0.promo.enPantalla, i0.ajustes.promo_cada, i0.ajustes.promo_seg],
+        ['intercalar', T.promoCada, T.promoSeg, 2, [a, b], null, 45, 8], JSON.stringify(i0.promo));
+      assert.ok(i0.paginas > 1, 'a menu of several pages: ' + i0.paginas);
+      assert.ok(/Promos: intercalar · cada 2 s · 3 s cada una · 2 leídas · 2 vigentes ahora/.test(await diag(pg)), await diag(pg));
+      const shown = [];
+      for (let k = 0; k < 2; k++) {
+        const t0 = Date.now();
+        /* the layer turns on and fades in: wait for the fade to have started (its first frame is still at opacity 0) */
+        await until(async () => { const v = await promoVista(pg); return v.on && v.opacity > 0; }, T.promoCada + 2500, 'a promotion on the menu');
+        const tOn = Date.now(), v = await promoVista(pg), p0 = (await info(pg)).pagina;
+        shown.push(v.id);
+        assert.ok(k === 0 || tOn - t0 >= T.promoCada - 400, `the next one ${T.promoCada} ms after the last (${tOn - t0} ms)`);
+        assert.ok(v.on && v.opacity > 0, JSON.stringify(v));
+        if (v.kind === 'producto') assert.ok(v.id === b && v.tit === 'Latte' && v.kick === 'Hoy · Today' && digits(v.precio) === 2200 && v.cur === '₡' && v.pida && !v.nota, JSON.stringify(v));
+        else assert.ok(v.id === a && v.kind === 'marca' && v.tit === 'Bienvenidos' && v.titEn === 'Bienvenidos (en)' && !v.precio, JSON.stringify(v));
+        /* the menu waits: the page under the promotion is the same at the end as at the start (its timer fired meanwhile) */
+        await sleep(T.promoSeg - 500);
+        const during = await promoVista(pg), p1 = (await info(pg)).pagina;
+        assert.ok(during.on && during.id === v.id, 'still the same promotion');
+        assert.strictEqual(p1, p0, 'the page did not change under the promotion');
+        assert.strictEqual(await pg.evaluate(() => document.querySelectorAll('#main .page.on').length), 1);
+        await until(async () => !(await promoVista(pg)).on, 2500, 'the promotion ends');
+        const dt = Date.now() - tOn;
+        assert.ok(dt >= T.promoSeg - 300 && dt <= T.promoSeg + 1500, `shown ${dt} ms (${T.promoSeg})`);
+        assert.strictEqual((await info(pg)).pagina, p0, 'the same page is back');
+      }
+      assert.deepStrictEqual(shown.slice().sort(), [a, b].sort(), 'both slides, by turns: ' + shown.join());
+      assert.ok((await info(pg)).promo.mostradas >= 2);
+      /* the fade: the layer's opacity moves through values between 0 and 1 */
+      await until(async () => (await promoVista(pg)).on, T.promoCada + 2500, 'a third promotion');
+      const ops = []; for (let k = 0; k < 12; k++) { ops.push((await promoVista(pg)).opacity); await sleep(60); }
+      assert.ok(ops.some((o) => o > 0 && o < 1) || ops[0] === 1, 'a fade in: ' + ops.join());
+      assert.ok(onlyReads(pg), [...new Set(pg.api)].join());
+      assert.deepStrictEqual(await pg.evaluate(() => Object.keys(localStorage).sort()), ['hg-pantalla-menu', 'hg-pantalla-menu-tv', 'hg_lang'], 'no slide kept on the device');
+      assert.ok(!/Bienvenidos|Latte|slides|title|kicker|₡/i.test(await pg.evaluate(() => localStorage.getItem('hg-pantalla-menu-tv'))), 'nothing of the slides in the settings copy');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'B17: nothing in force (an ended slide, one for another TV, one for tomorrow, one paused): the menu is never interrupted, and the diagnosis says so; promo_mode = no: never, whatever the slides; a slide that comes into force shows on the next read',
+    run: async ({ browser }) => {
+      sql(`update public.screens set promo_mode = 'intercalar' where id = 'menu-1'`);
+      marca('Vencida', { starts: "now() - interval '2 days'", ends: "now() - interval '1 hour'" });
+      marca('Otra TV', { screens: ['promos-1'] });
+      marca('Pausada', { status: 'pausada' });
+      const manana = marca('Mañana', { starts: "now() + interval '20 hours'", ends: "now() + interval '2 days'" });
+      const T = { cada: 500, revisar: 100, promoCada: 800, promoSeg: 700 };
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T });
+      let i = await info(pg);
+      assert.deepStrictEqual([i.promo.modo, i.promo.leidas, i.promo.vigentes, i.promo.enPantalla], ['intercalar', 1, [], null], JSON.stringify(i.promo));
+      let seen = 0; const t0 = Date.now();
+      while (Date.now() - t0 < 3 * T.promoCada + 1000) { if ((await promoVista(pg)).on) seen++; await sleep(80); }
+      assert.strictEqual(seen, 0, 'never interrupted');
+      assert.strictEqual((await info(pg)).promo.mostradas, 0);
+      assert.ok(/Promos: intercalar · .* · 1 leídas · 0 vigentes ahora · sin diapositivas vigentes: no interrumpe/.test(await diag(pg)), await diag(pg));
+      assert.ok(!/Vencida|Otra TV|Pausada|Mañana/.test(await stageText(pg)), 'none of their texts on the screen');
+      /* the slide for tomorrow comes into force now (the owner moved it): shown on the next read */
+      sql(`update public.screen_slides set starts_at = now() - interval '1 minute' where id = '${manana}'`);
+      await until(async () => (await promoVista(pg)).on, 6000, 'the slide now in force');
+      const v = await promoVista(pg);
+      assert.ok(v.id === manana && v.tit === 'Mañana', JSON.stringify(v));
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.context().close();
+      /* promo_mode = no: the server sends no slides and the screen never interrupts */
+      sql(`update public.screens set promo_mode = 'no' where id = 'menu-1'`);
+      const no = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T });
+      i = await info(no);
+      assert.deepStrictEqual([i.promo.modo, i.promo.leidas, i.promo.vigentes], ['no', 0, []]);
+      seen = 0; const t1 = Date.now();
+      while (Date.now() - t1 < 3 * T.promoCada + 500) { if ((await promoVista(no)).on) seen++; await sleep(80); }
+      assert.strictEqual(seen, 0);
+      assert.ok(/Promos: no/.test(await diag(no)));
+      assert.ok(onlyReads(no));
+      assert.deepStrictEqual(no.errors, []);
+    }
+  },
+  {
+    name: 'B18: a product slide whose item is sold out (or has no price) is skipped, as on Screen B; one on screen when its item sells out goes at once on the next read; back in stock, it returns to the turn',
+    run: async ({ browser }) => {
+      sql(`update public.screens set promo_mode = 'intercalar' where id = 'menu-1';
+           update menu_items set available = false where name = 'Latte';
+           update menu_items set price_crc = 0 where name = 'Sweet Cane Drink';`);
+      const latte = diapo({ kind: 'producto', item: 'Latte', sort: 1 });
+      diapo({ kind: 'producto', item: 'Sweet Cane Drink', sort: 2 });
+      const m = marca('Marca', { sort: 3 });
+      const T = { cada: 500, revisar: 100, promoCada: 700, promoSeg: 600 };
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T });
+      let i = await info(pg);
+      assert.deepStrictEqual([i.promo.leidas, i.promo.vigentes], [1, [m]], 'only the brand slide can show: ' + JSON.stringify(i.promo));
+      const ids = new Set(); const t0 = Date.now();
+      while (Date.now() - t0 < 4 * (T.promoCada + T.promoSeg)) { const v = await promoVista(pg); if (v.on) ids.add(v.id); await sleep(60); }
+      assert.deepStrictEqual([...ids], [m], 'only the brand slide showed');
+      assert.ok(!/Latte|Sweet Cane|Agua dulce/.test(await pg.evaluate(() => document.getElementById('promo').innerText)));
+      /* back in stock: in the turn again */
+      sql(`update menu_items set available = true where name = 'Latte'`);
+      await until(async () => (await info(pg)).promo.leidas === 2, 5000, 'the Latte slide read again');
+      await until(async () => { const v = await promoVista(pg); return v.on && v.id === latte; }, 3 * (T.promoCada + T.promoSeg) + 2000, 'the Latte slide shown');
+      let v = await promoVista(pg);
+      assert.ok(v.tit === 'Latte' && digits(v.precio) === 2200, JSON.stringify(v));
+      await pg.context().close();
+      /* on screen when it sells out: cut at once on the read that says so, no fade through a sold-out product */
+      sql(`update menu_items set available = true where name = 'Latte'`);
+      const T2 = { cada: 400, revisar: 100, promoCada: 600, promoSeg: 8000 };
+      const pg2 = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3', test: T2 });
+      await until(async () => { const x = await promoVista(pg2); return x.on && x.id === latte; }, 2 * (T2.promoCada + T2.promoSeg) + 2000, 'the Latte slide on screen');
+      sql(`update menu_items set available = false where name = 'Latte'`);
+      const t1 = Date.now();
+      await until(async () => !(await promoVista(pg2)).on, 3000, 'gone');
+      assert.ok(Date.now() - t1 <= T2.cada + 1500, 'cut on the next read');
+      assert.strictEqual(await pg2.evaluate(() => getComputedStyle(document.getElementById('promo')).opacity), '0', 'at once, no fade');
+      assert.ok(!(await find(pg2, 'Latte')), 'and the menu no longer lists it either');
+      await until(async () => { const x = await promoVista(pg2); return x.on; }, 2 * (T2.promoCada + T2.promoSeg) + 2000, 'the next promotion');
+      v = await promoVista(pg2);
+      assert.strictEqual(v.id, m, 'the brand slide, not the sold-out product');
+      assert.ok(onlyReads(pg2));
+      assert.deepStrictEqual(pg2.errors, []);
+    }
+  },
+  {
+    name: 'B19: the slides\' prices follow the menu\'s freshness: without a connection the price stays «por confirmar» up to the limit, then a product slide leaves at once and a composition keeps its photos and names without any price; prices come back with the connection',
+    run: async ({ browser, setOffline }) => {
+      sql(`update public.screens set promo_mode = 'intercalar' where id = 'menu-1'`);
+      const latte = diapo({ kind: 'producto', item: 'Latte', sort: 1 });
+      const T = { cada: 400, revisar: 100, fresco: 1800, vencido: 3400, promoCada: 600, promoSeg: 30000 };
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T });
+      await until(async () => { const v = await promoVista(pg); return v.on && v.id === latte; }, 5000, 'the product slide');
+      let v = await promoVista(pg);
+      assert.ok(digits(v.precio) === 2200 && !v.nota, JSON.stringify(v));
+      setOffline(true);
+      await until(async () => (await info(pg)).estado === 'por-confirmar', 8000, '«por confirmar»');
+      v = await promoVista(pg);
+      assert.ok(v.on && v.id === latte && digits(v.precio) === 2200 && /Precio por confirmar en caja · Please confirm the price at the counter/.test(v.nota || ''), 'the price with its note: ' + JSON.stringify(v));
+      await until(async () => (await info(pg)).estado === 'sin-verificar', 8000, 'no verified prices');
+      v = await promoVista(pg);
+      assert.ok(!v.on, 'the product slide left: ' + JSON.stringify(v));
+      assert.ok(!/₡/.test(await stageText(pg)) && !/₡/.test(await pg.evaluate(() => document.getElementById('promo').innerText)), 'no price anywhere');
+      assert.strictEqual(await pg.locator('#stage .pr').count(), 0);
+      let seen = 0; const t0 = Date.now();
+      while (Date.now() - t0 < 2 * T.promoCada + 800) { if ((await promoVista(pg)).on) seen++; await sleep(80); }
+      assert.strictEqual(seen, 0, 'no product slide without a verified price');
+      setOffline(false);
+      await until(async () => (await info(pg)).estado === 'al-dia', 8000, 'verified again');
+      await until(async () => { const x = await promoVista(pg); return x.on && x.id === latte; }, 2 * T.promoCada + 3000, 'the product slide back with its price');
+      v = await promoVista(pg);
+      assert.ok(digits(v.precio) === 2200 && !v.nota, JSON.stringify(v));
+      await pg.context().close();
+      /* a composition with names and prices (labels): the photos and names stay, the price follows the same rule */
+      sql(`update public.screen_slides set status = 'retirada' where id = '${latte}'`);
+      const c = compo({ template: '2-lado', kicker_es: 'Desayuno', zones: [{ entries: [{ item: 'Latte' }] }, { labels: false, entries: ['https://fotos.test/pan.png'] }] });
+      setOffline(false);
+      const pg2 = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3', test: T });
+      await until(async () => { const x = await promoVista(pg2); return x.on && x.id === c; }, 5000, 'the composition');
+      await until(async () => { const j = await zonasPromo(pg2); return j && j.zonas.every((x) => x.estado === 'entrada'); }, 4000, 'its zones up');
+      let z = (await zonasPromo(pg2)).zonas;
+      assert.ok(z.length === 2 && z[0].tit === 'Latte' && digits(z[0].precio) === 2200 && z[1].tit === null && z[1].src === 'https://fotos.test/pan.png', JSON.stringify(z));
+      setOffline(true);
+      await until(async () => (await info(pg2)).estado === 'por-confirmar' && /Precio por confirmar/.test((await zonasPromo(pg2)).zonas[0].nota || ''), 8000, '«por confirmar» in the zone');
+      z = (await zonasPromo(pg2)).zonas;
+      assert.ok(digits(z[0].precio) === 2200 && z[0].tit === 'Latte' && z[0].src === null, 'the price with its note, in place: ' + JSON.stringify(z[0]));
+      await until(async () => (await info(pg2)).estado === 'sin-verificar' && (await zonasPromo(pg2)).zonas[0].precio === null, 8000, 'no verified prices');
+      v = await promoVista(pg2); z = (await zonasPromo(pg2)).zonas;
+      assert.ok(v.on && v.id === c, 'the composition stays (its photos are not prices)');
+      assert.ok(z[0].tit === 'Latte' && z[0].precio === null && !z[0].nota && z[1].src === 'https://fotos.test/pan.png', 'the name without a price: ' + JSON.stringify(z));
+      assert.ok(!/₡/.test(await pg2.evaluate(() => document.getElementById('promo').innerText)));
+      assert.deepStrictEqual(pg2.errors, []);
+    }
+  },
+  {
+    name: 'B20: the technician\'s address overrides the v2 settings too (densidad, ingles, layout, promo, promo_cada, promo_seg), named in the diagnosis; wrong values fall back to the TV\'s row and are named; a cold start without internet keeps the v2 settings in the device copy',
+    run: async ({ browser, setOffline }) => {
+      sql(`update public.screens set density = 'compacta', english = 'no', layout = 'una-pantalla', promo_mode = 'intercalar', promo_every = 60, promo_seconds = 7 where id = 'menu-1'`);
+      marca('Promo', {});
+      const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, locale: 'es-CR', timezoneId: 'America/Costa_Rica' });
+      let pg = await pantalla(browser, { context: ctx, q: '?tv=menu-1&densidad=normal&ingles=en-linea&layout=paginas&promo=no&promo_cada=120&promo_seg=12&diag=1', test: { cada: 500, revisar: 100, promoCada: 600, promoSeg: 500 } });
+      let i = await info(pg);
+      assert.deepStrictEqual([i.ajustes.densidad, i.ajustes.ingles, i.ajustes.layout, i.ajustes.promo, i.ajustes.promo_cada, i.ajustes.promo_seg], ['normal', 'en-linea', 'paginas', 'no', 120, 12]);
+      assert.deepStrictEqual([i.origen.densidad, i.origen.ingles, i.origen.layout, i.origen.promo, i.origen.promo_cada, i.origen.promo_seg, i.origen.pulgadas], ['direccion', 'direccion', 'direccion', 'direccion', 'direccion', 'direccion', 'base']);
+      assert.deepStrictEqual([i.densidad, i.ingles, i.layout, i.promo.modo, i.promo.leidas], ['normal', 'en-linea', 'paginas', 'no', 1], 'the board follows the address; the slides are read (the row says intercalar) but never shown (the address says no)');
+      assert.ok(!(await pg.evaluate(() => document.getElementById('stage').classList.contains('compacta'))));
+      assert.ok((await pg.locator('#main .page .l1 .en').count()) > 5 && (await pg.locator('#main .page .it > .en').count()) === 0, 'English in the line');
+      let d = await diag(pg);
+      assert.ok(/Origen: base de datos \(TV menu-1.* · de la dirección: promo_cada, promo_seg, densidad, ingles, layout, promo/.test(d) && /Maqueta: layout paginas · densidad normal · inglés en-linea/.test(d) && /Promos: no/.test(d), d);
+      let seen = 0; const t0 = Date.now();
+      while (Date.now() - t0 < 2000) { if ((await promoVista(pg)).on) seen++; await sleep(80); }
+      assert.strictEqual(seen, 0, 'promo=no from the address: never');
+      await pg.close();
+      /* wrong values: the row's values, and the diagnosis names them */
+      pg = await pantalla(browser, { context: ctx, q: '?tv=menu-1&densidad=densa&ingles=si&layout=tres&promo=mucho&promo_cada=5&promo_seg=99&diag=1', test: { cada: 500, revisar: 100, promoCada: 600, promoSeg: 500 } });
+      i = await info(pg);
+      assert.deepStrictEqual([i.ajustes.densidad, i.ajustes.ingles, i.ajustes.layout, i.ajustes.promo, i.ajustes.promo_cada, i.ajustes.promo_seg], ['compacta', 'no', 'una-pantalla', 'intercalar', 60, 7]);
+      assert.deepStrictEqual(i.malos, ['promo_cada=5', 'promo_seg=99', 'densidad=densa', 'ingles=si', 'layout=tres', 'promo=mucho']);
+      assert.ok(/Ajustes no válidos: promo_cada=5, promo_seg=99, densidad=densa, ingles=si, layout=tres, promo=mucho/.test(await diag(pg)), await diag(pg));
+      assert.ok(await pg.evaluate(() => document.getElementById('stage').classList.contains('compacta')));
+      assert.strictEqual(await pg.locator('#main .page .en').count(), 0, 'Spanish only, as the row says');
+      await until(async () => (await promoVista(pg)).on, 3000, 'the row\'s intercalar applies');
+      /* with the real promo timings from the row when the test does not shorten them */
+      await pg.close();
+      pg = await pantalla(browser, { context: ctx, q: '?tv=menu-1&diag=1' });
+      i = await info(pg);
+      assert.deepStrictEqual([i.promo.cadaMs, i.promo.segMs, i.promo.modo], [60000, 7000, 'intercalar']);
+      assert.ok(/Promos: intercalar · cada 60 s · 7 s cada una/.test(await diag(pg)));
+      await pg.close();
+      /* a cold start without internet: the v2 settings from the device copy of the row; no slide (they are never kept) */
+      setOffline(true);
+      const off = await pantalla(browser, { context: ctx, q: '?tv=menu-1&diag=1', wait: false, test: { cada: 500, revisar: 100, promoCada: 600, promoSeg: 500 } });
+      await until(() => off.evaluate(() => !!window.PANTALLA && PANTALLA.info().paginas > 0), 8000, 'the names from the copy');
+      i = await info(off);
+      assert.deepStrictEqual([i.fuente, i.ajustes.densidad, i.ajustes.ingles, i.ajustes.layout, i.ajustes.promo, i.ajustes.promo_cada, i.ajustes.promo_seg, i.promo.leidas, i.promo.vigentes],
+        ['copia', 'compacta', 'no', 'una-pantalla', 'intercalar', 60, 7, 0, []]);
+      assert.ok(await off.evaluate(() => document.getElementById('stage').classList.contains('compacta')));
+      seen = 0; const t1 = Date.now();
+      while (Date.now() - t1 < 1500) { if ((await promoVista(off)).on) seen++; await sleep(80); }
+      assert.strictEqual(seen, 0, 'nothing to show without a read');
+      assert.strictEqual(await off.locator('#stage .pr').count(), 0);
+      assert.deepStrictEqual(off.errors, []);
+    }
+  },
+  {
+    name: 'B21: a composition as an interlude, drawn as Screen B draws it: two zones, one fixed (a product with its live name and price, framed as the owner set it) and one presentation (its photos take turns at its own seconds, in order, with a dissolve between two loaded layers, never an empty frame); the kicker and the brand line; the letters per metre of a zone; a new price is written in place; the menu waits and comes back on the same page; the zones stop and leave the layer after the interlude; a product sold out leaves its zone to the brand design; the diagnosis names it all',
+    run: async ({ browser }) => {
+      sql(`update public.screens set promo_mode = 'intercalar' where id = 'menu-1';
+           update public.menu_items set name_es = 'Pan de banano casero', photo_url = 'https://fotos.test/banana.png' where name = 'Banana Bread'`);
+      const c = compo({ template: '2-lado', kicker_es: 'Desayuno', kicker_en: 'Breakfast', zones: [
+        { mode: 'fija', labels: true, entries: [{ item: 'Banana Bread', focus: [20, 80], zoom: 150 }, 'https://fotos.test/nunca.png'] },   /* a fixed zone: its first entry only */
+        { mode: 'auto', seconds: 15, labels: false, entries: fotos('p', 3) }
+      ] });
+      /* a declared second of a zone lasts 100 ms here (15 s -> 1.5 s a photo); the dissolve its real second (the test browser
+         draws at 15-20 frames a second, and a fade starts a frame or two after the switch: as on a TV, the fade ends well
+         before its clean-up and the next turn); the interlude 7 s, every 1.2 s */
+      const T = { cada: 600, revisar: 100, promoCada: 1200, promoSeg: 7000, pagina: 1500, zona: 100, fundido: 1000 };
+      const pg = await pantalla(browser, { q: '?tv=menu-1&pulgadas=55&distancia=3&diag=1', test: T });
+      const i0 = await info(pg);
+      assert.deepStrictEqual([i0.promo.vigentes, i0.promo.enPantalla, i0.promo.composicion, i0.tiempos.zona, i0.tiempos.fundido], [[c], null, null, 100, 1000], JSON.stringify(i0.promo));
+      assert.ok(i0.paginas > 1, 'a menu of several pages: ' + i0.paginas);
+      await until(async () => { const v = await promoVista(pg); return v.on && v.id === c; }, T.promoCada + 3000, 'the composition on the menu');
+      const tOn = Date.now(), p0 = (await info(pg)).pagina;
+      await until(async () => { const z = await zonasPromo(pg); return z && z.zonas.every((x) => x.estado === 'entrada'); }, 4000, 'its zones up');
+      let z = await zonasPromo(pg);
+      const a = z.zonas[0], b = z.zonas[1];
+      assert.deepStrictEqual([z.template, z.zonas.length, z.kick, z.sup, (await promoVista(pg)).kind], ['2-lado', 2, 'Desayuno · Breakfast', 'Hanging Garden Café', 'composicion'], JSON.stringify(z));
+      assert.deepStrictEqual([a.modo, a.tamano, a.tit, a.titEn, digits(a.precio), a.nota, a.src, a.encuadre],
+        ['fija', 'grande', 'Pan de banano casero', 'Banana Bread', 1500, null, 'https://fotos.test/banana.png', ['20% 80%', 'scale(1.5)']], 'the live name and price, the photo framed: ' + JSON.stringify(a));
+      assert.ok(/^₡1\s?500$/.test(a.precio), 'the price as on the menu: ' + a.precio);
+      assert.deepStrictEqual([b.modo, b.tamano, b.tit, b.precio, b.caps.length], ['auto', 'grande', null, null, 0], 'labels off: the photo only: ' + JSON.stringify(b));
+      assert.ok(/^https:\/\/fotos\.test\/p\d\.png$/.test(b.src), b.src);
+      /* the places: the two halves of the stage with a thin gap between them, nothing outside the screen */
+      assert.deepStrictEqual([a.box[0], a.box[1], b.box[1], a.dentro, b.dentro], [0, 0, 0, true, true], JSON.stringify([a.box, b.box]));
+      assert.ok(Math.abs(a.box[2] - 960) <= 4 && Math.abs(b.box[0] - 960) <= 4 && b.box[0] + b.box[2] === 1920 && a.box[3] === 1080 && b.box[3] === 1080, 'two halves: ' + JSON.stringify([a.box, b.box]));
+      /* the letters as on Screen B: the name 1.0 cm/m in a large zone, the price 1.2 x the name, nothing cut */
+      const pxCm = 1920 / LARGO_CM(55), tol = 1 / pxCm, cm = (r) => a.caps.filter((x) => x.r === r).map((x) => x.cap / pxCm);
+      assert.ok(cm('zt')[0] >= 1.0 * 3 - tol, 'the name 1.0 cm/m in a large zone: ' + cm('zt'));
+      assert.ok(cm('zp')[0] >= 1.2 * 3 - tol, 'the price 1.2 x the name: ' + cm('zp'));
+      assert.ok(a.caps.every((x) => !x.cortado), 'nothing cut: ' + JSON.stringify(a.caps));
+      /* the presentation: the fixed zone never changes; the other takes turns in order every 1.5 s with a dissolve (the new
+         layer fades in over the old one, which stays opaque until the fade ends; a loaded photo at every moment) */
+      const m = await muestrearPromo(pg, 3600, 30);
+      assert.deepStrictEqual([...new Set(m.map((x) => x.z.zonas[0].src + '|' + x.z.zonas[0].entrada))], ['https://fotos.test/banana.png|0'], 'the fixed zone never changes');
+      assert.ok(!m.some((x) => /nunca/.test(JSON.stringify(x.z))), 'a fixed zone shows its first entry only');
+      const c1 = cambiosPromo(m, 1);
+      assert.ok(c1.length >= 2 && c1.length <= 3, `the 15 s zone changed ${c1.length} times in 3.6 s (every 1.5 s): ${c1.join(', ')}`);
+      const seq = m.map((x) => x.z.zonas[1].entrada).filter((v, k, arr) => k === 0 || v !== arr[k - 1]);
+      seq.forEach((v, k, arr) => { if (k) assert.strictEqual(v, (arr[k - 1] + 1) % 3, 'in order: ' + arr.join('')); });
+      m.forEach((x) => assert.strictEqual(x.z.zonas[1].src, `https://fotos.test/p${x.z.zonas[1].entrada}.png`, 'the photo of the entry shown'));
+      let fundidos = 0;
+      m.forEach((x) => {
+        const cs = x.z.zonas[1].capas;
+        assert.strictEqual(cs.length, 2, 'two layers');
+        assert.ok(cs.some((k) => k.on && k.img && k.lista && k.opacity >= 0.99), `${x.t} ms: an opaque loaded photo at every moment: ` + JSON.stringify(cs));
+        const e = cs.find((k) => k.entra), s = cs.find((k) => k.sale);
+        if (e && s) { fundidos++; assert.ok(s.on && s.opacity >= 0.99 && e.on && e.lista, `${x.t} ms: the old photo stays opaque under the new one while it fades in: ` + JSON.stringify(cs)); }
+      });
+      assert.ok(fundidos >= 1 && m.some((x) => { const e = x.z.zonas[1].capas.find((k) => k.entra); return e && e.opacity > 0.05 && e.opacity < 0.95; }), 'a crossfade, not a cut: ' + fundidos + ' samples');
+      /* the Menu Manager changes the price: written in place on the next read, the photo untouched, the interlude the same */
+      sql(`update public.menu_items set price_crc = 1650 where name = 'Banana Bread'`);
+      await until(async () => { const j = await zonasPromo(pg); return j && digits(j.zonas[0].precio) === 1650; }, T.cada + 2500, 'the new price');
+      z = await zonasPromo(pg);
+      assert.deepStrictEqual([z.id, z.zonas[0].entrada, z.zonas[0].src, z.zonas[0].tit, z.zonas[0].capas.filter((x) => x.on).length, (await info(pg)).promo.mostradas],
+        [c, 0, 'https://fotos.test/banana.png', 'Pan de banano casero', 1, 1], JSON.stringify(z.zonas[0]));
+      const d = await diag(pg);
+      assert.ok(/Composición: plantilla 2-lado · 2 zonas · 7 s · línea «Desayuno»/.test(d) && /Zona 1: foto fija · 1 de 1 entrada con qué mostrar · con nombres y precios · muestra la 1 \(Pan de banano casero, precio\)/.test(d)
+                && /Zona 2: presentación cada 15 s · 3 de 3 entradas con qué mostrar · sin textos · muestra la [123] \(solo foto\)/.test(d), d);
+      /* the menu waits under the interlude (its page timer fired meanwhile) and comes back on the same page */
+      assert.strictEqual((await info(pg)).pagina, p0, 'the page did not change under the promotion');
+      assert.strictEqual(await pg.evaluate(() => document.querySelectorAll('#main .page.on').length), 1);
+      await until(async () => !(await promoVista(pg)).on, T.promoSeg + 2000, 'the interlude ends');
+      const dt = Date.now() - tOn;
+      assert.ok(dt >= T.promoSeg - 600 && dt <= T.promoSeg + 1500, `shown ${dt} ms (${T.promoSeg})`);
+      assert.strictEqual((await info(pg)).pagina, p0, 'the same page is back');
+      await until(() => pg.evaluate(() => document.querySelectorAll('#promo .zona').length === 0), 2500, 'its zones left the layer (emptied after the fade out)');
+      assert.strictEqual((await info(pg)).promo.composicion, null);
+      await until(async () => (await promoVista(pg)).opacity < 0.05, 2500, 'faded out');
+      /* the next interlude: the composition again, its zones up; a product sold out meanwhile leaves its zone to the
+         brand design (no fallback photo) on the next read, the other zone goes on, the interlude stays */
+      sql(`update public.menu_items set available = false where name = 'Banana Bread'`);
+      await until(async () => { const v = await promoVista(pg); return v.on && v.id === c; }, T.promoCada + 3000, 'the composition again');
+      await until(async () => { const j = await zonasPromo(pg); return j && j.zonas[0].estado === 'marca' && j.zonas[1].estado === 'entrada' && j.zonas.every((x) => x.capas.filter((k) => k.on).length === 1); }, 5000, 'the brand design in zone 1');
+      z = await zonasPromo(pg);
+      assert.deepStrictEqual([z.zonas[0].marca, z.zonas[0].tit, z.zonas[0].precio, z.zonas[0].lugar, z.zonas[0].src, (await info(pg)).promo.mostradas], [true, null, null, 'Monteverde, Costa Rica', null, 2], JSON.stringify(z.zonas[0]));
+      assert.ok(/Hanging Garden Café/.test(z.zonas[0].text) && !/banano|Banana|₡/.test(z.text), z.text);
+      assert.ok(/Zona 1: foto fija · 0 de 1 entrada con qué mostrar · con nombres y precios · NADA QUE MOSTRAR: el diseño de marca/.test(await diag(pg)), await diag(pg));
+      assert.ok(cambiosPromo(await muestrearPromo(pg, 2000, 30), 1).length >= 1, 'the presentation goes on');
+      assert.ok(onlyReads(pg), [...new Set(pg.api)].join());
+      assert.deepStrictEqual(await pg.evaluate(() => Object.keys(localStorage).sort()), ['hg-pantalla-menu', 'hg-pantalla-menu-tv', 'hg_lang'], 'no slide kept on the device');
+      assert.ok(!/fotos\.test|zones|Desayuno|₡|1650/.test(await pg.evaluate(() => localStorage.getItem('hg-pantalla-menu') + localStorage.getItem('hg-pantalla-menu-tv'))), 'nothing of the composition on the device');
+      assert.deepStrictEqual(pg.errors, []);
     }
   }
 ];

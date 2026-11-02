@@ -6,7 +6,11 @@
    7) combos and discounts never announced: blocked while typing and refused by the server;
    8) only with the owner's PIN (or the owner login with the phone code), the server's own checks and a change log.
    Also: an unknown address is refused before any client exists, Spanish only, and a slide made here is what the
-   promotions TV reads (pantalla_datos). */
+   promotions TV reads (pantalla_datos).
+   v2 (migration 0037): the menu TV's layout, density, English and intercalated promotions; compositions of 1 to 4
+   zones built in the visual editor (template, products from the picker, uploaded photos, focus and zoom), refused by
+   the server next to the zone and the entry, previewed in the real TV page before saving; «Programación sugerida»
+   creates four paused compositions from the menu; «Hoy en pantalla» lists a composition with its zones. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -42,16 +46,52 @@ async function unlockAs(pg, who) {
   await pg.type('#hgaPin', PINS[who]);
   await pg.press('#hgaPin', 'Enter');
 }
-/* the page on its own device; every database function it calls is kept in pg.rpc */
+/* the page on its own device; every database function it calls is kept in pg.rpc. opts.init runs in every frame
+   before its scripts (the preview frame reads window.PANTALLA_TEST); test photos (fotos.test, the CDN and the local
+   Storage's public addresses) answer with a 1 x 1 PNG */
 async function open(browser, opts) {
   opts = Object.assign({ login: 'cafe', lang: 'es' }, opts || {});
   const pg = await page(browser, opts);
-  pg.rpc = [];
-  pg.on('request', (r) => { const m = /\/rest\/v1\/rpc\/([a-z_]+)/.exec(r.url()); if (m) pg.rpc.push(m[1]); });
-  await pg.route(/cloudfront\.net/, (r) => r.fulfill({ status: 200, contentType: 'image/png', body: PHOTO }));
+  if (opts.init) await pg.addInitScript(opts.init);
+  pg.rpc = []; pg.deletes = [];   /* the functions called; the Storage removals asked for (bucket and body) */
+  pg.on('request', (r) => {
+    const m = /\/rest\/v1\/rpc\/([a-z_]+)/.exec(r.url()); if (m) pg.rpc.push(m[1]);
+    if (r.method() === 'DELETE' && /\/storage\/v1\/object\//.test(r.url())) pg.deletes.push(r.url() + ' ' + (r.postData() || ''));
+  });
+  await pg.route(/cloudfront\.net|fotos\.test|\/storage\/v1\/object\/public\//, (r) => r.fulfill({ status: 200, contentType: 'image/png', body: PHOTO }));
   await goto(pg, '/pantallas');
   return pg;
 }
+const itemId = (name) => one(`select id from menu_items where name = '${name.replace(/'/g, "''")}' limit 1`);
+/* a composition put straight into the table (0037 shape): entries by item name or photo address */
+function compo(o) {
+  const q = (v) => v == null ? 'null' : `'${String(v).replace(/'/g, "''")}'`;
+  const entry = (e) => typeof e === 'string' ? { item: null, photo: e, focus: [50, 50], zoom: 100 }
+    : { item: e.item ? itemId(e.item) : null, photo: e.photo || null, focus: e.focus || [50, 50], zoom: e.zoom || 100 };
+  const zones = o.zones.map((z) => ({ mode: z.mode || 'fija', seconds: z.seconds == null ? 8 : z.seconds, labels: z.labels !== false,
+                                       fallback: z.fallback || null, entries: z.entries.map(entry) }));
+  return one(`insert into screen_slides (kind, template, zones, dwell_seconds, kicker_es, kicker_en, screen_ids, starts_at, ends_at, days, from_time, to_time, sort, status, created_by)
+    values ('composicion', ${q(o.template)}, ${q(JSON.stringify(zones))}::jsonb, ${o.dwell == null ? 'null' : o.dwell}, ${q(o.kicker_es)}, ${q(o.kicker_en)},
+            ${o.screens ? q('{' + o.screens.join(',') + '}') : 'null'}, ${o.starts || "now() - interval '1 hour'"}, ${o.ends || "now() + interval '1 day'"},
+            ${o.days ? q('{' + o.days.join(',') + '}') : 'null'}, ${q(o.from)}, ${q(o.to)}, ${o.sort == null ? 100 : o.sort}, ${q(o.status || 'activa')}, 'prueba') returning id`).split('\n')[0];
+}
+/* the composition drawn in the preview frame: its template, its kicker and, per zone, what is in front */
+const zonasEn = (frame) => frame.evaluate(() => {
+  const sl = document.querySelector('#stage:not(.apagado) .capa.on .sl.k-composicion');
+  if (!sl) return null;
+  return { template: sl.dataset.template, kick: (sl.querySelector('.zkick') || {}).textContent || null,
+    zonas: [...sl.querySelectorAll('.zona')].map((z) => {
+      const front = z.querySelector('.zcapa.on.entra') || z.querySelector('.zcapa.on:not(.sale)') || z.querySelector('.zcapa.on');
+      const f = (s) => { const e = front && front.querySelector(s); return e ? e.textContent : null; };
+      return { modo: z.dataset.modo, estado: z.dataset.estado, tit: f('.ztit'), precio: f('.zprecio'), src: front ? front.dataset.src || null : null };
+    }) };
+});
+/* the entries' zoom slider and focus readout of an entry in the editor */
+const encuadre = (pg, sel) => pg.evaluate((s) => {
+  const li = document.querySelector(s), i = li.querySelector('.frame img');
+  return { zoom: li.querySelector('input[type=range]').value, focus: li.querySelector('.focus').textContent, pos: i ? i.style.objectPosition : null, tr: i ? i.style.transform : null };
+}, sel);
+const slideJson = (id) => JSON.parse(one(`select json_build_object('kind', kind, 'template', template, 'dwell', dwell_seconds, 'kicker', kicker_es, 'kicker_en', kicker_en, 'title', title_es, 'zones', zones)::text from screen_slides where id = '${id}'`));
 async function asOwnerPin(browser, opts) {
   const pg = await open(browser, opts);
   await unlockAs(pg, 'dueno');
@@ -552,6 +592,336 @@ module.exports.tests = [
       const row = `article.slide[data-slide="${brand.id}"]`;
       await save(pg, row + ' [data-act=pausar]');
       assert.ok(!(await anonDatos(pg, 'promos-1')).slides.some((s) => s.id === brand.id), 'paused: off the TV');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · the menu TV\'s layout, density, English and intercalated promotions: saved, logged, read by the TV; out of range the page says so and, sent past the page, the server refuses by field',
+    run: async ({ browser }) => {
+      const pg = await asOwnerPin(browser);
+      const card = 'article.tv[data-tv="menu-1"]';
+      assert.strictEqual(await pg.locator('#tv-promos-1-layout, #tv-promos-1-promo_mode').count(), 0, 'only the menu TV has them');
+      assert.deepStrictEqual(await pg.$$eval('#tv-menu-1-layout option', (o) => o.map((x) => x.value)), ['auto', 'una-pantalla', 'paginas']);
+      assert.deepStrictEqual([await pg.inputValue('#tv-menu-1-promo_every'), await pg.inputValue('#tv-menu-1-promo_seconds'), await pg.inputValue('#tv-menu-1-promo_mode')], ['180', '10', 'no'], 'the 0037 defaults');
+      await pg.selectOption('#tv-menu-1-layout', 'una-pantalla');
+      await pg.selectOption('#tv-menu-1-density', 'compacta');
+      await pg.selectOption('#tv-menu-1-english', 'en-linea');
+      await pg.selectOption('#tv-menu-1-promo_mode', 'intercalar');
+      await pg.fill('#tv-menu-1-promo_every', '120');
+      await pg.fill('#tv-menu-1-promo_seconds', '8');
+      await save(pg, card + ' button[type=submit]');
+      assert.strictEqual(one(`select concat_ws(' ', layout, density, english, promo_mode, promo_every, promo_seconds, updated_by) from screens where id = 'menu-1'`),
+        'una-pantalla compacta en-linea intercalar 120 8 Dueño (owner)');
+      const d = await anonDatos(pg, 'menu-1');
+      assert.deepStrictEqual([d.tv.layout, d.tv.density, d.tv.english, d.tv.promo_mode, d.tv.promo_every, d.tv.promo_seconds], ['una-pantalla', 'compacta', 'en-linea', 'intercalar', 120, 8], 'what the TV reads');
+      await tab(pg, 'log');
+      const first = pg.locator('#logList article.chg').first();
+      await first.locator('summary').click();
+      assert.strictEqual(await first.locator('tr[data-k="promo_mode"] td.now').innerText(), 'Intercalar las diapositivas asignadas a esta TV');
+      assert.strictEqual(await first.locator('tr[data-k="promo_every"] td.was').innerText(), '180');
+      assert.strictEqual(await first.locator('tr[data-k="density"] td.now').innerText(), 'Compacta: más líneas, menos aire');
+      await tab(pg, 'tvs');
+      await pg.fill('#tv-menu-1-promo_every', '20');
+      await pg.click(card + ' button[type=submit]');
+      await until(async () => /Una promoción cada: de 30 a 900 segundos/.test(await text(pg, card + ' .err')), 4000, 'the page\'s check');
+      assert.strictEqual(pg.rpc.filter((f) => f === 'pantalla_guardar').length, 1, 'not sent');
+      await pg.evaluate(() => { window.PANTALLAS_TEST = { sinRevisar: true }; });
+      await pg.click(card + ' button[type=submit]');
+      await until(async () => /Revise cada cuántos segundos van las promociones\./.test(await text(pg, card + ' .err')), 8000, 'the server\'s invalid/promo_every');
+      assert.match(await pg.getAttribute('#tv-menu-1-promo_every', 'class'), /bad/, 'marked at the field');
+      assert.strictEqual(one(`select promo_every from screens where id = 'menu-1'`), '120', 'nothing changed');
+      /* a menu TV that intercalates promotions can now be assigned slides, and appears in «Hoy en pantalla» */
+      await tab(pg, 'slides');
+      await pg.click('#newSlide');
+      assert.deepStrictEqual(await pg.$$eval('#edTvs input', (a) => a.map((x) => x.value)), ['menu-1', 'promos-1']);
+      assert.match(await text(pg, '#edTvs'), /Pantalla A · menú \(menú, con promociones\)/);
+      await tab(pg, 'today');
+      assert.match(await text(pg, 'article.today[data-today="menu-1"]'), /las intercala cada 120 s, durante 8 s/);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · a composition in the visual editor: template 4-centro, a fixed zone and three presentations, products from the picker, an uploaded photo, focus and zoom; saved exactly as written and read back; edited and saved again, the order stays',
+    run: async ({ browser }) => {
+      one(`update menu_items set photo_url = 'https://fotos.test/croissant.png' where name = 'Butter Croissant'`);
+      const pg = await asOwnerPin(browser, { viewport: { width: 1280, height: 900 } });
+      await tab(pg, 'slides');
+      const croissant = itemId('Butter Croissant'), icedLatte = itemId('Iced Latte'), icedAm = itemId('Iced Americano'), latte = itemId('Latte'), ham = itemId('Ham & Cheese');
+      await pg.click('#newCompo');
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      assert.strictEqual(await text(pg, '#slideForm h2'), 'Nueva composición');
+      assert.strictEqual(await pg.isChecked('input[name=edKind][value=composicion]'), true);
+      assert.strictEqual(await pg.locator('#edTemplates .tpl').count(), 6, 'six templates, each with its small scheme');
+      assert.strictEqual(await pg.locator('#edTemplates .tpl[data-template="4-centro"] .mini i').count(), 4);
+      assert.strictEqual(await pg.locator('#edPhotoBox').isHidden(), true, 'a composition\'s photos live in its zones');
+      assert.strictEqual(await pg.locator('#pair-title').isHidden(), true, 'no title');
+      await pg.click('#edTemplates .tpl[data-template="2-lado"]');
+      assert.strictEqual(await pg.locator('#edZones .zone').count(), 2);
+      await pg.click('#edTemplates .tpl[data-template="4-centro"]');
+      assert.deepStrictEqual(await pg.$$eval('#edZones .zone h3 > span:first-child', (a) => a.map((x) => x.textContent)), ['Izquierda', 'Centro arriba', 'Centro abajo', 'Derecha'],
+        'one zone editor per place, named as the owner sees the TV');
+      assert.deepStrictEqual(await pg.$$eval('#edZones .zone', (a) => a.map((z) => getComputedStyle(z).gridArea.split(' / ')[0])), ['a', 'b', 'c', 'd']);
+      const zone = (i) => `#edZones .zone[data-zone="${i}"]`;
+      const add = async (i, q, item) => {
+        if ((await pg.getAttribute(`#edZ-${i}-add`, 'aria-pressed')) !== 'true') await pg.click(`#edZ-${i}-add`);
+        await pg.fill(`#edZ-${i}-search`, q);
+        await pg.click(`#edZ-${i}-picker .pick[data-item="${item}"]`);
+      };
+      /* left: a fixed croissant, framed with a tap and the zoom slider */
+      await pg.click('#edZ-0-mode-fija');
+      assert.strictEqual(await pg.locator('#edZ-0-seconds').isHidden(), true, 'a fixed photo has no seconds');
+      await add(0, 'butter', croissant);
+      assert.match(await inner(pg, zone(0) + ' .entry[data-entry="0"] .einfo b'), /^1\. Butter Croissant · ₡1 500 en el menú$/);
+      const fr = await pg.locator(zone(0) + ' .entry[data-entry="0"] .frame').boundingBox();
+      await pg.mouse.click(fr.x + fr.width * 0.25, fr.y + fr.height * 0.8);
+      const focus = await until(async () => { const m = /Enfoque (\d+) %, (\d+) %/.exec(await text(pg, zone(0) + ' .entry[data-entry="0"] .focus')); return m && Number(m[1]) !== 50 ? [Number(m[1]), Number(m[2])] : null; }, 3000, 'the focus point');
+      assert.ok(Math.abs(focus[0] - 25) <= 2 && Math.abs(focus[1] - 80) <= 2, 'where the tap landed: ' + focus);
+      await pg.evaluate((s) => { const z = document.querySelector(s + ' input[type=range]'); z.value = 150; z.dispatchEvent(new Event('input', { bubbles: true })); }, zone(0) + ' .entry[data-entry="0"]');
+      assert.deepStrictEqual(await encuadre(pg, zone(0) + ' .entry[data-entry="0"]'), { zoom: '150', focus: `Enfoque ${focus[0]} %, ${focus[1]} % · tamaño 150 % · toque o arrastre la miniatura`, pos: `${focus[0]}% ${focus[1]}%`, tr: 'scale(1.5)' },
+        'the thumbnail is framed as the TV will frame it');
+      /* centre top: a presentation of the iced coffees every 6 s */
+      await pg.fill('#edZ-1-seconds', '6');
+      await add(1, 'iced', icedLatte);
+      await add(1, 'iced', icedAm);
+      /* centre bottom: a latte without name or price, the croissant's photo as the fallback */
+      await pg.uncheck('#edZ-2-labels');
+      await add(2, 'latte', latte);
+      await pg.click(zone(2) + ' [data-act=fb-producto]');
+      await pg.fill('#edZ-2-search', 'butter');
+      await pg.click(`#edZ-2-picker .pick[data-item="${croissant}"]`);
+      assert.match(await pg.getAttribute(zone(2) + ' .fb .ph img', 'src'), /croissant\.png$/);
+      /* right: an uploaded photo and a sandwich, then the sandwich first */
+      const before = photos();
+      await pg.click(zone(3) + ' [data-act=subir]');
+      await pg.setInputFiles('#photoFile', { name: 'terraza.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(async () => /Lista: 1 × 1 px/.test(await text(pg, '#edZerr-3')), 8000, 'the photo made ready');
+      await add(3, 'ham & cheese', ham);
+      assert.deepStrictEqual(await pg.$$eval(zone(3) + ' .entry .einfo b', (a) => a.map((x) => x.textContent)), ['1. Foto (nueva)', '2. Ham & Cheese · ₡4 000 en el menú']);
+      await pg.click(zone(3) + ' .entry[data-entry="1"] [data-act=arriba]');
+      assert.deepStrictEqual(await pg.$$eval(zone(3) + ' .entry .einfo b', (a) => a.map((x) => x.textContent)), ['1. Ham & Cheese · ₡4 000 en el menú', '2. Foto (nueva)']);
+      assert.deepStrictEqual(photos(), before, 'nothing uploaded before Guardar');
+      await pg.fill('#ed-kicker_es', 'Desayuno');
+      await pg.fill('#ed-kicker_en', 'Breakfast');
+      await pg.fill('#edDwell', '90');
+      await save(pg, '#edSave');
+      const id = one(`select id from screen_slides`);
+      const saved = slideJson(id);
+      const url = saved.zones[3].entries[1].photo;
+      const m = /\/storage\/v1\/object\/public\/menu-photos\/(pantallas\/[0-9a-f-]{36}\.jpg)$/.exec(url || '');
+      assert.ok(m, 'the uploaded photo\'s public address: ' + url);
+      assert.deepStrictEqual(photos().filter((k) => !before.includes(k)), ['menu-photos/' + m[1]], 'one new file in Storage, the one the zone uses');
+      assert.deepStrictEqual(saved, { kind: 'composicion', template: '4-centro', dwell: 90, kicker: 'Desayuno', kicker_en: 'Breakfast', title: null, zones: [
+        { mode: 'fija', seconds: 8, labels: true, fallback: null, entries: [{ item: croissant, photo: null, focus: focus, zoom: 150 }] },
+        { mode: 'auto', seconds: 6, labels: true, fallback: null, entries: [{ item: icedLatte, photo: null, focus: [50, 50], zoom: 100 }, { item: icedAm, photo: null, focus: [50, 50], zoom: 100 }] },
+        { mode: 'auto', seconds: 8, labels: false, fallback: 'https://fotos.test/croissant.png', entries: [{ item: latte, photo: null, focus: [50, 50], zoom: 100 }] },
+        { mode: 'auto', seconds: 8, labels: true, fallback: null, entries: [{ item: ham, photo: null, focus: [50, 50], zoom: 100 }, { item: null, photo: url, focus: [50, 50], zoom: 100 }] }
+      ] }, 'the zones exactly as written: ids, photos and framing, never a name or a price');
+      assert.strictEqual(one(`select status || ' ' || created_by from screen_slides where id = '${id}'`), 'activa Dueño (owner)');
+      const row = `article.slide[data-slide="${id}"]`;
+      assert.match(await inner(pg, row + ' .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: foto fija · Butter Croissant · Centro arriba: presentación cada 6 s · 2 entradas · Centro abajo: presentación cada 8 s · Latte · sin nombres ni precios · Derecha: presentación cada 8 s · 2 entradas · se queda 90 s$/);
+      assert.match(await text(pg, row + ' [data-when]'), /En pantalla ahora/);
+      const d = await anonDatos(pg, 'promos-1');
+      assert.deepStrictEqual([d.slides.length, d.slides[0].kind, d.slides[0].usable, d.slides[0].zones.map((z) => z.showable), d.slides[0].zones[0].entries[0].item.price_crc],
+        [1, 'composicion', true, [true, true, true, true], 1500], 'what the TV reads: every zone has something to show, the price live');
+      /* read back into the editor and saved again without a change: the same zones, in the same order; the photo stays */
+      await pg.click(row + ' [data-act=editar]');
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      assert.strictEqual(await text(pg, '#slideForm h2'), 'Editar la composición');
+      assert.strictEqual(await pg.getAttribute('#edTemplates .tpl[data-template="4-centro"]', 'aria-pressed'), 'true');
+      assert.strictEqual(await pg.isChecked('#edZ-0-mode-fija'), true);
+      assert.strictEqual(await pg.inputValue('#edZ-1-seconds'), '6');
+      assert.strictEqual(await pg.isChecked('#edZ-2-labels'), false);
+      assert.strictEqual(await pg.inputValue('#edDwell'), '90');
+      assert.deepStrictEqual(await encuadre(pg, zone(0) + ' .entry[data-entry="0"]'), { zoom: '150', focus: `Enfoque ${focus[0]} %, ${focus[1]} % · tamaño 150 % · toque o arrastre la miniatura`, pos: `${focus[0]}% ${focus[1]}%`, tr: 'scale(1.5)' });
+      assert.deepStrictEqual(await pg.$$eval(zone(3) + ' .entry .einfo b', (a) => a.map((x) => x.textContent)), ['1. Ham & Cheese · ₡4 000 en el menú', '2. Foto']);
+      assert.match(await pg.getAttribute(zone(3) + ' .entry[data-entry="1"] .frame img', 'src'), /menu-photos\/pantallas\//);
+      await pg.fill('#ed-kicker_es', 'Desayuno en el jardín');
+      await save(pg, '#edSave');
+      const again = slideJson(id);
+      assert.deepStrictEqual(again, Object.assign({}, saved, { kicker: 'Desayuno en el jardín' }), 'the zones exactly as before');
+      assert.deepStrictEqual(photos().filter((k) => !before.includes(k)), ['menu-photos/' + m[1]], 'the photo stays, nothing else uploaded');
+      assert.strictEqual(one(`select string_agg(action, ',' order by id) from screen_changes where target_id = '${id}'`), 'crear,cambiar');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · a composition refused by the server is said next to the zone and the entry: an Extras & Combos product sent past the page, too many entries; a kicker with a price blocked while typing and refused past the page; the page\'s own checks first',
+    run: async ({ browser }) => {
+      const pg = await asOwnerPin(browser);
+      await tab(pg, 'slides');
+      const latte = itemId('Latte'), shot = itemId('Flavor shot');
+      await pg.click('#newCompo');
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      await pg.click('#edTemplates .tpl[data-template="2-lado"]');
+      await pg.click('#edZ-0-add');
+      await pg.fill('#edZ-0-search', 'flavor');
+      await until(async () => /Nada en el menú con esa búsqueda/.test(await text(pg, '#edZ-0-picker')), 3000, 'Extras & Combos is never offered');
+      await pg.fill('#edZ-0-search', 'latte');
+      await pg.click(`#edZ-0-picker .pick[data-item="${latte}"]`);
+      /* the page's checks: an empty zone, a fixed zone with two entries */
+      await pg.click('#edSave');
+      await until(async () => /Derecha: agregue al menos un producto o una foto\./.test(await text(pg, '#edZerr-1')), 4000, 'the empty zone, at the zone');
+      assert.ok(!pg.rpc.includes('diapositiva_guardar'), 'nothing sent');
+      await pg.click('#edZ-1-add');
+      await pg.fill('#edZ-1-search', 'latte');
+      await pg.click(`#edZ-1-picker .pick[data-item="${latte}"]`);
+      await pg.click(`#edZ-1-picker .pick[data-item="${latte}"]`);
+      await pg.click('#edZ-1-mode-fija');
+      await pg.click('#edSave');
+      await until(async () => /Derecha: una foto fija lleva una sola entrada/.test(await text(pg, '#edZerr-1')), 4000, 'two entries in a fixed zone');
+      assert.ok(!pg.rpc.includes('diapositiva_guardar'), 'still nothing sent');
+      assert.strictEqual(await text(pg, '#edZerr-0'), '', 'the other zone is clean');
+      /* past the page: the same fixed zone with two entries, refused by the server at the zone */
+      await pg.evaluate(() => { window.PANTALLAS_TEST = { sinRevisar: true }; document.getElementById('slideForm').requestSubmit(); });
+      await until(async () => /Derecha: una foto fija lleva exactamente una entrada; una presentación, de 1 a 12\./.test(await text(pg, '#edZerr-1')), 8000, 'the server\'s invalid/zones.1.entries');
+      assert.match(await pg.getAttribute('#edZones .zone[data-zone="1"]', 'class'), /bad/);
+      await pg.click('#edZ-1-mode-auto');
+      await pg.click('#edZones .zone[data-zone="1"] .entry[data-entry="1"] [data-act=quitar]');
+      /* past the page: an Extras & Combos product in the second zone's entry */
+      await pg.evaluate((shot) => {
+        window.PANTALLAS_TEST = { sinRevisar: true, antesDeEnviar: (p) => { p.zones[1].entries[0].item = shot; return p; } };
+        document.getElementById('slideForm').requestSubmit();
+      }, shot);
+      await until(async () => /Derecha, entrada 1: ese producto es de Extras & Combos: no se anuncia\./.test(await text(pg, '#edZerr-1')), 8000, 'the server\'s text_combo_descuento, at the entry');
+      assert.strictEqual(await text(pg, '#edErr'), 'Derecha, entrada 1: ese producto es de Extras & Combos: no se anuncia.');
+      assert.match(await pg.getAttribute('#edZones .zone[data-zone="1"] .entry[data-entry="0"]', 'class'), /bad/, 'marked at the entry');
+      assert.strictEqual(await text(pg, '#edZerr-0'), '', 'the other zone is clean');
+      /* past the page: thirteen entries in the first zone */
+      await pg.evaluate(() => {
+        window.PANTALLAS_TEST = { sinRevisar: true, antesDeEnviar: (p) => { p.zones[0].mode = 'auto'; p.zones[0].entries = Array(13).fill(p.zones[0].entries[0]); return p; } };
+        document.getElementById('slideForm').requestSubmit();
+      });
+      await until(async () => /Izquierda: a lo sumo 12 entradas\./.test(await text(pg, '#edZerr-0')), 8000, 'the server\'s too_many/zones.0.entries');
+      assert.strictEqual(await text(pg, '#edZerr-1'), '', 'the earlier refusal is cleared');
+      /* a kicker with a price: blocked while typing; past the page the server refuses it before looking at the zones */
+      await pg.evaluate(() => { window.PANTALLAS_TEST = { sinRevisar: true }; });
+      await pg.fill('#ed-kicker_es', 'Latte a ₡1500');
+      assert.match(await text(pg, '#err-kicker_es'), /Sin precios/);
+      assert.strictEqual(await pg.locator('#edSave').isDisabled(), true);
+      await pg.evaluate(() => document.getElementById('slideForm').requestSubmit());
+      await until(async () => /Sin precios en el texto[\s\S]*\(la línea de arriba \(español\)\)/.test(await text(pg, '#edErr')), 8000, 'the server\'s text_precio');
+      assert.strictEqual(pg.rpc.filter((f) => f === 'diapositiva_guardar').length, 4, 'four reached the server');
+      assert.strictEqual(slides(), 0, 'nothing kept');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · «Vista previa en la TV»: the real pantalla-promos page in preview mode, framed, draws the composition as it stands (nothing saved, nothing read) and follows every change; a new photo goes up for it and comes down with Cancelar',
+    run: async ({ browser }) => {
+      one(`update menu_items set photo_url = 'https://fotos.test/croissant.png' where name = 'Butter Croissant'`);
+      const pg = await asOwnerPin(browser, { viewport: { width: 1280, height: 900 }, init: () => { window.PANTALLA_TEST = { zona: 100, fundido: 100, revisar: 150 }; } });
+      await tab(pg, 'slides');
+      const croissant = itemId('Butter Croissant'), latte = itemId('Latte'), ham = itemId('Ham & Cheese');
+      await pg.click('#newCompo');
+      await pg.waitForSelector('#slideForm #edZones .zone');
+      await pg.click('#edTemplates .tpl[data-template="3-grande-izq"]');
+      const add = async (i, q, item) => {
+        if ((await pg.getAttribute(`#edZ-${i}-add`, 'aria-pressed')) !== 'true') await pg.click(`#edZ-${i}-add`);
+        await pg.fill(`#edZ-${i}-search`, q);
+        await pg.click(`#edZ-${i}-picker .pick[data-item="${item}"]`);
+      };
+      await add(0, 'butter', croissant);
+      await pg.click('#edZ-1-mode-fija');
+      await add(1, 'latte', latte);
+      await add(2, 'ham', ham);
+      await pg.fill('#ed-kicker_es', 'Desayuno');
+      assert.deepStrictEqual(await pg.$$eval('#edPvTv option', (o) => o.map((x) => x.value)), ['promos-1']);
+      await pg.click('#edPreviewBtn');
+      await pg.waitForSelector('#edPreview .pv iframe');
+      assert.strictEqual(await pg.getAttribute('#edPreview .pv iframe', 'src'), 'pantalla-promos?tv=promos-1&preview=1', 'the real page, in preview mode');
+      assert.strictEqual(await text(pg, '#edPreviewBtn'), 'Cerrar la vista previa');
+      const frame = await until(() => pg.frames().find((f) => f !== pg.mainFrame() && /preview=1/.test(f.url())), 8000, 'the frame');
+      await until(() => frame.evaluate(() => !!window.PANTALLA_B && PANTALLA_B.info().actual === 'previa'), 12000, 'the posted composition');
+      await until(async () => { const z = await zonasEn(frame); return z && z.zonas.length === 3 && z.zonas.every((x) => x.estado === 'entrada'); }, 8000, 'its zones up');
+      const z = await zonasEn(frame);
+      /* the TV writes the names in Spanish first (the site's dictionary), as it does for a product slide */
+      assert.deepStrictEqual([z.template, z.kick, z.zonas.map((x) => x.tit), z.zonas.map((x) => x.modo)],
+        ['3-grande-izq', 'Desayuno', ['Croissant de mantequilla', 'Latte', 'Jamón y queso'], ['auto', 'fija', 'auto']], JSON.stringify(z));
+      assert.ok(/^₡2\s?200$/.test(z.zonas[1].precio), 'the live price the panel read from the menu: ' + z.zonas[1].precio);
+      assert.strictEqual(z.zonas[0].src, 'https://fotos.test/croissant.png', 'the menu\'s photo');
+      const i = await frame.evaluate(() => PANTALLA_B.info());
+      assert.deepStrictEqual([i.preview, i.razon, i.intentos, i.buenas, i.estado], [true, 'vista-previa', 0, 0, 'al-dia'], 'the preview reads nothing: ' + JSON.stringify(i));
+      assert.ok(!pg.rpc.includes('pantalla_datos') && !pg.rpc.includes('diapositiva_guardar'), 'nor the panel: ' + pg.rpc.join(','));
+      /* every change follows: names and prices off in the latte's zone; the zones swapped */
+      await pg.uncheck('#edZ-1-labels');
+      await until(async () => { const j = await zonasEn(frame); return j && j.zonas[1].tit === null && j.zonas[1].precio === null; }, 6000, 'the change reaches the preview');
+      await pg.click('#edZones .zone[data-zone="1"] [data-act=swap-next]');
+      await until(async () => { const j = await zonasEn(frame); return j && j.zonas.map((x) => x.tit).join('|') === 'Croissant de mantequilla|Jamón y queso|'; }, 6000, 'the zones swapped');
+      assert.deepStrictEqual(await pg.$$eval('#edZones .zone .entry .einfo b', (a) => a.map((x) => x.textContent)), ['1. Butter Croissant · ₡1 500 en el menú', '1. Ham & Cheese · ₡4 000 en el menú', '1. Latte · ₡2 200 en el menú']);
+      /* a new photo: it goes up when the preview needs it, shows there, and comes down when the owner gives up */
+      const before = photos();
+      await pg.click('#edZones .zone[data-zone="0"] [data-act=subir]');
+      await pg.setInputFiles('#photoFile', { name: 'jardin.png', mimeType: 'image/png', buffer: PHOTO });
+      await until(() => photos().length === before.length + 1, 8000, 'uploaded for the preview');
+      const key = photos().filter((k) => !before.includes(k))[0];
+      await until(async () => { const j = await zonasEn(frame); return j && j.zonas[0].src && j.zonas[0].src.endsWith('/' + key); }, 8000, 'the new photo takes its turn in the preview');
+      assert.strictEqual(slides(), 0, 'nothing saved');
+      /* Cancelar takes the photo away (the test Storage keeps no DELETE: the request itself, naming the file, is the proof) */
+      await pg.click('#edCancel');
+      await until(() => pg.deletes.some((d) => d.includes(key.replace(/^menu-photos\//, ''))), 8000, 'the photo taken away: no orphan file');
+      assert.strictEqual(await pg.locator('#slideForm, #edPreview iframe').count(), 0);
+      assert.strictEqual(slides(), 0);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · «Programación sugerida»: four paused compositions for the day from the menu\'s own categories (breakfast in 4-centro, lunch, afternoon, dinner), told to the owner; a second click creates nothing',
+    run: async ({ browser }) => {
+      const pg = await asOwnerPin(browser);
+      await tab(pg, 'slides');
+      await pg.click('#sugerir');
+      await until(async () => /Se crearon en pausa: Desayuno \(06:00–10:00\), Almuerzo \(10:00–13:00\), Tarde \(13:00–17:00\), Cena \(17:00–19:00\)\. Revíselas/.test(await text(pg, '#sugerirMsg')), 20000, 'the four, told');
+      const rows = JSON.parse(one(`select json_agg(json_build_object('t', kicker_es, 'en', kicker_en, 'template', template, 'status', status, 'from', from_time, 'to', to_time, 'days', days, 'sort', sort,
+                                       'screens', screen_ids, 'dias', round(extract(epoch from (ends_at - starts_at)) / 86400), 'zones', zones) order by sort)::text from screen_slides`));
+      assert.deepStrictEqual(rows.map((r) => [r.t, r.en, r.template, r.status, r.from, r.to, r.days, r.sort, r.screens, r.dias]), [
+        ['Desayuno', 'Breakfast', '4-centro', 'pausada', '06:00:00', '10:00:00', null, 10, null, 365],
+        ['Almuerzo', 'Lunch', '3-grande-izq', 'pausada', '10:00:00', '13:00:00', null, 20, null, 365],
+        ['Tarde', 'Afternoon', '2-lado', 'pausada', '13:00:00', '17:00:00', null, 30, null, 365],
+        ['Cena', 'Dinner', '1', 'pausada', '17:00:00', '19:00:00', null, 40, null, 365]
+      ], 'four, paused, every day, every TV, a year');
+      const names = (r) => r.zones.map((z) => z.entries.map((e) => one(`select name from menu_items where id = '${e.item}'`)));
+      const reposteria = ['Butter Croissant', 'Chocolate Croissant', 'Ham & Cheese Croissant', 'Banana Bread', 'Carrot Cake', 'Chicken Empanada', 'Beef Empanada'];
+      const sandwiches = ['Ham & Cheese', 'Mano de Piedra', 'Chicken Pesto', 'Monteverde'];
+      const frios = ['Iced Latte', 'Iced Americano', 'Iced Mocha'];
+      const calientes = ['Latte', 'Café con Leche', 'Espresso', 'Americano', 'Macchiato', 'Cappuccino', 'Flat White', 'Mocha', 'Cloud Forest Latte'];
+      const batidos = ['Golden Passion Bloom', 'Berry Violet Blossom', 'White Plumeria Cream', 'Sunflower Citrus Bloom', 'Green Jasmine Mint', 'Coral Rose Splash', 'Pink Dahlia Delight', 'Emerald Orchid', 'Lemon Rose Blossom', 'Fresh Water Lily', 'Golden Magnolia'];
+      assert.deepStrictEqual(names(rows[0]), [reposteria, frios, calientes, sandwiches], 'breakfast: left pastries (croissants first), centre top iced coffees (iced latte first), centre bottom hot coffees (latte and café con leche first), right sandwiches');
+      assert.deepStrictEqual(names(rows[1]), [sandwiches, batidos, ['Costa Rican Hot Chocolate', 'Tea', 'Sweet Cane Drink'].concat(frios)], 'lunch');
+      assert.deepStrictEqual(names(rows[2]), [calientes, reposteria], 'afternoon');
+      assert.deepStrictEqual(names(rows[3]), [sandwiches], 'dinner');
+      rows.forEach((r) => r.zones.forEach((z) => {
+        assert.deepStrictEqual([z.mode, z.seconds, z.labels, z.fallback], ['auto', 8, true, null], r.t + ': presentations with names and prices, the brand as the fallback');
+        z.entries.forEach((e) => assert.deepStrictEqual([e.photo, e.focus, e.zoom, Object.keys(e).sort()], [null, [50, 50], 100, ['focus', 'item', 'photo', 'zoom']], 'ids and framing only'));
+      }));
+      assert.strictEqual(one(`select count(*) || ' ' || string_agg(distinct action || ':' || by_name, ',') from screen_changes`), '4 crear:Dueño (owner)');
+      assert.deepStrictEqual((await anonDatos(pg, 'promos-1')).slides, [], 'paused: nothing goes on the TV by itself');
+      assert.strictEqual(await pg.locator('#slideList article.slide[data-kind=composicion]').count(), 4);
+      assert.match(await inner(pg, '#slideList article.slide[data-kind=composicion] .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: presentación cada 8 s · 7 entradas · Centro arriba: presentación cada 8 s · 3 entradas · Centro abajo: presentación cada 8 s · 9 entradas · Derecha: presentación cada 8 s · 4 entradas · se queda 60 s$/);
+      assert.match(await text(pg, '#slideList article.slide[data-kind=composicion] [data-status]'), /Pausada/);
+      await pg.click('#sugerir');
+      await until(async () => /^No se creó nada\. Ya existían: Desayuno, Almuerzo, Tarde, Cena\.$/.test(await text(pg, '#sugerirMsg')), 8000, 'nothing twice');
+      assert.strictEqual(slides(), 4);
+      assert.strictEqual(one(`select count(*) from screen_changes`), '4');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · «Hoy en pantalla» lists a composition with its zones; one whose zones have nothing to show is not on, and the list says why',
+    run: async ({ browser }) => {
+      const on = compo({ template: '2-lado', kicker_es: 'Mañana', ends: "now() + interval '20 days'",
+        zones: [{ mode: 'fija', entries: [{ item: 'Latte' }] }, { mode: 'auto', seconds: 5, entries: [{ item: 'Banana Bread' }, 'https://fotos.test/jardin.png'] }] });
+      one(`update menu_items set available = false where name = 'Espresso'`);
+      const off = compo({ template: '1', kicker_es: 'Nada que mostrar', zones: [{ entries: [{ item: 'Espresso' }] }] });
+      const pg = await asOwnerPin(browser);
+      await tab(pg, 'today');
+      const card = 'article.today[data-today="promos-1"]';
+      await pg.waitForSelector(card);
+      assert.deepStrictEqual(await pg.$$eval(card + ' ol[data-list=ahora] li', (a) => a.map((x) => x.querySelector('b').textContent)), ['Mañana'], 'only the usable one');
+      assert.match(await inner(pg, `${card} li[data-slide="${on}"]`), /^Mañana Composición · Dos mitades · todo el día Izquierda: foto fija · Latte · Derecha: presentación cada 5 s · 2 entradas$/);
+      assert.strictEqual(await pg.locator(`${card} li[data-slide="${off}"]`).count(), 0);
+      await tab(pg, 'slides');
+      assert.match(await text(pg, `article.slide[data-slide="${off}"] [data-when]`), /No sale: ninguna zona tiene qué mostrar/);
+      assert.match(await text(pg, `article.slide[data-slide="${on}"] [data-when]`), /En pantalla ahora/);
       assert.deepStrictEqual(pg.errors, []);
     }
   },

@@ -2,14 +2,14 @@
 # Canopy OS · «no tocar» v2 (docs/PANTALLAS.md, the owner's condition 2 of 2026-10-31). The café's pages (website/:
 # Caja, Cocina, Contabilidad, menú QR, TV actual, …), the database migrations and the publishing workflow stay byte for
 # byte those of the last release the owner published (tests/pantallas/BASE); the customer screens only ADD the files in
-# NEW below. It proves:
+# NEW below and CHANGE the files in CHANGED below (their own pages, published in BASE). It proves:
 #   1) the release tag names the BASE commit: the local tag when there is one, and origin's (git ls-remote) when origin
 #      answers; a tag that names another commit fails;
 #   2) every file of BASE under website/ and supabase/migrations/, and .github/workflows/pages.yml, has BASE's exact
 #      bytes in the working tree (hashed without filters, so no line-ending rule and no assume-unchanged flag hides a
 #      change) and in the index (same blob, same mode); none is deleted, renamed or turned into a link;
 #   3) every other file there, in the index or new in the working tree (ignored files aside: they never reach a
-#      commit), is one of NEW.
+#      commit), is one of NEW; a file of CHANGED may differ from BASE but must still exist as a plain file.
 # Read-only: it writes no file of the checkout, no index, no ref and no tag. Only when the BASE commit is missing from
 # the object store (CI's shallow checkout) it fetches that commit's objects by SHA (--depth=1 only in a clone that is
 # already shallow) without writing FETCH_HEAD. GIT_DIR and GIT_WORK_TREE (absolute paths) point it at another checkout.
@@ -17,9 +17,10 @@
 set -euo pipefail
 export LC_ALL=C GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# the only new files the screens may add (the owner's plan of 2026-10-31); pantallas.js only if the page uses one
-NEW=(website/pantalla-menu.html website/pantalla-promos.html website/pantallas.html website/pantallas.js
-     supabase/migrations/0036_pantallas.sql)
+# the only new files the screens may add (D-064: the v2 migration) and the only files of BASE they may change (their own
+# four pages, published with v2026.11.02-1)
+NEW=(supabase/migrations/0037_pantallas_v2.sql)
+CHANGED=(website/pantalla-menu.html website/pantalla-promos.html website/pantallas.html website/pantallas.js)
 PATHS=(website supabase/migrations .github/workflows/pages.yml)
 fail() { echo "  FAIL  no tocar: $*"; exit 1; }
 
@@ -59,6 +60,7 @@ g ls-tree -r --full-tree "$BASE" -- "${PATHS[@]}" > "$W/base"                   
 g ls-files -s -- "${PATHS[@]}" > "$W/index"                                       # mode sha stage<TAB>path
 g ls-files --others --exclude-standard -- "${PATHS[@]}" > "$W/others"              # path
 printf '%s\n' "${NEW[@]}" > "$W/allowed"
+printf '%s\n' "${CHANGED[@]}" > "$W/changed"
 cut -f2- "$W/base" > "$W/paths"; cut -f2- "$W/index" >> "$W/paths"; cat "$W/others" >> "$W/paths"
 : > "$W/state"; : > "$W/tohash"
 sort -u "$W/paths" | while IFS= read -r p; do
@@ -80,6 +82,7 @@ awk -F'\t' -v counts="$W/counts" '
   FILENAME == ARGV[3] { other[$1] = 1; next }
   FILENAME == ARGV[4] { st[$1] = $2; next }
   FILENAME == ARGV[5] { ok[$1] = 1; next }
+  FILENAME == ARGV[6] { chg[$1] = 1; next }
   function bad(p, why) { print p ": " why; nbad++ }
   END {
     for (p in inidx) if (!(p in bsha)) newf[p] = 1
@@ -97,11 +100,12 @@ awk -F'\t' -v counts="$W/counts" '
       if (gi && gw) { bad(p, "borrado o renombrado · deleted or renamed" hint); continue }
       if (gi) bad(p, "quitado del índice · removed from the index" hint)
       else if (p in conflict) bad(p, "en conflicto en el índice · conflicted in the index")
-      else if (isha[p] != s) bad(p, "cambiado en el índice · changed in the index")
+      else if (isha[p] != s && !(p in chg)) bad(p, "cambiado en el índice · changed in the index")
       else if (imode[p] != bmode[p]) bad(p, "modo cambiado en el índice (" bmode[p] " -> " imode[p] ") · mode changed in the index")
       if (gw) bad(p, "borrado del árbol de trabajo · deleted from the working tree" hint)
       else if (st[p] == "link") bad(p, "convertido en enlace en el árbol de trabajo · turned into a link in the working tree")
-      else if (st[p] != s) bad(p, "cambiado en el árbol de trabajo · changed in the working tree")
+      else if (st[p] != s && !(p in chg)) bad(p, "cambiado en el árbol de trabajo · changed in the working tree")
+      else if (p in chg && (isha[p] != s || st[p] != s)) nc++
     }
     for (p in newf) {
       if (!(p in ok)) bad(p, "nuevo y fuera de la lista de las pantallas · new and not on the screens list")
@@ -109,12 +113,12 @@ awk -F'\t' -v counts="$W/counts" '
       else nn++
     }
     for (p in st) if (st[p] == "link" && p ~ /\/$/) bad(p, "la carpeta es un enlace · the folder is a link")
-    printf "%d %d %d %d\n", ns, nm, np, nn > counts
+    printf "%d %d %d %d %d\n", ns, nm, np, nn, nc > counts
     exit (nbad > 0)
-  }' "$W/base" "$W/index" "$W/others" "$W/state" "$W/allowed" | sort > "$W/bad"
+  }' "$W/base" "$W/index" "$W/others" "$W/state" "$W/allowed" "$W/changed" | sort > "$W/bad"
 rc="${PIPESTATUS[0]}"
 set -e
-read -r ns nm np nn < "$W/counts" || fail "no se pudo comparar · the comparison did not run"
+read -r ns nm np nn nc < "$W/counts" || fail "no se pudo comparar · the comparison did not run"
 if [ "$rc" -ne 0 ] || [ -s "$W/bad" ] || [ "$np" -ne 1 ]; then
   [ "$np" -eq 1 ] || echo ".github/workflows/pages.yml: no está en $B7 · not in $B7" >> "$W/bad"
   n="$(wc -l < "$W/bad" | tr -d ' ')"
@@ -122,4 +126,4 @@ if [ "$rc" -ne 0 ] || [ -s "$W/bad" ] || [ "$np" -ne 1 ]; then
   sed 's/^/        /' "$W/bad"
   exit 1
 fi
-echo "  ok    no tocar: website/ ($ns archivos), supabase/migrations/ ($nm) y pages.yml idénticos byte a byte a la versión publicada $TAG ($B7, $tag_es) en el árbol y en el índice; $nn archivo(s) nuevo(s), todos de la lista de las pantallas · website/ ($ns files), supabase/migrations/ ($nm) and pages.yml byte for byte the published release $TAG ($B7, $tag_en) in the working tree and the index; $nn new file(s), all on the screens list"
+echo "  ok    no tocar: website/ ($ns archivos), supabase/migrations/ ($nm) y pages.yml idénticos byte a byte a la versión publicada $TAG ($B7, $tag_es) en el árbol y en el índice; $nn archivo(s) nuevo(s) y $nc cambiado(s), todos de las listas de las pantallas · website/ ($ns files), supabase/migrations/ ($nm) and pages.yml byte for byte the published release $TAG ($B7, $tag_en) in the working tree and the index; $nn new file(s) and $nc changed, all on the screens lists"

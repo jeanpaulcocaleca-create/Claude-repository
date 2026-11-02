@@ -2412,3 +2412,108 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   spec 360 (four scenarios) had the same assumption: the page opens on «this month» and the seeded days are yesterday
   and two days ago; on the 1st and the 2nd the spec now widens the period to three months, as the accountant would, and
   closes the seeded days' month by its number instead of the first button.
+
+## D-064 · 2026-11-02 · Customer screens v2: the menu on one screen when legible, promotions intercalated in Screen A, compositions with independent zones on Screen B, the owner's visual editor, migration 0037 (nothing published, nothing applied)
+- **The owner's requests (2026-11-02, three messages, after publishing v1 as `v2026.11.02-1` = 3273743 and applying 0036):**
+  Screen A: the whole menu on one landscape screen when possible, every category with its title on top and never a
+  title between another category's items, balanced columns without holes, prices legible at the real distance (never
+  shrunk to fit), two modes (menu only, or menu with promotions of a configurable length), category selection and pages
+  kept. Screen B: an editable schedule by time slots and weekdays in Costa Rica time (suggested: 06–10 breakfasts,
+  sandwiches, coffee, tea and hot chocolate; 10–13 lunches, sandwiches, smoothies, cold drinks; 13–17 coffees and
+  pastries; 17–19 sandwiches), 2, 3 or 4 product photos composed on one screen, several groups rotating, a single photo
+  still possible, prices only from the menu. Then a visual layout editor in pantallas.html, owner only: templates for
+  1–4 photos, the owner picks the product or photo of each position, changes photos, order, framing and size, sees a
+  faithful TV preview before saving, saves compositions per time slot (breakfast, lunch, afternoon, dinner) with
+  editable days and hours, reuses product photos or uploads new ones; mandatory breakfast example: left a big croissant,
+  right a big sandwich, centre-top a latte, centre-bottom a café con leche. Then four truly independent windows: each
+  zone either a fixed photo or its own automatic presentation of several products or photos with its own seconds,
+  mixed freely, 1 to 4 zones, each with its own ordered list, real names and prices from the menu when the owner
+  switches them on, smooth transitions without black frames, a fallback image or brand design when a zone has nothing
+  available; the example: left pastries, right sandwiches, centre-top iced coffees, centre-bottom hot coffees.
+  Conditions: the café's visual identity, nothing else of the system touched, no production change or publication
+  without approval, the security, permission, validity, price and offline rules kept, no paid services, one version,
+  automatic tests, independent review and a preview before approval; a feasibility analysis of the one-screen menu first.
+- **Feasibility (the whole menu on one screen without sacrificing legibility):** modelled with the real menu of the
+  public page (7 categories, 39 items; 46 lines in one language, 85 with English below), Screen A's own metrics
+  (capital 0.70 of the body, Figtree 700 ≈ 0.56 em per character, 16:9) and category-block packing. Letter as a share
+  of the target (1 cm of capital per metre; the minimum is 80 %): current style with English below: 55" at 2 m 71 %,
+  at 3 m 47 %; 65" at 2.5 m 67 %; 75" at 3 m 64 %. Compact style with English below: 55"/2 m 81 %, 65"/2.5 m 77 %,
+  75"/3 m 74 %. Compact, Spanish only: 55"/2 m 90 %, 65"/2.5 m 85 %, 75"/3 m 82 %. Without the Smoothies (28 items),
+  compact with English: 65"/2.5 m 90 %, 75"/3 m 87 %. Drinks + pastries (24 items), compact with English: 55"/2.5 m
+  83 %, 65"/3 m 82 %. **Verdict:** at the queue distance of 3 m the whole menu fits one legible screen only on a 75"
+  without English or above 85"; at 2–2.5 m it fits on 55–65" with the compact style. So the engine shows ONE screen
+  whenever the letter stays at or above the minimum and otherwise the fewest pages with the largest letter; the owner
+  chooses per TV the distribution (auto, one screen, pages), the density (normal, compact), the English (below, in
+  line, none) and the categories. The letter never goes under the minimum to make the menu fit.
+- **Built, in the screens' own files only** (`tests/pantallas/no-tocar.sh` v3: BASE is now `v2026.11.02-1` = 3273743;
+  the four screen pages are the only files of `website/` allowed to change, `0037_pantallas_v2.sql` the only new one;
+  everything else byte for byte):
+  - `supabase/migrations/0037_pantallas_v2.sql` (additive): screens gains `layout`, `density`, `english`, `promo_mode`,
+    `promo_every`, `promo_seconds` with defaults; screen_slides gains the kind «composicion» with `template` (1, 2-lado,
+    3-grande-izq, 3-grande-der, 4-cuadricula, 4-centro), `zones` (one per place: mode fija|auto, seconds 4–60, labels,
+    fallback photo, 1–12 entries of {item | photo, focus, zoom}) and `dwell_seconds`; `_screen_item_json` and
+    `_screen_template_places` (helpers, not callable by anon/authenticated); `_screen_json`, `_slide_json` (zones resolved
+    live: each entry's name, Spanish name, price, photo, availability, sellable; «showable» per zone, «usable» per
+    slide), `pantalla_datos` (a menu TV with promotions intercalated receives its slides; a composition only while a zone
+    can show), `pantalla_guardar` (the six choices, `invalid/<field>`) and `diapositiva_guardar` (the composition
+    validated entry by entry with field paths such as `zones.2.entries.0.item`; title/body null; an Extras & Combos item
+    refused as `text_combo_descuento`; the log keeps the zones as written, never a name or price) re-created. The
+    D-063 follow-up is done: `_slide_json` is written with `\uXXXX` escapes. `supabase/tools/reversion-0037.sql` puts the
+    six functions back to 0036's text (its `_slide_json` with escapes, accepted in the snapshot as a 0036 variant),
+    drops `_screen_item_json`, keeps `_screen_template_places` (the kind rule uses it), columns and rows; ledger 36.
+  - Screen A (`website/pantalla-menu.html`): every category a block (title first, then its items) packed in the Menu
+    Manager's order into explicit columns (3, 4 or 5 landscape; 1 or 2 turned); every column starts with a title; a
+    block that does not fit in what is left of a column is cut there and continues on top of the next column under
+    its title with «(continúa)», only when both pieces keep two items or more, else it moves whole; each page is
+    filled again under the smallest height that still fits its columns (bisection), so the columns end at nearly the
+    same height and no column keeps a hole the next piece could have filled; the letter search (fewest pages at or
+    over the minimum, then the largest letter up to 1.25× the target) now tries 3, 4 and 5 columns. `layout`
+    (auto | una-pantalla | paginas: the same board, una-pantalla adds «NO CABE EN UNA PANTALLA AL MÍNIMO» to the
+    diagnosis when it had to page), `density` compacta (titles 1.3×, lines 1.06, English 72 %, tighter paddings),
+    `english` debajo | en-linea | no. Promotions intercalated: every `promo_every` s one of the TV's slides in force
+    (server time, days, hours, product sellable, composition usable) for `promo_seconds` s with a fade, the page
+    timer waits and the same page comes back; a slide that may no longer show is cut at once; prices under the menu's
+    freshness; the slides live in memory only (the device copy keeps the six settings, never a slide). The slide is
+    drawn by Screen B's renderer copied function by function into a delimited block (no new JS file; the QR library
+    loads lazily only when an invitation is read; Figtree 600 added to the font link). Address overrides for the six
+    settings; the diagnosis gains «Maqueta» and «Promos» lines.
+  - Screen B (`website/pantalla-promos.html`): kind «composicion» normalised and checked by the page itself (template,
+    zone count, entries re-checked by the sellable rule, focus/zoom ranges, dwell 10–600); six templates in a table
+    (4-centro = 3/8 · two stacked 2/8 · 3/8; turned TV: zones stacked with equal heights); each zone a presentation
+    of its own: its own setTimeout clock (zone i's first turn lasts (1 + 0.25·i)× its seconds so equal rhythms never
+    change together), the next photo preloaded and the layer's own image awaited before a two-layer dissolve whose
+    clean-up waits until the incoming layer is fully opaque (a slow TV browser starts the fade late; the clock alone
+    gave a brief dip), labels with the live name and price under the freshness rule (1.0 cm/m in large zones, 0.8 in
+    small, price 1.2×; a zone whose labels do not fit shrinks together, never under 35 %), fallback photo or brand
+    design, kicker top-right and brand line top-left; a re-read replaces entries and labels in place without touching
+    the clocks; dwell with other slides, alone it stays; `?preview=1` reads and writes nothing and accepts a message
+    only from `window.parent` on the same origin with `tipo = 'pantalla-preview'`.
+  - The management page (`website/pantallas.html`, `pantallas.js`): the menu TV's six choices with mirrored checks;
+    «Nueva composición» and the visual editor (six template buttons with schematic minis, zone editors laid out with
+    the template's grid, per zone mode / seconds / labels / fallback and an ordered entry list from a per-zone product
+    picker (never Extras & Combos) or an upload (same shrink and `menu-photos/pantallas/` rule), thumbnails framed
+    exactly as the TV with a tap-or-drag focus point and a zoom slider, move / remove / swap zones, kicker, dwell,
+    validity); «Vista previa en la TV» frames the real Screen B page in preview mode and posts the composition in the
+    exact `_slide_json` shape on every change (pending photos uploaded first, removed on Cancelar or a refusal); every
+    server field path mapped to a Spanish sentence next to the right zone or entry; «Programación sugerida» creates,
+    for titles not yet present, Desayuno 06–10 (4-centro), Almuerzo 10–13 (3-grande-izq), Tarde 13–17 (2-lado), Cena
+    17–19 (1), every day, every TV, paused, by matching categories and items by name (a group with no products drops
+    to the smaller template and says so); «Hoy en pantalla» and the log render compositions and the new fields.
+  - Tests: SQL 460 (0037 contract, 119) and 470 (its reversal, 73); 440/450 updated to the 0037 contract and the
+    reversal chain (every chain starts with reversion-0037); browser 370 (30: B12–B21 new), 380 (25: P18–P25 new),
+    390 (20: six new); `release-check.sql` series to 37; `production-snapshot.sql` regenerated (8 rows under 0037);
+    `anonimizar.sql` classifies the new columns (kept: settings and compositions, no person, no price).
+- **Decisions inside the build:** the first board treated every category as indivisible (cut only when taller than a
+  column): with the real menu it left half a column empty on a 75" and pages at 70 % on a 55"/3 m, against the
+  owner's «sin espacios vacíos», so the rule became dense filling with clean cuts (two items or more on each side,
+  the title repeated) and balancing by height limit; a suggested schedule is created only by the owner's click and
+  PAUSED (nothing goes on a TV by itself); a zone's labels show the menu's live name and price under the same
+  freshness rule as a product slide; a zone with nothing to show falls back to its photo or the brand, and a
+  composition with no zone to show is skipped (the brand slide of Screen B remains the last resort); the preview is
+  the real TV page in a preview mode that reads and writes nothing and accepts only a message from its parent on the
+  same origin; a composition alone in its time slot stays on screen (its zones rotate inside), with other slides it
+  stays `dwell_seconds`; 0037 also re-creates `diapositiva_estado` so pausing, resuming or retiring a composition logs
+  its template as the summary (the 0036 text knew titles and products only; the SQL-test builder found the NULL
+  summary); the dissolve's clean-up waits for the incoming layer to be fully opaque (found by the browser tests under
+  load: a wall-clock clean-up removed the old layer while the new one was at 0.99); the discounts work moves to 0038.
+- **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).
