@@ -896,8 +896,12 @@ module.exports.tests = [
                 /* a piece of one item only when the block is taller than a column: it opens its column and one more item would not fit */
                 const at = piezas.findIndex((x) => x.k === k && x.j === j && x.n === n), sig = piezas[at + 1];
                 assert.ok(n === 0, `${where}: page ${k + 1} column ${j + 1}: a piece of one item of «${b.categoria}» in the middle of a column: ${JSON.stringify(b)}`);
-                if (b.hasta < b.n) assert.ok(sig && sig.b.categoria === b.categoria && sig.b.desde === b.hasta && b.alto + sig.b.alturas[0] + 1 > lim - 0.5,
-                  `${where}: page ${k + 1} column ${j + 1}: «${b.categoria}» cut to one item although one more would fit (${b.alto} + ${sig && sig.b.alturas[0]} in ${lim})`);
+                if (b.hasta < b.n) {
+                  assert.ok(sig && sig.b.categoria === b.categoria && sig.b.desde === b.hasta, `${where}: page ${k + 1} column ${j + 1}: the continuation of «${b.categoria}» follows`);
+                  /* one more item would not have fit; or the block has three and the cut keeps two for the continuation (a lone item never follows a repeated title) */
+                  assert.ok(b.alto + sig.b.alturas[0] + 1 > lim - 0.5 || (b.n === 3 && sig.b.hasta - sig.b.desde === 2),
+                    `${where}: page ${k + 1} column ${j + 1}: «${b.categoria}» cut to one item although one more would fit (${b.alto} + ${sig.b.alturas[0]} in ${lim})`);
+                }
               }
               const dos = b.alturas.slice().sort((x, y) => y - x).slice(0, 2).reduce((u, v) => u + v, 0);
               unidad = Math.max(unidad, b.n < 4 ? b.alto : Math.max(b.titulo, b.tituloCont) + dos + 3);
@@ -1320,7 +1324,9 @@ module.exports.tests = [
       assert.ok(i0.paginas > 1, 'a menu of several pages: ' + i0.paginas);
       await until(async () => { const v = await promoVista(pg); return v.on && v.id === c; }, T.promoCada + 3000, 'the composition on the menu');
       const tOn = Date.now(), p0 = (await info(pg)).pagina;
-      await until(async () => { const z = await zonasPromo(pg); return z && z.zonas.every((x) => x.estado === 'entrada'); }, 4000, 'its zones up');
+      /* up and quiet: every zone shows an entry, one layer on, none entering or leaving (the first frame is a cut whose
+         clean-up takes two animation frames; a sample inside that window would see the empty first layer marked «sale») */
+      await until(async () => { const z = await zonasPromo(pg); return z && z.zonas.every((x) => x.estado === 'entrada' && x.capas.filter((k) => k.on).length === 1 && x.capas.every((k) => !k.entra && !k.sale)); }, 4000, 'its zones up');
       let z = await zonasPromo(pg);
       const a = z.zonas[0], b = z.zonas[1];
       assert.deepStrictEqual([z.template, z.zonas.length, z.kick, z.sup, (await promoVista(pg)).kind], ['2-lado', 2, 'Desayuno · Breakfast', 'Hanging Garden Café', 'composicion'], JSON.stringify(z));

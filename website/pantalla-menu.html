@@ -714,8 +714,9 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     return { cols: cs, cabe: cabe };
   }
   /* the pages: the columns filled under the board's height, in groups of the page's columns; then every page is
-     balanced: its content is filled again under the smallest height that still fits in its columns (bisection), so
-     its columns end at nearly the same height and no column keeps a hole; what is left under the board's height
+     balanced: its content is filled again under the smallest height that still fits in its columns (bisection)
+     without cutting a block that the first filling kept whole (a lower column is never worth another cut), so its
+     columns end at nearly the same height and no column keeps a hole; what is left under the board's height
      becomes spacing between a column's blocks, up to 1.2 names per gap. */
   function empacar(m, cols) {
     var H = m.H, g = m.gap;
@@ -731,10 +732,11 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       var u = rangos[rangos.length - 1];
       if (u && u.ci === p.ci && u.b === p.a) u.b = p.b; else rangos.push({ ci: p.ci, a: p.a, b: p.b });
     }); });
-    var lim = H;
+    var lim = H, piezas = function (r) { var n = 0; r.cols.forEach(function (c) { n += c.partes.length; }); return n; };
     if (rangos.length) {
-      var cabe = function (M) { var r = llenar(m, M, g, rangos); return r.cabe && r.cols.length <= cols; };
-      if (cabe(H)) {
+      var base = llenar(m, H, g, rangos), np = piezas(base);
+      var cabe = function (M) { var r = llenar(m, M, g, rangos); return r.cabe && r.cols.length <= cols && piezas(r) <= np; };
+      if (base.cabe && base.cols.length <= cols) {
         var lo = 0, hi = H;
         for (var t = 0; t < 14 && hi - lo > 0.25; t++) { var mid = (lo + hi) / 2; if (cabe(mid)) hi = mid; else lo = mid; }
         lim = hi; pg = llenar(m, lim, g, rangos).cols;
