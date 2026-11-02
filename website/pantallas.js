@@ -4,7 +4,8 @@
    phone code) and writes every change to screen_changes; this page only helps, it never decides.
    Prices and availability are never written here: a product slide, and every entry of a composition that names a
    product, reads them from the menu on every screen read (the page stores item ids, photos and framing only).
-   v2 (0037): a menu TV's layout, density, English, and promotions intercalated in the menu; slides of kind
+   v2 (0037): a menu TV's layout, density, English, promotions intercalated in the menu and, for a 32" at 3 m, the
+   products it shows (item_ids: a summarised menu of chosen products; none = every product of its categories); slides of kind
    «composicion» (a template of 1 to 4 zones, each a fixed photo or a presentation of its own, edited in a visual
    editor with a live preview of the real TV page in a frame); «Programación sugerida» creates four paused ones.
    Spanish only, written here: the page root (#pg) carries data-no-translate; lang.js only translates the PIN screen.
@@ -75,7 +76,7 @@
     unknown_tv: 'Esa TV no existe.', tv_apagada: 'Esa TV está apagada en Pantallas.'
   };
   var FIELD = {
-    id: 'el identificador de la TV', kind: 'el tipo', name: 'el nombre', category_ids: 'las categorías',
+    id: 'el identificador de la TV', kind: 'el tipo', name: 'el nombre', category_ids: 'las categorías', item_ids: 'los productos',
     inches: 'el tamaño', distance_m: 'la distancia', turn: 'la posición', scale_pct: 'la escala de letra', look: 'los colores',
     page_seconds: 'los segundos por página', slide_seconds: 'los segundos por diapositiva', sold_out: 'los agotados',
     on_from: 'el horario', on_to: 'el horario', active: 'activa',
@@ -328,7 +329,7 @@
   }
   /* nothing of the screens stays on the page once the server said no */
   function forget() {
-    S = null; ED = null; drafts = {}; previews = {};
+    S = null; ED = null; drafts = {}; previews = {}; prodsOpen = {};
     ['tvList', 'slideList', 'todayList', 'logList', 'editorHost', 'who'].forEach(function (id) { clear($(id)); });
   }
   function showOwnerOnly() { forget(); showOnly('ownerOnlyView'); }
@@ -509,7 +510,7 @@
     return { name: tv.name || '', inches: numStr(tv.inches), distance_m: numStr(tv.distance_m), turn: tv.turn || 'no',
              scale_pct: numStr(tv.scale_pct), look: tv.look || 'auto', page_seconds: numStr(tv.page_seconds),
              slide_seconds: numStr(tv.slide_seconds), sold_out: tv.sold_out || 'ocultar', on_from: tv.on_from || '',
-             on_to: tv.on_to || '', category_ids: (tv.category_ids || []).map(String), active: tv.active !== false,
+             on_to: tv.on_to || '', category_ids: (tv.category_ids || []).map(String), item_ids: (tv.item_ids || []).map(String), active: tv.active !== false,
              layout: tv.layout || 'auto', density: tv.density || 'normal', english: tv.english || 'debajo', promo_mode: tv.promo_mode || 'no',
              promo_every: numStr(tv.promo_every === undefined || tv.promo_every === null ? 180 : tv.promo_every),
              promo_seconds: numStr(tv.promo_seconds === undefined || tv.promo_seconds === null ? 10 : tv.promo_seconds) };
@@ -557,6 +558,7 @@
       });
       grid.appendChild(field(h('span', { class: 'lbl', text: 'Categorías que muestra' }), cats,
         'Ninguna marcada = todas. Si el menú no cabe en una pantalla legible a esa distancia, pruebe la densidad compacta, el inglés en línea o menos categorías.', true));
+      grid.appendChild(h('div', { class: 'wide' }, [prodsField(tv, f)]));
       grid.appendChild(field(h('label', { for: fid(tv, 'layout'), text: 'Distribución' }), selectOf(fid(tv, 'layout'), LAYOUT, f.layout),
         'Nunca se baja de la letra mínima legible para que quepa.', true));
       grid.appendChild(field(h('label', { for: fid(tv, 'density'), text: 'Densidad' }), selectOf(fid(tv, 'density'), DENSITY, f.density)));
@@ -593,6 +595,43 @@
     card.appendChild(form);
     return card;
   }
+  /* the products a menu TV shows (0037, item_ids): a summarised menu for a 32" at 3 m. Folded under a summary that
+     counts the ticked ones; the products grouped under their categories in the Menu Manager's order (S.items comes
+     so ordered), never Extras & Combos; none ticked = every product of the categories chosen above */
+  var prodsOpen = {};
+  function prodsField(tv, f) {
+    var chosen = {};
+    f.item_ids.forEach(function (id) { chosen[String(id).toLowerCase()] = true; });
+    var box = h('details', { class: 'prods', open: !!prodsOpen[tv.id] });
+    var sum = h('summary');
+    box.appendChild(sum);
+    S.categories.forEach(function (c) {
+      if (c.name === 'Extras & Combos') return;
+      var its = S.items.filter(function (it) { return it.category === c.name && it.category !== 'Extras & Combos'; });
+      if (!its.length) return;
+      box.appendChild(h('h3', { class: 'pcat', text: c.name }));
+      var checks = h('div', { class: 'checks', role: 'group', 'aria-label': 'Productos de ' + c.name });
+      its.forEach(function (it) {
+        checks.appendChild(h('label', {}, [h('input', { type: 'checkbox', value: it.id, 'data-item': '1', checked: !!chosen[String(it.id).toLowerCase()] }),
+          itemName(it) + (it.available === false ? ' (agotado)' : '')]));
+      });
+      box.appendChild(checks);
+    });
+    box.appendChild(h('p', { class: 'hint', text: 'Ninguno marcado = todos los productos de las categorías elegidas. ' +
+      'En una TV de 32" a 3 m: 2 páginas ≈ 8–10 productos en 2–3 categorías, 3 páginas ≈ 12 productos (menos categorías, menos páginas); el menú QR siempre lleva todos.' }));
+    var ofrecidos = {};
+    Array.prototype.forEach.call(box.querySelectorAll('input[data-item]'), function (c) { ofrecidos[String(c.value).toLowerCase()] = true; });
+    var idos = f.item_ids.filter(function (id) { return !ofrecidos[String(id).toLowerCase()]; }).length;   /* saved, but no longer a product the card offers */
+    function count() {
+      var n = box.querySelectorAll('input[data-item]:checked').length;
+      sum.textContent = 'Productos que muestra: ' + (n ? n + (n === 1 ? ' elegido' : ' elegidos') + (idos ? ' (' + idos + ' ya no existen)' : '')
+                                                      : (idos ? 'todos (los ' + idos + ' elegidos ya no existen)' : 'todos'));
+    }
+    count();
+    box.addEventListener('change', count);
+    box.addEventListener('toggle', function () { prodsOpen[tv.id] = box.open; });
+    return box;
+  }
   function numField(tv, k, v) {
     var n = NUM[k];
     return field(h('label', { for: fid(tv, k) }, [n.label + ' ', h('span', { class: 'range', text: '(' + n.min + ' a ' + n.max + ' ' + n.unit + ')' })]),
@@ -605,6 +644,7 @@
       var e = $(fid(tv, k)); v[k] = e ? e.value : '';
     });
     v.category_ids = Array.prototype.map.call(card.querySelectorAll('input[data-cat]:checked'), function (c) { return c.value; });
+    v.item_ids = Array.prototype.map.call(card.querySelectorAll('input[data-item]:checked'), function (c) { return c.value; });
     v.active = $(fid(tv, 'active')).checked;
     return v;
   }
@@ -640,7 +680,7 @@
     var p = { id: tv.id, name: f.name.trim(), inches: Number(String(f.inches).replace(',', '.')), distance_m: Number(String(f.distance_m).replace(',', '.')),
               turn: f.turn, scale_pct: Number(f.scale_pct), look: f.look, on_from: f.on_from || '', on_to: f.on_to || '', active: f.active };
     if (tv.kind === 'menu') {
-      p.page_seconds = Number(f.page_seconds); p.sold_out = f.sold_out; p.category_ids = f.category_ids;
+      p.page_seconds = Number(f.page_seconds); p.sold_out = f.sold_out; p.category_ids = f.category_ids; p.item_ids = f.item_ids;
       p.layout = f.layout; p.density = f.density; p.english = f.english; p.promo_mode = f.promo_mode;
       p.promo_every = Number(f.promo_every); p.promo_seconds = Number(f.promo_seconds);
     } else p.slide_seconds = Number(f.slide_seconds);
@@ -1618,8 +1658,9 @@
       bebidasFrias: cafesFrios.concat(items.filter(function (it) { return catIs(it, /other drinks|drinks|bebidas|refrescos/i); }))
     };
   }
+  /* the owner (2026-11-02): the four start without names and prices; «Nombres y precios» per zone in the editor turns them on */
   function zoneOfItems(list) {
-    return { mode: 'auto', seconds: 8, labels: true, fallback: '', entries: list.slice(0, 12).map(function (it) { return { item: it.id, photo: null, focus: [50, 50], zoom: 100 }; }) };
+    return { mode: 'auto', seconds: 8, labels: false, fallback: '', entries: list.slice(0, 12).map(function (it) { return { item: it.id, photo: null, focus: [50, 50], zoom: 100 }; }) };
   }
   $('sugerir').addEventListener('click', async function () {
     if (!S) return;
@@ -1649,7 +1690,8 @@
       }
     } finally { BUSY--; btn.disabled = false; }
     if (made.length) await loadState();
-    msg.textContent = (made.length ? 'Se crearon en pausa: ' + made.join(', ') + '. Revíselas, ajústelas y actívelas cuando quiera: ninguna sale sola.' : 'No se creó nada.')
+    msg.textContent = (made.length ? 'Se crearon en pausa: ' + made.join(', ') + '. Revíselas, ajústelas y actívelas cuando quiera: ninguna sale sola. ' +
+                                     'Van sin nombres ni precios; actívelos por ventana en el editor.' : 'No se creó nada.')
       + (had.length ? ' Ya existían: ' + had.join(', ') + '.' : '') + (empty.length ? ' Sin productos del menú para: ' + empty.join(', ') + '.' : '')
       + (failed ? ' ' + failed : '');
   });
@@ -1815,7 +1857,7 @@
   var ACTION = { crear: 'Creó', cambiar: 'Cambió', pausar: 'Pausó', reanudar: 'Reanudó', retirar: 'Retiró' };
   var LABEL = {
     name: 'Nombre', kind: 'Tipo', inches: 'Tamaño (pulgadas)', distance_m: 'Distancia (m)', turn: 'Posición', scale_pct: 'Escala de letra (%)',
-    look: 'Colores', page_seconds: 'Segundos por página', slide_seconds: 'Segundos por diapositiva', category_ids: 'Categorías',
+    look: 'Colores', page_seconds: 'Segundos por página', slide_seconds: 'Segundos por diapositiva', category_ids: 'Categorías', item_ids: 'Productos',
     sold_out: 'Agotados', on_from: 'Encendida desde', on_to: 'Encendida hasta', active: 'Activa', status: 'Estado',
     menu_item_id: 'Producto', kicker_es: 'Línea de arriba (es)', kicker_en: 'Línea de arriba (en)', title_es: 'Título (es)',
     title_en: 'Título (en)', body_es: 'Texto (es)', body_en: 'Texto (en)', photo_url: 'Foto', link: 'Código QR', screen_ids: 'TV',
@@ -1841,7 +1883,7 @@
   }
   function show(k, v) {
     if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) {
-      return k === 'category_ids' ? 'todas' : k === 'screen_ids' ? 'todas' : k === 'days' ? 'todos' : k === 'dwell_seconds' ? '60' : '—';
+      return k === 'category_ids' ? 'todas' : k === 'item_ids' ? 'todos' : k === 'screen_ids' ? 'todas' : k === 'days' ? 'todos' : k === 'dwell_seconds' ? '60' : '—';
     }
     if (typeof v === 'boolean') return v ? 'sí' : 'no';
     if (k === 'zones') return zonesLog(v);
@@ -1854,6 +1896,12 @@
     if (k === 'days') return daysText(v);
     if (k === 'category_ids') return v.map(function (id) { var c = (S.categories || []).filter(function (x) { return x.id === id; })[0]; return c ? c.name : id; }).join(', ');
     if (k === 'menu_item_id') { var it = (S.items || []).filter(function (x) { return x.id === v; })[0]; return it ? itemName(it) : String(v); }
+    if (k === 'item_ids') {
+      return v.map(function (id) {
+        var x = (S.items || []).filter(function (i) { return String(i.id).toLowerCase() === String(id).toLowerCase(); })[0];
+        return x ? itemName(x) : String(id);
+      }).join(', ');
+    }
     if (k === 'turn') { var t = TURN.filter(function (x) { return x[0] === v; })[0]; return t ? t[1] : v; }
     if (k === 'look') { var l = LOOK.filter(function (x) { return x[0] === v; })[0]; return l ? l[1] : v; }
     if (k === 'sold_out') { var so = SOLD.filter(function (x) { return x[0] === v; })[0]; return so ? so[1] : v; }

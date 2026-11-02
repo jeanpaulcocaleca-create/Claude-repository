@@ -127,8 +127,11 @@ select test.eq((select string_agg(coalesce(public._screen_template_places(t)::te
                   from unnest(array['1', '2-lado', '3-grande-izq', '3-grande-der', '4-cuadricula', '4-centro', '4', '']) with ordinality u(t, o)),
                '1 2 3 3 4 4 null null', 'the places of each template');
 select test.eq(pg_temp.keys((select public._screen_json(s) from public.screens s where id = 'menu-1')),
-               'active category_ids density distance_m english id inches kind layout look name on_from on_to page_seconds promo_every promo_mode promo_seconds scale_pct slide_seconds sold_out turn updated_at',
-               'a TV as the screens see it: the 16 keys of 0036 plus the six choices');
+               'active category_ids density distance_m english id inches item_ids kind layout look name on_from on_to page_seconds promo_every promo_mode promo_seconds scale_pct slide_seconds sold_out turn updated_at',
+               'a TV as the screens see it: the 16 keys of 0036 plus the six choices and item_ids (the summarized menu)');
+select test.eq((select column_name || '/' || is_nullable || '/' || coalesce(column_default, 'NO') || '/' || data_type from information_schema.columns
+                 where table_schema = 'public' and table_name = 'screens' and column_name = 'item_ids'), 'item_ids/YES/NO/ARRAY',
+               'item_ids: a list of uuids, null by default (every product of the shown categories)');
 select test.eq(public._screen_item_json(:'latte'),
                jsonb_build_object('id', :'latte', 'name', 'Latte', 'name_es', null, 'price_crc', 2200, 'photo_url', null, 'available', true, 'category', 'Coffee', 'sellable', true),
                'a product as the screens see it: id, name, Spanish name, live price, photo, availability, category, sellable');
@@ -173,6 +176,29 @@ select test.eq(pg_temp.v2((:'r'::jsonb) #> '{_log,before}') || ' > ' || pg_temp.
                'the log keeps the six choices before and after');
 select test.eq(pg_temp.v2(pg_temp.tv('{"id": "menu-1", "layout": "paginas", "english": "no", "promo_every": 900, "promo_seconds": 30}') -> 'tv'),
                'density=compacta english=no layout=paginas promo_every=900 promo_mode=intercalar promo_seconds=30', 'the upper ends and the other words');
+-- 3b) the products of a TV (the summarized menu, owner 2026-11-02): null or [] = all; a list of products of the menu, each once,
+--     in the order given; never a till helper nor the combo line; refused by name otherwise
+select test.eq((select string_agg(pg_temp.err(r) || '/' || (r ->> '_logged'), ' ' order by o)
+                  from (values (1, '"x"'::jsonb), (2, '{}'), (3, '["abc"]'), (4, '[null]'), (5, '[12]'), (6, jsonb_build_array(:'shot')), (7, jsonb_build_array(:'combo')),
+                               (8, jsonb_build_array('00000000-0000-4000-8000-000000000000')), (9, jsonb_build_array(:'latte', 'c0ffee')),
+                               (10, (select jsonb_agg(:'latte'::text) from generate_series(1, 301)))) x(o, v)
+                  cross join lateral (select pg_temp.tv(jsonb_build_object('id', 'menu-1', 'item_ids', v))) y(r)),
+               'invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 invalid/item_ids/0 too_many/item_ids/0',
+               'item_ids: a list of canonical uuids of menu products (no till helper, no combo line, no unknown id), at most 300; anything else is refused by name and logs nothing');
+select pg_temp.tv(jsonb_build_object('id', 'menu-1', 'item_ids', jsonb_build_array(:'latte', upper(:'latte'), :'bread', :'latte'))) as r \gset
+select test.eq(pg_temp.brief(:'r'), 'true · 1 logged · cambiar tv by Dueño (owner)', 'the owner chooses the products: one line in the log');
+select test.eq((:'r'::jsonb) #> '{tv,item_ids}', jsonb_build_array(:'latte', :'bread'), 'saved once each, in the order given, in the canonical form');
+select test.eq(coalesce((:'r'::jsonb) #> '{_log,before,item_ids}', 'null'::jsonb) || ((:'r'::jsonb) #> '{_log,after,item_ids}'), 'null'::jsonb || jsonb_build_array(:'latte', :'bread'),
+               'the log keeps the products before (none) and after');
+select test.eq(pg_temp.tv('{"id": "menu-1", "scale_pct": 110}') #> '{tv,item_ids}', jsonb_build_array(:'latte', :'bread'), 'a change without the field keeps them');
+select test.eq(pg_temp.tv('{"id": "menu-1", "item_ids": []}') #> '{tv,item_ids}', 'null'::jsonb, 'an empty list = every product');
+select test.eq(pg_temp.tv(jsonb_build_object('id', 'menu-1', 'item_ids', jsonb_build_array(:'ham'))) #> '{tv,item_ids}', jsonb_build_array(:'ham'), 'one product');
+select test.eq(pg_temp.tv('{"id": "menu-1", "item_ids": null}') #> '{tv,item_ids}', 'null'::jsonb, 'null = every product');
+reset role;
+select test.login('anon'); set role anon;
+select test.eq(public.pantalla_datos('menu-1') #> '{tv,item_ids}', 'null'::jsonb, 'a visitor reads item_ids with the TV (null here)');
+reset role;
+select test.login('cafe', 'aal1', current_setting('test.h_dueno')::jsonb); set role authenticated;
 select test.eq(pg_temp.v2(pg_temp.tv('{"id": "menu-1", "scale_pct": 110}') -> 'tv'),
                'density=compacta english=no layout=paginas promo_every=900 promo_mode=intercalar promo_seconds=30', 'a change without them keeps them');
 select test.eq(pg_temp.v2(pg_temp.tv('{"id": "promos-2", "kind": "promos", "name": "Pantalla B · terraza"}') -> 'tv'),
@@ -180,7 +206,7 @@ select test.eq(pg_temp.v2(pg_temp.tv('{"id": "promos-2", "kind": "promos", "name
 select test.eq(pg_temp.v2(pg_temp.tv('{"id": "menu-1", "promo_mode": "no", "layout": "auto", "density": "normal", "english": "debajo", "promo_every": 180, "promo_seconds": 10}') -> 'tv'),
                'density=normal english=debajo layout=auto promo_every=180 promo_mode=no promo_seconds=10', 'back to the defaults');
 reset role;
-select test.eq((select count(*)::int from public.screen_changes), 5, 'five changes of TVs logged, the refusals none');
+select test.eq((select count(*)::int from public.screen_changes), 10, 'ten changes of TVs logged (five of the choices, five of the products), the refusals none');
 
 -- 4) compositions (the owner's login with the phone code) --------------------------------------------------------------------
 select test.login('owner', 'aal2'); set role authenticated;
@@ -285,7 +311,7 @@ select test.eq(pg_temp.err(public.diapositiva_guardar(pg_temp.comp('1', pg_temp.
 select test.eq(pg_temp.err(public.diapositiva_guardar(pg_temp.comp('1', pg_temp.fijas(1), '{"kicker_en": "2x1 today"}'))), 'text_combo_descuento/kicker_en', 'nor a 2x1');
 select test.eq(pg_temp.err(public.diapositiva_guardar(pg_temp.comp('1', pg_temp.fijas(1), jsonb_build_object('kicker_es', repeat('a', 141))))), 'text_largo/kicker_es', 'nor more than 140 characters');
 reset role;
-select test.eq((select count(*)::int from public.screen_slides) || ' ' || (select count(*)::int from public.screen_changes), '7 12', 'none of those refusals saved or logged anything (7 slides, 12 lines)');
+select test.eq((select count(*)::int from public.screen_slides) || ' ' || (select count(*)::int from public.screen_changes), '7 17', 'none of those refusals saved or logged anything (7 slides, 17 lines)');
 set role authenticated;
 -- accepted: the ends of the ranges, rounding, the defaults
 select pg_temp.slide(pg_temp.comp('2-lado', jsonb_build_array(
@@ -378,7 +404,7 @@ select pg_temp.slide(pg_temp.comp('1', jsonb_build_array(pg_temp.fija(pg_temp.ei
 select test.eq(:'ok1' || :'ok2' || :'ok3' || :'ok4' || :'ok5', repeat('true', 5), 'five more compositions: only tea, only on the menu TV, only on the promotions TV, the test item alone, the test item with a photo');
 reset role;
 select test.eq((select count(*)::int from public.screen_slides) || ' ' || (select count(*)::int from public.screen_changes) || ' ' || (select count(*)::int from public.screen_changes where by_name !~ '(Dueño|owner login)'),
-               '24 34 0', '24 slides (15 of them paused), 34 lines in the log, every one by the owner');
+               '24 39 0', '24 slides (15 of them paused), 39 lines in the log, every one by the owner');
 
 -- 6) what the TVs show (read as a visitor) -------------------------------------------------------------------------------
 select test.login('anon'); set role anon;
@@ -476,7 +502,7 @@ select test.eq(pg_temp.shown('promos-1'), 'Café de altura | Desayunos | Solo t�
 select test.eq(pg_temp.muestra(pg_temp.leida('promos-1', 'Desayunos')), 'false true false true · true', 'the blank-named latte''s window cannot show; the composition is still usable by its other windows');
 reset role;
 update public.menu_items set name = 'Latte' where id = :'latte';
-select test.eq((select count(*)::int from public.screen_changes) || ' ' || (select count(*)::int from public.screen_slides where status = 'activa'), '35 9',
+select test.eq((select count(*)::int from public.screen_changes) || ' ' || (select count(*)::int from public.screen_slides where status = 'activa'), '40 9',
                'the menu''s changes write nothing in the screens'' log and change no slide (they only hide)');
 select test.eq((select zones::text !~ '(2300|latte\.jpg|Café latte|Latte|price_crc)' from public.screen_slides where id = :'c_desayuno'), true, 'the composition''s row still holds ids, never the menu''s data');
 -- the management page sees the same live data

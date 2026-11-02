@@ -1242,5 +1242,34 @@ module.exports.tests = [
       assert.ok(onlyReads(pg));
       assert.deepStrictEqual(pg.errors, []);
     }
-  }
+  },
+  {
+    name: 'P27: a composition that comes back after another slide goes on from the entry after the one it showed when it left (every photo of a long presentation gets its turn), with no first-turn stagger on the way back',
+    run: async ({ browser }) => {
+      const c = compo({ template: '1', zones: [{ mode: 'auto', seconds: 5, labels: false, entries: fotos('v', 4) }] });   /* 5 s -> 2.5 s a photo here */
+      const otra = marca('Otra');
+      /* the composition stays 4 s (two photos), the brand slide 1.2 s, then the composition again */
+      const pg = await pantalla(browser, { test: { diapositiva: 1200, permanencia: 4000, zona: 500, fundido: 200, revisar: 100 } });   /* a stay of 4 s: two photos, the third 1 s after it leaves */
+      const t0 = Date.now(), m = [];
+      while (Date.now() - t0 < 18000) { const i = await info(pg), z = await zonas(pg); m.push({ actual: i.actual, entrada: z && z.id === c ? z.zonas[0].entrada : null }); await sleep(40); }
+      /* the stays: which slide, and the entries its zone showed, in order */
+      const stays = [];
+      m.forEach((x) => {
+        if (!stays.length || stays[stays.length - 1].actual !== x.actual) stays.push({ actual: x.actual, entradas: [] });
+        const r = stays[stays.length - 1];
+        if (x.entrada != null && r.entradas[r.entradas.length - 1] !== x.entrada) r.entradas.push(x.entrada);
+      });
+      const vueltas = stays.filter((r) => r.actual === c);
+      assert.ok(vueltas.length >= 3 && stays.some((r) => r.actual === otra), 'the composition left and came back twice: ' + JSON.stringify(stays));
+      vueltas.forEach((r, k) => {
+        if (k < vueltas.length - 1 || stays[stays.length - 1].actual !== c) assert.ok(r.entradas.length >= 2, `stay ${k + 1}: two photos per stay: ` + JSON.stringify(vueltas));   /* the sampling may end inside the last stay */
+        r.entradas.forEach((e, n) => { if (n) assert.strictEqual(e, (r.entradas[n - 1] + 1) % 4, 'in order: ' + JSON.stringify(vueltas)); });
+        if (k) { const antes = vueltas[k - 1].entradas; assert.strictEqual(r.entradas[0], (antes[antes.length - 1] + 1) % 4, `stay ${k + 1} goes on from the entry after the last one shown: ` + JSON.stringify(vueltas)); }
+      });
+      const vistas = new Set(); vueltas.forEach((r) => r.entradas.forEach((e) => vistas.add(e)));
+      assert.deepStrictEqual([...vistas].sort(), [0, 1, 2, 3], 'every photo got its turn: ' + JSON.stringify(vueltas));
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
 ];

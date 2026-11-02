@@ -33,11 +33,18 @@ pantalla legible; la Pantalla A lo reparte en páginas sin bajar la letra del m�
 | 1,5 m | 3 páginas (87 %) | 3 (97 %) | 2 (83 %) | **2 (90 %)** |
 | 2 m | 6 (89 %) | 4 (81 %) | 4 (81 %) | **3 (81 %)** |
 | 2,5 m | 9 (80 %) | 7 (83 %) | 7 (85 %) | 6 (83 %) |
-| 3 m | 14, con palabras cortadas | 11 (80 %) | 11 (82 %) | 8 (80 %) |
+| 3 m | 14, con palabras cortadas | 11 (80 %) | 10 (80 %) | 8 (80 %) |
 
 Recomendación para 32": el cliente más lejano a 1,5–2 m, densidad **compacta** y **sin inglés** (o en línea): 2–3 páginas de
 28 s. A 2,5 m o más, elegir las categorías de esa TV o aceptar 6 páginas o más; a 3 m con inglés debajo la letra mínima ya no
-cabe en dos columnas (el diagnóstico lo dice). Las capturas a 32" están en la vista previa (V2.6). Por eso la Pantalla A muestra **una sola
+cabe en dos columnas (el diagnóstico lo dice). Las capturas a 32" están en la vista previa (V2.6).
+
+**A 3 m, la distancia real (su confirmación del 2026-11-02):** el menú completo no baja de 8 páginas. Por eso la v2 añade el
+**menú resumido**: por TV, «Productos que muestra» (`item_ids`); medido con el menú real a 32"/3 m, compacta y sin inglés:
+12 productos de una categoría (Café) = 2 páginas (letra 2,66 cm, 89 % de la meta), 16 = 4, 20 = 5; con varias categorías
+cada título y cada nombre de dos renglones cuestan más: 8–10 productos en 2–3 categorías = 2 páginas; 12 en 5 categorías = 3;
+15 en 3 categorías = 3; 15 en 5 = 4; con inglés debajo, 12 = 4. Regla: **2 páginas ≈ 8–10 productos, 3 páginas ≈ 12; menos
+categorías, menos páginas**; el menú QR lleva siempre todos. V2.10 trae la configuración inicial recomendada. Por eso la Pantalla A muestra **una sola
 pantalla siempre que la mayúscula quede en o sobre el mínimo** y, si no, las menos páginas posibles con la letra más
 grande; **nunca reduce la letra bajo el mínimo** para que quepa. Usted elige por TV la distribución, la densidad, el
 inglés y las categorías. En la prueba con el menú real: una pantalla en 75" a 2 m; páginas en 55" a 3 m.
@@ -46,10 +53,10 @@ inglés y las categorías. En la prueba con el menú real: una pantalla en 75" a
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
-| Pantalla A v2 | `website/pantalla-menu.html` | Bloques por categoría (título siempre arriba, nunca entre productos de otra), columnas explícitas llenas hasta casi la misma altura y sin huecos, cortes solo limpios con «(continúa)»; una pantalla cuando la letra lo permite; distribución, densidad e inglés por TV; **promociones intercaladas** (cada N s durante M s, dibujadas exactamente como en la Pantalla B) o solo menú |
+| Pantalla A v2 | `website/pantalla-menu.html` | Bloques por categoría (título siempre arriba, nunca entre productos de otra), columnas explícitas llenas hasta casi la misma altura y sin huecos, cortes solo limpios con «(continúa)»; una pantalla cuando la letra lo permite; distribución, densidad e inglés por TV; **promociones intercaladas** (cada N s durante M s, dibujadas exactamente como en la Pantalla B) o solo menú; el **menú resumido** por TV (solo los productos elegidos, bajo sus categorías; B24) |
 | Pantalla B v2 | `website/pantalla-promos.html` | **Composiciones** de 1 a 4 zonas con seis plantillas (incluida «4 centro»: izquierda y derecha grandes, centro dos apiladas). Cada zona: foto fija o presentación propia con sus segundos, su lista ordenada, nombres y precios del menú en vivo o no, foto de respaldo o diseño de la marca. Relojes independientes por zona; fundido entre dos capas con la foto ya cargada: nunca un cuadro negro. Modo vista previa para el panel |
-| Gestión v2 | `website/pantallas.html` + `pantallas.js` | Los ajustes nuevos de la TV de menú; el **editor visual** de composiciones (plantillas, zonas, productos o fotos subidas, encuadre con clic o arrastre y zoom, orden, intercambio de zonas, rótulo, permanencia, vigencia); **«Vista previa en la TV»** con la página real; **«Programación sugerida»** (cuatro composiciones pausadas por franja); errores escritos junto a la zona o la entrada; «Hoy en pantalla» y el registro con lo nuevo |
-| Migración | `supabase/migrations/0037_pantallas_v2.sql` | Aditiva: seis ajustes por TV con valor por omisión, la clase «composicion» (plantilla, zonas, permanencia), dos ayudas cerradas, las funciones de la 0036 vueltas a crear con lo nuevo. Ninguna fila existente cambia |
+| Gestión v2 | `website/pantallas.html` + `pantallas.js` | Los ajustes nuevos de la TV de menú y sus **productos que muestra** (el menú resumido); el **editor visual** de composiciones (plantillas, zonas, productos o fotos subidas, encuadre con clic o arrastre y zoom, orden, intercambio de zonas, rótulo, permanencia, vigencia); **«Vista previa en la TV»** con la página real; **«Programación sugerida»** (cuatro composiciones pausadas por franja); errores escritos junto a la zona o la entrada; «Hoy en pantalla» y el registro con lo nuevo |
+| Migración | `supabase/migrations/0037_pantallas_v2.sql` | Aditiva: seis ajustes por TV con valor por omisión, la lista de productos de la TV de menú (`item_ids`, nada = todos), la clase «composicion» (plantilla, zonas, permanencia), dos ayudas cerradas, las funciones de la 0036 vueltas a crear con lo nuevo. Ninguna fila existente cambia |
 | Reversión | `supabase/tools/reversion-0037.sql` | Vuelve las seis funciones al texto de la 0036 y deja columnas y filas; se niega si falta la 0037 o hay una posterior |
 | Guías | `docs/ACTIVACION-PANTALLAS.md` §v2, `docs/INSTALACION-TV.md` | Sus pasos exactos; la guía del técnico con el diagnóstico nuevo |
 | Descripción completa | `docs/PANTALLAS.md` | Cómo funciona todo, pedido por pedido (§1.1) y prueba por prueba (§5) |
@@ -90,12 +97,12 @@ navegador. Lo nuevo de la v2:
 
 | Prueba | Qué demuestra | Resultado |
 |---|---|---|
-| SQL 460 | La 0037: columnas, reglas, ayudas cerradas, 18 rechazos de ajustes por campo, 51 rechazos de plantilla, zona y entrada con la ruta exacta (ids que no son uuid incluidos), valores por omisión, pausar y reanudar una composición con su resumen, solo el dueño, lo que lee cada TV con cada entrada resuelta en vivo (un producto sin foto ni rótulos no se muestra), ninguna escritura fuera de las tres tablas, cambios del menú reflejados sin escribir | 126 comprobaciones |
+| SQL 460 | La 0037: columnas, reglas, ayudas cerradas, 18 rechazos de ajustes por campo, 10 de la lista de productos (`item_ids`), 51 rechazos de plantilla, zona y entrada con la ruta exacta (ids que no son uuid incluidos), valores por omisión, pausar y reanudar una composición con su resumen, solo el dueño, lo que lee cada TV con cada entrada resuelta en vivo (un producto sin foto ni rótulos no se muestra), ninguna escritura fuera de las tres tablas, cambios del menú reflejados sin escribir | 136 comprobaciones |
 | SQL 470 | La reversión de la 0037: se niega sin la 0037 o con una posterior; vuelve las seis funciones a la 0036 (por comportamiento y por texto), deja columnas, filas, reglas de Storage y registro; la 0037 se vuelve a aplicar y encuentra todo | 73 comprobaciones |
 | SQL 440 y 450 | La 0036 bajo la 0037 y su reversión (la cadena empieza por la reversión de la 0037) | 181 + 40 |
-| Navegador 370 | Pantalla A: las 20 pruebas de la v1 y 11 nuevas (B12–B22, la B22 por la revisión: la frescura de la promoción cuenta desde su propia lectura): bloques, cortes limpios, columnas llenas y parejas, el menú real en una pantalla en 75"/2 m y en páginas en 55"/3 m, densidad, inglés, promociones intercaladas con sus tiempos y su fundido, nada vigente, agotados, frescura, ajustes por dirección, una composición dibujada como en la Pantalla B | 31 pruebas |
-| Navegador 380 | Pantalla B: las 17 de la v1 y 9 nuevas (P18–P26, la P26 por la revisión: foto que no responde y foto reintentada): plantillas y geometría, relojes independientes, nombres y precios, respaldo y marca, rechazo propio de composiciones inválidas, permanencia, modo vista previa, fundido con dos capas | 26 pruebas |
-| Navegador 390 | Panel: las 14 de la v1 y 6 nuevas: ajustes de la TV, composición armada en el editor y guardada exacta, rechazos junto a la zona, vista previa sin leer nada, programación sugerida idempotente, «Hoy en pantalla» | 20 pruebas |
+| Navegador 370 | Pantalla A: las 20 pruebas de la v1 y 13 nuevas (B12–B24; la B22 por la revisión: la frescura de la promoción cuenta desde su propia lectura; la B23 por la validación final: los intermedios siguen donde quedó el anterior; la B24 por el menú resumido): bloques, cortes limpios, columnas llenas y parejas, el menú real en una pantalla en 75"/2 m y en páginas en 55"/3 m, densidad, inglés, promociones intercaladas con sus tiempos y su fundido, nada vigente, agotados, frescura, ajustes por dirección, una composición dibujada como en la Pantalla B, los productos de la TV | 33 pruebas |
+| Navegador 380 | Pantalla B: las 17 de la v1 y 10 nuevas (P18–P27; la P26 por la revisión: foto que no responde y foto reintentada; la P27 por la validación final: una composición que vuelve sigue donde iba): plantillas y geometría, relojes independientes, nombres y precios, respaldo y marca, rechazo propio de composiciones inválidas, permanencia, modo vista previa, fundido con dos capas | 27 pruebas |
+| Navegador 390 | Panel: las 14 de la v1 y 7 nuevas: ajustes de la TV, los productos que muestra, composición armada en el editor y guardada exacta, rechazos junto a la zona, vista previa sin leer nada, programación sugerida idempotente (sin nombres ni precios), «Hoy en pantalla» | 21 pruebas |
 | no tocar v3 | Solo cambian las cuatro páginas de las pantallas; solo es nueva la 0037; lo demás byte por byte `v2026.11.02-1` | ok |
 
 Dos pruebas de fundido fallaron al correr dos navegadores a la vez bajo carga; la causa era real y quedó corregida
@@ -118,7 +125,7 @@ navegador P26 y B22), salvo dos mejoras de pruebas anotadas como pendientes. Lo 
 | En la Pantalla A, el precio de una promoción envejecía con la lectura del menú y no con la de las diapositivas: si la lectura de diapositivas fallaba y la del menú seguía, un precio viejo salía como actual junto al precio nuevo de la pizarra | alta | La promoción es tan fresca como la más vieja de las dos lecturas: «por confirmar» a los 2 min y sin precio a los 10 min, contados desde la última lectura buena de diapositivas (prueba B22) |
 | Una foto que nunca respondía dejaba la zona esperando para siempre: ni un agotado ni un cambio de precio llegaban a ella | alta | Una foto sin respuesta en 12 s cuenta como fallida; la zona sigue (el producto con su nombre y sin foto) y las lecturas la alcanzan (prueba P26) |
 | Una foto que fallaba una vez no se volvía a pedir en todo el día | media | Se vuelve a pedir pasado un minuto, en la lectura siguiente; al llegar, las zonas la vuelven a mostrar (P26) |
-| El equilibrio de columnas partía en piezas de un producto una categoría que cabía entera (TV con pocas categorías); y dejaba columnas medio vacías por llenar «de izquierda a derecha» | media | El equilibrio nunca añade un corte que el primer llenado no tenía; un bloque que cabe en la columna va entero; el corte entre dos columnas vecinas se mueve a donde quedan más parejas (B12) |
+| El equilibrio de columnas partía en piezas de un producto una categoría que cabía entera (TV con pocas categorías); y dejaba columnas medio vacías por llenar «de izquierda a derecha» | media | El equilibrio nunca añade un corte que el primer llenado no tenía; las piezas de cada página se reparten en orden por el reparto que deja menos pizarra vacía bajo las columnas (se prueban todos, no uno a ojo), nunca con menos columnas que el primer llenado; un bloque de tres más alto que una columna va 2 + 1 (B12). La validación final del dueño encontró que la versión anterior (bisección de un límite de altura) hundía el límite hasta la pieza más pequeña (32"/2 m compacta sin inglés: «Café» 4 | 8) y dejaba una columna vacía al partir un bloque de tres en 1 + 1 + 1: corregido con este reparto |
 | Se perdió la opción de dos columnas de la v1: en TV pequeñas o lejanas (43"/3 m, 55"/3,5 m) la v2 cortaba palabras | media | Dos columnas vuelven a ser una opción (se usan solo cuando las demás no caben o paginan más); clave para las TV de 32" |
 | Las letras de una zona se medían también sobre la capa saliente: tras un nombre largo, uno corto salía pequeño toda su vuelta | media | Las letras se ajustan solo sobre la capa que se dibuja |
 | La vista previa del editor no usaba el tamaño, la distancia, la escala, el giro ni el look de la TV elegida | media | La dirección de la vista previa lleva esos cinco ajustes de la TV |
@@ -168,8 +175,50 @@ páginas por distancia y las cuatro ventanas con y sin rótulos: https://claude.
 | El rótulo y la línea de la marca tapan la esquina superior de las zonas de arriba | Los nombres y precios van abajo, así que no chocan; una foto con el tema en la esquina superior puede quedar tapada | El punto de enfoque y el zoom en el editor |
 | Navegador de TV lento | La maqueta de la Pantalla A mide el menú hasta unas 30 veces por rediseño (tres opciones de columnas); en una TV lenta puede tardar unas décimas de segundo, una vez por cambio | Nada; la pizarra anterior sigue en pantalla mientras tanto |
 | Con la 0036 pero sin la 0037 | Las páginas v2 funcionan como la v1; una composición no se puede guardar («Revise el tipo») | Aplicar la 0037 antes de publicar, como dice la guía |
+| La marca asoma al cambiar de franja | En el instante en que una franja termina y la siguiente empieza, la Pantalla B puede mostrar la marca hasta un segundo (la regla de vigencia de siempre) | Nada; si prefiere un cambio directo, es un ajuste pequeño de la regla de vigencia en una versión nueva |
+| Páginas desiguales por bloques enteros | Una página cuyas categorías van enteras (sin cortes) puede quedar desigual (la última página, por ejemplo 90/44 %): el equilibrio no corta una categoría que el primer llenado dejó entera | Es la regla «sin cortes nuevos»; categorías más cortas o menos categorías por TV emparejan más |
 
-## V2.8 Qué sigue (en sus manos)
+## V2.8 Validación final de los seis puntos (2026-11-02)
+
+Cinco validadores independientes, cada uno con un punto suyo, con las páginas de la rama, el menú real y pruebas
+ejecutadas aparte (capturas en el adjunto de esta sesión); el sexto punto es este informe. Veredictos y lo que corregí:
+
+| Punto | Veredicto | Evidencia y correcciones |
+|---|---|---|
+| 1. Cuatro ventanas simultáneas, fotos distintas, tiempos independientes, fijas y rotativas mezcladas | **Confirmado** | Composición 4 cuadrícula con una zona fija y tres presentaciones a 4, 7 y 11 s: cada zona cambia a su ritmo, nunca dos a la vez salvo por aritmética, la fija nunca cambia, sin cuadro vacío (P19, P25, B21). Dos notas corregidas: al cambiar de foto, los rótulos salientes se apagaban al ritmo del fundido (dos precios visibles ~0,4 s): ahora se apagan en 0,3 s; en la Pantalla A cada intermedio reiniciaba las presentaciones desde la primera foto, así que en una zona lenta las últimas fotos no salían nunca: ahora cada zona sigue en la entrada siguiente a la que mostraba al terminar el intermedio, también en la Pantalla B cuando la composición vuelve tras otra diapositiva (B23, P27) |
+| 2. Elegir y reemplazar cada fotografía desde el panel | **Confirmado** | Por posición: buscador del menú (foto del producto), foto subida, foto de respaldo, enfoque y zoom, intercambio de posiciones; reemplazar es elegir otra en la misma posición (no hay un botón «reemplazar» aparte; el marco dice qué muestra) (390) |
+| 3. Cuatro franjas horarias y hora de Costa Rica | **Confirmado** | Desayuno 06–10, Almuerzo 10–13, Tarde 13–17, Cena 17–19 con el reloj del servidor en UTC−6, sin horario de verano, fin de semana y noche de por medio (P6, P7, B6, B7). Nota: en el instante del cambio de franja la marca puede verse hasta un segundo (la regla de vigencia de siempre: una diapositiva sale en cuanto pudo terminar y entra cuando seguro empezó); no lo cambio porque usted pidió conservar las reglas de vigencia |
+| 4. Legibilidad y distribución de la Pantalla A en las TV reales | **Defecto corregido** | El equilibrio anterior (bisección de un límite de altura) hundía el límite hasta la pieza más pequeña y descompensaba columnas («Café» 4 productos frente a 8 en 32"/2 m compacta sin inglés) y, al partir un bloque de tres en 1 + 1 + 1, dejaba una columna vacía en una página intermedia. Nuevo reparto: las piezas de cada página se reparten en orden por el reparto que deja menos pizarra vacía (se prueban todos), sin cortes nuevos, nunca con menos columnas que el primer llenado, y un bloque de tres más alto que una columna va 2 + 1. Con el menú real a 32": 2 m compacta sin inglés 3 páginas al 100/87, 97/97 y 93/76 %; ninguna columna vacía en ninguna de las 20 combinaciones medidas (B12, matriz de V2.1). Nota: el navegador de pruebas mide con Inter en lugar de Figtree; la TV mide su propia letra al cargar (B10) |
+| 5. Fotos, precios y disponibilidad del menú real | **Confirmado** | Cada zona y cada diapositiva de producto resuelve en vivo nombre, precio y disponibilidad desde `menu_items` con la misma regla de frescura del menú; agotado o sin precio desaparece en la lectura siguiente; foto del producto desde `photo_url` o la elegida en el editor; nunca un precio escrito a mano (A3, B5, B18, B19, P20, P21, 460) |
+| 6. Resumen de archivos, migraciones, pruebas y riesgos | Este informe (V2.2 archivos, V2.4 pruebas, V2.7 riesgos) y `docs/ACTIVACION-PANTALLAS.md` §v2 (la 0037, nunca la 0036 otra vez) | |
+
+**Su mensaje posterior (32" a 3 m, menú resumido, ventanas sin rótulos):** construido el mismo día (V2.10) y revisado
+otra vez de forma adversarial (el reparto de columnas probado además con 50 000 páginas al azar): 1 hallazgo medio y 6
+bajos, todos corregidos (una pieza de un producto en medio de un bloque repartido en tres columnas; dos bloques pequeños
+apilados junto a una columna vacía; la página sin reparto posible sin sus medidas; una composición reconstruida en su
+sitio perdía la memoria de sus zonas; el diagnóstico del arranque en frío; «N en pantalla» cuando un producto elegido
+existe pero no se muestra; «ya no existen» en el resumen del panel).
+
+## V2.10 Configuración inicial recomendada para las dos TV de 32" a 3 m (su mensaje del 2026-11-02)
+
+Nada de esto se aplica solo: lo hace usted en `pantallas.html` después de publicar (V2.9); la página vuelve a dibujar
+cada TV en menos de 30 s.
+
+| TV | Ajuste | Valor inicial | Dónde |
+|---|---|---|---|
+| Pantalla A (menú) | Distancia · Pulgadas | 3 · 32 | Ficha de la TV |
+| Pantalla A | Densidad · Inglés | compacta · no | Ficha de la TV |
+| Pantalla A | Distribución | auto (2–3 páginas de 28 s con el resumen: un ciclo de 56–84 s) | Ficha de la TV |
+| Pantalla A | Categorías que muestra | todas (ninguna marcada) | Ficha de la TV |
+| Pantalla A | **Productos que muestra** | **unos 12 productos principales**, por ejemplo 5 cafés, 2 batidos, 2 sándwiches, 2 de repostería y 1 favorito costarricense (medido: 3 páginas de 28 s, letra 2,45 cm); para 2 páginas, 8–10 productos en 2–3 categorías (por ejemplo 5 cafés y 3 de repostería) | Ficha de la TV → «Productos que muestra» |
+| Pantalla A | Promociones | no (o intercalar, cada 180 s durante 10 s, con la composición de la franja) | Ficha de la TV |
+| Pantalla B (promos) | Composiciones | «Programación sugerida»: Desayuno 06–10 (4 centro), Almuerzo 10–13 (3 grande izq.), Tarde 13–17 (2 lado a lado), Cena 17–19 (1); nacen **pausadas** y **sin nombres ni precios** | Diapositivas |
+| Pantalla B | Nombres y precios | apagados en las cuatro ventanas; se activan por ventana en el editor cuando usted quiera | Editor → cada zona |
+| Pantalla B | Fotos | las del menú (foto del producto) o las que suba por posición; encuadre y zoom por foto | Editor → cada entrada |
+| Pantalla B | Horarios | editables por composición (días, horas de Costa Rica, fechas) | Editor → vigencia |
+| Menú QR | — | sin cambios: todos los productos | — |
+
+## V2.9 Qué sigue (en sus manos)
 
 Los pasos exactos, en orden, con las comprobaciones y la vuelta atrás: `docs/ACTIVACION-PANTALLAS.md` §«Versión 2»
 (ensayo, respaldo, la 0037 en el SQL Editor, `release-check.sql` y `production-snapshot.sql`, etiqueta, publicación,

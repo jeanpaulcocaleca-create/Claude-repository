@@ -72,9 +72,10 @@ Las dos TV reales miden 32" (70,8 × 39,8 cm). A esa medida el menú completo **
 Pantalla A lo reparte en páginas y nunca achica la letra bajo el mínimo (0,8 cm de mayúscula por metro). Medido con el
 menú real: a 1,5 m, 3 páginas (2 con densidad compacta y sin inglés); a 2 m, 6 páginas (3 compacta sin inglés); a 2,5 m,
 9 (6); a 3 m con inglés debajo la letra mínima ya no cabe en dos columnas y el diagnóstico dice «NO CABE». Por eso:
-- Coloque la TV del menú donde el cliente más lejano quede a **1,5–2 m** (barra, fila de la caja), no al fondo del local.
-- Pida al dueño **Densidad: compacta** y **Inglés: no** (o en línea) para esa TV; si siguen siendo más de 3 páginas, que
-  elija las **categorías** de esa TV (lo demás queda en el menú QR).
+- El dueño confirmó (2026-11-02) que los clientes quedan a unos **3 m**: a esa distancia el menú completo necesita 8
+  páginas o más, así que la TV del menú muestra el **menú resumido**: en Pantallas → «Productos que muestra», unos 12
+  productos elegidos por el dueño (3 páginas de 28 s; 8–10 en 2–3 categorías para 2 páginas; letra de 2,4–2,7 cm), con **Densidad: compacta** e **Inglés: no**;
+  el menú completo sigue en el QR. Si la TV queda a 1,5–2 m, el menú completo cabe en 2–3 páginas con esos mismos ajustes.
 - En la Pantalla B, las composiciones de 4 ventanas se ven bien a 1,5–2 m; con nombres y precios los rótulos ocupan la
   mitad baja de cada ventana pequeña: el dueño puede quitarlos por ventana («Nombres y precios») para que manden las fotos.
 

@@ -201,7 +201,7 @@ footer{display:flex;align-items:baseline;justify-content:space-between;gap:1em;b
 .zcapa.on{opacity:1}
 .zcapa.entra{z-index:2}
 .zcapa.ya{transition:none}
-.zcapa.sale .ztxt{opacity:0}
+.zcapa.sale .ztxt{opacity:0;transition-duration:.3s}
 .zfoto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .zvelo{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,16,0) 42%,rgba(10,26,16,.5) 68%,rgba(10,26,16,.9) 100%)}
 .ztxt{position:absolute;left:var(--zp);right:var(--zp);bottom:var(--zp);text-shadow:0 2px 14px rgba(8,16,10,.8);
@@ -323,7 +323,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   var fila = null, filaDe = null;                    /* the row in use, and where from: 'base' (a read) or 'copia' */
   var razon = null;                                  /* why there is no row */
   var AJ = null, origen = {}, malosBase = [], paginaMs = 0;
-  var CAMPOS_FILA = ['id', 'kind', 'inches', 'distance_m', 'turn', 'scale_pct', 'look', 'page_seconds', 'category_ids',
+  var CAMPOS_FILA = ['id', 'kind', 'inches', 'distance_m', 'turn', 'scale_pct', 'look', 'page_seconds', 'category_ids', 'item_ids',
                      'sold_out', 'on_from', 'on_to', 'updated_at', 'layout', 'density', 'english', 'promo_mode', 'promo_every', 'promo_seconds'];
   function hm(s) {
     var m = /^([01]\d|2[0-3]):([0-5]\d)/.exec(String(s || ''));
@@ -351,6 +351,12 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     aj.agotados = f && f.sold_out === 'tachar' ? 'tachar' : 'ocultar';
     aj.categorias = f && Array.isArray(f.category_ids) && f.category_ids.length
       ? f.category_ids.map(function (x) { return String(x).toLowerCase(); }) : null;
+    /* the TV's products (item_ids, migration 0037): a summarized menu; null = every product of the categories it shows */
+    aj.productos = null;
+    if (f && Array.isArray(f.item_ids) && f.item_ids.length) {
+      var vistos = {}; aj.productos = [];
+      f.item_ids.forEach(function (x) { x = String(x).toLowerCase(); if (!vistos[x]) { vistos[x] = 1; aj.productos.push(x); } });
+    }
     var a = f ? hm(f.on_from) : null, b = f ? hm(f.on_to) : null;
     aj.desde = a !== null && b !== null && a !== b ? a : null;
     aj.hasta = aj.desde !== null ? b : null;
@@ -410,7 +416,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   var okPerfDatos = null, okRelojDatos = null; /* the same for the last good pantalla_datos read (the slides' prices) */
   var conEs = true, leyendo = false, leyendoDesde = 0, ultimoIntento = -1e12, lecturaN = 0, otraVez = false;
   var dudoso = false, dudaN = 0;     /* after a pause or a resume: no price until a read that started after it */
-  var info = { estado: 'sin-verificar', maquetas: 0, categorias: 'todas' };
+  var info = { estado: 'sin-verificar', maquetas: 0, categorias: 'todas', productos: 'todos' };
 
   function plano(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
   function clave(s) {
@@ -435,10 +441,28 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       if (hay) { elegidas = set; info.categorias = 'elegidas'; info.categoriasFaltan = AJ.categorias.length - hay; }
       else info.categorias = 'no-existen';          /* none of them is in the menu any more: all, and the diagnosis says so */
     }
+    /* the TV's products: only those, each under its category (a category left without one disappears below). A chosen
+       id is "gone" only when no valid category has it, whatever its availability or price: a sold-out choice still
+       exists and follows the sold_out rule; one in a category this TV does not show exists too, and does not show */
+    var elegidos = null;
+    info.productos = 'todos'; info.productosFaltan = 0;
+    if (AJ.productos) {
+      var setP = {}, hayP = 0;
+      AJ.productos.forEach(function (id) { setP[id] = 1; });
+      validas.forEach(function (c) {
+        (Array.isArray(c.menu_items) ? c.menu_items : []).forEach(function (i) {
+          var k = i ? String(i.id).toLowerCase() : '';
+          if (setP[k] === 1) { setP[k] = 2; hayP++; }
+        });
+      });
+      if (hayP) { elegidos = setP; info.productos = 'elegidos'; info.productosFaltan = AJ.productos.length - hayP; }
+      else info.productos = 'no-existen';           /* none of them is in the menu any more: every product, and the diagnosis says so */
+    }
     var tachar = AJ.agotados === 'tachar';
     var cats = validas.map(function (c, ci) {
       if (elegidas && !elegidas[String(c.id).toLowerCase()]) return null;
       var items = (Array.isArray(c.menu_items) ? c.menu_items : []).filter(function (i) {
+        if (elegidos && !(i && elegidos[String(i.id).toLowerCase()])) return false;
         var p = Number(i && i.price_crc);
         if (!i || !plano(i.name) || !(isFinite(p) && p > 0)) return false;
         return i.available === true || (tachar && i.available === false);
@@ -452,6 +476,8 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       return { es: es, en: clave(es) === clave(en) ? '' : en, sort: Number(c.sort) || 0, ci: ci, items: items };
     }).filter(function (c) { return c && c.items.length; });
     cats.sort(function (a, b) { return (a.sort - b.sort) || (a.ci - b.ci); });
+    /* how many of the chosen products are on the board (one in a hidden category, or without a price, exists but is not) */
+    info.productosEnPantalla = elegidos ? cats.reduce(function (n, c) { return n + c.items.length; }, 0) : null;
     return cats.map(function (c) { return { es: c.es, en: c.en, items: c.items }; });
   }
   function derivar() { if (crudo) { try { menu = limpiar(crudo); } catch (e) {} } }
@@ -472,7 +498,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   async function leerMenu() {
     if (DEMO && typeof DEMO.menu === 'function') return DEMO.menu();
     for (var n = 0; n < 2; n++) {
-      var sel = 'id,name,sort,menu_items(name,price_crc,available,sort' + (conEs ? ',name_es' : '') + ')';
+      var sel = 'id,name,sort,menu_items(id,name,price_crc,available,sort' + (conEs ? ',name_es' : '') + ')';
       var r = await pedir(CFG.url + '/rest/v1/menu_categories?select=' + encodeURIComponent(sel) + '&order=sort');
       if (r.ok) return r.body;
       if (r.status === 400 && conEs && /name_es/.test(r.text)) { conEs = false; continue; }   /* menu-spanish.sql not applied */
@@ -504,8 +530,12 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     try {
       localStorage.setItem(COPIA, JSON.stringify({ at: Date.now(), cats: m.map(function (c) {
         return { es: c.es, en: c.en, items: c.items.filter(function (i) { return !i.agotado; }).map(function (i) { return { es: i.es, en: i.en }; }) };
-      }).filter(function (c) { return c.items.length; }) }));
+      }).filter(function (c) { return c.items.length; }),
+        muestra: { categorias: info.categorias, categoriasFaltan: info.categoriasFaltan || 0, productos: info.productos, productosFaltan: info.productosFaltan || 0, enPantalla: info.productosEnPantalla } }));
     } catch (e) {}
+  }
+  function copiaMuestra() {   /* what the copy's names were filtered by, so a cold start's diagnosis says the same */
+    try { var v = JSON.parse(localStorage.getItem(COPIA) || 'null'); return v && v.muestra && typeof v.muestra === 'object' ? v.muestra : null; } catch (e) { return null; }
   }
   function copia() {
     try {
@@ -697,15 +727,14 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   /* the height of the part of block b from item a to item k (a pixel of safety per line: heights are measured whole);
      a continuation (a > 0) carries the taller title */
   function altoParte(b, a, k) { var h = (a > 0 ? b.titCont : b.tit) + 1; for (var j = a; j < k; j++) h += b.items[j] + 1; return h; }
-  /* the columns, filled one after the other under a height limit M (ranges {ci, a, b}: a block or what is left of
+  /* the columns, filled one after the other under the board's height (ranges {ci, a, b}: a block or what is left of
      it, in the Menu Manager's order). A block goes whole when it fits in what is left of the column; otherwise it is
      cut where the column ends and continues at the top of the next column under its title with «(continúa)», but
      only when both pieces keep two items or more (a title never stands alone at the foot of a column, and a lone
      item never follows a repeated title); otherwise it moves whole to the next column. A block taller than a whole
      column is cut at the bottom of the column, as many items as fit. So every column starts with a title and no
      column keeps a hole that the next piece could have filled. */
-  function llenar(m, M, g, rangos, H) {
-    H = H || M;
+  function llenar(m, M, g, rangos) {
     var cs = [], cur = { partes: [], alto: 0 }, cabe = true;
     function cerrar() { cs.push(cur); cur = { partes: [], alto: 0 }; }
     function poner(ci, a, k) { var alto = altoParte(m.bl[ci], a, k); cur.partes.push({ ci: ci, a: a, b: k, cont: a > 0, alto: alto }); cur.alto += (cur.alto ? g : 0) + alto; }
@@ -716,12 +745,11 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
         if (altoParte(b, a, n) <= libre) { poner(r.ci, a, n); break; }
         var k = a;                                                    /* how many items fit in what is left */
         while (k < n && altoParte(b, a, k + 1) <= libre) k++;
-        if (n - k === 1 && k - a >= 2) k--;                           /* a lone last item would follow the repeated title: one less here */
+        if (n - k === 1 && k - a >= 3) k--;                           /* a lone last item would follow the repeated title: one less here (a block of three that does not fit a column goes 2 + 1, the fuller column first) */
         if (cur.alto) {
           if (k - a >= 2 && n - k >= 2) { poner(r.ci, a, k); cerrar(); a = k; continue; }   /* a clean cut */
           cerrar(); continue;                                         /* it moves whole to the next column */
         }
-        if (M < H && altoParte(b, a, n) <= H) { poner(r.ci, a, n); cerrar(); break; }   /* balancing: a block that fits the real column goes whole over the limit, never in pieces */
         if (k <= a) { k = a + 1; if (altoParte(b, a, k) > M) cabe = false; }   /* taller than a column: as many as fit, one at least */
         poner(r.ci, a, k); cerrar(); a = k;
       }
@@ -730,10 +758,8 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     return { cols: cs, cabe: cabe };
   }
   /* the pages: the columns filled under the board's height, in groups of the page's columns; then every page is
-     balanced: its content is filled again under the smallest height that still fits in its columns (bisection)
-     without cutting a block that the first filling kept whole (a lower column is never worth another cut), so its
-     columns end at nearly the same height and no column keeps a hole; what is left under the board's height
-     becomes spacing between a column's blocks, up to 1.2 names per gap. */
+     balanced (equilibrar); what is left under the board's height becomes spacing between a column's blocks, up to
+     1.2 names per gap. */
   function empacar(m, cols) {
     var H = m.H, g = m.gap;
     var todo = llenar(m, H, g, m.bl.map(function (b, i) { return { ci: i, a: 0, b: b.items.length }; }));
@@ -742,50 +768,109 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     pags = pags.map(function (pg) { return equilibrar(pg, m, H, g, cols); });
     return { pags: pags, cabe: todo.cabe && m.ancho, H: H, g: g, f: m.f, bl: m.bl };
   }
-  /* two neighbouring columns joined by a cut of the same block: the cut moves to where the two columns end closest
-     to each other (both still under the limit, two items or more on each side), so the slack of a first-fit filling
-     does not all land in the second column */
-  function emparejar(pg, m, g, lim) {
-    for (var j = 0; j + 1 < pg.length; j++) {
-      var c1 = pg[j], c2 = pg[j + 1];
-      if (!c1.partes.length || !c2.partes.length) continue;
-      var p1 = c1.partes[c1.partes.length - 1], p2 = c2.partes[0];
-      if (!(p2.cont && p1.ci === p2.ci && p1.b === p2.a)) continue;
-      var b = m.bl[p1.ci], base1 = c1.alto - p1.alto, base2 = c2.alto - p2.alto, mejor = p1.b, dif = Math.abs(c1.alto - c2.alto);
-      for (var t = p1.a + 2; t <= p2.b - 2; t++) {
-        var h1 = base1 + altoParte(b, p1.a, t), h2 = base2 + altoParte(b, t, p2.b);
-        if (h1 > lim + 0.5 || h2 > lim + 0.5) continue;
-        if (Math.abs(h1 - h2) < dif - 0.5) { dif = Math.abs(h1 - h2); mejor = t; }
-      }
-      if (mejor !== p1.b) {
-        p1.b = mejor; p1.alto = altoParte(b, p1.a, mejor); c1.alto = base1 + p1.alto;
-        p2.a = mejor; p2.alto = altoParte(b, mejor, p2.b); c2.alto = base2 + p2.alto;
-      }
-    }
-  }
+  /* the balance of one page: the pieces the first filling put on it, dealt again over its columns, in order, so that
+     the columns are as even as possible: the deal that leaves the least empty board under the columns, summed as
+     squares (the best of every way to deal them, not a greedy pass). Rules: a block the first filling kept whole
+     stays whole (an evener column is never worth another cut); a block it cut, or one taller than the board, may be
+     cut at any item boundary that leaves two items or more on each side (one, only when nothing else keeps the
+     first filling's columns); a column that starts inside a block carries its title with «(continúa)»; no column
+     over the board; never fewer columns than the first filling used. */
   function equilibrar(pg, m, H, g, cols) {
-    var rangos = [];
-    pg.forEach(function (col) { col.partes.forEach(function (p) {
+    var rangos = [], cortados = {}, usadas = 0;
+    pg.forEach(function (col) { if (col.partes.length) usadas++; col.partes.forEach(function (p) {
       var u = rangos[rangos.length - 1];
-      if (u && u.ci === p.ci && u.b === p.a) u.b = p.b; else rangos.push({ ci: p.ci, a: p.a, b: p.b });
+      if (u && u.ci === p.ci && u.b === p.a) { u.b = p.b; cortados[p.ci] = true; } else rangos.push({ ci: p.ci, a: p.a, b: p.b });
     }); });
-    var lim = H, piezas = function (r) { var n = 0; r.cols.forEach(function (c) { n += c.partes.length; }); return n; };
-    if (rangos.length) {
-      var base = llenar(m, H, g, rangos), np = piezas(base);
-      var cabe = function (M) { var r = llenar(m, M, g, rangos, H); return r.cabe && r.cols.length <= cols && piezas(r) <= np; };
-      if (base.cabe && base.cols.length <= cols) {
-        var lo = 0, hi = H;
-        for (var t = 0; t < 14 && hi - lo > 0.25; t++) { var mid = (lo + hi) / 2; if (cabe(mid)) hi = mid; else lo = mid; }
-        lim = hi; pg = llenar(m, lim, g, rangos, H).cols;
-        emparejar(pg, m, g, lim);
-      }
+    function rellenar(cs) { while (cs.length < cols) cs.push({ partes: [], alto: 0 }); return cs; }
+    /* the page as the renderer and the diagnosis read it: every column up to the tallest one (tope), the slack under the
+       board spread between a column's blocks (extra, up to 1.2 names per gap) */
+    function terminar(cs) {
+      rellenar(cs);
+      var tope = 0; cs.forEach(function (col) { tope = Math.max(tope, col.alto); });
+      cs.forEach(function (col) { col.limite = tope; col.tope = tope; col.extra = col.partes.length > 1 ? Math.max(0, Math.min(1.2 * m.f, (H - col.alto) / (col.partes.length - 1))) : 0; });
+      return cs;
     }
-    while (pg.length < cols) pg.push({ partes: [], alto: 0 });
-    /* limite: the height the balancing found; tope: what the tallest column reaches (a whole block that fits the real
-       column goes over the limit rather than in pieces) */
-    var tope = lim; pg.forEach(function (col) { tope = Math.max(tope, col.alto); });
-    pg.forEach(function (col) { col.limite = lim; col.tope = tope; col.extra = col.partes.length > 1 ? Math.max(0, Math.min(1.2 * m.f, (H - col.alto) / (col.partes.length - 1))) : 0; });
-    return pg;
+    if (!rangos.length) return terminar(pg);
+    /* the units: every item of a block the first filling cut (or one taller than the board); the whole range otherwise */
+    var U = [];
+    rangos.forEach(function (r) {
+      var b = m.bl[r.ci];
+      if (cortados[r.ci] || r.a > 0 || r.b < b.items.length || altoParte(b, r.a, r.b) > H) for (var t = r.a; t < r.b; t++) U.push({ ci: r.ci, a: t, b: t + 1, suelto: true, ra: r.a, rb: r.b });
+      else U.push({ ci: r.ci, a: r.a, b: r.b, suelto: false });
+    });
+    var n = U.length;
+    /* may a column end just before unit i? inside a block only where both sides keep two items (or one, relaxed) */
+    function cortable(i, minimo) {
+      if (i <= 0 || i >= n) return true;
+      var u = U[i], v = U[i - 1];
+      if (!u.suelto || !v.suelto || u.ci !== v.ci) return true;
+      return u.a - u.ra >= minimo && u.rb - u.a >= minimo;
+    }
+    /* a column [k, i) of the relaxed deal never ends on a lone item of a cut block under other pieces, nor on a block's
+       lone first item when one more would have fit (as the first filling: the fuller column first, 2 + 1 never 1 + 2) */
+    function valida(k, i, minimo) {
+      if (minimo >= 2 || i >= n) return true;
+      var u = U[i - 1], w = U[i];
+      if (!(u.suelto && w.suelto && w.ci === u.ci)) return true;   /* the column does not end inside a cut block */
+      var run = 0; for (var t = i - 1; t >= k && U[t].suelto && U[t].ci === u.ci; t--) run++;
+      if (run > 1) return true;
+      return i - k < 2 && altoCol(k, i + 1).h > H + 0.5;
+    }
+    /* a column [k, i): its real height (the gaps between its blocks included) and the height of its pieces alone (what
+       the cost counts, so two small blocks are spread over two columns rather than stacked beside an empty one) */
+    function altoCol(k, i) {
+      var h = 0, prev = null, huecos = 0;
+      for (var t = k; t < i; t++) {
+        var u = U[t], b = m.bl[u.ci];
+        if (prev === null || prev.ci !== u.ci) { if (prev !== null) { h += g; huecos++; } if (u.suelto) h += (u.a > 0 ? b.titCont : b.tit) + 1; }
+        h += u.suelto ? b.items[u.a] + 1 : altoParte(b, u.a, u.b);
+        prev = u;
+      }
+      return { h: h, piezas: h - huecos * g };
+    }
+    /* the deal of the units over the page's columns (every column used) with the least empty board, as squares */
+    function repartir(minimo) {
+      var mejor = [], padre = [], j, i, k;
+      for (j = 0; j <= cols; j++) { mejor.push([]); padre.push([]); }
+      mejor[0][0] = 0;
+      for (j = 1; j <= cols; j++) for (i = j; i <= n; i++) {
+        if (!cortable(i, minimo)) continue;
+        var best = null, bk = -1;
+        for (k = j - 1; k < i; k++) {
+          var ant = mejor[j - 1][k];
+          if (ant === undefined || !cortable(k, minimo) || !valida(k, i, minimo)) continue;
+          /* a column cut out of the middle of one block (a cut at both ends) keeps minimo items too */
+          if (i - k < minimo && k > 0 && i < n && U[k].suelto && U[k - 1].suelto && U[k - 1].ci === U[k].ci && U[i].suelto && U[i].ci === U[k].ci && U[i - 1].ci === U[k].ci) continue;
+          var a = altoCol(k, i);
+          if (a.h > H + 0.5) continue;
+          var cand = ant + (H - a.piezas) * (H - a.piezas);
+          if (best === null || cand < best - 1e-6) { best = cand; bk = k; }
+        }
+        if (best !== null) { mejor[j][i] = best; padre[j][i] = bk; }
+      }
+      var fin = null, fj = 0;
+      for (j = 1; j <= cols; j++) { var r = mejor[j][n]; if (r === undefined) continue; var hueco = r + (cols - j) * H * H; if (fin === null || hueco < fin - 1e-6) { fin = hueco; fj = j; } }
+      if (fin === null) return null;
+      var cortes = [], at = n;
+      for (j = fj; j >= 1; j--) { cortes.unshift(at); at = padre[j][at]; }
+      cortes.unshift(0);
+      return cortes;   /* [0, i1, i2, …, n]: the units of column c are [cortes[c], cortes[c + 1]) */
+    }
+    var cortes = repartir(2);
+    if (!cortes || cortes.length - 1 < usadas) { var c1 = repartir(1); if (c1 && (!cortes || c1.length > cortes.length)) cortes = c1; }
+    if (!cortes) return terminar(pg);
+    var out = [];
+    for (var c = 0; c + 1 < cortes.length; c++) {
+      var col = { partes: [], alto: 0 };
+      for (var t = cortes[c]; t < cortes[c + 1]; t++) {
+        var u = U[t], ult = col.partes[col.partes.length - 1];
+        if (ult && u.suelto && ult.ci === u.ci && ult.b === u.a) { ult.b = u.b; ult.alto = altoParte(m.bl[u.ci], ult.a, ult.b); }
+        else col.partes.push({ ci: u.ci, a: u.a, b: u.b, cont: u.a > 0, alto: altoParte(m.bl[u.ci], u.a, u.b) });
+      }
+      col.partes.forEach(function (p, q) { col.alto += (q ? g : 0) + p.alto; });
+      out.push(col);
+    }
+    return terminar(out);
   }
 
   var paginas = [], pagIx = 0, firma = '';
@@ -1061,6 +1146,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   /* the layer is emptied (and the zones' clocks stopped) once it is out of sight */
   function promoQuitar(corte) {
     var capa = $('promo');
+    recordarZonas(capa);
     promo.actual = null; promo.firma = ''; promo.proximo = performance.now() + promo.cadaMs;
     capa.classList.toggle('ya', !!corte); capa.classList.remove('on');
     armarPaginas(true);
@@ -1309,6 +1395,14 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
      The zone's state lives on its node (zn._z): its entries as the last read left them, which entry is up, which
      of its two image layers is in front, its clock. A read changes the entries and the labels in place; the clock
      goes on. The layers are cleared, and the clocks stopped, only when the layer of the stage is emptied. */
+  /* where each zone's presentation was (slide id and place → the entry shown last): a composition that comes back after
+     other slides (Screen B's turns, Screen A's interludes) goes on from the next entry instead of starting again, so
+     every photo of a long presentation gets its turn */
+  var turnos = {};
+  function recordarZonas(capa) {   /* called the moment the layer leaves the screen: what each zone shows then */
+    var zs = capa.querySelectorAll('.zona');
+    for (var i = 0; i < zs.length; i++) { var z = zs[i]._z; if (z && z.slide && z.estado === 'entrada' && z.idx >= 0) turnos[z.slide + ':' + z.i] = z.idx; }
+  }
   function pararZonas(capa) {
     var zs = capa.querySelectorAll('.zona');
     for (var i = 0; i < zs.length; i++) {
@@ -1458,7 +1552,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   function programar(z, primera) {
     clearTimeout(z.timer); z.timer = null;
     if (z.modo !== 'auto' || mostrables(z) < 2) return;
-    var ms = z.seg * T.zona * (primera ? 1 + 0.25 * z.i : 1);
+    var ms = z.seg * T.zona * (primera && z.ultima === undefined ? 1 + 0.25 * z.i : 1);
     z.timer = setTimeout(function () {
       z.timer = null;
       if (!z.nodo.isConnected || z.cambiando) return;
@@ -1483,6 +1577,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       actualizarComposicion(sl, vm);
       return;
     }
+    if (viejo) recordarZonas(capa);   /* rebuilt in place: its zones go on where they were (a fresh build may find a layer that left: stale zones, not recorded) */
     pararZonas(capa);
     sl = el('div', 'sl compo k-composicion' + (altoE > anchoE ? ' vertical' : ''));
     sl.setAttribute('data-id', vm.id); sl.setAttribute('data-kind', 'composicion'); sl.setAttribute('data-template', vm.plantilla);
@@ -1501,7 +1596,8 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     ajustarComposicion(sl, vm);
     var zn = sl.querySelectorAll('.zona');
     for (var i = 0; i < zn.length; i++) {
-      var z = zn[i]._z, j = siguienteEntrada(z, -1);
+      var z = zn[i]._z, ultima = turnos[vm.id + ':' + i], j = siguienteEntrada(z, ultima === undefined ? -1 : ultima);
+      z.ultima = ultima; z.slide = vm.id;
       mostrarCuadro(z, j >= 0 ? cuadroEntrada(z, j) : cuadroVacio(z), 'corte', true);
     }
   }
@@ -1510,7 +1606,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   function actualizarComposicion(sl, vm) {
     var zn = sl.querySelectorAll('.zona');
     var kk = sl.querySelector('.zkick');
-    if (!!vm.kick[0] !== !!kk) { /* the kicker came or went: build again */ var capa = sl.parentNode; pararZonas(capa); capa.textContent = ''; construirComposicion(capa, vm, null); return; }
+    if (!!vm.kick[0] !== !!kk) { /* the kicker came or went: build again */ var capa = sl.parentNode; recordarZonas(capa); pararZonas(capa); capa.textContent = ''; construirComposicion(capa, vm, null); return; }
     if (kk) { kk.textContent = ''; kk.appendChild(el('span', 'es', vm.kick[0])); if (vm.kick[1]) kk.appendChild(el('span', 'en', ' · ' + vm.kick[1])); }
     ajustarComposicion(sl, vm);
     for (var i = 0; i < zn.length; i++) {
@@ -1716,6 +1812,10 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     add('Origen', fuenteTexto());
     add('Muestra', (info.categorias === 'elegidas' ? 'categorías elegidas' + (info.categoriasFaltan ? ' (' + info.categoriasFaltan + ' ya no existen)' : '')
         : info.categorias === 'no-existen' ? 'TODAS: las categorías elegidas ya no existen en el menú' : 'todas las categorías') +
+        (info.productos === 'elegidos' ? ' · productos elegidos (' + ((AJ.productos ? AJ.productos.length : 0) - (info.productosFaltan || 0)) +
+            (info.productosEnPantalla != null && info.productosEnPantalla !== (AJ.productos ? AJ.productos.length : 0) - (info.productosFaltan || 0) ? ', ' + info.productosEnPantalla + ' en pantalla' : '') + ')' +
+            (info.productosFaltan ? ' (' + info.productosFaltan + ' ya no existen)' : '')
+         : info.productos === 'no-existen' ? ' · TODOS los productos: los elegidos ya no existen en el menú' : '') +
         ' · agotados ' + (AJ.agotados === 'tachar' ? 'tachados' : 'ocultos'));
     add('Horario', AJ.desde === null ? 'siempre encendida'
         : hhmm(AJ.desde) + '–' + hhmm(AJ.hasta) + ' · ' + (info.apagado ? (apagadaDueno ? 'APAGADA en Pantallas' : 'APAGADA: fuera de horario') : 'encendida'));
@@ -1805,6 +1905,13 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
   filaDe = fila ? 'copia' : null;
   razon = fila ? null : !TV ? 'sin-tv' : !TV_OK ? 'tv-no-valida' : 'sin-lectura';
   calcularAjustes();
+  /* a cold start: the names copy (guardar) was saved already filtered by the copied row's categories and products */
+  if (filaDe === 'copia') {
+    var mu = copiaMuestra();
+    info.categorias = mu && mu.categorias ? mu.categorias : (AJ.categorias ? 'elegidas' : 'todas'); info.categoriasFaltan = mu ? Number(mu.categoriasFaltan) || 0 : 0;
+    info.productos = mu && mu.productos ? mu.productos : (AJ.productos ? 'elegidos' : 'todos'); info.productosFaltan = mu ? Number(mu.productosFaltan) || 0 : 0;
+    info.productosEnPantalla = mu && mu.enPantalla != null ? Number(mu.enPantalla) : null;
+  }
   paginaMs = T.pagina || AJ.pagina * 1000;
   promoArmar();
   orientar();

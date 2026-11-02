@@ -2,8 +2,8 @@
 -- Canopy OS · reversión de la migración 0037 (Pantallas v2) · pegar TODO en Supabase → SQL Editor → Run
 -- Solo por una falla de una función de la 0037. Vuelve las seis funciones que la 0037 cambió a su texto de la 0036
 -- (_screen_json, _slide_json, pantalla_datos, pantalla_guardar, diapositiva_guardar, diapositiva_estado), quita
--- _screen_item_json y deja el libro en la 0036. NO borra nada: las columnas nuevas de screens y screen_slides quedan
--- (con lo que tengan), y
+-- _screen_item_json y deja el libro en la 0036. NO borra nada: las columnas nuevas de screens (las seis opciones e
+-- item_ids, el menú resumido) y de screen_slides quedan (con lo que tengan), y
 -- _screen_template_places queda porque la regla screen_slides_kind la usa (una columna y una regla aditivas no
 -- estorban a nadie). Una diapositiva de clase «composicion» queda guardada; las páginas publicadas antes de la v2 la
 -- ignoran, y las de la v2 la muestran solo si la lectura trae sus zonas, así que con la 0036 no la muestran.

@@ -12,7 +12,8 @@ agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
 - **Pantalla A:** cada categoría es un bloque con su título arriba (nunca un título entre productos de otra); columnas
   equilibradas; el menú completo en **una pantalla** siempre que la letra quede en o sobre el mínimo (0,8 cm por metro),
   y páginas solo cuando no cabe. Por TV: distribución (auto · una pantalla · páginas), densidad (normal · compacta),
-  inglés (debajo · en línea · no) y, si quiere, **promociones intercaladas** (cada N s, durante M s) o solo menú.
+  inglés (debajo · en línea · no), los **productos que muestra** (el menú resumido para las TV de 32" a 3 m: nada
+  marcado = todos los de las categorías elegidas) y, si quiere, **promociones intercaladas** (cada N s, durante M s) o solo menú.
 - **Pantalla B:** **composiciones** de 1 a 4 zonas (plantillas: 1, dos lados, grande + dos, cuadrícula, centro = izquierda
   grande, centro dos apiladas, derecha grande). Cada zona es una **foto fija** o una **presentación propia** (su lista
   ordenada de productos o fotos, sus segundos, nombres y precios del menú en vivo o no, una foto de respaldo). Franjas
@@ -20,7 +21,7 @@ agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
 - **Gestión (`pantallas.html`):** editor visual de composiciones (plantilla, zonas, productos y fotos, encuadre y zoom,
   orden), **vista previa fiel** (la página real de la TV) antes de guardar, y **«Programación sugerida»**: crea cuatro
   composiciones **pausadas** (desayuno 06–10, almuerzo 10–13, tarde 13–17, cena 17–19) con productos del menú por
-  nombre, para que usted las revise, las ajuste y las active.
+  nombre y **sin nombres ni precios** (los activa por ventana en el editor), para que usted las revise, las ajuste y las active.
 - Lo que no cambia: precios solo del menú (nunca escritos), vigencia obligatoria, PIN de dueño, registro inmutable,
   frescura (2 / 10 min), sin conexión, Caja, Cocina, Contabilidad, menú QR y TV actual (lo comprueba «no tocar»).
 
@@ -40,7 +41,9 @@ agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
 7. Releases → `sitio-AAAA-MM-DD` sobre **gh-pages**; luego `vAAAA.MM.DD-1` sobre la rama con el commit de D-064;
    «Tests» en verde sobre la etiqueta; **Publish website** desde la etiqueta con `PUBLICAR`; `version.json` muestra
    la etiqueta y ese commit; Caja, Cocina y TV actual cargan como siempre.
-8. En `pantallas.html` con su PIN: **Pantalla A** → distribución, densidad, inglés y promociones; vista previa.
+8. En `pantallas.html` con su PIN: **Pantalla A** → para las TV de 32" a 3 m: **Densidad compacta**, **Inglés no**,
+   **Productos que muestra** con unos 12 productos (3 páginas de 28 s; 8–10 en 2–3 categorías para 2 páginas; los demás siguen en el menú QR); distribución y
+   promociones; vista previa.
    **Diapositivas** → «Programación sugerida» → revise cada composición (zonas, productos, fotos, encuadre), «Vista
    previa en la TV», guarde y **reanude** las que quiera en pantalla. Las diapositivas de la v1 siguen como estaban.
 9. Aceptación en las TV: desde el punto más lejano se leen 5 precios; la Pantalla A muestra una pantalla o páginas según

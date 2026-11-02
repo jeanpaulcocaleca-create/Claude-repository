@@ -10,7 +10,9 @@
    v2 (migration 0037): the menu TV's layout, density, English and intercalated promotions; compositions of 1 to 4
    zones built in the visual editor (template, products from the picker, uploaded photos, focus and zoom), refused by
    the server next to the zone and the entry, previewed in the real TV page before saving; «Programación sugerida»
-   creates four paused compositions from the menu; «Hoy en pantalla» lists a composition with its zones. */
+   creates four paused compositions from the menu (without names and prices, the owner's 2026-11-02 request); «Hoy en
+   pantalla» lists a composition with its zones. The menu TV's products (item_ids, a summarised menu for a 32" at 3 m):
+   ticked per product under their categories, saved, logged and read by the TV; none = every product. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -873,6 +875,7 @@ module.exports.tests = [
       await tab(pg, 'slides');
       await pg.click('#sugerir');
       await until(async () => /Se crearon en pausa: Desayuno \(06:00–10:00\), Almuerzo \(10:00–13:00\), Tarde \(13:00–17:00\), Cena \(17:00–19:00\)\. Revíselas/.test(await text(pg, '#sugerirMsg')), 20000, 'the four, told');
+      assert.match(await text(pg, '#sugerirMsg'), /ninguna sale sola\. Van sin nombres ni precios; actívelos por ventana en el editor\.$/, 'the owner is told the four go without names and prices');
       const rows = JSON.parse(one(`select json_agg(json_build_object('t', kicker_es, 'en', kicker_en, 'template', template, 'status', status, 'from', from_time, 'to', to_time, 'days', days, 'sort', sort,
                                        'screens', screen_ids, 'dias', round(extract(epoch from (ends_at - starts_at)) / 86400), 'zones', zones) order by sort)::text from screen_slides`));
       assert.deepStrictEqual(rows.map((r) => [r.t, r.en, r.template, r.status, r.from, r.to, r.days, r.sort, r.screens, r.dias]), [
@@ -892,13 +895,13 @@ module.exports.tests = [
       assert.deepStrictEqual(names(rows[2]), [calientes, reposteria], 'afternoon');
       assert.deepStrictEqual(names(rows[3]), [sandwiches], 'dinner');
       rows.forEach((r) => r.zones.forEach((z) => {
-        assert.deepStrictEqual([z.mode, z.seconds, z.labels, z.fallback], ['auto', 8, true, null], r.t + ': presentations with names and prices, the brand as the fallback');
+        assert.deepStrictEqual([z.mode, z.seconds, z.labels, z.fallback], ['auto', 8, false, null], r.t + ': presentations without names and prices (the owner turns them on per zone), the brand as the fallback');
         z.entries.forEach((e) => assert.deepStrictEqual([e.photo, e.focus, e.zoom, Object.keys(e).sort()], [null, [50, 50], 100, ['focus', 'item', 'photo', 'zoom']], 'ids and framing only'));
       }));
       assert.strictEqual(one(`select count(*) || ' ' || string_agg(distinct action || ':' || by_name, ',') from screen_changes`), '4 crear:Dueño (owner)');
       assert.deepStrictEqual((await anonDatos(pg, 'promos-1')).slides, [], 'paused: nothing goes on the TV by itself');
       assert.strictEqual(await pg.locator('#slideList article.slide[data-kind=composicion]').count(), 4);
-      assert.match(await inner(pg, '#slideList article.slide[data-kind=composicion] .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: presentación cada 8 s · 7 entradas · Centro arriba: presentación cada 8 s · 3 entradas · Centro abajo: presentación cada 8 s · 9 entradas · Derecha: presentación cada 8 s · 4 entradas · se queda 60 s$/);
+      assert.match(await inner(pg, '#slideList article.slide[data-kind=composicion] .t'), /^Desayuno · Composición · plantilla Centro en dos · Izquierda: presentación cada 8 s · 7 entradas · sin nombres ni precios · Centro arriba: presentación cada 8 s · 3 entradas · sin nombres ni precios · Centro abajo: presentación cada 8 s · 9 entradas · sin nombres ni precios · Derecha: presentación cada 8 s · 4 entradas · sin nombres ni precios · se queda 60 s$/);
       assert.match(await text(pg, '#slideList article.slide[data-kind=composicion] [data-status]'), /Pausada/);
       await pg.click('#sugerir');
       await until(async () => /^No se creó nada\. Ya existían: Desayuno, Almuerzo, Tarde, Cena\.$/.test(await text(pg, '#sugerirMsg')), 8000, 'nothing twice');
@@ -937,6 +940,62 @@ module.exports.tests = [
       await pg.waitForSelector('#noView:not([hidden])', { timeout: 10000 });
       assert.strictEqual(await text(pg, '#noMsg'), 'Falta aplicar la migración 0036 (docs/ACTIVACION-PANTALLAS.md).');
       assert.strictEqual(await pg.locator('#appView').isHidden(), true);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'v2 · the menu TV\'s products: three ticked in the card (two coffees and a pastry), saved, logged and read by the TV as item_ids; the card reopened shows them ticked and «3 elegidos»; none ticked = null (all); a product of Extras & Combos is never offered',
+    run: async ({ browser }) => {
+      const pg = await asOwnerPin(browser);
+      const card = 'article.tv[data-tv="menu-1"]', sum = card + ' details.prods summary';
+      assert.strictEqual(await text(pg, sum), 'Productos que muestra: todos', 'nothing chosen: every product of its categories');
+      assert.strictEqual(await pg.locator('article.tv[data-tv="promos-1"] details.prods').count(), 0, 'products only on the menu TV');
+      const offered = await pg.$$eval(card + ' input[data-item]', (a) => a.map((x) => x.value));
+      const extras = one(`select coalesce(string_agg(id::text, ','), '') from menu_items where category_id = (select id from menu_categories where name = 'Extras & Combos')`).split(',').filter(Boolean);
+      assert.ok(extras.length > 0, 'the seed has Extras & Combos products');
+      assert.ok(offered.length > 10 && !offered.some((id) => extras.includes(id)), 'the menu\'s products, never Extras & Combos');
+      assert.strictEqual(offered.length, Number(one(`select count(*) from menu_items i join menu_categories c on c.id = i.category_id where c.name <> 'Extras & Combos' and i.price_crc > 0`)), 'every product with a price, once');
+      assert.strictEqual(new Set(offered).size, offered.length, 'no product twice');
+      assert.deepStrictEqual(await pg.$$eval(card + ' details.prods .pcat', (a) => a.map((x) => x.textContent)),
+        JSON.parse(one(`select json_agg(name order by sort, name)::text from menu_categories where name <> 'Extras & Combos' and id in (select category_id from menu_items where price_crc > 0)`)),
+        'grouped under the categories in the Menu Manager\'s order');
+      const ids = ['Latte', 'Cappuccino', 'Banana Bread'].map(itemId);
+      await pg.click(sum);
+      for (const id of ids) await pg.check(`${card} input[data-item][value="${id}"]`);
+      assert.strictEqual(await text(pg, sum), 'Productos que muestra: 3 elegidos', 'counted as they are ticked');
+      assert.match(await text(pg, card + ' .dirty'), /Cambios sin guardar/);
+      const order = await pg.$$eval(card + ' input[data-item]:checked', (a) => a.map((x) => x.value));
+      assert.deepStrictEqual(order.slice().sort(), ids.slice().sort(), 'the three, in the card\'s order (the coffees before the pastry)');
+      await save(pg, card + ' button[type=submit]');
+      assert.strictEqual(pg.rpc.filter((f) => f === 'pantalla_guardar').length, 1, 'sent once, accepted');
+      assert.strictEqual(one(`select item_ids::text from screens where id = 'menu-1'`), '{' + order.join(',') + '}', 'kept in the order given');
+      const d = await anonDatos(pg, 'menu-1');
+      assert.deepStrictEqual(d.tv.item_ids, order, 'what the TV reads');
+      assert.deepStrictEqual(await pg.$$eval(card + ' input[data-item]:checked', (a) => a.map((x) => x.value)), order, 'the card shows what the server keeps');
+      await tab(pg, 'log');
+      const first = pg.locator('#logList article.chg').first();
+      assert.strictEqual(await first.getAttribute('data-target'), 'tv:menu-1');
+      await first.locator('summary').click();
+      const nameOf = (id) => one(`select case when nullif(btrim(coalesce(to_jsonb(i) ->> 'name_es', '')), '') is not null and (to_jsonb(i) ->> 'name_es') <> i.name
+                                               then (to_jsonb(i) ->> 'name_es') || ' · ' || i.name else i.name end from menu_items i where i.id = '${id}'`);
+      assert.strictEqual(await first.locator('tr[data-k="item_ids"] td.k').innerText(), 'Productos');
+      assert.strictEqual(await first.locator('tr[data-k="item_ids"] td.was').innerText(), 'todos');
+      assert.strictEqual(await first.locator('tr[data-k="item_ids"] td.now').innerText(), order.map(nameOf).join(', '), 'the products by name');
+      assert.strictEqual(one(`select jsonb_array_length(after -> 'item_ids') from screen_changes where target_id = 'menu-1' and action = 'cambiar' order by id desc limit 1`), '3', 'the log row carries item_ids');
+      /* the panel opened again (it comes back on the log tab it was left on): the three ticked and counted; all unticked = every product (null) */
+      await pg.reload({ waitUntil: 'domcontentloaded' });
+      await pg.waitForSelector('#appView:not([hidden]) ' + card, { state: 'attached', timeout: 12000 });
+      await tab(pg, 'tvs');
+      assert.strictEqual(await text(pg, sum), 'Productos que muestra: 3 elegidos');
+      assert.deepStrictEqual(await pg.$$eval(card + ' input[data-item]:checked', (a) => a.map((x) => x.value)), order);
+      await pg.click(sum);
+      for (const id of ids) await pg.uncheck(`${card} input[data-item][value="${id}"]`);
+      assert.strictEqual(await text(pg, sum), 'Productos que muestra: todos');
+      await save(pg, card + ' button[type=submit]');
+      assert.strictEqual(one(`select item_ids is null from screens where id = 'menu-1'`), 't', 'none ticked = null');
+      assert.strictEqual((await anonDatos(pg, 'menu-1')).tv.item_ids, null, 'the TV shows every product again');
+      assert.strictEqual(await text(pg, sum), 'Productos que muestra: todos');
+      assert.strictEqual(await pg.locator(card + ' input[data-item]:checked').count(), 0);
       assert.deepStrictEqual(pg.errors, []);
     }
   }

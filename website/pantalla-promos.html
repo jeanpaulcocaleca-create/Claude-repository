@@ -136,7 +136,7 @@ body.apagado,#stage.apagado{background:#000}
 .zcapa.on{opacity:1}
 .zcapa.entra{z-index:2}
 .zcapa.ya{transition:none}
-.zcapa.sale .ztxt{opacity:0}
+.zcapa.sale .ztxt{opacity:0;transition-duration:.3s}
 .zfoto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .zvelo{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,16,0) 42%,rgba(10,26,16,.5) 68%,rgba(10,26,16,.9) 100%)}
 .ztxt{position:absolute;left:var(--zp);right:var(--zp);bottom:var(--zp);text-shadow:0 2px 14px rgba(8,16,10,.8);
@@ -741,6 +741,14 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
      The zone's state lives on its node (zn._z): its entries as the last read left them, which entry is up, which
      of its two image layers is in front, its clock. A read changes the entries and the labels in place; the clock
      goes on. The layers are cleared, and the clocks stopped, only when the layer of the stage is emptied. */
+  /* where each zone's presentation was (slide id and place → the entry shown last): a composition that comes back after
+     other slides (Screen B's turns, Screen A's interludes) goes on from the next entry instead of starting again, so
+     every photo of a long presentation gets its turn */
+  var turnos = {};
+  function recordarZonas(capa) {   /* called the moment the layer leaves the screen: what each zone shows then */
+    var zs = capa.querySelectorAll('.zona');
+    for (var i = 0; i < zs.length; i++) { var z = zs[i]._z; if (z && z.slide && z.estado === 'entrada' && z.idx >= 0) turnos[z.slide + ':' + z.i] = z.idx; }
+  }
   function pararZonas(capa) {
     var zs = capa.querySelectorAll('.zona');
     for (var i = 0; i < zs.length; i++) {
@@ -890,7 +898,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
   function programar(z, primera) {
     clearTimeout(z.timer); z.timer = null;
     if (z.modo !== 'auto' || mostrables(z) < 2) return;
-    var ms = z.seg * T.zona * (primera ? 1 + 0.25 * z.i : 1);
+    var ms = z.seg * T.zona * (primera && z.ultima === undefined ? 1 + 0.25 * z.i : 1);
     z.timer = setTimeout(function () {
       z.timer = null;
       if (!z.nodo.isConnected || z.cambiando) return;
@@ -915,6 +923,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
       actualizarComposicion(sl, vm);
       return;
     }
+    if (viejo) recordarZonas(capa);   /* rebuilt in place: its zones go on where they were (a fresh build may find a layer that left: stale zones, not recorded) */
     pararZonas(capa);
     sl = el('div', 'sl compo k-composicion' + (altoE > anchoE ? ' vertical' : ''));
     sl.setAttribute('data-id', vm.id); sl.setAttribute('data-kind', 'composicion'); sl.setAttribute('data-template', vm.plantilla);
@@ -933,7 +942,8 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
     ajustarComposicion(sl, vm);
     var zn = sl.querySelectorAll('.zona');
     for (var i = 0; i < zn.length; i++) {
-      var z = zn[i]._z, j = siguienteEntrada(z, -1);
+      var z = zn[i]._z, ultima = turnos[vm.id + ':' + i], j = siguienteEntrada(z, ultima === undefined ? -1 : ultima);
+      z.ultima = ultima; z.slide = vm.id;
       mostrarCuadro(z, j >= 0 ? cuadroEntrada(z, j) : cuadroVacio(z), 'corte', true);
     }
   }
@@ -942,7 +952,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
   function actualizarComposicion(sl, vm) {
     var zn = sl.querySelectorAll('.zona');
     var kk = sl.querySelector('.zkick');
-    if (!!vm.kick[0] !== !!kk) { /* the kicker came or went: build again */ var capa = sl.parentNode; pararZonas(capa); capa.textContent = ''; construirComposicion(capa, vm, null); return; }
+    if (!!vm.kick[0] !== !!kk) { /* the kicker came or went: build again */ var capa = sl.parentNode; recordarZonas(capa); pararZonas(capa); capa.textContent = ''; construirComposicion(capa, vm, null); return; }
     if (kk) { kk.textContent = ''; kk.appendChild(el('span', 'es', vm.kick[0])); if (vm.kick[1]) kk.appendChild(el('span', 'en', ' · ' + vm.kick[1])); }
     ajustarComposicion(sl, vm);
     for (var i = 0; i < zn.length; i++) {
@@ -1114,6 +1124,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
   }
   function poner(s, modo) {
     var vm = modelo(s, estado()), sale = capas[frente], entra = capas[1 - frente];
+    recordarZonas(sale);
     construir(entra, vm, null);
     var corte = modo === 'corte';
     if (corte) { entra.classList.add('ya'); sale.classList.add('ya'); }
@@ -1138,7 +1149,7 @@ window.HG_SAFE_TO_RELOAD = function () { return !/(^|[?&])preview=1(&|$)/.test(l
     var cands = off ? [] : candidatas(est, st);
     visibles = cands.map(function (s) { return s.id; });
     if (off) {                                         /* outside the hours: black, nothing on it */
-      if (actual) { capas.forEach(function (c) { c.classList.remove('on'); pararZonas(c); c.textContent = ''; }); actual = null; actualFirma = ''; }
+      if (actual) { capas.forEach(function (c) { c.classList.remove('on'); recordarZonas(c); pararZonas(c); c.textContent = ''; }); actual = null; actualFirma = ''; }
     } else if (!actual) poner(cands[0] || MARCA, 'fundido');
     else if (actual === MARCA) {   /* the brand slide only fills in: real content replaces it at once */
       if (cands.length && !(fijo && performance.now() - desde < diapoMs)) poner(cands[0], 'fundido'); else alDia(MARCA);

@@ -138,7 +138,7 @@ select test.login('anon'); set role anon;
 select test.eq(public.pantalla_datos('menu-1') ->> 'ok', 'true', 'a visitor reads the menu TV''s settings');
 select test.eq((select string_agg(k, ' ' order by k) from jsonb_object_keys(public.pantalla_datos('menu-1')) k), 'now ok slides tv', 'the answer: ok, now, tv, slides');
 select test.eq((select string_agg(k, ' ' order by k) from jsonb_object_keys(public.pantalla_datos('menu-1') -> 'tv') k),
-               'active category_ids density distance_m english id inches kind layout look name on_from on_to page_seconds promo_every promo_mode promo_seconds scale_pct slide_seconds sold_out turn updated_at',
+               'active category_ids density distance_m english id inches item_ids kind layout look name on_from on_to page_seconds promo_every promo_mode promo_seconds scale_pct slide_seconds sold_out turn updated_at',
                'the TV''s settings, exactly the contract''s');
 select test.eq(public.pantalla_datos('menu-1') #>> '{tv,scale_pct}', '100', 'with the prudent values of the plan');
 select test.ok((public.pantalla_datos('promos-1') ->> 'now')::timestamptz = now(), 'and the server''s clock (a TV with a wrong clock still ends a slide on time)');
@@ -195,7 +195,7 @@ select test.eq(((:'r'::jsonb) -> 'tv') - 'updated_at',
                jsonb_build_object('id', 'menu-1', 'kind', 'menu', 'name', 'Pantalla A · menú', 'inches', 55.0, 'distance_m', 4.5, 'turn', 'no', 'scale_pct', 120,
                                   'look', 'noche', 'page_seconds', 30, 'slide_seconds', 10, 'category_ids', jsonb_build_array(:'cat_coffee', :'cat_smoothies'),
                                   'sold_out', 'tachar', 'on_from', '06:30', 'on_to', '18:00', 'active', true,
-                                  'layout', 'auto', 'density', 'normal', 'english', 'debajo', 'promo_mode', 'no', 'promo_every', 180, 'promo_seconds', 10), 'saved as asked, the rest kept (the v2 choices at their defaults)');
+                                  'layout', 'auto', 'density', 'normal', 'english', 'debajo', 'promo_mode', 'no', 'promo_every', 180, 'promo_seconds', 10, 'item_ids', null), 'saved as asked, the rest kept (the v2 choices at their defaults, every product)');
 select test.ok((:'r'::jsonb) #>> '{_log,before,scale_pct}' = '100' and (:'r'::jsonb) #>> '{_log,after,scale_pct}' = '120'
                and (:'r'::jsonb) #>> '{_log,target_id}' = 'menu-1' and (:'r'::jsonb) #>> '{_log,summary}' = 'Pantalla A · menú',
                'the log keeps what it was and what it is now');

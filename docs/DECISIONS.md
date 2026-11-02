@@ -2464,10 +2464,14 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   - Screen A (`website/pantalla-menu.html`): every category a block (title first, then its items) packed in the Menu
     Manager's order into explicit columns (3, 4 or 5 landscape; 1 or 2 turned); every column starts with a title; a
     block that does not fit in what is left of a column is cut there and continues on top of the next column under
-    its title with «(continúa)», only when both pieces keep two items or more, else it moves whole; each page is
-    filled again under the smallest height that still fits its columns (bisection) without cutting a block the first
-    filling kept whole (CI showed a three-item block cut 1 + 2 to lower a column by 67 px), so the columns end at
-    nearly the same height and no column keeps a hole the next piece could have filled; the letter search (fewest pages at or
+    its title with «(continúa)», only when both pieces keep two items or more, else it moves whole (a block of three
+    taller than a column goes 2 + 1, the fuller column first); the pieces the first filling put on a page are then
+    dealt again over its columns, in order, by the deal that leaves the least empty board under the columns (the sum
+    of the squares; every deal is tried, not a greedy pass), never cutting a block the first filling kept whole (CI
+    had shown a three-item block cut 1 + 2 to lower a column by 67 px), never fewer columns than the first filling
+    used, and cutting a block it did cut only where both sides keep two items (one, only when nothing else keeps the
+    columns), so the columns end at nearly the same height and no column keeps a hole the next piece could have
+    filled; the letter search (fewest pages at or
     over the minimum, then the largest letter up to 1.25× the target) now tries 3, 4 and 5 columns. `layout`
     (auto | una-pantalla | paginas: the same board, una-pantalla adds «NO CABE EN UNA PANTALLA AL MÍNIMO» to the
     diagnosis when it had to page), `density` compacta (titles 1.3×, lines 1.06, English 72 %, tighter paddings),
@@ -2507,7 +2511,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
 - **Decisions inside the build:** the first board treated every category as indivisible (cut only when taller than a
   column): with the real menu it left half a column empty on a 75" and pages at 70 % on a 55"/3 m, against the
   owner's «sin espacios vacíos», so the rule became dense filling with clean cuts (two items or more on each side,
-  the title repeated) and balancing by height limit; a suggested schedule is created only by the owner's click and
+  the title repeated) and the even deal of each page's pieces; a suggested schedule is created only by the owner's click and
   PAUSED (nothing goes on a TV by itself); a zone's labels show the menu's live name and price under the same
   freshness rule as a product slide; a zone with nothing to show falls back to its photo or the brand, and a
   composition with no zone to show is skipped (the brand slide of Screen B remains the last resort); the preview is
@@ -2526,8 +2530,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   request that never answers froze its zone so reads, sold-outs and reprices never reached it (high; `cargar` times
   out at T.limite, test P26); a failed photo was never retried (medium; retried after T.reintento, the zones woken by
   `fotoVolvio()`); the balancing cut whole categories into one-item pieces on chosen-category TVs and left half-empty
-  columns (medium; no new cuts, a block that fits the real column goes whole, the cut between two neighbouring columns
-  slides to where they end closest); the landscape two-column option of v1 was gone, so small or far TVs cut words
+  columns (medium; no new cuts, and, after the owner's final validation found the height-limit bisection collapsing
+  the limit to the smallest piece (32"/2 m compacta sin inglés: «Café» 4 | 8) and a three-item block split 1 + 1 + 1
+  leaving a column empty, the even deal described above); the landscape two-column option of v1 was gone, so small or far TVs cut words
   (medium; back as the last option); a zone's letters were fitted on both layers (medium; now on the layer being
   drawn); the preview frame ignored the TV's size, distance, scale, turn and look (medium; in the address); and nine
   low ones (canonical uuid form; a null in the promotion numbers refused like the words; labels off + no photo not
@@ -2543,4 +2548,40 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   Spanish only (or English in line), or the per-TV categories. Screen B on a 32": the four zones keep their rules (labels
   1.0/0.8 cm per metre, shrunk together when they do not fit, never under 35 %); the owner can hide names and prices
   per zone («Nombres y precios») so the photos take the whole zone. Screenshots at 32" in the preview artifact.
+- **The owner's final validation (2026-11-02, six points):** five independent validators, one point each, with the
+  branch's pages and the real menu. Points 1, 2, 3 and 5 confirmed with notes; point 4 (Screen A legibility and
+  distribution on the real TVs) found two medium defects in the balancing, both fixed as described above (the even
+  deal of each page's pieces; a three-item block taller than a column goes 2 + 1; measured again over the 20
+  combinations of 32"/1.5–3 m: no empty column, «Café» 100/87 instead of 4 | 8). Point 1's notes fixed too: the
+  outgoing labels of a zone now fade in 0.3 s (two prices were visible for ~0.4 s during the 1 s dissolve), and a
+  composition's zones go on from the entry shown last when the composition comes back (an interlude on Screen A, a
+  turn on Screen B; `turnos`, `recordarZonas()` the moment the layer leaves, no first-turn stagger on the way back;
+  tests B23 and P27). Left as documented notes: the brand may show for up to a tick at a slot boundary (the
+  in-force rule the owner asked to preserve: a slide leaves as soon as it may have ended and enters once it surely
+  started); replacing a photo is choosing another one in the same place (no separate button); the CI browser measures
+  the board with Inter, the TV with its own font (B10 re-measures when a web font loads).
+- **The owner's 3 m directive (2026-11-02, after the final validation):** both TVs are 32" and the customers sit about
+  3 m away; Screen A is to start with a summarized menu of 2–3 pages (the main products and categories) while the full
+  menu, the chosen categories and the complete QR menu stay available; Screen B keeps the editor, with the four windows
+  initially without names and prices (switchable per window); schedules and photos stay the owner's. Measured with the
+  real menu at 32"/3 m, compacta sin inglés: 12 products of one category = 2 pages, 16 = 4, 20 = 5; with several
+  categories every title and every two-line name costs more (8–10 products in 2–3 categories = 2 pages, 12 in 5 = 3,
+  15 in 3 = 3, 15 in 5 = 4), so a summary is about 12 products, fewer categories meaning fewer pages.
+  Decision: a per-TV product list, `screens.item_ids uuid[]` in 0037 (null = every product of the shown categories;
+  `pantalla_guardar` validates canonical uuids of menu products, never a till helper, at most 300, each once in the
+  order given; `_screen_json` carries it; the reversal keeps the column), Screen A shows only those products under
+  their category titles (a category left empty disappears, a vanished id is skipped and counted, none left = every
+  product and the diagnosis says so; the device copy keeps the list; test B24), the panel's menu-TV card gains
+  «Productos que muestra» (per category, «todos» when none is ticked; test 390), and «Programación sugerida» creates
+  its four compositions with labels off. The Menu Manager's old ★ («On TV», `menu_items.featured`, the QR favourites)
+  was not reused: it couples the TV summary to the QR page. Not done: a per-product address override (the row and
+  the panel decide). Figures in `docs/INFORME-PANTALLAS.md` V2.1 and V2.10. A second adversarial review of this
+  addition (and of the balancing and zone-memory changes above, fuzzed over 50 000 random pages) found one medium
+  and six low findings, all fixed: the deal could cut a one-item piece out of the middle of a block spanning three
+  columns (a middle piece keeps the minimum too); two tiny blocks could be stacked beside an empty column because
+  the gap between them counted as empty board (the cost now counts the pieces alone); the fallback of a page that
+  cannot be dealt lacked `limite`/`tope`/`extra`; a composition rebuilt in place (template, zones or orientation
+  changed) lost its zones' memory; a cold start's diagnosis said «elegidos» when the last online state was
+  «no-existen» (the copy keeps what it was filtered by); the diagnosis now adds «N en pantalla» when a chosen product
+  exists but is not on the board; the panel's summary counts saved ids the card no longer offers («ya no existen»).
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).

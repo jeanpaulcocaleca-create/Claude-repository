@@ -10,6 +10,9 @@
 --       english     debajo | en-linea | no          dónde va el inglés
 --       promo_mode  no | intercalar                 la Pantalla A muestra de vez en cuando una diapositiva de esa TV
 --       promo_every 30..900 s                       cada cuánto;  promo_seconds 6..30 s  cuánto dura
+--       item_ids    lista de productos o nada     el menú resumido de la Pantalla A: solo esos productos (bajo sus
+--                                                 categorías); nada = todos los de las categorías elegidas (pedido del
+--                                                 dueño el 2026-11-02: TV de 32" a 3 m, 2–3 páginas; el menú QR no cambia)
 --   * screen_slides: una clase nueva, «composicion»: una plantilla (1, 2-lado, 3-grande-izq, 3-grande-der,
 --     4-cuadricula, 4-centro) y una zona por lugar (zones, de 1 a 4). Cada zona es, a elección del dueño, una foto fija
 --     o una presentación propia (su lista ordenada de productos o fotos, sus segundos, si muestra nombres y precios,
@@ -42,7 +45,8 @@ alter table public.screens
   add column if not exists english       text not null default 'debajo',
   add column if not exists promo_mode    text not null default 'no',
   add column if not exists promo_every   int  not null default 180,
-  add column if not exists promo_seconds int  not null default 10;
+  add column if not exists promo_seconds int  not null default 10,
+  add column if not exists item_ids      uuid[];
 alter table public.screens drop constraint if exists screens_layout_check;
 alter table public.screens add constraint screens_layout_check check (layout in ('auto', 'una-pantalla', 'paginas'));
 alter table public.screens drop constraint if exists screens_density_check;
@@ -107,7 +111,7 @@ create or replace function public._screen_json(s public.screens)
 returns jsonb language sql stable set search_path = public as $$
   select jsonb_build_object('id', s.id, 'kind', s.kind, 'name', s.name, 'inches', s.inches, 'distance_m', s.distance_m,
     'turn', s.turn, 'scale_pct', s.scale_pct, 'look', s.look, 'page_seconds', s.page_seconds, 'slide_seconds', s.slide_seconds,
-    'category_ids', to_jsonb(s.category_ids), 'sold_out', s.sold_out,
+    'category_ids', to_jsonb(s.category_ids), 'item_ids', to_jsonb(s.item_ids), 'sold_out', s.sold_out,
     'on_from', to_char(s.on_from, 'HH24:MI'), 'on_to', to_char(s.on_to, 'HH24:MI'), 'active', s.active, 'updated_at', s.updated_at,
     'layout', s.layout, 'density', s.density, 'english', s.english,
     'promo_mode', s.promo_mode, 'promo_every', s.promo_every, 'promo_seconds', s.promo_seconds);
@@ -185,7 +189,7 @@ grant execute on function public.pantalla_datos(text) to anon, authenticated;
 -- 4) la gestión: solo el dueño --------------------------------------------------------------------------------------------
 create or replace function public.pantalla_guardar(p jsonb)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare old public.screens; new_row public.screens; v_id text; v_kind text; cats uuid[]; bad text; f text;
+declare old public.screens; new_row public.screens; v_id text; v_kind text; cats uuid[]; its uuid[]; bad text; f text;
 begin
   if not public.is_true_owner() then return jsonb_build_object('ok', false, 'error', 'owner_only'); end if;
   if p is null or jsonb_typeof(p) <> 'object' then return jsonb_build_object('ok', false, 'error', 'invalid'); end if;
@@ -229,10 +233,29 @@ begin
       return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'category_ids');
     end if;
   end if;
+  -- the products Screen A shows (the summarized menu): null (or an empty list) = every product of the shown categories;
+  -- otherwise products of the menu (canonical uuids, each once, in the order given), never a till helper
+  if p ? 'item_ids' and jsonb_typeof(p -> 'item_ids') not in ('array', 'null') then
+    return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'item_ids');
+  end if;
+  if jsonb_typeof(p -> 'item_ids') = 'array' then
+    if jsonb_array_length(p -> 'item_ids') > 300 then return jsonb_build_object('ok', false, 'error', 'too_many', 'field', 'item_ids'); end if;
+    if exists (select 1 from jsonb_array_elements_text(p -> 'item_ids') x
+                where x is null or x !~ '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$') then
+      return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'item_ids');
+    end if;
+    select array_agg(x::uuid order by o) into its
+      from (select lower(x) as x, min(o) as o from jsonb_array_elements_text(p -> 'item_ids') with ordinality t(x, o) group by lower(x)) u;
+    if exists (select 1 from unnest(its) i
+                where not exists (select 1 from public.menu_items m join public.menu_categories c on c.id = m.category_id
+                                   where m.id = i and c.name <> 'Extras & Combos')) then
+      return jsonb_build_object('ok', false, 'error', 'invalid', 'field', 'item_ids');
+    end if;
+  end if;
   begin
     insert into public.screens as s (id, kind, name, inches, distance_m, turn, scale_pct, look, page_seconds, slide_seconds,
                                      category_ids, sold_out, on_from, on_to, active, updated_at, updated_by,
-                                     layout, density, english, promo_mode, promo_every, promo_seconds)
+                                     layout, density, english, promo_mode, promo_every, promo_seconds, item_ids)
     values (v_id, v_kind,
             coalesce(nullif(btrim(p ->> 'name'), ''), old.name, v_id),
             coalesce((p ->> 'inches')::numeric, old.inches, 55),
@@ -253,7 +276,8 @@ begin
             coalesce(p ->> 'english', old.english, 'debajo'),
             coalesce(p ->> 'promo_mode', old.promo_mode, 'no'),
             coalesce((p ->> 'promo_every')::int, old.promo_every, 180),
-            coalesce((p ->> 'promo_seconds')::int, old.promo_seconds, 10))
+            coalesce((p ->> 'promo_seconds')::int, old.promo_seconds, 10),
+            case when p ? 'item_ids' then case when cardinality(its) > 0 then its end else old.item_ids end)
     on conflict (id) do update set
       name = excluded.name, inches = excluded.inches, distance_m = excluded.distance_m, turn = excluded.turn,
       scale_pct = excluded.scale_pct, look = excluded.look, page_seconds = excluded.page_seconds,
@@ -261,7 +285,8 @@ begin
       on_from = excluded.on_from, on_to = excluded.on_to, active = excluded.active,
       updated_at = excluded.updated_at, updated_by = excluded.updated_by,
       layout = excluded.layout, density = excluded.density, english = excluded.english,
-      promo_mode = excluded.promo_mode, promo_every = excluded.promo_every, promo_seconds = excluded.promo_seconds
+      promo_mode = excluded.promo_mode, promo_every = excluded.promo_every, promo_seconds = excluded.promo_seconds,
+      item_ids = excluded.item_ids
     returning * into new_row;
   exception when check_violation or invalid_text_representation or invalid_datetime_format or datetime_field_overflow
                  or numeric_value_out_of_range or invalid_parameter_value then
