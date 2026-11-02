@@ -4,7 +4,7 @@
    reads the day by cashier. Every device is its own browser context. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, settle, sql, openRegister, STAFF, PINS } = require('../lib');
 
 const ITEM = { sandwich: 'b0000000-0000-4000-8000-0000000000a1', latte: 'b0000000-0000-4000-8000-0000000000a2' };
 function testMenu() {
@@ -23,8 +23,10 @@ async function device(browser, station) {
   await pg.waitForFunction(() => document.querySelectorAll('.pbtn').length > 0, null, { timeout: 15000 });
   return pg;
 }
+/* every check of the mode answered first: a late answer opens the window again, and the person picked is lost */
 async function signInAndClockIn(pg, who, pin) {
   await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+  await settle(pg);
   await pg.locator('#opWho button', { hasText: who }).click();
   await pg.fill('#opPin', pin);
   await pg.click('#opGo');

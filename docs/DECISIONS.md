@@ -2613,4 +2613,12 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   the runner: the summary's page count depends on the browser's font by one page, so B24 checks 9 products in 3
   categories (2 pages here, ≤ 3 anywhere) and the owner reads the real count under the panel's preview. P21's regex
   missed «Pan de banano», the dictionary's name when the seed has no `name_es`.
+- **CI on c2d32d9 (2026-11-02):** every screens test passed on GitHub's runner; one POS test failed, `020_pos_save` ›
+  «a sale rung without internet…»: the Today window intercepted the first tap («#dayModal intercepts pointer
+  events»). It is the race D-054 (open PR #4) analysed: a test that goes offline before the POS's own load-time
+  checks are answered gets a POS that rightly behaves as offline. The POS and that test are untouched by the screens
+  work. PR #4's test-only part is ported here (`settle()` in `tests/e2e/lib.js`, called before going offline in 020,
+  080 M5, 310 and the live pages' offline sale, and before the sign-ins of 120 and 280); its `pos.html` change is not
+  (the screens release keeps every other page byte for byte the published one: `no-tocar`), and with `settle` those
+  tests pass on the published POS too (D-054). PR #4 keeps the POS fix for its own release.
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).

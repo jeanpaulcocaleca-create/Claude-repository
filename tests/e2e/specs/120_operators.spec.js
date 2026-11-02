@@ -1,7 +1,7 @@
 /* Who is ringing up (migration 0008): sign in with a PIN, every sale carries the operator, also offline. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, pos, cashExact, STAFF, PINS } = require('../lib');
+const { page, goto, until, settle, sql, pos, cashExact, STAFF, PINS } = require('../lib');
 
 async function ring(pg, method) {
   await pg.locator('.pbtn').first().click();
@@ -9,8 +9,10 @@ async function ring(pg, method) {
   if (/^cash/.test(method || 'card')) await cashExact(pg);
   if (await pg.locator('#numModal:not([hidden])').count()) await pg.click('#numNone');
 }
+/* every check of the mode answered first: a late answer opens the window again, and the person picked is lost */
 async function signIn(pg, who, pin) {
   await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+  await settle(pg);
   await pg.locator('#opWho button', { hasText: who }).click();
   await pg.fill('#opPin', pin);
   await pg.click('#opGo');
@@ -68,8 +70,11 @@ module.exports.tests = [
     run: async ({ browser, setOffline }) => {
       sql(`insert into settings (key, value) values ('operator_mode', '"record"')`);
       const pg = await pos(browser);
-      await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });   // the staff list is kept for offline use
+      await pg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+      await settle(pg);   // every check of the mode answered, and the staff list kept for offline use
       await pg.click('#opSkip');
+      await pg.waitForSelector('#opModal', { state: 'hidden', timeout: 5000 });
+      await pg.waitForSelector('#opBtn:not([hidden])', { timeout: 5000 });
       setOffline(true);
       await pg.evaluate(() => { Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); });
       await pg.click('#opBtn');
