@@ -2465,8 +2465,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     Manager's order into explicit columns (3, 4 or 5 landscape; 1 or 2 turned); every column starts with a title; a
     block that does not fit in what is left of a column is cut there and continues on top of the next column under
     its title with «(continúa)», only when both pieces keep two items or more, else it moves whole; each page is
-    filled again under the smallest height that still fits its columns (bisection), so the columns end at nearly the
-    same height and no column keeps a hole the next piece could have filled; the letter search (fewest pages at or
+    filled again under the smallest height that still fits its columns (bisection) without cutting a block the first
+    filling kept whole (CI showed a three-item block cut 1 + 2 to lower a column by 67 px), so the columns end at
+    nearly the same height and no column keeps a hole the next piece could have filled; the letter search (fewest pages at or
     over the minimum, then the largest letter up to 1.25× the target) now tries 3, 4 and 5 columns. `layout`
     (auto | una-pantalla | paginas: the same board, una-pantalla adds «NO CABE EN UNA PANTALLA AL MÍNIMO» to the
     diagnosis when it had to page), `density` compacta (titles 1.3×, lines 1.06, English 72 %, tighter paddings),
