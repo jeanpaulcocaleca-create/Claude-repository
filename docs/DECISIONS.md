@@ -2621,4 +2621,69 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   080 M5, 310 and the live pages' offline sale, and before the sign-ins of 120 and 280); its `pos.html` change is not
   (the screens release keeps every other page byte for byte the published one: `no-tocar`), and with `settle` those
   tests pass on the published POS too (D-054). PR #4 keeps the POS fix for its own release.
+- **CI on 83b3dcd (2026-11-02):** GitHub's «Tests» run 195 green (the whole suite: lint, no-touch, SQL, backups,
+  rehearsal, live pages, browser).
+- **The owner's technical approval and the activation guide (2026-11-03):** the owner approved the V2 technically on
+  these results and asked to see it working on the café's real 32" TVs before activating production, with the exact
+  steps for 0037, the initial configuration and the way back. Built (and then checked by a five-lens adversarial review of the guide against the code, every finding verified by a
+  skeptic; the confirmed ones fixed: the stage order, the anonymizer upload before the rehearsal, a complete-paste check
+  for 0037 and for its reversal, the reversal's files from the V2 tag, the TVs without on/off hours until the check, the
+  diagnosis lines as the TV writes them, the Menu Manager's «Disponible»/«Agotado» button, the two logins of the panel,
+  the full-screen and the test page put back after the visual test):
+  - `docs/ACTIVACION-PANTALLAS-V2.md`, the one guide for the V2 (the old guide's V2 section now points to it; its v1
+    sections are marked done, and their way back to `v2026.10.26-1` is flagged as wrong for the V2: it would remove the
+    screens). Stages: (0) a visual test on the real TVs without production; (1) «Tests», this version's
+    `anonimizar.sql` uploaded unconditionally (the pre-0037 rehearsal does not need it, every rehearsal after 0037 does,
+    the discounts' 0038 included), «Ensayo en pruebas» with only 0037 applied, then the tag and «Tests» on it the same
+    day (never 00:00–05:00, when three tag tests fail: nothing about the tag depends on production, so it leaves the
+    night window); (2) after closing, from 19:30 (not in the nightly backup window): «Respaldo nocturno» (the
+    workflow's real name; «Respaldo inmediato» was a description), the snapshot before with every device idle, 0037
+    with a check that the paste is complete and its three possible messages, `release-check.sql` with exact values,
+    the snapshot after with `functions_total` + 2 and the data fingerprint and `anon_can_run` unchanged; (3) a NEW
+    `sitio-AAAA-MM-DD` on gh-pages (the existing `sitio-2026-11-02` is the site before the screens), «Publish website»
+    with its real field labels, `version.json` with a fresh `?t=`; (4) the configuration field by field with the panel's real labels (both TVs at 32" and 3 m: the
+    promotions row also starts at 55"; Screen A compacta, «No se muestra: solo español», about 12 products, better in
+    at most 3 categories; the card still saying «Compacta» after saving proves 0037 is live); (5) the check on the TVs
+    with the real data before opening, the diagnosis read on the TV (the panel preview runs on the owner's device),
+    how to see a composition at night (its hours, or the TV's hours, widened for the check); (6) the way back.
+  - **The visual test without production:** a private page (https://claude.ai/artifact/HJDYiJ8PG285kUhwUo4Sib) with
+    the branch's `pantalla-menu.html` and `pantalla-promos.html` byte for byte except one line (`config.js` →
+    `prueba.js`, which answers the pages' two reads from a copy captured from the local test database with 0037: the
+    real menu, the menu TV at 32"/3 m compacta without English with 12 / 9 / all products, and the four compositions
+    of «Programación sugerida» clicked in the panel and resumed), placeholder photos, a chosen Costa Rica hour per slot,
+    full screen from a laptop on HDMI or the TV's browser. Measured there with the pages' real font (Figtree; the test
+    browser measures with Inter): 12 products in 5 categories = 3 pages, capital 2.48 cm; 9 in 3 = 2 pages, 2.40 cm;
+    the full menu = 10 pages (8 with Inter: «8 or more» in the docs stays true); no script error.
+  - **The way back proven:** `tests/rehearsal/LIVE_PAGES` named the v2026.10.26-1 build (fc827d8) although
+    v2026.11.02-1 (gh-pages 7d87c81) is live; it now names 7d87c81, so the rehearsal runs the live v1 screens, and a new
+    live-pages test saves a V2 composition and the V2 menu choices on the copy with 0037: v1 Screen B never shows the
+    composition (the brand, then a v1 product slide as before) and v1 Screen A ignores the summary and shows every
+    product with prices, without script or API errors (live pages 9/9). The figures after `reversion-0037.sql` were
+    computed, not run; run now on a copy of the rehearsal database with this version's files: after 0037,
+    `release-check` `migrations_missing` = `[]` and the snapshot `0036` = 7, `0037` = 8, total 327; after the reversal
+    `migrations_missing` = `[37]`, `0036` = 13, `0037` = 1 (`_screen_template_places` stays), total 326,
+    `functions_changed` = `functions_unknown` = `[]`. The reversal headers say so (`reversion-0037.sql` claimed a «last
+    migration» field the snapshot does not have; `reversion-0036.sql` said `[36]` where it is now `[36, 37]`).
+  - Docs: `docs/INSTALACION-TV.md` (the V2 prerequisite, the version in the diagnosis, the V2 controls for too many
+    pages, «NADA QUE MOSTRAR»), INFORME V2.11, PANTALLAS, MIGRACIONES (0037 row), E-40 (done: 0036 applied on
+    2026-11-01, v1 published on 2026-11-02), E-41, CHECKLIST.
+  - The owner first authorized the POS discounts to start once this stage was delivered; in a later message the same
+    day the order became: the visual test, the V2 activation, then the discounts (branch `claude/descuentos-caja`,
+    migration 0038), only when the owner says so. Not started.
+- **The owner's visual test and final adjustment (2026-11-03):** the owner ran the visual test on the café's 32" TVs,
+  was satisfied, kept the 12 featured products on Screen A (the full menu stays on the QR) and approved the V2 with one
+  last change: on Screen B no time-slot title (Desayuno, Almuerzo, Tarde, Cena) over the compositions, the slots still
+  switching them by the hour. Asked whether the brand line should then show alone on the top edge (the approved rule
+  for a composition without a kicker; on the café's 32" TVs it never showed, since it did not fit next to the title),
+  the owner chose «solo fotos». Built: a composition draws nothing over its zones, neither the kicker nor the brand
+  line, in Screen B and in Screen A's copy of the renderer (identical blocks); the kicker stays the composition's name
+  in the panel (its hint says it never shows on the TV); every other slide (product, brand, invitation) is unchanged.
+  Tests: P29 now asserts nothing over a composition with or without a kicker, at 3 m and 5 m; P30 (new) asserts the
+  slots still switch by the server's Costa Rica clock (06–10, 10–13, then a product slide at 13:30, which keeps its own
+  short line) with no slot title and no brand line on the screen; B21, P21 and P24 expect no kicker.
+  - The owner then authorized the activation once the change is validated and every test passes. The repository's
+    binding rules (CLAUDE.md, the owner's directives of 2026-10-12) keep publishing and the production database out of
+    Claude's hands, and Claude holds no production access: the owner runs `docs/ACTIVACION-PANTALLAS-V2.md` stages 1–5
+    and Claude checks each pasted result (release check, snapshots) and what can be read without the database (the
+    published gh-pages commit, `version.json`, CI's live-site check).
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).

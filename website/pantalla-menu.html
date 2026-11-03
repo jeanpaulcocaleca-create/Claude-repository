@@ -221,9 +221,6 @@ footer{display:flex;align-items:baseline;justify-content:space-between;gap:1em;b
 .zmarca .zmnombre{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.08;color:var(--gold);letter-spacing:.02em;text-wrap:balance}
 .zmarca .linea{width:22%;height:2px;margin:calc(var(--zp) * .5) auto;background:var(--gold);opacity:.55}
 .zmarca .lugar{font-weight:600;color:var(--soft);letter-spacing:.06em;line-height:1.2}
-/* the kicker of a composition: a line in the top right corner, over the zones */
-.zkick{position:absolute;z-index:3;background:rgba(8,16,10,.55);border-radius:99px;padding:.3em .9em;margin:0;text-shadow:0 1px 8px rgba(8,16,10,.6)}
-.k-composicion .sup{z-index:3}
 #stage.dia .zclara{--cream:#0F2618;--soft:#2F3F33;--gold:#7A4A00;--leaf:#2F6B3A}
 #stage.dia .zclara .fondo{background:#FFFBF1}
 #stage.dia .zclara .niebla{display:none}
@@ -1616,13 +1613,9 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
     var zs = el('div', 'zonas');
     vm.zonas.forEach(function (zv, i) { zs.appendChild(nuevaZona(zv, i, vm.zonas.length)); });
     sl.appendChild(zs);
-    var sup = el('div', 'sup', null, 's'); sup.appendChild(hoja()); sup.appendChild(document.createTextNode('Hanging Garden Café')); sl.appendChild(sup);
-    if (vm.kick[0]) {
-      var k = el('div', 'kick zkick', null, 'k');
-      k.appendChild(el('span', 'es', vm.kick[0]));
-      if (vm.kick[1]) k.appendChild(el('span', 'en', ' · ' + vm.kick[1]));
-      sl.appendChild(k);
-    }
+    /* nothing over the zones: no slot title and no brand line (the owner, 2026-11-03: the products and the photos speak
+       for themselves). The slot's name (the kicker) stays the composition's name in the panel; its hours still switch
+       the compositions */
     capa.textContent = ''; capa.appendChild(sl);
     ajustarComposicion(sl, vm);
     var zn = sl.querySelectorAll('.zona');
@@ -1636,9 +1629,6 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
      and labels in place; one whose entry can no longer show moves on; its clock goes on */
   function actualizarComposicion(sl, vm) {
     var zn = sl.querySelectorAll('.zona');
-    var kk = sl.querySelector('.zkick');
-    if (!!vm.kick[0] !== !!kk) { /* the kicker came or went: build again */ var capa = sl.parentNode; recordarZonas(capa); pararZonas(capa); capa.textContent = ''; construirComposicion(capa, vm, null); return; }
-    if (kk) { kk.textContent = ''; kk.appendChild(el('span', 'es', vm.kick[0])); if (vm.kick[1]) kk.appendChild(el('span', 'en', ' · ' + vm.kick[1])); }
     ajustarComposicion(sl, vm);
     for (var i = 0; i < zn.length; i++) {
       var z = zn[i]._z, zv = vm.zonas[i];
@@ -1647,8 +1637,8 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       aplicarCuadro(z, cuadroDeseado(z), 'fundido');
     }
   }
-  /* the places and the letters: each zone's box in px (a thin gap between zones), the brand line and the kicker
-     in the corners, and each zone's letters for the distance (fitted inside the zone) */
+  /* the places and the letters: each zone's box in px (a thin gap between zones) and each zone's letters for the
+     distance (fitted inside the zone) */
   function ajustarComposicion(sl, vm) {
     var n = vm.zonas.length, lug = lugaresDe(vm.plantilla, n), sep = Math.max(1, Math.round(0.002 * Math.min(anchoE, altoE)));
     var zn = sl.querySelectorAll('.zona'), zonas = [];
@@ -1663,28 +1653,7 @@ window.HG_SAFE_TO_RELOAD = function () { return true; };
       ajustarZona(z);
       zonas.push({ grande: z.grande, k: z.k, cabe: z.cabe });
     }
-    var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100, pad = Math.round(0.03 * Math.min(anchoE, altoE));
-    /* the brand line (top left) and the kicker (top right) share the top edge: on a small TV read from far (the café's
-       32" from 3 m) they do not fit side by side at their sizes. Both shrink together, to 0.85 at most; then the brand
-       line goes (the TV's frame says it anyway) and the kicker, the slot's name, alone, takes the largest of 1, 0.85,
-       0.72 and 0.6 that fits; only a kicker that does not fit even at 0.6 goes too. Without a kicker the brand line,
-       alone, takes the largest of 1, 0.85, 0.72 and 0.6 that fits, and only goes when it does not fit even at 0.6 */
-    var sup = sl.querySelector('.sup'), kk = sl.querySelector('.zkick'), juntas = kk ? [1, 0.85] : [1, 0.85, 0.72, 0.6], sola = [1, 0.85, 0.72, 0.6], libre = anchoE - 2 * pad, e;
-    var letra = function (nodo, f, s) { nodo.style.fontSize = (f * s * base * pxCm / proporcion(nodo)) + 'px'; };
-    sup.style.display = ''; sup.style.left = pad + 'px'; sup.style.top = pad + 'px';
-    if (kk) { kk.style.display = ''; kk.style.right = pad + 'px'; kk.style.top = pad + 'px'; }
-    for (e = 0; e < juntas.length; e++) {
-      letra(sup, FACT.s, juntas[e]);
-      if (kk) letra(kk, FACT.k, juntas[e]);
-      if (sup.scrollWidth + (kk ? kk.scrollWidth + pad : 0) <= libre) break;
-    }
-    if (e === juntas.length) {
-      sup.style.display = 'none';
-      if (kk) {
-        for (e = 0; e < sola.length; e++) { letra(kk, FACT.k, sola[e]); if (kk.scrollWidth <= libre) break; }
-        if (e === sola.length) kk.style.display = 'none';
-      }
-    }
+    var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100;
     var kmin = 1, cabe = true;
     zonas.forEach(function (q) { kmin = Math.min(kmin, q.k); cabe = cabe && q.cabe; });
     medidas = { pxPorCm: pxCm, base: base, titulo: null, k: kmin, envuelto: false, cabe: cabe, qrCm: null, qrMinCm: null, qrModulos: null, qrPequeno: false,

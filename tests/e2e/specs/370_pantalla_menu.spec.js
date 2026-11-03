@@ -1342,7 +1342,8 @@ module.exports.tests = [
       await until(async () => { const z = await zonasPromo(pg); return z && z.zonas.every((x) => x.estado === 'entrada' && x.capas.filter((k) => k.on).length === 1 && x.capas.every((k) => !k.entra && !k.sale)); }, 4000, 'its zones up');
       let z = await zonasPromo(pg);
       const a = z.zonas[0], b = z.zonas[1];
-      assert.deepStrictEqual([z.template, z.zonas.length, z.kick, z.sup, (await promoVista(pg)).kind], ['2-lado', 2, 'Desayuno · Breakfast', 'Hanging Garden Café', 'composicion'], JSON.stringify(z));
+      assert.deepStrictEqual([z.template, z.zonas.length, z.kick, z.sup, (await promoVista(pg)).kind], ['2-lado', 2, null, null, 'composicion'],
+        'nothing over the zones: no slot title (its kicker «Desayuno») and no brand line (the owner, 2026-11-03): ' + JSON.stringify(z));
       assert.deepStrictEqual([a.modo, a.tamano, a.tit, a.titEn, digits(a.precio), a.nota, a.src, a.encuadre],
         ['fija', 'grande', 'Pan de banano casero', 'Banana Bread', 1500, null, 'https://fotos.test/banana.png', ['20% 80%', 'scale(1.5)']], 'the live name and price, the photo framed: ' + JSON.stringify(a));
       assert.ok(/^₡1\s?500$/.test(a.precio), 'the price as on the menu: ' + a.precio);

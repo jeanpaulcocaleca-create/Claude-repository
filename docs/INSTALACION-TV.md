@@ -2,12 +2,13 @@
 
 Hay dos TV nuevas:
 - **Pantalla A:** el menú con precios.
-- **Pantalla B:** productos, marca e invitaciones.
+- **Pantalla B:** productos, composiciones de 1 a 4 zonas, marca e invitaciones.
 
 Cada una abre una página del sitio del café en su navegador. No hace falta ninguna app, cuenta ni servicio nuevo.
 
-> **Antes de ir al café:** el dueño ya publicó las páginas nuevas y aplicó la migración 0036
-> (`docs/ACTIVACION-PANTALLAS.md`, pasos 1 a 3). Si no, la TV no encuentra la página.
+> **Antes de ir al café:** las páginas de las pantallas están publicadas (la v1 desde `v2026.11.02-1`). Para la V2, el
+> dueño aplicó la 0037 y publicó la V2 (`docs/ACTIVACION-PANTALLAS-V2.md`, etapas 2 y 3); sin la V2, la TV muestra la
+> v1 y la ficha no tiene «Productos que muestra», «Densidad» ni «Inglés». Las direcciones de las TV no cambian.
 
 ## 1. Montaje
 
@@ -55,17 +56,20 @@ La TV toma el cambio sola en menos de un minuto.
 ## 4. Comprobar con el diagnóstico
 
 1. Agregue `&diag=1` al final de la dirección, por ejemplo
-   `https://hanginggardencafe.com/pantalla-menu?tv=menu-1&diag=1`.
+   `https://hanginggardencafe.com/pantalla-menu?tv=menu-1&diag=1`, y presione **OK** en el control (pantalla completa, sin
+   la barra del navegador) antes de leer el cuadro: sin pantalla completa las páginas y la letra salen distintas.
 2. Abajo a la derecha aparece un cuadro con:
    - la TV y sus ajustes, y de dónde salen;
    - la mayúscula en centímetros (con su mínimo);
    - las páginas;
    - el estado de los precios y la edad de la última lectura;
-   - la versión.
+   - la versión («Versión»: con la v1, `3273743dcbe0`; con la V2, los 12 primeros caracteres del commit publicado, que
+     también dice `https://hanginggardencafe.com/version.json`).
 3. Debe decir **Precios: al-dia**. En la Pantalla A, desde la v2 también dice **«cabe en una pantalla: sí/no»** con la
    letra como % de la meta: si dice «no», la TV pagina (nunca achica la letra bajo el mínimo); el dueño puede elegir en
    `pantallas.html` la densidad compacta, el inglés en línea o solo español, o menos categorías para esa TV.
-4. Abra otra vez la dirección **sin** `&diag=1`. El cuadro no debe quedar a la vista de los clientes.
+4. Abra otra vez la dirección **sin** `&diag=1` y presione **OK** otra vez: la TV debe quedar en pantalla completa. Ni el
+   cuadro ni la barra del navegador deben quedar a la vista de los clientes.
 
 ### 4.1 Las TV de 32 pulgadas del café
 Las dos TV reales miden 32" (70,8 × 39,8 cm). A esa medida el menú completo **nunca cabe en una pantalla legible**: la
@@ -86,9 +90,10 @@ menú real: a 1,5 m, 3 páginas (2 con densidad compacta y sin inglés); a 2 m, 
 ## 5. Prueba de letra en el lugar
 
 1. Párese en el punto **más lejano** desde donde un cliente debe leer.
-2. Si cuesta leer los precios, el dueño sube **Escala de letra** en `pantallas.html` (110 %, 120 %…).
-3. Si la Pantalla A queda con demasiadas páginas, el dueño elige qué **categorías** muestra esa TV. Lo demás queda en el
-   menú QR.
+2. Si cuesta leer los precios, el dueño sube **Escala de letra** en `pantallas.html` (110 %, 120 %…). Sube también la
+   letra mínima, así que da más páginas.
+3. Si la Pantalla A queda con demasiadas páginas, el dueño elige menos **Productos que muestra** (o menos categorías),
+   **Densidad** compacta e **Inglés** «No se muestra: solo español». Lo demás queda en el menú QR.
 
 ## 6. Pruebas de aceptación (anótelas para el dueño)
 
@@ -113,8 +118,8 @@ cuesta una licencia y solo se compra si él la aprueba (su condición 6). No ins
 | Pantalla negra | Está fuera del **horario** de esa TV, o el dueño la desmarcó como **Activa** (las dos cosas en `pantallas.html`), o la TV no tiene corriente |
 | Solo «Hanging Garden Café · Monteverde» en la Pantalla B | No hay diapositivas vigentes para esa TV, o no hay internet desde que encendió |
 | La imagen sale de lado | Cambie **Posición** en `pantallas.html` |
-| Letra pequeña o páginas de más | **Escala de letra**, **Distancia**, **Tamaño**, **Categorías**, **Densidad** o **Inglés** en `pantallas.html` |
-| Una zona de la Pantalla B muestra la hoja y el nombre del café | Esa zona no tiene nada que mostrar ahora (productos agotados o sin precio) y no tiene foto de respaldo: el dueño la revisa en `pantallas.html` |
+| Letra pequeña o páginas de más | **Escala de letra**, **Distancia de lectura**, **Tamaño**, **Productos que muestra**, **Categorías que muestra**, **Densidad** o **Inglés** en `pantallas.html` |
+| Una zona de la Pantalla B muestra la hoja y el nombre del café | Esa zona no tiene nada que mostrar ahora (productos agotados o sin precio, o, sin nombres ni precios, productos sin foto) y no tiene foto de respaldo: el dueño la revisa en `pantallas.html` (la lista dice «NADA QUE MOSTRAR») |
 | La página de error de GitHub («404 · File not found») | La dirección está mal escrita, o las páginas no se han publicado |
 | Pide OK cada vez que enciende | Es normal en el navegador de la TV; anótelo para el dueño (ver la prueba del corte de luz) |
 

@@ -1,64 +1,19 @@
-# Activación de las pantallas para los clientes (D-062, migración 0036) · E-40
+# Activación de las pantallas para los clientes (D-062, migración 0036) · E-40 · hecha
 
 Esta guía la sigue el dueño. Claude la preparó y la probó en desarrollo; **no aplicó nada en producción ni publicó
 nada**.
 
-## Versión 2 (D-064, 2026-11-02): qué cambia y cómo se activa · E-41
+## Versión 2 (D-064): se activa con su propia guía · E-41
 
-La v1 ya está publicada (`v2026.11.02-1`) y la 0036 aplicada. La v2 cambia solo los cuatro archivos de las pantallas y
-agrega la migración **0037** (aditiva; la 0036 **no se vuelve a pegar**).
+La V2 (las cuatro páginas de las pantallas y la migración **0037**) se activa con **`docs/ACTIVACION-PANTALLAS-V2.md`**:
+la prueba visual en las TV reales sin tocar producción, la preparación, la 0037 con sus comprobaciones exactas, la
+publicación, la configuración inicial para las TV de 32" a 3 m, la verificación en las TV y la vuelta atrás. Úsela a
+ella; lo que sigue en este archivo es la activación de la **v1** (D-062), **ya hecha**: la 0036 se aplicó el 2026-11-01
+y la v1 se publicó como `v2026.11.02-1`.
 
-**Qué trae**
-- **Pantalla A:** cada categoría es un bloque con su título arriba (nunca un título entre productos de otra); columnas
-  equilibradas; el menú completo en **una pantalla** siempre que la letra quede en o sobre el mínimo (0,8 cm por metro),
-  y páginas solo cuando no cabe. Por TV: distribución (auto · una pantalla · páginas), densidad (normal · compacta),
-  inglés (debajo · en línea · no), los **productos que muestra** (el menú resumido para las TV de 32" a 3 m: nada
-  marcado = todos los de las categorías elegidas) y, si quiere, **promociones intercaladas** (cada N s, durante M s) o solo menú.
-- **Pantalla B:** **composiciones** de 1 a 4 zonas (plantillas: 1, dos lados, grande + dos, cuadrícula, centro = izquierda
-  grande, centro dos apiladas, derecha grande). Cada zona es una **foto fija** o una **presentación propia** (su lista
-  ordenada de productos o fotos, sus segundos, nombres y precios del menú en vivo o no, una foto de respaldo). Franjas
-  por días y horas de Costa Rica, como las diapositivas.
-- **Gestión (`pantallas.html`):** editor visual de composiciones (plantilla, zonas, productos y fotos, encuadre y zoom,
-  orden), **vista previa fiel** (la página real de la TV) antes de guardar, y **«Programación sugerida»**: crea cuatro
-  composiciones **pausadas** (desayuno 06–10, almuerzo 10–13, tarde 13–17, cena 17–19) con productos del menú por
-  nombre y **sin nombres ni precios** (los activa por ventana en el editor), para que usted las revise, las ajuste y las active.
-- Lo que no cambia: precios solo del menú (nunca escritos), vigencia obligatoria, PIN de dueño, registro inmutable,
-  frescura (2 / 10 min), sin conexión, Caja, Cocina, Contabilidad, menú QR y TV actual (lo comprueba «no tocar»).
-
-**Pasos (en este orden)**
-1. «Tests» en verde en el commit de D-064 (el informe dice cuál).
-2. **«Ensayo en pruebas»** en verde con esa versión, reinicio = no. (`anonimizar.sql` de esta versión conoce las
-   columnas nuevas; súbalo a `canopy-respaldos` como en E-38 si el ensayo lo pide.)
-3. **«Respaldo inmediato»** en verde.
-4. Supabase → SQL Editor → New query → pegar **todo** `supabase/migrations/0037_pantallas_v2.sql` → Run → *Success*.
-   Una sola vez. No pegue la 0036.
-5. `release-check.sql`: `migrations_missing` = `[]` (serie hasta la 37), `functions_missing` = `[]`, `anon_can_run`
-   sin cambios (solo `pantalla_datos` nueva desde la 0036), `storage_policies_missing` = `[]`.
-6. `production-snapshot.sql`: `functions_unknown` = `[]`, `functions_changed` = `[]`, `functions_by_version` con
-   `0036` = 7 y `0037` = 8 (la 0037 vuelve a crear seis funciones de la 0036, que la huella cuenta bajo la 0037),
-   `tables_missing` = `[]`. Hasta publicar, las TV siguen igual: las páginas v1 ignoran los
-   campos nuevos y no muestran composiciones.
-7. Releases → `sitio-AAAA-MM-DD` sobre **gh-pages**; luego `vAAAA.MM.DD-1` sobre la rama con el commit de D-064;
-   «Tests» en verde sobre la etiqueta; **Publish website** desde la etiqueta con `PUBLICAR`; `version.json` muestra
-   la etiqueta y ese commit; Caja, Cocina y TV actual cargan como siempre.
-8. En `pantallas.html` con su PIN: **Pantalla A** → para las TV de 32" a 3 m: **Pulgadas 32** y **Distancia 3** (las filas
-   nacen con 55"), **Densidad compacta**, **Inglés no**,
-   **Productos que muestra** con unos 12 productos (3 páginas de 28 s; 8–10 en 2–3 categorías para 2 páginas; los demás siguen en el menú QR); distribución y
-   promociones; «Vista previa» (debajo dice las páginas y la letra que calcula la TV, o «NO CABE»).
-   **Diapositivas** → «Programación sugerida» → revise cada composición (zonas, productos, fotos, encuadre), «Vista
-   previa en la TV», guarde y **reanude** las que quiera en pantalla. Las diapositivas de la v1 siguen como estaban.
-9. Aceptación en las TV: desde el punto más lejano se leen 5 precios; la Pantalla A muestra una pantalla o páginas según
-   la letra (el diagnóstico `&diag=1` dice «cabe en una pantalla: sí/no»); en la Pantalla B cada zona cambia a su ritmo
-   sin negros; un producto marcado «Agotado» sale de su zona en menos de 1 minuto; sin internet, los precios siguen las
-   mismas reglas de siempre.
-
-**Vuelta atrás**
-- Las páginas: Publish website desde **Tags → `v2026.11.02-1`**. La base se queda en la 0037: las páginas v1 funcionan con
-  ella (los campos nuevos sobran y las dos TV ignoran una composición; el panel v1 la lista con rótulos vacíos y la
-  cuenta como «en pantalla»: antes de volver a la v1, pause o retire las composiciones desde el panel v2).
-- La base (solo por una falla de una función de la 0037): `supabase/tools/reversion-0037.sql` completo. Vuelve las
-  funciones a la 0036 y deja las columnas y las filas; las composiciones guardadas quedan, sin mostrarse, hasta volver a
-  aplicar la 0037.
+> **No use la sección 7 de abajo para volver atrás de la V2.** Su «publicar `v2026.10.26-1`» es la vuelta atrás de la
+> v1 y hoy quitaría las dos pantallas (las TV mostrarían el error 404 de GitHub). La vuelta atrás de la V2 es
+> `v2026.11.02-1`, como dice la guía nueva (§6).
 
 ---
 

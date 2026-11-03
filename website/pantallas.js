@@ -1195,13 +1195,14 @@
     $('edCompo').hidden = !compo;
     $('edPhotoBox').hidden = compo;                     /* a composition's photos live in its zones */
     /* a product slide always shows the menu's name (so it matches the till): no title to type; a composition has no
-       title nor text at all (only the short line above, optional) */
+       title nor text at all, and its short line above is only its name in this panel: the TV shows nothing over the
+       zones (the owner, 2026-11-03) */
     $('pair-title').hidden = k === 'producto' || compo;
     $('pair-body').hidden = compo;
     if (k === 'producto' || compo) { ED.texts.title_es = ''; ED.texts.title_en = ''; $('ed-title_es').value = ''; $('ed-title_en').value = ''; }
     if (compo) { ED.texts.body_es = ''; ED.texts.body_en = ''; $('ed-body_es').value = ''; $('ed-body_en').value = ''; }
     $('edTitleHint').textContent = k === 'producto' ? 'El título es el nombre del producto en el menú, como lo cobra la Caja.'
-      : compo ? 'Una composición no lleva título ni texto: solo la línea corta de arriba, si quiere, sobre las zonas.'
+      : compo ? 'Una composición no lleva título ni texto en la TV: la línea corta de arriba es solo su nombre en este panel (no sale en la pantalla).'
       : 'El título en español es obligatorio.';
     if (compo) renderCompo();
     renderPicker(); renderPhoto(); checkTexts();

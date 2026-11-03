@@ -5,7 +5,7 @@
    5) read from a distance: big prices, little else, nothing outside the screen;
    6) nothing new: the site, the public key and the TV's browser; nothing stored on the device;
    7) combos and discounts never announced (the till's helpers never show).
-   P1-P17: the slides of 0036. P18-P29: the compositions of 0037 (templates, independent presentations, labels and
+   P1-P17: the slides of 0036. P18-P30: the compositions of 0037 (templates, independent presentations, labels and
    live prices, what cannot show, the dwell, the owner's preview, the dissolve, photos that hang or fail, the turns
    across stays, the café's 32" TV read from 3 m).
    Slides are written straight into the test database (as its superuser): pantallas.html, which writes them for the
@@ -866,8 +866,8 @@ module.exports.tests = [
           area += x.box[2] * x.box[3];
         });
         assert.ok(area >= 0.985 * W * H, `${t}: the zones fill the screen (${(100 * area / (W * H)).toFixed(1)} %)`);
-        assert.ok(/Hanging Garden Café/.test(z.sup || ''), t + ': the brand line on top');
-        assert.ok(!/₡|\d/.test(z.text), t + ': photos only, no text: ' + z.text);
+        assert.ok(z.sup === null && z.kick === null, t + ': nothing over the zones, no brand line and no slot title (the owner, 2026-11-03)');
+        assert.ok(!/₡|\d|Hanging Garden/.test(z.text), t + ': photos only, no text: ' + z.text);
       }
       const m = (await info(pg)).medidas;
       assert.ok(m.cabe && m.k === 1 && m.plantilla === '4-centro' && m.zonas.length === 4, JSON.stringify(m));
@@ -978,7 +978,7 @@ module.exports.tests = [
       assert.deepStrictEqual([...vistas].sort(), [0, 1], 'the two products take turns; the till helper never');
       assert.ok(!m1.some((x) => /Flavor|Combo/i.test(x.z.text)), 'never a till helper');
       assert.ok(cambios(m1, 0).length >= 2);
-      assert.strictEqual((await zonas(pg)).kick, 'Desayuno · Breakfast');
+      assert.deepStrictEqual([(await zonas(pg)).kick, (await zonas(pg)).sup], [null, null], 'no slot title (its kicker «Desayuno») and no brand line over the zones (the owner, 2026-11-03)');
       let d = await diag(pg);
       assert.ok(/Composición: plantilla 2-lado · 2 zonas/.test(d) && /Zona 1: presentación cada 4 s · 2 de 3 entradas con qué mostrar · con nombres y precios · muestra la [12] \((Pan de banano casero|Pan de banano|Banana Bread|Latte), precio\)/.test(d)
                 && /Zona 2: foto fija · 1 de 1 entrada con qué mostrar · con nombres y precios · muestra la 1 \((Tea|Té), precio\)/.test(d), d);
@@ -1103,7 +1103,7 @@ module.exports.tests = [
       await until(async () => { const z = await zonas(frame); return z && z.zonas.every((x) => x.estado === 'entrada'); }, 6000, 'its zones up');
       let z = await zonas(frame);
       assert.deepStrictEqual([z.template, z.zonas.length, z.kick, z.zonas[1].tit, z.zonas[1].titEn, z.zonas[2].tit, z.zonas[2].titEn, z.zonas[3].tit, z.zonas[3].titEn],
-        ['4-centro', 4, 'Desayuno · Breakfast', 'Latte frío', 'Iced Latte', 'Latte', null, 'Jamón y queso', 'Ham & Cheese'], 'Spanish first (the site\'s dictionary), English below: ' + JSON.stringify(z.zonas.map((x) => [x.tit, x.titEn])));
+        ['4-centro', 4, null, 'Latte frío', 'Iced Latte', 'Latte', null, 'Jamón y queso', 'Ham & Cheese'], 'Spanish first (the site\'s dictionary), English below: ' + JSON.stringify(z.zonas.map((x) => [x.tit, x.titEn])));
       assert.ok(/^₡2\s?200$/.test(z.zonas[2].precio) && z.zonas[1].src === null && z.zonas[0].src === 'https://fotos.test/croissant.png', 'the live prices and photos the panel read: ' + JSON.stringify(z.zonas));
       i = await frame.evaluate(() => PANTALLA_B.info());
       assert.deepStrictEqual([i.preview, i.estado, i.visibles, i.intentos, i.buenas], [true, 'al-dia', [c], 0, 0]);
@@ -1335,7 +1335,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'P29: a small zone that cannot hold the name, its English and the price at the distance\'s letter drops the English first and keeps the name and the price at full size; a zone where everything fits keeps the English, also on the layer that hid it for a long name; without a kicker the brand line shrinks before it goes',
+    name: 'P29: a small zone that cannot hold the name, its English and the price at the distance\'s letter drops the English first and keeps the name and the price at full size; a zone where everything fits keeps the English, also on the layer that hid it for a long name; nothing over a composition\'s zones (no slot title, no brand line: the owner, 2026-11-03), with or without a kicker and at any distance',
     run: async ({ browser }) => {
       /* names whose Spanish and English differ, set here (the test does not lean on the site's dictionary) */
       sql(`update public.menu_items set name_es = 'Té' where name = 'Tea';
@@ -1356,7 +1356,7 @@ module.exports.tests = [
       const pg = await pantalla(browser, { q: '?tv=promos-1&pulgadas=32&distancia=3&diag=1', test: { diapositiva: 600000, permanencia: 600000, zona: 300, fundido: 100, revisar: 150 } });
       const pxCm = 1920 / LARGO_CM(32), tol = 1;   /* 1 px */
       const ZT = { grande: 1.0, pequena: 0.8 }, ZTE = 0.64 / 0.8, ZP = 1.2;   /* ZFACT: the name per metre, the English 0.8 x it, the price 1.2 x it */
-      /* each zone's front layer at rest: its texts, shown or not, and their capitals in px; the brand line and the kicker */
+      /* each zone's front layer at rest: its texts, shown or not, and their capitals in px; anything over the zones */
       const leer = () => pg.evaluate(() => {
         const cx = document.createElement('canvas').getContext('2d');
         const cap = (e) => { const cs = getComputedStyle(e); cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily; return cx.measureText('H').actualBoundingBoxAscent; };
@@ -1415,15 +1415,13 @@ module.exports.tests = [
       /* the diagnosis names the zone that dropped its English, and not the one that kept it */
       const lineas = (await diag(pg)).split('\n'), linea = (n) => lineas.find((l) => l.indexOf('Zona ' + n + ':') === 0) || '';
       assert.ok(/\(Té, precio\)$/.test(linea(1)) && /\(Té, precio\) · sin inglés \(no cabe\)$/.test(linea(2)) && /\(Latte frío, precio\) · sin inglés \(no cabe\)$/.test(linea(3)), lineas.join('\n'));
-      /* the top edge of the same TV: the brand line and the kicker do not fit side by side even at 0.85, so the brand line
-         goes and the kicker, alone, keeps the distance's full letter (0.8 cm per metre) */
-      assert.ok(!v.sup, 'the brand line gives way on the 32" TV from 3 m: ' + txt);
-      assert.ok(v.kick && v.kick.t === 'Desayuno · Breakfast' && v.kick.dentro && !v.kick.cortado, 'the kicker shown, inside the screen: ' + JSON.stringify(v.kick));
-      assert.ok(v.kick.cap >= 0.8 * 3 * pxCm - tol, `the kicker at ${(v.kick.cap / pxCm).toFixed(2)} cm, the distance's letter is ${(0.8 * 3).toFixed(2)} cm`);
+      /* the top edge: nothing over the zones, neither the slot title (this composition's kicker is «Desayuno») nor the
+         brand line (the owner, 2026-11-03) */
+      assert.ok(!v.sup && v.kick === null && !txt.includes('Desayuno') && !txt.includes('Breakfast'), 'no slot title and no brand line: ' + txt);
       assert.ok(onlyReads(pg));
       assert.deepStrictEqual(pg.errors, []);
-      /* a composition WITHOUT a kicker: the brand line has the top edge to itself; it takes the largest of 1, 0.85, 0.72
-         and 0.6 of the distance's letter (0.8 cm per metre) that fits, and goes only when it does not fit even at 0.6 */
+      /* a composition WITHOUT a kicker, near and far: still nothing over the zones (the brand line no longer takes the
+         top edge) */
       const sk = compo({ template: '1', zones: [{ entries: [{ item: 'Tea', photo: 'https://fotos.test/te.png' }] }] });
       const marcaSola = async (dist) => {
         const p2 = await pantalla(browser, { q: `?tv=promos-1&pulgadas=32&distancia=${dist}&diag=1`, test: { diapositiva: 600000, permanencia: 600000, zona: 300, fundido: 100, revisar: 150 } });
@@ -1442,18 +1440,46 @@ module.exports.tests = [
         assert.deepStrictEqual(p2.errors, []);
         return Object.assign(b, { letra: 0.8 * dist * pxCm });
       };
-      const libre = 1920 - 2 * Math.round(0.03 * 1080);   /* the top edge less the margins */
-      /* the café's 32" from 3 m: alone, the brand line fits at the full letter (about 1500 px of the 1856 free), so it
-         shows unshrunk; it is the kicker that sends it away (above) */
-      const m3 = await marcaSola(3);
-      assert.ok(!m3.kick && m3.vis && m3.t === 'Hanging Garden Café' && m3.dentro && m3.ancho <= libre, 'without a kicker the brand line shows on the 32" TV from 3 m: ' + JSON.stringify(m3));
-      assert.ok(m3.cap >= m3.letra - tol, `the brand line at ${(m3.cap / pxCm).toFixed(2)} cm, the distance's letter is ${(m3.letra / pxCm).toFixed(2)} cm: ` + JSON.stringify(m3));
-      /* the same TV from 5 m: the brand line does not fit even at 0.85, but it does at 0.72 or 0.6: it shrinks and stays
-         (it used to go as soon as 0.85 failed) */
-      const m5 = await marcaSola(5);
-      assert.ok(!m5.kick && m5.vis && m5.t === 'Hanging Garden Café' && m5.dentro && m5.ancho <= libre, 'without a kicker the brand line shrinks, not hidden, on the 32" TV from 5 m: ' + JSON.stringify(m5));
-      assert.ok(m5.cap >= 0.6 * m5.letra - tol && m5.cap <= 0.72 * m5.letra + tol,
-        `the brand line at ${(m5.cap / m5.letra).toFixed(2)} of the distance's letter (0.72 or 0.6 expected): ` + JSON.stringify(m5));
+      for (const dist of [3, 5]) {
+        const m = await marcaSola(dist);
+        assert.ok(!m.kick && !m.vis && m.t === null, 'nothing over the zones of a composition without a kicker on the 32" TV from ' + dist + ' m: ' + JSON.stringify(m));
+      }
+    }
+  },
+  {
+    name: 'P30: the owner\'s last V2 adjustment (2026-11-03): the time slots still switch the compositions by the server\'s Costa Rica clock (Desayuno 06–10, Almuerzo 10–13), but no slot title and no brand line ever shows over a composition; a product slide keeps its own short line above',
+    run: async ({ browser }) => {
+      const span = { starts: "now() - interval '20 days'", ends: "now() + interval '20 days'" };
+      const zona = (item, foto) => ({ entries: [{ item: item, photo: foto }] });
+      const des = compo(Object.assign({ template: '1', kicker_es: 'Desayuno', kicker_en: 'Breakfast', from: '06:00', to: '10:00', sort: 1,
+        zones: [zona('Tea', 'https://fotos.test/te.png')] }, span));
+      const alm = compo(Object.assign({ template: '2-lado', kicker_es: 'Almuerzo', kicker_en: 'Lunch', from: '10:00', to: '13:00', sort: 2,
+        zones: [zona('Latte', 'https://fotos.test/latte.png'), zona('Banana Bread', 'https://fotos.test/banana.png')] }, span));
+      const prod = diapo(Object.assign({ kind: 'producto', item: 'Latte', kicker_es: 'Recién hecho', kicker_en: 'Freshly made', from: '13:00', to: '17:00', sort: 3 }, span));
+      let base = enCR(1, 9, 58), t0 = Date.now();
+      const pg = await pantalla(browser, { q: '?tv=promos-1&pulgadas=32&distancia=3',
+        test: { cada: 500, revisar: 200, diapositiva: 600000, permanencia: 600000, zona: 300, fundido: 100 }, setup: relojServidor(() => base + Date.now() - t0) });
+      /* the slide on screen, everything drawn over it included (the other layer only holds the slide before) */
+      const encima = () => pg.evaluate(() => {
+        const sl = document.querySelector('#stage .capa.on .sl');
+        return { id: sl ? sl.dataset.id : null, kind: sl ? sl.dataset.kind : null, sup: !!(sl && sl.querySelector('.sup')), kick: !!(sl && sl.querySelector('.kick, .zkick')),
+                 text: sl ? sl.innerText : '' };
+      });
+      const enFranja = async (wd, h, m, id, what) => {
+        base = enCR(wd, h, m); t0 = Date.now();
+        await until(async () => { const i = await info(pg); return i.horaCR === hhmm(h * 60 + m) && i.actual === id; }, 10000, what);
+        await sleep(400);
+        return encima();
+      };
+      for (const [h, m, id, what] of [[9, 58, des, 'Monday 09:58, breakfast'], [10, 0, alm, 'Monday 10:00, lunch'], [12, 59, alm, 'Monday 12:59, still lunch']]) {
+        const e = await enFranja(1, h, m, id, what);
+        assert.deepStrictEqual([e.id, e.kind, e.sup, e.kick], [id, 'composicion', false, false], what + ': the composition, nothing over its zones: ' + JSON.stringify(e));
+        assert.ok(!/Desayuno|Breakfast|Almuerzo|Lunch|Hanging Garden/i.test(e.text), what + ': no slot title and no brand line on the screen: ' + JSON.stringify(e.text));
+      }
+      const e = await enFranja(1, 13, 30, prod, 'Monday 13:30, the product slide');
+      assert.ok(e.kind === 'producto' && e.kick && e.sup && /Recién hecho/i.test(e.text), 'a product slide keeps its own short line above (drawn in capitals) and its brand line: ' + JSON.stringify(e));
+      assert.ok(onlyReads(pg));
+      assert.deepStrictEqual(pg.errors, []);
     }
   },
 ];

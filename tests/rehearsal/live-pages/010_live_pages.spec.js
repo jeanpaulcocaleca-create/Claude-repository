@@ -275,5 +275,57 @@ module.exports.tests = [
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
     }
+  },
+  {
+    name: 'the live customer screens (v1, when the build has them) on the copy with 0037 and V2 data saved, the way back from Pantallas V2 (docs/ACTIVACION-PANTALLAS-V2.md §6): Screen B never shows a composition (the brand, or a v1 slide in force, as before), Screen A ignores the V2 choices (the summarized menu, density, English) and shows every product of its categories with live prices',
+    run: async ({ browser }) => {
+      const fs = require('fs'), path = require('path');
+      const root = process.env.E2E_SITE_ROOT || '';
+      if (!fs.existsSync(path.join(root, 'pantalla-promos.html')) || !fs.existsSync(path.join(root, 'pantalla-menu.html'))) {
+        console.log('    (this build has no customer screens: nothing to check)'); return;
+      }
+      if (sql(`select count(*) from canopy.migrations where version = 37`) !== '1') { console.log('    (0037 is not on this copy: nothing to check)'); return; }
+      const items = JSON.parse(sql(`select json_agg(json_build_object('id', i.id, 'name', i.name) order by c.sort, i.sort, i.name)
+                                       from public.menu_items i join public.menu_categories c on c.id = i.category_id
+                                      where i.available and i.price_crc > 0 and c.name <> 'Extras & Combos'`));
+      assert.ok(items.length >= 2, 'the copy sells at least two products');
+      /* what the V2 panel saves: a composition in force on every TV, and the summarized menu with the 32" choices */
+      const zones = JSON.stringify([{ mode: 'fija', seconds: 8, labels: true, fallback: null, entries: [{ item: items[0].id, photo: null, focus: [50, 50], zoom: 100 }] }]);
+      const compo = sql(`with x as (insert into public.screen_slides (kind, template, zones, kicker_es, kicker_en, starts_at, ends_at, sort, status)
+        values ('composicion', '1', '${zones}'::jsonb, 'Composición V2', 'V2 composition', now() - interval '1 hour', now() + interval '1 day', 10, 'activa') returning id) select id from x`);
+      sql(`update public.screens set item_ids = array['${items[0].id}']::uuid[], density = 'compacta', english = 'no' where id = 'menu-1'`);
+      assert.strictEqual(sql(`select (public.pantalla_datos('promos-1') -> 'slides' -> 0 ->> 'kind')`), 'composicion', '0037 gives the composition to the promotions TV');
+
+      /* Screen B (v1): the composition is never read as a slide; the built-in brand shows */
+      const b = watchApi(await page(browser, {}));
+      await goto(b, '/pantalla-promos.html?tv=promos-1');
+      await until(() => b.evaluate(() => window.PANTALLA_B && PANTALLA_B.info().estado === 'al-dia'), 15000, 'Screen B read pantalla_datos');
+      let i = await b.evaluate(() => PANTALLA_B.info());
+      assert.deepStrictEqual([i.actual, i.tipo, i.leidas.includes(compo)], ['marca', 'propia', false], 'the brand, never the composition');
+      /* a v1 product slide in force next to it shows as before */
+      const prod = sql(`with x as (insert into public.screen_slides (kind, menu_item_id, starts_at, ends_at, sort, status)
+        values ('producto', '${items[0].id}', now() - interval '1 hour', now() + interval '1 day', 20, 'activa') returning id) select id from x`);
+      await b.evaluate(() => PANTALLA_B.refrescar());
+      await until(() => b.evaluate((p) => PANTALLA_B.info().leidas.includes(p), prod), 15000, 'the product slide read');
+      assert.ok(await b.evaluate((p) => PANTALLA_B.mostrar(p), prod), 'the v1 product slide can be shown');
+      i = await b.evaluate(() => PANTALLA_B.info());
+      assert.deepStrictEqual([i.actual, i.tipo, i.leidas.includes(compo)], [prod, 'producto', false]);
+      assert.deepStrictEqual(b.errors, []);
+      assert.deepStrictEqual(b.apiErrors, []);
+      await b.context().close();
+
+      /* Screen A (v1): every product of its categories, the summarized menu ignored, prices live */
+      const a = watchApi(await page(browser, {}));
+      await goto(a, '/pantalla-menu.html?tv=menu-1');
+      await until(() => a.evaluate(() => window.PANTALLA && PANTALLA.info().estado === 'al-dia'), 15000, 'Screen A read the menu');
+      /* every page of the board (the pages take turns; textContent reads the ones waiting too) */
+      const shown = await a.evaluate(() => document.getElementById('main').textContent);
+      assert.ok(shown.includes(items[1].name) || shown.includes(sql(`select coalesce(name_es, name) from public.menu_items where id = '${items[1].id}'`)),
+        'a product outside the V2 summary is on the v1 board: ' + items[1].name);
+      assert.match(shown, /₡/, 'with prices');
+      assert.deepStrictEqual(a.errors, []);
+      assert.deepStrictEqual(a.apiErrors, []);
+      await a.context().close();
+    }
   }
 ];

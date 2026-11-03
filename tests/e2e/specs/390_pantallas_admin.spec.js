@@ -81,11 +81,12 @@ function compo(o) {
             ${o.screens ? q('{' + o.screens.join(',') + '}') : 'null'}, ${o.starts || "now() - interval '1 hour'"}, ${o.ends || "now() + interval '1 day'"},
             ${o.days ? q('{' + o.days.join(',') + '}') : 'null'}, ${q(o.from)}, ${q(o.to)}, ${o.sort == null ? 100 : o.sort}, ${q(o.status || 'activa')}, 'prueba') returning id`).split('\n')[0];
 }
-/* the composition drawn in the preview frame: its template, its kicker and, per zone, what is in front */
+/* the composition drawn in the preview frame: its template, anything over its zones (none since 2026-11-03) and, per
+   zone, what is in front */
 const zonasEn = (frame) => frame.evaluate(() => {
   const sl = document.querySelector('#stage:not(.apagado) .capa.on .sl.k-composicion');
   if (!sl) return null;
-  return { template: sl.dataset.template, kick: (sl.querySelector('.zkick') || {}).textContent || null,
+  return { template: sl.dataset.template, kick: (sl.querySelector('.zkick') || {}).textContent || null, sup: (sl.querySelector('.sup') || {}).textContent || null,
     zonas: [...sl.querySelectorAll('.zona')].map((z) => {
       const front = z.querySelector('.zcapa.on.entra') || z.querySelector('.zcapa.on:not(.sale)') || z.querySelector('.zcapa.on');
       const f = (s) => { const e = front && front.querySelector(s); return e ? e.textContent : null; };
@@ -843,9 +844,10 @@ module.exports.tests = [
       await until(() => frame.evaluate(() => !!window.PANTALLA_B && PANTALLA_B.info().actual === 'previa'), 12000, 'the posted composition');
       await until(async () => { const z = await zonasEn(frame); return z && z.zonas.length === 3 && z.zonas.every((x) => x.estado === 'entrada'); }, 8000, 'its zones up');
       const z = await zonasEn(frame);
-      /* the TV writes the names in Spanish first (the site's dictionary), as it does for a product slide */
-      assert.deepStrictEqual([z.template, z.kick, z.zonas.map((x) => x.tit), z.zonas.map((x) => x.modo)],
-        ['3-grande-izq', 'Desayuno', ['Croissant de mantequilla', 'Latte', 'Jamón y queso'], ['auto', 'fija', 'auto']], JSON.stringify(z));
+      /* the TV writes the names in Spanish first (the site's dictionary), as it does for a product slide; the kicker
+         («Desayuno») is only the composition's name in the panel: nothing over the zones, as on the TV (2026-11-03) */
+      assert.deepStrictEqual([z.template, z.kick, z.sup, z.zonas.map((x) => x.tit), z.zonas.map((x) => x.modo)],
+        ['3-grande-izq', null, null, ['Croissant de mantequilla', 'Latte', 'Jamón y queso'], ['auto', 'fija', 'auto']], JSON.stringify(z));
       assert.ok(/^₡2\s?200$/.test(z.zonas[1].precio), 'the live price the panel read from the menu: ' + z.zonas[1].precio);
       assert.strictEqual(z.zonas[0].src, 'https://fotos.test/croissant.png', 'the menu\'s photo');
       const i = await frame.evaluate(() => PANTALLA_B.info());

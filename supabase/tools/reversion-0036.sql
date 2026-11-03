@@ -19,8 +19,8 @@
 --   (tv.html, board_settings, board_group_slides), la Caja, la Cocina, la Contabilidad ni el menú QR.
 -- Después: las TV nuevas siguen encendidas con los ajustes de su dirección (?tv=…) y la Pantalla B muestra solo la
 --   presentación de la marca, sin precios; pantallas.html no puede leer ni guardar nada hasta que se aplique otra vez la
---   0036. release-check.sql mostrará
---   36 en migrations_missing y las cinco funciones de las pantallas en functions_missing; es lo esperado. Aplicar otra vez
+--   0036. Con la 0037 aplicada, primero supabase/tools/reversion-0037.sql (esta se niega antes). release-check.sql
+--   mostrará [36, 37] en migrations_missing y las cinco funciones de las pantallas en functions_missing; es lo esperado. Aplicar otra vez
 --   la 0036 devuelve todo con las TV y las diapositivas tal como quedaron.
 -- =====================================================================================================
 do $$ begin

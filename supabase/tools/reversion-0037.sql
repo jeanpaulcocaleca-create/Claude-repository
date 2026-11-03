@@ -10,7 +10,9 @@
 -- _slide_json se vuelve a crear con el texto de la 0036 escrito con escapes \uXXXX (lint 14, D-063): misma regla, mismo
 -- comportamiento; su huella está aceptada en production-snapshot.sql como versión 0036.
 -- Se niega si la 0037 no está aplicada o si hay una migración posterior aplicada (revierta esa primero).
--- Después: production-snapshot.sql debe decir que la última migración es la 36.
+-- Después: release-check.sql dice migrations_missing = [37]; production-snapshot.sql, migrations_applied termina en 36,
+--   functions_by_version "0036": 13 y "0037": 1 (queda _screen_template_places) y functions_changed = [] (comprobado en una
+--   copia el 2026-11-03; docs/ACTIVACION-PANTALLAS-V2.md §6.2).
 -- =====================================================================================================
 do $$
 begin

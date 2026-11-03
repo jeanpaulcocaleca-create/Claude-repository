@@ -3,8 +3,9 @@
 Para: Jean Paul, dueño de Hanging Garden Café.
 De: Claude. La versión 1 está publicada (`v2026.11.02-1`) con la migración 0036 aplicada por usted. La **versión 2** que
 pidió el 2026-11-02 está construida, probada y revisada en la rama `claude/hanging-garden-coffee-proposal-1m8zd4`
-(PR #1), el último commit de la rama (D-064). **Nada está publicado ni aplicado en producción**: lo hace usted con `docs/ACTIVACION-PANTALLAS.md`
-§«Versión 2». La 0036 no se vuelve a ejecutar.
+(PR #1), el último commit de la rama (D-064). **Nada está publicado ni aplicado en producción**: lo hace usted con
+`docs/ACTIVACION-PANTALLAS-V2.md` (su aprobación técnica del 2026-11-03: primero la prueba visual en las TV reales, sin
+tocar producción). La 0036 no se vuelve a ejecutar.
 
 ## V2.1 Viabilidad: el menú completo en una sola pantalla
 
@@ -58,7 +59,7 @@ inglés y las categorías. En la prueba con el menú real: una pantalla en 75" a
 | Gestión v2 | `website/pantallas.html` + `pantallas.js` | Los ajustes nuevos de la TV de menú y sus **productos que muestra** (el menú resumido); el **editor visual** de composiciones (plantillas, zonas, productos o fotos subidas, encuadre con clic o arrastre y zoom, orden, intercambio de zonas, rótulo, permanencia, vigencia); **«Vista previa en la TV»** con la página real; **«Programación sugerida»** (cuatro composiciones pausadas por franja); errores escritos junto a la zona o la entrada; «Hoy en pantalla» y el registro con lo nuevo |
 | Migración | `supabase/migrations/0037_pantallas_v2.sql` | Aditiva: seis ajustes por TV con valor por omisión, la lista de productos de la TV de menú (`item_ids`, nada = todos), la clase «composicion» (plantilla, zonas, permanencia), dos ayudas cerradas, las funciones de la 0036 vueltas a crear con lo nuevo. Ninguna fila existente cambia |
 | Reversión | `supabase/tools/reversion-0037.sql` | Vuelve las seis funciones al texto de la 0036 y deja columnas y filas; se niega si falta la 0037 o hay una posterior |
-| Guías | `docs/ACTIVACION-PANTALLAS.md` §v2, `docs/INSTALACION-TV.md` | Sus pasos exactos; la guía del técnico con el diagnóstico nuevo |
+| Guías | `docs/ACTIVACION-PANTALLAS-V2.md`, `docs/INSTALACION-TV.md` | Sus pasos exactos; la guía del técnico con el diagnóstico nuevo |
 | Descripción completa | `docs/PANTALLAS.md` | Cómo funciona todo, pedido por pedido (§1.1) y prueba por prueba (§5) |
 
 **Lo que no se tocó (comprobado en cada prueba, `tests/pantallas/no-tocar.sh` v3):** de los 47 archivos de `website/`
@@ -172,7 +173,7 @@ páginas por distancia y las cuatro ventanas con y sin rótulos: https://claude.
 | TV vertical con composición | Las zonas se apilan en bandas de igual altura (en 1080×1920, cuatro bandas de 480 px): legible, pero no es su diseño horizontal | Composiciones de 1 o 2 zonas en una TV vertical |
 | La «Programación sugerida» reconoce categorías y productos por nombre | Si cambia el nombre de una categoría o de un producto en el Gestor, la sugerencia agrupa distinto (siempre pausada: usted la revisa) | Revisar las cuatro composiciones antes de reanudarlas |
 | La vista previa necesita subir las fotos nuevas | Una foto recién elegida se sube a `menu-photos/pantallas/` para que la TV de la vista previa pueda mostrarla; si cancela o el servidor rechaza, se borra | Nada; es automático |
-| El rótulo y la línea de la marca tapan la esquina superior de las zonas de arriba | Los nombres y precios van abajo, así que no chocan; una foto con el tema en la esquina superior puede quedar tapada | El punto de enfoque y el zoom en el editor |
+| (Ya no aplica desde su ajuste del 2026-11-03: sobre una composición no hay rótulo ni línea de la marca) El rótulo y la línea de la marca tapan la esquina superior de las zonas de arriba | Los nombres y precios van abajo, así que no chocan; una foto con el tema en la esquina superior puede quedar tapada | El punto de enfoque y el zoom en el editor |
 | Navegador de TV lento | La maqueta de la Pantalla A mide el menú hasta unas 30 veces por rediseño (tres opciones de columnas); en una TV lenta puede tardar unas décimas de segundo, una vez por cambio | Nada; la pizarra anterior sigue en pantalla mientras tanto |
 | Con la 0036 pero sin la 0037 | Las páginas v2 funcionan como la v1; una composición no se puede guardar («Revise el tipo») | Aplicar la 0037 antes de publicar, como dice la guía |
 | La marca asoma al cambiar de franja | En el instante en que una franja termina y la siguiente empieza, la Pantalla B puede mostrar la marca hasta un segundo (la regla de vigencia de siempre) | Nada; si prefiere un cambio directo, es un ajuste pequeño de la regla de vigencia en una versión nueva |
@@ -193,7 +194,7 @@ ejecutadas aparte (capturas en el adjunto de esta sesión); el sexto punto es es
 | 3. Cuatro franjas horarias y hora de Costa Rica | **Confirmado** | Desayuno 06–10, Almuerzo 10–13, Tarde 13–17, Cena 17–19 con el reloj del servidor en UTC−6, sin horario de verano, fin de semana y noche de por medio (P6, P7, B6, B7). Nota: en el instante del cambio de franja la marca puede verse hasta un segundo (la regla de vigencia de siempre: una diapositiva sale en cuanto pudo terminar y entra cuando seguro empezó); no lo cambio porque usted pidió conservar las reglas de vigencia |
 | 4. Legibilidad y distribución de la Pantalla A en las TV reales | **Defecto corregido** | El equilibrio anterior (bisección de un límite de altura) hundía el límite hasta la pieza más pequeña y descompensaba columnas («Café» 4 productos frente a 8 en 32"/2 m compacta sin inglés) y, al partir un bloque de tres en 1 + 1 + 1, dejaba una columna vacía en una página intermedia. Nuevo reparto: las piezas de cada página se reparten en orden por un reparto exacto (se prueban todos): primero la columna más alta lo más baja posible y luego el que deja menos pizarra vacía, sin cortes nuevos, nunca con menos columnas que el primer llenado, y un bloque de tres más alto que una columna va 2 + 1. Con el menú real a 32": 2 m compacta sin inglés 3 páginas al 100/87, 97/97 y 93/76 %; ninguna columna vacía en ninguna de las 20 combinaciones medidas (B12, matriz de V2.1). Nota: el navegador de pruebas mide con Inter en lugar de Figtree; la TV mide su propia letra al cargar (B10) |
 | 5. Fotos, precios y disponibilidad del menú real | **Confirmado** | Cada zona y cada diapositiva de producto resuelve en vivo nombre, precio y disponibilidad desde `menu_items` con la misma regla de frescura del menú; agotado o sin precio desaparece en la lectura siguiente; foto del producto desde `photo_url` o la elegida en el editor; nunca un precio escrito a mano (A3, B5, B18, B19, P20, P21, 460) |
-| 6. Resumen de archivos, migraciones, pruebas y riesgos | Este informe (V2.2 archivos, V2.4 pruebas, V2.7 riesgos) y `docs/ACTIVACION-PANTALLAS.md` §v2 (la 0037, nunca la 0036 otra vez) | |
+| 6. Resumen de archivos, migraciones, pruebas y riesgos | Este informe (V2.2 archivos, V2.4 pruebas, V2.7 riesgos) y `docs/ACTIVACION-PANTALLAS-V2.md` (la 0037, nunca la 0036 otra vez) | |
 
 **Su mensaje posterior (32" a 3 m, menú resumido, ventanas sin rótulos):** construido el mismo día (V2.10) y revisado
 otra vez de forma adversarial (el reparto de columnas probado además con 50 000 páginas al azar): 1 hallazgo medio y 6
@@ -236,10 +237,24 @@ cada TV en menos de 30 s.
 
 ## V2.11 Qué sigue (en sus manos)
 
-Los pasos exactos, en orden, con las comprobaciones y la vuelta atrás: `docs/ACTIVACION-PANTALLAS.md` §«Versión 2»
-(ensayo, respaldo, la 0037 en el SQL Editor, `release-check.sql` y `production-snapshot.sql`, etiqueta, publicación,
-configuración con la vista previa y la programación sugerida, aceptación en las TV). **No publique ni aplique nada hasta
-decidirlo**; esta entrega no lo hace.
+**Su aprobación técnica (2026-11-03).** Usted aprobó técnicamente la V2 y pidió verla en las TV reales de 32" antes de
+activar producción. Los pasos exactos, en orden, con las comprobaciones y la vuelta atrás, están en
+**`docs/ACTIVACION-PANTALLAS-V2.md`**: (0) la prueba visual en las TV reales con una página privada que corre las páginas
+de la V2 sobre una copia del menú, sin tocar producción (https://claude.ai/artifact/HJDYiJ8PG285kUhwUo4Sib); (1) la
+preparación (pruebas, el archivo del ensayo, el ensayo, la etiqueta y sus pruebas, el mismo día); (2) el respaldo, la
+foto de antes, la 0037, `release-check.sql` y la foto de después, con los valores exactos; (3) guardar el sitio de hoy y
+la publicación; (4) la
+configuración inicial de V2.10 campo por campo; (5) la verificación en las TV con los datos reales, con el café cerrado,
+para seguir o volver atrás; (6) la vuelta atrás: las páginas a `v2026.11.02-1` (probado en el ensayo: las pantallas v1
+sobre la base con la 0037) y, solo por una falla de una función, `reversion-0037.sql`, con sus valores comprobados en una
+copia. **No publique ni aplique nada hasta decidirlo**; esta entrega no lo hace.
+
+Medido con la letra real de las TV (Figtree, la que carga la página; el navegador de las pruebas automáticas mide con
+Inter y da 8 páginas en el menú completo): a 32" y 3 m, compacta y sin inglés, el resumen de 12 productos en 5
+categorías da 3 páginas con mayúscula de 2,48 cm, el de 9 productos 2 páginas (2,40 cm) y el menú completo 10 páginas.
+
+Las secciones 1 a 4 de abajo son la entrega de la v1 (D-062, ya activada). Su «Si algo sale mal» vuelve a
+`v2026.10.26-1`, que hoy quitaría las pantallas: para la V2 vale solo la guía nueva.
 
 ---
 
