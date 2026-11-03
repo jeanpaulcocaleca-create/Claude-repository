@@ -1,0 +1,64 @@
+# =====================================================================================================
+# Canopy OS · publica el sitio de PRUEBAS (va en el repositorio "canopy-pruebas" del dueño, NO en el de desarrollo)
+# Toma la versión indicada del repositorio de desarrollo (público, solo lectura) y la publica en el GitHub Pages
+# de ESTE repositorio: https://jeanpaulcocaleca-create.github.io/canopy-pruebas/
+# Las páginas usan el proyecto de PRUEBAS de Supabase. poner-pruebas.py se niega a publicar si la dirección o la
+# llave son las de producción, o si la llave no es la pública "anon".
+# Settings → Secrets and variables → Actions:
+#   variable STAGING_SUPABASE_URL      https://<proyecto-de-pruebas>.supabase.co
+#   secreto  STAGING_SUPABASE_ANON_KEY la llave pública "anon" del proyecto de PRUEBAS. Es pública (va en las páginas),
+#            pero como secreto no aparece en el registro, que en un repositorio público ve cualquiera: si por error
+#            se pega otra llave, no queda a la vista.
+# Nunca publica en hanginggardencafe.com: solo escribe la rama gh-pages de este repositorio.
+# =====================================================================================================
+name: Publicar el sitio de PRUEBAS
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Rama o etiqueta del repositorio de desarrollo'
+        required: true
+        default: 'claude/hanging-garden-coffee-proposal-1m8zd4'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pruebas
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Traer la versión del repositorio de desarrollo (solo lectura)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: jeanpaulcocaleca-create/Claude-repository
+          ref: ${{ github.event.inputs.version }}
+          path: fuente
+          persist-credentials: false
+      - name: Conectar las páginas con el proyecto de PRUEBAS (nunca producción)
+        env:
+          URL: ${{ vars.STAGING_SUPABASE_URL }}
+          KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+        run: python3 ./poner-pruebas.py fuente/website/config.js "$URL" "$KEY"
+      - name: Marcar la versión
+        env:
+          REF_NAME: ${{ github.event.inputs.version }}
+        run: |
+          cd fuente
+          BUILD="$(git rev-parse --short=12 HEAD)"
+          printf '{"version":"pruebas %s","build":"%s","built_at":"%s"}\n' "$REF_NAME" "$BUILD" "$(date -u +%FT%TZ)" > website/version.json
+          sed -i "s/__BUILD__/$BUILD/g" website/*.html
+          sed -i -E "s/(<script src=\"[a-z0-9_-]+\.js)\"/\1?v=$BUILD\"/g" website/*.html
+          rm -f website/CNAME
+      - name: Publicar en el GitHub Pages de este repositorio
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./fuente/website
+          force_orphan: true
+          commit_message: 'Pruebas ${{ github.event.inputs.version }}'

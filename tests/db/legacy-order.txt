@@ -1,0 +1,21 @@
+# The 18 historical scripts in supabase/ replayed in dependency order to rebuild the schema the way
+# production received them (derived from each script's "run after" notes). Data-only scripts are last.
+# One file per line; '#' starts a comment.
+timeclock.sql
+authorization.sql
+kitchen-rooms.sql
+tvboard.sql
+tv-board-look.sql
+groupslides.sql
+chatbox.sql
+accounts.sql
+access.sql
+inventory.sql
+register.sql
+manager-mode.sql
+pos-layout.sql
+pos-stations.sql
+pos-tabs.sql
+menu-spanish.sql
+menu-2026.sql
+menu-photos.sql

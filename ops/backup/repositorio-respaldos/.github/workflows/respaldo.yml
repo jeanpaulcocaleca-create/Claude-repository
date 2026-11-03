@@ -1,0 +1,112 @@
+# =====================================================================================================
+# Canopy OS · respaldo nocturno (va en el repositorio PRIVADO "canopy-respaldos" del dueño, NO en el público)
+# Copie esta carpeta completa (repositorio-respaldos/) a un repositorio privado nuevo: docs/RESPALDOS.md, paso 3.
+# Corre todas las noches a las 02:17 (hora de Costa Rica) y también con el botón "Run workflow"
+# (respaldo inmediato, por ejemplo antes de aplicar una migración).
+# Todo lo que ejecuta está en ESTE repositorio privado: nunca descarga scripts del repositorio público,
+# para que nadie pueda cambiar lo que corre con la contraseña de respaldos.
+#
+# Secretos (Settings → Secrets and variables → Actions → pestaña Secrets → New repository secret):
+#   CANOPY_DB_URL      conexión de la cuenta canopy_backup por el "Session pooler" (Connect → Session pooler): usuario
+#                      canopy_backup.<proyecto>, puerto 5432, ?sslmode=require (docs/RESPALDOS.md, paso 3.4). Los
+#                      ejecutores de GitHub solo tienen IPv4; la conexión directa db.<proyecto>.supabase.co es IPv6.
+#   AGE_RECIPIENTS     las DOS llaves públicas age1... (del dueño y la de recuperación), separadas por un espacio
+#   RCLONE_CONF        (opcional) la configuración de rclone del almacenamiento externo (solo permiso de ESCRIBIR)
+#   RCLONE_REMOTE      (opcional) por ejemplo  offsite:canopy-respaldos
+#                      Sin estos dos, la copia CIFRADA queda solo como archivo descargable de la corrida
+#                      ("Artifacts", 14 días): descárguela a su computadora. Con ellos, además va al almacenamiento externo.
+#   STORAGE_S3_KEY_ID, STORAGE_S3_SECRET   (cuando exista el depósito de facturas, migración 0015; E-17) llaves S3 de
+#                      Supabase (Storage → S3 → Access keys → New access key), para copiar las facturas de gastos.
+#                      OJO: dan acceso COMPLETO a Storage (leer, escribir y borrar). Sin ellas no se copian (la corrida avisa).
+# Variables (pestaña Variables, no secretas):
+#   SUPABASE_URL       https://<proyecto>.supabase.co (la de website/config.js). Obligatoria: con ella se copian las fotos.
+#   STORAGE_S3_ENDPOINT, STORAGE_S3_REGION   el "Endpoint" y la "Region" de Storage → S3 (solo con las llaves S3)
+# =====================================================================================================
+name: Respaldo nocturno
+
+on:
+  schedule:
+    - cron: '17 8 * * *'      # 08:17 UTC = 02:17 en Costa Rica (UTC-6, sin horario de verano)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      # base desechable SOLO para la prueba de restauración (se borra al terminar)
+      prueba:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: prueba-desechable
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false   # the repository token is not needed after the checkout: do not leave it on disk
+      - name: Instalar herramientas (cliente de PostgreSQL 17, age, rclone)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age rclone
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Configurar el almacenamiento externo
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        run: |
+          if [ -z "$RCLONE_CONF" ]; then echo "Sin almacenamiento externo: la copia cifrada queda como archivo de esta corrida."; exit 0; fi
+          mkdir -p ~/.config/rclone
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          chmod 600 ~/.config/rclone/rclone.conf
+      - name: Respaldar, probar la restauración, cifrar y subir
+        env:
+          CANOPY_DB_URL: ${{ secrets.CANOPY_DB_URL }}
+          AGE_RECIPIENTS: ${{ secrets.AGE_RECIPIENTS }}
+          RCLONE_REMOTE: ${{ secrets.RCLONE_REMOTE }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          STORAGE_S3_ENDPOINT: ${{ vars.STORAGE_S3_ENDPOINT }}
+          STORAGE_S3_REGION: ${{ vars.STORAGE_S3_REGION }}
+          STORAGE_S3_KEY_ID: ${{ secrets.STORAGE_S3_KEY_ID }}
+          STORAGE_S3_SECRET: ${{ secrets.STORAGE_S3_SECRET }}
+          RESTORE_TEST_URL: postgresql://postgres:prueba-desechable@127.0.0.1:5432/postgres
+          UPLOAD_DIR: ${{ runner.temp }}/respaldo-cifrado
+          BACKUP_SOURCE: cloud
+        run: |
+          set -o pipefail
+          # without it backup.sh skips the menu photos silently
+          : "${SUPABASE_URL:?Falta la variable SUPABASE_URL (Settings → Secrets and variables → Actions → pestaña Variables)}"
+          export SUPABASE_URL="${SUPABASE_URL%/}"
+          bash ./backup.sh 2>&1 | tee "$RUNNER_TEMP/respaldo.log"
+      - name: Resumen de lo verificado
+        if: always()
+        run: |
+          {
+            echo '### Respaldo: lo que se verificó'
+            if [ -s "$RUNNER_TEMP/respaldo.log" ]; then
+              grep -E 'restauración verificada|tablas que no coinciden|archivos verificados|faltan [0-9]+ y difieren|listo: |ERROR en el paso|aviso|Falta ' \
+                "$RUNNER_TEMP/respaldo.log" | sed -E 's/^\[[0-9:]+\] //; s/^/- /'
+            else
+              echo '- (no llegó a empezar: abra el paso en rojo)'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Guardar la copia cifrada como archivo descargable (14 días)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: respaldo-cifrado
+          path: ${{ runner.temp }}/respaldo-cifrado
+          retention-days: 14
+          if-no-files-found: error
+      - name: Borrar la configuración
+        if: always()
+        run: rm -f ~/.config/rclone/rclone.conf

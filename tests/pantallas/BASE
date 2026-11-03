@@ -1,0 +1,8 @@
+# The last release the owner published on the café's site (D-062/D-063): its tag and the commit that tag names.
+# While the customer screens are improved (docs/PANTALLAS.md), website/, supabase/migrations/ and .github/workflows/pages.yml
+# stay byte for byte as in this commit, except the screens' own files listed in tests/pantallas/no-tocar.sh (CHANGED may
+# differ, NEW may be added; the owner's condition 2 of 2026-10-31 and of 2026-11-02). The check also proves that the tag
+# still names this commit.
+# Both lines move only to a later release the owner published, in the commit whose decision says so.
+tag    v2026.11.02-1
+commit 3273743dcbe041e9c2557bdf51af3876805147e3

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menu QR code · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="assets/logo-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--canvas:#F6F1E2;--panel:#FCF8EC;--ink:#26392C;--accent:#1E4B33;--muted:#C9CFB6;--sec:#54634F;--gold:#B98A35}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;max-width:900px;margin:0 auto;padding:1rem 1rem .4rem}
+header.top h1{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:1.4rem;margin:0}
+header.top .back{font-size:.9rem;text-decoration:none;font-weight:600}
+.screen{max-width:900px;margin:0 auto;padding:0 1rem 2rem}
+.card{background:var(--panel);border-radius:16px;padding:1rem 1.1rem;box-shadow:0 2px 14px rgba(30,75,51,.07);margin:.6rem 0 1rem}
+.card p{margin:.3rem 0}
+.hint{font-size:.9rem;color:var(--sec)}
+.opts{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0}
+.opts button,.go,.dl{font:inherit;font-weight:600;min-height:44px;padding:.45em 1em;border-radius:12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.opts button{background:#fff;color:var(--accent);border:1.5px solid var(--muted)}
+.opts button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.go{background:var(--accent);color:#fff;border:none}
+.dl{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.preview{overflow:hidden;margin-top:.8rem;border-radius:6px;box-shadow:0 2px 18px rgba(0,0,0,.12)}
+.preview .scaler{transform-origin:0 0}
+
+/* the sheet, in real millimetres (Carta / Letter or A4, set by the script) */
+.sheet{width:215.9mm;height:279.4mm;background:#fff;color:#1d2a20;position:relative;overflow:hidden;font-family:'Figtree',system-ui,sans-serif}
+.cut{position:absolute;border:0 dashed #b9bfae}
+.qcard{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6mm}
+.qcard .logo{width:20mm;height:20mm;border-radius:50%;object-fit:cover}
+.qcard .cafe{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:13pt;letter-spacing:.04em;text-transform:uppercase;color:#1E4B33;margin-top:2mm}
+.qcard .title{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:26pt;line-height:1.05;color:#1E4B33;margin:3mm 0 4mm}
+.qcard .qr{width:48mm;height:48mm;display:block}
+.qcard .say{font-size:11pt;line-height:1.35;margin-top:4mm}
+.qcard .say b{display:block;font-weight:700}
+.qcard .url{font-family:'Spline Sans Mono',monospace;font-weight:600;font-size:11pt;color:#1E4B33;margin-top:3mm;letter-spacing:.02em}
+.qcard .small{font-size:8.5pt;color:#54634F;margin-top:2mm}
+/* stickers: small */
+.sticker .logo{display:none}
+.sticker .cafe{font-size:8pt;margin:0}
+.sticker .title{font-size:15pt;margin:1mm 0 2mm}
+.sticker .qr{width:32mm;height:32mm}
+.sticker .say{font-size:7.5pt;margin-top:2mm}
+.sticker .url{font-size:8pt;margin-top:1.2mm}
+.sticker .small{display:none}
+
+@media print{
+  html,body{background:#fff}
+  header.top,.screen > :not(#previewBox),.hg-lang{display:none !important}
+  .screen{padding:0;margin:0;max-width:none}
+  #previewBox{box-shadow:none;border-radius:0;margin:0;overflow:visible;height:auto !important;width:auto !important}
+  #previewBox .scaler{transform:none !important}
+  .sheet{page-break-after:avoid}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="back" href="admin.html">← Menu Manager</a>
+  <h1>Menu QR code</h1>
+</header>
+<main class="screen">
+  <div class="card">
+    <p>Guests scan this code with the phone's camera and the menu opens: <a href="m.html" target="_blank" rel="noopener">hanginggardencafe.com/m</a>.</p>
+    <p class="hint">The menu behind it is read from the Menu Manager, so prices, new items, photos and sold-out items update by themselves within a minute. The code never changes: print it once.</p>
+  </div>
+
+  <div class="card">
+    <p><b>What to print</b></p>
+    <div class="opts" role="group" aria-label="What to print">
+      <button type="button" data-lay="tent">Table tent (fold in half)</button>
+      <button type="button" data-lay="cards">4 cards per page</button>
+      <button type="button" data-lay="stickers">12 stickers per page</button>
+    </div>
+    <div class="opts" role="group" aria-label="Paper">
+      <button type="button" data-paper="letter">Letter paper (Carta)</button>
+      <button type="button" data-paper="a4">A4 paper</button>
+    </div>
+    <div class="row">
+      <button type="button" class="go" id="printBtn">Print</button>
+      <a class="dl" href="assets/qr/menu-qr.png" download="hanging-garden-menu-qr.png">Download the QR code (PNG)</a>
+      <a class="dl" href="assets/qr/menu-qr-4cm.svg" download="hanging-garden-menu-qr-4cm.svg">For a print shop (SVG, 4 cm)</a>
+    </div>
+    <p class="hint" style="margin-top:.7rem">Print at actual size (100%, no "fit to page") on the paper picked above, on matte paper. Keep the white border around the code, print it dark on light, and test one with a phone before printing many.</p>
+  </div>
+
+  <div class="preview" id="previewBox"><div class="scaler" id="scaler"><div class="sheet" id="sheet" data-no-translate></div></div></div>
+</main>
+
+<script src="lang.js"></script>
+<script>
+/* Printable QR cards for the menu at the tables. The code (assets/qr/menu-qr.svg) holds https://hanginggardencafe.com/m:
+   version 3, error correction Q, made once and checked with several decoders, so every card printed stays the same. */
+(function(){
+  'use strict';
+  var QR = 'assets/qr/menu-qr.svg', LOGO = 'assets/logo.png', URL_TEXT = 'hanginggardencafe.com/m';
+  var sheet = document.getElementById('sheet');
+  /* Carta (Letter) is the usual paper in Costa Rica; A4 too. #cards, #stickers-a4 ... remember the choice in the link */
+  var PAPER = {letter: {w: 215.9, h: 279.4, page: 'letter'}, a4: {w: 210, h: 297, page: 'A4'}};
+  var parts = (location.hash || '').replace('#', '').split('-');
+  var lay = parts[0], paper = parts[1] === 'a4' ? 'a4' : 'letter';
+  if (['tent', 'cards', 'stickers'].indexOf(lay) < 0) lay = 'tent';
+  var pageCss = document.createElement('style'); document.head.appendChild(pageCss);
+
+  function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function card(x, y, w, h, small, turn){
+    var c = el('div', 'qcard' + (small ? ' sticker' : ''));
+    c.style.left = x + 'mm'; c.style.top = y + 'mm'; c.style.width = w + 'mm'; c.style.height = h + 'mm';
+    if (turn) c.style.transform = 'rotate(180deg)';
+    var logo = el('img', 'logo'); logo.src = LOGO; logo.alt = ''; logo.addEventListener('error', function(){ logo.remove(); });
+    c.appendChild(logo);
+    c.appendChild(el('div', 'cafe', 'Hanging Garden Café'));
+    c.appendChild(el('div', 'title', 'Menú · Menu'));
+    var q = el('img', 'qr'); q.src = QR; q.alt = 'QR: ' + URL_TEXT; c.appendChild(q);
+    var say = el('div', 'say');
+    say.appendChild(el('b', null, 'Escanee con la cámara de su teléfono'));
+    say.appendChild(el('span', null, 'Scan with your phone camera'));
+    c.appendChild(say);
+    c.appendChild(el('div', 'url', URL_TEXT));
+    c.appendChild(el('div', 'small', 'Precios y productos siempre al día · Always up to date'));
+    sheet.appendChild(c);
+  }
+  function cutH(y){ var l = el('div', 'cut'); l.style.cssText = 'left:0;right:0;top:' + y + 'mm;border-top-width:.3mm'; sheet.appendChild(l); }
+  function cutV(x){ var l = el('div', 'cut'); l.style.cssText = 'top:0;bottom:0;left:' + x + 'mm;border-left-width:.3mm'; sheet.appendChild(l); }
+
+  function build(){
+    var P = PAPER[paper], W = P.w, H = P.h;
+    sheet.style.width = W + 'mm'; sheet.style.height = H + 'mm';
+    pageCss.textContent = '@page{size:' + P.page + ' portrait;margin:0}';
+    sheet.textContent = '';
+    if (lay === 'tent'){
+      /* fold along the middle: the top half is upside down so both faces read upright on the table */
+      card(0, 0, W, H / 2, false, true); card(0, H / 2, W, H / 2, false, false); cutH(H / 2);
+    } else if (lay === 'cards'){
+      for (var r = 0; r < 2; r++) for (var c = 0; c < 2; c++) card(c * W / 2, r * H / 2, W / 2, H / 2, false, false);
+      cutH(H / 2); cutV(W / 2);
+    } else {
+      for (var r2 = 0; r2 < 4; r2++) for (var c2 = 0; c2 < 3; c2++) card(c2 * W / 3, r2 * H / 4, W / 3, H / 4, true, false);
+      cutV(W / 3); cutV(2 * W / 3); cutH(H / 4); cutH(H / 2); cutH(3 * H / 4);
+    }
+    document.querySelectorAll('[data-lay]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.lay === lay ? 'true' : 'false'); });
+    document.querySelectorAll('[data-paper]').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.paper === paper ? 'true' : 'false'); });
+    try { history.replaceState(null, '', '#' + lay + (paper === 'a4' ? '-a4' : '')); } catch (e) {}
+    fit();
+  }
+  /* the preview shows the whole sheet, scaled to the screen */
+  function fit(){
+    var box = document.getElementById('previewBox'), sc = document.getElementById('scaler');
+    var p = box.parentNode, cs = getComputedStyle(p), room = p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var w = sheet.offsetWidth, h = sheet.offsetHeight, s = Math.min(1, room / w);
+    sc.style.transform = 'scale(' + s + ')';
+    box.style.width = Math.round(w * s) + 'px'; box.style.height = Math.round(h * s) + 'px';
+  }
+  document.querySelectorAll('[data-lay]').forEach(function(b){ b.addEventListener('click', function(){ lay = b.dataset.lay; build(); }); });
+  document.querySelectorAll('[data-paper]').forEach(function(b){ b.addEventListener('click', function(){ paper = b.dataset.paper; build(); }); });
+  /* print once the fonts and the code are in, so the first page is not set in a fallback font */
+  document.getElementById('printBtn').addEventListener('click', function(){
+    var imgs = Array.prototype.slice.call(sheet.querySelectorAll('img'));
+    var ready = imgs.map(function(i){ return i.complete ? Promise.resolve() : new Promise(function(res){ i.addEventListener('load', res); i.addEventListener('error', res); }); });
+    if (document.fonts && document.fonts.ready) ready.push(document.fonts.ready);
+    Promise.all(ready).then(function(){ window.print(); });
+  });
+  window.addEventListener('resize', fit);
+  build();
+})();
+</script>
+</body>
+</html>

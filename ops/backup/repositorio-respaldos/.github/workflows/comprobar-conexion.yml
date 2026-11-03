@@ -1,0 +1,58 @@
+# =====================================================================================================
+# Canopy OS · comprobar la conexión de respaldo SIN respaldar (va en el repositorio PRIVADO "canopy-respaldos")
+# Solo con el botón "Run workflow". Revisa los secretos CANOPY_DB_URL y AGE_RECIPIENTS sin mostrarlos, entra a la
+# base como canopy_backup y mira solo sus permisos. No copia datos, no cifra, no sube nada y no anota nada en la
+# base. Úselo después de cambiar CANOPY_DB_URL y antes del primer respaldo (docs/RESPALDOS.md, paso 3, punto 5).
+# Corre exactamente el mismo backup.sh que el respaldo nocturno, detenido después de esas revisiones.
+# =====================================================================================================
+name: Comprobar la conexión (sin respaldo)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false   # the repository token is not needed after the checkout: do not leave it on disk
+      - name: Instalar el cliente de PostgreSQL 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Revisar los secretos y la cuenta canopy_backup (sin copiar nada)
+        env:
+          CANOPY_DB_URL: ${{ secrets.CANOPY_DB_URL }}
+          AGE_RECIPIENTS: ${{ secrets.AGE_RECIPIENTS }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          BACKUP_SOURCE: cloud
+          BACKUP_CHECK_ONLY: '1'
+        run: |
+          set -o pipefail
+          : "${SUPABASE_URL:?Falta la variable SUPABASE_URL (Settings → Secrets and variables → Actions → pestaña Variables)}"
+          export SUPABASE_URL="${SUPABASE_URL%/}"
+          bash ./backup.sh 2>&1 | tee "$RUNNER_TEMP/comprobar.log"
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo '### Comprobación de la conexión de respaldo (no se copió nada)'
+            if [ -s "$RUNNER_TEMP/comprobar.log" ]; then
+              grep -E 'conexión verificada|ERROR en el paso|aviso|Falta ' "$RUNNER_TEMP/comprobar.log" | sed -E 's/^\[[0-9:]+\] //; s/^/- /'
+            else
+              echo '- (no llegó a empezar: abra el paso en rojo)'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
