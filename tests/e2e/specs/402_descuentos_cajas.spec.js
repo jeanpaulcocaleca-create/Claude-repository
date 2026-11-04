@@ -935,13 +935,15 @@ module.exports.tests = [
         await until(() => A.evaluate(() => !!disc.timer), 5000, label + ': the timer armed');
         // not before wait_s
         const n0 = estados();
-        await A.clock.fastForward((a.wait_s - 3) * 1000);
+        /* the page's clock also runs on its own between the steps (a slow runner spends seconds in them): stop 15 s short
+           of wait_s, so only the page's own timer can be what asks, never the time the test itself took */
+        await A.clock.fastForward((a.wait_s - 15) * 1000);
         await quiet();
         assert.strictEqual(estados(), n0, label + ': no check before wait_s');
         assert.ok(await A.isDisabled('#discGo'), label + ': still off before wait_s');
         // at wait_s the page asks; the server still says wait (its clock barely moved): armed again from the new wait_s
         let est = nextEstado(A);
-        await A.clock.fastForward(4000);
+        await A.clock.fastForward(16000);
         const e2 = await est;
         assert.strictEqual(e2.till.state, 'wait', label + ': the server still waits');
         assert.ok(e2.till.wait_s >= 1 && e2.till.wait_s <= a.wait_s, label + ': a new wait_s ' + e2.till.wait_s);
@@ -950,12 +952,12 @@ module.exports.tests = [
         assert.strictEqual(estados(), n0 + 1);
         // the wait over on the server: the page knows only at the new wait_s
         shiftBack(slot, 120);
-        await A.clock.fastForward(Math.max(0, e2.till.wait_s - 3) * 1000);
+        await A.clock.fastForward(Math.max(0, e2.till.wait_s - 15) * 1000);
         await quiet();
         assert.strictEqual(estados(), n0 + 1, label + ': no check before the new wait_s');
         assert.ok(await A.isDisabled('#discGo'), label + ': off until the server is asked again');
         est = nextEstado(A);
-        await A.clock.fastForward(4000);
+        await A.clock.fastForward(16000);
         const e3 = await est;
         assert.strictEqual(e3.till.state, 'ok', label + ': the server says the wait is over');
         await until(async () => !(await A.isDisabled('#discGo')), 5000, label + ': Autorizar on again');

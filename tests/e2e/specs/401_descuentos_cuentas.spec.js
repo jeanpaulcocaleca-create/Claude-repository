@@ -294,7 +294,8 @@ module.exports.tests = [
       assert.match(await row.innerText(), /un encargado puede devolverlo/, 'it says a manager can give it back');
       await row.locator('button', { hasText: ES.give }).click();
       await lg.waitForSelector('#lgApprove:not([hidden])');
-      assert.strictEqual(await text(lg, '#lgWhat'), 'Devolver el cupo del día a Luis');
+      // the box's title is set in English and translated by lang.js on the next frame: wait for the Spanish (a slow runner read it first)
+      await until(async () => (await text(lg, '#lgWhat')) === 'Devolver el cupo del día a Luis', 5000, '#lgWhat «Devolver el cupo del día a Luis»');
       await lg.selectOption('#lgMgr', STAFF.ana);
       await lg.type('#lgMgrPin', PINS.ana);
       await lg.click('#lgGo');
