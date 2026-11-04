@@ -2699,7 +2699,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   online only, every rule on the server; four buttons on the left and a fixed keypad on the right. On 2026-11-03 the
   owner approved the final proposal (migration 0038, the window, the reports, the tests, the docs, questions Q1–Q9) and
   authorized the whole development on its own branch `claude/descuentos-caja` (from `adb19ee` = `v2026.11.03-1`, the
-  release he had published that day with 0037 applied, E-41; draft PR #7), accepting Q1–Q9 as recommended with five
+  release the owner had published that day with 0037 applied, E-41; draft PR #7), accepting Q1–Q9 as recommended with five
   adjustments that override the proposal wherever they conflict:
   1. **Guía Turista needs the owner's authorization, but typing the owner's PIN for that discount must not unlock
      administrative functions on the tablet:** the check never creates an unlock (`access_unlocks`), never calls
