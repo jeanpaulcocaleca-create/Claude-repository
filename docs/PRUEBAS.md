@@ -173,6 +173,107 @@ Lo que un PostgreSQL local **no puede** probar; queda para la ventana y su verif
 - En la base desechable las migraciones corren como **superusuario** del servidor temporal. Que corren también como
   la cuenta del SQL Editor, que no lo es, lo prueba CI en cada cambio (`tests/rehearsal/as-supabase.sql`).
 
+## Pruebas automáticas de los descuentos de Caja (0038, D-065)
+
+No son parte del ensayo: corren con `tests/run.sh` (y en GitHub en cada cambio) sobre la base de prueba local, nunca
+sobre producción. Una línea por archivo:
+
+- `tests/sql/480_descuentos.test.sql`: las cuatro categorías con la tasa y el nombre que fija el servidor y la regla de
+  la tabla que impide otra; la identificación solo por el código; Empleado con los dos códigos en una llamada, nunca
+  para sí mismo ni para el dueño; Guía Turista apagada (y encendida solo en la prueba), solo con el código del dueño,
+  que no abre las áreas del dueño ni toca ningún contador de PIN (ajuste 1); un código compartido no autoriza a nadie;
+  la ventana anterior detrás de `pos_free_discount` y los motivos que se leen como una categoría; permisos; los datos
+  viejos intactos.
+- `tests/sql/482_descuentos_cupo.test.sql`: el descuento diario de Empleado (ajuste 3): la venta cobrada lo gasta y
+  vuelve solo con una anulación válida; «Devolver el cupo del día» solo para uno que no cobró nada (y cada negativa);
+  una autorización sin usar vence a los 30 minutos o se suelta (y si una venta marcada `discount_daily_twice` esperaba
+  ese día, lo toma ella); cancelar o quitarlo de una cuenta sin pagos no lo devuelve por sí solo (espera «Devolver el
+  cupo del día», también si la cuenta se anula después), con pagos o con un reembolso nunca vuelve; un error dentro del
+  disparador no hace fallar una anulación, un pago, una cancelación ni la cocina (un error de candado sí: la anulación
+  se deshace entera y se repite, `concurrency-descuentos.sh` 5).
+- `tests/sql/484_descuentos_cuentas.test.sql`: el descuento en una cuenta abierta (toda la cuenta, solo antes de
+  cualquier pago, nunca sobre un combo ni sobre otro descuento), el mismo pedido enviado dos veces, quitarlo sin pago y
+  después de un pago (PIN de encargado), la × de la página anterior (W3), quitar un descuento tardío solo si la cuenta
+  todavía lo lleva (no el que otra tableta puso después); en el ticket, una venta que no coincide queda registrada con
+  una marca, nunca rechazada.
+- `tests/sql/485_descuentos_cajas.test.sql`: el control de códigos equivocados («Cajas registradas en puestos», ajuste
+  2): solo una caja registrada prueba códigos; tres puestos con su propia cuenta, las esperas y la detención con 12 en
+  24 horas (también después de una primera detención: nunca más de 12 en 24 horas); reanudar con los topes; la llave
+  del aparato después de cerrar sesión, también cuando se perdió la respuesta; los topes por persona; una persona
+  bloqueada en las listas de nombres sigue autorizando en la ventana (regla 5); un texto larguísimo no cuesta más que
+  uno corto (un límite de tiempo no distingue un código correcto de uno equivocado); ningún PIN, código ni llave en la
+  bitácora (y quién comparte un código, solo para el dueño: un encargado no lo lee en la bitácora); una simulación de
+  24 horas.
+- `tests/sql/486_descuentos_informe.test.sql`: el informe `descuentos_informe`: quién lo puede leer (también el
+  contador), el estado de cada descuento, lo cobrado y los productos cubiertos, los totales, las cortesías por tasa de
+  IVA (solo información) y el bloque «Códigos equivocados»; el valor de lista según las líneas que quedan en la cuenta
+  (una línea quitada lo baja); el descuento que conservó una cuenta al quitárselo después de un pago (valor de lista
+  − descuento = cobrado); las ventas sin verificar con su estado, su caja y lo que de verdad cobraron; y que el
+  informe busque las quitas después de un pago por su índice (nunca recorre todo el registro por cada aprobación).
+- `tests/sql/490_descuentos_iva.test.sql`: el IVA y la contabilidad: la cortesía a ₡0 con su valor de lista (IVA 0,
+  neto 0), la caja, los asientos, los reportes de IVA, la anulación y el reembolso; una venta sin verificar conserva su
+  descuento real; la 0038 no toca ninguna regla fiscal.
+- `tests/sql/500_reversion_0038.test.sql`: `reversion-0038.sql` (las tres funciones anteriores idénticas, ningún dato
+  borrado, la 38 fuera del registro) y la 0038 aplicada otra vez (las cajas vuelven con sus puestos, llaves y cuentas).
+- `tests/sql/concurrency-descuentos.sh`: con dos conexiones a la vez, en una base propia: diez códigos equivocados
+  simultáneos de una caja (se prueban exactamente tres); con los candados de los puestos ocupados, una caja detenida,
+  un aparato sin registrar y otro puesto contestan igual; ningún bloqueo mutuo entre la ventana, `pin_lock_clear` y dos
+  cajas; el único que queda (`tab_remove_item` contra un descuento en la misma cuenta, con el mismo código de
+  encargado) termina una de las dos llamadas con 40P01, que se deshace entera, y el segundo intento pasa; una anulación
+  toma el candado del empleado antes que el inventario. Lo corre `tests/run-sql.sh` después de los archivos SQL cuando
+  no se le da un patrón.
+- `tests/e2e/specs/400_descuentos.spec.js`: la ventana «Aplicar descuento» en una caja registrada: su diseño fijo en
+  cuatro tamaños de pantalla y en los dos idiomas, cada mensaje de su línea a 360 × 640, los códigos (solo puntos,
+  nunca guardados ni enviados vacíos), los cuatro descuentos de punta a punta (el ticket, el total, la venta ligada en
+  el servidor), Guía Turista apagada, nunca dos descuentos, las líneas fijas, una cuenta, una recarga, y el ajuste 1:
+  el código del dueño para una cortesía no abre nada.
+- `tests/e2e/specs/401_descuentos_cuentas.spec.js`: los descuentos en cuentas («Cobrar después»): toda la cuenta,
+  quitarlo sin nada pagado y después de un pago, «Devolver el cupo del día», un encargado que es el beneficiado, una
+  parte pagada en otro aparato, la cortesía a ₡0, una cuenta cobrada, anulada y cancelada, y respuestas perdidas o
+  lentas; el cupo de Empleado sigue usado hasta una anulación válida o la devolución de un encargado (ajuste 3); y un
+  interbloqueo (40P01) en una cuenta: autorizar, × y «quitar uno» se mandan una vez más tras una espera corta y pasan;
+  dos seguidos muestran el error de siempre sin cambiar nada. También: después de Cancelar, el segundo intento va sin
+  códigos; una cuenta cuya respuesta se perdió no recibe un intento nuevo mientras su repetición no tenga respuesta;
+  una respuesta tardía en una tableta no quita el descuento que otra tableta puso en la misma cuenta; lo tocado para
+  una cuenta que se cerró no se suma a un pedido con descuento; y «Devolver el cupo del día» sigue a mano con más de
+  40 filas nuevas en la bitácora.
+- `tests/e2e/specs/402_descuentos_cajas.spec.js`: las cajas registradas (ajuste 2): registrar un aparato en la
+  Bitácora, la llave que lo trae de vuelta a su puesto sin PIN, la línea de «¿Qué dispositivo es este?», la cuenta de
+  códigos equivocados de cada puesto (las esperas, la detención, reanudar), la regla 5, los topes por persona
+  («Reemplazar con este dispositivo»), cada texto de estado y de espera a 360 × 640, que una persona en una tableta
+  no pueda detener los descuentos de las demás cajas, la alerta del café con su propia hora y cuenta, y la respuesta
+  perdida de la vuelta por la llave o de «Registrar este dispositivo»: la página lo marca pendiente (sin PIN ni
+  llave), pregunta otra vez, guarda la llave nueva y el próximo ingreso vuelve al mismo puesto.
+- `tests/e2e/specs/403_descuentos_informes.spec.js`: los descuentos en los informes, los libros y el inventario: lo
+  escrito (la empresa del guía) queda como texto en Ventas, la bitácora y los CSV; «Descuentos por categoría» con sus
+  resúmenes, la línea de las cortesías por tasa de IVA y cada estado; lo que ve el contador; los dos ajustes en Inicio
+  (Guía Turista apagada, con su candado); una venta sin verificar con su caja y su día de Costa Rica (una venta a las
+  18:30 no pasa al día siguiente), y lo que de verdad cobró una venta sin verificar anulada o cancelada (₡0); un
+  informe que no responde a tiempo lo dice en Ventas y en el paquete del contador (`descuentos-NO-INCLUIDO.txt`); y
+  una venta con descuento y una cortesía frente a la misma venta sin descuento: los mismos movimientos de inventario,
+  el cierre de caja (la cortesía como «otro» en ₡0), el asiento diario todavía apagado (A-07) y el IVA sobre el monto
+  con descuento.
+- `tests/e2e/specs/404_descuentos_red.spec.js`: los descuentos con mala red, sin conexión y en carreras: sin conexión
+  la ventana se niega y nada se aplica; una venta guardada sin conexión con su descuento sube ligada (también tras una
+  recarga) y nunca se suelta; una respuesta perdida se pregunta otra vez con el mismo número de solicitud, y si se
+  pierden las dos la aprobación se suelta por ese número; dos cajas a la vez con Empleado para la misma persona (una
+  sola aprobada); una anulación en Pedidos devuelve el día; un intento mandado dos veces a la vez da la misma
+  aprobación; una respuesta lenta que llega después de Cancelar nunca llega al ticket; y sin descuento la Caja vende
+  con y sin conexión como antes, y el servidor nunca rechaza dinero cobrado. También: dos pestañas de la Caja en el
+  mismo aparato nunca sueltan el descuento vivo de la otra, y un pedido «Cobrar después» cobrado en el aparato imprime
+  el nombre de su categoría.
+
+Las pruebas SQL corren en el servidor local con el idioma `C.UTF-8`; GitHub usa `postgres:17`, que ordena el texto en
+`en_US.UTF-8` (otro orden para `_`). Para correrlas igual que GitHub, en un servidor propio de prueba:
+`CANOPY_PG_DIR=/tmp/canopy-test-pg-en CANOPY_PG_PORT=55433 CANOPY_PG_LOCALE=en_US.UTF-8 tests/run-sql.sh` (las listas
+que comparan las pruebas van en orden de bytes, `collate "C"`; `tests/lint.sh` regla 16 lo revisa en
+`release-check.sql`).
+
+En el ensayo de CI (`tests/rehearsal/after-window.sql`), el día después de la ventana con la 0038: la ventana anterior
+con el ajuste encendido, un motivo que se lee como categoría rechazado, una caja registrada, un descuento de categoría
+cobrado tarde (con su marca) y el ajuste apagado y encendido con las dos herramientas del dueño; `compare.py` espera
+`pos_free_discount` encendido y `pos_discount_guia` apagado.
+
 ## Si algún día quiere un proyecto de pruebas permanente
 
 El dueño decidió el 2026-10-14 **no** crear un segundo proyecto de Supabase (la experiencia de cambiar de base en otro

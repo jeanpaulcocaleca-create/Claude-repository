@@ -81,6 +81,23 @@ tr.void .dreason{color:var(--sec)}
 .pagenav a:hover{color:var(--accent);border-color:var(--muted)}
 .pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
 @media(max-width:560px){.hbar-row{grid-template-columns:96px 1fr auto}}
+/* discounts by category (migration 0038) */
+.dchead{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem}
+.dchead h2{margin:0 auto 0 0}
+.dcsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:.9rem 1.6rem;margin-bottom:.9rem}
+.dcsum > div{min-width:0;overflow-x:auto}
+.dcsum caption{text-align:left;font-weight:600;font-size:.85rem;color:var(--ink);padding:.2rem 0 .3rem}
+.dcsum th,.dctable th{font-size:.7rem;letter-spacing:.04em;padding:.35rem .4rem}
+.dcsum td{font-size:.85rem;padding:.35rem .4rem}
+.dch3{font-family:'Figtree',system-ui,sans-serif;font-size:.85rem;font-weight:600;margin:.6rem 0 .3rem}
+.dcnote{font-size:.85rem;color:var(--sec);margin:.2rem 0 .6rem}
+.dcday{font-size:.85rem;padding:.35rem 0;border-bottom:1px dotted var(--muted)}
+.dcday:last-child{border-bottom:none}
+.dcday b{font-weight:600}
+.dcday .sub{display:block;color:var(--sec)}
+.dctable td{font-size:.82rem;padding:.4rem .4rem}
+.dctable td.mono:first-child{white-space:nowrap}
+.dcflag{display:block;font-size:.8rem;color:var(--bad)}
 button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block;min-height:0;width:auto}
 button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .err.ok{color:var(--ok,#4A7A4E)}
@@ -190,6 +207,26 @@ input[data-pin]{-webkit-text-security:disc}
       <table>
         <thead><tr><th>Day</th><th>Opened by</th><th class="r">Float</th><th class="r">Cash sales</th><th class="r">Expected</th><th class="r">Counted</th><th class="r">Cash ±</th><th class="r">Card sales</th><th class="r">Terminal</th><th class="r">Card ±</th><th class="r">SINPE</th><th>Closed by</th></tr></thead>
         <tbody id="regBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- the four discounts of migration 0038 (descuentos_informe), for this page's dates; hidden on a database without it -->
+  <div class="card" id="dcCard" hidden>
+    <div class="dchead">
+      <h2>Discounts by category</h2>
+      <button class="ghost" id="dcCsv" type="button">Download discounts (CSV)</button>
+    </div>
+    <div class="dcsum" id="dcSum"></div>
+    <p class="hint dcnote" id="dcCourt" hidden></p>
+    <div id="dcWrong" hidden>
+      <h3 class="dch3">Wrong codes</h3>
+      <div id="dcWrongBody"></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="dctable">
+        <thead><tr><th>When</th><th>Category</th><th>Employee or company</th><th>Authorized by</th><th class="r">List value</th><th class="r">Discount</th><th class="r">Charged</th><th>Products covered</th><th>Status</th><th>Receipt</th></tr></thead>
+        <tbody id="dcBody"></tbody>
       </table>
     </div>
   </div>
@@ -426,6 +463,7 @@ async function load(){
   lastOrders = allOrders.filter(function(o){ return !o.voided_at; });
   renderKpis(); renderDayChart(start); renderPay(); renderCashier(); renderTop(); renderTx();
   loadRegisters(start);
+  loadDiscounts(start);
 }
 /* register openings and closings in the period (supabase/register.sql) */
 async function loadRegisters(start){
@@ -586,6 +624,14 @@ function renderTop(){
   hbars('topItems', rows, function(r){ return r.qty + ' sold · ' + fmt(r.v); });
 }
 
+var FLAG_TEXT = {stock_not_taken: 'Stock not taken off · check with a manager',
+  recipe_item_missing: 'An ingredient of its recipe was left out · check with a manager',
+  clock_ahead: 'Device clock ahead · check the device',
+  late_sync: 'Arrived late (kept on a device) · counts on its own day',
+  after_close: 'Arrived after that day\'s register was closed · check with a manager',
+  discount_not_verified: 'Discount not verified · check with a manager',
+  discount_late: 'Discount used outside its time · check the device clock',
+  discount_daily_twice: 'Second employee discount the same day · check with a manager'};
 function renderTx(){
   var body = document.getElementById('txBody');
   body.textContent = '';
@@ -614,14 +660,9 @@ function renderTx(){
       t2.appendChild(vr);
     }
     /* the sale was kept, but something about it needs a manager: its stock was not (all) taken off (0031), it arrived late
-       or from a device whose clock is off (0003), or its discount could not be verified */
+       or from a device whose clock is off (0003), or its discount could not be verified, came late or was a second one (0038) */
     (o.flags || []).forEach(function(f){
-      var msg = f === 'stock_not_taken' ? 'Stock not taken off · check with a manager'
-              : f === 'recipe_item_missing' ? 'An ingredient of its recipe was left out · check with a manager'
-              : f === 'clock_ahead' ? 'Device clock ahead · check the device'
-              : f === 'late_sync' ? 'Arrived late (kept on a device) · counts on its own day'
-              : f === 'after_close' ? 'Arrived after that day\'s register was closed · check with a manager'
-              : f === 'discount_not_verified' ? 'Discount not verified · check with a manager' : '';
+      var msg = FLAG_TEXT[f] || '';
       if (!msg) return;
       var fr = document.createElement('span'); fr.className = 'vreason'; fr.textContent = msg; t2.appendChild(fr);
     });
@@ -666,6 +707,237 @@ document.getElementById('csvBtn').addEventListener('click', function(){
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'hanging-garden-sales.csv';
+  a.click();
+});
+
+/* ---- discounts by category (migration 0038): descuentos_informe for this page's dates. Every text goes in as text; names,
+   companies and products are shown as typed (never translated) ---- */
+var DC_STATUS = {used: 'Used', used_unverified: 'Used · not verified', voided_freed: 'Voided · day freed', voided_counts: 'Voided · still counts today',
+  voided: 'Voided', removed: 'Taken off the bill', removed_counts: 'Taken off the bill · still counts today', removed_paid: 'Taken off after a payment',
+  bill_cancelled: 'Bill cancelled', bill_cancelled_counts: 'Bill cancelled · still counts today', refunded: 'Refunded', released: 'Let go',
+  expired: 'Expired', pending: 'Waiting', open_bill: 'Bill still open', free_old: 'Free (old window)', free_old_after_0038: 'Free (old window, after 0038)'};
+var DC_CAT = {empleado: 'Employee', local: 'Local', huesped: 'Hotel guest', guia: 'Tour guide'};
+var DC_ROLE = {manager: 'Manager', owner: 'Owner'};
+var DC_STEP = {manager: '{n} at the manager code', owner: '{n} at the owner code', employee: '{n} at the employee code'};
+var DC_WHY = {no_match: '{n} matched nobody', not_allowed: '{n} of someone who may not authorize', ambiguous: '{n} shared by two people',
+  owner_beneficiary: '{n} with the owner as the employee', inactive: '{n} of an inactive person'};
+var DC_ENDED = {manager: 'removed by a manager', owner: 'removed with the phone code', replaced: 'replaced by another device',
+  sql_editor: 'removed from the SQL Editor', signed_out: 'signed out'};
+var dcData = null, dcRun = 0;
+async function loadDiscounts(start){
+  var card = document.getElementById('dcCard'), run = ++dcRun;
+  var r; try { r = await db.rpc('descuentos_informe', {p_from: dayKey(start), p_to: dayKey(new Date())}); } catch (e){ r = {error: e}; }
+  if (run !== dcRun) return;
+  /* a database before 0038 (no such function), or a login that may not see the sales: no section. Any other failure (no
+     answer, the server's time limit): the section stays and says so, it never just disappears */
+  var missing = r.error && (r.error.code === 'PGRST202' || r.error.code === '42883' || /could not find the function|schema cache/i.test(r.error.message || ''));
+  if (missing || (!r.error && (!r.data || !r.data.ok))){ dcData = null; card.hidden = true; return; }
+  document.getElementById('dcCsv').disabled = !!r.error;
+  if (r.error){ dcData = null; dcFailed(); card.hidden = false; return; }
+  dcData = r.data;
+  renderDiscounts(r.data);
+  card.hidden = false;
+}
+function dcFailed(){
+  ['dcSum', 'dcWrongBody', 'dcCourt', 'dcBody'].forEach(function(id){ document.getElementById(id).textContent = ''; });
+  document.getElementById('dcCourt').hidden = true; document.getElementById('dcWrong').hidden = true;
+  var tr = dcEl('tr'), td = dcEl('td', 'empty', 'Could not load the discounts. Check the connection, or choose a shorter period.');
+  td.colSpan = 10; tr.appendChild(td); document.getElementById('dcBody').appendChild(tr);
+}
+function dcEl(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+/* a value shown as typed: a name, a company, a device, products */
+function dcVal(tag, text, cls){ var e = dcEl(tag, cls, text); e.setAttribute('data-no-translate', ''); return e; }
+/* phrases (each its own text node, so lang.js translates each) and values, joined with " · " */
+function dcLine(host, parts){
+  var first = true;
+  parts.forEach(function(p){
+    if (p === null || p === undefined || p === '' || (typeof p === 'object' && !p.nodeType && (p.v === null || p.v === undefined || p.v === ''))) return;
+    if (!first) host.appendChild(document.createTextNode(' · ')); first = false;
+    host.appendChild(typeof p === 'object' ? (p.nodeType ? p : dcVal('span', String(p.v))) : document.createTextNode(p));
+  });
+  return host;
+}
+function dcN(n, one, many){ return n === 1 ? one : many.replace('{n}', n); }
+function dcWhen(iso){ var d = new Date(iso); return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}) + ' ' + hhmmOf(iso); }
+/* a server timestamp's Costa Rica business day (UTC−6, no summer time), whatever this device's clock says: a not-verified
+   sale's «day» in the CSV, as the server gives the other rows theirs */
+function dcCrDay(iso){ var ms = Date.parse(iso || ''); return isNaN(ms) ? '' : new Date(ms - 6 * 3600000).toISOString().slice(0, 10); }
+function dcDay(day){ var d = new Date(day + 'T12:00:00'); return d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'}); }
+function dcProducts(list){ return (list || []).map(function(p){ return p.qty + '× ' + p.name; }).join(', '); }
+function dcRate(r){ return r === null || r === undefined ? 'no rate' : (Math.round(Number(r) * 1000) / 10).toLocaleString('fr-FR') + ' %'; }   /* stamped as a fraction: 0.13 = 13 % */
+function dcSumTable(caption, head, rows){
+  var t = dcEl('table'), c = dcEl('caption', null, caption), th = dcEl('thead'), tr = dcEl('tr'), tb = dcEl('tbody');
+  /* counts and amounts on the right, in figures; names and labels as text */
+  var isNum = (rows[0] || []).map(function(v){ return typeof v === 'number' || /^₡/.test(String(v)); });
+  t.appendChild(c);
+  head.forEach(function(h, i){ tr.appendChild(dcEl('th', isNum[i] ? 'r' : '', h)); });
+  th.appendChild(tr); t.appendChild(th);
+  rows.forEach(function(r){
+    var x = dcEl('tr');
+    r.forEach(function(v, i){
+      var td = typeof v === 'object' && v !== null ? dcVal('td', v.v == null ? '—' : String(v.v)) : dcEl('td', null, v);
+      if (isNum[i]) td.className = 'r mono';
+      x.appendChild(td);
+    });
+    tb.appendChild(x);
+  });
+  t.appendChild(tb);
+  var box = dcEl('div'); box.appendChild(t);
+  return box;
+}
+function renderDiscounts(d){
+  var tot = d.totals || {}, sum = document.getElementById('dcSum'); sum.textContent = '';
+  if ((tot.by_category || []).length) sum.appendChild(dcSumTable('By category', ['Category', 'Authorized', 'Given', 'Discount', 'List value'],
+    tot.by_category.map(function(x){ return [x.category ? DC_CAT[x.category] || x.category : 'Free (old window)', x.rows, x.given, fmt(x.discount), fmt(x.list_value)]; })));
+  if ((tot.by_employee || []).length) sum.appendChild(dcSumTable('By employee', ['Employee', 'Authorized', 'Given', 'Discount'],
+    tot.by_employee.map(function(x){ return [{v: x.beneficiary}, x.rows, x.given, fmt(x.discount)]; })));
+  if ((tot.by_authorizer || []).length) sum.appendChild(dcSumTable('By authorizer', ['Authorized by', 'Role', 'Given', 'Discount'],
+    tot.by_authorizer.map(function(x){ return [{v: x.name}, DC_ROLE[x.role] || '—', x.given, fmt(x.discount)]; })));
+  if ((tot.by_company || []).length) sum.appendChild(dcSumTable('By company', ['Company', 'Authorized', 'Given', 'Discount', 'List value'],
+    tot.by_company.map(function(x){ return [{v: x.company}, x.rows, x.given, fmt(x.discount), fmt(x.list_value)]; })));
+  /* information only (A-13): the courtesies' list value by IVA rate, no tax computed */
+  var court = document.getElementById('dcCourt'); court.textContent = '';
+  court.hidden = !(d.courtesies || []).length;
+  if (!court.hidden){
+    court.appendChild(document.createTextNode('Courtesies: list value by IVA rate (information only, pending the accountant · A-13)'));
+    court.appendChild(document.createElement('br'));
+    dcLine(court, d.courtesies.map(function(c){ return dcRate(c.tax_rate) + ': ' + fmt(c.list_value); }));
+  }
+  renderWrongCodes(d.wrong_codes || []);
+  var body = document.getElementById('dcBody'); body.textContent = '';
+  var rows = (d.rows || []).slice().reverse(), anomalies = (d.anomalies || []).slice().reverse();
+  if (!rows.length && !anomalies.length){
+    var tr0 = dcEl('tr'), td0 = dcEl('td', 'empty', 'No category discounts in this period.'); td0.colSpan = 10; tr0.appendChild(td0); body.appendChild(tr0);
+    return;
+  }
+  rows.forEach(function(x){
+    var tr = dcEl('tr');
+    if (/^voided/.test(x.status)) tr.className = 'void';
+    tr.appendChild(dcEl('td', 'mono', dcWhen(x.at)));
+    var cat = dcEl('td', null, x.category ? DC_CAT[x.category] || x.category : 'Old window');
+    if (!x.category){
+      cat.appendChild(dcVal('span', (x.kind === 'percent' ? x.value + ' %' : fmt(x.value || 0)) + (x.reason ? ' · ' + x.reason : ''), 'dreason'));
+    }
+    tr.appendChild(cat);
+    tr.appendChild(dcVal('td', x.beneficiary || x.company || '—'));
+    var by = dcEl('td');
+    by.appendChild(dcVal('span', x.authorizer || '—'));
+    if (x.role) by.appendChild(dcEl('span', 'dreason', DC_ROLE[x.role] || x.role));
+    tr.appendChild(by);
+    tr.appendChild(dcEl('td', 'r mono', fmt(x.list_value || 0)));
+    tr.appendChild(dcEl('td', 'r mono', fmt(x.discount || 0)));
+    var ch = dcEl('td', 'r mono', x.charged == null ? '—' : fmt(x.charged));
+    if (x.refunded > 0) ch.appendChild(dcEl('span', 'dreason', 'Refunded ' + fmt(x.refunded)));
+    tr.appendChild(ch);
+    var pr = dcEl('td');
+    pr.appendChild(dcVal('span', dcProducts(x.products) || '—'));
+    if (x.partial){
+      var pa = dcEl('span', 'dreason');
+      pa.appendChild(dcEl('span', 'pill', 'Partial'));
+      pa.appendChild(document.createTextNode(' '));
+      pa.appendChild(document.createTextNode('Added after, charged in full'));
+      pa.appendChild(document.createTextNode(': '));
+      pa.appendChild(dcVal('span', dcProducts(x.added_after)));
+      pr.appendChild(pa);
+    }
+    tr.appendChild(pr);
+    var stt = dcEl('td', null, DC_STATUS[x.status] || x.status);
+    (x.flags || []).forEach(function(f){ if (FLAG_TEXT[f]) stt.appendChild(dcEl('span', 'dcflag', FLAG_TEXT[f])); });
+    tr.appendChild(stt);
+    tr.appendChild(dcEl('td', 'mono', x.receipt_no == null ? '—' : String(x.receipt_no)));
+    body.appendChild(tr);
+  });
+  /* sales rung with an approval another sale had already used: kept, marked, linked only by their audit row; each with its
+     own products and the claimed approval's employee or company and who authorized it (P4) */
+  anomalies.forEach(function(x){
+    var tr = dcEl('tr');
+    if (/^voided/.test(x.status)) tr.className = 'void';
+    tr.appendChild(dcEl('td', 'mono', dcWhen(x.at)));
+    tr.appendChild(dcEl('td', null, x.category ? DC_CAT[x.category] || x.category : '—'));
+    tr.appendChild(dcVal('td', x.beneficiary || x.company || '—'));
+    var by = dcEl('td');
+    by.appendChild(dcVal('span', x.authorizer || '—'));
+    if (x.role) by.appendChild(dcEl('span', 'dreason', DC_ROLE[x.role] || x.role));
+    tr.appendChild(by);
+    tr.appendChild(dcEl('td', 'r mono', fmt(x.subtotal || 0)));
+    tr.appendChild(dcEl('td', 'r mono', fmt(x.discount || 0)));
+    /* what it really charged: nothing once voided, cancelled or still unpaid (the order's total is not money taken) */
+    var ch = dcEl('td', 'r mono', fmt((x.charged == null ? x.total : x.charged) || 0));
+    if (x.refunded > 0) ch.appendChild(dcEl('span', 'dreason', 'Refunded ' + fmt(x.refunded)));
+    tr.appendChild(ch);
+    var pr = dcEl('td');
+    pr.appendChild(dcVal('span', dcProducts(x.products) || '—'));
+    tr.appendChild(pr);
+    var stt = dcEl('td', null, DC_STATUS[x.status] || x.status);
+    stt.appendChild(dcEl('span', 'dcflag', 'Approval already used by another sale'));
+    tr.appendChild(stt);
+    tr.appendChild(dcEl('td', 'mono', x.receipt_no == null ? '—' : String(x.receipt_no)));
+    body.appendChild(tr);
+  });
+}
+/* the wrong codes typed at the discount window, per day (mecanismo §10.5) */
+function renderWrongCodes(days){
+  var box = document.getElementById('dcWrong'), host = document.getElementById('dcWrongBody'); host.textContent = '';
+  box.hidden = !days.length;
+  days.slice().reverse().forEach(function(w){
+    var div = dcEl('div', 'dcday');
+    var head = dcEl('b', null, dcDay(w.day));
+    var steps = Object.keys(w.by_step || {}).map(function(k){ return (DC_STEP[k] || k + ' {n}').replace('{n}', w.by_step[k]); });
+    var whys = Object.keys(w.by_why || {}).map(function(k){ return (DC_WHY[k] || k + ' {n}').replace('{n}', w.by_why[k]); });
+    dcLine(div, [head, dcN(w.wrong, '1 wrong code', '{n} wrong codes')].concat(steps, whys,
+      [w.refused ? dcN(w.refused, '1 refused after a valid code', '{n} refused after a valid code') : null]));
+    (w.places || []).forEach(function(p){
+      var sub = dcEl('span', 'sub');
+      var parts = ['Place ' + p.slot, (p.stations || []).length ? {v: p.stations.join(', ')} : null,
+        dcN(p.wrong, '1 wrong code', '{n} wrong codes'), p.waits ? dcN(p.waits, '1 wait started', '{n} waits started') : null,
+        p.stops ? dcN(p.stops, '1 stop', '{n} stops') : null];
+      (p.resumes || []).forEach(function(r){
+        parts.push(r.how === 'owner_code' ? 'resumed at ' + hhmmOf(r.at) + ' with the phone code'
+          : r.how === 'sql_editor' ? 'resumed at ' + hhmmOf(r.at) + ' from the SQL Editor' : 'resumed at ' + hhmmOf(r.at) + ' by ' + (r.by || '?'));
+      });
+      if (p.signed_out) parts.push(dcN(p.signed_out, '1 sign-out', '{n} sign-outs'));
+      if (p.rebound) parts.push(dcN(p.rebound, '1 back by its device key', '{n} back by their device key'));
+      div.appendChild(dcLine(sub, parts));
+    });
+    (w.enrolled || []).forEach(function(x){
+      div.appendChild(dcLine(dcEl('span', 'sub'), [{v: x.station || '—'}, 'Place ' + x.slot, 'registered at ' + hhmmOf(x.at) + ' by ' + (x.by || '?'),
+        x.replaced_station ? 'in place of' : null, x.replaced_station ? {v: x.replaced_station} : null]));
+    });
+    (w.ended || []).forEach(function(x){
+      div.appendChild(dcLine(dcEl('span', 'sub'), [{v: x.station || '—'}, 'Place ' + x.slot,
+        x.how === 'sql_editor' ? 'removed at ' + hhmmOf(x.at) : 'removed at ' + hhmmOf(x.at) + ' by ' + (x.by || '?'), DC_ENDED[x.how] || x.how]));
+    });
+    var other = [w.shared ? dcN(w.shared, '1 code shared by two people', '{n} codes shared by two people') : null,
+      w.unknown ? dcN(w.unknown, '1 typed on an unregistered device', '{n} typed on unregistered devices') : null,
+      w.unknown && (w.unknown_stations || []).length ? {v: w.unknown_stations.join(', ')} : null,
+      w.person_locked ? dcN(w.person_locked, '1 approved with their PIN locked in the name lists', '{n} approved with their PIN locked in the name lists') : null];
+    (w.alerts || []).forEach(function(a){ other.push('alert at ' + hhmmOf(a.at) + ': ' + a.cafe_24h + ' in 24 h in the café'); });
+    if (other.some(function(x){ return x; })) div.appendChild(dcLine(dcEl('span', 'sub'), other));
+    host.appendChild(div);
+  });
+}
+/* «Download discounts (CSV)»: every text cell through csvSafe */
+function dcq(v){ return '"' + csvSafe(String(v == null ? '' : v)).replace(/"/g, '""') + '"'; }
+document.getElementById('dcCsv').addEventListener('click', function(){
+  var d = dcData; if (!d) return;
+  var lines = ['day,time,category,status,given,beneficiary,company,authorizer,role,station,receipt_no,list_value_crc,discount_crc,charged_crc,refunded_crc,products,added_after,flags,reason,note'];
+  (d.rows || []).forEach(function(x){
+    lines.push([x.day, hhmmOf(x.at), x.category || 'old', x.status, x.given ? 'yes' : 'no', dcq(x.beneficiary), dcq(x.company), dcq(x.authorizer), x.role || '',
+      dcq(x.station), x.receipt_no == null ? '' : x.receipt_no, x.list_value == null ? '' : x.list_value, x.discount == null ? '' : x.discount,
+      x.charged == null ? '' : x.charged, x.refunded || 0, dcq(dcProducts(x.products)), dcq(dcProducts(x.added_after)), dcq((x.flags || []).join(' ')),
+      dcq(x.reason), ''].join(','));
+  });
+  (d.anomalies || []).forEach(function(x){
+    lines.push([dcCrDay(x.at), hhmmOf(x.at), x.category || '', x.status, 'no', dcq(x.beneficiary), dcq(x.company), dcq(x.authorizer), x.role || '',
+      dcq(x.station), x.receipt_no == null ? '' : x.receipt_no,
+      x.subtotal == null ? '' : x.subtotal, x.discount == null ? '' : x.discount, x.charged == null ? (x.total == null ? '' : x.total) : x.charged,
+      x.refunded || 0, dcq(dcProducts(x.products)), '""', dcq((x.flags || []).join(' ')),
+      dcq(x.reason), dcq('approval already used by another sale')].join(','));
+  });
+  var blob = new Blob([lines.join('\n')], {type: 'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hanging-garden-descuentos-' + d.from + '-' + d.to + '.csv';
   a.click();
 });
 

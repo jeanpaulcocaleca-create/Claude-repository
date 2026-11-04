@@ -1,7 +1,7 @@
 /* Touch screens get large on-screen pads; staff screens start in Spanish. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, STAFF, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, registerTill, STAFF, PINS } = require('../lib');
 
 async function touchPos(browser, opts) {
   openRegister();
@@ -32,6 +32,30 @@ module.exports.tests = [
       await pad.locator('button.ok').click();
       await until(() => sql(`select voided_at is not null from orders where id = '0d000000-0000-4000-8000-0000000e2e11'`) === 't', 8000, 'voided');
       assert.strictEqual(await pg.locator('#vPin').inputValue(), '', 'the PIN is cleared afterwards');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'the discount window types with its own keys on a touch screen: no keypad.js pad under its code box, no phone keyboard',
+    run: async ({ browser }) => {
+      const pg = await touchPos(browser);
+      await goto(pg, '/pos');
+      await pg.waitForSelector('.pbtn', { timeout: 15000 });
+      if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
+      await registerTill(pg);
+      await pg.locator('.pbtn').first().click();
+      await pg.click('#discBtn');
+      await pg.waitForSelector('#discModal:not([hidden])');
+      await pg.locator('[data-cat="local"]').tap();
+      await pg.focus('#discPin');
+      await new Promise((r) => setTimeout(r, 300));
+      assert.strictEqual(await pg.locator('#discModal .hg-pad').count(), 0, 'keypad.js adds no pad of its own (data-keypad="off")');
+      assert.strictEqual(await pg.locator('#discPin').getAttribute('inputmode'), 'none', 'no phone keyboard on top of the keys');
+      for (const d of PINS.ana) await pg.locator('#discPad button[data-k="' + d + '"]').tap();
+      assert.strictEqual(await pg.locator('#discPin').inputValue(), PINS.ana, 'the window\'s own keys type');
+      await pg.locator('#discPad button[data-k="del"]').tap();
+      assert.strictEqual(await pg.locator('#discPin').inputValue(), PINS.ana.slice(0, 3), '⌫ erases one digit');
+      assert.strictEqual(await pg.evaluate(() => document.activeElement && document.activeElement.id), 'discPin', 'the keys never take the focus from the code box');
       assert.deepStrictEqual(pg.errors, []);
     }
   },

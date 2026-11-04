@@ -7,14 +7,15 @@
 #   * the production texts accepted as a known version (ACCEPTED below).
 # Run it after changing anything in supabase/migrations (the rehearsal, tests/rehearsal/run.sh, fails when the function
 # or table lists are out of date).
-# Local test cluster only (it rebuilds the throwaway database canopy_chain).
+# Local test cluster only (it rebuilds the throwaway database canopy_chain, or CANOPY_CHAIN_DB: two runs at once on one
+# server each use their own).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 # shellcheck source=/dev/null
 source "$HERE/pg.sh"
 case "$PGHOST" in 127.0.0.1|localhost|/*|postgres) ;; *) echo "only on a local/CI test server"; exit 2;; esac
-DB=canopy_chain
+DB="${CANOPY_CHAIN_DB:-canopy_chain}"
 # Production texts accepted as a known version: a function body found in production that is none of this repository's,
 # proven to differ only where it cannot change what the function does, so the snapshot counts it under that version
 # instead of reporting it in functions_changed. Only with the proof written down (docs/DECISIONS.md); never for a

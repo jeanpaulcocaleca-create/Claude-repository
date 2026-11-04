@@ -463,10 +463,17 @@ async function loadBackupStatus(){
 /* system settings (migration 0008): the owner's decisions, regulated ones locked until confirmed */
 var SET_LABEL = {operator_mode: 'Who rings up each sale', fx_rate_kind: 'Exchange rate for dollars', price_mode: 'Prices at the POS',
                  einvoice_mode: 'Electronic invoices (Hacienda)', payroll_renta_withhold: 'Income tax withheld from pay',
-                 payroll_accrue_aguinaldo: 'Aguinaldo provisioned every payroll'};
+                 payroll_accrue_aguinaldo: 'Aguinaldo provisioned every payroll',
+                 /* the POS discounts (migration 0038): the old free window while tills are reloaded, and the tour guide
+                    courtesy, locked until the accountant confirms its IVA (A-13) and the owner records it below */
+                 pos_free_discount: 'Old free discount window (tills not reloaded yet)',
+                 pos_discount_guia: "Tour guide courtesy 100 % (needs the accountant's IVA confirmation, A-13)"};
 var CHOICE_LABEL = {off: 'Off (as before)', record: 'Record who rings up', enforce: 'Require clock-in to ring up', on: 'On',
                     buy: 'Buy rate of the day', sell: 'Sell rate of the day', inclusive: 'IVA included (as today)', exclusive: 'Before IVA, IVA added at checkout',
                     shadow: 'Record only, send nothing (to check the data)'};
+/* a setting whose choices read differently from the shared ones above (the shared "Off (as before)" is wrong for these) */
+var KEY_CHOICE_LABEL = {pos_free_discount: {on: 'On (until the activation ends)', off: 'Off (only the four discounts)'},
+                        pos_discount_guia: {off: "Off (until the accountant confirms the IVA)", on: 'On (IVA confirmed by the accountant)'}};
 var SET_ERR = {owner_only: 'Only the owner login, with the phone code, can change settings.', bad_value: 'That value is not allowed.',
                needs_confirmation: 'Locked: record the confirmation of this rule first.'};
 async function loadSettingsCard(){
@@ -483,7 +490,7 @@ async function loadSettingsCard(){
     var name = document.createElement('b'); name.textContent = SET_LABEL[st.key] || st.key;
     if (st.locked){ var lk = document.createElement('span'); lk.textContent = ' 🔒'; lk.title = 'Locked until the rule is confirmed'; name.appendChild(lk); }
     var sel = document.createElement('select'); sel.setAttribute('aria-label', SET_LABEL[st.key] || st.key);
-    (bool ? ['off', 'on'] : (st.choices || [])).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = CHOICE_LABEL[c] || c; sel.appendChild(o); });
+    (bool ? ['off', 'on'] : (st.choices || [])).forEach(function(c){ var o = document.createElement('option'); o.value = c; o.textContent = (KEY_CHOICE_LABEL[st.key] || {})[c] || CHOICE_LABEL[c] || c; sel.appendChild(o); });
     var cur = bool ? ((st.value === true || st.value === 'true') ? 'on' : 'off') : st.value;
     sel.value = cur;
     sel.addEventListener('change', async function(){

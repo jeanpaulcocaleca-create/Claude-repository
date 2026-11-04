@@ -40,6 +40,10 @@ create function pg_temp.anon_definer() returns text language sql as $$
 select pg_temp.rows() as rows_before, pg_temp.fp() as fp_before, pg_temp.fns() as fns_0036 \gset
 select test.eq(pg_temp.anon_definer(), 'canopy_schema_version order_status pantalla_datos place_room_order room_lookup', 'under 0036 a visitor runs pantalla_datos too');
 
+-- 0038 (the POS discounts) comes after: it is reverted first (each reversal refuses while a later migration is applied)
+\o /dev/null
+\ir ../../supabase/tools/reversion-0038.sql
+\o
 -- 1) a later migration is applied: the script stops at its first statement and changes nothing ------------------------------
 insert into canopy.migrations (version, name) values (38, 'siguiente de prueba');
 savepoint later;
@@ -110,9 +114,9 @@ reset role;
 \set rc `cat :'rc_file'`
 \pset tuples_only off
 \pset format aligned
-select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[36, 37]'::jsonb, 'release-check.sql: 36 and 37 are missing');
-select test.eq((:'rc'::jsonb) -> 'functions_missing', '["diapositiva_estado", "diapositiva_guardar", "pantalla_datos", "pantalla_guardar", "pantallas_estado"]'::jsonb,
-               'and the five functions of the screens');
+select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[36, 37, 38]'::jsonb, 'release-check.sql: 36, 37 and 38 are missing');
+select test.eq((:'rc'::jsonb) -> 'functions_missing', '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe", "diapositiva_estado", "diapositiva_guardar", "pantalla_datos", "pantalla_guardar", "pantallas_estado"]'::jsonb,
+               'and the five functions of the screens (and the eleven of 0038, reverted first)');
 select test.eq((:'rc'::jsonb) -> 'anon_can_run', '["canopy_schema_version", "order_status", "place_room_order", "room_lookup"]'::jsonb,
                'and a visitor runs only what it ran before');
 

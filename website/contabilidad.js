@@ -1271,6 +1271,12 @@ function zip(files){
 async function monthPackage(r, btn){
   var m = r.to.slice(0, 7), from = m + '-01', to = monthEnd(from);
   await busy(btn, async function(){
+    /* the discounts of the month (migration 0038) come apart: a database without them leaves the file out (null) instead
+       of failing the package; any other failure (no answer, the server's time limit) leaves it out too (false), and the
+       package then says so, in a note inside it and on the screen */
+    var disc = Promise.resolve(db.rpc('descuentos_informe', {p_from: from, p_to: to})).then(function(x){
+      return x && !x.error && x.data && x.data.ok ? x.data : missing(x) ? null : false;
+    }, function(){ return false; });
     var res = await Promise.all([db.rpc('acct_journal', {p_from: from, p_to: to}), db.rpc('acct_trial_balance', {p_from: from, p_to: to}), db.rpc('acct_income_statement', {p_from: from, p_to: to}), db.rpc('acct_balance_sheet', {p_as_of: to}), db.rpc('acct_cash_flow', {p_from: from, p_to: to}), db.rpc('expense_list', {p_from: from, p_to: to}), db.rpc('tax_summary', {p_from: from, p_to: to}), db.rpc('iva_report', {p_from: from, p_to: to}), db.rpc('inventory_valuation')]);
     if (res.some(function(x){ return x.error || !x.data || x.data.ok === false; })){ toast('Could not build the package. Check the connection and try again.'); return; }
     var j = [['entry_no', 'date', 'source', 'memo', 'account', 'account_name', 'debit', 'credit']];
@@ -1283,10 +1289,30 @@ async function monthPackage(r, btn){
     var iva = [['code', 'rate', 'lines', 'gross_crc', 'net_crc', 'tax_crc']].concat(res[6].data.by_rate.map(function(x){ return [x.code, x.rate, x.lines, x.gross_crc, x.net_crc, x.tax_crc]; }), [['refunds', '', '', '', '', res[6].data.refunds_tax_crc], ['sales without tax detail (before 0009)', '', res[6].data.without_tax_detail.orders, res[6].data.without_tax_detail.total_crc, '', '']]);
     var ivc = [['date', 'supplier', 'invoice', 'base_crc', 'iva_crc', 'source', 'account']].concat(res[7].data.credits.documents.map(function(x){ return [x.date, x.supplier, x.number, x.base_crc, x.iva_crc, x.source, x.account]; }), [['', 'total', '', '', res[7].data.credits.iva_crc, '', '']]);
     var stk = [['item', 'category', 'on_hand', 'unit', 'avg_cost', 'value_crc']].concat(res[8].data.items.map(function(x){ return [x.name, x.category, x.on_hand, x.unit, x.avg_cost, x.value_crc]; }), [['total', '', '', '', '', res[8].data.total_crc], ['books 1150', '', '', '', '', res[8].data.ledger_crc]]);
-    var blob = zip([{name: 'diario.csv', text: csvText(j)}, {name: 'balanza.csv', text: csvText(tb)}, {name: 'estado-resultados.csv', text: csvText(is)}, {name: 'balance-general.csv', text: csvText(bs)}, {name: 'flujo-efectivo.csv', text: csvText(cf)}, {name: 'gastos.csv', text: csvText(ex)}, {name: 'iva-ventas.csv', text: csvText(iva)}, {name: 'iva-compras.csv', text: csvText(ivc)}, {name: 'inventario-valorado-' + today() + '.csv', text: csvText(stk)}]);
+    var files = [{name: 'diario.csv', text: csvText(j)}, {name: 'balanza.csv', text: csvText(tb)}, {name: 'estado-resultados.csv', text: csvText(is)}, {name: 'balance-general.csv', text: csvText(bs)}, {name: 'flujo-efectivo.csv', text: csvText(cf)}, {name: 'gastos.csv', text: csvText(ex)}, {name: 'iva-ventas.csv', text: csvText(iva)}, {name: 'iva-compras.csv', text: csvText(ivc)}, {name: 'inventario-valorado-' + today() + '.csv', text: csvText(stk)}];
+    var dr = await disc;
+    if (dr) files.push({name: 'descuentos.csv', text: csvText(discountRows(dr))});
+    else if (dr === false) files.push({name: 'descuentos-NO-INCLUIDO.txt', text: 'No se pudieron leer los descuentos de ' + m +
+      ' (descuentos_informe): descuentos.csv no va en este paquete. Descargue el paquete otra vez.\r\n'});
+    var blob = zip(files);
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'contabilidad-' + m + '.zip'; a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+    if (dr === false) toast('The package was built without descuentos.csv: the discounts could not be read. Download it again.');
   });
+}
+
+/* descuentos.csv: every discount of the month (descuentos_informe, 0038), one row each with its status and what it covered;
+   then the tour guide courtesies' list value by IVA rate (information only, pending the accountant, A-13: no tax computed) */
+function discountRows(d){
+  var items = function(l){ return (l || []).map(function(p){ return p.qty + 'x ' + p.name; }).join('; '); };
+  var out = [['day', 'at', 'category', 'status', 'given', 'beneficiary', 'company', 'authorizer', 'role', 'station', 'receipt_no', 'list_value_crc', 'discount_crc', 'charged_crc', 'refunded_crc', 'products', 'added_after', 'flags', 'reason']];
+  (d.rows || []).forEach(function(x){ out.push([x.day, x.at, x.category || 'old', x.status, x.given ? 'yes' : 'no', x.beneficiary, x.company, x.authorizer, x.role, x.station, x.receipt_no, x.list_value, x.discount, x.charged, x.refunded, items(x.products), items(x.added_after), (x.flags || []).join(' '), x.reason]); });
+  /* a sale rung with an approval another sale had already used: its own products and the claimed approval's who (P4); its
+     day is the Costa Rica business day of the sale (crDate), as the server gives the other rows theirs */
+  /* charged: what the sale really took (nothing once voided, cancelled or unpaid), refunded apart, as for the rows */
+  (d.anomalies || []).forEach(function(x){ out.push([crDate(x.at), x.at, x.category, x.status, 'no', x.beneficiary, x.company, x.authorizer, x.role, x.station, x.receipt_no, x.subtotal, x.discount, x.charged == null ? x.total : x.charged, x.refunded == null ? '' : x.refunded, items(x.products), '', (x.flags || []).join(' '), 'approval already used by another sale']); });
+  (d.courtesies || []).forEach(function(c){ out.push(['courtesy_list_value_by_iva_rate (information only, A-13)', '', 'guia', '', '', '', '', '', '', '', '', c.list_value, '', '', '', 'iva_rate ' + (c.tax_rate == null ? 'none' : c.tax_rate)]); });
+  return out;
 }
 
 /* ---------- Books: the journal, accounts, mappings, periods, electronic documents, payroll, audit and activation ---------- */

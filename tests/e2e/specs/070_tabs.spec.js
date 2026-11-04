@@ -3,7 +3,7 @@
    while the system does not take them (queue). Ported from the e2e3 suites tabs-e2e.js and tabs-e2e6.js. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql, openRegister, cashExact, PINS } = require('../lib');
+const { page, goto, until, sql, openRegister, cashExact, registerTill, PINS } = require('../lib');
 const gw = require('../gateway');
 
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -96,6 +96,8 @@ async function managers(pg, sel) {
   await until(() => pg.evaluate((s) => [...document.querySelectorAll(s + ' option')].some((o) => o.textContent === 'Ana'), sel), 8000, 'managers listed');
   await pg.selectOption(sel, { label: 'Ana' });
 }
+/* the discount window's own keys (pos.html #discPad), tapped as a person does */
+async function padType(pg, code) { for (const d of code) await pg.click(`#discPad button[data-k="${d}"]`); }
 const roundDone = (pg) => until(() => pg.evaluate(() => !qRound), 15000, 'the saving round to finish');
 const sale = (k, extra) => Object.assign({ local_id: 'o' + k, created_at: new Date().toISOString(), total_crc: 2000, payment_method: 'cash_crc',
   status: 'done', paid: true, station: 'Caja', items: [{ item_name: 'T Latte', price_crc: 2000, qty: 1 }] }, extra || {});
@@ -418,78 +420,97 @@ module.exports.tests = [
     }
   },
   {
-    name: 'D-a/D-b: a slow approval cancelled is not used on another bill; the discount window follows the bill under it',
+    name: 'D-a/D-b: a slow Empleado approval on bill A, cancelled, is taken off A again (the day still counts) and never reaches bill B; the window follows the bill under it',
     run: async ({ browser }) => {
       testMenu();
       bill(11, 'Mesa Lenta A', 'done', [['T Latte', 2000, 4]]);
       bill(12, 'Mesa Lenta B', 'done', [['T Latte', 2000, 3]]);
       const pg = await till(browser, { viewport: { width: 820, height: 1180 } });
-      let approvals = 0; const hold = gate();
-      await pg.route(/rest\/v1\/rpc\/approve_discount/, async (r) => { approvals++; await hold.wait; return r.fallback(); });
+      await registerTill(pg);
+      let approvals = 0; const hold = gate(); const asked = [];
+      await pg.route(/rest\/v1\/rpc\/descuento_autorizar/, async (r) => { approvals++; asked.push(JSON.parse(r.request().postData() || '{}')); await hold.wait; return r.fallback(); });
 
-      /* D-a. slow approval, Cancel, another bill: the approval is not used on the other bill */
+      /* D-a. Empleado for Luis on bill A, the call held, Cancel, bill B opened; the held call answers ok: the page takes
+         the discount off bill A again (descuento_quitar_cuenta, no PIN: nothing was paid) and bill B is untouched */
       await pg.evaluate((x) => openTab(x), id(11));
       await pg.waitForSelector('#tabModal:not([hidden])');
       await pg.click('#tabDisc');
       await pg.waitForSelector('#discModal:not([hidden])');
-      await pg.click('[data-pct="50"]');
-      await pg.selectOption('#discWhy', 'Team member');
-      await managers(pg, '#discMgr');
-      await pg.fill('#discPin', PINS.ana);
+      await untilText(pg, '#discSub', /Cuenta · Mesa Lenta A · ₡8.?000/);
+      await pg.click('[data-cat="empleado"]');
+      await padType(pg, PINS.luis);
+      await pg.click('#discGo');
+      await untilText(pg, '#discStep', /^Código de encargado$/);
+      await padType(pg, PINS.ana);
       await pg.click('#discGo');
       await until(() => approvals === 1, 8000, 'the approval on its way');
+      assert.strictEqual(asked[0].p_order_id, id(11), 'bill mode: the call names bill A');
+      assert.strictEqual(asked[0].p_subtotal, 8000); assert.strictEqual(asked[0].p_expect, 8000);
       await pg.click('#discCancel');
       await pg.click('#tabClose');
       await pg.evaluate((x) => openTab(x), id(12));
       await pg.waitForSelector('#tabModal:not([hidden])');
       await pg.click('#tabDisc');
       await pg.waitForSelector('#discModal:not([hidden])');
-      const answered = pg.waitForResponse((r) => /rpc\/approve_discount/.test(r.url()));
+      await untilText(pg, '#discSub', /Mesa Lenta B/);
+      const answered = pg.waitForResponse((r) => /rpc\/descuento_autorizar/.test(r.url()));
+      const takenBack = pg.waitForResponse((r) => /rpc\/descuento_quitar_cuenta/.test(r.url()) && JSON.parse(r.request().postData() || '{}').p_order_id === id(11));
       hold.open();
       await answered;
-      await until(() => pg.evaluate(() => !document.getElementById('discGo').disabled), 8000, 'the late answer handled');
+      await takenBack;
       await quiet(pg);
       const both = sql(`select string_agg(total_crc || '/' || discount_crc, ' ' order by guest_name) from orders where id in ('${id(11)}', '${id(12)}')`);
-      assert.strictEqual(both, '8000/0 6000/0', 'neither bill got the cancelled approval');
+      assert.strictEqual(both, '8000/0 6000/0', 'neither bill keeps the cancelled approval');
+      assert.strictEqual(sql(`select count(*) || '/' || bool_and(freed_at is null) || '/' || min(beneficiary_name) from discount_approvals where category = 'empleado' and bill_id = '${id(11)}'`), '1/true/Luis',
+        'the approval was made for bill A and still counts (Q3: a manager gives the day back)');
+      assert.strictEqual(sql(`select count(*) from audit_log where action = 'discount_not_freed' and details ->> 'why' = 'needs_manager'`), '1', 'logged: still counts');
+      assert.strictEqual(sql(`select string_agg(action, ',' order by id) from audit_log where action in ('discount_approved', 'tab_discount_removed') and (target_id = '${id(11)}' or details ->> 'bill' = '${id(11)}')`),
+        'discount_approved,tab_discount_removed', 'the log has the approval and the removal on bill A');
       assert.ok(await pg.isVisible('#discModal'), 'bill B\'s discount window stays open, untouched');
-      assert.match(await text(pg, '#discTitle'), /Mesa Lenta B/, 'the window is for bill B');
+      assert.match(await text(pg, '#discSub'), /Mesa Lenta B/, 'the window is for bill B');
+      assert.strictEqual(await pg.evaluate(() => disc.cat), null, 'nothing chosen on B');
 
-      /* D-b. the discount window follows the bill under it when another device adds an item */
-      await pg.click('[data-pct="10"]');
-      await untilText(pg, '#discPrev', /₡600/);
+      /* D-b. the discount window follows the bill under it when another device adds an item: the context line is redrawn
+         and the next call sends the new p_subtotal and p_expect */
+      await untilText(pg, '#discSub', /₡6.?000/);
       const add = await rpc('tab_add_items', { p_order_id: id(12), p_items: [{ menu_item_id: ITEM.latte, qty: 1 }] });
       assert.ok(add.ok && add.total === 8000, 'a latte added on another device: ' + JSON.stringify(add));
       await pg.evaluate(() => pollLive());
-      await untilText(pg, '#discPrev', /₡800/);
-      await untilText(pg, '#discLead', /₡8.?000/);
-      await pg.click('#discCancel');
+      await untilText(pg, '#discSub', /Cuenta · Mesa Lenta B · ₡8.?000/);
+      await pg.click('[data-cat="local"]');
+      await padType(pg, PINS.ana);
+      await pg.click('#discGo');
+      await pg.waitForSelector('#discModal', { state: 'hidden', timeout: 8000 });
+      const last = asked[asked.length - 1];
+      assert.strictEqual(last.p_order_id, id(12)); assert.strictEqual(last.p_subtotal, 8000); assert.strictEqual(last.p_expect, 8000);
+      assert.ok(!('p_employee_pin' in last), 'no employee code for Local');
+      await until(() => sql(`select total_crc || '/' || discount_crc || '/' || discount_reason from orders where id = '${id(12)}'`) === '7200/800/Local', 8000, 'Local 10 % on the whole bill B');
+      await until(async () => /Descuento ₡800 · Local/.test(await text(pg, '#tabTotals')), 8000, 'the bill window shows it, with no percentage');
+      assert.ok(!/%/.test(await text(pg, '#tabTotals')), 'no percentage on the bill');
       await pg.click('#tabClose');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
   {
-    name: 'D-c: a discount after an item was paid by item covers what is left, as the screen said; taking an item off keeps the 10 %',
+    name: 'D-c: a bill with an item paid by item is refused before any code (a discount covers the whole bill); taking an item off still works',
     run: async ({ browser }) => {
       testMenu();
       bill(13, 'Mesa Parcial', 'ready', [['T Sandwich', 4000, 1, line(61)], ['T Latte', 2000, 1, line(62)], ['T Brownie', 1500, 2, line(63)]]);
       const paid = await rpc('tab_pay', { p_order_id: id(13), p_method: 'card', p_lines: [{ item_id: line(61), qty: 1 }], p_amount: null, p_station: 'Caja', p_expect: 9000 });
       assert.ok(paid.ok && paid.amount === 4000, 'the sandwich paid by item on another device: ' + JSON.stringify(paid));
       const pg = await till(browser, { viewport: { width: 820, height: 1180 } });
+      await registerTill(pg);
+      const calls = [];
+      pg.on('request', (r) => { if (/rpc\/descuento_/.test(r.url())) calls.push(r.url()); });
       await pg.evaluate((x) => openTab(x), id(13));
       await pg.waitForSelector('#tabModal:not([hidden])');
       await pg.click('#tabDisc');
-      await pg.waitForSelector('#discModal:not([hidden])');
-      await pg.click('[data-pct="10"]');
-      await untilText(pg, '#discPrev', /Descuento ₡500 · Por pagar ₡4.?500/);
-      await pg.selectOption('#discWhy', 'Promotion');
-      await managers(pg, '#discMgr');
-      await pg.fill('#discPin', PINS.ana);
-      await pg.click('#discGo');
-      await pg.waitForSelector('#discModal', { state: 'hidden', timeout: 8000 });
-      assert.strictEqual(sql(`select total_crc from orders where id = '${id(13)}'`), '4500', 'the bill is what the preview said');
-      await until(async () => /4.?500/.test(await text(pg, '#tabTotals')), 8000, 'the window shows ₡4 500');
+      await untilText(pg, '#tabErr', /^Un descuento cubre toda la cuenta: solo se da antes de cualquier pago\.$/);
+      assert.ok(await pg.isHidden('#discModal'), 'the window does not open');
+      assert.strictEqual(calls.length, 0, 'nothing asked of the server, no code typed');
+      assert.strictEqual(sql(`select total_crc || '/' || coalesce(discount_crc, 0) from orders where id = '${id(13)}'`), '5000/0', 'the bill as it was');
       await pg.locator('#tabLines .tline', { hasText: 'T Brownie' }).locator('button.rm').click();
-      await until(() => sql(`select total_crc from orders where id = '${id(13)}'`) === '3150', 8000, 'a brownie off: 10 % of what is left (₡3 150)');
+      await until(() => sql(`select total_crc from orders where id = '${id(13)}'`) === '3500', 8000, 'a brownie off (₡3 500 left)');
       await pg.click('#tabClose');
       assert.deepStrictEqual(pg.errors, []);
     }
@@ -511,8 +532,19 @@ module.exports.tests = [
 
       await pg.evaluate((x) => openTab(x), id(14));
       await pg.waitForSelector('#tabModal:not([hidden])');
+      /* the discount window over the bill, an employee code typed and a manager's half typed */
+      await registerTill(pg);
+      await pg.click('#tabDisc');
+      await pg.waitForSelector('#discModal:not([hidden])');
+      await pg.click('[data-cat="empleado"]');
+      await padType(pg, PINS.luis);
+      await pg.click('#discGo');
+      await untilText(pg, '#discStep', /^Código de encargado$/);
+      await padType(pg, PINS.ana.slice(0, 2));
       await pg.evaluate(() => db.auth.signOut({ scope: 'local' }));
       await until(async () => (await pg.isVisible('#loginForm')) && (await pg.evaluate(() => [...document.querySelectorAll('.modal')].every((m) => m.hidden))), 8000, 'signed out, no window over the sign-in box');
+      assert.strictEqual(await pg.inputValue('#discPin'), '', 'the code box is empty');
+      assert.strictEqual(await pg.evaluate(() => discCode.get()), null, 'the employee code is gone from memory');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

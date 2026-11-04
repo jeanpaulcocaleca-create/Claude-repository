@@ -22,5 +22,17 @@ for t in $(ls "$HERE"/sql/*.test.sql | sort); do
     fail=$((fail+1)); failed+=("$name")
   fi
 done
+# 0038's two-connection checks (committed rows, several connections at once): on a database of their own, built and
+# dropped by the script; after the SQL files when no pattern is given (or when the pattern names them)
+c="concurrency-descuentos"
+if [ -z "${1:-}" ] || [[ "$c" == *"$1"* ]]; then
+  if out=$(bash "$HERE/sql/$c.sh" "$DB" 2>&1); then
+    n=$(echo "$out" | grep -Eo '[0-9]+ passed' | tail -1 || true)
+    echo "  ok    $c ${n:+($n)}"; pass=$((pass+1))
+  else
+    echo "  FAIL  $c"; echo "$out" | grep -E 'FAIL|ERROR|failed' | sed 's/^/        /' | head -40
+    fail=$((fail+1)); failed+=("$c")
+  fi
+fi
 echo "SQL tests: $pass passed, $fail failed${failed:+ (${failed[*]})}"
 [ "$fail" -eq 0 ]
