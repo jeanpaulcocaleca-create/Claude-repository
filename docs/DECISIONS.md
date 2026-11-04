@@ -2925,8 +2925,8 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     log says «Código compartido por dos personas: asigne PIN nuevos en Equipo.» and the guide's step 1.6 finds them first.
   - It relies, as 0033 does, on Supabase putting `session_id` in every token; without it everything fails closed
     (`no_session`: no discounts at all, visible at once). The first registration in production proves it.
-- **Rule 5, built in two halves, waits for the owner's one-line confirmation before activation** (the owner asked on
-  2026-11-04 that both be told apart and tested):
+- **Rule 5, built in two halves, confirmed by the owner on 2026-11-04** (the owner asked that same day that both be
+  told apart and tested, then approved them as documented; the words are in E-42):
   - **A temporary lock does not stop the discount window.** A person locked by 0033 (5 wrong tries at a name-picked
     box, 10 minutes) is accepted at the window when their code matches exactly one allowed person; the 0033 lock stays
     on at the name-picked boxes (the old window included, while `pos_free_discount` is on), and the window never reads
@@ -2949,7 +2949,8 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     wrong at every till until every till stopped. No fallback keeps adjustment 2 and leaks no PIN: refusing a locked
     person's right code without counting it, or with an answer of its own, tells a guesser the code is right; refusing
     and counting it reopens the café-wide block. If the owner says no, 0038 is rebuilt with the counted refusal before
-    activation and the owner accepts that block in writing. The confirmation is step 1.8 of the guide (E-42).
+    activation and the owner accepts that block in writing. The confirmation was step 1.8 of the guide; the owner gave
+  it on 2026-11-04 (E-42).
 - **L1: `access.js` unchanged, no `descuento_caja_cerrar`:** `access.js` is shared by every page, and ending a till's
   registration at sign-out gave little: «Cerrar sesión» on a registered tablet leaves its row live, and its key binds
   the next sign-in to the same place (`descuento_caja_volver` ends the old live row as `rebound`). No `signed_out` row is

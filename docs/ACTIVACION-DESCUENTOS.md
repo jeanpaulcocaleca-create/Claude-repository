@@ -219,7 +219,7 @@ el motivo del descuento.» (sección 6.1, paso 5).
      internet llega con el ajuste apagado y se registra como hoy, un descuento Local en una caja registrada queda ligado
      y marcado si llega tarde, el ajuste vuelve a encendido, y luego las páginas publicadas (`44a0dab`) venden, guardan
      sin internet y marcan sobre esa copia.
-4. **La vista previa privada, aprobada:** el enlace que le paso en el chat (una página privada de claude.ai). No lee
+4. **La vista previa privada, aprobada** (usted la aprobó el 2026-11-04; queda la prueba en el iPad de abajo): el enlace que le paso en el chat (una página privada de claude.ai). No lee
    ni cambia nada de producción. Mírela en el iPad (Safari) y en la Caja del frente: los cuatro botones, el teclado, los
    mensajes, y **en el iPad, el campo de la empresa de Guía Turista**: acepta texto con el teclado del iPad y ese teclado
    no tapa «Autorizar descuento». Para esto último use la **página de prueba de la ventana** (otro enlace privado que le
@@ -262,7 +262,8 @@ el motivo del descuento.» (sección 6.1, paso 5).
    Si es `0`, Guía Turista no podrá usarse ni cuando se encienda, hasta que usted active el código del teléfono en su
    ingreso personal (E-06) y, en «Equipo» con ese código, le dé PIN a un miembro con puesto de dueño. No detiene esta
    activación: Guía Turista queda apagada de todos modos (sección 7).
-8. **Su confirmación de la regla 5, en una línea, antes de la etapa 3** (sin ella no se activa). La línea que le pido:
+8. **Su confirmación de la regla 5, en una línea, antes de la etapa 3** (sin ella no se activa). **Hecho: usted la dio
+   el 2026-11-04** y quedó copiada palabra por palabra en `docs/DEPENDENCIES.md` (E-42). La línea que se pedía:
 
    > Confirmo: un PIN bloqueado temporalmente por intentos fallidos en otra pantalla sigue sirviendo en la ventana de
    > descuentos, que no cuenta ni borra ese bloqueo; un PIN de una persona desactivada, cambiado, quitado, o de alguien
@@ -674,11 +675,12 @@ bitácora vemos desde dónde y cuándo.
 
 ## Lo que usted debe aprobar o decidir
 
-1. Dar su línea de confirmación de la regla 5 (1.8), con sus dos mitades (un PIN bloqueado temporalmente por intentos
-   fallidos en otra pantalla sigue sirviendo en la ventana de descuentos, que no cuenta ni borra ese bloqueo; un PIN de
-   una persona desactivada, cambiado, quitado, o de alguien sin el puesto necesario, nunca aprueba un descuento), antes
-   de la etapa 3: sin ella no se activa.
-2. Aprobar la vista previa privada, con el campo de la empresa en el iPad (1.4).
+1. **Hecho el 2026-11-04:** su línea de confirmación de la regla 5 (1.8), con sus dos mitades (un PIN bloqueado
+   temporalmente por intentos fallidos en otra pantalla sigue sirviendo en la ventana de descuentos, que no cuenta ni
+   borra ese bloqueo; un PIN de una persona desactivada, cambiado, quitado, o de alguien sin el puesto necesario, nunca
+   aprueba un descuento), copiada en E-42.
+2. La vista previa privada: **aprobada el 2026-11-04** para seguir con la preparación; falta la prueba del campo de la
+   empresa en el iPad (1.4).
 3. Aprobar el commit de la versión y crear su etiqueta (2.1).
 4. Elegir la noche de la activación y quiénes están (usted y uno o dos encargados con su PIN).
 5. Subir `anonimizar.sql` a `canopy-respaldos` y correr «Ensayo en pruebas» (1.2, 1.3).

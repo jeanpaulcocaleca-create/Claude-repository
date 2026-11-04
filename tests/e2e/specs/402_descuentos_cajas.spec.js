@@ -200,6 +200,24 @@ async function cat(pg, c) {
 }
 const nextAnswer = (pg) => pg.waitForResponse((r) => /\/rest\/v1\/rpc\/descuento_autorizar/.test(r.url()), { timeout: 10000 }).then((r) => r.json());
 const nextEstado = (pg) => pg.waitForResponse((r) => /\/rest\/v1\/rpc\/descuento_estado/.test(r.url()), { timeout: 15000 }).then((r) => r.json());
+/* C-m: every descuento_estado answer this page got, in order (recorded from the start, so none is missed while the test is
+   between two steps); and «the page's own timer asks»: move the page's clock on a second at a time until the next answer
+   is in, so neither the test's own pace nor a slow runner decides when it is listened for. A missing answer fails with
+   what the page was doing. */
+function recordEstados(pg) {
+  pg.estAns = [];
+  pg.on('response', (r) => { if (/\/rest\/v1\/rpc\/descuento_estado/.test(r.url())) pg.estAns.push(r.json().catch((e) => ({ error: String(e) }))); });
+}
+async function nextEstadoAfter(pg, k0, label, steps) {
+  for (let i = 0; i <= (steps || 40); i++) {
+    if (pg.estAns.length > k0) return pg.estAns[k0];
+    await pg.clock.fastForward(1000);
+    for (let w = 0; w < 6 && pg.estAns.length <= k0; w++) await pg.waitForTimeout(250);
+  }
+  const at = await pg.evaluate(() => ({ now: new Date().toISOString(), timer: !!disc.timer, gen: disc.gen, till: disc.st && disc.st.till, online: navigator.onLine }));
+  throw new Error(label + ': no descuento_estado answer; sent ' + sent(pg, 'descuento_estado').length + ', answered ' + pg.estAns.length +
+                  ', last requests ' + JSON.stringify(pg.reqs.slice(-6).map((r) => r.fn)) + ', the page ' + JSON.stringify(at));
+}
 /* one attempt in the open window: Empleado's employee code first, Guía's company first; the answer of the server */
 async function attempt(pg, c, code, o) {
   o = o || {};
@@ -920,6 +938,7 @@ module.exports.tests = [
     run: async ({ browser }) => {
       testMenu();
       const A = await posPage(browser, { station: { name: 'Caja A', main: true }, clockAt: Date.now() - 300000 });
+      recordEstados(A);
       const slot = (await registerTill(A, { station: 'Caja A' })).slot;
       const estados = () => sent(A, 'descuento_estado').length;
       const quiet = () => A.waitForTimeout(250);   // a fired timer would have sent its request by then
@@ -942,9 +961,9 @@ module.exports.tests = [
         assert.strictEqual(estados(), n0, label + ': no check before wait_s');
         assert.ok(await A.isDisabled('#discGo'), label + ': still off before wait_s');
         // at wait_s the page asks; the server still says wait (its clock barely moved): armed again from the new wait_s
-        let est = nextEstado(A);
-        await A.clock.fastForward(16000);
-        const e2 = await est;
+        const k1 = A.estAns.length;
+        await A.clock.fastForward(14000);
+        const e2 = await nextEstadoAfter(A, k1, label + ': the check at wait_s');
         assert.strictEqual(e2.till.state, 'wait', label + ': the server still waits');
         assert.ok(e2.till.wait_s >= 1 && e2.till.wait_s <= a.wait_s, label + ': a new wait_s ' + e2.till.wait_s);
         await until(() => A.evaluate(() => !!disc.timer), 5000, label + ': the timer armed again');
@@ -956,9 +975,9 @@ module.exports.tests = [
         await quiet();
         assert.strictEqual(estados(), n0 + 1, label + ': no check before the new wait_s');
         assert.ok(await A.isDisabled('#discGo'), label + ': off until the server is asked again');
-        est = nextEstado(A);
-        await A.clock.fastForward(16000);
-        const e3 = await est;
+        const k2 = A.estAns.length;
+        await A.clock.fastForward(14000);
+        const e3 = await nextEstadoAfter(A, k2, label + ': the check at the new wait_s');
         assert.strictEqual(e3.till.state, 'ok', label + ': the server says the wait is over');
         await until(async () => !(await A.isDisabled('#discGo')), 5000, label + ': Autorizar on again');
         await lineSays(A, ES.warn.wait_5m, label + ': what the next mistake costs');
