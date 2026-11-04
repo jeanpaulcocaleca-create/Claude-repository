@@ -184,6 +184,17 @@ sobre producción. Una línea por archivo:
   que no abre las áreas del dueño ni toca ningún contador de PIN (ajuste 1); un código compartido no autoriza a nadie;
   la ventana anterior detrás de `pos_free_discount` y los motivos que se leen como una categoría; permisos; los datos
   viejos intactos.
+- `tests/sql/481_descuentos_regla5.test.sql`: la regla 5 en sus dos mitades, caso por caso, con cada bloqueo hecho con
+  5 PIN equivocados de verdad y cada cambio hecho en «Equipo»: un bloqueo temporal no detiene los descuentos (el código
+  correcto de un encargado, del dueño o de un empleado bloqueado sigue sirviendo en las tres cajas, también con todos
+  los encargados bloqueados a la vez, y la ventana no cuenta ni borra ningún contador de PIN); el código de una persona
+  desactivada, un PIN cambiado (el anterior) o quitado, un puesto bajado, alguien sin el puesto o un código compartido
+  nunca aprueba (contesta como cualquier código equivocado y cuenta solo en esa caja), tampoco una persona bloqueada y
+  además revocada, ni con la fila vista un momento antes del cambio; las casillas con lista de nombres siguen la regla
+  de la 0033; un PIN nuevo o quitado cierra las áreas del dueño que esa persona tenía abiertas en otras tabletas (y la
+  tableta que vio el PIN ya no puede ponerle otro en «Equipo»), un bloqueo no cierra nada; una aprobación dada antes de
+  desactivar a quien la dio queda registrada con su venta. Cada llamada queda anotada con los contadores de PIN y la
+  huella de las aperturas antes y después.
 - `tests/sql/482_descuentos_cupo.test.sql`: el descuento diario de Empleado (ajuste 3): la venta cobrada lo gasta y
   vuelve solo con una anulación válida; «Devolver el cupo del día» solo para uno que no cobró nada (y cada negativa);
   una autorización sin usar vence a los 30 minutos o se suelta (y si una venta marcada `discount_daily_twice` esperaba
@@ -220,7 +231,8 @@ sobre producción. Una línea por archivo:
   un aparato sin registrar y otro puesto contestan igual; ningún bloqueo mutuo entre la ventana, `pin_lock_clear` y dos
   cajas; el único que queda (`tab_remove_item` contra un descuento en la misma cuenta, con el mismo código de
   encargado) termina una de las dos llamadas con 40P01, que se deshace entera, y el segundo intento pasa; una anulación
-  toma el candado del empleado antes que el inventario. Lo corre `tests/run-sql.sh` después de los archivos SQL cuando
+  toma el candado del empleado antes que el inventario; un PIN nuevo, un puesto bajado o una desactivación que se guarda
+  en «Equipo» mientras se revisa el código de esa persona no deja aprobar nada (cuenta como código equivocado). Lo corre `tests/run-sql.sh` después de los archivos SQL cuando
   no se le da un patrón.
 - `tests/e2e/specs/400_descuentos.spec.js`: la ventana «Aplicar descuento» en una caja registrada: su diseño fijo en
   cuatro tamaños de pantalla y en los dos idiomas, cada mensaje de su línea a 360 × 640, los códigos (solo puntos,

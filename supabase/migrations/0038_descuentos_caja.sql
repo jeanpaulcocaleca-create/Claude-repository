@@ -4,63 +4,60 @@
 -- Pegar TODO en Supabase → SQL Editor → New query → Run. Requiere: 0037. Una sola transacción.
 --
 -- Qué hace (D-065; propuesta aprobada por el dueño el 2026-11-03 con sus cinco ajustes)
---   * Cuatro descuentos con la tasa fijada por el servidor (la página nunca manda un porcentaje): Empleado 30 %,
---     Local 10 %, Huésped 10 % y Guía Turista 100 % (cortesía). Cada uno queda en discount_approvals con su categoría,
---     el empleado que lo recibe o la empresa del guía, el día de Costa Rica, quién lo autorizó y con qué papel. Una
---     regla de la tabla hace imposible guardar otra tasa, otro monto, un autodescuento o una Guía sin el dueño.
---   * Se autoriza solo con el código (sin lista de nombres): el de un encargado o del dueño; para Empleado también el
---     código del empleado, los dos en una sola llamada (descuento_autorizar). Un encargado nunca se autoriza a sí mismo.
---     Guía Turista solo con el código del dueño (ajuste 1 del dueño: ese código NO abre las áreas del dueño, no crea
---     ninguna apertura y no toca el contador de PIN de nadie).
---   * Guía Turista nace APAGADA (ajuste 4): el ajuste pos_discount_guia queda en «off» hasta que el contador confirme el
---     IVA de las cortesías (A-13) y el dueño lo registre (compliance_confirm 'courtesy_iva_confirmed') y lo encienda
---     con el código del teléfono. Mientras está apagada, el servidor rechaza Guía antes de probar cualquier código.
---   * Un descuento de Empleado por empleado y por día. El cupo se devuelve solo con una anulación válida (un encargado
---     que no es el beneficiado, sin partes pagadas) o con «Devolver el cupo del día» (descuento_cupo_devolver: el PIN
---     propio de un encargado, nunca el beneficiado, o el dueño con el código del teléfono; queda anotado). Una
---     autorización sin usar vence a los 30 minutos o la suelta la página (ajuste 3).
---   * Siempre el pedido entero y nunca dos descuentos. En una cuenta abierta, solo antes de cualquier pago; quitarlo
---     después de un pago necesita el PIN de un encargado (descuento_quitar_cuenta).
---   * Control de códigos equivocados sin pausa para todo el café (ajuste 2, «cajas registradas en puestos»): solo una
---     caja que un encargado registró en ese mismo aparato (Reloj de marcas → Bitácora de aprobaciones) prueba códigos.
---     Hay 3 puestos y cada uno lleva su propia cuenta: los 2 primeros errores en una hora no cuestan nada; el 3.º hace
---     esperar 30 segundos a esa caja, el 4.º 1 minuto, el 5.º 5 minutos, desde el 6.º 10 minutos; 12 errores en 24
---     horas detienen esa caja (las demás siguen). Un encargado la reanuda con su PIN (una vez por puesto y dos por café
---     en 24 horas). El aparato registrado guarda una llave: al volver a iniciar sesión regresa solo a su puesto.
---     Nunca se escribe un PIN, un código ni una llave en la base: solo la huella sha256 de la llave.
---   * La ventana de descuento anterior (approve_discount) queda detrás del ajuste pos_free_discount, ENCENDIDO por
---     omisión: las cajas que todavía no se recargaron y las ventas guardadas sin internet funcionan como hoy. El dueño
---     lo apaga al final de la activación (no es parte de esta migración). Con el ajuste encendido o apagado, ese motivo
---     libre ya no puede decir lo mismo que una categoría (por ejemplo «Otro · Local»): contesta «Elija el motivo».
---   * Las ventas con un descuento de categoría nunca se rechazan por él: si algo no cuadra, la venta queda con lo que se
---     cobró y una marca para el gerente (discount_not_verified, discount_late, discount_daily_twice).
+--   * Cuatro descuentos con la tasa del servidor (la página nunca manda un porcentaje): Empleado 30 %, Local 10 %,
+--     Huésped 10 % y Guía Turista 100 % (cortesía), en discount_approvals con su categoría, el empleado o la empresa
+--     del guía, el día de Costa Rica, quién autorizó y con qué papel. Una regla de la tabla impide otra tasa, otro
+--     monto, un autodescuento o una Guía sin el dueño.
+--   * Solo con el código, sin lista de nombres (descuento_autorizar): el de un encargado o del dueño; para Empleado
+--     también el del empleado, en la misma llamada, nunca para sí mismo; Guía solo con el del dueño (ajuste 1: no abre
+--     las áreas del dueño ni toca el contador de PIN de nadie). Nunca sirve un PIN de alguien desactivado, cambiado,
+--     quitado, sin el puesto o compartido; uno bloqueado por intentos fallidos sí, sin contarlo ni borrarlo (regla 5).
+--   * Guía Turista nace APAGADA (ajuste 4): pos_discount_guia en «off» hasta que el contador confirme el IVA de las
+--     cortesías (A-13), el dueño lo registre (compliance_confirm 'courtesy_iva_confirmed') y la encienda con el código
+--     del teléfono. Apagada, el servidor la rechaza antes de probar ningún código.
+--   * Un Empleado por empleado y por día; el cupo vuelve solo con una anulación válida (un encargado que no es el
+--     beneficiado, sin partes pagadas) o con «Devolver el cupo del día» (descuento_cupo_devolver: el PIN de otro
+--     encargado, o el dueño con el código del teléfono). Una autorización sin usar vence a los 30 minutos o la suelta la
+--     página (ajuste 3).
+--   * Siempre el pedido entero, nunca dos descuentos; en una cuenta, solo antes de cualquier pago; quitarlo después de
+--     un pago pide el PIN de un encargado (descuento_quitar_cuenta).
+--   * Códigos equivocados sin pausa para todo el café (ajuste 2): solo una caja que un encargado registró en ese mismo
+--     aparato (Reloj de marcas → Bitácora de aprobaciones) prueba códigos. 3 puestos con su propia cuenta: los 2
+--     primeros errores en una hora no cuestan nada; el 3.º hace esperar 30 segundos a esa caja, el 4.º 1 minuto, el 5.º
+--     5 minutos, desde el 6.º 10 minutos; 12 en 24 horas la detienen (las demás siguen) hasta que un encargado la
+--     reanude (una vez por puesto y dos por café en 24 horas). Una llave lo devuelve a su puesto al iniciar sesión; la
+--     base guarda solo su huella sha256, ningún PIN ni código.
+--   * Un PIN nuevo o quitado cierra las áreas del dueño que esa persona tenga abiertas en otros aparatos (disparador
+--     staff_pin_changed); un bloqueo temporal no.
+--   * La ventana anterior (approve_discount) queda detrás de pos_free_discount, ENCENDIDO: las cajas sin recargar y las
+--     ventas guardadas sin internet funcionan como hoy; el dueño lo apaga al final de la activación (no aquí).
+--   * Una venta con descuento de categoría nunca se rechaza por él: si algo no cuadra queda con lo cobrado y una marca
+--     para el gerente (discount_not_verified, discount_late, discount_daily_twice).
 --   * Un informe (descuentos_informe) por categoría, empleado, autorizador y empresa, con lo cobrado y los productos;
 --     también lo lee el contador.
 -- Qué NO cambia: ningún registro existente (las aprobaciones viejas quedan con categoría vacía), los impuestos, las
 --   tarifas, la contabilidad, ninguna otra función. Ninguna regla fiscal se activa.
--- Qué cambia para el personal: nada hasta que se publiquen las páginas nuevas. Con la página anterior, un motivo libre
---   que diga una categoría («Otro · Local», «Empleado»…) contesta «Elija el motivo del descuento»; y un descuento de
---   categoría en una cuenta con un pago ya hecho no se quita con la × anterior.
+-- Qué cambia para el personal: nada hasta que se publiquen las páginas nuevas. Con la página anterior (el ajuste
+--   encendido o apagado), un motivo libre que diga una categoría («Otro · Local», «Empleado»…) contesta «Elija el
+--   motivo del descuento»; y un descuento de categoría en una cuenta con un pago ya hecho no se quita con la × anterior.
 -- Cuándo: fuera del horario de atención, después de la 0037. No bloquea ventas.
 -- Reversión: supabase/tools/reversion-0038.sql (vuelve approve_discount, tab_set_discount y _order_discount_check a su
---   texto anterior y quita las funciones nuevas; las columnas, la tabla de cajas, los índices y los ajustes quedan).
+--   texto anterior y quita las funciones y disparadores nuevos; columnas, tablas, índices y ajustes quedan).
 -- =====================================================================================================
 select canopy.migration_begin(38, 'descuentos_caja');
 set local lock_timeout = '8s';
 
--- Lock order (api-0038 §9): A canopy.discount_request:<id> (descuento_autorizar, descuento_liberar) → B
--- canopy.discount_tills, café-wide (registrar, volver, quitar, reanudar, the owner's tools; NEVER descuento_autorizar) →
--- C canopy.discount_slot:<1..3> (descuento_autorizar on its own place after the lock-free checks 6a-6c; the functions
--- above for the place they change; the tools in slot order) → 1 ONE staff row (the window: the authorizer only, the
--- employee read without a lock and no foreign key to it; resume, remove, give-back, take-off: the picked person) → 2
--- the order or bill → 3 the per-employee lock E (canopy.discount_employee:<staff id>) → 4 approval rows → 5 stock rows
--- (a sale takes E before its lines move stock; a void or a cancel takes E in order_zz_discount_lock, before
--- order_stock_return). A discount_tills row is written only under its place's C, or B for an insert into a free place;
--- no path takes B or C after a staff row; descuento_estado, descuento_cajas and 6a-6c take no lock. Free-text arguments
--- are cut to a fixed length before any work. Not ruled out: tab_remove_item (0031) takes the bill before the PIN's
--- staff row, so it can deadlock with a discount on the same bill and the same manager's PIN; PostgreSQL ends one call
--- (40P01), it rolls back whole and is retried (concurrency-descuentos.sh 4). Lock errors in the day's update triggers
--- are raised again (the void or cancel is retried); the sale's insert check never refuses money taken.
+-- Lock order (api-0038 §9): A canopy.discount_request:<id> (autorizar, liberar) → B canopy.discount_tills, café-wide
+-- (registrar, volver, quitar, reanudar, the tools; NEVER autorizar) → C canopy.discount_slot:<1..3> (autorizar on its
+-- place after the lock-free 6a-6c; the others for the place they change; the tools in slot order) → 1 ONE staff row
+-- (the window: the authorizer only, the employee read without a lock or foreign key; resume, remove, give-back,
+-- take-off: the picked person) → 2 the order or bill → 3 the per-employee lock E (canopy.discount_employee:<staff id>)
+-- → 4 approval rows → 5 stock rows (a sale takes E before its lines move stock; a void or cancel takes E in
+-- order_zz_discount_lock, before order_stock_return). A discount_tills row is written only under its C, or B for an
+-- insert into a free place; nothing takes B or C after a staff row; descuento_estado, descuento_cajas and 6a-6c take no
+-- lock. Not ruled out: tab_remove_item (0031) takes the bill before the PIN's staff row, so it can deadlock with a
+-- discount on the same bill and manager's PIN: one call ends (40P01), rolls back whole, is retried
+-- (concurrency-descuentos.sh 4). Lock errors in the day's update triggers are raised again (the void is retried).
 
 -- 1) settings (0008's mechanism) ---
 insert into canopy.setting_defs (key, kind, choices, default_value, guard, description) values
@@ -76,20 +73,20 @@ on conflict (key) do update set kind = excluded.kind, choices = excluded.choices
 
 -- 2) discount_approvals: what a category approval records (nullable; old rows keep null = before 0038) ---
 alter table public.discount_approvals
-  add column if not exists category         text,
-  add column if not exists beneficiary_id   uuid,
+  add column if not exists category text,
+  add column if not exists beneficiary_id uuid,
   add column if not exists beneficiary_name text,
-  add column if not exists company          text,
-  add column if not exists cr_day           date,
-  add column if not exists approver_role    text,
-  add column if not exists bill_id          uuid,
-  add column if not exists login_id         uuid,
-  add column if not exists session_id       text,
-  add column if not exists request_id       uuid,
-  add column if not exists freed_at         timestamptz,
-  add column if not exists freed_how        text;
--- beneficiary_id has NO foreign key to staff: its check would lock the employee's row while the authorizer's is held,
--- a deadlock against 0033's pin_lock_clear (the window locks ONE staff row). Dropped here too for a re-run
+  add column if not exists company text,
+  add column if not exists cr_day date,
+  add column if not exists approver_role text,
+  add column if not exists bill_id uuid,
+  add column if not exists login_id uuid,
+  add column if not exists session_id text,
+  add column if not exists request_id uuid,
+  add column if not exists freed_at timestamptz,
+  add column if not exists freed_how text;
+-- beneficiary_id has NO foreign key to staff: its check would lock the employee's row under the authorizer's, a
+-- deadlock against 0033's pin_lock_clear (the window locks ONE staff row). Dropped here too for a re-run
 alter table public.discount_approvals drop constraint if exists discount_approvals_beneficiary_id_fkey;
 alter table public.discount_approvals drop constraint if exists discount_approvals_category_check;
 alter table public.discount_approvals add constraint discount_approvals_category_check
@@ -100,8 +97,8 @@ alter table public.discount_approvals add constraint discount_approvals_approver
 alter table public.discount_approvals drop constraint if exists discount_approvals_freed_how_check;
 alter table public.discount_approvals add constraint discount_approvals_freed_how_check
   check (freed_how is null or freed_how in ('released', 'expired', 'void', 'bill_removed', 'bill_cancelled'));
--- the rate is the category's and the amount is that rate of the list value; nobody authorizes their own Empleado; only
--- the owner gives Guía, always with a company (written inline: restoring a copy never depends on a function)
+-- the category's rate of the list value; nobody authorizes their own Empleado; only the owner gives Guía, with a
+-- company (inline: restoring a copy never depends on a function)
 alter table public.discount_approvals drop constraint if exists discount_approvals_categoria;
 alter table public.discount_approvals add constraint discount_approvals_categoria check (category is null or (
   kind = 'percent'
@@ -122,31 +119,31 @@ create index if not exists discount_approvals_day on public.discount_approvals (
 
 -- 3) the registered tills (security state, not a business record: rows are never deleted) ---
 create table if not exists public.discount_tills (
-  id               uuid primary key default gen_random_uuid(),
-  slot             smallint not null check (slot between 1 and 3),
-  session_id       text not null check (char_length(session_id) between 1 and 64),   -- _jwt_session() of the sign-in
-  login_id         uuid not null,                                                     -- auth.uid()
-  station          text check (station is null or char_length(station) <= 24),        -- page-reported, display only
-  enrolled_at      timestamptz not null default now(),
-  enrolled_by      uuid references public.staff(id) on delete set null,
+  id uuid primary key default gen_random_uuid(),
+  slot smallint not null check (slot between 1 and 3),
+  session_id text not null check (char_length(session_id) between 1 and 64), -- _jwt_session() of the sign-in
+  login_id uuid not null, -- auth.uid()
+  station text check (station is null or char_length(station) <= 24), -- page-reported, display only
+  enrolled_at timestamptz not null default now(),
+  enrolled_by uuid references public.staff(id) on delete set null,
   enrolled_by_name text not null,
-  last_used_at     timestamptz,                                                       -- every tested call
+  last_used_at timestamptz, -- every tested call
   key_hash         text check (key_hash is null or key_hash ~ '^[0-9a-f]{64}$'),     -- sha256 of the device key; null = spent
-  rebound_from     uuid references public.discount_tills(id),                         -- the row a rebind by key replaced
+  rebound_from uuid references public.discount_tills(id), -- the row a rebind by key replaced
   prev_key_hash    text check (prev_key_hash is null or prev_key_hash ~ '^[0-9a-f]{64}$'),  -- the key that rebound it
-  ended_at         timestamptz,
-  ended_by         uuid references public.staff(id) on delete set null,
-  ended_by_name    text,
+  ended_at timestamptz,
+  ended_by uuid references public.staff(id) on delete set null,
+  ended_by_name text,
   ended_how        text check (ended_how in ('manager', 'owner', 'replaced', 'signed_out', 'rebound', 'sql_editor')),
   constraint discount_tills_ended check ((ended_at is null) = (ended_how is null))
 );
 alter table public.discount_tills add column if not exists prev_key_hash text
   check (prev_key_hash is null or prev_key_hash ~ '^[0-9a-f]{64}$');
 create unique index if not exists discount_tills_live_session on public.discount_tills (session_id) where ended_at is null;
-create unique index if not exists discount_tills_live_slot    on public.discount_tills (slot)       where ended_at is null;
-create unique index if not exists discount_tills_key          on public.discount_tills (key_hash)   where key_hash is not null;
-create index        if not exists discount_tills_session      on public.discount_tills (session_id);
-alter table public.discount_tills enable row level security;            -- no policies: functions only
+create unique index if not exists discount_tills_live_slot on public.discount_tills (slot) where ended_at is null;
+create unique index if not exists discount_tills_key on public.discount_tills (key_hash) where key_hash is not null;
+create index if not exists discount_tills_session on public.discount_tills (session_id);
+alter table public.discount_tills enable row level security; -- no policies: functions only
 revoke all on public.discount_tills from public, anon, authenticated;
 -- who shares a code (pin_duplicate): owner-only (descuento_cajas), never in audit_log, which managers read
 create table if not exists public.discount_pin_shared (audit_id bigint primary key, staff_ids uuid[] not null);
@@ -199,8 +196,8 @@ begin
   end if;
   return c;
 end $$;
--- would this free reason read as one of the four categories in Orders or Sales? lang.js tr() collapses blanks and
--- translates each « · » part on its own, so every part is checked, cleaned, without case or accents
+-- would this free reason read as a category in Orders or Sales? lang.js tr() collapses blanks and translates each
+-- « · » part alone, so every part is checked, cleaned, without case or accents
 create or replace function public._discount_reserved(p_reason text)
 returns boolean language sql immutable set search_path = public as $$
   select coalesce(bool_or(btrim(regexp_replace(btrim(seg), '(:|\u2026|\.\.\.)$', '')) = any (array[
@@ -215,20 +212,22 @@ revoke all on function public._discount_rate(text), public._discount_label(text)
   public._discount_company(text), public._discount_reserved(text) from public, anon, authenticated;
 
 -- 5) codes: who typed them ---
--- ONE bcrypt pass over every active PIN, the same work for every answer. n = matches; sid..locked only for one; ids = all
+-- ONE bcrypt pass over every active PIN, the same work for every answer. n = matches; sid..hash only for one (the
+-- hash it matched, judged again under the row lock, never in an answer); ids = all
 drop function if exists public._staff_by_code(text);
 create or replace function public._staff_by_code(p_pin text, out n int, out sid uuid, out sname text, out srole text,
-                                                 out locked boolean, out ids uuid[])
+                                                 out locked boolean, out ids uuid[], out hash text)
 language plpgsql stable security definer set search_path = public, extensions as $$
-declare names text[]; roles text[]; locks boolean[];
+declare names text[]; roles text[]; locks boolean[]; hs text[];
 begin
   n := 0; locked := false; ids := '{}';
   if coalesce(trim(p_pin), '') = '' then return; end if;
   select count(*)::int, coalesce(array_agg(s.id order by s.id), '{}'), array_agg(s.name order by s.id),
-         array_agg(s.role order by s.id), array_agg(coalesce(s.locked_until > now(), false) order by s.id)
-    into n, ids, names, roles, locks
+         array_agg(s.role order by s.id), array_agg(coalesce(s.locked_until > now(), false) order by s.id),
+         array_agg(s.pin_hash order by s.id)
+    into n, ids, names, roles, locks, hs
     from public.staff s where s.active and s.pin_hash is not null and s.pin_hash = crypt(p_pin, s.pin_hash);
-  if n = 1 then sid := ids[1]; sname := names[1]; srole := roles[1]; locked := locks[1]; end if;
+  if n = 1 then sid := ids[1]; sname := names[1]; srole := roles[1]; locked := locks[1]; hash := hs[1]; end if;
 end $$;
 revoke all on function public._staff_by_code(text) from public, anon, authenticated;
 
@@ -310,23 +309,28 @@ begin
     select max(d.ended_at) into vacated_at from public.discount_tills d where d.slot = p_slot;
   end if;
 end $$;
--- the authorizer's row, locked (level 1, the window's only one); writes NOTHING (no 0033 counter); locked = accepted
-create or replace function public._discount_take_staff(p_sid uuid, out ok boolean, out locked boolean)
+-- the authorizer's row, locked (level 1, the window's only one), judged as committed: active, the PIN hash the code
+-- matched (new or removed → no_match), a role for p_need (else not_allowed); srole = the role now. Writes NOTHING (no
+-- 0033 counter); a 0033 lock is accepted (locked)
+create or replace function public._discount_take_staff(p_sid uuid, p_hash text, p_need text,
+                                                       out ok boolean, out locked boolean, out why text, out srole text)
 language plpgsql security definer set search_path = public, extensions as $$
-declare a boolean; lu timestamptz;
+declare a boolean; lu timestamptz; h text;
 begin
-  select s.active, s.locked_until into a, lu from public.staff s where s.id = p_sid for update;
-  ok := coalesce(a, false);
-  locked := coalesce(lu > now(), false);
+  select s.active, s.locked_until, s.role, s.pin_hash into a, lu, srole, h from public.staff s where s.id = p_sid for update;
+  why := case when not coalesce(a, false) then 'inactive' when h is distinct from p_hash then 'no_match'
+              when srole = 'owner' or (p_need = 'manager' and srole = 'manager') then null else 'not_allowed' end;
+  ok := why is null; locked := coalesce(lu > now(), false);
 end $$;
--- the same read for the employee, without a row lock and without any write
-create or replace function public._discount_staff_state(p_sid uuid, out ok boolean, out locked boolean)
+-- the same judgement for the employee (an owner never receives Empleado), without a row lock and without any write
+create or replace function public._discount_staff_state(p_sid uuid, p_hash text, out ok boolean, out locked boolean, out why text)
 language plpgsql stable security definer set search_path = public, extensions as $$
-declare a boolean; lu timestamptz;
+declare a boolean; lu timestamptz; r text; h text;
 begin
-  select s.active, s.locked_until into a, lu from public.staff s where s.id = p_sid;
-  ok := coalesce(a, false);
-  locked := coalesce(lu > now(), false);
+  select s.active, s.locked_until, s.role, s.pin_hash into a, lu, r, h from public.staff s where s.id = p_sid;
+  why := case when not coalesce(a, false) then 'inactive' when h is distinct from p_hash then 'no_match'
+              when r = 'owner' then 'owner_beneficiary' end;
+  ok := why is null; locked := coalesce(lu > now(), false);
 end $$;
 -- a person's live places, and their endings and registrations in the last 24 hours (the per-person caps)
 create or replace function public._discount_person(p_staff uuid, out places int, out ends_24h int, out enrolls_24h int)
@@ -345,10 +349,9 @@ language sql stable security definer set search_path = public as $$
                                                'mine', coalesce(p_by is not null and t.enrolled_by = p_by, false)) order by t.slot), '[]')
     from public.discount_tills t where t.ended_at is null;
 $$;
--- one counted wrong code at a registered till (called under that place's lock C). Writes the discount_code_wrong row,
--- discount_till_stopped when this code stopped the place, discount_alert when the café reaches 10 in 24 h (at most one
--- per 24 h; it pauses nothing). Returns only {warn, blocked, until, wait, wait_s}. p_station comes cleaned: nothing is
--- cleaned here, so a wrong code costs what a right one does (no timeout tells them apart or undoes the count)
+-- one counted wrong code at a registered till (under its place's lock C): the discount_code_wrong row,
+-- discount_till_stopped when it stopped the place, discount_alert at 10 in 24 h café-wide (one a day, pauses nothing).
+-- Returns only {warn, blocked, until, wait, wait_s}. p_station comes cleaned: a wrong code costs what a right one does
 create or replace function public._discount_wrong(p_till public.discount_tills, p_step text, p_why text, p_category text,
                                                   p_station text, p_auth_id uuid default null, p_auth_name text default null)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
@@ -378,8 +381,8 @@ begin
   return jsonb_build_object('warn', g1.warn, 'blocked', case when g1.state <> 'ok' then g1.state end,
                             'until', g1.until, 'wait', g1.wait, 'wait_s', g1.wait_s);
 end $$;
--- a code typed on a sign-in that is not a registered till: at most one row per sign-in per hour and 20 an hour
--- café-wide (checked without a lock: approximate). p_station comes cleaned
+-- a code typed on a sign-in that is no registered till: one row per sign-in an hour, 20 an hour café-wide (no lock:
+-- approximate). p_station comes cleaned
 create or replace function public._discount_till_unknown(p_session text, p_station text)
 returns void language plpgsql security definer set search_path = public, extensions as $$
 declare l record; tag text := public._discount_tag(p_session); st text := nullif(btrim(left(p_station, 24)), '');
@@ -395,7 +398,7 @@ begin
 end $$;
 revoke all on function public._discount_till_limits(), public._discount_session(), public._discount_tag(text),
   public._discount_station(text), public._discount_key_hash(text), public._discount_new_key(), public._discount_till_mine(),
-  public._discount_slot_state(int), public._discount_take_staff(uuid), public._discount_staff_state(uuid),
+  public._discount_slot_state(int), public._discount_take_staff(uuid, text, text), public._discount_staff_state(uuid, text),
   public._discount_person(uuid), public._discount_places(uuid),
   public._discount_wrong(public.discount_tills, text, text, text, text, uuid, text),
   public._discount_till_unknown(text, text) from public, anon, authenticated;
@@ -486,7 +489,7 @@ create or replace function public.descuento_autorizar(p_category text, p_pin tex
     p_expect int default null, p_request_id uuid default null, p_station text default null)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare
-  -- every free-text argument cut before any work (no answer may cost more for a longer one); the station cleaned once
+  -- free text cut before any work (a longer one never costs more); the station cleaned once
   cat text := case when char_length(p_category) <= 32 then lower(btrim(p_category)) else '' end;
   pin text := left(p_pin, 64); epin text := left(p_employee_pin, 64);
   comp text; st text := nullif(left(coalesce(public._discount_clean(left(p_station, 64)), ''), 40), '');
@@ -496,7 +499,7 @@ declare
 begin
   -- 1) the account
   if not public.is_cafe() then return jsonb_build_object('ok', false, 'error', 'no_account'); end if;
-  -- 2) the same attempt sent again (a lost reply): the request lock first (a retry waits for a first call still running)
+  -- 2) the same attempt sent again (a lost reply): the request lock first (a retry waits for the first call)
   if p_request_id is not null then
     perform pg_advisory_xact_lock(hashtextextended('canopy.discount_request:' || p_request_id::text, 0));  -- A
     select * into r from public.discount_approvals where request_id = p_request_id;
@@ -505,7 +508,7 @@ begin
       if r.created_at > now() - interval '30 minutes' then return public._discount_answer(r) || jsonb_build_object('replay', true); end if;
     end if;
   end if;
-  -- an empty code tests nothing and costs nothing (how the page replays a bill-mode attempt with its codes wiped)
+  -- an empty code tests and costs nothing (the page's replay of a bill-mode attempt, codes wiped)
   if coalesce(btrim(pin), '') = '' then return jsonb_build_object('ok', false, 'error', 'no_request'); end if;
   -- 3) the request itself
   if cat not in ('empleado', 'local', 'huesped', 'guia') then return jsonb_build_object('ok', false, 'error', 'bad_discount'); end if;
@@ -522,7 +525,7 @@ begin
     if not exists (select 1 from public.staff where active and role = 'owner' and pin_hash is not null) then
       return jsonb_build_object('ok', false, 'error', 'no_owner'); end if;
   end if;
-  -- 5) a bill, first look, without a lock: refused before any code is tested, so a right and a wrong code get the same answer
+  -- 5) a bill, first look, no lock: refused before any code is tested (a right and a wrong code get the same answer)
   if p_order_id is not null then
     err := public._discount_bill_problem(p_order_id, p_subtotal, p_expect, false);
     if err is not null then return jsonb_build_object('ok', false, 'error', err); end if;
@@ -566,12 +569,12 @@ begin
                                 cat, st);
     return jsonb_build_object('ok', false, 'error', 'bad_pin', 'step', need) || w;
   end if;
-  select * into k from public._discount_take_staff(a.sid);  -- level 1
+  select * into k from public._discount_take_staff(a.sid, a.hash, need);  -- level 1
   if not k.ok then
-    w := public._discount_wrong(t, need, 'inactive', cat, st);
+    w := public._discount_wrong(t, need, k.why, cat, st);
     return jsonb_build_object('ok', false, 'error', 'bad_pin', 'step', need) || w;
   end if;
-  arole := case when a.srole = 'owner' then 'owner' else 'manager' end;
+  arole := case when k.srole = 'owner' then 'owner' else 'manager' end;
   -- 6f) the employee code (Empleado), tested only after a valid authorizing code
   if cat = 'empleado' then
     select * into e from public._staff_by_code(epin);
@@ -592,14 +595,14 @@ begin
                                   cat, st, a.sid, a.sname);
       return jsonb_build_object('ok', false, 'error', 'bad_employee', 'step', 'employee') || w;
     end if;
-    select * into es from public._discount_staff_state(e.sid);                                           -- no lock
+    select * into es from public._discount_staff_state(e.sid, e.hash);  -- no lock
     if not es.ok then
-      w := public._discount_wrong(t, 'employee', 'inactive', cat, st, a.sid, a.sname);
+      w := public._discount_wrong(t, 'employee', es.why, cat, st, a.sid, a.sname);
       return jsonb_build_object('ok', false, 'error', 'bad_employee', 'step', 'employee') || w;
     end if;
     ben_id := e.sid; ben_name := e.sname; e_locked := es.locked;
   end if;
-  -- 7) a bill under its lock (after the staff row), checked again: another device may have changed it
+  -- 7) the bill again, under its lock (after the staff row): another device may have changed it
   if p_order_id is not null then
     err := public._discount_bill_problem(p_order_id, p_subtotal, p_expect, true);  -- level 2
     if err is not null then
@@ -611,8 +614,8 @@ begin
       return jsonb_build_object('ok', false, 'error', err);
     end if;
   end if;
-  -- 8) Empleado: one a day. The per-employee lock; unused approvals of today older than 30 minutes expire first, then a
-  --    discount_daily_twice sale of that day takes the day back (an expired approval never opens a second discount)
+  -- 8) Empleado: one a day, under the per-employee lock; today's unused approvals past 30 minutes expire, then a
+  --    discount_daily_twice sale of the day takes it back (an expired approval never opens a second discount)
   if cat = 'empleado' then
     perform pg_advisory_xact_lock(hashtextextended('canopy.discount_employee:' || ben_id::text, 0));  -- level 3
     update public.discount_approvals set freed_at = now(), freed_how = 'expired'
@@ -733,7 +736,7 @@ end $$;
 revoke all on function public.descuento_liberar(uuid, uuid) from public, anon;
 grant execute on function public.descuento_liberar(uuid, uuid) to authenticated;
 
--- 11) take a category discount off a bill: no PIN with nothing paid; after a payment a manager's PIN and a reason.
+-- 11) take a category discount off a bill: no PIN with nothing paid, else a manager's PIN and a reason.
 -- p_discount_id (a late answer taken back): only while the bill carries it
 drop function if exists public.descuento_quitar_cuenta(uuid, int, text, uuid, text, text);
 create or replace function public.descuento_quitar_cuenta(p_order_id uuid, p_expect int, p_station text default null,
@@ -825,8 +828,8 @@ begin
   perform public._discount_retake_day(a.beneficiary_id, a.cr_day);
   return jsonb_build_object('ok', true, 'how', how, 'approval', a.id, 'beneficiary', a.beneficiary_name);
 end $$;
--- how an Empleado approval took no money: 'bill_cancelled' (its order cancelled with nothing paid), 'bill_removed' (taken
--- off its bill with nothing paid, whatever the bill did afterwards), or null
+-- how an Empleado approval took no money: 'bill_cancelled' (cancelled with nothing paid), 'bill_removed' (taken off its
+-- bill with nothing paid, whatever came after), or null
 create or replace function public._discount_freeable(a public.discount_approvals) returns text
 language sql stable security definer set search_path = public as $$
   select case
@@ -846,9 +849,9 @@ revoke all on function public._discount_freeable(public.discount_approvals) from
 revoke all on function public.descuento_cupo_devolver(uuid, uuid, text, text) from public, anon;
 grant execute on function public.descuento_cupo_devolver(uuid, uuid, text, text) to authenticated;
 
--- 13) the registered tills: register this device, come back by key, the approvals log's list, resume, remove ---
--- register THIS sign-in as a till: the owner areas open on THIS sign-in (0033 binds an unlock to it), or the owner with
--- the phone code. No PIN tested here. A full café never replaces a till by itself: a manager picks one (p_replace)
+-- 13) the registered tills: register, come back by key, the approvals log's list, resume, remove ---
+-- register THIS sign-in as a till: the owner areas open on it (0033 binds an unlock to its sign-in), or the owner with
+-- the phone code. No PIN tested. A full café never replaces a till by itself: a manager picks one (p_replace)
 create or replace function public.descuento_caja_registrar(p_station text default null, p_replace uuid default null)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare l record; s text; st text; u record; code boolean; by_id uuid; by_name text; who text; t public.discount_tills;
@@ -1111,7 +1114,7 @@ revoke all on function public.descuento_caja_quitar(uuid, uuid, text, text) from
 grant execute on function public.descuento_caja_quitar(uuid, uuid, text, text) to authenticated;
 
 -- 14) the owner's SQL Editor tools (outside every cap; internal, revoked from everyone) ---
--- the read-only summary each tool ends with: every place, free ones too (computed after the tool's own writes)
+-- the read-only summary each tool ends with: every place, free ones too (after the tool's own writes)
 create or replace function public._discount_places_summary() returns jsonb
 language sql stable security definer set search_path = public, extensions as $$
   select coalesce(jsonb_agg(jsonb_build_object('slot', x.n, 'state', g.state, 'until', g.until,
@@ -1458,8 +1461,8 @@ begin
   return jsonb_build_object('ok', true, 'total', t, 'discount', d);
 end $$;
 
--- c) _order_discount_check (pos-stations.sql). Old kind: as today. Category: today's two refusals of a malformed sale;
---    else the money as charged, flagged, never refused (D5), the flags through canopy.discount_flags
+-- c) _order_discount_check (pos-stations.sql). Old kind: as today. Category: today's two refusals of a malformed sale,
+--    else as charged, flagged, never refused (D5; flags through canopy.discount_flags)
 create or replace function public._order_discount_check()
 returns trigger language plpgsql security definer set search_path = public, extensions as $$
 declare a public.discount_approvals; allowed int; cat text; ben uuid; lbl text; fl text[] := '{}'; ok_link boolean;
@@ -1587,9 +1590,9 @@ end $$;
 drop trigger if exists order_zz_discount on public.orders;
 create trigger order_zz_discount before insert on public.orders for each row execute function public._order_discount_flags();
 
--- when an Empleado day stops counting, on a void, a cancel or a removal: a void by a non-beneficiary manager with no
--- paid parts left frees it; a cancel or a removal with nothing paid waits for a give-back (Q3). BEFORE only takes E
--- (ahead of order_stock_return); AFTER decides. A lock error is raised again; any other is logged, the change stands
+-- an Empleado day on a void, cancel or removal: a void by a non-beneficiary manager with no paid parts frees it; a cancel
+-- or removal with nothing paid waits for a give-back (Q3). BEFORE takes E (ahead of order_stock_return); AFTER decides.
+-- A lock error is raised again; any other is logged and the change stands
 create or replace function public._order_discount_after()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare a public.discount_approvals; cat text; ben uuid; parts boolean; vname text;
@@ -1682,7 +1685,19 @@ create trigger order_zz_discount_after after update of voided_at, status, discou
        or (old.status is distinct from 'cancelled' and new.status = 'cancelled')
        or (new.discount_id is distinct from old.discount_id)))
   execute function public._order_discount_after();
-revoke all on function public._order_discount_flags(), public._order_discount_after() from public, anon, authenticated;
+-- a new or removed PIN ends the unlocks opened with the old one, but the one making the change (0033 kept them 15
+-- minutes: time to give that person one's own PIN in Equipo). A 0033 lock ends none
+create or replace function public._discount_pin_changed() returns trigger
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  delete from public.access_unlocks where staff_id = new.id and token_hash is distinct from public._unlock_token_hash();
+  return null;
+end $$;
+revoke all on function public._order_discount_flags(), public._order_discount_after(), public._discount_pin_changed()
+  from public, anon, authenticated;
+drop trigger if exists staff_pin_changed on public.staff;
+create trigger staff_pin_changed after update of pin_hash on public.staff for each row
+  when (old.pin_hash is distinct from new.pin_hash) execute function public._discount_pin_changed();
 
 select canopy.migration_end(38, 'descuentos_caja');
 notify pgrst, 'reload schema';

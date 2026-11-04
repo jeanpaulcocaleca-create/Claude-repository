@@ -13,8 +13,13 @@
 #     ends one call with 40P01, that call's transaction rolls back whole (no approval, nothing counted, nothing taken
 #     off), the other finishes, and the retry works; 0038's lock-order comment names it;
 #  5) a void of an Empleado sale takes the per-employee lock before any stock row (the order a sale takes them in), and
-#     a lock error inside the day's triggers fails the void instead of leaving the day used: the retry frees it.
-# Test PINs only (tests/db/90_seed.sql, and Bea 3917 added here).
+#     a lock error inside the day's triggers fails the void instead of leaving the day used: the retry frees it;
+#  6) a revocation that commits while a code is being checked (the owner saves the person in Equipo; before that
+#     commits, a till sends the person's code: the window's code lookup still sees the old row, then waits for the row
+#     lock): a new PIN, a role lowered (manager → staff; owner → manager, for Guía) and a deactivation are refused as the
+#     same code a moment later is (counted bad_pin, why no_match / not_allowed / inactive), with no approval; an owner
+#     lowered to manager still approves Local, stored as a manager (the role read under the lock).
+# Test PINs only (tests/db/90_seed.sql, and Bea 3917, Rita 3961, Sami 3962, Oli 3963, Dani 3964, Ivo 3965 added here).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=/dev/null
@@ -337,6 +342,70 @@ ok "5b) ... nothing stands: the sale is not voided, Luis's day still counts, no 
 q -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = '$DB' and application_name = 'c5-hold2'" >/dev/null
 ok "5b) ... the manager tries again: voided, and the day comes back" \
    "$(dev conc-b "select 'R:' || (public.manager_void_order('$ANA', '4826', '$O2', 'prueba 5b') ->> 'ok');" | q | r)|$(day "$A1")" "true|void"
+
+# 6) a revocation committed while the person's code is being checked --------------------------------------------------
+RITA=0b485000-0000-4000-8000-000000000061; SAMI=0b485000-0000-4000-8000-000000000062
+OLI=0b485000-0000-4000-8000-000000000063; DANI=0b485000-0000-4000-8000-000000000064; IVO=0b485000-0000-4000-8000-000000000065
+q >/dev/null <<SQL
+insert into public.staff (id, name, role, active, pin_hash) values
+  ('$RITA', 'Rita', 'manager', true, extensions.crypt('3961', extensions.gen_salt('bf', 4))),
+  ('$SAMI', 'Sami', 'manager', true, extensions.crypt('3962', extensions.gen_salt('bf', 4))),
+  ('$OLI',  'Oli',  'owner',   true, extensions.crypt('3963', extensions.gen_salt('bf', 4))),
+  ('$DANI', 'Dani', 'manager', true, extensions.crypt('3964', extensions.gen_salt('bf', 4))),
+  ('$IVO',  'Ivo',  'owner',   true, extensions.crypt('3965', extensions.gen_salt('bf', 4)));
+insert into public.compliance_confirmations (key, confirmed_by, reference) values ('courtesy_iva_confirmed', 'test', 'test');
+insert into public.settings (key, value) values ('pos_discount_guia', '"on"')
+  on conflict (key) do update set value = excluded.value;
+SQL
+# one run: $1 label, $2 id, $3 name, $4 new PIN (or null), $5 active, $6 role (the owner's save), $7 category and $8 the
+# code the till sends; leaves "ok/error-or-role why:step-or-stored-role approvals-by-that-person" in R6
+race6() {
+  local id="$2" pin="$4"; [ "$pin" = null ] || pin="'$pin'"
+  local comp=null; [ "$7" = guia ] && comp="'Tours Monteverde'"
+  q -c "select test.back(interval '25 hours')" >/dev/null   # a calm place: this call is judged like any first one
+  cat > "$TMP/c6-eq.sql" <<SQL
+select test.login('owner', 'aal2');
+begin;
+set local role authenticated;
+select 'R:' || (public.manager_save_staff(null, null, '$id', '$3', $pin, $5, '$6') ->> 'ok');
+$(gate_sql g6)
+commit;
+SQL
+  cat > "$TMP/c6-win.sql" <<SQL
+select test.login('cafe'); select test.session('conc-a');
+set role authenticated;
+select 'R:' || (r ->> 'ok') || '/' || coalesce(r ->> 'error', r ->> 'role')
+  from (select public.descuento_autorizar('$7', '$8', 1000, null, $comp, null, null, null, 'Caja A') r) x;
+SQL
+  local pe pw w0; w0="$(q -c "select coalesce(max(id), 0) from public.audit_log")"
+  gate_close g6
+  start c6-eq; pe=$bg
+  until_t "$(waiting c6-eq)" || echo "  FAIL  6) ($1) the owner's save never reached the gate"
+  start c6-win; pw=$bg
+  until_t "$(waiting c6-win row)" || echo "  FAIL  6) ($1) the window call never waited for $3's row"
+  gate_open g6
+  finish "$pe" "$pw"
+  ok "6) ($1) the owner's save in Equipo committed" "$(outcome c6-eq)" true
+  R6="$(outcome c6-win) $(q -c "select coalesce((select (details ->> 'why') || ':' || (details ->> 'step') from public.audit_log
+                                    where action = 'discount_code_wrong' and id > $w0 order by id desc limit 1),
+                                   (select approver_role from public.discount_approvals where approved_by = '$id' order by created_at desc limit 1), '-')
+                                 || ' ' || (select count(*) from public.discount_approvals where approved_by = '$id')")"
+}
+race6 'new PIN' "$RITA" Rita 3971 true manager local 3961
+ok "6) a new PIN given while the old one is being checked: refused as no_match, no approval" "$R6" "false/bad_pin no_match:manager 0"
+race6 'manager to staff' "$SAMI" Sami null true staff local 3962
+ok "6) a manager lowered to staff while their code is being checked: refused as not_allowed, no approval" "$R6" "false/bad_pin not_allowed:manager 0"
+race6 'owner to manager, Guía' "$OLI" Oli null true manager guia 3963
+ok "6) an owner lowered to manager while their code is being checked for Guía: refused at the owner step, no approval" "$R6" "false/bad_pin not_allowed:owner 0"
+race6 'deactivated' "$DANI" Dani null false manager local 3964
+ok "6) a manager deactivated while their code is being checked: refused as inactive, no approval" "$R6" "false/bad_pin inactive:manager 0"
+race6 'owner to manager, Local' "$IVO" Ivo null true manager local 3965
+ok "6) an owner lowered to manager while their code is being checked for Local: approved, stored as a manager" "$R6" "true/manager manager 1"
+ok "6) the revoked codes stay refused afterwards (Rita's old code, Sami's, Dani's)" \
+   "$(q -c "select test.back(interval '25 hours')" >/dev/null; for c in 3961 3962 3964; do dev conc-a "select 'R:' || (public.descuento_autorizar('local', '$c', 1000) ->> 'error');" | q | r; q -c "select test.back(interval '25 hours')" >/dev/null; done | tr '\n' ' ' | sed 's/ $//')" \
+   "bad_pin bad_pin bad_pin"
+ok "6) ... and Rita's new code approves" \
+   "$(dev conc-a "select 'R:' || (public.descuento_autorizar('local', '3971', 1000) ->> 'name');" | q | r)" Rita
 
 if [ "$fail" -gt 0 ]; then echo "$fail of $((pass + fail)) checks failed"; exit 1; fi
 echo "$pass passed"

@@ -10,9 +10,10 @@
 -- Qué hace
 --   * Deja exactamente como estaban antes de la 0038 (misma huella en la foto de producción, mismos permisos):
 --     approve_discount y _order_discount_check (supabase/pos-stations.sql) y tab_set_discount (supabase/pos-tabs.sql).
---   * Quita los tres disparadores nuevos de orders (order_zz_discount, order_zz_discount_lock, order_zz_discount_after)
---     y todas las funciones nuevas de la 0038 (descuentos por categoría, cajas registradas, el informe y las
---     herramientas del dueño).
+--   * Quita los tres disparadores nuevos de orders (order_zz_discount, order_zz_discount_lock, order_zz_discount_after),
+--     el de staff (staff_pin_changed: un PIN nuevo o quitado cierra las aperturas de esa persona en otros aparatos; sin
+--     él, como antes de la 0038, duran sus 15 minutos) y todas las funciones nuevas de la 0038 (descuentos por
+--     categoría, cajas registradas, el informe y las herramientas del dueño).
 --   * Quita la 0038 del registro de migraciones (la base vuelve a la versión 37).
 -- Qué NO hace: no borra ningún dato. Las columnas nuevas de discount_approvals (categoría, empleado, empresa, día…),
 --   su regla, sus índices, la tabla discount_tills (las cajas registradas, que quedan sin uso), la tabla
@@ -40,6 +41,7 @@ set local lock_timeout = '8s';
 drop trigger if exists order_zz_discount on public.orders;
 drop trigger if exists order_zz_discount_lock on public.orders;
 drop trigger if exists order_zz_discount_after on public.orders;
+drop trigger if exists staff_pin_changed on public.staff;
 
 -- 2) las tres funciones de antes, con su texto exacto (supabase/pos-stations.sql, supabase/pos-tabs.sql) --------------
 create or replace function public.approve_discount(p_staff_id uuid, p_pin text, p_kind text, p_value int,
@@ -178,6 +180,7 @@ drop function if exists public._pin_locks_clear_all(text);
 drop function if exists public._discount_places_summary();
 drop function if exists public._order_discount_flags();
 drop function if exists public._order_discount_after();
+drop function if exists public._discount_pin_changed();
 drop function if exists public._discount_freeable(public.discount_approvals);
 drop function if exists public._discount_answer(public.discount_approvals);
 drop function if exists public._discount_bill_problem(uuid, int, int, boolean);
@@ -186,8 +189,8 @@ drop function if exists public._discount_wrong(public.discount_tills, text, text
 drop function if exists public._discount_till_unknown(text, text);
 drop function if exists public._discount_places(uuid);
 drop function if exists public._discount_person(uuid);
-drop function if exists public._discount_staff_state(uuid);
-drop function if exists public._discount_take_staff(uuid);
+drop function if exists public._discount_staff_state(uuid, text);
+drop function if exists public._discount_take_staff(uuid, text, text);
 drop function if exists public._discount_slot_state(int);
 drop function if exists public._discount_till_mine();
 drop function if exists public._discount_new_key();

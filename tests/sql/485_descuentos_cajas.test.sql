@@ -597,10 +597,11 @@ select test.open485(:'tb', 'dueno');
 select test.eq(public.descuento_cajas() -> 'shared_code', '["Marta", "Pablo"]'::jsonb, '4 ... and the owner who they are');
 reset role;
 update public.staff set active = false where id = test.p485('pablo');
-select test.eq((select to_jsonb(x) from public._discount_take_staff(test.p485('pablo')) x), '{"ok": false, "locked": false}'::jsonb,
+select test.eq((select to_jsonb(x) from public._discount_take_staff(test.p485('pablo'), (select pin_hash from public.staff where id = test.p485('pablo')), 'manager') x),
+               '{"ok": false, "locked": false, "why": "inactive", "srole": "staff"}'::jsonb,
                '4 _discount_take_staff of an inactive person: not ok (counted as inactive at the window)');
-select test.eq((select to_jsonb(x) from public._discount_staff_state(test.p485('pablo')) x), '{"ok": false, "locked": false}'::jsonb,
-               '4 _discount_staff_state of an inactive person: not ok');
+select test.eq((select to_jsonb(x) from public._discount_staff_state(test.p485('pablo'), (select pin_hash from public.staff where id = test.p485('pablo'))) x),
+               '{"ok": false, "locked": false, "why": "inactive"}'::jsonb, '4 _discount_staff_state of an inactive person: not ok');
 select test.ok(not exists (select 1 from public.audit_log a join public.discount_tills t on t.id::text = a.details ->> 'till'
                             where a.action = 'discount_code_wrong'
                               and not (a.target_id = t.id::text and a.details ->> 'slot' = t.slot::text
@@ -1555,10 +1556,10 @@ select test.eq((select string_agg(a.attname, ' ' order by a.attname) from pg_con
                   where c.conrelid = 'public.discount_approvals'::regclass and c.contype = 'f' and c.confrelid = 'public.staff'::regclass),
                'approved_by',
                '10 (R) the window locks one staff row, the authorizer''s: an approval references no other staff row (a foreign key to the employee locks the employee''s row FOR KEY SHARE at the insert, while the authorizer''s is held FOR UPDATE: the deadlock of concurrency-descuentos.sh)');
-select test.ok(replace(test.src485('public._discount_take_staff(uuid)'), 'for update', '') !~* '\mupdate\M'
-               and test.src485('public._discount_staff_state(uuid)') !~* '\mupdate\M'
-               and test.src485('public._discount_take_staff(uuid)') ~ 'for update'
-               and test.src485('public._discount_staff_state(uuid)') !~ 'for update',
+select test.ok(replace(test.src485('public._discount_take_staff(uuid, text, text)'), 'for update', '') !~* '\mupdate\M'
+               and test.src485('public._discount_staff_state(uuid, text)') !~* '\mupdate\M'
+               and test.src485('public._discount_take_staff(uuid, text, text)') ~ 'for update'
+               and test.src485('public._discount_staff_state(uuid, text)') !~ 'for update',
                '10 (R) neither writes anything; only _discount_take_staff takes a row lock');
 select test.ok(position('canopy.discount_tills''' in test.src485(p)) > 0
                and position('canopy.discount_tills''' in test.src485(p)) < position('canopy.discount_slot:' in test.src485(p))

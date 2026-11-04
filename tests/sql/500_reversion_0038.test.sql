@@ -2,7 +2,7 @@
 -- (proposal-final §2.12 and §5.1 «500», mecanismo-intentos §4, api-0038 §11, build plan L5). The reversal refuses while
 -- 0038 is not applied or while a later migration is, and then changes nothing; it brings approve_discount,
 -- _order_discount_check and tab_set_discount back byte for byte (the production snapshot's legacy fingerprints) with
--- their rights, drops the three new triggers and the 41 new functions and nothing else, deletes no data (the 13 columns
+-- their rights, drops the four new triggers and the 42 new functions and nothing else, deletes no data (the 13 columns
 -- of discount_approvals with their rules and indexes, discount_tills with its rows and keys, the audit indexes and both
 -- settings with their values stay) and takes version 38 off the ledger. The café then works as before 0038: the old
 -- window, its sales and bills; a category approval already given is checked as an old one (its fixed rate, 30
@@ -119,7 +119,7 @@ create temp table snap500 (k text primary key, j jsonb);
 
 -- 0) the state made under 0038, through the real functions ----------------------------------------------------------
 select test.eq(public.canopy_schema_version(), 38, '0 the database is at version 38');
--- the 41 functions 0038 adds (api-0038 §4 and §6: 11 public, 28 internal, 2 for the triggers) and the 3 it replaces
+-- the 42 functions 0038 adds (api-0038 §4 and §6: 11 public, 28 internal, 3 for the triggers) and the 3 it replaces
 create temp table new500 (sig text);
 insert into new500 select to_regprocedure(s)::text from unnest(array[
   'public.descuento_estado(text)', 'public.descuento_autorizar(text, text, int, text, text, uuid, int, uuid, text)',
@@ -130,25 +130,28 @@ insert into new500 select to_regprocedure(s)::text from unnest(array[
   'public._discount_rate(text)', 'public._discount_label(text)', 'public._discount_clean(text)', 'public._discount_company(text)',
   'public._discount_reserved(text)', 'public._staff_by_code(text)', 'public._discount_till_limits()', 'public._discount_session()',
   'public._discount_tag(text)', 'public._discount_station(text)', 'public._discount_key_hash(text)', 'public._discount_new_key()',
-  'public._discount_till_mine()', 'public._discount_slot_state(int)', 'public._discount_take_staff(uuid)',
-  'public._discount_staff_state(uuid)', 'public._discount_person(uuid)', 'public._discount_places(uuid)',
+  'public._discount_till_mine()', 'public._discount_slot_state(int)', 'public._discount_take_staff(uuid, text, text)',
+  'public._discount_staff_state(uuid, text)', 'public._discount_person(uuid)', 'public._discount_places(uuid)',
   'public._discount_wrong(public.discount_tills, text, text, text, text, uuid, text)', 'public._discount_till_unknown(text, text)',
   'public._discount_answer(public.discount_approvals)', 'public._discount_bill_problem(uuid, int, int, boolean)',
   'public._discount_retake_day(uuid, date)', 'public._discount_freeable(public.discount_approvals)',
   'public._discount_places_summary()', 'public._discount_tills_resume_all(text)', 'public._discount_tills_end_all(text)',
-  'public._pin_locks_clear_all(text)', 'public._order_discount_flags()', 'public._order_discount_after()']) s;
+  'public._pin_locks_clear_all(text)', 'public._order_discount_flags()', 'public._order_discount_after()',
+  'public._discount_pin_changed()']) s;
 create temp table old500 (sig text, legacy text, v0038 text);
 insert into old500 values
   (to_regprocedure('public.approve_discount(uuid, text, text, int, int, text, text)')::text, '259bc8afa7ef', '8fa07d1f3abd'),
   (to_regprocedure('public._order_discount_check()')::text, '812056181d36', '33d8b472b586'),
   (to_regprocedure('public.tab_set_discount(uuid, uuid, int, text)')::text, '340dd98542a4', '22a3252832c4');
-select test.eq((select count(*)::int from new500 where sig is not null), 41, '0 under 0038 the 41 new functions exist (11 public, 28 internal, 2 for the triggers)');
+select test.eq((select count(*)::int from new500 where sig is not null), 42, '0 under 0038 the 42 new functions exist (11 public, 28 internal, 3 for the triggers)');
 select test.eq((select string_agg(o.sig || ':' || left(md5(p.prosrc), 12), ' ' order by o.sig) from old500 o join pg_proc p on p.oid = o.sig::regprocedure),
                (select string_agg(sig || ':' || v0038, ' ' order by sig) from old500),
                '0 approve_discount, _order_discount_check and tab_set_discount carry the 0038 text (the snapshot''s 0038 fingerprints)');
 select test.eq((select string_agg(tgname, ' ' order by tgname) from pg_trigger where tgrelid = 'public.orders'::regclass and tgname like 'order_zz_discount%'),
                'order_zz_discount order_zz_discount_after order_zz_discount_lock',
                '0 the three new triggers are on orders (order_zz_discount_lock: the per-employee lock before any stock row)');
+select test.eq((select string_agg(tgname, ' ') from pg_trigger where tgrelid = 'public.staff'::regclass and tgfoid = 'public._discount_pin_changed()'::regprocedure),
+               'staff_pin_changed', '0 ... and staff_pin_changed on staff (a new or removed PIN ends that person''s unlocks on other devices)');
 
 -- Guía on, as only the owner with the phone code can, after the accountant's confirmation (A-13): a non-default value
 -- the reversal and the reapply must keep
@@ -253,8 +256,8 @@ insert into snap500 values ('rc_0038', :'j500'::jsonb);
 select test.eq((select (j -> 'migrations_missing') || (j -> 'functions_missing') from snap500 where k = 'rc_0038'), '[]'::jsonb,
                '0 release-check.sql under 0038: no migration and no function missing');
 select test.eq((select (j #>> '{schema,functions_by_version,0038}') || ' ' || jsonb_array_length(j #> '{schema,functions_changed}')
-                       || ' ' || jsonb_array_length(j #> '{schema,functions_unknown}') from snap500 where k = 'snap_0038'), '44 0 0',
-               '0 production-snapshot.sql under 0038: 44 functions of 0038 (41 new + 3 replaced), none changed or unknown');
+                       || ' ' || jsonb_array_length(j #> '{schema,functions_unknown}') from snap500 where k = 'snap_0038'), '45 0 0',
+               '0 production-snapshot.sql under 0038: 45 functions of 0038 (42 new + 3 replaced), none changed or unknown');
 
 -- 1) a later migration is applied: the script stops at its first statement and changes nothing ------------------------------
 insert into canopy.migrations (version, name) values (39, 'siguiente de prueba');
@@ -284,7 +287,7 @@ select test.eq(:'LAST_ERROR_SQLSTATE' || ' ' || :'LAST_ERROR_MESSAGE',
                'P0001 Hay una migración posterior a la 0038 aplicada (39): revierta esa primero. No se cambió nada.',
                '1 its message: «Hay una migración posterior a la 0038 aplicada (39): revierta esa primero. No se cambió nada.»');
 select test.eq(test.diff500('f38', '(select * from test.fns500())'), '', '1 every function exactly as 0038 left it (text, rights, settings)');
-select test.eq(test.diff500('t38', '(select * from test.trg500())'), '', '1 every trigger as it was (the three of 0038 included)');
+select test.eq(test.diff500('t38', '(select * from test.trg500())'), '', '1 every trigger as it was (the four of 0038 included)');
 select test.eq(test.diff500('d38', '(select * from test.data500())'), '', '1 and no row of any table changed');
 select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 36), '36 37 38 39', '1 the ledger as it was');
 delete from canopy.migrations where version = 39;
@@ -297,10 +300,10 @@ select current_setting('lock_timeout') as lt_before \gset
 select test.eq(public.canopy_schema_version(), 37, '2 the database is back at version 37');
 select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 36), '36 37', '2 the ledger: 38 deleted, 36 and 37 kept');
 select test.eq(:'lt_before' || ' -> ' || current_setting('lock_timeout'), '0 -> 8s', '2 it waits at most 8 seconds for a lock, like a migration (it never freezes the tills)');
--- functions: the 41 go, nothing else goes or comes, only the three old ones change, and only in their text
+-- functions: the 42 go, nothing else goes or comes, only the three old ones change, and only in their text
 select test.eq((select string_agg(f.k, ' ' order by f.k) from f38 f where not exists (select 1 from test.fns500() g where g.k = f.k)),
-               (select string_agg(sig, ' ' order by sig) from new500), '2 exactly the 41 new functions are gone, no other');
-select test.eq((select count(*)::int from new500 where to_regprocedure(sig) is not null), 0, '2 by signature: none of the 41 exists');
+               (select string_agg(sig, ' ' order by sig) from new500), '2 exactly the 42 new functions are gone, no other');
+select test.eq((select count(*)::int from new500 where to_regprocedure(sig) is not null), 0, '2 by signature: none of the 42 exists');
 select test.eq((select coalesce(string_agg(g.k, ' ' order by g.k), '') from test.fns500() g where not exists (select 1 from f38 f where f.k = g.k)),
                '', '2 no function is added');
 select test.eq((select string_agg(g.k, ' ' order by g.k) from test.fns500() g join f38 f on f.k = g.k
@@ -329,10 +332,11 @@ select test.eq((select count(*)::int from pg_proc p where p.pronamespace = 'publ
 select test.eq((select coalesce(string_agg(g.k, ' ' order by g.k), '') from test.fns500() g join pg_proc p on p.oid = g.k::regprocedure
                  where p.prosrc ~ '\m(descuentos?_\w+|_discount_\w+|_staff_by_code|_pin_locks_clear_all|_order_discount_flags|_order_discount_after)\M'),
                '', '2 and no function left behind calls one of the dropped ones');
--- triggers: the three of 0038 go; order_discount_check stays on orders with the old check
+-- triggers: the four of 0038 go; order_discount_check stays on orders with the old check
 select test.eq((select string_agg(x.k, ' ' order by x.k) from t38 x where not exists (select 1 from test.trg500() y where y.k = x.k)),
-               'orders.order_zz_discount orders.order_zz_discount_after orders.order_zz_discount_lock', '2 the three new triggers are gone');
-select test.eq(test.diff500('(select * from t38 where k not like ''orders.order_zz_discount%'')', '(select * from test.trg500())'), '',
+               'orders.order_zz_discount orders.order_zz_discount_after orders.order_zz_discount_lock staff.staff_pin_changed',
+               '2 the four new triggers are gone (three on orders, staff_pin_changed on staff)');
+select test.eq(test.diff500('(select * from t38 where k not like ''orders.order_zz_discount%'' and k <> ''staff.staff_pin_changed'')', '(select * from test.trg500())'), '',
                '2 every other trigger exactly as it was');
 select test.ok(exists (select 1 from test.trg500() where k = 'orders.order_discount_check'
                          and v ~ '^CREATE TRIGGER order_discount_check BEFORE INSERT ON public\.orders FOR EACH ROW EXECUTE FUNCTION (public\.)?_order_discount_check\(\) \[O\]$'),
@@ -430,8 +434,8 @@ select test.eq(test.s500('snap_rev', '{schema,functions_by_version}'),
                (test.s500('snap_0038', '{schema,functions_by_version}') - '0038')
                  || jsonb_build_object('legacy', (test.s500('snap_0038', '{schema,functions_by_version,legacy}'))::int + 3),
                '2 production-snapshot.sql: no function of 0038 left, legacy + 3, every other version as before');
-select test.eq((test.s500('snap_rev', '{schema,functions_total}'))::int, (test.s500('snap_0038', '{schema,functions_total}'))::int - 41,
-               '2 production-snapshot.sql: functions_total - 41');
+select test.eq((test.s500('snap_rev', '{schema,functions_total}'))::int, (test.s500('snap_0038', '{schema,functions_total}'))::int - 42,
+               '2 production-snapshot.sql: functions_total - 42');
 select test.eq(test.s500('snap_rev', '{schema,triggers_differ}'), '{}'::jsonb, '2 production-snapshot.sql: triggers_differ = {} (exactly the triggers of version 37)');
 select test.eq(test.s500('snap_rev', '{schema,tables_missing}') || test.s500('snap_rev', '{schema,live_pages_rpc_missing}'), '[]'::jsonb,
                '2 production-snapshot.sql: no table missing, nothing the published pages call missing');
@@ -588,7 +592,7 @@ select test.eq(public.canopy_schema_version(), 38, '4 applied again: version 38'
 select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 36), '36 37 38', '4 the ledger: 38 once');
 select test.eq(test.diff500('f38', '(select * from test.fns500())'), '',
                '4 every function exactly as the first time: the 41 back, the three in their 0038 text, the same rights and settings');
-select test.eq(test.diff500('t38', '(select * from test.trg500())'), '', '4 every trigger as the first time: the three of 0038 back, once each');
+select test.eq(test.diff500('t38', '(select * from test.trg500())'), '', '4 every trigger as the first time: the four of 0038 back, once each');
 select test.eq(test.diff500('c38', '(select * from test.cols500())'), '', '4 no column added twice or changed');
 select test.eq(test.diff500('k38', '(select * from test.cons500())'), '', '4 no constraint added twice or changed (the keys of beneficiary_id and till_id once)');
 select test.eq(test.diff500('i38', '(select * from test.idx500())'), '', '4 no index added twice or changed');

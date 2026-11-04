@@ -654,8 +654,8 @@ select test.ok((select prosrc !~ '(_verify_pin|access_unlock|failed_pins|update 
                   from pg_proc where oid = 'public.descuento_autorizar(text, text, int, text, text, uuid, int, uuid, text)'::regprocedure),
                '9 descuento_autorizar never calls _verify_pin or access_unlock, never touches access_unlocks or a PIN counter');
 select test.ok((select bool_and(replace(prosrc, 'for update', '') !~* '\mupdate\M' and prosrc !~* 'access_unlock') from pg_proc
-                 where oid in ('public._staff_by_code(text)'::regprocedure, 'public._discount_take_staff(uuid)'::regprocedure,
-                               'public._discount_staff_state(uuid)'::regprocedure)),
+                 where oid in ('public._staff_by_code(text)'::regprocedure, 'public._discount_take_staff(uuid, text, text)'::regprocedure,
+                               'public._discount_staff_state(uuid, text)'::regprocedure)),
                '9 nor do the code lookup and the two staff reads it uses (they write nothing)');
 select test.eq((select (length(prosrc) - length(replace(prosrc, 'crypt(', ''))) / length('crypt(') from pg_proc
                  where oid = 'public._staff_by_code(text)'::regprocedure), 1, '9 the code lookup is one bcrypt pass over every active PIN');
@@ -851,13 +851,14 @@ insert into f480 values
   ('_discount_company(text)', false), ('_discount_reserved(text)', false), ('_staff_by_code(text)', false),
   ('_discount_till_limits()', false), ('_discount_session()', false), ('_discount_tag(text)', false),
   ('_discount_station(text)', false), ('_discount_key_hash(text)', false), ('_discount_new_key()', false),
-  ('_discount_till_mine()', false), ('_discount_slot_state(integer)', false), ('_discount_take_staff(uuid)', false),
-  ('_discount_staff_state(uuid)', false), ('_discount_person(uuid)', false), ('_discount_places(uuid)', false),
+  ('_discount_till_mine()', false), ('_discount_slot_state(integer)', false), ('_discount_take_staff(uuid,text,text)', false),
+  ('_discount_staff_state(uuid,text)', false), ('_discount_person(uuid)', false), ('_discount_places(uuid)', false),
   ('_discount_wrong(discount_tills,text,text,text,text,uuid,text)', false), ('_discount_till_unknown(text,text)', false),
   ('_discount_answer(discount_approvals)', false), ('_discount_bill_problem(uuid,integer,integer,boolean)', false),
   ('_discount_retake_day(uuid,date)', false), ('_discount_freeable(discount_approvals)', false),
   ('_discount_places_summary()', false), ('_discount_tills_resume_all(text)', false), ('_discount_tills_end_all(text)', false),
-  ('_pin_locks_clear_all(text)', false), ('_order_discount_flags()', false), ('_order_discount_after()', false);
+  ('_pin_locks_clear_all(text)', false), ('_order_discount_flags()', false), ('_order_discount_after()', false),
+  ('_discount_pin_changed()', false);
 create temp view v480 as
   select p.oid, p.oid::regprocedure::text as sig, f.public_rpc, p.prosecdef, p.prosrc, p.proconfig, p.prorettype
     from pg_proc p join f480 f on f.sig = p.oid::regprocedure::text where p.pronamespace = 'public'::regnamespace;
@@ -865,8 +866,8 @@ select test.eq((select string_agg(p.oid::regprocedure::text, ' ' order by p.oid:
                  where p.pronamespace = 'public'::regnamespace
                    and p.proname ~ '^(descuento|_discount_|_staff_by_code$|_pin_locks_clear_all$|_order_discount_(flags|after)$)'),
                (select string_agg(sig, ' ' order by sig) from f480),
-               '12 0038''s new functions are exactly the 11 public ones, the 28 internal ones and the 2 trigger functions (41)');
-select test.eq((select count(*)::int from v480), 41, '12 all 41 exist');
+               '12 0038''s new functions are exactly the 11 public ones, the 28 internal ones and the 3 trigger functions (42)');
+select test.eq((select count(*)::int from v480), 42, '12 all 42 exist');
 select test.eq((select coalesce(string_agg(sig, ' '), '') from v480 where has_function_privilege('anon', oid, 'execute')), '',
                '12 anon can run none of them');
 select test.eq((select coalesce(string_agg(sig, ' '), '') from v480 where has_function_privilege('public', oid, 'execute')), '',

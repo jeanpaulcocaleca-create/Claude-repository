@@ -30,13 +30,14 @@ contador (A-13, sección 7); apagar la ventana de descuento anterior, que es **s
 que le paso en el chat, con su código completo, cuando le pida aprobarlo (1.1). **Punto de partida y de regreso:** la
 base en la 0037 y el sitio en `v2026.11.03-1` (commit `adb19ee`, `gh-pages` `44a0dab`).
 
-**Qué se probó (en desarrollo, nunca en producción):** las pruebas SQL `480_descuentos`, `482_descuentos_cupo`,
-`484_descuentos_cuentas`, `485_descuentos_cajas`, `486_descuentos_informe`, `490_descuentos_iva` y
-`500_reversion_0038` (2066 comprobaciones), las pruebas con dos conexiones a la vez
-(`tests/sql/concurrency-descuentos.sh`, 41 comprobaciones), las de navegador de la ventana nueva (`400_descuentos`,
+**Qué se probó (en desarrollo, nunca en producción):** las pruebas SQL `480_descuentos`, `481_descuentos_regla5`,
+`482_descuentos_cupo`, `484_descuentos_cuentas`, `485_descuentos_cajas`, `486_descuentos_informe`, `490_descuentos_iva`
+y `500_reversion_0038` (2270 comprobaciones), las pruebas con dos conexiones a la vez
+(`tests/sql/concurrency-descuentos.sh`, 53 comprobaciones), las de navegador de la ventana nueva (`400_descuentos`,
 `401_descuentos_cuentas`, `402_descuentos_cajas`, `403_descuentos_informes` y `404_descuentos_red`: 63 pruebas) y toda
-la batería de «Tests» (en desarrollo, el 2026-11-04: 55 de 55 pruebas SQL, que son los 54 archivos y la de dos
-conexiones, y 315 de 315 pruebas de navegador), con el ensayo de la ventana anterior y de las páginas publicadas hoy
+la batería de «Tests» (en desarrollo, el 2026-11-04: 56 de 56 pruebas SQL, que son los 55 archivos y la de dos
+conexiones, y las 315 pruebas de navegador: en la última corrida completa una de recetas falló una vez por una
+comprobación intermitente ya conocida y pasó las tres veces que se repitió), con el ensayo de la ventana anterior y de las páginas publicadas hoy
 sobre una copia con la 0038.
 
 **En orden:**
@@ -169,9 +170,20 @@ del empleado sigue usado hoy: ya se hizo un pago, así que no se puede devolver.
   del café, y abrir esas áreas y Ventas durante 15 minutos, también poner PIN nuevos a los encargados en «Equipo» (no
   los ajustes del sistema, que piden su ingreso con el código del teléfono). Algo parecido pasa con el código de un
   encargado escrito en la ventana: abre lo que abre su PIN. Escríbalo sin que lo vean y use un PIN de 6 números (1.5);
-- **un PIN bloqueado en las listas de nombres** («Demasiados PIN incorrectos. Espere 10 minutos e intente de nuevo.»)
-  sigue sirviendo en la ventana de descuentos, y la ventana no cuenta ni borra ese bloqueo (regla 5, que usted confirma
-  en 1.8);
+- **la regla 5, en sus dos mitades** (usted la confirma en 1.8):
+  - **un bloqueo temporal no detiene los descuentos.** Cinco PIN equivocados en una casilla con lista de nombres
+    bloquean ese PIN 10 minutos («Demasiados PIN incorrectos. Espere 10 minutos e intente de nuevo.»). En la ventana de
+    descuentos el código correcto de esa persona sigue sirviendo en todas las cajas registradas, y la ventana no cuenta
+    ni borra ese bloqueo. Las casillas con lista de nombres (también la ventana anterior mientras `pos_free_discount`
+    esté encendido) siguen como hoy: ahí ese PIN espera sus 10 minutos;
+  - **un PIN revocado o sin permiso nunca aprueba.** El código de una persona desactivada, un PIN cambiado (el
+    anterior) o quitado, el de alguien a quien se le bajó el puesto o que no tiene el puesto necesario (un miembro del
+    equipo para autorizar; quien no es dueño para Guía Turista) o un código que comparten dos personas no aprueba nada
+    en la ventana: cuenta como un código equivocado de esa caja, también si el cambio se guarda en «Equipo» en el mismo
+    instante en que se escribe el código. En la bitácora de aprobaciones, donde se elige el nombre, tampoco sirven una
+    persona desactivada, un PIN anterior o quitado ni un puesto bajado, y desde la 0033 «Equipo» no deja que dos
+    personas activas tengan el mismo PIN (el paso 1.6 cambia los que quedaron de antes). Un PIN nuevo o quitado cierra
+    además, en el acto, las áreas del dueño que esa persona tuviera abiertas en otras tabletas;
 - si dos personas tienen el mismo PIN (posible solo para quienes se reactivaron entre las versiones 0028 y 0033), cada
   código de ellas cuenta como equivocado, y la bitácora avisa «Código compartido por dos personas: asigne PIN nuevos en
   Equipo.» Por eso el paso 1.6.
@@ -210,7 +222,10 @@ el motivo del descuento.» (sección 6.1, paso 5).
 4. **La vista previa privada, aprobada:** el enlace que le paso en el chat (una página privada de claude.ai). No lee
    ni cambia nada de producción. Mírela en el iPad (Safari) y en la Caja del frente: los cuatro botones, el teclado, los
    mensajes, y **en el iPad, el campo de la empresa de Guía Turista**: acepta texto con el teclado del iPad y ese teclado
-   no tapa «Autorizar descuento». Anote lo que quiera cambiar: se ajusta antes de activar.
+   no tapa «Autorizar descuento». Para esto último use la **página de prueba de la ventana** (otro enlace privado que le
+   paso en el chat): es la misma ventana, con el mismo diseño, sin servidor; no envía nada y no revisa códigos. Toque
+   «Guía Turista», escriba una empresa con el teclado del iPad y mire que «Autorizar descuento» se vea y se pueda tocar.
+   Anote lo que quiera cambiar: se ajusta antes de activar.
 5. **Recomendado: PIN de 6 números** para los encargados y para quien tenga puesto de dueño (Q6). Cada uno se pone el
    suyo: Reloj de marcas → «Horas y equipo» → con su propio PIN → «Equipo» → «Nuevo PIN» en su propia fila. Un PIN de 6
    números divide por cien la probabilidad de acertar uno, y la página rechaza un PIN que ya use otra persona o uno
@@ -249,17 +264,20 @@ el motivo del descuento.» (sección 6.1, paso 5).
    activación: Guía Turista queda apagada de todos modos (sección 7).
 8. **Su confirmación de la regla 5, en una línea, antes de la etapa 3** (sin ella no se activa). La línea que le pido:
 
-   > Confirmo: el código correcto de un encargado o del dueño cuyo PIN esté bloqueado en las listas de nombres sigue
-   > sirviendo en la ventana de descuentos, y esa ventana no cuenta ni borra ese bloqueo.
+   > Confirmo: un PIN bloqueado temporalmente por intentos fallidos en otra pantalla sigue sirviendo en la ventana de
+   > descuentos, que no cuenta ni borra ese bloqueo; un PIN de una persona desactivada, cambiado, quitado, o de alguien
+   > sin el puesto necesario, nunca aprueba un descuento.
 
    Por qué: sin esta regla, una sola persona con la contraseña del café podría bloquear a todos los encargados en las
    listas de nombres y así convertir sus códigos correctos en errores en todas las cajas: justo lo que su ajuste 2
    prohíbe. La otra opción (rechazar ese código sin contarlo) le diría a quien adivina que el código es correcto. Si no
    la confirma, no active: la 0038 tendría que rehacerse con la regla anterior, que vuelve a permitir un bloqueo de todo
-   el café. **Cuándo y dónde:** me la da por escrito en el chat antes de la etapa 3; esa es la condición. Se copia
-   palabra por palabra en `docs/DEPENDENCIES.md` (E-42) en el commit de después de la activación («Registro»). Si me la
-   da antes de que yo le pase el commit para aprobar (1.1), puede ir ya en ese commit, y «Tests» corre sobre él.
-   Nunca en un commit entre la etiqueta y la publicación (2.1).
+   el café. La segunda mitad no depende de una elección: está construida y probada (`481_descuentos_regla5` y
+   `concurrency-descuentos.sh` 6, también cuando el cambio en «Equipo» se guarda en el mismo instante en que alguien
+   escribe el código); su línea confirma que así lo quiere. **Cuándo y dónde:** me la da por escrito en el chat antes
+   de la etapa 3; esa es la condición. Se copia palabra por palabra en `docs/DEPENDENCIES.md` (E-42) en el commit de
+   después de la activación («Registro»). Si me la da antes de que yo le pase el commit para aprobar (1.1), puede ir ya
+   en ese commit, y «Tests» corre sobre él. Nunca en un commit entre la etiqueta y la publicación (2.1).
 9. **Avisar al equipo** con la sección 0.
 10. **Lista de aparatos que dan descuentos** (normalmente la Caja del frente y el iPad), cada uno con su nombre en
     «Este dispositivo» de la Caja (es el nombre que mostrará la bitácora), y **quién registra**: un encargado registra
@@ -316,7 +334,7 @@ el motivo del descuento.» (sección 6.1, paso 5).
    `select canopy.migration_end(38, 'descuentos_caja');` y `notify pgrst, 'reload schema';` (si no están, el texto quedó
    cortado: borre y pegue de nuevo). → **Run** → debe decir **Success** (sin filas). Una sola vez.
    - Si el editor pide confirmar una «destructive operation», es lo esperado: la 0038 usa `drop … if exists` en tres
-     funciones y tres disparadores suyos y en cinco reglas de la tabla de aprobaciones (las crea de nuevo, salvo una que
+     funciones y cuatro disparadores suyos y en cinco reglas de la tabla de aprobaciones (las crea de nuevo, salvo una que
      deja fuera a propósito y que en producción no existe); no borra datos → «Run this query».
    - «La migración 38 (descuentos_caja) ya estaba aplicada: no se cambió nada.» → ya estaba; siga con el paso 4.
    - «Falta aplicar antes la migración 37…» → **deténgase y avíseme** (no pasó nada).
@@ -338,10 +356,10 @@ el motivo del descuento.» (sección 6.1, paso 5).
 6. **La foto de después.** `production-snapshot.sql` otra vez → «snapshot-después», **antes de tocar los aparatos**. Debe
    decir:
    - `migrations_applied` termina en `38`;
-   - en `schema`: `functions_by_version` con `"0038": 44` (las 41 funciones nuevas y las tres reemplazadas) y `"legacy"`
+   - en `schema`: `functions_by_version` con `"0038": 45` (las 42 funciones nuevas y las tres reemplazadas) y `"legacy"`
      = el de «snapshot-antes» menos 3 (las tres funciones reemplazadas, `approve_discount`, `tab_set_discount` y
      `_order_discount_check`, pasan de «legacy» a «0038»), sin la clave `"?"`; `functions_changed` = `[]`;
-     `functions_unknown` = `[]`; `tables_missing` = `[]`; `functions_total` = el de antes + 41; `tables_other` incluye
+     `functions_unknown` = `[]`; `tables_missing` = `[]`; `functions_total` = el de antes + 42; `tables_other` incluye
      `public.discount_tills` y `public.discount_pin_shared`;
    - `data_fingerprint` y `security` → `anon_can_run` **idénticos** a los de «snapshot-antes» (la 0038 no cambia
      ninguna fila ni ningún permiso existente); en `switches.settings` aparecen `pos_free_discount` `"on"` y
@@ -525,7 +543,7 @@ de atención, salvo urgencia.
    `supabase/tools/reversion-0038.sql`. Antes de **Run**, baje al final del texto pegado: las dos últimas líneas son
    `delete from canopy.migrations where version = 38;` y `notify pgrst, 'reload schema';` (si no están, el texto quedó
    cortado: borre y pegue de nuevo). Si el editor pide confirmar una «destructive operation», es lo esperado (quita
-   los tres disparadores, las funciones nuevas y la fila 38 del registro; no borra datos) → **Run** → **Success** (sin
+   los cuatro disparadores, las funciones nuevas y la fila 38 del registro; no borra datos) → **Run** → **Success** (sin
    filas).
    - «La migración 0038 no está aplicada: no hay nada que revertir. No se cambió nada.» → ya estaba revertida.
    - «Hay una migración posterior a la 0038 aplicada (…): revierta esa primero. No se cambió nada.» → avíseme.
@@ -656,7 +674,10 @@ bitácora vemos desde dónde y cuándo.
 
 ## Lo que usted debe aprobar o decidir
 
-1. Dar su línea de confirmación de la regla 5 (1.8), antes de la etapa 3: sin ella no se activa.
+1. Dar su línea de confirmación de la regla 5 (1.8), con sus dos mitades (un PIN bloqueado temporalmente por intentos
+   fallidos en otra pantalla sigue sirviendo en la ventana de descuentos, que no cuenta ni borra ese bloqueo; un PIN de
+   una persona desactivada, cambiado, quitado, o de alguien sin el puesto necesario, nunca aprueba un descuento), antes
+   de la etapa 3: sin ella no se activa.
 2. Aprobar la vista previa privada, con el campo de la empresa en el iPad (1.4).
 3. Aprobar el commit de la versión y crear su etiqueta (2.1).
 4. Elegir la noche de la activación y quiénes están (usted y uno o dos encargados con su PIN).

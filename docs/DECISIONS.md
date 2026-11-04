@@ -2742,18 +2742,19 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     `beneficiary_name` keeps the name); the tables `discount_tills` (row security on, no policy, no grant; rows never
     deleted) and `discount_pin_shared` (who shares a code; the same rules, read only by `descuento_cajas`, which names
     the people only to the owner) and four audit-log indexes (the per-place and café-wide wrong-code counts, the
-    approvals log, and `audit_log_discount_removed_paid` for the report); 41 new functions (the 11 public ones,
-    `descuento_*` and `descuentos_informe`, and 30 internal ones, the two trigger functions among them, which no page
+    approvals log, and `audit_log_discount_removed_paid` for the report); 42 new functions (the 11 public ones,
+    `descuento_*` and `descuentos_informe`, and 31 internal ones, the three trigger functions among them, which no page
     can call) and three legacy ones replaced in place with the same names, signatures and grants (`approve_discount`,
     `tab_set_discount`, `_order_discount_check`); three triggers on `orders` (`order_zz_discount` before an insert;
-    `order_zz_discount_lock` before and `order_zz_discount_after` after a void, a cancel or a change of discount). No
+    `order_zz_discount_lock` before and `order_zz_discount_after` after a void, a cancel or a change of discount) and
+    one on `staff` (`staff_pin_changed`: a new or removed PIN ends that person's unlocks on other devices, rule 5). No
     backfill: old approvals keep `category` null, so no business record changes, and `anon_can_run` keeps its five
-    names. The file is 130 558 bytes, under the 131 072 that `tests/lint.sh` rule 15 allows for any migration or tool:
+    names. The file is 130 927 bytes, under the 131 072 that `tests/lint.sh` rule 15 allows for any migration or tool:
     the staging rehearsal sends each one as a single `psql -c` argument, like one paste, and Linux refuses one of
     128 KiB or more.
   - `supabase/tools/reversion-0038.sql` (only for a fault in the functions, after the previous pages are back and
-    with the switch on): the three legacy functions back byte for byte with their rights, the three triggers and the
-    41 functions dropped, no data deleted (the columns, rules and indexes, `discount_tills` with its rows and keys,
+    with the switch on): the three legacy functions back byte for byte with their rights, the four triggers and the
+    42 functions dropped, no data deleted (the columns, rules and indexes, `discount_tills` with its rows and keys,
     `discount_pin_shared`, both settings with their values), version 38 off the ledger; 0038 then applies again and
     the tills come back with their places, keys and counts (a reversal is no fresh budget). Owner tools for the SQL
     Editor (one transaction each, refused in Spanish without 0038): `descuento-libre-apagar.sql` and
@@ -2781,9 +2782,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     month's package for the accountant (an older database leaves it out; a failed read puts
     `descuentos-NO-INCLUIDO.txt` in its place and says so on the screen).
   - Release tooling: `release-check.sql` expects 0–38 and the 11 new names, its lists in byte order (`collate "C"`,
-    lint rule 16); `production-snapshot.sql` regenerated with `tests/tools/snapshot-known.sh` (44 functions under 0038:
-    the 41 new and the three replaced, which leave «legacy»; on the rehearsal copy after 0000–0038 `functions_total` is
-    368 and `functions_unknown`, `functions_changed`, `tables_missing` and `live_pages_rpc_missing` are empty);
+    lint rule 16); `production-snapshot.sql` regenerated with `tests/tools/snapshot-known.sh` (45 functions under 0038:
+    the 42 new and the three replaced, which leave «legacy»; on the rehearsal copy after 0000–0038 `functions_total` is
+    369 and `functions_unknown`, `functions_changed`, `tables_missing` and `live_pages_rpc_missing` are empty);
     `anonimizar.sql` classifies the new columns (the beneficiary's name as a person, the company as free text, the
     sign-in cleared, the till link cleared) and empties `discount_tills` and `discount_pin_shared` (so «Ensayo en
     pruebas» needs this version's file in `canopy-respaldos`); `compare.py` expects `pos_free_discount`
@@ -2924,17 +2925,31 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     log says «Código compartido por dos personas: asigne PIN nuevos en Equipo.» and the guide's step 1.6 finds them first.
   - It relies, as 0033 does, on Supabase putting `session_id` in every token; without it everything fails closed
     (`no_session`: no discounts at all, visible at once). The first registration in production proves it.
-- **Rule 5, built, waits for the owner's one-line confirmation before activation:** a person locked by 0033 at the
-  name-picked boxes is accepted at the discount window when their code matches exactly one allowed person; the 0033
-  lock stays on there, and the window never reads a 0033 counter for a decision, never resets one and never counts one
-  (the approval records `person_locked`, and the report lists those). A lock therefore means «this PIN does not work at
-  the name-picked boxes for 10 minutes», no longer «anywhere». Adjustment 2 needs it: otherwise one person with the café
-  password could lock every manager and the owner from a sign-in of their own (5 wrong tries each at the unlock box),
-  and their right codes would then count as wrong at every till until every till stopped. No fallback keeps adjustment
-  2 and leaks no PIN: refusing a locked person's right code without counting it, or with an answer of its own, tells a
-  guesser the code is right; refusing and counting it reopens the café-wide block. If the owner says no, 0038 is rebuilt
-  with the counted refusal before activation and the owner accepts that block in writing. The confirmation is step 1.8
-  of the guide (E-42).
+- **Rule 5, built in two halves, waits for the owner's one-line confirmation before activation** (the owner asked on
+  2026-11-04 that both be told apart and tested):
+  - **A temporary lock does not stop the discount window.** A person locked by 0033 (5 wrong tries at a name-picked
+    box, 10 minutes) is accepted at the window when their code matches exactly one allowed person; the 0033 lock stays
+    on at the name-picked boxes (the old window included, while `pos_free_discount` is on), and the window never reads
+    a 0033 counter for a decision, never resets one and never counts one (the approval records `person_locked`, and the
+    report lists those).
+  - **A revoked or unauthorized code never approves.** The code of a person deactivated, a PIN changed (the old one) or
+    removed, a role lowered, anyone without the role (staff for authorizing, a non-owner for Guía) or a code two active
+    people share approves nothing at the window: it is counted as a wrong code of that till, also when the change in
+    Equipo commits while the code is being checked (`_discount_take_staff` judges the row under its lock: the same
+    hash, still active, a role for the step; decision 51). In the approvals log, where a name is picked, 0033's
+    `_verify_pin` refuses the deactivated, the old or removed PIN and the lowered role; two active people cannot share
+    a PIN since 0033 (Equipo refuses it) and the guide's step 1.6 replaces the earlier ones. A new or removed PIN also
+    ends that person's unlocks on other devices at once (`staff_pin_changed`, decision 52: before, an unlock opened with
+    the old PIN lasted its 15 minutes, enough to give the person another PIN in Equipo and approve with it); a 0033 lock
+    ends none. A deactivation does not withdraw an approval already given (valid 30 minutes); a sale that uses it is
+    recorded and linked, as any money taken (481 C).
+  - A lock therefore means «this PIN does not work at the name-picked boxes for 10 minutes», no longer «anywhere».
+    Adjustment 2 needs the first half: otherwise one person with the café password could lock every manager and the
+    owner from a sign-in of their own (5 wrong tries each at the unlock box), and their right codes would then count as
+    wrong at every till until every till stopped. No fallback keeps adjustment 2 and leaks no PIN: refusing a locked
+    person's right code without counting it, or with an answer of its own, tells a guesser the code is right; refusing
+    and counting it reopens the café-wide block. If the owner says no, 0038 is rebuilt with the counted refusal before
+    activation and the owner accepts that block in writing. The confirmation is step 1.8 of the guide (E-42).
 - **L1: `access.js` unchanged, no `descuento_caja_cerrar`:** `access.js` is shared by every page, and ending a till's
   registration at sign-out gave little: «Cerrar sesión» on a registered tablet leaves its row live, and its key binds
   the next sign-in to the same place (`descuento_caja_volver` ends the old live row as `rebound`). No `signed_out` row is
@@ -3056,16 +3071,19 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   merged into a ticket that carries a category discount; the café alert shows its own figure and time; a local order
   charged on the device prints its category's label; and `release-check.sql` sorts its lists in byte order, as CI's
   en_US.UTF-8 server needs (`tests/pg.sh` `CANOPY_PG_LOCALE`, lint rule 16). Details in the build's API contract
-  (`api-0038`), decisions 27-50, each with its test.
-- **Tests (local test cluster only):** SQL `480_descuentos` (298), `482_descuentos_cupo` (265),
-  `484_descuentos_cuentas` (265), `485_descuentos_cajas` (531, with a 24-hour simulation in 10-minute steps as an
+  (`api-0038`), decisions 27-52, each with its test.
+- **Tests (local test cluster only):** SQL `480_descuentos` (298), `481_descuentos_regla5` (202: rule 5's two halves
+  cell by cell, every lock made by 5 real wrong tries and every revocation in Equipo, each window call logged with every
+  0033 counter and the unlocks' fingerprint before and after), `482_descuentos_cupo` (265),
+  `484_descuentos_cuentas` (265), `485_descuentos_cajas` (532, with a 24-hour simulation in 10-minute steps as an
   assertion and the rolling bound past a first stop), `486_descuentos_informe` (394), `490_descuentos_iva` (181) and
-  `500_reversion_0038` (132): 2066 assertions; `tests/sql/concurrency-descuentos.sh` (41; two connections at the same
+  `500_reversion_0038` (133): 2270 assertions; `tests/sql/concurrency-descuentos.sh` (53; two connections at the same
   moment: ten wrong codes from one till test exactly three, the rest wait; a stopped till, an unregistered sign-in and
   a till in another place answer while a place's lock is held; no staff-row cycle between the window and
   `pin_lock_clear` or `_pin_locks_clear_all`, or between two tills; the one cycle left, `tab_remove_item` against a
   discount on the same bill, ends one call with 40P01, rolled back whole, and the retry works; a void takes the
-  per-employee lock before any stock row and fails whole on a lock error), run by `tests/run-sql.sh` after the SQL
+  per-employee lock before any stock row and fails whole on a lock error; a new PIN, a role lowered or a deactivation
+  committed while that person's code is being checked is refused, no approval), run by `tests/run-sql.sh` after the SQL
   files; browser `400_descuentos` (10), `401_descuentos_cuentas` (16), `402_descuentos_cajas` (14),
   `403_descuentos_informes` (9) and `404_descuentos_red` (14): 63 tests; 070, 110, 300, 310, 340 and 360 updated, and
   the reversal chains of SQL 340, 360, 370, 400, 420, 450 and 470 start with `reversion-0038.sql`; the rehearsal on
@@ -3073,6 +3091,10 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   three of them the old window on 0038: W2, W3 and the switch off). Full `tests/run.sh` on 2026-11-04: lint, SQL 55/55,
   backups, rehearsal, live pages 12/12 on the migrated copy and 12/12 on the reset copy, reset pages 2/2, browser
   315/315, no-tocar, in 29 minutes; the SQL suite also 55/55 on an en_US.UTF-8 cluster built as CI's `postgres:17`.
+  After the rule-5 fixes (decisions 51 and 52, 2026-11-04): lint, SQL 56/56 (481 new; concurrency 53), the rehearsal
+  (0000–0038 in 3.6 s, 0038 in 111 ms), live pages 12/12, reset pages 2/2, no-tocar, browser 314/315 in one full run:
+  the one failure, `300_recipes`' `noPinStored` (a substring search of the device's storage that a random token or
+  timestamp can trip; a known follow-up), passed 3 of 3 when run again.
   Each fix of the second review comes with a test that fails on the code before it (a rebuilt copy of that code, and
   the en_US.UTF-8 cluster for the byte-order fix) and passes now.
 - **Not done, on purpose:** nothing applied (0038), no tag, no publication (E-42); `pos_free_discount` stays on and Guía
