@@ -2687,3 +2687,424 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     and Claude checks each pasted result (release check, snapshots) and what can be read without the database (the
     published gh-pages commit, `version.json`, CI's live-site check).
 - **Not done, on purpose:** nothing applied to production, no tag, no publication (E-41).
+- **Afterwards (owner, 2026-11-03):** 0037 applied and the V2 published as `v2026.11.03-1` (`adb19ee`, gh-pages
+  `44a0dab`, which `tests/rehearsal/LIVE_PAGES` now pins as the way back of the discounts, D-065); the owner declared the
+  publication complete and left stage 4 (configuring the TVs) and stage 5 (the check on the real TVs) for later (E-41).
+
+## D-065 · 2026-11-04 · POS discounts: four categories with codes, registered tills against code guessing, the old window behind a switch, Guía Turista off until A-13 (0038)
+- **The owner's request (2026-11-02) and approval (2026-11-03):** a new discount window in the POS with four
+  categories (Empleado 30 % with the employee's code and a manager's code, once per employee per Costa Rica day, never
+  self-authorized; Local 10 % and Huésped 10 % with a manager's code; Guía Turista 100 % with the guide's company and the
+  owner's code, recorded as a courtesy) in place of the free %/amount window; always the whole order, never stacked,
+  online only, every rule on the server; four buttons on the left and a fixed keypad on the right. On 2026-11-03 the
+  owner approved the final proposal (migration 0038, the window, the reports, the tests, the docs, questions Q1–Q9) and
+  authorized the whole development on its own branch `claude/descuentos-caja` (from `adb19ee` = `v2026.11.03-1`, the
+  release the owner had published that day with 0037 applied, E-41; draft PR #7), accepting Q1–Q9 as recommended with five
+  adjustments that override the proposal wherever they conflict:
+  1. **Guía Turista needs the owner's authorization, but typing the owner's PIN for that discount must not unlock
+     administrative functions on the tablet:** the check never creates an unlock (`access_unlocks`), never calls
+     `access_unlock`, never raises `access_level()`, never stores or echoes the PIN and never makes the page show owner
+     areas; SQL and browser tests prove it.
+  2. **Failed-attempt controls must protect the codes without letting one single person easily block the discounts of
+     every till** («sin permitir que una sola persona bloquee fácilmente los descuentos de todas las cajas»). The
+     proposal's café-wide pause per login (3 wrong codes in 10 minutes or 5 in an hour, for the whole café) is rejected
+     as designed: one person at one tablet could keep the discounts off café-wide. The most secure mechanism is to be
+     proposed and tested.
+  3. **The employee's daily quota stays consumed after a valid sale.** It comes back only through a valid void (a
+     manager who is not the beneficiary, nothing paid in parts left) or an authorized and audited give-back
+     (`descuento_cupo_devolver`: a manager's own PIN picked from the list, never the beneficiary, or the owner with the
+     phone code; the audit row names who). Authorizations never used may expire (30 minutes) or be let go without
+     consuming it (Q3's recommended default).
+  4. **The IVA treatment of the 100 % courtesies stays pending the accountant (A-13); that category is not activated in
+     production without it.** Guía Turista ships disabled behind an owner/accountant-controlled, guarded setting; while
+     it is off the server refuses `guia` before testing any code and the page explains it; the activation guide does
+     not turn it on.
+  5. **The approved design stays:** four buttons on the left, the fixed keypad on the right, the current colours, no
+     percentage on the buttons; built to today's POS look and adjusted to the reference image when it arrives.
+- **The owner's answers to Q1–Q9** (the recommendations, with the adjustments): Q1 only the owner authorizes Guía
+  Turista (adjustments 1 and 4); Q2 both codes in one server call, after the manager's code, and the owner cannot
+  receive the employee discount; Q3 the whole order (a ticket's lines locked while a discount is on; a bill only before
+  any payment) and the daily quota as adjustment 3; Q4 one button «Registrar cortesía», recorded as 'other' at ₡0; Q5
+  the old free window behind `pos_free_discount`, on by default, turned off later by the owner himself (not part of
+  this delivery, never by Claude), its removal (0039) a separate decision; Q6 6-digit PINs recommended for managers and
+  the owner (the proposal's wrong-code budget is replaced by adjustment 2); Q7 no percentage on the ticket or the
+  receipt (the category's name and the amount); Q8 «Autorizar descuento» at every step (at step 1 it continues); Q9
+  today's look until the image arrives, only the selected button green.
+- **Built on the branch (nothing applied, nothing published):**
+  - `supabase/migrations/0038_descuentos_caja.sql` (additive, one transaction, every statement safe to run again after
+    its reversal): two settings through 0008's mechanism, `pos_free_discount` (on|off, default on, no guard) and
+    `pos_discount_guia` (off|on, default off, guard `courtesy_iva_confirmed`); 13 nullable columns on
+    `discount_approvals` (category, beneficiary and their name, company, Costa Rica day, approver role, bill, login,
+    sign-in, request id, when and why it stopped counting, till) with the constraint `discount_approvals_categoria` and
+    the unique indexes `discount_employee_once` (one live Empleado per employee and day) and
+    `discount_approvals_request` (`beneficiary_id` has no foreign key to `staff`: its check would lock the employee's
+    row while the authorizer's is held, a deadlock against 0033's `pin_lock_clear`; staff rows are never deleted and
+    `beneficiary_name` keeps the name); the tables `discount_tills` (row security on, no policy, no grant; rows never
+    deleted) and `discount_pin_shared` (who shares a code; the same rules, read only by `descuento_cajas`, which names
+    the people only to the owner) and four audit-log indexes (the per-place and café-wide wrong-code counts, the
+    approvals log, and `audit_log_discount_removed_paid` for the report); 42 new functions (the 11 public ones,
+    `descuento_*` and `descuentos_informe`, and 31 internal ones, the three trigger functions among them, which no page
+    can call) and three legacy ones replaced in place with the same names, signatures and grants (`approve_discount`,
+    `tab_set_discount`, `_order_discount_check`); three triggers on `orders` (`order_zz_discount` before an insert;
+    `order_zz_discount_lock` before and `order_zz_discount_after` after a void, a cancel or a change of discount) and
+    one on `staff` (`staff_pin_changed`: a new or removed PIN ends that person's unlocks on other devices, rule 5). No
+    backfill: old approvals keep `category` null, so no business record changes, and `anon_can_run` keeps its five
+    names. The file is 130 927 bytes, under the 131 072 that `tests/lint.sh` rule 15 allows for any migration or tool:
+    the staging rehearsal sends each one as a single `psql -c` argument, like one paste, and Linux refuses one of
+    128 KiB or more.
+  - `supabase/tools/reversion-0038.sql` (only for a fault in the functions, after the previous pages are back and
+    with the switch on): the three legacy functions back byte for byte with their rights, the four triggers and the
+    42 functions dropped, no data deleted (the columns, rules and indexes, `discount_tills` with its rows and keys,
+    `discount_pin_shared`, both settings with their values), version 38 off the ledger; 0038 then applies again and
+    the tills come back with their places, keys and counts (a reversal is no fresh budget). Owner tools for the SQL
+    Editor (one transaction each, refused in Spanish without 0038): `descuento-libre-apagar.sql` and
+    `descuento-libre-encender.sql` (the switch, with the same `setting_change` log line as Home),
+    `descuento-cajas-reanudar.sql` (every waiting or stopped place, outside the caps),
+    `descuento-cajas-quitar-todas.sql` (ends every registered till and spends every key), `pines-desbloquear.sql`
+    (clears every 0033 PIN lock, logged). There is no `descuento-pausa-levantar.sql`: there is no pause.
+  - The pages, inside the six files the no-touch proof allows (`pos.html`, `lang.js`, `sales.html`, `time.html`,
+    `home.html`, `contabilidad.js`; `access.js` and every other file stay byte for byte `v2026.11.03-1`). The POS
+    window «Aplicar descuento» follows the owner's reference image (a 1555 × 1011 mock-up received on 2026-11-03) with
+    the page's own colours and fonts: the subtitle «Seleccione el tipo de descuento y autorícelo con el código de
+    encargado.» («…del dueño.» while Guía is chosen), two equal columns with a thin divider, on the left the four buttons
+    with line icons (a person, a map pin, a bed, binoculars) and no percentage, only the selected one filled green, on
+    the right the step label, the code box as dots and the fixed keypad (1–9, 0 over two keys, ⌫; no «Limpiar»), one
+    fixed message line, «Cancelar» and «Autorizar descuento» under both; the box never changes size and keeps its two
+    columns down to 360 px. Empleado: the employee's code, the box cleared, the manager's code, one call; Guía: the
+    company typed where the code box was (the keypad dimmed), then the owner's code. A ticket's lines lock while a
+    discount is on; a courtesy closes only with «Registrar cortesía» and its receipt says «Cortesía · Courtesy»;
+    «Este dispositivo» says whether the till is registered («Descuentos: registrada (Ana, 3 nov 10:02).»). `time.html` ›
+    Bitácora de aprobaciones: the block «Cajas para descuentos» («Registrar este dispositivo para descuentos»,
+    «Reemplazar con este dispositivo», «Quitar registro», «Reanudar descuentos») and «Devolver el cupo del día».
+    `sales.html`: «Descuentos por categoría» (by category, employee, authorizer with role and company; what was charged
+    and the products covered; the courtesies' list value by IVA rate, information only; the block «Códigos
+    equivocados»; CSV). `home.html`: readable labels for both settings. `contabilidad.js`: `descuentos.csv` in the
+    month's package for the accountant (an older database leaves it out; a failed read puts
+    `descuentos-NO-INCLUIDO.txt` in its place and says so on the screen).
+  - Release tooling: `release-check.sql` expects 0–38 and the 11 new names, its lists in byte order (`collate "C"`,
+    lint rule 16); `production-snapshot.sql` regenerated with `tests/tools/snapshot-known.sh` (45 functions under 0038:
+    the 42 new and the three replaced, which leave «legacy»; on the rehearsal copy after 0000–0038 `functions_total` is
+    369 and `functions_unknown`, `functions_changed`, `tables_missing` and `live_pages_rpc_missing` are empty);
+    `anonimizar.sql` classifies the new columns (the beneficiary's name as a person, the company as free text, the
+    sign-in cleared, the till link cleared) and empties `discount_tills` and `discount_pin_shared` (so «Ensayo en
+    pruebas» needs this version's file in `canopy-respaldos`); `compare.py` expects `pos_free_discount`
+    on and `pos_discount_guia` off; the rehearsal's day after the window gives an old discount with the switch on, a
+    reserved reason refused, a till registered, a late category sale, and the switch turned off and on with the tools.
+  - Docs: `docs/ACTIVACION-DESCUENTOS.md` (the owner's guide, stages 0–8: what changes for the staff, before, the tag,
+    0038 after closing, publishing and registering each till, checks in the café, the way back, Guía Turista later, the
+    SQL tools and runbook E-lock), E-41 done for the publication and 0037, E-42, A-13 updated and A-14 new, the
+    checklist rows of the screens v2 and the discounts, MIGRACIONES (the 0038 row; production at 0037; the 128 KiB
+    rule), PRUEBAS (the new test files).
+- **Identification by code alone, both codes in one call (Q2):** there is no name list. `_staff_by_code` compares
+  the typed code, in one bcrypt pass, with the PIN of every active person whatever their role, and a code authorizes
+  only when exactly one person matches and that person may authorize (a manager or the owner for Empleado, Local and
+  Huésped; only the owner for Guía). A code two active people share (possible for people reactivated between 0028 and
+  0033, D-053) authorizes nobody: it answers like any wrong code, is counted, and writes `pin_duplicate` with no code
+  and no one's id (the people go to `discount_pin_shared`, named only to the owner). For Empleado the page keeps the
+  employee's code without asking the server, clears the box, takes the manager's code and sends both in one call, so
+  an employee code is compared only after a valid manager code and every such test is logged under that manager's
+  name. The spec-literal order (the employee's code checked alone at step 1, the proposal's Option B) was not built:
+  that step would need nobody's PIN, and anyone at a tablet could learn whose PIN a number is, staff time-clock PINs
+  and managers' included. A manager is never their own beneficiary (`not_self`, audit `discount_self_refused`, not
+  counted) and the owner cannot receive Empleado (counted, `owner_beneficiary`). Every refusal that does not depend on
+  the codes (the request itself, `guia_off`, `no_owner`, the bill's first look) answers before any code is compared,
+  and every answer after a comparison costs the same work (no refusal adds a bcrypt pass; the measured spreads stay
+  under one bcrypt).
+- **Rates fixed by the server and by a CHECK:** the page never sends a percentage. `_discount_rate` (empleado 30, local
+  and huesped 10, guia 100) and `_discount_label` (Employee, Local, Hotel guest, Tour guide; Spanish through `lang.js`)
+  decide them, and the constraint `discount_approvals_categoria` makes any other row impossible: the category's rate,
+  the amount = round(subtotal × rate / 100), a Costa Rica day and an approver role, a beneficiary only for Empleado and
+  never the authorizer, a company of 2–80 characters exactly for Guía and only with the owner's role.
+- **Guía Turista off until A-13 (adjustment 4, L2):** `pos_discount_guia` defaults to off and its guard is the new
+  compliance key `courtesy_iva_confirmed`, so `setting_set` refuses on with `needs_confirmation` until the key is
+  recorded. `descuento_autorizar('guia', …)` answers `guia_off` right after the request checks (after
+  `missing_company`), before `no_owner`, the till checks and any code: nothing counted, nothing locked.
+  `descuento_estado.guia_enabled` tells the page, which keeps the button visible and on a tap says «La cortesía Guía
+  Turista espera la confirmación del IVA por el contador (A-13).» without sending anything. How it is turned on, later
+  and only by the owner: the accountant's written answer on A-13, and only if it confirms the treatment as built (a
+  courtesy at ₡0 as 'other' with no tender, IVA 0 and net 0, no revenue, the list value as information only; if the
+  answer asks for IVA, as self-consumption or a free transfer, or any other recording, the confirmation is not
+  recorded and a new version comes first); the owner records `compliance_confirm('courtesy_iva_confirmed', …)` with
+  the phone code (only the owner's own login at aal2 can, 0025); then turns `pos_discount_guia` on in Home → Ajustes
+  del sistema, with the phone code. It also needs an active owner-role team member with a PIN (`no_owner` otherwise;
+  there is none today, and adding one needs the phone code, E-06). The activation guide (E-42) does not turn it on;
+  the tests turn it on locally as the test superuser. The report still lists Guía rows if any exist.
+- **The owner's PIN never unlocks (adjustment 1, L3):** `descuento_autorizar` never calls `access_unlock` or
+  `_verify_pin`, never writes `access_unlocks`, never changes `access_level()` and never writes a 0033 counter
+  (`failed_pins`, `locked_until`); no PIN or code is stored or answered (audit rows carry names, ids, the step and the
+  reason; a sign-in only as `session_tag`). SQL 480 proves that after an approved Guía with the owner's code on a café
+  sign-in `access_level()` is still null for that sign-in, no `access_unlocks` row exists for it and the owner's
+  `failed_pins`/`locked_until` are unchanged; the browser specs prove that the POS then shows no owner area, the
+  browser's storage holds no unlock token and Reloj de marcas still asks for a PIN. The same holds for a manager's code
+  at the window: authorizing a discount opens nothing. Owner-only Guía is still a new exposure the owner accepted in Q1:
+  D-052 planned to keep owner PINs off shared tablets, and owner-role PIN powers wait for the permission design (the
+  D-053 row of the checklist); the discount check opens nothing, but the PIN itself is typed on a shared tablet
+  (residual risks below).
+- **The failed-attempt control «Cajas registradas en puestos» (adjustment 2), and why not the café-wide pause:** every
+  café tablet shares one login, so the proposal's per-login pause let one person at any tablet keep the four discounts
+  off for the whole café with about 5 wrong codes an hour, and no right code lifted it (its lifts were capped at two a
+  day). Built instead, with no café-wide counter, lock or cap at the window:
+  1. only a registered till tests codes. A till is one device sign-in (the token's `session_id`), registered once by a
+     manager on that very device: Reloj de marcas → open the owner areas with their PIN (0033 binds the unlock to that
+     sign-in) → Bitácora de aprobaciones → «Registrar este dispositivo para descuentos». Every other sign-in, every one
+     made with the café password included, gets `till_not_enrolled` before any code is compared (no bcrypt, no count,
+     no lock); a token without `session_id` gets `no_session`;
+  2. the registered tablet keeps a device key (32 random bytes; the server keeps only its sha256) in `localStorage`;
+     after «Cerrar sesión», a global sign-out, an expired session or any new sign-in, the key puts the new sign-in back
+     in its own place with no PIN and no count (`descuento_caja_volver`, at most 6 rebinds per place an hour). Only a
+     new device, one whose storage was wiped, or one whose registration a manager removed or replaced needs a manager
+     again. A lost reply strands no tablet: the page marks the call pending in `localStorage` (`hg-disc-till-pending`,
+     the login and what is pending, never a PIN or a key), asks once more a second later and at the next load; on that
+     same sign-in the server re-sends a key (`volver` only for the key that rebound it, `registrar` while the owner
+     areas are open on it), writing no audit row and counting on no cap;
+  3. three places, at most one live till each; a place keeps its count whatever device holds it, and a registration
+     without a key goes to the most used free place, so signing out and in again never gives a fresh budget;
+  4. per place: the first 2 wrong codes in an hour cost nothing, the 3rd makes that till wait 30 seconds, the 4th 1
+     minute, the 5th 5 minutes, the 6th and later 10 minutes each; 12 wrong codes in 24 hours stop that till until the
+     12th most recent is 24 hours old. A right code resets nothing; every window is rolling (no midnight double budget);
+  5. a person locked by 0033 is accepted at the window (rule 5, below);
+  6. recovery: waits end by themselves (10 minutes at most); a stopped place is resumed in the approvals log by any
+     manager (owner areas open, picked from the list, own PIN) or by the owner with the phone code, at most once per
+     place and twice per café in 24 hours (checked before any PIN); the owner's `descuento-cajas-reanudar.sql` is
+     outside the caps;
+  7. churn is capped per person, never café-wide: a person holds at most 2 places, removes or replaces at most 3 tills
+     and registers at most 6 devices in 24 hours; a full café never replaces a till by itself (a manager chooses which,
+     under their own name), so one PIN only uses up its own allowance and another manager can undo it;
+  8. a café-wide signal that pauses nothing: at 10 wrong codes in 24 hours, one `discount_alert` row (at most one a
+     day), shown in the approvals log and the report.
+  - **Why this design:** of three candidates, the security and the availability judges chose this one (the testability
+    judge chose another with this one's locked-person rule grafted in; all three required that rule), the only one with
+    no café-wide state at the window; an adversarial review then removed the first version's café-wide cap on endings
+    (global sign-outs used it up and refused registration café-wide, reproduced) and its automatic replacement (one
+    insider could hold every place), and added the device key and the per-person caps. No sign-out ends every till of the
+    login (a copied session could use that). The constants live in `_discount_till_limits()` and change only with a
+    migration.
+- **What it allows, stated plainly (any 24 hours, wrong codes tested at the window):** one person at one registered
+  till: 12 by hand (about 70 minutes of visible typing), 24 if a manager resumes its place; the whole café: 60 (3 places
+  × 12, plus 2 café resumes × 12); a sign-in made with the café password: 0; a tablet that lost its key and is
+  registered again while a less-used place is free: 12 per place it reaches, never above the café's 60. With three
+  4-digit manager/owner PINs that is 0.36 % for one till and 1.8 % for the café of finding one in a day; with 6 digits a
+  hundred times less (0.0036 % / 0.018 %). A manager-level insider: 60 at the window plus 0033's 240 at the team editor
+  = 300 a day (1.8 % / 9.0 % with 4 digits). The rejected pause allowed 130 a day (3.9 %), 370 across both checks
+  (11.1 %), and let one person at any tablet stop every till. A typo costs only its own till: two in an hour cost
+  nothing, the third 30 seconds; a till that types more than about 60 codes a day with sloppy typing can be stopped on
+  a busy day, and one resume covers the rest of it.
+- **Residual risks, stated plainly:**
+  - **The name-picked PIN boxes are unchanged.** The unlock box, and the old window while `pos_free_discount` is on
+    (they share one 0033 counter per person), still allow about 150 tries a day at each named person from any sign-in,
+    those made with the café password included: about 1.5 % for one 4-digit PIN, about 4.4 % for three (0.044 % with 6
+    digits). The discount window adds nothing to that count and no longer resets it (a manager's earlier typos there
+    are cleared by their next right PIN at a name-picked box, not by a discount).
+  - **An observer could reuse the owner's PIN in the unlock box.** Guía needs the owner's code typed on the POS keypad
+    in view of staff and guides. The discount opens nothing (adjustment 1), but whoever watches it can type it into the
+    unlock box of any café tablet, which opens the owner areas and Sales for 15 minutes, setting managers' PINs in
+    Equipo included (0033); it does not open system settings, which need the owner's own login with the phone code
+    (0025). The same holds for a manager's code typed at the window. Six-digit PINs (Q6) and typing out of view are the
+    mitigation; meanwhile Guía stays off (A-13).
+  - **The PIN-lock nuisance and its runbook.** Someone with the café password can keep every manager locked at the
+    name-picked boxes (5 wrong tries, then one every 10 minutes per person, from a sign-in of their own). Registered
+    tills keep giving discounts (rule 5; their keys bring them back after any sign-out); what waits is registering a
+    new device, resuming a place and `pin_lock_clear`. Runbook E-lock (owner; the guide's section 8): (1) change the
+    café login's password (Home's «¿Olvidó su contraseña?» from the owner's computer; Supabase then closes the other
+    sessions of that login); (2) on a café device, Inicio → «Ingreso del propietario» → «Cerrar sesión en todos lados»
+    (it revokes every session, the attacker's too); (3) paste `pines-desbloquear.sql`; (4) sign the tablets in with the
+    new password (they come back by key); (5) paste `pines-desbloquear.sql` again an hour later (an access token
+    already issued stays valid up to an hour and cannot be revoked). The tool alone is undone by the next 15 tries.
+  - **Whoever stands at a till can stop that till** (about 70 minutes of visible typing) for up to 24 hours (rolling: an
+    evening attack reaches the next morning) unless a manager resumes it or the owner runs
+    `descuento-cajas-reanudar.sql`; the other tills never notice. With one registered till that is all the discounts:
+    register a second device as a backup (it also leaves no free place to move to).
+  - **A copied session, or a copy of a tablet's storage,** cannot be told from the real tablet: it shares that till's
+    count (12, 24 with the resume), can end its registration (the real tablet comes back by key) and, with the café
+    password too, can move the till's place to a sign-in of its own (no new budget). Fix: «Quitar registro» on that
+    place (it spends the key), sign the real tablet in and register it again, and change the café password if it
+    leaked. The device key is a new secret in `localStorage`, next to the unlock token; it opens nothing and tests no
+    code.
+  - **The odds assume uniform PINs:** human-chosen PINs, and PINs set before 0028 (never checked for weakness), are
+    likelier. Two active people who share a PIN have every code they type at the window counted as wrong; the approvals
+    log says «Código compartido por dos personas: asigne PIN nuevos en Equipo.» and the guide's step 1.6 finds them first.
+  - It relies, as 0033 does, on Supabase putting `session_id` in every token; without it everything fails closed
+    (`no_session`: no discounts at all, visible at once). The first registration in production proves it.
+- **Rule 5, built in two halves, confirmed by the owner on 2026-11-04** (the owner asked that same day that both be
+  told apart and tested, then approved them as documented; the words are in E-42):
+  - **A temporary lock does not stop the discount window.** A person locked by 0033 (5 wrong tries at a name-picked
+    box, 10 minutes) is accepted at the window when their code matches exactly one allowed person; the 0033 lock stays
+    on at the name-picked boxes (the old window included, while `pos_free_discount` is on), and the window never reads
+    a 0033 counter for a decision, never resets one and never counts one (the approval records `person_locked`, and the
+    report lists those).
+  - **A revoked or unauthorized code never approves.** The code of a person deactivated, a PIN changed (the old one) or
+    removed, a role lowered, anyone without the role (staff for authorizing, a non-owner for Guía) or a code two active
+    people share approves nothing at the window: it is counted as a wrong code of that till, also when the change in
+    Equipo commits while the code is being checked (`_discount_take_staff` judges the row under its lock: the same
+    hash, still active, a role for the step; decision 51). In the approvals log, where a name is picked, 0033's
+    `_verify_pin` refuses the deactivated, the old or removed PIN and the lowered role; two active people cannot share
+    a PIN since 0033 (Equipo refuses it) and the guide's step 1.6 replaces the earlier ones. A new or removed PIN also
+    ends that person's unlocks on other devices at once (`staff_pin_changed`, decision 52: before, an unlock opened with
+    the old PIN lasted its 15 minutes, enough to give the person another PIN in Equipo and approve with it); a 0033 lock
+    ends none. A deactivation does not withdraw an approval already given (valid 30 minutes); a sale that uses it is
+    recorded and linked, as any money taken (481 C).
+  - A lock therefore means «this PIN does not work at the name-picked boxes for 10 minutes», no longer «anywhere».
+    Adjustment 2 needs the first half: otherwise one person with the café password could lock every manager and the
+    owner from a sign-in of their own (5 wrong tries each at the unlock box), and their right codes would then count as
+    wrong at every till until every till stopped. No fallback keeps adjustment 2 and leaks no PIN: refusing a locked
+    person's right code without counting it, or with an answer of its own, tells a guesser the code is right; refusing
+    and counting it reopens the café-wide block. If the owner says no, 0038 is rebuilt with the counted refusal before
+    activation and the owner accepts that block in writing. The confirmation was step 1.8 of the guide; the owner gave
+  it on 2026-11-04 (E-42).
+- **L1: `access.js` unchanged, no `descuento_caja_cerrar`:** `access.js` is shared by every page, and ending a till's
+  registration at sign-out gave little: «Cerrar sesión» on a registered tablet leaves its row live, and its key binds
+  the next sign-in to the same place (`descuento_caja_volver` ends the old live row as `rebound`). No `signed_out` row is
+  ever written (the table allows the value and `descuento_caja_volver` honours such a row's key, so a later version can
+  add the call without a table change), and no test or doc expects one. A session that ends elsewhere (a global
+  sign-out, an expiry, a lost tablet) also leaves its row live; a tablet that lost its storage cannot come back to it,
+  and a manager removes or replaces that row (the panel shows its last use).
+- **L4: when an Empleado discount stops counting for the day (adjustment 3):** one row per approval, unique per
+  employee and Costa Rica day while it counts (`discount_employee_once`). The update triggers of `orders` act only on
+  real voids, cancels and discount changes: `order_zz_discount_lock` (before) takes the per-employee lock ahead of the
+  stock rows `order_stock_return` locks, the order a sale takes them in, and `order_zz_discount_after` decides. Any
+  error other than a lock error is an audit row `discount_trigger_error`, and the void, the cancel or the payment
+  stands; a lock error (`deadlock_detected`, `lock_not_available`, `query_canceled`) is raised again, so that void or
+  cancel fails whole and is retried, never standing with the day still used and no give-back possible:
+  - approved, not yet used: counts for 30 minutes, then `expired`; the page can let it go earlier (`released`);
+  - used by a sale, matching or not: counts (consumed);
+  - a sale arrives on a let-go or expired approval: counts again, unless the employee already holds another live one
+    that day (then it stays freed, flagged `discount_daily_twice`); when that other one stops holding the day (voided,
+    given back, let go or expired unused), the flagged sale's approval takes it (`_discount_retake_day`, under the
+    per-employee lock), so the employee never gets a second clean discounted sale that day;
+  - voided by a manager who is not the beneficiary, with no paid part left: freed (`void`, audit `discount_freed`
+    naming who voided; a `discount_daily_twice` approval of that day then takes the day, so a void never opens a third);
+  - voided by the beneficiary: counts (`discount_self_void`); voided with a paid part left: counts
+    (`discount_not_freed`, why `parts`);
+  - an order or bill cancelled with nothing paid (`cancel_unpaid_order`, a room order's «No show»), or the discount
+    taken off a bill with nothing paid: counts until a give-back (`discount_not_freed`, why `needs_manager`); cancelling
+    and taking it off still need no PIN, as today;
+  - cancelled with money paid, or taken off after a payment (a manager's PIN and a reason): counts, for good;
+  - refunded after the close: counts.
+  - **The give-back** is `descuento_cupo_devolver` (Reloj de marcas → Bitácora de aprobaciones, «Devolver el cupo del día»
+    next to the row): with the owner areas open, the same Costa Rica day only, and only for an approval that took no
+    money; a manager picked from the list with their own PIN (never the beneficiary: `not_self` before any PIN) or the
+    owner with the phone code; audit `discount_freed` naming who.
+- **Category sales recorded and flagged, never refused (the server never refuses money already taken):** a sale with a
+  category approval keeps only today's two refusals of a malformed sale (`discount_no_subtotal`, `discount_total`, both
+  in the page's fallback list); everything else is recorded as charged with a flag for a manager: an approval already
+  used by another order (the sale keeps its money, the reason «… · not verified», no `discount_id`,
+  `discount_not_verified`), a subtotal or amount that differs from the approval (linked, `discount_not_verified`), a
+  sale rung more than 30 minutes after or 10 minutes before its approval (`discount_late`), a second Empleado of the day
+  through a let-go approval (`discount_daily_twice`), an unexpected error inside the check (`discount_not_verified` and
+  an audit row `discount_check_error`). Why: with the books posting automatically (A-07, D-058), a refusal would send
+  the page to its discount-less fallback, which records the sale without its discount and posts revenue and IVA nobody
+  paid (for a ₡0 courtesy, IVA on the whole list value); with the real `discount_crc` kept, the books post revenue = the
+  money received. A sale queued offline on an approval is linked when it arrives. Old-kind approvals behave line for
+  line as today, their refusals included, so older pages and their queued sales are unchanged.
+- **Bills only before any payment:** a category discount goes on a bill in the same call as the codes, on the whole
+  bill, only while nothing is paid: `has_parts`, `combo_first`, `already_discounted` and `changed` answer before any
+  code is compared, and again under the bill's lock after the codes (then logged as `discount_refused`); a refusal
+  inside leaves no approval and no used day; the same request sent again answers the stored approval (`replay`). Items
+  added later are charged in full unless the discount is taken off and authorized again; a courtesy bill takes no new
+  items on the new page (an older page's adds are charged in full and the report marks the row `partial`). Taking it
+  off: `descuento_quitar_cuenta`, no PIN with nothing paid; after any payment only with a manager's PIN and a reason
+  (audit `discount_removed_paid`), decided under the bill's lock, and the employee's day stays used. The legacy
+  `tab_set_discount` refuses to put a category approval on a bill or to take one off after a payment
+  (`tab_set_discount_category`); with nothing paid it takes one off as today (W3).
+- **The courtesy as 'other' at ₡0 with its list value; no tax rule activated (A-13):** on a ticket the subtotal and the
+  discount are the list value and the total ₡0, recorded through «Registrar cortesía» (the only charge button) with the
+  payment method 'other' and no tender, with a receipt number like any sale (`_order_check_totals` does not flag it).
+  `_order_tax` gives each line its whole amount as discount, so IVA 0 and net 0, while price × quantity, the subtotal
+  and the discount keep the list value. The register adds ₡0 and one order; the books post revenue 0, IVA 0, advances 0
+  and the cost of goods through the stock moves; the IVA reports count its lines at 0 (never in the untaxed bucket). On
+  a bill the courtesy takes the whole bill to ₡0 and closes with `tab_pay('other')`. A same-day void gives the stock
+  back; after the close a void answers `closed_day`, as for any ₡0 sale. 0038 records no compliance confirmation and
+  touches no tax rate, tax code, price mode, e-document or books rule, nor `_order_tax`; the report shows the
+  courtesies' list value by stamped IVA rate as information only.
+- **The old window behind the switch, and what older pages see (W2, W3):** `approve_discount` reads
+  `pos_free_discount`. On (the default, and the state after 0038 until the owner changes it) it works as today on any
+  device, registered or not. Off, it raises `approve_discount_off` and the old page shows its own «This needs a database
+  update… reload this page» text; reloading loads the new window and selling continues; old approvals already issued
+  (up to 30 minutes) still finish their sales, queued ones included. Two changes an older page (`v2026.11.03-1`) sees
+  whether the switch is on or off, which matter most after a way back: (W2) a free reason that reads as one of the four
+  categories (Other · «Local», «Empleado», «Huésped», «Guía Turista», or the English labels, in any case, with or
+  without accents or odd blanks, alone or as any ` · ` part) is refused with `missing_reason`, which the old window
+  shows as «Elija el motivo del descuento.» although a reason was picked; the staff write it in other words (for example
+  «Cliente de la zona»), and the listed reasons work as before; so after 0038 an order whose reason reads as a category
+  can only come from a category approval. (W3) the old `×` takes a category discount off a bill only while nothing is
+  paid (the employee's day then stays used, and the old pages have no «Devolver el cupo del día»); after a payment the
+  old page answers with its «database update» text and cannot take it off (the bill is paid with the discount, or a
+  manager voids it). **The exposure while the switch is on:** any manager's PIN, through the old window or a crafted
+  call, can still make a free discount as today, and the old window's PIN box is a name-picked one (0033's counter). It
+  ends when the owner turns the switch off (Home → Ajustes del sistema with the phone code, or
+  `descuento-libre-apagar.sql` while E-06 is open), recommended once every till shows the new window; that is the
+  owner's decision and action, not part of this delivery. Removing `approve_discount` for good is 0039, a separate
+  decision (Q5).
+- **The one lock cycle 0038 cannot rule out** (`tab_remove_item` locks the bill before the PIN's staff row; the discount
+  calls on a bill take the staff row first): the same manager's PIN at two tills on one bill at the same moment can end
+  one call with 40P01, rolled back whole. `pos.html` sends `tab_remove_item`, `descuento_quitar_cuenta` and a bill's
+  `descuento_autorizar` (the same request id) once more after a short random wait; a second 40P01 shows the usual
+  error. Changing `tab_remove_item`'s order is left to a later migration.
+- **First review, fixed before activation (2026-11-04):** every free-text argument is cut before any work (station
+  and codes 64 characters, category 32, company 320; the station cleaned once), so no answer costs more for a longer
+  argument and no statement timeout can tell a wrong code from a right one; `discount_approvals_categoria` also
+  requires the subtotal and the amount (a NULL made the rule NULL, which a CHECK accepts); a discount taken off a bill
+  with nothing paid can be given back even if the bill is voided later; a freed day goes to a waiting
+  `discount_daily_twice` sale also when the approval holding it is let go or expires (L4); the report counts the
+  discount a bill kept after a removal with a payment (`removed_paid`: its `discount` is the `discount_kept` of the
+  `discount_removed_paid` row and it is given unless the bill was voided or cancelled later, so list value − discount
+  = charged, as the books and Sales' «Discounts given» count it; the paid parts of a voided or cancelled bill keep the
+  approved discount with `given` false, their money in `charged`); a voided `discount_daily_twice` sale reports
+  `voided_counts`; `wrong_codes.places[].waits` counts only waits started (the wrong code that stopped a place counts
+  in `stops`); a lost reply of `descuento_caja_volver` or `descuento_caja_registrar` re-sends the key on that same
+  sign-in (`prev_key_hash`, item 2 of the failed-attempt control); the update triggers take the per-employee lock
+  before the stock rows and raise lock errors again (L4); the `tab_remove_item` cycle is documented and retried
+  (below); the rolling 24-hour bound past a first stop is asserted (485 §18: 12 wrong codes 11 minutes apart, the stop
+  ends by itself, the next wrong code stops the till again until the 2nd is 24 hours old); 0038 stays under 131 072
+  bytes (lint rule 15).
+- **Second review, fixed before activation (2026-11-04):** who shares a code is owner-only (the `pin_duplicate` row
+  names no one, since managers read the log; the people go to the closed table `discount_pin_shared`); the report
+  finds a removal after a payment through its own index (`audit_log_discount_removed_paid`: a month's report stays far
+  under the 8-second limit as the log grows) and Sales and the accountant's package say so when the report cannot be
+  read; a not-verified sale's row follows the sale (voided, cancelled, open or refunded, and what it really charged)
+  and carries its own station, and the pages list it under its Costa Rica business day (a sale at 18:30 is not moved
+  to the next day); the list value follows the lines still on the order (a line taken off lowers it; the approved
+  subtotal stays as `approved_value`); a late answer is taken back only while the bill still carries that approval
+  (`p_discount_id`); two POS tabs on one device never let go of each other's live discount; the page never re-sends
+  the codes after Cancel and never sends a new attempt on a bill whose lost call is still unanswered; the approvals
+  log's «Devolver el cupo del día» never falls out of its 40 rows; after a removal following a payment the till no
+  longer sends a manager to a give-back that does not exist; items tapped for a bill that closed meanwhile are never
+  merged into a ticket that carries a category discount; the café alert shows its own figure and time; a local order
+  charged on the device prints its category's label; and `release-check.sql` sorts its lists in byte order, as CI's
+  en_US.UTF-8 server needs (`tests/pg.sh` `CANOPY_PG_LOCALE`, lint rule 16). Details in the build's API contract
+  (`api-0038`), decisions 27-52, each with its test.
+- **Tests (local test cluster only):** SQL `480_descuentos` (298), `481_descuentos_regla5` (202: rule 5's two halves
+  cell by cell, every lock made by 5 real wrong tries and every revocation in Equipo, each window call logged with every
+  0033 counter and the unlocks' fingerprint before and after), `482_descuentos_cupo` (265),
+  `484_descuentos_cuentas` (265), `485_descuentos_cajas` (532, with a 24-hour simulation in 10-minute steps as an
+  assertion and the rolling bound past a first stop), `486_descuentos_informe` (394), `490_descuentos_iva` (181) and
+  `500_reversion_0038` (133): 2270 assertions; `tests/sql/concurrency-descuentos.sh` (53; two connections at the same
+  moment: ten wrong codes from one till test exactly three, the rest wait; a stopped till, an unregistered sign-in and
+  a till in another place answer while a place's lock is held; no staff-row cycle between the window and
+  `pin_lock_clear` or `_pin_locks_clear_all`, or between two tills; the one cycle left, `tab_remove_item` against a
+  discount on the same bill, ends one call with 40P01, rolled back whole, and the retry works; a void takes the
+  per-employee lock before any stock row and fails whole on a lock error; a new PIN, a role lowered or a deactivation
+  committed while that person's code is being checked is refused, no approval), run by `tests/run-sql.sh` after the SQL
+  files; browser `400_descuentos` (10), `401_descuentos_cuentas` (16), `402_descuentos_cajas` (14),
+  `403_descuentos_informes` (9) and `404_descuentos_red` (14): 63 tests; 070, 110, 300, 310, 340 and 360 updated, and
+  the reversal chains of SQL 340, 360, 370, 400, 420, 450 and 470 start with `reversion-0038.sql`; the rehearsal on
+  copies migrated through 0038 (0000–0038 in 3.8 s, 0038 in 109 ms), the live pages `44a0dab` among them (12 tests,
+  three of them the old window on 0038: W2, W3 and the switch off). Full `tests/run.sh` on 2026-11-04: lint, SQL 55/55,
+  backups, rehearsal, live pages 12/12 on the migrated copy and 12/12 on the reset copy, reset pages 2/2, browser
+  315/315, no-tocar, in 29 minutes; the SQL suite also 55/55 on an en_US.UTF-8 cluster built as CI's `postgres:17`.
+  After the rule-5 fixes (decisions 51 and 52, 2026-11-04): lint, SQL 56/56 (481 new; concurrency 53), the rehearsal
+  (0000–0038 in 3.6 s, 0038 in 111 ms), live pages 12/12, reset pages 2/2, no-tocar, browser 314/315 in one full run:
+  the one failure, `300_recipes`' `noPinStored` (a substring search of the device's storage that a random token or
+  timestamp can trip; a known follow-up), passed 3 of 3 when run again.
+  Each fix of the second review comes with a test that fails on the code before it (a rebuilt copy of that code, and
+  the en_US.UTF-8 cluster for the byte-order fix) and passes now.
+- **Not done, on purpose:** nothing applied (0038), no tag, no publication (E-42); `pos_free_discount` stays on and Guía
+  Turista stays off; no `descuento_caja_cerrar`, `access.js` unchanged (L1); nothing built for A-14 (whether the
+  employee discount is a taxable benefit).
+- **Open owner choice, not blocking (E-42; the guide's «Lo que usted debe aprobar o decidir» 16):** items tapped for a
+  bill that closes meanwhile (paid on another device, cancelled, gone) while the ticket carries a category discount.
+  Built and tested (A, 401): the discounted ticket comes back exactly as authorized, the items are not merged into it
+  (its lines are locked, so the sale carries what was approved) and the toast says «… Este pedido tiene un descuento,
+  así que los productos no se agregaron: cóbrelos después de esta venta.»; the risk is a cashier who misses the toast
+  and never rings them. B (let the discount go as the × does, add them, authorize again) or C (keep the discounted
+  ticket apart and the items as a new order) only if the owner chooses; recommended A, and B if items get forgotten.

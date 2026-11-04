@@ -285,20 +285,30 @@ module.exports.tests = [
     }
   },
   {
-    name: 'a sale whose stock could not be taken off, arrived late, came from a device with its clock off or lost its discount is shown in Sales for a manager (in Spanish)',
+    name: 'a sale whose stock could not be taken off, arrived late, came from a device with its clock off, lost its discount, used it late or was a second employee discount is shown in Sales for a manager (in Spanish)',
     run: async ({ browser }) => {
       sql(`insert into orders (id, created_at, total_crc, payment_method, paid, status, flags) values
              ('0d000000-0000-4000-8000-0000000e3110', now(), 3000, 'card', true, 'done', '{stock_not_taken,clock_ahead,discount_not_verified}'),
-             ('0d000000-0000-4000-8000-0000000e3111', now(), 3000, 'card', true, 'done', '{recipe_item_missing,late_sync,after_close}');
+             ('0d000000-0000-4000-8000-0000000e3111', now(), 3000, 'card', true, 'done', '{recipe_item_missing,late_sync,after_close}'),
+             ('0d000000-0000-4000-8000-0000000e3112', now(), 3000, 'card', true, 'done', '{discount_late,discount_daily_twice}');
            insert into order_items (order_id, item_name, price_crc, qty) values
-             ('0d000000-0000-4000-8000-0000000e3110', 'Latte', 3000, 1), ('0d000000-0000-4000-8000-0000000e3111', 'Mocha', 3000, 1)`);
+             ('0d000000-0000-4000-8000-0000000e3110', 'Latte', 3000, 1), ('0d000000-0000-4000-8000-0000000e3111', 'Mocha', 3000, 1),
+             ('0d000000-0000-4000-8000-0000000e3112', 'Chai', 3000, 1)`);
       const pg = await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' });
       await goto(pg, '/sales');
       await until(async () => /Inventario no descontado · revisar con el encargado/.test(await pg.textContent('body')), 15000, 'the notice');
-      const body = await pg.textContent('body');
-      for (const t of ['Un ingrediente de su receta quedó fuera · revisar con el encargado', 'Reloj del aparato adelantado · revisar el aparato',
-                       'Llegó tarde (guardada en un aparato) · cuenta en su propio día', 'Llegó después del cierre de caja de ese día · revisar con el encargado',
-                       'Descuento sin verificar · revisar con el encargado']) assert.ok(body.includes(t), 'shown: ' + t);
+      const want = ['Un ingrediente de su receta quedó fuera · revisar con el encargado', 'Reloj del aparato adelantado · revisar el aparato',
+                    'Llegó tarde (guardada en un aparato) · cuenta en su propio día', 'Llegó después del cierre de caja de ese día · revisar con el encargado',
+                    'Descuento sin verificar · revisar con el encargado',
+                    // the discounts of migration 0038: used outside its time, a second employee discount the same day
+                    'Descuento usado fuera de tiempo · revisar el reloj del aparato',
+                    'Segundo descuento de empleado el mismo día · revisar con un encargado'];
+      // the page draws the rows and lang.js translates them on the next frames (more of them since the discounts' card):
+      // wait until every flag reads in Spanish instead of reading the page once (one missed frame failed a run under load)
+      let missing = want;
+      await until(async () => { const body = await pg.textContent('body'); missing = want.filter((t) => !body.includes(t)); return !missing.length; },
+                  15000, 'every flag in Spanish').catch(() => {});
+      assert.deepStrictEqual(missing, [], 'every flag shown in Spanish');
       assert.deepStrictEqual(pg.errors, []);
     }
   }

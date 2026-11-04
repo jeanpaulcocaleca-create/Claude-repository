@@ -175,14 +175,73 @@ button.chip:hover{background:var(--canvas)}
 .trow.disc .dl{min-width:0;overflow-wrap:anywhere}
 .trow.disc .x{all:unset;cursor:pointer;margin-left:.3rem;color:var(--sec);font-weight:700;padding:.1em .45em;border-radius:6px;border:1.5px solid var(--muted)}
 .trow.disc .x:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-.dchips{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;margin:.2rem 0 .2rem}
-.dchips button{background:#fff;color:var(--accent);border:1.5px solid var(--muted);font-family:'Spline Sans Mono',monospace}
-.dchips button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-.dform label{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
-.dform .note{margin-top:.45rem}
-.dprev{font-weight:700;margin:.8rem 0 0;min-height:1.2em}
-.dform .row{display:flex;gap:.6rem;margin-top:.9rem}
-.dform .row button{flex:1}
+/* the discount window (the owner's reference image): one fixed size per screen, every row a fixed height, so nothing
+   moves between steps or when a message shows; two columns down to 360 px (they scale, never stack) */
+.modal .box.discbox{width:min(820px,calc(100vw - 32px));max-width:none;padding:24px 30px 22px;display:grid;
+  grid-template-columns:minmax(0,1fr) 1.5px minmax(0,1fr);column-gap:28px;row-gap:0;
+  grid-template-rows:46px 26px 30px 30px 52px 244px 58px 56px;
+  grid-template-areas:"title title title" "lead lead lead" "ctx ctx ctx" "cats line step" "cats line field" "cats line pad" "msg msg msg" "btns btns btns"}
+.modal .discbox h2{grid-area:title;margin:0;font-size:2rem;line-height:1.35;color:var(--accent);white-space:nowrap}
+.discbox .dlead{grid-area:lead;margin:0;font-size:1.02rem;line-height:1.3;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.discbox .dctx{grid-area:ctx;margin:0;padding-top:4px;font-size:.9rem;line-height:1.3;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.discbox .dcats{grid-area:cats;display:grid;grid-template-rows:repeat(4,minmax(0,1fr));gap:13px;min-height:0}
+.discbox .dcats button{display:flex;align-items:center;gap:.65em;min-height:0;padding:0 .95em;border-radius:14px;background:#fff;color:var(--accent);
+  border:1.5px solid var(--muted);font-weight:700;font-size:1.28rem;line-height:1.15;text-align:left;overflow:hidden}
+.discbox .dcats button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (hover:hover){ .discbox .dcats button:hover{background:var(--panel)} .discbox .dcats button.on:hover{background:var(--accent-hover)} }
+.discbox svg{flex:none;width:1.3em;height:1.3em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.discbox .dline{grid-area:line;background:var(--muted)}
+.discbox .dstep{grid-area:step;margin:0;align-self:end;padding-bottom:7px;text-align:center;font-weight:700;font-size:1.05rem;line-height:1.2;color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.discbox .dfield{grid-area:field;min-width:0}
+.discbox .dfield input{height:100%;border-radius:14px;border:1.5px solid var(--muted);background:#fff}
+.discbox #discPin{text-align:center;font-size:1.9rem;letter-spacing:.24em;padding:0 .2em 0 .44em;font-family:'Figtree',system-ui,sans-serif}
+.discbox #discText{font-size:1.2rem;padding:0 .8em}
+.discbox .dfield input:disabled{background:var(--panel);opacity:1}
+/* the code box stays the image's plain rounded box while it has the focus (it has it at every step): a green border,
+   not the page's gold ring */
+.discbox .dfield input:focus{outline:none;border-color:var(--accent)}
+.discbox .dpad{grid-area:pad;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));gap:9px;padding-top:9px;min-height:0}
+.discbox .dpad button{min-height:0;padding:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#fff;color:var(--ink);
+  border:1.5px solid var(--muted);font-weight:700;font-size:1.5rem;line-height:1;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.discbox .dpad button:hover{background:#fff}
+.discbox .dpad button:active{background:var(--canvas)}
+.discbox .dpad .zero{grid-column:span 2}
+.discbox .dpad.off button{opacity:.42;cursor:default}
+.discbox .dmsg{grid-area:msg;margin:0;padding-top:8px;color:var(--bad);text-align:center;font-size:.95rem;line-height:1.3;overflow:hidden}
+.discbox .dbtns{grid-area:btns;align-self:end;justify-self:center;width:78%;display:grid;grid-template-columns:minmax(0,23fr) minmax(0,32fr);gap:20px}
+.discbox .dbtns button{min-height:0;height:52px;padding:0 .6em;border-radius:14px;font-weight:700;font-size:1.08rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.discbox #discGo:disabled{opacity:.45;cursor:default;background:var(--accent)}
+/* a 10" tablet, either way round: the size of the owner's image */
+@media (min-width:768px) and (min-height:780px){
+  .modal .box.discbox{width:min(960px,calc(100vw - 48px));padding:30px 40px 26px;column-gap:36px;grid-template-rows:52px 28px 34px 34px 58px 272px 62px 60px}
+  .modal .discbox h2{font-size:2.3rem} .discbox .dlead{font-size:1.1rem} .discbox .dctx{font-size:.95rem}
+  .discbox .dcats{gap:16px} .discbox .dcats button{font-size:1.4rem}
+  .discbox .dstep{font-size:1.12rem;padding-bottom:8px}
+  .discbox #discPin{font-size:2.5rem;letter-spacing:.2em;padding:0 .2em 0 .4em}   /* the image's large dots; 8 still fit */
+  .discbox .dpad{gap:10px;padding-top:10px} .discbox .dpad button{font-size:1.6rem}
+  .discbox .dmsg{font-size:1rem;padding-top:10px}
+  .discbox .dbtns{gap:24px} .discbox .dbtns button{height:58px;font-size:1.15rem}
+}
+/* a phone: the same two columns, smaller */
+@media (max-width:599px){
+  #discModal{padding:.5rem}
+  .modal .box.discbox{width:calc(100vw - 16px);padding:14px 12px 12px;column-gap:9px;grid-template-rows:32px 36px 22px 33px 44px 208px 58px 56px}
+  .modal .discbox h2{font-size:1.4rem}
+  .discbox .dlead{font-size:.82rem;white-space:normal}
+  .discbox .dctx{font-size:.78rem;padding-top:3px}
+  .discbox .dcats{gap:7px} .discbox .dcats button{font-size:.92rem;gap:.45em;padding:0 .55em;border-radius:12px;white-space:normal}
+  .discbox svg{width:1.4em;height:1.4em}
+  .discbox .dstep{font-size:.8rem;padding-bottom:4px;white-space:normal}
+  .discbox .dfield input{border-radius:12px}
+  .discbox #discPin{font-size:1.5rem;letter-spacing:.1em;padding:0 .15em 0 .25em}   /* 8 dots fit at 360 px */
+  .discbox #discText{font-size:.92rem;padding:0 .45em}
+  .discbox .dpad{gap:6px;padding-top:6px} .discbox .dpad button{font-size:1.25rem;border-radius:10px}
+  .discbox .dmsg{font-size:.8rem;padding-top:4px}
+  .discbox .dbtns{width:100%;gap:10px} .discbox .dbtns button{height:48px;font-size:.95rem;border-radius:12px}
+}
+/* a courtesy (Guía Turista, ₡0): one button closes it */
+.payrow .courtesy{grid-column:1 / -1}
+.addbar .addnote{flex-basis:100%;font-size:.82rem;color:#7A5600}
 .opt{display:flex;gap:.7rem;align-items:flex-start;border:1.5px solid var(--muted);border-radius:12px;padding:.7rem .8rem;margin:.5rem 0;cursor:pointer;background:#fff}
 .opt input{width:auto;margin:.2rem 0 0;accent-color:var(--accent)}
 .opt small{display:block;color:var(--sec);font-size:.82rem;margin-top:.15rem}
@@ -378,7 +437,7 @@ input[data-pin]{-webkit-text-security:disc}
   </div>
   <div class="ticket">
     <h2 id="ticketHead">Order <span class="sum" id="ticketSum"></span></h2>
-    <div class="addbar" id="addBar" hidden><span>Adding to the bill <b id="addWho"></b></span><button type="button" class="ghost" id="addCancel">Cancel</button></div>
+    <div class="addbar" id="addBar" hidden><span>Adding to the bill <b id="addWho"></b></span><button type="button" class="ghost" id="addCancel">Cancel</button><span class="addnote" id="addNote" hidden>New items are charged in full. To include them, remove the discount and authorize it again.</span></div>
     <div class="forwho"><input id="forWho" maxlength="40" autocomplete="off" placeholder="Name or table (optional)" aria-label="Name or table"></div>
     <div class="lines" id="lines"><p style="color:var(--sec);font-size:.9rem">Tap items to add them.</p></div>
     <div class="totals">
@@ -396,6 +455,7 @@ input[data-pin]{-webkit-text-security:disc}
       <button data-pay="card" style="--pc:#285F8A">Card</button>
       <button data-pay="sinpe" style="--pc:#6B3FA0">SINPE</button>
       <button data-pay="other" style="--pc:#54634F" class="alt">Other</button>
+      <button type="button" id="courtesyBtn" class="courtesy" style="--pc:#54634F" hidden>Record the courtesy</button>
     </div>
     <div class="util">
       <button class="ghost" id="discBtn">Discount</button>
@@ -620,13 +680,14 @@ input[data-pin]{-webkit-text-security:disc}
         <button type="button" data-tpay="card" style="--pc:#285F8A">Card</button>
         <button type="button" data-tpay="sinpe" style="--pc:#6B3FA0">SINPE</button>
         <button type="button" data-tpay="other" style="--pc:#54634F" class="alt">Other</button>
+        <button type="button" data-tpay="other" data-courtesy class="courtesy" style="--pc:#54634F" hidden>Record the courtesy</button>
       </div>
     </div>
     <p class="paidall" id="tabPaidAll" hidden>Paid in full</p>
     <p class="err" id="tabErr" role="alert"></p>
     <div class="voidbox" id="tabRmBox" hidden>
       <strong id="tabRmWhich"></strong>
-      <p class="hint" style="margin:.3rem 0 0">This bill was already delivered, so a manager approves taking an item off.</p>
+      <p class="hint" style="margin:.3rem 0 0" id="tabRmHint">This bill was already delivered, so a manager approves taking an item off.</p>
       <label for="tabRmWhy">Reason</label>
       <input id="tabRmWhy" maxlength="120" placeholder="e.g. the guest changed their mind" autocomplete="off">
       <label for="tabRmMgr">Approved by</label>
@@ -704,36 +765,35 @@ input[data-pin]{-webkit-text-security:disc}
   </div>
 </div>
 
+<!-- the discount window (migration 0038, the owner's reference image): four categories on the left, the code and the
+     keypad on the right, Cancel and «Autorizar descuento» under both. One fixed size: only the texts change -->
 <div class="modal" id="discModal" hidden>
-  <form class="box dform" id="discForm" autocomplete="off" novalidate>
-    <h2 id="discTitle">Discount</h2>
-    <p class="hint" style="margin:0" id="discLead">A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.</p>
-    <label>How much</label>
-    <div class="dchips" id="discPct">
-      <button type="button" data-pct="10">10%</button><button type="button" data-pct="15">15%</button><button type="button" data-pct="20">20%</button>
-      <button type="button" data-pct="25">25%</button><button type="button" data-pct="50">50%</button><button type="button" data-pct="100">100%</button>
+  <form class="box discbox" id="discForm" autocomplete="off" novalidate role="dialog" aria-labelledby="discTitle">
+    <h2 id="discTitle">Apply a discount</h2>
+    <p class="dlead" id="discLead">Choose the type of discount and authorize it with the manager code.</p>
+    <p class="dctx" id="discSub"></p>
+    <div class="dcats" role="group" aria-label="Type of discount">
+      <button type="button" data-cat="empleado" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="7.5" r="4"/><path d="M4 21c0-4.6 3.6-8 8-8s8 3.4 8 8"/></svg><span>Employee</span></button>
+      <button type="button" data-cat="local" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21.5s-7-6.1-7-11.6a7 7 0 0 1 14 0c0 5.5-7 11.6-7 11.6z"/><circle cx="12" cy="9.8" r="2.6"/></svg><span>Local</span></button>
+      <button type="button" data-cat="huesped" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.5 19.5v-14"/><path d="M2.5 15.5h19v4"/><path d="M21.5 15.5v-3a3 3 0 0 0-3-3h-8v6"/><circle cx="6.6" cy="11.6" r="2.1"/></svg><span>Hotel guest</span></button>
+      <button type="button" data-cat="guia" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="6.3" cy="16.3" r="3.7"/><circle cx="17.7" cy="16.3" r="3.7"/><path d="M10 16.3h4"/><path d="M2.6 16.1 4.8 7.2A2 2 0 0 1 6.7 5.7H8a1.6 1.6 0 0 1 1.6 1.6v8.9"/><path d="M21.4 16.1 19.2 7.2a2 2 0 0 0-1.9-1.5H16a1.6 1.6 0 0 0-1.6 1.6v8.9"/></svg><span>Tour guide</span></button>
     </div>
-    <label for="discAmtIn">Or an amount in colones</label>
-    <input id="discAmtIn" data-keypad="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="₡">
-    <label for="discWhy">Reason</label>
-    <select id="discWhy">
-      <option value="">Pick a reason</option>
-      <option value="Regular customer">Regular customer</option>
-      <option value="Team member">Team member</option>
-      <option value="Courtesy for a mistake or a wait">Courtesy for a mistake or a wait</option>
-      <option value="Promotion">Promotion</option>
-      <option value="Other">Other</option>
-    </select>
-    <input class="note" id="discNote" maxlength="100" placeholder="Details (needed for Other)" aria-label="Details">
-    <p class="dprev mono" id="discPrev"></p>
-    <label for="discMgr">Approved by</label>
-    <select id="discMgr"></select>
-    <label for="discPin">PIN</label>
-    <input id="discPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
-    <p class="err" id="discErr" role="alert"></p>
-    <div class="row">
-      <button type="submit" id="discGo">Approve the discount</button>
+    <span class="dline" aria-hidden="true"></span>
+    <p class="dstep" id="discStep">Pick the discount</p>
+    <div class="dfield">
+      <input id="discPin" type="text" data-pin data-keypad="off" inputmode="none" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" aria-labelledby="discStep" disabled>
+      <input id="discText" type="text" maxlength="80" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="next" aria-labelledby="discStep" hidden>
+    </div>
+    <p class="dmsg" id="discErr" role="alert"></p>
+    <div class="dpad" id="discPad">
+      <button type="button" tabindex="-1" data-k="1">1</button><button type="button" tabindex="-1" data-k="2">2</button><button type="button" tabindex="-1" data-k="3">3</button>
+      <button type="button" tabindex="-1" data-k="4">4</button><button type="button" tabindex="-1" data-k="5">5</button><button type="button" tabindex="-1" data-k="6">6</button>
+      <button type="button" tabindex="-1" data-k="7">7</button><button type="button" tabindex="-1" data-k="8">8</button><button type="button" tabindex="-1" data-k="9">9</button>
+      <button type="button" tabindex="-1" data-k="0" class="zero">0</button><button type="button" tabindex="-1" data-k="del" class="del" aria-label="Erase"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 5H9.2a1 1 0 0 0-.8.4L3 12l5.4 6.6a1 1 0 0 0 .8.4H21a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="m12.5 9 6 6M18.5 9l-6 6"/></svg></button>
+    </div>
+    <div class="dbtns">
       <button type="button" class="ghost" id="discCancel">Cancel</button>
+      <button type="submit" id="discGo" disabled>Authorize discount</button>
     </div>
   </form>
 </div>
@@ -764,6 +824,7 @@ input[data-pin]{-webkit-text-security:disc}
     <label class="opt"><input type="radio" name="stMain" value="0"><span><strong>Second device</strong><small>The iPad or a phone. Takes orders and sends them to the register, or charges them here.</small></span></label>
     <label for="stName" class="hint" style="display:block;margin:.8rem 0 .25rem">Name of this device</label>
     <input id="stName" maxlength="24" required placeholder="e.g. Front register, iPad">
+    <p class="hint" id="stDisc" style="margin:.5rem 0 0" hidden></p>
     <p class="err" id="stErr"></p>
     <button type="submit" style="width:100%;margin-top:.4rem">Save</button>
   </form>
@@ -829,8 +890,8 @@ async function refreshAuth(){
   document.getElementById('loginView').hidden = authed;
   document.getElementById('appView').hidden = !authed;
   /* signed out (also by itself): no window stays over the sign-in box */
-  if (!authed){ document.querySelectorAll('.modal').forEach(function(m){ m.hidden = true; }); payTarget = null; pendingPay = null; }
-  if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); syncQueue(); loadSettings(); loadOperator(); loadFx(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
+  if (!authed){ document.querySelectorAll('.modal').forEach(function(m){ m.hidden = true; }); payTarget = null; pendingPay = null; discClose(); }
+  if (authed){ whoami().then(trimNav).then(function(){ return HG_ACCESS.load(db); }).then(function(st){ if (st && st.level) HG_ACCESS.pill(db, {soft: true, host: document.querySelector('.topbar')}); }); loadMenu(); loadQueue(); discRelease(true); discPendResume(); syncQueue(); loadSettings(); loadOperator(); loadFx(); checkStations(); showStation(); pollLive(); clearInterval(liveTimer); liveTimer = setInterval(pollLive, 5000);
     loadRegister().then(function(){ if (STATION && STATION.main) nudgeRegister(); });
     if (!STATION) openStation(); }
 }
@@ -990,6 +1051,7 @@ function renderGrid(){
 
 /* ---------- ticket ---------- */
 function addLine(it){
+  if (discLocked()) return;
   var ln = ticket.find(function(l){return l.id === it.id});
   if (ln) ln.qty++;
   else ticket.push({id: it.id, name: it.name, price: it.price_crc, qty: 1});
@@ -1011,8 +1073,8 @@ function renderTicket(){
     var minus = document.createElement('button'); minus.textContent='−'; minus.setAttribute('aria-label','One less '+l.name);
     var qn = document.createElement('span'); qn.className='mono'; qn.textContent = l.qty;
     var plus = document.createElement('button'); plus.textContent='+'; plus.setAttribute('aria-label','One more '+l.name);
-    minus.addEventListener('click', function(){ l.qty--; if(l.qty<1) ticket.splice(i,1); renderTicket(); });
-    plus.addEventListener('click', function(){ l.qty++; renderTicket(); });
+    minus.addEventListener('click', function(){ if (discLocked()) return; l.qty--; if(l.qty<1) ticket.splice(i,1); renderTicket(); });
+    plus.addEventListener('click', function(){ if (discLocked()) return; l.qty++; renderTicket(); });
     q.appendChild(minus); q.appendChild(qn); q.appendChild(plus);
     left.appendChild(nm); left.appendChild(q);
     var amt = document.createElement('div'); amt.className='amt';
@@ -1027,15 +1089,21 @@ function renderTicket(){
   document.getElementById('discRow').hidden = !tDisc;
   if (tDisc){
     document.getElementById('subAmt').textContent = fmt(sub);
-    document.getElementById('discLbl').textContent = 'Discount ' + discText(tDisc) + ' · ' + tDisc.reason;
-    document.getElementById('discLbl').title = 'Approved by ' + tDisc.by;
+    /* the category in words (lang.js translates it), the employee or the company as typed, never translated; no percentage */
+    var lbl = document.getElementById('discLbl');
+    lbl.replaceChildren(document.createTextNode(DISC_TICKET[tDisc.category] || 'Discount'));
+    if (tDisc.who){ var who = document.createElement('span'); who.setAttribute('data-no-translate', ''); who.textContent = ' · ' + tDisc.who; lbl.appendChild(who); }
+    lbl.title = 'Authorized by ' + tDisc.by;
     document.getElementById('discAmt').textContent = '−' + fmt(disc);
   }
   document.getElementById('totalAmt').textContent = fmt(total);
   /* a negative total is never charged or sent: the server refuses it too (migration 0028, negative_total) */
   var neg = total < 0;
-  document.querySelectorAll('#payRow [data-pay]').forEach(function(b){ b.disabled = neg; });
-  document.getElementById('sendBtn').disabled = neg;
+  /* a tour guide's courtesy (₡0): one button records it; it is never sent to pay later */
+  var courtesy = !!tDisc && tDisc.category === 'guia' && total === 0;
+  document.querySelectorAll('#payRow [data-pay]').forEach(function(b){ b.disabled = neg; b.hidden = courtesy; });
+  document.getElementById('courtesyBtn').hidden = !courtesy;
+  document.getElementById('sendBtn').disabled = neg || courtesy;
   var groups = ivaGroups(ticket, disc), tax = groups.reduce(function(t, g){ return t + g.tax; }, 0);
   var rates = groups.map(function(g){ return pct(g.rate); }).join(' · ') || '13%';
   document.getElementById('ivaLbl').textContent = (PRICE_MODE === 'exclusive' ? 'IVA ' : 'Includes IVA ') + rates;
@@ -1047,7 +1115,7 @@ function renderTicket(){
   document.getElementById('ticketSum').textContent = n ? n + (n === 1 ? ' item · ' : ' items · ') + fmt(total) : '';
   if (adding) document.getElementById('addGo').textContent = n ? 'Add to the bill · ' + fmt(total) : 'Add to the bill';
 }
-document.getElementById('clearBtn').addEventListener('click', function(){ ticket = []; tDisc = null; document.getElementById('forWho').value = ''; renderTicket(); });
+document.getElementById('clearBtn').addEventListener('click', function(){ var d = tDisc; ticket = []; tDisc = null; document.getElementById('forWho').value = ''; renderTicket(); discLetGo(d); });
 function subtotal(){ return ticket.reduce(function(s,l){ return s + l.price*l.qty; }, 0); }
 /* true (and says so) when the order's total is below zero: it is not charged, sent or recorded */
 function negTotal(){
@@ -1056,132 +1124,610 @@ function negTotal(){
   toast('The total cannot be negative.'); return true;
 }
 
-/* ---------- discounts: a reason and the PIN of an owner, GM or manager ----------
-   The database checks the PIN, logs the approval and lets it cover one order only (supabase/pos-stations.sql).
-   A percentage follows the order if items change after the approval; a fixed amount never exceeds the order. */
-var tDisc = null;   /* the approved discount on the open order: {id, kind: 'percent'|'amount', value, amount, reason, by, at} */
-var DISC_MINUTES = 25;   /* the database accepts an approval for 30 minutes; the till asks again a little earlier */
+/* ---------- discounts (migration 0038): four categories, each authorized with a code ----------
+   Empleado (the employee's code, then a manager's), Local and Huésped (a manager's code), Guía Turista (the company,
+   then the owner's code; off until the accountant confirms its IVA, A-13). The server fixes the rate and the amount,
+   checks the codes by code alone on a registered till («Cajas registradas en puestos») and links the sale. The page
+   never shows a percentage, keeps a code only in memory, and never opens the owner areas (the owner's code here opens
+   nothing). The till keeps working offline: an authorization already on the ticket goes with the queued sale. */
+var tDisc = null;   /* the authorized discount on the open order: {id, request_id, category, amount, sub, reason, by, who, at} */
+var DISC_MINUTES = 25;   /* the database keeps an unused authorization for 30 minutes; the till lets it go a little earlier */
+var DISC_TICKET = {empleado: 'Employee discount', local: 'Local discount', huesped: 'Hotel guest discount', guia: 'Tour guide courtesy'};
+var DISC_CAT_OF = {Employee: 'empleado', Local: 'local', 'Hotel guest': 'huesped', 'Tour guide': 'guia'};   /* the server's labels */
+/* on paper, in both languages whatever the screen says, never a percentage */
+var DISC_RECEIPT = {Employee: 'Descuento Empleado · Employee discount', Local: 'Descuento Local · Local discount',
+  'Hotel guest': 'Descuento Huésped · Guest discount', 'Tour guide': 'Cortesía Guía Turista · Tour guide courtesy'};
+function discReceiptLabel(reason){ return DISC_RECEIPT[reason] || 'Descuento · Discount'; }
+/* a tour guide's courtesy: the whole order at ₡0 (the label is reserved: the old window cannot use it) */
+function discCourtesy(reason, total, disc, sub){ return reason === 'Tour guide' && total === 0 && disc > 0 && disc === sub; }
+var DISC_COUNTS = "Discount removed. The employee's day stays used; a manager can give it back in the approvals log.";
+/* taken off after a payment: the day is never given back (a discount_removed_paid row names it) */
+var DISC_COUNTS_PAID = "Discount removed. The employee's day stays used: a payment was already made, so it cannot be given back.";
 function discOf(sub){
   if (!tDisc || sub <= 0) return 0;
-  var d = tDisc.kind === 'percent' ? Math.round(sub * tDisc.value / 100) : Math.min(tDisc.value, sub);
-  /* never more than the manager saw: items added after the approval do not make it bigger */
-  if (tDisc.amount != null) d = Math.min(d, tDisc.amount);
-  return Math.min(d, sub);
+  return Math.min(tDisc.amount, sub);   /* the server's amount; the lines are locked, so the order is the one authorized */
 }
-function discText(d){
-  if (d.kind === 'percent' && d.amount != null && Math.round(subtotal() * d.value / 100) > d.amount) return fmt(d.amount);
-  return d.kind === 'percent' ? d.value + '%' : fmt(d.value);
+var DISC_NOT_ADDED = 'This order has a discount, so the items were not added to it: ring them after this sale.';
+/* the whole order carries the discount: its lines do not change while it is on (× lets it go and unlocks them) */
+function discLocked(){
+  if (!tDisc) return false;
+  toast('Remove the discount to change the order.'); return true;
 }
-/* an approval older than DISC_MINUTES is dropped before the sale is recorded; returns true when it was */
+/* an authorization older than DISC_MINUTES is let go before the sale is recorded; returns true when it was */
 function discExpired(){
   if (!tDisc || Date.now() - tDisc.at < DISC_MINUTES * 60000) return false;
-  tDisc = null; renderTicket();
+  var d = tDisc; tDisc = null; renderTicket(); discLetGo(d);
   toast('The discount approval is more than ' + DISC_MINUTES + ' minutes old. Ask for it again.');
   return true;
 }
-var discPick = null;   /* {kind:'percent', value} from the buttons; null when an amount is typed */
-var DISC_ERR = {bad_pin: 'That PIN is not right.', locked: 'Too many wrong PINs. Wait 10 minutes and try again.',
-  not_manager: 'Only an owner, GM or manager can approve a discount.', inactive: 'That person is not active on the team.',
-  unknown_staff: 'Pick who is approving the discount.', missing_reason: 'Pick the reason for the discount.',
-  bad_discount: 'Pick a percentage or type an amount.', too_big: 'The discount is bigger than the order.',
-  empty: 'The order is empty.', no_account: 'This login is not connected to the café yet.'};
-function discChoice(){
-  if (discPick) return discPick;
-  var v = parseInt(document.getElementById('discAmtIn').value, 10);
-  return v > 0 ? {kind: 'amount', value: v} : null;
+
+/* the authorizations this device holds, kept across a reload (hg-pos-disc-hold, [{id, request_id, at, load, go}]):
+   the current and the parked one, and the attempts whose answer never came (no id). Cleared in the same step as the
+   sale is queued, so an authorization a queued sale carries is never let go. */
+var HOLD_KEY = 'hg-pos-disc-hold', DISC_LOAD = uuid();
+/* two tabs of the till on one device share these holds: each load beats (hg-pos-disc-load:<load> = its time, every 10
+   seconds; removed when the page goes) and a hold is «left by an earlier load» only when its load has stopped beating
+   for 2 minutes (a hidden tab's timer may run once a minute). A beat older than an hour is cleared at load */
+var BEAT_KEY = 'hg-pos-disc-load:', BEAT_ALIVE = 120000;
+function discBeat(){ try { localStorage.setItem(BEAT_KEY + DISC_LOAD, String(Date.now())); } catch (e){} }
+function discLoadAlive(load){
+  if (!load) return false;
+  if (load === DISC_LOAD) return true;
+  try { var t = Number(localStorage.getItem(BEAT_KEY + load)); return t > 0 && Date.now() - t < BEAT_ALIVE; } catch (e){ return false; }
 }
-function discPreview(){
-  var c = discChoice(), el = document.getElementById('discPrev');
-  if (!c){ el.textContent = ''; return; }
-  if (discMode === 'bill'){
-    if (!tab) return;
-    var b = billDisc(c);   /* the discount on what is still to pay (items already paid keep theirs), and what is left after it */
-    el.textContent = 'Discount ' + fmt(b.d - tabDiscUsed()) + ' · Still to pay ' + fmt(Math.max(0, b.t));
-    return;
+(function(){
+  try {
+    for (var i = localStorage.length - 1; i >= 0; i--){
+      var k = localStorage.key(i);
+      if (k && k.indexOf(BEAT_KEY) === 0 && !(Date.now() - Number(localStorage.getItem(k)) < 3600000)) localStorage.removeItem(k);
+    }
+  } catch (e){}
+  discBeat(); setInterval(discBeat, 10000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) discBeat(); });
+  addEventListener('pageshow', discBeat);
+  addEventListener('pagehide', function(){ try { localStorage.removeItem(BEAT_KEY + DISC_LOAD); } catch (e){} });
+})();
+function holdsRead(){
+  try { var v = JSON.parse(localStorage.getItem(HOLD_KEY) || '[]'); return Array.isArray(v) ? v.filter(function(h){ return h && (h.id || h.request_id); }) : []; }
+  catch (e){ return []; }
+}
+function holdsWrite(l){ try { if (l.length) localStorage.setItem(HOLD_KEY, JSON.stringify(l)); else localStorage.removeItem(HOLD_KEY); } catch (e){} }
+function holdSame(a, b){ return !!((a.id && a.id === b.id) || (a.request_id && a.request_id === b.request_id)); }
+function holdKeep(h){ holdsWrite(holdsRead().filter(function(x){ return !holdSame(h, x); }).concat([h])); }
+function holdDrop(h){ holdsWrite(holdsRead().filter(function(x){ return !holdSame(h, x); })); }
+function discMissing(r){ var e = r && r.error; return !!e && (e.code === 'PGRST202' || e.code === '42883' || /could not find the function|schema cache/i.test(e.message || '')); }
+function discNetErr(r){ return !!(r && r.error) && !discMissing(r) && !dbDeadlock(r) && (!r.status || r.status >= 500); }
+/* 40P01: the one lock cycle 0038 cannot rule out (two tills on one bill with the same manager's PIN at the same moment,
+   api-0038 §9). The server ended this call and rolled it back whole (nothing approved, taken off or counted), so it is
+   sent once more, the same, after a short random wait; a second 40P01 shows the usual error */
+function dbDeadlock(r){ return !!(r && r.error && r.error.code === '40P01'); }
+function dbJitter(){ return new Promise(function(ok){ setTimeout(ok, 150 + Math.floor(Math.random() * 450)); }); }
+async function rpcBill(fn, args){
+  var r; try { r = await db.rpc(fn, args); } catch (e){ r = {error: e, status: 0}; }
+  if (dbDeadlock(r)){ await dbJitter(); try { r = await db.rpc(fn, args); } catch (e){ r = {error: e, status: 0}; } }
+  return r;
+}
+/* let go what this device may not use any more, and wait for the answers. all (the page loading, «online»): also what an
+   earlier load left (its load no longer beats: never another tab still open), unless a queued sale carries it; never the
+   authorization on the ticket or the parked one.
+   Otherwise (the window opening, before every new attempt): the attempts with no answer and what the page let go. */
+var discRelChain = Promise.resolve();
+function discRelease(all){
+  var run = function(){ return discRelease1(all); };
+  discRelChain = discRelChain.then(run, run);
+  return discRelChain;
+}
+async function discRelease1(all){
+  if (!navigator.onLine) return;
+  var keep = [tDisc && tDisc.id, adding && adding.stash && adding.stash.tDisc && adding.stash.tDisc.id];
+  var queued = queue.concat(qStored());
+  var list = holdsRead();
+  for (var i = 0; i < list.length; i++){
+    var h = list[i];
+    if (h.id && keep.indexOf(h.id) > -1) continue;
+    if (h.id && queued.some(function(o){ return o && o.discount_id === h.id; })){ holdDrop(h); continue; }
+    if (!(h.go || !h.id || (all && !discLoadAlive(h.load)))) continue;
+    var r;
+    try { r = await db.rpc('descuento_liberar', h.id ? {p_id: h.id} : {p_request_id: h.request_id}); } catch (e){ r = {error: e, status: 0}; }
+    if (discMissing(r)){ holdDrop(h); continue; }               /* a database without 0038: nothing to let go */
+    if (r.error) continue;                                       /* no answer: kept, tried first next time */
+    var d = r.data || {};
+    if (d.ok || d.error === 'not_found' || d.error === 'discount_used') holdDrop(h);
   }
-  var sub = subtotal();
-  var d = c.kind === 'percent' ? Math.round(sub * c.value / 100) : Math.min(c.value, sub);
-  el.textContent = 'Discount ' + fmt(d) + ' · New total ' + fmt(sub - d);
 }
-/* the same window gives a discount on the order being rung up ('ticket') or on a bill already taken ('bill') */
-var discMode = 'ticket', discBill = null;
-var discToken = 0;   /* a new window or Cancel: an approval still on its way is not used */
-function discLeadText(){
-  return discMode === 'bill'
-    ? 'On the items of this bill not paid yet (' + fmt(tabOpenValue()) + '). It needs a reason and the PIN of an owner, GM or manager.'
-    : 'A discount needs a reason and the PIN of an owner, GM or manager. It is saved with the order.';
+/* the page lets one authorization go now: ×, «Limpiar pedido», the 25 minutes, an answer that came late */
+function discLetGo(d){
+  if (!d || !d.id) return Promise.resolve();
+  holdKeep({id: d.id, request_id: d.request_id || null, at: Date.now(), load: DISC_LOAD, go: true});
+  return discRelease(false);
 }
-function discReset(mode){
-  discMode = mode; discToken++;
-  discPick = null;
-  document.querySelectorAll('[data-pct]').forEach(function(b){ b.classList.remove('on'); });
-  ['discAmtIn', 'discNote', 'discPin'].forEach(function(id){ document.getElementById(id).value = ''; });
-  document.getElementById('discWhy').value = '';
-  document.getElementById('discErr').textContent = '';
-  document.getElementById('discTitle').textContent = mode === 'bill' ? 'Discount on the bill · ' + orderLabel(tab.o) : 'Discount';
-  document.getElementById('discLead').textContent = discLeadText();
-  discPreview();
-  loadManagers();
+
+/* a bill call whose answer never came: {request_id, order_id, category, subtotal, expect}, in memory only. It is asked
+   again with the same request id and no code (the window opening, before every new attempt, «online"). where: the bill
+   the staff are on, or a function that tells it when the answer comes («online») */
+var discBillLost = null;
+async function discReplay(where){
+  var p = discBillLost;
+  if (!p || !navigator.onLine) return null;
+  var r = await discRpc({p_category: p.category, p_pin: null, p_subtotal: p.subtotal, p_order_id: p.order_id, p_expect: p.expect,
+                         p_request_id: p.request_id, p_station: stationName() || null});
+  if (r.net || r.dead || discBillLost !== p) return null;  /* still no answer (or a deadlock, rolled back): kept */
+  discBillLost = null;
+  var a = r.data || {};
+  if (a.ok){
+    var on = typeof where === 'function' ? where() : where;
+    if (on && on === p.order_id) return a;                  /* asked again on that same bill, or still on it: the discount stays */
+    await discTakeBack(a);                                  /* anywhere else: an answer that came late */
+    return null;
+  }
+  if (tab && tab.o.id === p.order_id) await reloadTab();   /* nothing was made (no_request): the bill as the server has it */
+  return null;
+}
+/* a bill discount the server applied after the staff had moved on (Cancel, another category, another bill): taken off
+   again; nothing was paid when it was given, so no PIN */
+async function discTakeBack(a){
+  if (!a || !a.order_id) return;
+  if (a.discount > 0){
+    var r;
+    /* only while the bill still carries THIS approval: the answer's total is the bill's now, so another discount put on
+       meanwhile (another tablet) would match it; that one stays (not_on_bill) */
+    r = await rpcBill('descuento_quitar_cuenta', {p_order_id: a.order_id, p_expect: a.total, p_station: stationName() || null, p_discount_id: a.id});
+    var d = (r && r.data) || {};
+    if (!r.error && d.ok) toast(d.counts ? DISC_COUNTS : 'Discount removed');
+    else if (d.error !== 'not_on_bill') toast('The late discount stayed on the bill: take it off with ×.');
+  }
+  if (tab && tab.o.id === a.order_id) await reloadTab();
+  pollLive();
+}
+
+/* the device key: a registered till comes back to its place after a new sign-in (descuento_caja_volver), no PIN */
+var DISC_KEY = 'hg-disc-till';
+function discKey(){ try { var v = JSON.parse(localStorage.getItem(DISC_KEY) || 'null'); return v && v.key ? v : null; } catch (e){ return null; } }
+function discKeySave(key){ try { localStorage.setItem(DISC_KEY, JSON.stringify({login: regLogin || null, key: key})); } catch (e){} }
+function discKeyForget(){ try { localStorage.removeItem(DISC_KEY); } catch (e){} }
+/* a rebind whose answer may be lost (api-0038 §13 item 36): marked before descuento_caja_volver goes, cleared by its answer;
+   {login, what, at} only, never a PIN or a key (Reloj de marcas marks «Registrar» the same way, what 'registrar'). While the
+   mark stays, the next check sends the key it holds again even if the till reads registered: on that same sign-in the
+   server answers with a new key (the lost one is spent) */
+var DISC_PEND = 'hg-disc-till-pending';
+function discPend(){ try { var v = JSON.parse(localStorage.getItem(DISC_PEND) || 'null'); return v && v.what ? v : null; } catch (e){ return null; } }
+function discPendSet(what){ try { localStorage.setItem(DISC_PEND, JSON.stringify({login: regLogin || null, what: what, at: Date.now()})); } catch (e){} }
+function discPendClear(){ try { localStorage.removeItem(DISC_PEND); } catch (e){} }
+/* the one rebind on its way: a check that comes meanwhile waits for it instead of sending the key again. No answer (the
+   network): asked once more after a second; still none: the mark stays for the next check or the next load */
+var discBack = null;
+function discBackGo(key){
+  if (!discBack) discBack = (async function(){
+    discPendSet('volver');
+    var v;
+    for (var i = 0; i < 2; i++){
+      if (i) await new Promise(function(ok){ setTimeout(ok, 1000); });
+      try { v = await db.rpc('descuento_caja_volver', {p_key: key, p_station: stationName() || null}); } catch (e){ v = {error: e, status: 0}; }
+      if (!discNetErr(v)) break;
+    }
+    if (discNetErr(v)) return {lost: true};
+    discPendClear();
+    var d = (!v.error && v.data) || {};
+    if (d.ok && d.key) discKeySave(d.key);
+    if (!d.ok && d.error === 'key_invalid') discKeyForget();
+    return d;
+  })().finally(function(){ discBack = null; });
+  return discBack;
+}
+/* the till's state (descuento_estado); this device holds a key for this login and the till is not registered, or a rebind
+   is marked pending: back by the key first */
+async function discState(){
+  var r; try { r = await db.rpc('descuento_estado', {p_station: stationName() || null}); } catch (e){ r = {error: e, status: 0}; }
+  if (r.error) return {missing: discMissing(r), error: r.error};
+  var st = r.data;
+  var me = regLogin || null, k = discKey(), p = discPend();
+  if (p && p.login !== me){ discPendClear(); p = null; }   /* another login's: its sign-in is gone */
+  var again = !!(p && p.what === 'volver');
+  if (again && !(k && k.login === me)){ discPendClear(); again = false; }   /* no key left to send */
+  if (st && st.ok && st.session && st.till && (!st.till.registered || again) && k && k.login === me){
+    var d = await discBackGo(k.key);
+    if (d.ok){
+      var r2; try { r2 = await db.rpc('descuento_estado', {p_station: stationName() || null}); } catch (e){ r2 = {error: e}; }
+      if (!r2.error && r2.data) st = r2.data;
+    }
+  }
+  return {data: st};
+}
+/* the page loading, a new sign-in: a rebind left without an answer is finished now, before anyone opens the window */
+function discPendResume(){ var p = discPend(); if (p && p.what === 'volver' && p.login === (regLogin || null) && navigator.onLine) discState(); }
+/* {t}: an absolute time from the server, rounded up to the minute, in Costa Rica (UTC−6), whatever this device's clock says */
+function discHHMM(iso){
+  var ms = Date.parse(iso); if (isNaN(ms)) return '';
+  var d = new Date(Math.ceil(ms / 60000) * 60000 - 6 * 3600000);
+  return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
+}
+function discWhen(iso){
+  var ms = Date.parse(iso); if (isNaN(ms)) return '';
+  var d = new Date(ms - 6 * 3600000);
+  return d.getUTCDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()] + ' ' +
+         String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
+}
+
+/* ---------- the window: one fixed size; only the step label, the box shown, the message line and the enabled state change.
+   Precedence of the one message line (mecanismo §10.1): (1) the till, (2) the category tapped, (3) the last answer */
+var disc = {mode: 'ticket', bill: null, cat: null, step: 1, company: '', st: null, stMsg: null, catMsg: null, msg: null, busy: false, gen: 0, timer: null};
+var discToken = 0;   /* a new window, Cancel or another category: an answer still on its way is late (let go / taken back) */
+/* the employee's code between the two steps: in this closure only, never in the page, the DOM or storage; gone after 2 minutes */
+var discCode = (function(){
+  var v = null, t = null;
+  return {
+    set: function(c){ v = c; clearTimeout(t); t = setTimeout(function(){ v = null; t = null; discCodeGone(); }, 120000); },
+    get: function(){ return v; },
+    wipe: function(){ v = null; clearTimeout(t); t = null; }
+  };
+})();
+function discPinClear(){ document.getElementById('discPin').value = ''; }
+function discCodeGone(){
+  discPinClear();
+  if (disc.cat === 'empleado' && disc.step === 2 && !disc.busy){ disc.step = 1; discRender(); }
+}
+var DISC_WARN = {wait_1m: 'One more mistake and this till waits 1 minute.', wait_5m: 'One more mistake and this till waits 5 minutes.',
+  wait_10m: 'One more mistake and this till waits 10 minutes.', stop: 'One more mistake stops discounts on this till.'};
+var DISC_BILL = {has_parts: 'A discount covers the whole bill: it is only given before any payment.',
+  combo_first: 'This bill has a combo. Discounts are never added to combos.',
+  already_discounted: 'This order already has a discount. Remove it first.',
+  changed: 'The bill changed on another device. Check it and authorize again.'};
+function discWaitText(w, until){
+  return w === '30s' ? 'Too many wrong codes on this till. Try again in 30 seconds.'
+    : 'Too many wrong codes on this till. Next try at ' + discHHMM(until) + '; you can charge without a discount.';
+}
+/* (1) the till: no sign-in id, not registered, registration removed, stopped, waiting; null when it may ask */
+function discStateMsg(st){
+  if (!st || st.unknown) return null;
+  if (!st.session) return ['This till could not be identified. Sign out and sign in again.'];
+  var t = st.till || {};
+  if (!t.registered) return [t.ended ? "This till's registration for discounts was removed. A manager registers it again in the approvals log."
+                                     : 'This till is not registered for discounts. A manager registers it in Time clock › Approvals log.'];
+  if (t.state === 'stopped') return ['Discounts stopped on this till because of wrong codes. A manager resumes it in the approvals log.'];
+  if (t.state === 'wait') return [discWaitText(t.wait, t.until)];
+  return null;
+}
+/* (2) the category tapped: the tour guide courtesy switched off (A-13), or no owner PIN in the team */
+function discCatMsg(){
+  if (disc.cat !== 'guia' || !disc.st) return null;
+  if (disc.st.guia_enabled === false) return ["The tour guide courtesy waits for the accountant's IVA confirmation (A-13)."];
+  if (disc.st.owner_ready === false) return ['Tour guide needs the owner PIN. The owner adds it in Team.'];
+  return null;
+}
+function discSetState(st){ disc.st = st; disc.stMsg = discStateMsg(st); }
+function discRender(){
+  var cat = disc.cat, guia = cat === 'guia', text = guia && disc.step === 1;
+  document.getElementById('discLead').textContent = guia ? 'Choose the type of discount and authorize it with the owner code.'
+                                                         : 'Choose the type of discount and authorize it with the manager code.';
+  discRenderCtx();
+  document.querySelectorAll('#discForm [data-cat]').forEach(function(b){
+    var on = b.dataset.cat === cat; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  document.getElementById('discStep').textContent = !cat ? 'Pick the discount' : cat === 'empleado' && disc.step === 1 ? 'Employee code'
+    : guia ? (disc.step === 1 ? "Tour guide's company" : 'Owner code') : 'Manager code';
+  disc.catMsg = discCatMsg();
+  var pin = document.getElementById('discPin'), box = document.getElementById('discText');
+  pin.hidden = text; box.hidden = !text;   /* swapped with hidden: keypad.js only guards a PIN box that is on screen */
+  pin.disabled = !cat || !!disc.catMsg; box.disabled = !!disc.catMsg;
+  var off = !cat || text || !!disc.catMsg, pad = document.getElementById('discPad');
+  pad.classList.toggle('off', off);
+  pad.querySelectorAll('button').forEach(function(b){ b.disabled = off; });
+  document.getElementById('discGo').disabled = disc.busy || !cat || !disc.st || !!disc.stMsg || !!disc.catMsg;
+  discShowMsg();
+}
+/* one sentence per span, so lang.js translates each one */
+function discShowMsg(){
+  var m = disc.stMsg || disc.catMsg || disc.msg || [], el = document.getElementById('discErr');
+  el.replaceChildren();
+  m.forEach(function(x, i){
+    if (i) el.appendChild(document.createTextNode(' '));
+    var sp = document.createElement('span'); sp.textContent = x; el.appendChild(sp);
+  });
+}
+/* «Pedido ₡12 500» · «Cuenta · Mesa 3 · ₡18 000» · «Empresa: … · Pedido ₡…»: names and the company as typed, never translated */
+function discRenderCtx(){
+  var el = document.getElementById('discSub'); el.replaceChildren();
+  var add = function(t, raw){ var s = document.createElement('span'); s.textContent = t; if (raw) s.setAttribute('data-no-translate', ''); el.appendChild(s); };
+  var dot = function(){ el.appendChild(document.createTextNode(' · ')); };
+  if (disc.cat === 'guia' && disc.step === 2 && disc.company){ add('Company:'); el.appendChild(document.createTextNode(' ')); add(disc.company, true); dot(); }
+  if (disc.mode === 'bill'){
+    if (!tab || tab.o.id !== disc.bill) return;
+    var o = tab.o;
+    add('Bill'); dot();
+    if (o.source === 'room') add('Room ' + (o.rooms ? o.rooms.number : '?'));
+    else {
+      if (o.pickup_number) add('#' + o.pickup_number);
+      if (o.pickup_number && o.guest_name) dot();
+      if (o.guest_name) add(o.guest_name, true);
+      if (!o.pickup_number && !o.guest_name) add('No number');
+    }
+    dot(); add(fmt(tabItemsValue()));
+  } else { add('Order'); el.appendChild(document.createTextNode(' ')); add(fmt(subtotal())); }
+}
+function discFocus(){
+  var el = !disc.cat ? null : disc.cat === 'guia' && disc.step === 1 ? document.getElementById('discText') : document.getElementById('discPin');
+  if (el && !el.hidden && !el.disabled) try { el.focus({preventScroll: true}); } catch (e){}
+}
+function discClose(){
+  discToken++; disc.gen++; disc.busy = false; clearTimeout(disc.timer); disc.timer = null;
+  discCode.wipe(); discPinClear();
+  document.getElementById('discModal').hidden = true;
+}
+/* a wait: one timer of wait_s seconds (the server's clock, not this device's) asks the server again; nothing is sent */
+function discArm(){
+  clearTimeout(disc.timer); disc.timer = null;
+  var t = disc.st && disc.st.till;
+  if (!t || t.state !== 'wait' || !(t.wait_s > 0)) return;
+  var gen = disc.gen;
+  disc.timer = setTimeout(async function(){
+    disc.timer = null;
+    if (gen !== disc.gen) return;
+    var r = await discState();
+    if (gen !== disc.gen) return;
+    if (r.data && r.data.ok){
+      discSetState(r.data);
+      var w = r.data.till && r.data.till.state === 'ok' && DISC_WARN[r.data.till.warn];
+      if (w) disc.msg = [w];
+    } else if (disc.st && disc.st.till){ disc.st.till.wait_s = 5; }   /* no answer: asked again in 5 seconds */
+    discRender(); discArm();
+  }, t.wait_s * 1000);
+}
+async function discOpen(mode){
+  disc.mode = mode; disc.cat = null; disc.step = 1; disc.company = ''; disc.st = null; disc.stMsg = null; disc.catMsg = null; disc.msg = null; disc.busy = false;
+  discToken++; var gen = ++disc.gen; clearTimeout(disc.timer); disc.timer = null;
+  discCode.wipe(); discPinClear(); document.getElementById('discText').value = '';
+  discRender();
   document.getElementById('discModal').hidden = false;
+  /* first what an earlier attempt left without an answer (W6), with the till's state */
+  var rep = discReplay(mode === 'bill' ? disc.bill : null), rel = discRelease(false), stp = discState();
+  var found = await rep;
+  if (gen !== disc.gen) return;
+  if (found){
+    discClose();
+    toast('The discount that could not be confirmed did go on the bill.');
+    if (tab) await reloadTab();
+    pollLive(); return;
+  }
+  var r = await stp; await rel;
+  if (gen !== disc.gen) return;
+  if (r.missing) disc.stMsg = ['Discounts need a database update. Tell the owner.'];
+  else if (r.error || !r.data){ disc.st = {ok: true, unknown: true}; disc.msg = ['Could not check the codes. Check the connection.']; }
+  else if (!r.data.ok) disc.stMsg = [r.data.error === 'no_account' ? 'This login is not connected to the café yet.' : 'Could not approve. Try again.'];
+  else {
+    discSetState(r.data);
+    var w = r.data.till && r.data.till.state === 'ok' && DISC_WARN[r.data.till.warn];
+    if (w) disc.msg = [w];
+  }
+  discRender(); discArm();
 }
 function openDiscount(){
   if (!ticket.length){ toast('The order is empty.'); return; }
-  if (!navigator.onLine){ toast('A discount needs the internet to check the PIN.'); return; }
-  discReset('ticket');
+  if (tDisc){ toast('This order already has a discount. Remove it first.'); return; }   /* never stacked */
+  if (!navigator.onLine){ toast('A discount needs the internet to check the codes.'); return; }
+  disc.bill = null;
+  discOpen('ticket');
 }
 document.getElementById('discBtn').addEventListener('click', openDiscount);
-document.getElementById('discCancel').addEventListener('click', function(){ discToken++; document.getElementById('discModal').hidden = true; });
-document.getElementById('discX').addEventListener('click', function(){ tDisc = null; renderTicket(); toast('Discount removed'); });
-document.querySelectorAll('[data-pct]').forEach(function(b){
+document.getElementById('discCancel').addEventListener('click', discClose);
+document.getElementById('discX').addEventListener('click', function(){ var d = tDisc; tDisc = null; renderTicket(); discLetGo(d); toast('Discount removed'); });
+/* a category: its step 1 (tapping the one selected starts it again; the company typed is kept, the employee's code is not) */
+document.querySelectorAll('#discForm [data-cat]').forEach(function(b){
   b.addEventListener('click', function(){
-    discPick = {kind: 'percent', value: parseInt(b.dataset.pct, 10)};
-    document.querySelectorAll('[data-pct]').forEach(function(x){ x.classList.toggle('on', x === b); });
-    document.getElementById('discAmtIn').value = '';
-    discPreview();
+    discToken++; disc.busy = false;
+    disc.cat = b.dataset.cat; disc.step = 1; disc.msg = null;
+    discCode.wipe(); discPinClear();
+    discRender(); discFocus();
   });
 });
-document.getElementById('discAmtIn').addEventListener('input', function(){
-  discPick = null;
-  document.querySelectorAll('[data-pct]').forEach(function(x){ x.classList.remove('on'); });
-  discPreview();
-});
-document.getElementById('discForm').addEventListener('submit', async function(e){
-  e.preventDefault();
-  var err = document.getElementById('discErr'); err.textContent = '';
-  var bill = discMode === 'bill';
-  if (bill && !(tab && tab.o.id === discBill && tabOpenable(tab.o))){ err.textContent = 'That order is no longer open.'; return; }
-  var sub = bill ? tabOpenValue() : subtotal(), c = discChoice();
-  var why = document.getElementById('discWhy').value, note = document.getElementById('discNote').value.trim();
-  var mgr = document.getElementById('discMgr').value, pin = document.getElementById('discPin').value.trim();
-  if (!sub){ err.textContent = bill ? 'Nothing left to pay on this bill.' : 'The order is empty.'; return; }
-  if (!c){ err.textContent = 'Pick a percentage or type an amount.'; return; }
-  if (c.kind === 'amount' && c.value > sub){ err.textContent = bill ? 'The discount is bigger than what is still to pay.' : 'The discount is bigger than the order.'; return; }
-  if (bill && billDisc(c).t < 0){ err.textContent = TAB_ERR.refund_first; return; }
-  if (!why){ err.textContent = 'Pick the reason for the discount.'; return; }
-  if (why === 'Other' && !note){ err.textContent = 'Write the reason in Details.'; document.getElementById('discNote').focus(); return; }
-  if (!mgr){ err.textContent = 'Pick who is approving the discount.'; return; }
-  if (!pin){ err.textContent = 'Type the PIN.'; document.getElementById('discPin').focus(); return; }
-  var reason = why + (note ? ' · ' + note : '');
-  var token = discToken, target = discBill;
-  var go = document.getElementById('discGo'); go.disabled = true;
-  var r = await db.rpc('approve_discount', {p_staff_id: mgr, p_pin: pin, p_kind: c.kind, p_value: c.value,
-    p_subtotal: sub, p_reason: reason, p_station: stationName() || null});
-  go.disabled = false; document.getElementById('discPin').value = '';
-  if (token !== discToken) return;   /* the window was closed or opened again meanwhile: nothing is applied */
-  if (r.error){
-    err.textContent = /approve_discount|schema cache|could not find/i.test(r.error.message || '')
-      ? 'This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.'
-      : 'Could not check the PIN. Check the connection.';
+/* the page's own keys (as time.html): never take the focus, a key pressed by a script types nothing, and the box is set
+   directly (an input event would make keypad.js wipe it) */
+(function(){
+  var pad = document.getElementById('discPad');
+  ['mousedown', 'pointerdown'].forEach(function(t){ pad.addEventListener(t, function(e){ if (e.target.closest('button')) e.preventDefault(); }); });
+  pad.addEventListener('click', function(e){
+    var b = e.target.closest('button[data-k]'); if (!b || !e.isTrusted || b.disabled) return;
+    var inp = document.getElementById('discPin'); if (inp.hidden || inp.disabled) return;
+    var before = inp.value;
+    if (b.dataset.k === 'del') inp.value = inp.value.slice(0, -1);
+    else if (inp.value.length < 8) inp.value += b.dataset.k;
+    if (window.HG_KEYPAD && HG_KEYPAD.pinTyped) HG_KEYPAD.pinTyped(inp, before);
+  });
+})();
+function discCleanCompany(s){
+  var c = String(s || '').replace(/\s+/g, ' ').trim();
+  return c.length >= 2 && c.length <= 80 && /[\p{L}\p{N}]/u.test(c) ? c : null;
+}
+async function discRpc(args){
+  var r; try { r = await db.rpc('descuento_autorizar', args); } catch (e){ r = {error: e, status: 0}; }
+  return {data: r.data, error: r.error, missing: discMissing(r), net: discNetErr(r), dead: dbDeadlock(r)};
+}
+/* no answer (the network): asked once more after 2 seconds, with the same request id and the same codes; a bill call
+   ended by a deadlock (40P01, rolled back whole): once more after a short random wait, the same request id. If the window
+   moved on meanwhile (Cancel, another category, a reopen: token), the second call carries no code: the same request id
+   alone gives the stored answer when the first one went through, or no_request (nothing tested, nothing counted) */
+async function discCall(args, token){
+  var r = await discRpc(args);
+  if (!((r.dead && args.p_order_id) || r.net)) return r;
+  if (r.dead) await dbJitter(); else await new Promise(function(ok){ setTimeout(ok, 2000); });
+  return discRpc(token !== discToken ? Object.assign({}, args, {p_pin: null, p_employee_pin: null}) : args);
+}
+document.getElementById('discForm').addEventListener('submit', function(e){ e.preventDefault(); discSubmit(); });
+async function discSubmit(){
+  if (disc.busy || document.getElementById('discGo').disabled) return;
+  var cat = disc.cat, pinEl = document.getElementById('discPin');
+  if (!cat || disc.stMsg || disc.catMsg) return;
+  disc.msg = null;
+  if (!navigator.onLine){ disc.msg = ['A discount needs the internet to check the codes.']; discShowMsg(); return; }
+  if (cat === 'guia' && disc.step === 1){
+    var comp = discCleanCompany(document.getElementById('discText').value);
+    if (!comp){ disc.msg = ["Type the tour guide's company (2 to 80 characters)."]; discShowMsg(); return; }
+    disc.company = comp; disc.step = 2; discPinClear(); discRender(); discFocus(); return;
+  }
+  var code = pinEl.value.trim();
+  if (cat === 'empleado' && disc.step === 1){   /* kept in memory only: nothing is sent at this step */
+    discPinClear();
+    if (!/^\d{4,8}$/.test(code)){ disc.msg = ['Type the employee code (4 to 8 numbers).']; discShowMsg(); return; }
+    discCode.set(code); disc.step = 2; discRender(); discFocus(); return;
+  }
+  discPinClear();
+  if (!/^\d{4,8}$/.test(code)){ disc.msg = [cat === 'guia' ? 'Type the owner code (4 to 8 numbers).' : 'Type the manager code (4 to 8 numbers).']; discShowMsg(); return; }
+  var emp = cat === 'empleado' ? discCode.get() : null;
+  if (cat === 'empleado' && !emp){ disc.step = 1; disc.msg = ['Type the employee code (4 to 8 numbers).']; discRender(); return; }
+  var mode = disc.mode, bill = disc.bill;
+  if (mode === 'bill' && !(tab && tab.o.id === bill && tabOpenable(tab.o))){ disc.msg = ['That order is no longer open.']; discShowMsg(); return; }
+  if (mode === 'ticket' && !ticket.length){ disc.msg = ['The order is empty.']; discShowMsg(); return; }
+  var token = discToken;
+  disc.busy = true; discRender();
+  /* before every attempt: what an earlier one left without an answer (W6) */
+  await discRelease(false);
+  var found = await discReplay(mode === 'bill' ? bill : null);
+  if (token !== discToken) return;   /* the window was closed or another category tapped meanwhile: nothing sent */
+  if (found){
+    discClose();
+    toast('The discount that could not be confirmed did go on the bill.');
+    if (tab) await reloadTab();
+    pollLive(); return;
+  }
+  /* this bill's lost call is still without an answer (its replay got none either): no new attempt on it. A new one would
+     answer already_discounted when the lost one did go through, which the page would then take back elsewhere; the
+     next try asks again */
+  if (mode === 'bill' && discBillLost && discBillLost.order_id === bill){
+    disc.busy = false; discCode.wipe(); if (cat === 'empleado') disc.step = 1;
+    disc.msg = ['Could not confirm the discount. The bill is checked again when the connection returns.'];
+    discRender(); return;
+  }
+  var args = {p_category: cat, p_pin: code, p_subtotal: mode === 'bill' ? tabItemsValue() : subtotal(), p_request_id: uuid(), p_station: stationName() || null};
+  if (emp) args.p_employee_pin = emp;
+  if (cat === 'guia') args.p_company = disc.company;
+  if (mode === 'bill'){ args.p_order_id = bill; args.p_expect = tab.o.total_crc; }
+  var meta = {request_id: args.p_request_id, order_id: bill, category: cat, subtotal: args.p_subtotal, expect: args.p_expect};
+  code = null; emp = null;
+  var r = await discCall(args, token);
+  args.p_pin = null; args.p_employee_pin = null;   /* the codes are gone after the answer, or after the second try */
+  if (token !== discToken){ discLate(r, mode, meta); return; }
+  disc.busy = false;
+  discAnswer(r, mode, meta);
+}
+/* an answer for a window that moved on: a ticket's authorization is let go at once, a bill's discount taken off again */
+function discLate(r, mode, meta){
+  if (r.missing) return;
+  if (r.net){
+    if (mode === 'bill') discBillLost = meta;
+    else { holdKeep({id: null, request_id: meta.request_id, at: Date.now(), load: DISC_LOAD, go: true}); discRelease(false); }
     return;
   }
-  if (!r.data || !r.data.ok){ err.textContent = DISC_ERR[r.data && r.data.error] || 'Could not approve. Try again.'; return; }
-  if (bill){ await applyBillDisc(r.data, err, target, token); return; }
-  if (!ticket.length){ document.getElementById('discModal').hidden = true; return; }
-  tDisc = {id: r.data.id, kind: c.kind, value: c.value, amount: (r.data.amount != null ? r.data.amount : null),
-           reason: r.data.reason || reason, by: r.data.name || '', at: Date.now()};
-  document.getElementById('discModal').hidden = true;
-  renderTicket();
-  toast('Discount approved by ' + tDisc.by);
+  var a = r.data || {};
+  if (!a.ok) return;
+  if (mode === 'bill') discTakeBack(a); else discLetGo(a);
+}
+async function discAnswer(r, mode, meta){
+  var cat = meta.category, back = function(){ discCode.wipe(); if (cat === 'empleado') disc.step = 1; };
+  if (r.missing){ disc.stMsg = ['Discounts need a database update. Tell the owner.']; discCode.wipe(); discRender(); return; }
+  if (r.net){
+    if (mode === 'ticket'){
+      /* an authorization committed but never answered is let go at once (or it expires there after 30 minutes) */
+      holdKeep({id: null, request_id: meta.request_id, at: Date.now(), load: DISC_LOAD, go: true});
+      discRelease(false);
+      disc.msg = ['Could not check the codes. Check the connection.'];
+    } else {
+      discBillLost = meta;
+      disc.msg = ['Could not confirm the discount. The bill is checked again when the connection returns.'];
+    }
+    discCode.wipe(); if (cat === 'empleado') disc.step = 1;
+    discRender(); return;
+  }
+  var a = r.data || {};
+  if (r.error){ disc.msg = ['Could not approve. Try again.']; discCode.wipe(); if (cat === 'empleado') disc.step = 1; discRender(); return; }
+  if (a.ok){
+    var prior = a.prior && a.prior.how === 'void' ? 'Second employee discount today for ' + (a.beneficiary || '') + ': the earlier one was voided by ' + (a.prior.by || '') + '.' : null;
+    if (mode === 'bill'){
+      discClose();
+      toast(prior || 'Discount on the bill · Still to pay ' + fmt(a.total) + ' · approved by ' + (a.name || ''));
+      await reloadTab(); pollLive(); return;
+    }
+    if (!ticket.length){ discClose(); discLetGo(a); return; }
+    tDisc = {id: a.id, request_id: a.request_id || meta.request_id, category: a.category || cat, amount: a.amount, sub: a.subtotal,
+             reason: a.reason, by: a.name || '', who: (a.category || cat) === 'empleado' ? (a.beneficiary || '') : (a.category || cat) === 'guia' ? (a.company || '') : '',
+             at: Date.now()};
+    holdKeep({id: tDisc.id, request_id: tDisc.request_id, at: Date.now(), load: DISC_LOAD});
+    discClose(); renderTicket();
+    toast(prior || 'Discount approved by ' + tDisc.by);
+    return;
+  }
+  var code = a.error, warn = !a.blocked && DISC_WARN[a.warn];
+  if ((code === 'bad_pin' || code === 'bad_employee') && a.blocked){
+    /* this mistake started a wait or the stop: only that text, Autorizar off, the timer from the server's wait_s */
+    var t = Object.assign({}, (disc.st && disc.st.till) || {}, {registered: true, state: a.blocked === 'stopped' ? 'stopped' : 'wait', until: a.until, wait: a.wait, wait_s: a.wait_s});
+    discSetState(Object.assign({}, disc.st || {ok: true, session: true}, {till: t}));
+    if (code === 'bad_employee') back();
+    discRender(); discArm(); return;
+  }
+  switch (code){
+    case 'bad_pin':   /* the manager (or the owner) may type their code again: the employee's stays */
+      disc.msg = [a.step === 'owner' ? 'Only the owner authorizes this discount: code not valid.' : 'Manager code not valid.'];
+      if (warn) disc.msg.push(warn);
+      discRender(); discFocus(); return;
+    case 'bad_employee':
+      disc.msg = ['Employee code not valid. Type it again.']; if (warn) disc.msg.push(warn);
+      discCode.wipe(); disc.step = 1; discRender(); discFocus(); return;
+    case 'till_wait': case 'till_stopped': case 'till_not_enrolled': case 'till_ended': case 'no_session':
+      var st = Object.assign({ok: true}, disc.st || {}, {session: code !== 'no_session'});
+      st.till = code === 'till_not_enrolled' || code === 'till_ended' ? {registered: false, ended: code === 'till_ended'}
+        : code === 'no_session' ? {registered: false, ended: false}
+        : Object.assign({}, st.till || {}, {registered: true, state: code === 'till_stopped' ? 'stopped' : 'wait', until: a.until, wait: a.wait, wait_s: a.wait_s});
+      discSetState(st); back(); discRender(); discArm(); return;
+    case 'guia_off': disc.st = Object.assign({}, disc.st || {}, {guia_enabled: false}); disc.step = 1; break;
+    case 'no_owner': disc.st = Object.assign({}, disc.st || {}, {owner_ready: false}); disc.step = 1; break;
+    case 'daily_used':
+      disc.msg = ['Daily discount already used'];
+      if (a.pending) disc.msg.push('Not used yet on ' + (a.station || '—') + ': it is let go at ' + discHHMM(a.until) + '.');
+      back(); break;
+    case 'not_self': disc.msg = ['A manager cannot authorize their own discount.']; back(); break;
+    case 'missing_company': disc.msg = ["Type the tour guide's company (2 to 80 characters)."]; discCode.wipe(); disc.step = 1; break;
+    case 'missing_employee': disc.msg = ['Type the employee code (4 to 8 numbers).']; discCode.wipe(); disc.step = 1; break;
+    case 'has_parts': case 'combo_first': case 'already_discounted': case 'changed':
+      /* a lost call on this bill evidently went through: the discount the bill reloads with stays (never taken back later) */
+      if (code === 'already_discounted' && mode === 'bill' && discBillLost && discBillLost.order_id === meta.order_id) discBillLost = null;
+      disc.msg = [DISC_BILL[code]]; back();
+      if (mode === 'bill'){ await reloadTab(); if (!document.getElementById('discModal').hidden) discRenderCtx(); }
+      break;
+    case 'no_request': back(); if (mode === 'bill') await reloadTab(); break;
+    case 'empty': disc.msg = ['The order is empty.']; back(); break;
+    case 'no_account': disc.msg = ['This login is not connected to the café yet.']; back(); break;
+    default:
+      disc.msg = [TAB_ERR[code] || 'Could not approve. Try again.']; back();
+      if (mode === 'bill' && ['not_found', 'cancelled', 'already_paid', 'refund_first'].indexOf(code) > -1) await reloadTab();
+  }
+  discRender(); discFocus();
+}
+/* «¿Qué dispositivo es este?»: one read-only line about this till's registration for discounts (no PIN box) */
+async function discStationLine(){
+  var el = document.getElementById('stDisc');
+  var r = await discState();
+  if (document.getElementById('stationModal').hidden || !r.data || !r.data.ok){ el.hidden = true; return; }
+  var st = r.data, t = st.till || {};
+  el.textContent = !st.session ? 'This till could not be identified. Sign out and sign in again.'
+    : t.registered ? 'Discounts: registered (' + (t.by || '') + ', ' + discWhen(t.since) + ').'
+    : t.ended ? 'Discounts: the registration was removed; a manager registers it again in the approvals log.'
+    : 'Discounts: not registered. A manager registers it in Time clock › Approvals log.';
+  el.hidden = false;
+}
+/* the employee's code goes with the page: hidden, closed, signed out */
+document.addEventListener('visibilitychange', function(){ if (document.hidden){ discCode.wipe(); discCodeGone(); } });
+addEventListener('pagehide', function(){ discCode.wipe(); discPinClear(); });
+/* the bill the discount window is open on now (bill mode), or null */
+function discOpenOn(){ return !document.getElementById('discModal').hidden && disc.mode === 'bill' ? disc.bill : null; }
+/* «online»: a bill call whose answer was lost is asked again. Found while the window is still open on that same bill (the
+   staff never left it): the discount stays, as when the window opens on it again; found anywhere else: taken off again */
+addEventListener('online', function(){
+  discReplay(discOpenOn).then(async function(found){
+    if (found){
+      if (discOpenOn() === found.order_id) discClose();
+      toast('The discount that could not be confirmed did go on the bill.');
+      if (tab && tab.o.id === found.order_id) await reloadTab();
+      pollLive();
+    }
+  }).then(function(){ return discRelease(true); }, function(){ return discRelease(true); });
 });
 
 /* ---------- this device: the main register (front counter, cash drawer) or a second device (iPad) ----------
@@ -1218,6 +1764,7 @@ function openStation(){
   document.getElementById('stName').value = STATION ? STATION.name : stDefault(main);
   document.getElementById('stErr').textContent = '';
   document.getElementById('stationModal').hidden = false;
+  discStationLine();
 }
 document.getElementById('stationBtn').addEventListener('click', openStation);
 
@@ -1426,6 +1973,14 @@ document.querySelectorAll('[data-pay]').forEach(function(b){
     go();
   });
 });
+/* a tour guide's courtesy: recorded at ₡0 as 'other', with no tender (the receipt says «Cortesía · Courtesy») */
+document.getElementById('courtesyBtn').addEventListener('click', function(){
+  if (!ticket.length || !tDisc || tDisc.category !== 'guia') return;
+  if (discExpired() || negTotal()) return;
+  pendingPay = {method: 'other', label: 'Courtesy'};
+  if (!settings){ recordSale(null); return; }
+  openNumbers();
+});
 function usedNumbers(){
   var used = {};
   /* a stand is in use until the order is delivered (delivered but not paid gives the stand back) */
@@ -1480,14 +2035,17 @@ function recordSale(number){
   if (pendingPay.tender) order.tender = pendingPay.tender;
   if (disc > 0){
     order.subtotal_crc = sub; order.discount_crc = disc; order.discount_id = tDisc.id;
-    order.discount_note = 'Discount ' + discText(tDisc) + ' · ' + tDisc.reason + ' · ' + tDisc.by;
+    order.discount_note = 'Discount ' + fmt(disc) + ' · ' + tDisc.reason + (tDisc.who ? ' · ' + tDisc.who : '') + ' · ' + tDisc.by;
+    order.disc_reason = tDisc.reason;   /* for this device's own bill printout only; never sent */
   }
   if (!unpaid){
-    lastOrder = {at: new Date(), items: ticket.slice(), total: total, sub: sub, disc: disc, discText: disc ? discText(tDisc) : '',
+    lastOrder = {at: new Date(), items: ticket.slice(), total: total, sub: sub, disc: disc, discText: '',
+                 discLabel: disc ? discReceiptLabel(tDisc.reason) : '', courtesy: !!(disc && discCourtesy(tDisc.reason, total, disc, sub)),
                  label: pendingPay.label, method: pendingPay.method, number: number, tender: pendingPay.tender || null};
     document.getElementById('printBtn').disabled = false;
   }
   queue.push(order); saveQueue();
+  if (order.discount_id) holdDrop({id: order.discount_id});   /* the same step: the queued sale carries it now, it is never let go */
   ticket = []; tDisc = null; document.getElementById('forWho').value = ''; document.getElementById('numWho').value = ''; renderTicket();
   toast((unpaid ? pendingPay.label + ' · ' + fmt(total) : 'Recorded ' + fmt(total) + ' · ' + pendingPay.label) + (number ? ' · number ' + number : ''));
   pendingPay = null;
@@ -1539,7 +2097,7 @@ function receiptHtml(lastOrder){
     var disc = excl ? net - (gross - lastOrder.disc - tax) : lastOrder.disc;
     html += '<div class="rrow"><span>Subtotal</span><span>' + rfmt(excl ? net : lastOrder.sub) + '</span></div>';
     if (lastOrder.disc > 0)
-      html += '<div class="rrow"><span>' + esc('Descuento · Discount' + (lastOrder.discText ? ' ' + lastOrder.discText : '')).replace(/\u202f|\u00a0/g, ' ') + '</span><span>−' + rfmt(disc) + '</span></div>';
+      html += '<div class="rrow"><span>' + esc(lastOrder.discLabel || ('Descuento · Discount' + (lastOrder.discText ? ' ' + lastOrder.discText : ''))).replace(/\u202f|\u00a0/g, ' ') + '</span><span>−' + rfmt(disc) + '</span></div>';
     extra.forEach(function(x){ html += '<div class="rrow"><span>' + esc(x.label) + '</span><span>−' + rfmt(x.amount) + '</span></div>'; });
   }
   var ivaRows = groups.map(function(g){
@@ -1548,8 +2106,9 @@ function receiptHtml(lastOrder){
     (excl ? '<div class="rrow"><span>Antes de IVA · Before IVA</span><span>' + rfmt(lastOrder.total - tax) + '</span></div>' + ivaRows : '') +
     '<div class="rtot"><span>TOTAL</span><span>' + rfmt(lastOrder.total) + '</span></div>' +
     (excl ? '' : ivaRows) +
-    '<div class="rrow"><span>Pago · Paid by</span><span>' + esc(PAY_RECEIPT[lastOrder.method] || lastOrder.label) + '</span></div>' +
-    tenderHtml(lastOrder.tender) +
+    /* a tour guide's courtesy (₡0) is not a payment */
+    (lastOrder.courtesy ? '<div class="rrow"><span>Cortesía · Courtesy</span><span></span></div>'
+      : '<div class="rrow"><span>Pago · Paid by</span><span>' + esc(PAY_RECEIPT[lastOrder.method] || lastOrder.label) + '</span></div>' + tenderHtml(lastOrder.tender)) +
     '<div class="rfoot">¡Pura vida! · Gracias</div>';
   return html;
 }
@@ -2406,7 +2965,7 @@ var managersList = null;
 async function loadManagers(){
   var r = await db.from('staff').select('id,name').eq('active', true).in('role', ['manager', 'owner']).order('name');
   managersList = r.error ? null : (r.data || []);
-  ['vMgr', 'discMgr', 'tabRmMgr'].forEach(function(id){
+  ['vMgr', 'tabRmMgr'].forEach(function(id){
     var sel = document.getElementById(id), keep = sel.value;
     sel.textContent = '';
     (managersList || []).forEach(function(m){
@@ -2493,8 +3052,10 @@ async function reprint(o){
     groups = Object.keys(by).map(function(k){ return {rate: Number(k), tax: by[k]}; }).sort(function(a, b){ return b.rate - a.rate; });
   }
   var disc = o.discount_crc || 0;
+  var rsub = o.subtotal_crc || o.total_crc + disc;
   printRec({at: o.created_at, items: (o.items || []).map(function(i){ return {name: i.name, price: i.price, qty: i.qty}; }),
-            total: o.total_crc, sub: o.subtotal_crc || o.total_crc + disc, disc: disc, discText: '', extra: [],
+            total: o.total_crc, sub: rsub, disc: disc, discText: '', extra: [],
+            discLabel: disc ? discReceiptLabel(o.discount_reason) : '', courtesy: discCourtesy(o.discount_reason, o.total_crc, disc, rsub),
             method: o.payment_method, label: PAY_NAMES[o.payment_method] || o.payment_method, number: o.pickup_number,
             note: o.guest_name || '', tender: o.tender, receiptNo: o.receipt_no, copy: true, taxGroups: groups});
   await db.rpc('order_reprint', {p_order_id: o.id, p_station: stationName() || null});
@@ -3187,12 +3748,18 @@ function renderTab(){
   document.getElementById('tabDisc').hidden = !open || hasDisc || tabOpenValue() <= 0;
   document.getElementById('tabDiscX').hidden = !hasDisc;
   document.getElementById('tabCancel').hidden = !(open && o.status !== 'done' && !o.done_at && !parts.length);
+  /* a tour guide's courtesy at ₡0: only «Registrar cortesía» closes it (tab_pay, 'other', the whole bill) */
+  var courtesy = open && DISC_CAT_OF[o.discount_reason] === 'guia' && o.total_crc <= 0;
+  if (courtesy) tabMode = 'all';
+  document.querySelectorAll('#tabPayRow [data-tpay]').forEach(function(b){ b.hidden = b.hasAttribute('data-courtesy') ? !courtesy : courtesy; });
+  document.getElementById('tabSplit').hidden = courtesy;
+  document.getElementById('splitBody').hidden = courtesy;
   document.querySelectorAll('#tabSplit [data-mode]').forEach(function(b){ b.classList.toggle('on', b.dataset.mode === tabMode); });
   if (open) renderSplit();
   /* the discount window over this bill shows it as it is now (changed on another device) */
-  if (!document.getElementById('discModal').hidden && discMode === 'bill' && discBill === o.id){
-    if (open){ document.getElementById('discLead').textContent = discLeadText(); discPreview(); }
-    else document.getElementById('discErr').textContent = 'That order is no longer open.';
+  if (!document.getElementById('discModal').hidden && disc.mode === 'bill' && disc.bill === o.id){
+    if (open) discRenderCtx();
+    else { disc.msg = ['That order is no longer open.']; discShowMsg(); }
   }
 }
 function renderSplit(){
@@ -3273,6 +3840,7 @@ async function tabPay(b, tender, cashMethod){
     var before = Math.max(0, (o.parts_crc || 0) - (o.parts_items_crc || 0));
     if (before > 0) rec.extra.push({label: 'Pagado antes · Paid before', amount: before});
     rec.disc = Math.max(0, openVal - amt - before);
+    rec.courtesy = discCourtesy(o.discount_reason, amt, rec.disc, rec.sub);
   } else if (picked.length){
     rec.items = picked; rec.sub = picked.reduce(function(s, x){ return s + x.price * x.qty; }, 0);
     if (rec.sub - amt > 0) rec.disc = rec.sub - amt;
@@ -3281,6 +3849,7 @@ async function tabPay(b, tender, cashMethod){
                                                   : 'Pago a la cuenta · Payment on the bill', price: amt, qty: 1}];
     rec.sub = amt;
   }
+  if (rec.disc > 0) rec.discLabel = discReceiptLabel(o.discount_reason);
   lastOrder = rec;
   document.getElementById('printBtn').disabled = false;
   document.getElementById('tabReceipt').disabled = false;
@@ -3305,69 +3874,44 @@ document.getElementById('tabRename').addEventListener('click', async function(){
   await reloadTab(); pollLive();
 });
 
-/* a discount on the bill: approved like at the sale (a reason and a manager's PIN), for what is still to pay */
-var TAB_DISC_OK = false;   /* tab_set_discount is in the database (checked once, before anyone types a PIN) */
+/* a discount on a bill (migration 0038): the same window, for the whole bill, before any payment; approved and put on
+   the bill by the server in one call (descuento_autorizar with p_order_id) */
 /* the discount given to items already paid by item: it stays with them */
 function tabDiscUsed(){ return Math.max(0, tabItemsValue() - tabOpenValue() - (tab.o.parts_items_crc || 0)); }
 /* the discount on what is still to pay; 0 when there is none */
 function tabDiscOpen(){ var o = tab.o; return o.subtotal_crc != null ? Math.max(0, (o.discount_crc || 0) - tabDiscUsed()) : 0; }
-/* what a new approval gives this bill: the same rule as the database (tab_set_discount, _tab_discount).
-   The approval is made for what is still to pay; the bill's whole discount never drops below what paid items got */
-function billDisc(c){
-  var o = tab.o, open = tabOpenValue(), paidV = tabItemsValue() - open, used = tabDiscUsed();
-  var S = o.subtotal_crc != null ? o.subtotal_crc : o.total_crc + (o.parts_crc || 0);   /* the bill's own books */
-  var cover = Math.max(0, S - paidV);                                                     /* what is not paid yet */
-  var cap = c.kind === 'percent' ? Math.round(open * c.value / 100) : c.value;
-  var rule = c.kind === 'percent' ? Math.round(cover * c.value / 100) : Math.min(c.value, cover);
-  var d = Math.max(0, used, Math.min(Math.min(rule, cap) + used, used + open));
-  return {d: d, t: S - d - (o.parts_crc || 0)};
+/* why this bill cannot take a discount, said before anyone types a code (the server checks the same) */
+function discBillProblem(t){
+  var o = t.o;
+  if ((o.parts_crc || 0) > 0 || t.items.some(function(it){ return it.paid_qty > 0; })) return 'has_parts';
+  if (t.items.some(function(it){ return it.price_crc < 0; })) return 'combo_first';
+  if ((o.discount_crc || 0) > 0 || /not verified/i.test(String(o.discount_reason || '') + ' ' + String(o.notes || ''))) return 'already_discounted';
+  return null;
 }
-async function openBillDiscount(){
+function openBillDiscount(){
   if (!tab || !tabOpenable(tab.o)) return;
-  document.getElementById('tabErr').textContent = '';
-  if (!navigator.onLine){ toast('A discount needs the internet to check the PIN.'); return; }
+  var err = document.getElementById('tabErr'); err.textContent = '';
+  if (!navigator.onLine){ toast('A discount needs the internet to check the codes.'); return; }
   if (tabOpenValue() <= 0){ toast('Nothing left to pay on this bill.'); return; }
-  if (!TAB_DISC_OK){
-    var id = tab.o.id;
-    var p = await db.rpc('tab_set_discount', {p_order_id: null, p_discount_id: null});   /* changes nothing: only says if it is there */
-    if (p.error){ toast(tabMissing(p.error) ? TAB_DISC_SETUP : 'Could not save. Check the connection and try again.'); return; }
-    TAB_DISC_OK = true;
-    if (!tab || tab.o.id !== id || document.getElementById('tabModal').hidden) return;
-  }
-  discBill = tab.o.id;
-  discReset('bill');
+  var why = discBillProblem(tab);
+  if (why){ err.textContent = DISC_BILL[why]; return; }
+  disc.bill = tab.o.id;
+  discOpen('bill');
 }
 document.getElementById('tabDisc').addEventListener('click', openBillDiscount);
-async function applyBillDisc(ap, err, target, token){
-  if (token !== discToken || discMode !== 'bill') return;
-  if (!tab || tab.o.id !== target){ err.textContent = TAB_ERR.not_found; return; }
-  var go = document.getElementById('discGo');
-  var set = function(){ return db.rpc('tab_set_discount', {p_order_id: target, p_discount_id: ap.id, p_expect: tab.o.total_crc, p_station: stationName() || null}); };
-  go.disabled = true;
-  var r;
-  try {
-    r = await set();
-    /* the bill changed on another device meanwhile (an item added, a part paid): the approval still sets the
-       limit, so it goes on the bill as it is now */
-    if (!r.error && r.data && !r.data.ok && r.data.error === 'changed' && (await loadTab(target)) && tab && tab.o.id === target) r = await set();
-  } finally { go.disabled = false; }
-  if (r.error){ err.textContent = tabMissing(r.error) ? TAB_DISC_SETUP : 'Could not save the discount. Check the connection and try again.'; return; }
-  if (!r.data || !r.data.ok){
-    var code = r.data && r.data.error;
-    err.textContent = TAB_ERR[code] || 'Could not save the discount. Try again.';
-    if (['already_paid', 'cancelled', 'not_found', 'changed'].indexOf(code) > -1) await reloadTab();
-    return;
-  }
-  document.getElementById('discModal').hidden = true;
-  toast('Discount on the bill · Still to pay ' + fmt(r.data.total) + ' · approved by ' + (ap.name || ''));
-  await reloadTab(); pollLive();
-}
+/* taking the discount off: an old one as before; one of the four with nothing paid at once (no PIN), after a payment
+   with a manager's PIN and a reason (the manager box); an employee's day stays used either way (Q3) */
 document.getElementById('tabDiscX').addEventListener('click', async function(){
   if (!tab || tabBusy) return;
   var err = document.getElementById('tabErr'); err.textContent = '';
+  if (DISC_CAT_OF[tab.o.discount_reason]){ await discOffBill(this); return; }
+  await tabDiscOffOld(this);
+});
+async function tabDiscOffOld(b){
+  var err = document.getElementById('tabErr');
   if (!confirm('Take the discount off this bill?')) return;
   if (!navigator.onLine){ err.textContent = 'This needs the internet. Try again in a moment.'; return; }
-  var b = this; b.disabled = true;
+  b.disabled = true;
   var r;
   try { r = await db.rpc('tab_set_discount', {p_order_id: tab.o.id, p_discount_id: null, p_expect: tab.o.total_crc, p_station: stationName() || null}); }
   finally { b.disabled = false; }
@@ -3380,7 +3924,69 @@ document.getElementById('tabDiscX').addEventListener('click', async function(){
   }
   toast(r.data.discount > 0 ? 'Discount taken off what is still to pay' : 'Discount removed');
   await reloadTab(); pollLive();
-});
+}
+function discBillPaid(t){ return (t.o.parts_crc || 0) > 0 || t.items.some(function(it){ return it.paid_qty > 0; }); }
+async function discOffBill(b){
+  var err = document.getElementById('tabErr');
+  if (!navigator.onLine){ err.textContent = 'This needs the internet. Try again in a moment.'; return; }
+  if (discBillPaid(tab)){ discOffBox(); return; }
+  if (!confirm('Take the discount off this bill?')) return;
+  if (!tab) return;
+  b.disabled = true;
+  var r;
+  try { r = await rpcBill('descuento_quitar_cuenta', {p_order_id: tab.o.id, p_expect: tab.o.total_crc, p_station: stationName() || null}); }
+  finally { b.disabled = false; }
+  await discOffDone(r, err, b);
+}
+/* the manager box of «take one off», in its discount mode */
+function discOffBox(){
+  tabRm = {disc: true};
+  document.getElementById('tabRmWhich').textContent = 'Take the discount off a partly paid bill';
+  document.getElementById('tabRmHint').hidden = true;
+  document.getElementById('tabRmWhy').value = ''; document.getElementById('tabRmPin').value = ''; document.getElementById('tabRmErr').textContent = '';
+  loadManagers();
+  document.getElementById('tabRmBox').hidden = false;
+  document.getElementById('tabRmWhy').focus();
+}
+async function discOffDone(r, errEl, b){
+  if (r.error){ errEl.textContent = 'Could not save. Check the connection and try again.'; return false; }
+  var d = r.data || {};
+  if (!d.ok){
+    /* refused without a PIN: the bill as the server has it; a part paid on another device meanwhile (the server says
+       needs_pin, or changed because this device's total was the one before that payment) opens the manager box (V5) */
+    if (d.error === 'needs_pin' || (b && d.error === 'changed')){
+      var id = tab && tab.o.id;
+      await reloadTab();
+      if (tab && tab.o.id === id && tabOpenable(tab.o) && DISC_CAT_OF[tab.o.discount_reason] && tabDiscOpen() > 0 &&
+          (d.error === 'needs_pin' || discBillPaid(tab))){ discOffBox(); return false; }
+      errEl.textContent = TAB_ERR.changed;
+      return false;
+    }
+    if (d.error === 'not_category'){ if (b) await tabDiscOffOld(b); return false; }
+    errEl.textContent = TAB_ERR[d.error] || 'Could not save. Try again.';
+    if (['changed', 'already_paid', 'cancelled', 'not_found'].indexOf(d.error) > -1){ await reloadTab(); errEl.textContent = TAB_ERR[d.error]; }
+    return false;
+  }
+  tabRm = null; document.getElementById('tabRmBox').hidden = true;
+  toast(d.counts ? (d.paid ? DISC_COUNTS_PAID : DISC_COUNTS) : 'Discount removed');
+  await reloadTab(); pollLive();
+  return true;
+}
+async function discOffGo(){
+  var why = document.getElementById('tabRmWhy').value.trim(), mgr = document.getElementById('tabRmMgr').value, pin = document.getElementById('tabRmPin').value.trim();
+  var err = document.getElementById('tabRmErr'); err.textContent = '';
+  if (!why){ err.textContent = 'Write the reason.'; document.getElementById('tabRmWhy').focus(); return; }
+  if (!mgr){ err.textContent = 'Pick who is approving.'; return; }
+  if (!pin){ err.textContent = 'Type the PIN.'; document.getElementById('tabRmPin').focus(); return; }
+  if (!tab || rmBusy) return;
+  if (!navigator.onLine){ err.textContent = 'This needs the internet. Try again in a moment.'; return; }
+  var go = document.getElementById('tabRmGo'); rmBusy = true; go.disabled = true;
+  var r;
+  try { r = await rpcBill('descuento_quitar_cuenta', {p_order_id: tab.o.id, p_expect: tab.o.total_crc, p_station: stationName() || null,
+                                                     p_manager_id: mgr, p_manager_pin: pin, p_reason: why}); }
+  finally { rmBusy = false; go.disabled = false; document.getElementById('tabRmPin').value = ''; }
+  await discOffDone(r, err, null);
+}
 
 /* take one off: the till alone before the bill was delivered (or within 10 minutes of adding it); after that a manager */
 var rmBusy = false;
@@ -3397,8 +4003,8 @@ async function doTakeOff(it, staff, pin, why){
   rmBusy = true; go.disabled = true;
   var r;
   try {
-    r = await db.rpc('tab_remove_item', {p_item_id: it.id, p_qty: 1, p_reason: why || null, p_station: stationName() || null,
-                                         p_staff_id: staff, p_pin: pin, p_expect: tab ? tab.o.total_crc : null});
+    r = await rpcBill('tab_remove_item', {p_item_id: it.id, p_qty: 1, p_reason: why || null, p_station: stationName() || null,
+                                          p_staff_id: staff, p_pin: pin, p_expect: tab ? tab.o.total_crc : null});
   } finally { rmBusy = false; go.disabled = false; }
   document.getElementById('tabRmPin').value = '';
   if (r.error){ errEl.textContent = tabMissing(r.error) ? TAB_SETUP : 'Could not save. Check the connection and try again.'; return; }
@@ -3407,6 +4013,7 @@ async function doTakeOff(it, staff, pin, why){
     if (code === 'needs_pin'){
       tabRm = it;
       document.getElementById('tabRmWhich').textContent = 'Take 1× ' + it.item_name + ' off the bill';
+      document.getElementById('tabRmHint').hidden = false;
       document.getElementById('tabRmWhy').value = ''; document.getElementById('tabRmErr').textContent = '';
       loadManagers();
       document.getElementById('tabRmBox').hidden = false;
@@ -3425,6 +4032,7 @@ async function doTakeOff(it, staff, pin, why){
 }
 document.getElementById('tabRmGo').addEventListener('click', function(){
   if (!tabRm) return;
+  if (tabRm.disc){ discOffGo(); return; }
   var why = document.getElementById('tabRmWhy').value.trim(), mgr = document.getElementById('tabRmMgr').value, pin = document.getElementById('tabRmPin').value.trim();
   var err = document.getElementById('tabRmErr');
   if (!why){ err.textContent = 'Write the reason.'; document.getElementById('tabRmWhy').focus(); return; }
@@ -3444,12 +4052,14 @@ function newId(){
 var adding = null;   /* {id, label, stash} */
 document.getElementById('tabAdd').addEventListener('click', function(){
   if (!tab) return;
+  /* a tour guide's courtesy stays a courtesy: anything more is a new order */
+  if (DISC_CAT_OF[tab.o.discount_reason] === 'guia'){ document.getElementById('tabErr').textContent = 'This bill is a courtesy: ring new items on a new order.'; return; }
   if (adding && adding.id === tab.o.id){ document.getElementById('tabModal').hidden = true; return; }   /* already adding to it */
   /* items tapped for another bill are not dropped: that bill is finished first */
   if (adding && ticket.length){ document.getElementById('tabModal').hidden = true; toast('Finish adding to ' + adding.label + ' first: tap Add to the bill or Cancel.'); return; }
   if (adding) stopAdding(false);   /* already adding to another bill: the order being rung up comes back first */
   var o = tab.o;
-  adding = {id: o.id, label: tabWho(o) || orderLabel(o), key: newId(),
+  adding = {id: o.id, label: tabWho(o) || orderLabel(o), key: newId(), note: !!DISC_CAT_OF[o.discount_reason],
             stash: {ticket: ticket, tDisc: tDisc, who: document.getElementById('forWho').value}};
   ticket = []; tDisc = null; document.getElementById('forWho').value = '';
   document.getElementById('tabModal').hidden = true;
@@ -3461,6 +4071,7 @@ function showAdding(){
   var on = !!adding;
   document.getElementById('addBar').hidden = !on;
   document.getElementById('addWho').textContent = on ? adding.label : '';
+  document.getElementById('addNote').hidden = !(on && adding.note);   /* the bill's discount does not cover what is added */
   document.getElementById('addGo').hidden = !on;
   document.getElementById('payRow').hidden = on;
   document.querySelector('.forwho').hidden = on;
@@ -3488,8 +4099,10 @@ document.getElementById('addGo').addEventListener('click', async function(){
   if (!r.data || !r.data.ok){
     var code = r.data && r.data.error;
     if (['already_paid', 'cancelled', 'not_found'].indexOf(code) > -1){
-      /* the bill closed meanwhile: what was tapped stays on the ticket, to charge as a new sale */
+      /* the bill closed meanwhile: what was tapped stays on the ticket, to charge as a new sale; never on an order that
+         carries a category discount (its lines are locked, as addLine keeps them: the sale must carry what was approved) */
       var tapped = ticket; stopAdding(false);
+      if (tDisc){ renderTicket(); toast((TAB_ERR[code] || 'That bill is closed.') + ' · ' + DISC_NOT_ADDED); return; }
       tapped.forEach(function(l){
         var e = ticket.find(function(x){ return x.id === l.id; });
         if (e) e.qty += l.qty; else ticket.push(l);
@@ -3638,6 +4251,7 @@ document.querySelectorAll('#locPayRow [data-lpay]').forEach(function(b){
     saveQueue();
     lastOrder = {at: new Date(), items: lines.map(function(l){ return {name: l.name, price: l.price, qty: l.qty}; }),
                  total: total, sub: sub, disc: Math.max(0, sub - total), discText: '', extra: [],
+                 discLabel: o.disc_reason && sub > total ? discReceiptLabel(o.disc_reason) : '',
                  label: label, method: method, number: o.pickup_number,
                  note: 'CUENTA · BILL ' + (tabWho(o) || hhmm(o.created_at)), locId: o.id};
     document.getElementById('printBtn').disabled = false;
@@ -3670,6 +4284,7 @@ function localAddGo(){
   var o = qFind(adding.id);
   if (o.charge){
     var tapped = ticket; stopAdding(false);
+    if (tDisc){ renderTicket(); toast('That bill was already paid. · ' + DISC_NOT_ADDED); return; }
     tapped.forEach(function(l){ var e = ticket.find(function(x){ return x.id === l.id; }); if (e) e.qty += l.qty; else ticket.push(l); });
     renderTicket();
     toast('That bill was already paid. · The items stay on the ticket to charge as a new sale.');
@@ -3696,7 +4311,7 @@ document.getElementById('locBill').addEventListener('click', function(){
   lines.forEach(function(it){ html += '<div class="rrow"><span>' + esc(it.qty + '× ' + it.name) + '</span><span>' + rfmt(it.price * it.qty) + '</span></div>'; });
   var sub = lines.reduce(function(s, l){ return s + l.price * l.qty; }, 0);
   html += '<div class="rrule"></div><div class="rrow"><span>Subtotal</span><span>' + rfmt(sub) + '</span></div>';
-  if (sub > total) html += '<div class="rrow"><span>Descuento · Discount</span><span>−' + rfmt(sub - total) + '</span></div>';
+  if (sub > total) html += '<div class="rrow"><span>' + esc(discReceiptLabel(o.disc_reason)) + '</span><span>−' + rfmt(sub - total) + '</span></div>';
   html += '<div class="rtot"><span>' + (o.charge ? 'PAGADO · PAID' : 'POR PAGAR · DUE') + '</span><span>' + rfmt(o.charge ? 0 : total) + '</span></div>' +
     '<div class="rfoot">No es comprobante de pago · Not a receipt</div>';
   document.getElementById('receipt').innerHTML = html;
@@ -3715,7 +4330,7 @@ document.getElementById('tabBill').addEventListener('click', async function(){
     '<div class="rsub">' + when + '</div><div class="rsub">CUENTA · BILL ' + esc(tabWho(o) || hhmm(o.created_at)) + '</div><div class="rrule"></div>';
   tab.items.forEach(function(it){ html += '<div class="rrow"><span>' + esc(it.qty + '× ' + it.item_name) + '</span><span>' + rfmt(it.price_crc * it.qty) + '</span></div>'; });
   html += '<div class="rrule"></div><div class="rrow"><span>Subtotal</span><span>' + rfmt(tabItemsValue()) + '</span></div>';
-  if (o.discount_crc > 0 && o.subtotal_crc != null) html += '<div class="rrow"><span>Descuento · Discount</span><span>−' + rfmt(o.discount_crc) + '</span></div>';
+  if (o.discount_crc > 0 && o.subtotal_crc != null) html += '<div class="rrow"><span>' + esc(discReceiptLabel(o.discount_reason)) + '</span><span>−' + rfmt(o.discount_crc) + '</span></div>';
   var earlier = tabEarlier();
   if (earlier > 0) html += '<div class="rrow"><span>Pagado antes · Paid earlier</span><span>−' + rfmt(earlier) + '</span></div>';
   tab.parts.forEach(function(p){

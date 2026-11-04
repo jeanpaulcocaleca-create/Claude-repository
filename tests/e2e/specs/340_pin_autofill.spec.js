@@ -4,7 +4,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { page, goto, until, sql, pos, openRegister, STAFF, PINS, SITE, ROOT } = require('../lib');
+const { page, goto, until, sql, pos, openRegister, registerTill, STAFF, PINS, SITE, ROOT } = require('../lib');
 
 const CAFE = 'c0000000-0000-4000-8000-000000000001';
 const opens = () => Number(sql(`select count(*) from audit_log where action = 'access_open'`));
@@ -63,7 +63,7 @@ module.exports.tests = [
           }
         }
       }
-      assert.strictEqual(pins, 19, 'every PIN box was checked (18 on the pages, the time clock team editor included, and the PIN screen)');
+      assert.strictEqual(pins, 20, 'every PIN box was checked (19 on the pages, the time clock team editor and its approvals log included, and the PIN screen)');
 
       const pg = await page(browser, { login: 'cafe', lang: 'es' });
       await homeGate(pg);
@@ -329,6 +329,42 @@ module.exports.tests = [
     }
   },
   {
+    name: 'the approvals log: resuming discounts on a stopped place sends nothing when the manager PIN was not typed',
+    run: async ({ browser }) => {
+      // place 1 stopped by 12 wrong codes in 24 hours (migration 0038), with no till on it
+      sql(`insert into audit_log (at, action, target_id, summary, details)
+           select now() - make_interval(mins => n), 'discount_code_wrong', null, 'wrong discount code (manager)',
+                  jsonb_build_object('slot', 1, 'step', 'manager', 'why', 'no_match', 'station', 'Caja', 'hour_n', 1, 'day_n', 13 - n)
+             from generate_series(1, 12) n`);
+      const pg = await page(browser, { login: 'cafe', lang: 'en' });
+      const sent = calls(pg, 'descuento_caja_reanudar');
+      await goto(pg, '/time');
+      await pg.click('#tabHours');
+      await pg.waitForSelector('#hoursPinModal:not([hidden])', { timeout: 10000 });
+      await pg.selectOption('#hpWho', STAFF.ana);
+      await pg.type('#hpPin', PINS.ana);
+      await pg.click('#hoursPinForm button[type=submit]');
+      await until(async () => pg.locator('#hoursPinModal').isHidden(), 8000, 'the manager opened the hours');
+      const resume = pg.locator('#dtList .dtrow[data-slot="1"] button', { hasText: 'Resume discounts' });
+      await until(async () => (await resume.count()) === 1, 10000, 'place 1 stopped, with its Resume button');
+      await resume.click();
+      await pg.waitForSelector('#lgApprove:not([hidden])', { timeout: 5000 });
+      await pg.selectOption('#lgMgr', STAFF.ana);
+      await putIn(pg, '#lgMgrPin', PINS.ana);
+      await pg.click('#lgGo');
+      await pg.waitForTimeout(600);
+      assert.strictEqual(sent.length, 0, 'a PIN nobody typed is never sent');
+      assert.strictEqual(await pg.inputValue('#lgMgrPin'), '', 'and it is wiped');
+      await pg.type('#lgMgrPin', PINS.ana);
+      await pg.click('#lgGo');
+      await until(() => sent.length === 1, 8000, 'sent with the PIN typed');
+      await until(async () => /Discounts resumed on place 1\./.test(await pg.locator('#dtMsg').textContent()), 8000, 'resumed');
+      assert.strictEqual(sql(`select count(*) from audit_log where action = 'discount_till_resumed' and details ->> 'slot' = '1' and manager_name = 'Ana'`), '1');
+      assert.ok(await pg.locator('#lgApprove').isHidden(), 'the approval box closed');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
     name: 'the time clock: its own keys still punch; a PIN put in by the browser does not',
     run: async ({ browser }) => {
       const pg = await page(browser, { login: 'cafe', lang: 'es' });
@@ -347,6 +383,32 @@ module.exports.tests = [
       for (const d of PINS.marta) await pg.click(`#pinPad button[data-k="${d}"]`);
       await pg.click('#pinGo');
       await until(() => punches() === '1', 8000, 'the punch with the keys on the screen');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'the POS discount window: its own keys type, its keys pressed by a script type nothing, a PIN put in by the browser is never sent',
+    run: async ({ browser }) => {
+      const pg = await pos(browser, { lang: 'es' });
+      if (await pg.isVisible('#dayModal')) await pg.click('#dayClose');
+      await registerTill(pg);
+      const sent = calls(pg, 'descuento_autorizar');
+      await pg.locator('.pbtn').first().click();
+      await pg.click('#discBtn');
+      await pg.waitForSelector('#discModal:not([hidden])');
+      await pg.click('[data-cat="local"]');
+      await until(async () => !(await pg.isDisabled('#discGo')), 8000, 'Autorizar descuento ready');
+      await pg.evaluate((p) => { for (const d of p) document.querySelector(`#discPad button[data-k="${d}"]`).click(); }, PINS.ana);
+      assert.strictEqual(await pg.inputValue('#discPin'), '', 'its keys pressed by a script type nothing');
+      await putIn(pg, '#discPin', PINS.ana);
+      await pg.click('#discGo');
+      await pg.waitForTimeout(600);
+      assert.strictEqual(sent.length, 0, 'a PIN nobody typed is never sent');
+      assert.strictEqual(await pg.inputValue('#discPin'), '', 'and it is wiped');
+      for (const d of PINS.ana) await pg.click(`#discPad button[data-k="${d}"]`);
+      await pg.click('#discGo');
+      await pg.waitForSelector('#discModal', { state: 'hidden', timeout: 8000 });
+      assert.strictEqual(sent.length, 1, 'typed with the window\'s own keys, it goes once');
       assert.deepStrictEqual(pg.errors, []);
     }
   },

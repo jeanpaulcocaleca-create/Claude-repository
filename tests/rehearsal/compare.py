@@ -46,8 +46,9 @@ CLEARED = ('order_part_lines', 'tab_adds', 'order_items', 'orders', 'discount_ap
            'purchase_lines', 'purchase_orders', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'chat_questions')
 PRESERVED = ('menu_categories', 'menu_items', 'recipes', 'vendors', 'staff', 'app_accounts', 'app_settings', 'board_settings', 'board_group_slides', 'rooms')
 # cleared tables that ops/backup/repositorio-respaldos/anonimizar.sql empties before a copy leaves the job (unlock tokens open
-# things: they never leave production), so on the owner's anonymized copy they are always empty before the reset
-ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks')
+# things: they never leave production), so on the owner's anonymized copy they are always empty before the reset; 0038's
+# tills registered for discounts (sign-in ids and device-key hashes) are emptied the same way
+ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'discount_tills')
 rows = lambda fp: int(fp.split(':')[0])   # a data fingerprint is 'rows:md5 of every original column'
 # every setting the migrations define and the value each one has until the owner or the accountant decides otherwise
 # (CLAUDE.md: prices as today, no automatic books, no e-invoices, no payroll rule, no receipt photos, operators not enforced,
@@ -56,7 +57,10 @@ rows = lambda fp: int(fp.split(':')[0])   # a data fingerprint is 'rows:md5 of e
 # with its safe value: the comparison refuses one it does not know, so no switch is ever accepted unseen
 SAFE = {'price_mode': 'inclusive', 'ledger_auto_post': False, 'einvoice_mode': 'off', 'payroll_renta_withhold': False,
         'payroll_accrue_aguinaldo': False, 'operator_mode': 'off', 'expense_receipt_photos': False, 'fx_rate_kind': 'buy',
-        'ledger_start_date': ''}
+        'ledger_start_date': '',
+        # 0038: the old free discount window stays on until the owner turns it off at the end of the activation (older
+        # pages and queued sales keep working); Guía Turista stays off until the accountant confirms its IVA (A-13)
+        'pos_free_discount': 'on', 'pos_discount_guia': 'off'}
 
 
 def migrated(sb, sa, cb, ca, rc):
@@ -192,9 +196,11 @@ elif mode == 'day-after':
     af = cd['after']
     for k in ('ledger_unbalanced', 'receipt_numbers_repeated', 'paid_orders_without_business_date', 'rows_without_location'):
         check(af.get(k) == '0', f'after a day of work, after.{k} = {af.get(k)}')
-    check(cd['kept']['orders'] == before_c['kept']['orders'] + 4, f"orders: {before_c['kept']['orders']} + 4 new -> {cd['kept']['orders']}")
+    # 4 sales (an offline one from before the window, an old page's, a new page's, a room order) and 3 with discounts (0038:
+    # the old window's, its queued sale after the switch is turned off, a late category sale)
+    check(cd['kept']['orders'] == before_c['kept']['orders'] + 7, f"orders: {before_c['kept']['orders']} + 7 new -> {cd['kept']['orders']}")
     if not errors:
-        print('    old pages, an offline sale from before the window, new pages, room order, stock, register close: all recorded; no new problems')
+        print('    old pages, an offline sale from before the window, new pages, discounts old and new (switch off and on), room order, stock, register close: all recorded; no new problems')
 else:
     # before the reset (today's schema, the test period's history) -> right after it (today's schema, empty café) -> after the migrations
     # run.sh step 10 shares one folder with the main copy and prefixes its files 'reset-'; the owner's rehearsal (ensayo.sh

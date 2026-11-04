@@ -331,8 +331,9 @@ module.exports.tests = [
       assert.match(zip.suggestedFilename(), /^contabilidad-\d{4}-\d\d\.zip$/);
       const p = await zip.path();
       const t = require('child_process').spawnSync('python3', ['-c', 'import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); print(z.testzip(), len(z.namelist()), z.read("diario.csv").decode("utf-8-sig").splitlines()[0])', p], { encoding: 'utf8' });
-      assert.strictEqual(t.stdout.trim(), 'None 9 entry_no,date,source,memo,account,account_name,debit,credit', 'a valid ZIP with the nine files: ' + t.stderr);
+      assert.strictEqual(t.stdout.trim(), 'None 10 entry_no,date,source,memo,account,account_name,debit,credit', 'a valid ZIP with the ten files: ' + t.stderr);
       assert.ok(fs.readFileSync(p).toString('latin1').includes('iva-compras.csv'));
+      assert.ok(fs.readFileSync(p).toString('latin1').includes('descuentos.csv'), 'the discounts of the month (migration 0038), for the accountant');
       assert.deepStrictEqual(pg.errors, []);
     }
   },

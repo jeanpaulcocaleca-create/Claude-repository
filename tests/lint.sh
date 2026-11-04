@@ -129,5 +129,20 @@ for f in sys.argv[1:]:
             print(f'  {f}:{n}: ' + ' '.join('U+%04X' % c for c in cps)); bad = 1
 sys.exit(bad)
 PY
+# 15) the staging rehearsal (ops/backup/repositorio-respaldos/ensayo.sh, run_public) sends each migration and tool as ONE
+#     psql -c argument, like one paste in the SQL Editor; Linux refuses a single argument of 128 KiB or more
+#     (MAX_ARG_STRLEN: «Argument list too long», 2026-11-04 with 0038), so every such file stays below it
+for f in supabase/migrations/*.sql supabase/tools/*.sql; do
+  n="$(wc -c < "$f")"
+  [ "$n" -lt 131072 ] || bad "$f is $n bytes: the staging rehearsal sends it as one argument, which must stay below 131072 (tests/lint.sh 15)"
+done
+# 16) release-check.sql's lists come in byte order on any server: CI's postgres:17 runs en_US.UTF-8, where glibc skips
+#     '_' at the first level ('descuento_cajas' before 'descuento_caja_volver'), the local cluster C.UTF-8; the tests
+#     compare the lists in order, so every list sorted by a text sorts with collate "C" (the version numbers excepted)
+for o in $(grep -oE 'jsonb_agg\([^;]*order by [a-z_.]+( collate "C")?' supabase/tools/release-check.sql \
+             | grep -oE 'order by [a-z_.]+( collate "C")?' | sed 's/ /~/g'); do
+  case "$o" in order~by~version|order~by~v|*collate~\"C\") ;;
+    *) bad "supabase/tools/release-check.sql sorts a list by the server's language: ${o//\~/ } needs collate \"C\" (tests/lint.sh 16)";; esac
+done
 [ "$fail" -eq 0 ] && echo "  ok    lint"
 exit "$fail"

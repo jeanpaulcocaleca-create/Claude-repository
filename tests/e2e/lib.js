@@ -98,10 +98,47 @@ async function pos(browser, opts) {
   return pg;
 }
 
+/* this page's sign-in registered as a till for discounts (migration 0038), the way a manager does it in Reloj de marcas ›
+   Bitácora: the owner areas opened with a manager's PIN on this same sign-in (access_unlock), descuento_caja_registrar,
+   and the device key kept as the POS keeps it (localStorage 'hg-disc-till', {login, key}). The owner areas are closed
+   again at once (access_lock ends every unlock of this sign-in), so the page holds no unlock. Call it after the page has
+   loaded (it reads the page's own session). Every spec that gives a discount registers its till first. */
+async function registerTill(pg, opts) {
+  opts = opts || {};
+  const by = opts.by || 'ana';
+  const read = () => pg.evaluate((k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }, STORAGE_KEY);
+  await until(async () => { const s = await read(); return !!(s && s.access_token); }, 10000, 'the page signed in');
+  const sess = await read();
+  const api = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000) + '/rest/v1/rpc/';
+  const call = async (name, args, unlock) => {
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sess.access_token };
+    if (unlock) headers['x-hg-unlock'] = unlock;
+    const r = await fetch(api + name, { method: 'POST', headers, body: JSON.stringify(args || {}) });
+    const t = await r.text();
+    if (!r.ok) throw new Error(name + ' ' + r.status + ' ' + t);
+    return t ? JSON.parse(t) : null;
+  };
+  const u = await call('access_unlock', { p_staff_id: STAFF[by], p_pin: PINS[by] });
+  if (!u || !u.ok) throw new Error('access_unlock for the till: ' + JSON.stringify(u));
+  let reg;
+  try { reg = await call('descuento_caja_registrar', { p_station: opts.station || 'Caja' }, u.token); }
+  finally { await call('access_lock', {}, u.token).catch(() => {}); }
+  if (!reg || !reg.ok) throw new Error('descuento_caja_registrar: ' + JSON.stringify(reg));
+  if (reg.key) await pg.evaluate((v) => localStorage.setItem('hg-disc-till', JSON.stringify(v)), { login: sess.user && sess.user.id, key: reg.key });
+  return reg;
+}
+
+/* the tour guide courtesy switched on, as the test superuser (it ships off: owner's adjustment 4, A-13): the compliance
+   confirmation its guard asks for, then the setting */
+function guiaOn() {
+  sql(`insert into public.compliance_confirmations (key, confirmed_by, reference) values ('courtesy_iva_confirmed', 'test', 'test') on conflict (key) do nothing;
+       insert into public.settings (key, value) values ('pos_discount_guia', '"on"') on conflict (key) do update set value = excluded.value`);
+}
+
 /* a cash payment opens the cash window (migration 0010): pay the exact amount */
 async function cashExact(pg) {
   await pg.waitForSelector('#cashModal:not([hidden])', { timeout: 5000 });
   await pg.click('#cashExact');
 }
 
-module.exports = { page, goto, until, settle, sql, sqlJson, openRegister, pos, cashExact, SITE, STAFF, PINS, LOGINS, ROOT };
+module.exports = { page, goto, until, settle, sql, sqlJson, openRegister, pos, cashExact, registerTill, guiaOn, SITE, STAFF, PINS, LOGINS, ROOT };

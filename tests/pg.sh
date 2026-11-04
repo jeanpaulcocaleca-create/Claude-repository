@@ -8,6 +8,10 @@ set -euo pipefail
 
 CANOPY_PG_DIR="${CANOPY_PG_DIR:-/tmp/canopy-test-pg}"
 CANOPY_PG_PORT="${CANOPY_PG_PORT:-55432}"
+# the cluster's language when it is first created. CI's postgres:17 image runs en_US.UTF-8, which sorts text another way
+# (glibc skips '_' at the first level): CANOPY_PG_DIR=/tmp/canopy-test-pg-en CANOPY_PG_PORT=55433
+# CANOPY_PG_LOCALE=en_US.UTF-8 tests/run-sql.sh runs the SQL tests the way CI does (docs/PRUEBAS.md)
+CANOPY_PG_LOCALE="${CANOPY_PG_LOCALE:-C.UTF-8}"
 
 _pgbin() {
   if [ -n "${PG_BIN:-}" ]; then echo "$PG_BIN"; return; fi
@@ -26,7 +30,7 @@ canopy_pg_start() {
   if [ ! -d "$CANOPY_PG_DIR/data" ]; then
     mkdir -p "$CANOPY_PG_DIR"
     [ "$(id -u)" = "0" ] && chown postgres "$CANOPY_PG_DIR"
-    _as_pg "$bin/initdb" -D "$CANOPY_PG_DIR/data" -U postgres -A trust --locale=C.UTF-8 -E UTF8 >/dev/null
+    _as_pg "$bin/initdb" -D "$CANOPY_PG_DIR/data" -U postgres -A trust --locale="$CANOPY_PG_LOCALE" -E UTF8 >/dev/null
     cat >> "$CANOPY_PG_DIR/data/postgresql.conf" <<EOF
 port = $CANOPY_PG_PORT
 listen_addresses = '127.0.0.1'

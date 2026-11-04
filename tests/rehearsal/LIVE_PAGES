@@ -1,12 +1,12 @@
 # The pages live on hanginggardencafe.com: the gh-pages commit GitHub Pages serves (read-only check, 2026-11-03).
-# It is the build of v2026.11.02-1 (development commit 3273743), published by the owner with «Publish website» on
-# 2026-11-02: the customer screens v1 (D-062, migration 0036) on top of v2026.10.26-1. It is also the way back if
-# Pantallas V2 (D-064, migration 0037) is withdrawn, so the rehearsal proves it on the copies migrated through 0037,
-# the screens included (docs/ACTIVACION-PANTALLAS-V2.md §6).
-# Before it: v2026.10.26-1 (334624c, gh-pages fc827d8, 2026-10-26, D-057/D-059; saved as tag sitio-2026-11-02),
+# It is the build of v2026.11.03-1 (development commit adb19ee), published by the owner with «Publish website» on
+# 2026-11-03 (run #57): Pantallas V2 (D-064, migration 0037) on top of v2026.11.02-1. It is also the way back if the
+# POS discounts (D-065, migration 0038) are withdrawn, so the rehearsal proves it on the copies migrated through 0038
+# (docs/ACTIVACION-DESCUENTOS.md §6).
+# Before it: v2026.11.02-1 (3273743, gh-pages 7d87c81, 2026-11-02, D-062; saved as tag sitio-2026-11-03), v2026.10.26-1 (334624c, gh-pages fc827d8, 2026-10-26, D-057/D-059; saved as tag sitio-2026-11-02),
 # v2026.10.25-2 (29bdde5, gh-pages cd62d0d, 2026-10-25, D-052/D-053/D-056; saved as tag sitio-2026-10-26),
 # v2026.10.20-1 (f9cfdef, gh-pages 2ade5f6, 2026-10-20, D-048/D-049), v2026.10.17-1 (671fc0e, gh-pages 1daae6f,
 # 2026-10-18, D-047), v2026.10.15-1 (3b67783, gh-pages 99f698b, 2026-10-16), v2026.10.14-1 (3c7e020, gh-pages ab97d44,
 # 2026-10-15) and the pre-launch build 8950054 (2026-10-09).
 # Update this line only when a new release is published (docs/PUBLICAR.md).
-7d87c8144d2cc7e89f904b0929c7c2ab1355e19d
+44a0dabef310ce5c3a052f62408519982b22ac47

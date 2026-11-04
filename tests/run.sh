@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Canopy OS · run every automated test: SQL tests, backup pipeline, migration rehearsal, browser (end-to-end) tests,
-# and the «no tocar» check of the customer screens.
+# and the «no tocar» check (only the files of the version under construction change).
 # Usage: tests/run.sh [lint|sql|backup|rehearsal|e2e|pantallas]   (no argument = everything)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"

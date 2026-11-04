@@ -42,6 +42,24 @@ input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:1.5px
 .log .when{color:var(--sec);font-family:'Spline Sans Mono',monospace;font-size:.8rem;white-space:nowrap}
 .log .what b{font-weight:700}
 .log .why{color:var(--sec)}
+.log .lgact{margin-top:.35rem}
+/* approvals log › tills for discounts (migration 0038): one row per place, free places too */
+.dtills{margin:0 0 1rem;padding:.75rem .9rem;border:1.5px solid var(--muted);border-radius:12px;background:#fff;font-size:.88rem}
+.dtills h3{font-size:1rem;margin:0 0 .3rem}
+.dtrow{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .8rem;padding:.5rem 0;border-bottom:1px dotted var(--muted)}
+.dtrow:last-child{border-bottom:none}
+.dtrow .dtl{flex:1 1 20rem;min-width:0}
+.dtrow .dts{display:block;color:var(--sec)}
+.dtrow .dts.bad{color:var(--bad);font-weight:600}
+.dtrow .btns{display:flex;flex-wrap:wrap;gap:.4rem}
+.dtills .dtfoot{margin:.5rem 0 0;color:var(--sec)}
+.dtills .dtnote{margin:.35rem 0 0}
+.dtills .dtnote.bad{color:var(--bad)}
+.dtills #dtRegister{margin-top:.6rem}
+#lgApprove label{display:block;font-size:.85rem;color:var(--sec);margin:.6rem 0 .25rem}
+#lgApprove .lgwhat{margin:.25rem 0 0;font-size:.9rem}
+#lgApprove .row{display:flex;gap:.6rem;margin-top:.9rem}
+#lgApprove .row button{flex:1}
 input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 [hidden]{display:none !important}
 .wrap{max-width:820px;margin:0 auto;padding:1.2rem 1rem 4rem}
@@ -231,7 +249,33 @@ input[data-pin]{-webkit-text-security:disc}
     <div class="card" id="logCard">
       <h2>Approvals log</h2>
       <p class="hint" style="margin:0 0 .6rem">Every shift change, team change, voided order and discount, with who approved it and why.</p>
+      <!-- the tills registered for discounts (migration 0038): hidden on a database without it -->
+      <div class="dtills" id="dtBlock" hidden>
+        <h3>Tills for discounts</h3>
+        <div id="dtList"></div>
+        <p class="dtfoot" id="dtFoot"></p>
+        <div id="dtNotes"></div>
+        <button type="button" class="ghost small" id="dtRegister" hidden>Register this device for discounts</button>
+        <p class="err" id="dtMsg" role="status"></p>
+      </div>
       <div class="log" id="logBody"></div>
+      <!-- one approval box for the log's own actions (resume a place, remove a registration, give a day back); it opens
+           under the row that asked for it. The owner's own login with the phone code acts at once, without it -->
+      <div class="approve" id="lgApprove" hidden>
+        <form id="lgForm" novalidate>
+          <h3>Manager approval</h3>
+          <p class="lgwhat" id="lgWhat"></p>
+          <label for="lgMgr">Approved by</label>
+          <select id="lgMgr"></select>
+          <label for="lgMgrPin">Manager PIN</label>
+          <input id="lgMgrPin" type="text" data-pin inputmode="numeric" autocomplete="off" maxlength="8" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
+          <p class="err" id="lgErr"></p>
+          <div class="row">
+            <button type="submit" id="lgGo">Confirm</button>
+            <button type="button" class="ghost" id="lgCancel">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
   </section>
 </div>
@@ -761,19 +805,154 @@ var ACTION_LABEL = {shift_edit:'Shift changed', shift_add:'Shift added', shift_d
                     tab_discount_removed:'Discount taken off a bill', login_kind_change:'Login type changed',
                     login_access_revoked:'Owner access removed', recipe_change:'Recipe changed',
                     stock_cost_edit:'Stock cost changed', stock_item_deleted:'Stock item deleted',
-                    pin_locked:'PIN locked', pin_in_use:'PIN already in use', pin_lock_cleared:'PIN lock removed'};
+                    pin_locked:'PIN locked', pin_in_use:'PIN already in use', pin_lock_cleared:'PIN lock removed',
+                    /* the discounts of migration 0038: the codes typed at the POS, the registered tills, the employee's day */
+                    discount_code_wrong:'Wrong discount code', discount_till_stopped:'Discounts stopped on a till',
+                    discount_alert:'Many wrong discount codes', discount_till_unknown:'Code typed on an unregistered device',
+                    discount_till_enrolled:'Till registered for discounts', discount_till_ended:'Till registration removed',
+                    discount_till_signed_out:'Till signed out', discount_till_rebound:'Till came back to its place',
+                    discount_till_resumed:'Discounts resumed on a till', pin_duplicate:'Code shared by two people',
+                    discount_released:'Discount let go', discount_freed:'Employee discount freed',
+                    discount_not_freed:'Employee discount still counts', discount_self_void:'Own discounted sale voided',
+                    discount_self_refused:'Own discount refused', discount_daily_refused:'Daily discount already used',
+                    discount_not_verified:'Discount not verified', discount_used_after_release:'Discount used after it was let go',
+                    discount_removed_paid:'Discount taken off a partly paid bill', discount_check_error:'Discount check failed · sale kept',
+                    discount_refused:'Discount refused after a valid code',
+                    discount_trigger_error:"Employee discount day check failed · change kept"};
+/* the four categories (English source; lang.js) and the steps of a code */
+var DISC_CAT = {empleado: 'Employee', local: 'Local', huesped: 'Hotel guest', guia: 'Tour guide'};
+var DISC_STEP = {manager: 'Manager code', owner: 'Owner code', employee: 'Employee code'};
+var DISC_FREED = {void: 'freed by a void', bill_removed: 'given back: taken off the bill', bill_cancelled: 'given back: the bill was cancelled'};
+var DISC_NOT_FREED = {needs_manager: 'a manager can give it back', paid: 'taken off after a payment', parts: 'paid parts remain'};
+var DISC_NOT_FREED_HOW = {void: 'Order voided', bill_cancelled: 'Bill cancelled', bill_removed: 'Taken off the bill'};
+var DISC_ENDED = {manager: 'removed by a manager', owner: 'removed with the phone code', replaced: 'replaced by another device',
+                  sql_editor: 'removed from the SQL Editor', signed_out: 'signed out'};
+var DISC_RESUMED = {owner_code: 'with the phone code', sql_editor: 'from the SQL Editor'};
+var DISC_REFUSED = {changed: 'the bill changed', has_parts: 'the bill was already paid in part', combo_first: 'the bill has a combo',
+                    already_discounted: 'it already had a discount', already_paid: 'the bill was already paid', cancelled: 'the bill was cancelled',
+                    not_found: 'the bill was not found', refund_first: 'give the refund back first', bad_request: 'the request was not valid',
+                    discount_used: 'the approval was already used', discount_expired: 'the approval expired'};
+/* the log's lines, every typed text as text: a phrase (translated by lang.js, one text node each) or {v: value} (a name,
+   a device, a company: shown as typed, never translated); joined with " · ", and starting with one when lead is set */
+function lgParts(host, parts, lead){
+  var first = !lead;
+  parts.forEach(function(p){
+    if (p === null || p === undefined || p === '' || (typeof p === 'object' && (p.v === null || p.v === undefined || p.v === ''))) return;
+    host.appendChild(document.createTextNode(first ? '' : ' · ')); first = false;
+    if (typeof p === 'object'){ var s = document.createElement('span'); s.setAttribute('data-no-translate', ''); s.textContent = String(p.v); host.appendChild(s); }
+    else host.appendChild(document.createTextNode(p));
+  });
+}
+/* who confirmed it (the owner's SQL Editor tools say so in their own phrase) */
+function lgBy(name){ return !name || name === 'owner (SQL Editor)' ? null : 'confirmed by ' + name; }
+/* Costa Rica (UTC−6, no daylight saving) whatever the device's time zone; the times come from the server */
+function crAt(iso, up){ var ms = Date.parse(iso); if (isNaN(ms)) return null; if (up) ms = Math.ceil(ms / 60000) * 60000; return new Date(ms - 6 * 3600000); }
+function crHHMM(iso, up){ var d = crAt(iso, up); return d ? p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) : ''; }
+var EN_DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], EN_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function crDate(iso){ var d = crAt(iso); return d ? d.getUTCDate() + ' ' + EN_MON[d.getUTCMonth()] + ' ' + crHHMM(iso) : ''; }      /* 3 Nov 10:02 */
+function crDayTime(iso){ var d = crAt(iso, true); return d ? EN_DAY[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + EN_MON[d.getUTCMonth()] + ' ' + crHHMM(iso, true) : ''; }   /* Thu 5 Nov 14:31 */
+function crDayKey(iso){ var d = crAt(iso); return d ? d.toISOString().slice(0, 10) : ''; }
+function crToday(){ return crDayKey(new Date().toISOString()); }
+/* the line of one discount row; true when it was one */
+function discLine(e, what, why){
+  var d = e.details || {}, a = e.action;
+  if (!/^discount_|^pin_duplicate$/.test(a)) return false;
+  var place = d.slot != null ? 'Place ' + d.slot : null, money = function(n){ return n == null ? null : fmtMoney(n); };
+  var line = [], sub = [];
+  if (a === 'discount_approved'){
+    if (!d.category) return false;                       /* the old free window: as before */
+    line = [DISC_CAT[d.category] || d.category, {v: d.beneficiary_name || d.company}, money(d.discount_crc), e.manager_name ? 'approved by ' + e.manager_name : null];
+    if (d.person_locked === true) sub = ['(their PIN was locked in the name lists)'];
+  } else if (a === 'discount_code_wrong'){
+    line = [e.manager_name ? {v: e.manager_name} : null];
+    sub = [DISC_STEP[d.step] || d.step, {v: d.station}, {v: d.till_station}];
+  } else if (a === 'discount_till_stopped'){
+    line = [place, {v: d.till_station}];
+    if (d.until) sub = ['Stopped until ' + crDayTime(d.until)];
+  } else if (a === 'discount_alert'){
+    line = [d.cafe_24h != null ? d.cafe_24h + ' wrong codes in 24 h in the café' : null];
+    sub = ['It pauses nothing; check who and where.'];
+  } else if (a === 'discount_till_unknown'){
+    line = [{v: d.station}];
+  } else if (a === 'discount_till_enrolled'){
+    line = [place, {v: d.till_station}, e.manager_name ? 'registered by ' + e.manager_name : null];
+    if (d.replaced_station) sub = ['in place of', {v: d.replaced_station}];
+  } else if (a === 'discount_till_ended'){
+    line = [place, {v: d.till_station}, DISC_ENDED[d.how] || d.how, d.how === 'sql_editor' ? null : lgBy(e.manager_name)];
+  } else if (a === 'discount_till_rebound' || a === 'discount_till_signed_out'){
+    line = [place, {v: d.till_station}];
+  } else if (a === 'discount_till_resumed'){
+    line = [place, {v: d.till_station}, d.how === 'sql_editor' ? null : lgBy(e.manager_name)];
+    sub = [DISC_RESUMED[d.how] || null];
+  } else if (a === 'pin_duplicate'){
+    /* the row names no one (managers read the log): who shares the code is the owner's, in «Cajas para descuentos» */
+    line = [DISC_STEP[d.step] || d.step];
+    sub = ['Give new PINs in Team.'];
+  } else if (a === 'discount_released'){
+    line = [DISC_CAT[d.category] || d.category, {v: d.beneficiary_name}, {v: d.station}];
+  } else if (a === 'discount_freed'){
+    line = [{v: d.beneficiary_name}, DISC_FREED[d.how] || d.how, d.how === 'void' ? (e.manager_name ? 'voided by ' + e.manager_name : null) : lgBy(e.manager_name)];
+  } else if (a === 'discount_not_freed'){
+    line = [{v: d.beneficiary_name}, DISC_NOT_FREED[d.why] || d.why];
+    sub = [DISC_NOT_FREED_HOW[d.how] || null];
+  } else if (a === 'discount_self_void'){
+    line = [{v: d.beneficiary_name}, e.manager_name ? 'voided by ' + e.manager_name : null];
+    sub = ['the day stays used'];
+  } else if (a === 'discount_self_refused'){
+    line = [DISC_CAT[d.category] || d.category, {v: e.manager_name}];
+    sub = [{v: d.station}];
+  } else if (a === 'discount_daily_refused'){
+    line = [{v: d.beneficiary_name}, e.manager_name ? 'approved by ' + e.manager_name : null];
+    sub = [{v: d.station}];
+  } else if (a === 'discount_not_verified'){
+    line = [DISC_CAT[d.category] || d.category, money(d.discount_crc), {v: e.manager_name}];
+    sub = [d.why === 'used_by_other' ? 'the approval was already used by another sale' : d.why === 'mismatch' ? 'not the approved amount' : null];
+  } else if (a === 'discount_used_after_release'){
+    line = [DISC_CAT[d.category] || d.category, {v: d.beneficiary_name}, {v: e.manager_name}];
+    sub = [d.day_taken === true ? 'it took the day again' : d.day_taken === false ? 'the day was already taken: check with a manager' : null];
+  } else if (a === 'discount_removed_paid'){
+    line = [money(d.discount_kept), e.manager_name ? 'approved by ' + e.manager_name : null];
+    sub = [{v: e.summary}];
+  } else if (a === 'discount_check_error' || a === 'discount_trigger_error'){
+    line = [{v: e.manager_name}];
+  } else if (a === 'discount_refused'){
+    line = [DISC_CAT[d.category] || d.category, DISC_REFUSED[d.why] || d.why, e.manager_name ? 'approved by ' + e.manager_name : null];
+    sub = [{v: d.station}];
+  } else return false;
+  lgParts(what, line, true);
+  lgParts(why, sub);
+  return true;
+}
 async function loadLog(){
   var root = document.getElementById('logBody');
-  /* wrong-PIN locks and PIN clashes (0033) come in their own 10, so a run of them never pushes a void or a refund out
-     of the 40 approvals shown */
-  var cols = 'at,action,manager_name,summary,details', pinEvents = ['pin_locked', 'pin_in_use'];
-  var r = await db.from('audit_log').select(cols).not('action', 'in', '(' + pinEvents.join(',') + ')')
+  /* rows anyone can cause come in their own short lists, merged by time, so a run of them never pushes a void, a refund
+     or a till's stop out of the 40 approvals shown: wrong-PIN locks and PIN clashes (0033, 10); wrong discount codes,
+     shared codes and tills coming back by key (0038, 10); codes typed on devices not registered (0038, 5). And today's
+     employee days still used and given back come in a list of their own too: a «Give the day back» never falls out of
+     the 40 while the server still accepts it (until midnight) */
+  var cols = 'id,at,action,manager_name,summary,details', pinEvents = ['pin_locked', 'pin_in_use'];
+  var discEvents = ['discount_code_wrong', 'pin_duplicate', 'discount_till_signed_out', 'discount_till_rebound'], unknownEvents = ['discount_till_unknown'];
+  var apart = pinEvents.concat(discEvents, unknownEvents);
+  var r = await db.from('audit_log').select(cols).not('action', 'in', '(' + apart.join(',') + ')')
     .order('at', {ascending:false}).limit(40);
-  if (r.error){ root.innerHTML = '<p class="hint">The approvals log switches on once the manager approval setup is run.</p>'; return; }
-  var p = await db.from('audit_log').select(cols).in('action', pinEvents).order('at', {ascending:false}).limit(10);
-  var rows = (r.data || []).concat((!p.error && p.data) || []).sort(function(a, b){ return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  if (r.error){ lgPark(); root.innerHTML = '<p class="hint">The approvals log switches on once the manager approval setup is run.</p>'; return; }
+  var more = await Promise.all([[pinEvents, 10], [discEvents, 10], [unknownEvents, 5]].map(function(b){
+    return db.from('audit_log').select(cols).in('action', b[0]).order('at', {ascending:false}).limit(b[1]);
+  }).concat([db.from('audit_log').select(cols).in('action', ['discount_not_freed', 'discount_freed'])
+    .gte('at', new Date(crToday() + 'T06:00:00Z').toISOString()).order('at', {ascending:false}).limit(200)]));
+  var rows = (r.data || []), seen = {};
+  rows.forEach(function(e){ seen[e.id] = 1; });
+  more.forEach(function(p){ ((!p.error && p.data) || []).forEach(function(e){ if (!seen[e.id]){ seen[e.id] = 1; rows.push(e); } }); });
+  rows.sort(function(a, b){ return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  lgPark();
   root.textContent = '';
+  loadTills();
   if (!rows.length){ root.innerHTML = '<p class="hint">Nothing approved yet.</p>'; return; }
+  /* an employee's day still used after their bill was cancelled or its discount taken off with nothing paid: a manager
+     gives it back here, the same day, unless that has been done already */
+  var freed = {};
+  rows.forEach(function(e){ if (e.action === 'discount_freed' && e.details && e.details.approval) freed[e.details.approval] = 1; });
+  var today = crToday();
   rows.forEach(function(e){
     var row = document.createElement('div'); row.className = 'lrow';
     var when = document.createElement('span'); when.className = 'when';
@@ -781,6 +960,20 @@ async function loadLog(){
     var what = document.createElement('span'); what.className = 'what';
     var b = document.createElement('b'); b.textContent = ACTION_LABEL[e.action] || e.action;
     what.appendChild(b);
+    var why = document.createElement('div'); why.className = 'why';
+    if (discLine(e, what, why)){
+      what.appendChild(why);
+      var dv = e.details || {};
+      if (e.action === 'discount_not_freed' && dv.why === 'needs_manager' && dv.approval && !freed[dv.approval] && crDayKey(e.at) === today){
+        var act = document.createElement('div'); act.className = 'lgact';
+        var give = document.createElement('button'); give.type = 'button'; give.className = 'ghost small'; give.textContent = 'Give the day back';
+        give.addEventListener('click', function(){ giveDayBack(dv, row); });
+        act.appendChild(give); what.appendChild(act);
+      }
+      row.appendChild(when); row.appendChild(what);
+      root.appendChild(row);
+      return;
+    }
     var who = (e.details && e.details.staff_name) ? ' · ' + e.details.staff_name : '';
     if (e.action === 'order_void' && e.details){
       who = ' · ' + fmtMoney(e.details.total_crc) + (e.details.items ? ' · ' + e.details.items : '');
@@ -792,18 +985,269 @@ async function loadLog(){
       what.appendChild(document.createTextNode(' · ' + fmtMoney((e.details && (e.action === 'tab_discount_removed' ? e.details.discount_crc : e.details.total_crc)) || 0) + ' · ' + (e.manager_name || '')));
     } else if (e.action === 'tab_item_removed'){
       /* taken off a bill not paid yet: by the device before it was delivered, by a manager after */
-      var dv = e.details || {};
-      what.appendChild(document.createTextNode(' · ' + fmtMoney(dv.bill_cut_crc != null ? dv.bill_cut_crc : dv.value_crc) +
-        (dv.approved ? ' · approved by ' + (e.manager_name || '?') : ' · ' + (e.manager_name || ''))));
+      var dv2 = e.details || {};
+      what.appendChild(document.createTextNode(' · ' + fmtMoney(dv2.bill_cut_crc != null ? dv2.bill_cut_crc : dv2.value_crc) +
+        (dv2.approved ? ' · approved by ' + (e.manager_name || '?') : ' · ' + (e.manager_name || ''))));
     } else if (e.action === 'pin_locked'){
       what.appendChild(document.createTextNode(who));   /* nobody approves a lock: whose PIN it is */
     } else if (e.action === 'pin_in_use'){
       what.appendChild(document.createTextNode(' · tried by ' + (e.manager_name || '?')));
     } else what.appendChild(document.createTextNode(who + ' · approved by ' + (e.manager_name || '?')));
-    var why = document.createElement('div'); why.className = 'why'; why.textContent = e.summary || '';
+    why.textContent = e.summary || '';
     what.appendChild(why);
     row.appendChild(when); row.appendChild(what);
     root.appendChild(row);
+  });
+}
+
+/* ---------- the approval box of the log's own actions (#lgApprove) ---------- */
+/* resume a place, remove a till's registration, give an employee's day back: a manager picks their name and types their
+   own PIN (approval('lgMgr', 'lgMgrPin')); on the owner's own login with the phone code the database asks for no PIN and
+   the action goes at once. The box opens under the row that asked; reloading the log closes it */
+var lgPending = null;
+function lgPark(){
+  var box = document.getElementById('lgApprove');
+  box.hidden = true; lgPending = null;
+  document.getElementById('lgMgrPin').value = '';
+  document.getElementById('lgErr').textContent = '';
+  document.getElementById('logCard').appendChild(box);
+}
+function lgAsk(anchor, what, run){
+  if (newAccess() && ACCESS.via === 'phone'){ run({p_manager_id: null, p_manager_pin: null}); return; }
+  var box = document.getElementById('lgApprove');
+  lgPark();
+  anchor.parentNode.insertBefore(box, anchor.nextSibling);
+  document.getElementById('lgWhat').textContent = what;
+  fillManagers(document.getElementById('lgMgr'));
+  lgPending = run;
+  box.hidden = false;
+  document.getElementById('lgMgr').focus();
+}
+document.getElementById('lgCancel').addEventListener('click', lgPark);
+document.getElementById('lgForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  if (!lgPending) return;
+  var a = approval('lgMgr', 'lgMgrPin');
+  if (!a.p_manager_pin){ document.getElementById('lgErr').textContent = 'Type the PIN.'; document.getElementById('lgMgrPin').focus(); return; }
+  var run = lgPending, go = document.getElementById('lgGo');
+  go.disabled = true;
+  try { await run(a); } finally { go.disabled = false; document.getElementById('lgMgrPin').value = ''; }
+});
+/* an answer of the log's actions: an error stays in the open box (or under the tills, with the phone code); a success
+   closes the box and reloads */
+var LG_ERR = {owner_only: 'Open the owner areas first: a manager confirms with their PIN, or the owner with the phone code.',
+              not_self: 'The employee cannot give their own day back.', not_freeable: 'This discount cannot give the day back.',
+              day_over: 'That day is over.', not_stopped: 'That place is not stopped.',
+              end_limit: 'You already removed or replaced 3 registrations in 24 hours. Let another manager do it, or tell the owner.',
+              not_found: 'That till is no longer registered.'};
+function lgAnswer(r, where){
+  var d = (r && r.data) || {};
+  if (r && !r.error && d.ok) return true;
+  var text = r && r.error ? (isMissingTables(r.error) ? 'Discounts need a database update. Tell the owner.' : 'Could not save. Check the connection and try again.')
+    : d.error === 'resume_limit' ? 'That place was already resumed in the last 24 hours, or the café already used its 2. It comes back by itself at ' + crHHMM(d.until, true) + '.'
+    : (LG_ERR[d.error] || ERR[d.error] || 'Could not save. Try again.');
+  if (!document.getElementById('lgApprove').hidden) document.getElementById('lgErr').textContent = text;
+  else if (where === 'tills'){ var m = document.getElementById('dtMsg'); m.className = 'err'; m.textContent = text; }
+  else toast(text, true);
+  if (d.error === 'owner_only') HG_ACCESS.load(db).then(function(st){ ACCESS = st; document.getElementById('logCard').hidden = !canManage(); });
+  return false;
+}
+function giveDayBack(dv, row){
+  lgAsk(row, 'Give the day back to ' + (dv.beneficiary_name || '?'), async function(a){
+    var r; try { r = await db.rpc('descuento_cupo_devolver', Object.assign({p_approval_id: dv.approval, p_station: posStation()}, a)); } catch (x){ r = {error: x}; }
+    if (!lgAnswer(r, 'log')) return;
+    lgPark(); toast('Day given back to ' + (r.data.beneficiary || dv.beneficiary_name || ''), true); loadLog();
+  });
+}
+
+/* ---------- approvals log › tills for discounts (migration 0038, descuento_cajas) ---------- */
+/* three places; a till is one sign-in on one device, registered here by a manager with the owner areas open on THAT
+   device. The device key comes back once: kept exactly as the POS reads it (localStorage 'hg-disc-till', {login, key}),
+   so after a new sign-in the till goes back to its own place without anyone. The station sent is the POS's own name
+   for this device ('hg-pos-station') */
+var DT_KEY = 'hg-disc-till';
+var dtReplace = null;     /* after till_full / person_limit: the tills «Replace with this device» shows on */
+var dtRun = 0;
+function posStation(){ try { var v = JSON.parse(localStorage.getItem('hg-pos-station') || 'null'); return v && v.name ? String(v.name).slice(0, 24) : null; } catch (e){ return null; } }
+function dtKeyRead(){ try { var v = JSON.parse(localStorage.getItem(DT_KEY) || 'null'); return v && v.key ? v : null; } catch (e){ return null; } }
+function dtKeySave(login, key){ try { localStorage.setItem(DT_KEY, JSON.stringify({login: login || null, key: key})); } catch (e){} }
+function dtKeyForget(){ try { localStorage.removeItem(DT_KEY); } catch (e){} }
+/* a call whose answer may be lost (api-0038 §13 item 36), marked before it goes as the POS marks it ('hg-disc-till-pending',
+   {login, what, at}: never a PIN or a key) and cleared by its answer. No answer (the network): asked once more after a
+   second; still none: the mark stays and the next load of the log asks again (registrar: the owner areas are still open
+   on this sign-in, so the server gives this device its key again; volver: the key it holds, even if it reads registered) */
+var DT_PEND = 'hg-disc-till-pending';
+function dtPend(){ try { var v = JSON.parse(localStorage.getItem(DT_PEND) || 'null'); return v && v.what ? v : null; } catch (e){ return null; } }
+function dtPendSet(login, what){ try { localStorage.setItem(DT_PEND, JSON.stringify({login: login || null, what: what, at: Date.now()})); } catch (e){} }
+function dtPendClear(){ try { localStorage.removeItem(DT_PEND); } catch (e){} }
+function dtLost(r){ return !!(r && r.error) && !isMissingTables(r.error) && (!r.status || r.status >= 500); }
+async function dtCall(fn, args){
+  var r;
+  for (var i = 0; i < 2; i++){
+    if (i) await new Promise(function(ok){ setTimeout(ok, 1000); });
+    try { r = await db.rpc(fn, args); } catch (x){ r = {error: x, status: 0}; }
+    if (!dtLost(r)) break;
+  }
+  r.retried = i > 0;
+  return r;
+}
+async function loginId(){ try { var s = await db.auth.getSession(); return (s.data && s.data.session && s.data.session.user && s.data.session.user.id) || null; } catch (e){ return null; } }
+async function dtEstado(){
+  var e; try { e = await db.rpc('descuento_estado', {p_station: posStation()}); } catch (x){ e = {error: x}; }
+  return (!e.error && e.data && e.data.ok) ? e.data : null;
+}
+/* the one recovery on its way: a second load of the log waits for it, so two answers never race for the stored key. The
+   key is forgotten only when the database says it is not valid. true: the till changed, the log is read again */
+var dtBack = null;
+function dtRecover(uid, est){
+  if (!dtBack) dtBack = (async function(){
+    var k = dtKeyRead(), p = dtPend();
+    if (p && p.login !== uid){ dtPendClear(); p = null; }    /* another login's: its sign-in is gone */
+    if (k && k.login === uid && (!est.till.registered || (p && p.what === 'volver'))){
+      dtPendSet(uid, 'volver');
+      var v = await dtCall('descuento_caja_volver', {p_key: k.key, p_station: posStation()});
+      if (dtLost(v)) return false;
+      dtPendClear();
+      var d = (!v.error && v.data) || {};
+      if (d.ok && d.key) dtKeySave(uid, d.key);
+      if (!d.ok && d.error === 'key_invalid') dtKeyForget();
+      return !!d.ok;
+    }
+    if (p && p.what === 'registrar'){
+      /* registered on this sign-in: the owner areas are open on it, the server gives this device its key again; not
+         registered: it never got there, «Registrar» shows again */
+      if (!est.till.registered){ dtPendClear(); return false; }
+      var g = await dtCall('descuento_caja_registrar', {p_station: posStation(), p_replace: null});
+      if (dtLost(g)) return false;
+      dtPendClear();
+      if (!g.error && g.data && g.data.ok && g.data.key){ dtKeySave(uid, g.data.key); return true; }
+      return false;
+    }
+    if (p && p.what === 'volver') dtPendClear();               /* no key left to send */
+    return false;
+  })().finally(function(){ dtBack = null; });
+  return dtBack;
+}
+async function loadTills(again){
+  var block = document.getElementById('dtBlock'), run = ++dtRun;
+  var r; try { r = await db.rpc('descuento_cajas'); } catch (x){ r = {error: x}; }
+  if (run !== dtRun) return;
+  if (r.error || !r.data || !r.data.ok){ block.hidden = true; return; }     /* a database before 0038, or the owner areas closed */
+  var est = await dtEstado();
+  /* not registered on this sign-in (or a rebind marked pending), and this device keeps a key for this login: back to its
+     own place first, as the POS does (no PIN, no count); a «Registrar» marked pending: the same call again */
+  if (!again && est && est.session && est.till){
+    var uid = await loginId();
+    if (uid && await dtRecover(uid, est)){ if (run === dtRun) loadTills(true); return; }
+  }
+  if (run !== dtRun) return;
+  renderTills(r.data, est);
+}
+function dtButton(label, cls, fn){ var b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = label; b.addEventListener('click', fn); return b; }
+function dtNote(host, parts, bad){ var p = document.createElement('p'); p.className = 'dtnote' + (bad ? ' bad' : ''); lgParts(p, parts); host.appendChild(p); }
+function renderTills(c, est){
+  var block = document.getElementById('dtBlock'), list = document.getElementById('dtList');
+  if (block.contains(document.getElementById('lgApprove'))) lgPark();     /* the box was open under one of these rows */
+  list.textContent = '';
+  var places = c.places || [], here = places.some(function(p){ return p.till && p.till.this_device; }), today = crToday();
+  places.forEach(function(p){
+    var row = document.createElement('div'); row.className = 'dtrow'; row.setAttribute('data-slot', p.slot);
+    var l = document.createElement('div'); l.className = 'dtl';
+    var head = document.createElement('b');
+    var t = p.till;
+    if (t){
+      head.textContent = 'Place ' + p.slot + ':'; l.appendChild(head); l.appendChild(document.createTextNode(' '));
+      var nm = document.createElement('span'); nm.setAttribute('data-no-translate', ''); nm.textContent = t.station || '—'; l.appendChild(nm);
+      lgParts(l, ['registered by'], true);
+      l.appendChild(document.createTextNode(' '));
+      var by = document.createElement('span'); by.setAttribute('data-no-translate', ''); by.textContent = t.by || ''; l.appendChild(by);
+      l.appendChild(document.createTextNode(', '));
+      l.appendChild(document.createTextNode(crDate(t.since)));
+      if (t.last_used) lgParts(l, ['last used ' + (crDayKey(t.last_used) === today ? crHHMM(t.last_used) : crDate(t.last_used))], true);
+    } else { head.textContent = 'Place ' + p.slot + ': free'; l.appendChild(head); }
+    var s = document.createElement('span'); s.className = 'dts' + (p.state === 'ok' ? '' : ' bad');
+    lgParts(s, [p.wrong_24h === 1 ? '1 wrong code in 24 h' : (p.wrong_24h || 0) + ' wrong codes in 24 h',
+                p.state === 'stopped' ? 'Stopped until ' + crDayTime(p.until) : p.state === 'wait' ? 'Waiting until ' + crHHMM(p.until, true) : 'Discounts active',
+                t && t.this_device ? 'this device' : null]);
+    l.appendChild(s);
+    row.appendChild(l);
+    var btns = document.createElement('div'); btns.className = 'btns';
+    if (p.state === 'stopped') btns.appendChild(dtButton('Resume discounts', 'small', function(){ dtResume(p, row); }));
+    if (t) btns.appendChild(dtButton('Remove registration', 'danger small', function(){ dtRemove(t, row); }));
+    if (t && !here && dtReplace && dtReplace.indexOf(t.id) > -1) btns.appendChild(dtButton('Replace with this device', 'ghost small', function(){ dtReplaceWith(t); }));
+    if (btns.childNodes.length) row.appendChild(btns);
+    list.appendChild(row);
+  });
+  /* the caps, so a manager sees what is left before trying */
+  var lim = c.limits || {}, foot = document.getElementById('dtFoot'); foot.textContent = '';
+  var parts = ['Resumes in 24 h: ' + (c.resumes_cafe_24h || 0) + ' of ' + (lim.resume_cafe || 2)];
+  if (c.me) parts.push('You: ' + c.me.places + ' of ' + (lim.places_person || 2) + ' tills registered, ' + c.me.ends_24h + ' of ' + (lim.ends_person || 3) +
+                       ' registrations removed or replaced, ' + c.me.enrolls_24h + ' of ' + (lim.enrolls_person || 6) + ' devices registered in 24 h');
+  lgParts(foot, parts);
+  var notes = document.getElementById('dtNotes'); notes.textContent = '';
+  /* the alert's own figure and time (as Sales shows it), not the count now: the codes behind it age out of the 24 hours
+     while the alert itself stays up */
+  if (c.alert) dtNote(notes, ['Alert at ' + crHHMM(c.alert.at) + ': ' + c.alert.cafe_24h + ' wrong discount codes in 24 hours in the café. It pauses nothing; check who and where.'], true);
+  if (c.unknown_24h > 0) dtNote(notes, [c.unknown_24h === 1 ? '1 code typed on an unregistered device in 24 h.' : c.unknown_24h + ' codes typed on unregistered devices in 24 h.']);
+  if (c.shared_code) dtNote(notes, ['Code shared by two people: give new PINs in Team.', Array.isArray(c.shared_code) && c.shared_code.length ? {v: c.shared_code.join(', ')} : null], true);
+  /* this sign-in is not a till yet: register it here (no PIN: the owner areas are open on this device) */
+  var reg = document.getElementById('dtRegister');
+  reg.hidden = !(est && est.till && !est.till.registered && !here);
+  block.hidden = false;
+}
+async function dtRegister(replaceId){
+  var msg = document.getElementById('dtMsg'); msg.className = 'err'; msg.textContent = '';
+  var uid = await loginId();
+  /* a lost answer: asked again with the owner areas still open on this sign-in; the server answers already with a new key */
+  dtPendSet(uid, 'registrar');
+  var r = await dtCall('descuento_caja_registrar', {p_station: posStation(), p_replace: replaceId || null});
+  if (!dtLost(r)) dtPendClear();
+  var d = (r && r.data) || {};
+  if (r.error || !d.ok){
+    dtReplace = !r.error && d.error === 'till_full' ? (d.places || []).map(function(x){ return x.till; })
+              : !r.error && d.error === 'person_limit' ? (d.mine || []).map(function(x){ return x.till; }) : null;
+    msg.textContent = r.error ? (isMissingTables(r.error) ? 'Discounts need a database update. Tell the owner.' : 'Could not save. Check the connection and try again.')
+      : (DT_ERR[d.error] || LG_ERR[d.error] || ERR[d.error] || 'Could not save. Try again.');
+    if (d.error === 'owner_only') HG_ACCESS.load(db).then(function(st){ ACCESS = st; document.getElementById('logCard').hidden = !canManage(); });
+    loadLog();
+    return;
+  }
+  dtReplace = null;
+  if (d.key) dtKeySave(uid, d.key);
+  msg.className = d.state === 'wait' || d.state === 'stopped' ? 'err' : 'err ok';
+  msg.textContent = d.already && !r.retried ? 'This device is already registered.' : d.already ? 'Device registered for discounts.'
+    : d.state === 'stopped' ? 'Device registered, but discounts on this place are stopped until ' + crDayTime(d.until) + ': resume them here.'
+    : d.state === 'wait' ? 'Device registered; this place waits until ' + crHHMM(d.until, true) + ' because of wrong codes.'
+    : d.replaced ? 'Device registered in place of «' + d.replaced + '».' : 'Device registered for discounts.';
+  loadLog();
+}
+var DT_ERR = {already: 'This device is already registered.',
+              till_full: 'The 3 places are taken. Choose below which till this device replaces (it counts in your 3 of the day).',
+              person_limit: 'You already have 2 tills registered. Replace one of yours, or let another manager register this device.',
+              enroll_limit: 'You already registered 6 devices in 24 hours. Let another manager register it.',
+              place_free: 'A place is free: use «Register this device for discounts».',
+              no_session: 'This device could not be identified. Sign out and sign in again.'};
+document.getElementById('dtRegister').addEventListener('click', function(){ dtRegister(null); });
+function dtReplaceWith(t){
+  var q = t.last_used ? 'Replace «' + (t.station || '—') + '» (last used ' + crDate(t.last_used) + ') with this device?'
+                      : 'Replace «' + (t.station || '—') + '» (never used) with this device?';
+  if (!confirm(q)) return;
+  dtRegister(t.id);
+}
+function dtResume(p, row){
+  var msg = document.getElementById('dtMsg'); msg.className = 'err'; msg.textContent = '';
+  lgAsk(row, 'Resume discounts on place ' + p.slot, async function(a){
+    var r; try { r = await db.rpc('descuento_caja_reanudar', Object.assign({p_slot: p.slot, p_station: posStation()}, a)); } catch (x){ r = {error: x}; }
+    if (!lgAnswer(r, 'tills')) return;
+    lgPark(); msg.className = 'err ok'; msg.textContent = 'Discounts resumed on place ' + p.slot + '.'; loadLog();
+  });
+}
+function dtRemove(t, row){
+  var msg = document.getElementById('dtMsg'); msg.className = 'err'; msg.textContent = '';
+  lgAsk(row, 'Remove the registration of «' + (t.station || '—') + '»', async function(a){
+    var r; try { r = await db.rpc('descuento_caja_quitar', Object.assign({p_till_id: t.id, p_station: posStation()}, a)); } catch (x){ r = {error: x}; }
+    if (!lgAnswer(r, 'tills')) return;
+    lgPark(); msg.className = 'err ok'; msg.textContent = 'Registration removed: «' + (r.data.station || t.station || '—') + '».'; loadLog();
   });
 }
 function fmtMoney(n){ return '\u20a1' + Number(n || 0).toLocaleString('fr-FR'); }

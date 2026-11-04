@@ -108,3 +108,33 @@ begin
   perform set_config('request.jwt.claims', (coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
                                             || jsonb_build_object('session_id', sid))::text, false);
 end $$;
+
+-- 0038 (registered tills): time travel for the discount window. now() is fixed inside one transaction, so a test moves
+-- the rows back instead: every discount% / pin_duplicate audit row and every discount_tills time (never deleting a
+-- row; an approval's created_at is moved by the test itself where it matters). Call it as the test superuser (reset role first).
+create or replace function test.back(d interval) returns void language plpgsql as $$
+begin
+  update public.audit_log set at = at - d where action like 'discount%' or action = 'pin_duplicate';
+  if to_regclass('public.discount_tills') is not null then
+    execute 'update public.discount_tills set enrolled_at = enrolled_at - $1, last_used_at = last_used_at - $1, ended_at = ended_at - $1' using d;
+  end if;
+end $$;
+
+-- 0038: makes the sign-in set by test.login + test.session a registered till without going through the owner areas
+-- (a fixture for the tests that only need a till; 485 registers through descuento_caja_registrar). Returns its place.
+-- Call it as the test superuser (reset role first), after test.login and test.session; it reuses a live row of that
+-- sign-in and refuses when the 3 places are taken.
+create or replace function test.till(station text default 'Caja de prueba') returns int language plpgsql as $$
+declare sid text := current_setting('request.jwt.claims', true)::jsonb ->> 'session_id';
+        uid uuid := nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid; n int;
+begin
+  if sid is null or uid is null then raise exception 'test.till: call test.login and test.session first'; end if;
+  select slot into n from public.discount_tills where session_id = sid and ended_at is null;
+  if n is not null then return n; end if;
+  select g into n from generate_series(1, 3) g
+   where not exists (select 1 from public.discount_tills t where t.slot = g and t.ended_at is null) order by g limit 1;
+  if n is null then raise exception 'test.till: the 3 places are taken'; end if;
+  insert into public.discount_tills (slot, session_id, login_id, station, enrolled_by_name)
+    values (n, sid, uid, station, 'test fixture');
+  return n;
+end $$;

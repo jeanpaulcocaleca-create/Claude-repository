@@ -12,7 +12,8 @@
 --   * texto libre (notas, motivos, descripciones, referencias, líneas del banco, memos) → "texto"; la columna libre
 --     "note" de los pedidos de producción, a su valor por defecto
 --   * preguntas del chat del sitio: texto genérico
---   * cuentas de ingreso (app_accounts) y llaves de desbloqueo: se quitan (en pruebas se crean otras)
+--   * cuentas de ingreso (app_accounts), llaves de desbloqueo, cajas registradas para descuentos y quién comparte un
+--     PIN (0038): se quitan (en pruebas se crean otras)
 -- Cada columna de texto de la copia está en una de las listas de abajo. Si una migración nueva agrega otra, el
 -- script se detiene ANTES de cambiar nada y nombra la columna (nunca su contenido): pruebas no recibe nada sin revisar.
 -- Uso: psql -v pin=NNNN -f anonimizar.sql   (funciona antes y después de cualquier migración)
@@ -35,7 +36,8 @@ declare
   -- who did it: a text column with one of these names, in any table of public or acct, becomes "Persona"
   who text[] := array['manager_name', 'opened_by_name', 'closed_by_name', 'by_name', 'approved_name', 'discount_by', 'operator_name', 'paid_operator_name',
                       'staff_name', 'created_by', 'confirmed_by', 'entered_by', 'imported_by', 'done_by', 'prepared_by', 'reviewed_by', 'settled_by',
-                      'approved_by', 'updated_by', 'changed_by', 'voided_by'];
+                      'approved_by', 'updated_by', 'changed_by', 'voided_by',
+                      'beneficiary_name'];   -- 0038: the employee who got an Empleado discount
   -- typed by people: becomes "texto" (never empty, so "it has a reason" stays true)
   free text[] := array['public.orders.notes', 'public.orders.void_reason', 'public.orders.discount_reason', 'public.discount_approvals.reason',
                        'public.register_days.notes', 'public.stock_moves.note', 'public.stock_items.notes', 'public.purchase_orders.note',
@@ -50,10 +52,13 @@ declare
                        -- 0034/0035: how a supplier is paid (may hold an account or a SINPE number), a recurring bill's text, a payment's reference
                        'public.vendors.payment_notes', 'public.expense_schedules.description', 'public.expense_payments.reference',
                        'public.expense_payments.void_reason',
+                       -- 0038: the tour guide's company, typed at the till
+                       'public.discount_approvals.company',
                        'acct.entries.memo', 'acct.lines.memo'];
   -- emptied (nullable): a bank account's last digits, the e-invoice receiver and Hacienda's answer about it
   cleared text[] := array['public.bank_accounts.last4', 'public.e_documents.receiver', 'public.e_documents.response',
-                          'public.vendors.tax_id'];   -- 0034: a supplier's cédula
+                          'public.vendors.tax_id',    -- 0034: a supplier's cédula
+                          'public.discount_approvals.session_id'];   -- 0038: the sign-in that asked for a discount
   -- handled one by one below
   special text[] := array['public.staff.name', 'public.staff.pin_hash', 'public.vendors.name', 'public.vendors.contact_name', 'public.vendors.phone',
                           'public.vendors.whatsapp', 'public.vendors.email', 'public.orders.guest_name', 'public.orders.guest_phone',
@@ -62,8 +67,10 @@ declare
                           'public.expenses.vendor_name', 'public.expenses.receipt_path', 'public.bank_lines.fingerprint',
                           'public.payroll_runs.rules', 'public.staff_profile.id_number', 'public.payroll_special_runs.lines',
                           'public.purchase_receipts.invoice_draft'];
-  -- logins and unlock tokens belong to production only: these tables are emptied
-  emptied text[] := array['app_accounts', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'operator_sessions'];
+  -- logins and unlock tokens belong to production only: these tables are emptied (0038: the tills registered for
+  -- discounts hold sign-in ids and the hashes of their device keys; discount_pin_shared says who shares a PIN, owner-only)
+  emptied text[] := array['app_accounts', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'operator_sessions', 'discount_tills',
+                          'discount_pin_shared'];
   -- about the business, not about anyone: menu, stock, chart of accounts, settings, codes, kinds and statuses
   keep text[] := array['acct.accounts.code', 'acct.accounts.name', 'acct.accounts.type', 'acct.entries.source', 'acct.entries.source_key',
                        'acct.lines.account', 'acct.mappings.account', 'acct.mappings.key', 'acct.mappings.label', 'acct.periods.status',
@@ -76,7 +83,8 @@ declare
                        'public.board_settings.mode', 'public.board_settings.rotation', 'public.board_settings.tagline', 'public.board_settings.theme',
                        'public.cash_movements.currency', 'public.cash_movements.direction', 'public.cash_movements.purpose', 'public.cash_tenders.flags',
                        'public.chat_questions.lang', 'public.chat_questions.matched', 'public.compliance_confirmations.key',
-                       'public.discount_approvals.kind', 'public.e_documents.clave', 'public.e_documents.consecutive', 'public.e_documents.kind',
+                       'public.discount_approvals.kind', 'public.discount_approvals.category', 'public.discount_approvals.approver_role',
+                       'public.discount_approvals.freed_how', 'public.e_documents.clave', 'public.e_documents.consecutive', 'public.e_documents.kind',
                        'public.e_documents.missing', 'public.e_documents.mode', 'public.e_documents.provider', 'public.e_documents.provider_ref',
                        'public.e_documents.status', 'public.expenses.account', 'public.expenses.invoice_no', 'public.expenses.paid_from',
                        'public.fx_rates.source', 'public.locations.name', 'public.menu_categories.color', 'public.menu_categories.name',
@@ -210,7 +218,11 @@ begin
   -- the log quotes names, guests, reasons and emails; its target is an id, a date or a code (anything else goes)
   update public.audit_log set summary = action, details = '{}'::jsonb,
                               target_id = case when target_id ~ '^([0-9a-fA-F-]{36}|[0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z0-9_.:]{1,64})$' then target_id end;
-  -- logins and unlock tokens
+  -- logins and unlock tokens. 0038: an approval names the till it came from; that till is emptied below, and in this
+  -- replica mode no foreign key action runs, so the link is cleared first (a restore re-checks every foreign key)
+  if exists (select 1 from pg_attribute where attrelid = to_regclass('public.discount_approvals') and attname = 'till_id' and not attisdropped) then
+    execute 'update public.discount_approvals set till_id = null where till_id is not null';
+  end if;
   for t in select c.relname from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and c.relname = any (emptied) loop
     execute format('delete from public.%I', t.relname);
   end loop;

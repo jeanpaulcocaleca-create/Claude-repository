@@ -1,10 +1,14 @@
 /* Canopy OS rehearsal · the pages that are LIVE on hanginggardencafe.com today (the gh-pages build named in
-   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0033 today). Until the new pages are
+   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0038 today). Until the new pages are
    published, the café keeps using these: they must load and work exactly as before. Also run on the reset copy
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, settle, sql, STAFF } = require('../../e2e/lib');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { page, goto, until, settle, sql, registerTill, STAFF, PINS } = require('../../e2e/lib');
+const gw = require('../../e2e/gateway');
 
 /* the local stand-in for Supabase answers on the site port + 1000 (tests/e2e/gateway.js; live-pages.sh points the pages there) */
 const API = 'http://127.0.0.1:' + (Number(process.env.E2E_SITE_PORT || 8090) + 1000);
@@ -25,6 +29,96 @@ async function closeDayNudge(pg) {
 }
 /* sales saved with their lines (the old POS writes the order, then its lines, in two requests) */
 const withLines = () => Number(sql(`select count(*) from public.orders o where exists (select 1 from public.order_items i where i.order_id = o.id)`));
+
+/* ---------- the POS discounts of 0038 (D-065) under the live POS: proposal §5.3, W2 and W3 ----------
+   The live build has the old free window (approve_discount: a percentage, a reason, a manager picked from the list and
+   their PIN) and the old × on a bill (tab_set_discount with no approval). On a copy with 0038: with pos_free_discount on
+   (its default) that window works as today, but a reason that reads as one of the four categories is refused with the old
+   page's own missing_reason text (W2); the old × takes a category discount off a bill while nothing is paid, and refuses
+   once a part is paid (W3); with the switch off the window shows the page's own «reload this page» text and the till keeps
+   selling. A copy without 0038, or a build without the old window (once the discounts are published), has nothing to
+   check. Seed codes: Ana manager 4826, Luis staff 5284, Marta staff 6173 (seed-legacy.sql, tests/db/90_seed.sql). */
+const liveFile = (name) => { try { return fs.readFileSync(path.join(process.env.E2E_SITE_ROOT || '', name), 'utf8'); } catch (e) { return ''; } };
+/* the old page's texts: the English source in the live pos.html, the Spanish the live lang.js shows (the till opens in Spanish) */
+const OLD = {
+  reason: ['Pick the reason for the discount.', 'Elija el motivo del descuento.'],                      // DISC_ERR.missing_reason
+  removed: ['Discount removed', 'Descuento quitado'],                                                     // the bill's × with nothing left
+  update: ['This needs a database update: apply the pending migrations (docs/MIGRACIONES.md), then reload this page.',
+           'Esto necesita una actualización de la base de datos: aplique las migraciones pendientes (docs/MIGRACIONES.md) y recargue esta página.'],
+  approved: ['Discount approved by {n}', 'Descuento aprobado por {n}']
+};
+/* why there is nothing to check on this copy or build, or null; the texts above must be the live build's own */
+function oldDiscounts() {
+  if (sql(`select count(*) from canopy.migrations where version = 38`) !== '1') return '0038 is not on this copy';
+  const pos = liveFile('pos.html'), lang = liveFile('lang.js');
+  if (!/rpc\('approve_discount'/.test(pos) || !pos.includes('id="discWhy"') || !pos.includes('id="tabDiscX"')) return 'this build has no old discount window';
+  for (const [en, es] of Object.values(OLD)) {
+    if (!en.includes('{n}')) assert.ok(pos.includes(`'${en}'`), 'the live pos.html says «' + en + '»');
+    assert.ok(lang.includes(`'${en}': '${es}'`), 'the live lang.js translates «' + en + '» as «' + es + '»');
+  }
+  return null;
+}
+/* the live till (Spanish, as the café runs it), its toasts recorded as shown (each text once it changed, so the Spanish
+   lang.js puts in is kept even when the next toast replaces it) */
+async function liveTill(browser) {
+  const pg = watchApi(await page(browser, { login: 'cafe' }));
+  await goto(pg, '/pos.html');
+  await until(async () => (await pg.locator('#menuGrid .pbtn').count()) > 1, 15000, 'the menu');
+  await settle(pg);
+  await closeDayNudge(pg);
+  await pg.evaluate(() => {
+    window.__seen = [];
+    const t = document.getElementById('toast');
+    new MutationObserver(() => { const s = t.textContent; if (s && window.__seen[window.__seen.length - 1] !== s) window.__seen.push(s); })
+      .observe(t, { childList: true, characterData: true, subtree: true });
+  });
+  return pg;
+}
+const toastSeen = (pg, s) => until(() => pg.evaluate((x) => window.__seen.includes(x), s), 8000, 'the message «' + s + '»');
+/* the old window over the ticket, filled as a cashier does: 10 %, a reason (and its details), Ana and her PIN; returns the
+   server's answer to approve_discount */
+async function openOldWindow(pg) {
+  await pg.click('#discBtn');
+  await pg.waitForSelector('#discModal:not([hidden])', { timeout: 5000 });
+  await until(() => pg.evaluate((a) => [...document.querySelectorAll('#discMgr option')].some((o) => o.value === a), STAFF.ana), 8000, 'the managers listed');
+}
+async function askOld(pg, why, note) {
+  await pg.click('#discPct [data-pct="10"]');
+  await pg.selectOption('#discWhy', why);
+  await pg.fill('#discNote', note || '');
+  await pg.selectOption('#discMgr', STAFF.ana);
+  await pg.fill('#discPin', PINS.ana);
+  const answer = pg.waitForResponse((r) => /\/rest\/v1\/rpc\/approve_discount$/.test(r.url()) && r.request().method() === 'POST', { timeout: 10000 });
+  await pg.click('#discGo');
+  const r = await answer;
+  const body = await r.json().catch(() => null);
+  await until(() => pg.evaluate(() => !document.getElementById('discGo').disabled), 8000, 'the answer handled');
+  return { status: r.status(), body };
+}
+const approvalsCount = () => Number(sql(`select count(*) from public.discount_approvals`));
+/* the API as a page calls it: this page's own sign-in (a registered till), or another device of the café */
+async function signedIn(pg) {
+  const s = await pg.evaluate(() => { try { return JSON.parse(localStorage.getItem('sb-127-auth-token') || 'null'); } catch (e) { return null; } });
+  assert.ok(s && s.access_token, 'the live page is signed in');
+  return s.access_token;
+}
+async function rpcAs(token, name, args) {
+  const r = await fetch(API + '/rest/v1/rpc/' + name, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(args) });
+  const body = await r.json();
+  if (!r.ok) throw new Error(name + ' ' + r.status + ' ' + JSON.stringify(body));
+  return body;
+}
+/* a bill not paid yet, as another device left it: 2 lattes and a sandwich, ₡8 000 */
+const W3 = (n) => 'd0380000-0000-4000-8000-00000000000' + n, W3LINE = (n, i) => 'd0380000-0000-4000-8000-0000000001' + n + i;
+function w3Bill(n, name) {
+  sql(`insert into public.orders (id, total_crc, payment_method, status, paid, source, station, guest_name, done_at)
+         values ('${W3(n)}', 8000, 'pending', 'done', false, 'front', 'Caja', '${name}', now());
+       insert into public.order_items (id, order_id, item_name, price_crc, qty)
+         values ('${W3LINE(n, 1)}', '${W3(n)}', 'Latte ensayo', 2000, 2), ('${W3LINE(n, 2)}', '${W3(n)}', 'Sándwich ensayo', 4000, 1)`);
+}
+const w3State = (n) => sql(`select total_crc || '|' || coalesce(discount_crc, 0) || '|' || coalesce(discount_id::text, '-') || '|' || coalesce(subtotal_crc::text, '-')
+                                   || '|' || coalesce(parts_crc, 0) || '|' || coalesce(discount_reason, '-') || '|' || paid from public.orders where id = '${W3(n)}'`);
 
 module.exports.tests = [
   {
@@ -277,7 +371,7 @@ module.exports.tests = [
     }
   },
   {
-    name: 'the live customer screens (v1, when the build has them) on the copy with 0037 and V2 data saved, the way back from Pantallas V2 (docs/ACTIVACION-PANTALLAS-V2.md §6): Screen B never shows a composition (the brand, or a v1 slide in force, as before), Screen A ignores the V2 choices (the summarized menu, density, English) and shows every product of its categories with live prices',
+    name: 'the live customer screens (V2, when the build has them) on the copy migrated to the last migration with V2 data saved, as the owner configures them (docs/ACTIVACION-PANTALLAS-V2.md §4): Screen B shows the composition in force, Screen A shows only the summarized menu, with live prices',
     run: async ({ browser }) => {
       const fs = require('fs'), path = require('path');
       const root = process.env.E2E_SITE_ROOT || '';
@@ -285,7 +379,7 @@ module.exports.tests = [
         console.log('    (this build has no customer screens: nothing to check)'); return;
       }
       if (sql(`select count(*) from canopy.migrations where version = 37`) !== '1') { console.log('    (0037 is not on this copy: nothing to check)'); return; }
-      const items = JSON.parse(sql(`select json_agg(json_build_object('id', i.id, 'name', i.name) order by c.sort, i.sort, i.name)
+      const items = JSON.parse(sql(`select json_agg(json_build_object('id', i.id, 'name', i.name, 'es', coalesce(i.name_es, i.name)) order by c.sort, i.sort, i.name)
                                        from public.menu_items i join public.menu_categories c on c.id = i.category_id
                                       where i.available and i.price_crc > 0 and c.name <> 'Extras & Combos'`));
       assert.ok(items.length >= 2, 'the copy sells at least two products');
@@ -296,36 +390,179 @@ module.exports.tests = [
       sql(`update public.screens set item_ids = array['${items[0].id}']::uuid[], density = 'compacta', english = 'no' where id = 'menu-1'`);
       assert.strictEqual(sql(`select (public.pantalla_datos('promos-1') -> 'slides' -> 0 ->> 'kind')`), 'composicion', '0037 gives the composition to the promotions TV');
 
-      /* Screen B (v1): the composition is never read as a slide; the built-in brand shows */
+      /* Screen B (V2): the composition in force is read and shown */
       const b = watchApi(await page(browser, {}));
       await goto(b, '/pantalla-promos.html?tv=promos-1');
       await until(() => b.evaluate(() => window.PANTALLA_B && PANTALLA_B.info().estado === 'al-dia'), 15000, 'Screen B read pantalla_datos');
-      let i = await b.evaluate(() => PANTALLA_B.info());
-      assert.deepStrictEqual([i.actual, i.tipo, i.leidas.includes(compo)], ['marca', 'propia', false], 'the brand, never the composition');
-      /* a v1 product slide in force next to it shows as before */
-      const prod = sql(`with x as (insert into public.screen_slides (kind, menu_item_id, starts_at, ends_at, sort, status)
-        values ('producto', '${items[0].id}', now() - interval '1 hour', now() + interval '1 day', 20, 'activa') returning id) select id from x`);
-      await b.evaluate(() => PANTALLA_B.refrescar());
-      await until(() => b.evaluate((p) => PANTALLA_B.info().leidas.includes(p), prod), 15000, 'the product slide read');
-      assert.ok(await b.evaluate((p) => PANTALLA_B.mostrar(p), prod), 'the v1 product slide can be shown');
-      i = await b.evaluate(() => PANTALLA_B.info());
-      assert.deepStrictEqual([i.actual, i.tipo, i.leidas.includes(compo)], [prod, 'producto', false]);
+      await until(() => b.evaluate((c) => PANTALLA_B.info().actual === c, compo), 15000, 'Screen B shows the composition');
+      const i = await b.evaluate(() => PANTALLA_B.info());
+      assert.deepStrictEqual([i.actual, i.tipo, i.leidas.includes(compo)], [compo, 'composicion', true], 'the composition in force');
       assert.deepStrictEqual(b.errors, []);
       assert.deepStrictEqual(b.apiErrors, []);
       await b.context().close();
 
-      /* Screen A (v1): every product of its categories, the summarized menu ignored, prices live */
+      /* Screen A (V2): only the products of the summarized menu, prices live */
       const a = watchApi(await page(browser, {}));
       await goto(a, '/pantalla-menu.html?tv=menu-1');
       await until(() => a.evaluate(() => window.PANTALLA && PANTALLA.info().estado === 'al-dia'), 15000, 'Screen A read the menu');
       /* every page of the board (the pages take turns; textContent reads the ones waiting too) */
       const shown = await a.evaluate(() => document.getElementById('main').textContent);
-      assert.ok(shown.includes(items[1].name) || shown.includes(sql(`select coalesce(name_es, name) from public.menu_items where id = '${items[1].id}'`)),
-        'a product outside the V2 summary is on the v1 board: ' + items[1].name);
+      assert.ok(shown.includes(items[0].es) || shown.includes(items[0].name), 'the product of the summary is on the board: ' + items[0].name);
+      const other = items.find((x) => x.name !== items[0].name && x.es !== items[0].es && !items[0].es.includes(x.es) && !x.es.includes(items[0].es));
+      if (other) assert.ok(!shown.includes(other.es) && !shown.includes(other.name), 'a product outside the summary is not on the board: ' + other.name);
       assert.match(shown, /₡/, 'with prices');
       assert.deepStrictEqual(a.errors, []);
       assert.deepStrictEqual(a.apiErrors, []);
       await a.context().close();
+    }
+  },
+  {
+    // proposal §5.3 (W2): pos_free_discount on, the old window approves as today; a reason that reads as a category is not
+    // one it may give (it would read as a category discount in the reports), so the server answers missing_reason and the
+    // live window shows its own text for that answer
+    name: 'the live discount window on 0038 with pos_free_discount on: «Other · Local» is refused with the old missing_reason text and no approval (W2); «Regular customer» is approved and its sale recorded as today',
+    run: async ({ browser }) => {
+      const skip = oldDiscounts();
+      if (skip) { console.log('    (' + skip + ': nothing to check)'); return; }
+      assert.strictEqual(sql(`select public.setting('pos_free_discount') #>> '{}'`), 'on', 'the old window is on, as 0038 leaves it');
+      const pg = await liveTill(browser);
+      const before = approvalsCount(), sales = withLines();
+      await pg.locator('#menuGrid .pbtn').nth(0).click();
+      await pg.locator('#menuGrid .pbtn').nth(1).click();
+      await openOldWindow(pg);
+
+      /* Other with the details «Local»: the reason «Other · Local» reads as the Local category */
+      let r = await askOld(pg, 'Other', 'Local');
+      assert.deepStrictEqual([r.status, r.body], [200, { ok: false, error: 'missing_reason' }], 'the server refuses the reserved reason');
+      await until(async () => (await pg.textContent('#discErr')) === OLD.reason[1], 8000, 'the old page\'s text for missing_reason');
+      assert.ok(await pg.isVisible('#discModal'), 'the window stays open');
+      assert.ok(await pg.isHidden('#discRow'), 'no discount on the ticket');
+      assert.strictEqual(approvalsCount(), before, 'no approval row made');
+
+      /* the same window, «Regular customer» (the details cleared): approved and recorded as today */
+      r = await askOld(pg, 'Regular customer', '');
+      assert.ok(r.status === 200 && r.body && r.body.ok && r.body.name === 'Ana' && r.body.reason === 'Regular customer', 'approved: ' + JSON.stringify(r.body));
+      await pg.waitForSelector('#discModal', { state: 'hidden', timeout: 8000 });
+      await toastSeen(pg, OLD.approved[1].replace('{n}', 'Ana'));
+      assert.ok(await pg.isVisible('#discRow'), 'the discount on the ticket');
+      await pg.click('[data-pay=card]');
+      if (await pg.locator('#numModal').isVisible()) await pg.click('#numNone');
+      await until(() => withLines() === sales + 1, 10000, 'the discounted sale saved with its lines');
+      const ap = r.body.id;
+      // as before 0038: an old-kind approval (no category, no till, no day), used once by this sale; the sale carries
+      // the 10 % of its subtotal, the reason and who approved it, and no discount flag
+      assert.strictEqual(sql(`select (a.category is null) || '|' || a.kind || '|' || a.value || '|' || a.reason || '|' || a.approved_name || '|'
+                                     || (a.till_id is null and a.cr_day is null and a.request_id is null) || '|' || (a.used_at is not null) || '|'
+                                     || (a.subtotal_crc = o.subtotal_crc and a.amount_crc = o.discount_crc) || '|'
+                                     || (o.discount_crc = round(o.subtotal_crc * 10 / 100.0)::int and o.total_crc = o.subtotal_crc - o.discount_crc) || '|'
+                                     || o.discount_reason || '|' || o.discount_by || '|' || o.paid || '|' || o.payment_method || '|' || (o.business_date = public.cr_today()) || '|'
+                                     || not (coalesce(o.flags, '{}') && array['discount_not_verified', 'discount_late', 'discount_daily_twice']::text[])
+                                from public.discount_approvals a join public.orders o on o.id = a.order_id where a.id = '${ap}'`),
+                         'true|percent|10|Regular customer|Ana|true|true|true|true|Regular customer|Ana|true|card|true|true', 'the sale and its approval as today');
+      assert.strictEqual(approvalsCount(), before + 1, 'one approval, used');
+      assert.strictEqual(sql(`select count(*) from public.audit_log where action = 'discount_approved' and target_id = '${ap}' and summary = 'Regular customer' and not (details ? 'category')`),
+                         '1', 'logged as the old window logs it');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    // proposal §5.3 (W3): an Empleado discount on a bill, given by descuento_autorizar on a registered till as the new
+    // page gives it; then the live page, which knows only tab_set_discount, takes it off with its ×. With nothing paid
+    // it comes off as today and the employee's day still counts (a manager gives it back in the approvals log); once an
+    // item is paid by item only descuento_quitar_cuenta (a manager's PIN) may take it off, so the live page shows its
+    // own «database update» text and nothing changes
+    name: 'the live bill × on 0038 over an Empleado discount from a registered till (W3): nothing paid, taken off as today and the day still counts; an item paid by item, the old «database update» text and nothing changes',
+    run: async ({ browser }) => {
+      const skip = oldDiscounts();
+      if (skip) { console.log('    (' + skip + ': nothing to check)'); return; }
+      w3Bill(1, 'Ensayo W3 sin pagar');
+      w3Bill(2, 'Ensayo W3 pagada en parte');
+      const pg = await liveTill(browser);
+      await registerTill(pg, { station: 'Caja' });
+      const me = await signedIn(pg), other = gw.sessionFor('cafe@test.local').access_token;
+      const empleado = (n, employeePin) => rpcAs(me, 'descuento_autorizar', { p_category: 'empleado', p_pin: PINS.ana, p_subtotal: 8000,
+        p_employee_pin: employeePin, p_order_id: W3(n), p_expect: 8000, p_request_id: crypto.randomUUID(), p_station: 'Caja' });
+
+      /* 1. nothing paid: the old × takes it off as today */
+      const a1 = await empleado(1, PINS.luis);
+      assert.ok(a1.ok && a1.category === 'empleado' && a1.beneficiary === 'Luis' && a1.name === 'Ana' && a1.order_id === W3(1) && a1.total === 5600 && a1.discount === 2400,
+                'Empleado for Luis on the bill: ' + JSON.stringify(a1));
+      assert.strictEqual(w3State(1), `5600|2400|${a1.id}|8000|0|Employee|false`, 'the bill carries the category discount');
+      await pg.evaluate((x) => openTab(x), W3(1));
+      await pg.waitForSelector('#tabModal:not([hidden])', { timeout: 8000 });
+      await pg.waitForSelector('#tabDiscX', { state: 'visible', timeout: 8000 });
+      await pg.click('#tabDiscX');   // the confirm() is accepted, as a cashier does
+      await toastSeen(pg, OLD.removed[1]);
+      await until(() => w3State(1) === '8000|0|-|-|0|-|false', 8000, 'the discount off the bill');
+      assert.strictEqual(sql(`select count(*) from public.audit_log where action = 'tab_discount_removed' and target_id = '${W3(1)}'`), '1', 'tab_discount_removed written');
+      assert.strictEqual(sql(`select (freed_at is null) || '|' || coalesce(freed_how, '-') from public.discount_approvals where id = '${a1.id}'`), 'true|-',
+                         'the approval is not freed: the employee\'s day still counts');
+      assert.strictEqual(sql(`select string_agg((details ->> 'why') || '/' || (details ->> 'how'), ' ') from public.audit_log
+                               where action = 'discount_not_freed' and target_id = '${a1.id}'`), 'needs_manager/bill_removed', 'discount_not_freed: a manager gives the day back');
+      const again = await rpcAs(me, 'descuento_autorizar', { p_category: 'empleado', p_pin: PINS.ana, p_subtotal: 2000, p_employee_pin: PINS.luis,
+                                                             p_request_id: crypto.randomUUID(), p_station: 'Caja' });
+      assert.strictEqual(again.ok === false && again.error, 'daily_used', 'a second Empleado for Luis today is refused: ' + JSON.stringify(again));
+      await pg.click('#tabClose');
+
+      /* 2. one item paid by item first (on another device): the same × is refused, the old text, nothing changes */
+      const a2 = await empleado(2, PINS.marta);
+      assert.ok(a2.ok && a2.beneficiary === 'Marta' && a2.total === 5600, 'Empleado for Marta on the second bill: ' + JSON.stringify(a2));
+      const paid = await rpcAs(other, 'tab_pay', { p_order_id: W3(2), p_method: 'card', p_lines: [{ item_id: W3LINE(2, 1), qty: 1 }], p_amount: null,
+                                                   p_station: 'Caja 2', p_expect: 5600 });
+      assert.ok(paid.ok, 'a latte paid by item on another device: ' + JSON.stringify(paid));
+      const held = w3State(2), approvals = approvalsCount(), logged = sql(`select count(*) from public.audit_log`);
+      assert.match(held, new RegExp('^\\d+\\|\\d+\\|' + a2.id + '\\|8000\\|[1-9]\\d*\\|Employee\\|false$'), 'the bill still carries it, a part paid: ' + held);
+      await pg.evaluate((x) => openTab(x), W3(2));
+      await pg.waitForSelector('#tabModal:not([hidden])', { timeout: 8000 });
+      await pg.waitForSelector('#tabDiscX', { state: 'visible', timeout: 8000 });
+      const refused = pg.waitForResponse((r) => /\/rest\/v1\/rpc\/tab_set_discount$/.test(r.url()) && r.request().method() === 'POST', { timeout: 10000 });
+      await pg.click('#tabDiscX');
+      const rr = await refused;
+      assert.deepStrictEqual([rr.status(), ((await rr.json().catch(() => null)) || {}).message], [400, 'tab_set_discount_category'], 'the guard refuses the old call');
+      await until(async () => (await pg.textContent('#tabErr')) === OLD.update[1], 8000, 'the old page\'s «database update» text');
+      await quiet(1500);
+      assert.strictEqual(w3State(2), held, 'the bill is unchanged');
+      assert.strictEqual(approvalsCount(), approvals, 'no approval made');
+      assert.strictEqual(sql(`select count(*) from public.audit_log`), logged, 'nothing logged');
+      assert.strictEqual(sql(`select (freed_at is null) || '|' || coalesce(order_id::text, '-') from public.discount_approvals where id = '${a2.id}'`),
+                         'true|' + W3(2), 'the approval as it was');
+      assert.ok(await pg.isVisible('#tabModal'), 'the bill stays open on the till');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, ['400 POST /rest/v1/rpc/tab_set_discount'], 'only the refused call');
+    }
+  },
+  {
+    // proposal §5.3: the owner turns the old window off at the end of the activation (descuento-libre-apagar.sql); an
+    // older page still open then gets approve_discount_off, which it reads as a database it does not know: it shows its
+    // own «reload this page» text (pos.html at that build: /approve_discount|schema cache|could not find/), approves
+    // nothing, and sells as before
+    name: 'the live discount window on 0038 with pos_free_discount off: its «reload this page» text, no approval, and the till keeps selling',
+    run: async ({ browser }) => {
+      const skip = oldDiscounts();
+      if (skip) { console.log('    (' + skip + ': nothing to check)'); return; }
+      sql(`insert into public.settings (key, value) values ('pos_free_discount', '"off"') on conflict (key) do update set value = excluded.value`);
+      const pg = await liveTill(browser);
+      const before = approvalsCount(), sales = withLines();
+      await pg.locator('#menuGrid .pbtn').nth(0).click();
+      await openOldWindow(pg);
+      const r = await askOld(pg, 'Regular customer', '');
+      assert.deepStrictEqual([r.status, r.body && r.body.message], [400, 'approve_discount_off'], 'the switch refuses the old call');
+      await until(async () => (await pg.textContent('#discErr')) === OLD.update[1], 8000, 'the old page\'s «reload this page» text');
+      assert.strictEqual(approvalsCount(), before, 'no approval made');
+      await pg.click('#discCancel');
+      assert.ok(await pg.isHidden('#discRow'), 'no discount on the ticket');
+
+      /* the same ticket, charged without a discount */
+      await pg.click('[data-pay=card]');
+      if (await pg.locator('#numModal').isVisible()) await pg.click('#numNone');
+      await until(() => withLines() === sales + 1, 10000, 'the sale saved with its lines');
+      assert.match(sql(`select paid || '|' || payment_method || '|' || coalesce(discount_crc, 0) || '|' || coalesce(discount_id::text, '-') || '|'
+                               || (total_crc = (select sum(qty * price_crc) from public.order_items i where i.order_id = o.id)) || '|' || (business_date = public.cr_today())
+                          from public.orders o where exists (select 1 from public.order_items i where i.order_id = o.id) order by created_at desc limit 1`),
+                   /^true\|card\|0\|-\|true\|true$/, 'a normal sale, as today');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, ['400 POST /rest/v1/rpc/approve_discount'], 'only the refused call');
     }
   }
 ];

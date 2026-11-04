@@ -12,8 +12,9 @@
 --   * Storage (storage_buckets_missing y storage_policies_missing deben estar vacíos, receipt_upload_rule_current en
 --     true): el depósito de facturas de gastos y sus dos reglas (desde la 0015), la regla de subida de la 0025, y las
 --     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene).
+-- Las listas van en orden de bytes (collate "C"): el mismo resultado en cualquier servidor, sea cual sea su idioma.
 -- =====================================================================================================
-with expected as (select generate_series(0, 37) as v),
+with expected as (select generate_series(0, 38) as v),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),
@@ -30,7 +31,10 @@ needed(fn) as (values
   ('vendors_list'), ('vendor_save'), ('vendor_defaults_save'), ('vendor_history'), ('purchases_list'), ('sales_by_method'), ('cash_position'),
   ('period_compare'), ('acct_audit'), ('expense_pay'), ('expense_payment_void'), ('expense_schedule_save'), ('expense_schedule_void'),
   ('expense_schedules_list'), ('expense_due'),
-  ('pantalla_datos'), ('pantallas_estado'), ('pantalla_guardar'), ('diapositiva_guardar'), ('diapositiva_estado')),
+  ('pantalla_datos'), ('pantallas_estado'), ('pantalla_guardar'), ('diapositiva_guardar'), ('diapositiva_estado'),
+  ('descuento_estado'), ('descuento_autorizar'), ('descuento_liberar'), ('descuento_quitar_cuenta'), ('descuentos_informe'),
+  ('descuento_cupo_devolver'), ('descuento_caja_registrar'), ('descuento_caja_volver'), ('descuento_cajas'),
+  ('descuento_caja_reanudar'), ('descuento_caja_quitar')),
 menu_photos as (select exists (select 1 from storage.buckets where id = 'menu-photos') as present),
 storage_rules(name) as (select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects')
 select jsonb_pretty(jsonb_build_object(
@@ -39,24 +43,24 @@ select jsonb_pretty(jsonb_build_object(
   'migrations_missing', (select coalesce(jsonb_agg(v order by v), '[]') from expected where v not in (select version from applied)),
   'settings', (select coalesce(jsonb_object_agg(d.key, coalesce(s.value, d.default_value)), '{}')
                  from canopy.setting_defs d left join public.settings s on s.key = d.key),
-  'confirmations', (select coalesce(jsonb_agg(jsonb_build_object('key', key, 'by', confirmed_by, 'at', confirmed_at) order by key), '[]')
+  'confirmations', (select coalesce(jsonb_agg(jsonb_build_object('key', key, 'by', confirmed_by, 'at', confirmed_at) order by key collate "C"), '[]')
                       from public.compliance_confirmations),
-  'functions_missing', (select coalesce(jsonb_agg(fn order by fn), '[]') from needed
+  'functions_missing', (select coalesce(jsonb_agg(fn order by fn collate "C"), '[]') from needed
                          where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = needed.fn)),
-  'anon_can_run', (select coalesce(jsonb_agg(p.proname order by p.proname), '[]')
+  'anon_can_run', (select coalesce(jsonb_agg(p.proname order by p.proname collate "C"), '[]')
                      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                     where n.nspname = 'public' and p.prokind = 'f' and p.prorettype <> 'trigger'::regtype
                       and has_function_privilege('anon', p.oid, 'execute') and p.prosecdef),
-  'tables_without_rls', (select coalesce(jsonb_agg(c.relname order by c.relname), '[]')
+  'tables_without_rls', (select coalesce(jsonb_agg(c.relname order by c.relname collate "C"), '[]')
                            from pg_class c join pg_namespace n on n.oid = c.relnamespace
                           where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity),
   'ledger', jsonb_build_object('entries', (select count(*) from acct.entries), 'unbalanced', (
       select count(*) from (select entry_id from acct.lines group by entry_id having sum(debit) <> sum(credit)) u)),
   'backups_last_ok', (select max(finished_at) from canopy.backup_runs where status = 'ok'),
   'menu_photos_bucket', (select present from menu_photos),
-  'storage_buckets_missing', (select coalesce(jsonb_agg(b order by b), '[]') from (values ('expense-receipts')) x(b)
+  'storage_buckets_missing', (select coalesce(jsonb_agg(b order by b collate "C"), '[]') from (values ('expense-receipts')) x(b)
                                where 15 in (select version from applied) and not exists (select 1 from storage.buckets where id = x.b)),
-  'storage_policies_missing', (select coalesce(jsonb_agg(p order by p), '[]') from (values
+  'storage_policies_missing', (select coalesce(jsonb_agg(p order by p collate "C"), '[]') from (values
                                  ('expense receipts read', 15 in (select version from applied)), ('expense receipts add', 15 in (select version from applied)),
                                  ('menu photos read', (select present from menu_photos)), ('menu photos owner write', (select present from menu_photos)),
                                  ('screen photos owner write', 36 in (select version from applied))) x(p, wanted)
