@@ -43,6 +43,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17 age python3-yaml
           echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+      - name: Keep the test server's log short
+        # the service's log is printed when the job ends, after the tests: thousands of expected errors and checkpoints
+        # pushed a failing browser test out of the part of the job log the API returns (run of 9f0822e)
+        run: |
+          psql -d postgres -X -q -c "alter system set log_checkpoints = off" -c "alter system set log_min_messages = fatal" \
+            -c "alter system set log_min_error_statement = panic" -c "select pg_reload_conf()"
       - name: Install browser test tools
         if: hashFiles('tests/e2e/package.json') != ''
         working-directory: tests/e2e
