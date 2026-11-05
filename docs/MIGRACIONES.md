@@ -81,15 +81,16 @@ tablas.)
 
 Con ese archivo comparo la estructura real contra la reconstrucción.
 
-## Pendientes de aplicar en producción (hoy en la 0037)
+## Pendientes de aplicar en producción (hoy en la 0038)
 
 La 0029 (recibir un pedido con la factura y el pago, D-041) la aplicó el dueño el 2026-10-15 (E-25); las 0030–0032
 (recetas, D-043/D-044) el 2026-10-18 (E-29/E-30, D-047). Las filas de 0030–0032 quedan abajo como referencia.
 Las 0034 y 0035 (Contabilidad nueva, D-057) las aplicó el dueño el 2026-10-26, después del «Ensayo en pruebas» #12 y del
 «Respaldo inmediato» #21, con `release-check.sql` y la foto limpios (E-37, D-059).
 La 0036 (pantallas, D-062) la aplicó el dueño el 2026-11-01 (E-40, D-063) y la 0037 (pantallas v2, D-064) el
-2026-11-03, con la publicación de `v2026.11.03-1` (E-41). La 0038 (descuentos de Caja, D-065) está en la rama
-`claude/descuentos-caja`: no se ha aplicado.
+2026-11-03, con la publicación de `v2026.11.03-1` (E-41). La 0038 (descuentos de Caja, D-065) está instalada según
+el dueño (2026-11-05), con la publicación de `v2026.11.04-1` ese día (D-066); su registro de activación (E-42) lo da el
+dueño.
 
 | Archivo | Qué trae | Cómo se aplica |
 |---|---|---|

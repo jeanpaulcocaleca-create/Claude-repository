@@ -3108,3 +3108,31 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   así que los productos no se agregaron: cóbrelos después de esta venta.»; the risk is a cashier who misses the toast
   and never rings them. B (let the discount go as the × does, add them, authorize again) or C (keep the discounted
   ticket apart and the items as a new order) only if the owner chooses; recommended A, and B if items get forgotten.
+
+## D-066 · 2026-11-05 · v2026.11.04-1 published; the tests' baseline moves to it; migration 0039 goes to Proveedores
+
+- **What happened:** the owner published `v2026.11.04-1` (9d3f6ad, the POS discounts of D-065) with «Publish website»
+  on 2026-11-05 at 13:23 UTC (run #58, «pages build and deployment» #54, both green). gh-pages is `77a5fb1`
+  («Publish website v2026.11.04-1 9d3f6ad…», `version.json` build `9d3f6ad1e0e4`). Checked from the repository the
+  same day: every published page and script is the tag's `website/` byte for byte once the build stamps are taken out
+  (`__BUILD__` and `?v=9d3f6ad1e0e4`); `CNAME` and `assets/` are unchanged from `44a0dab`; `live-site-check.sh` passes.
+  On 2026-11-05 the owner also wrote that migration 0038 is installed in production. The activation record that
+  `docs/ACTIVACION-DESCUENTOS.md` «Registro» asks for (the `applied_at` of 0038, the checks before and after, the
+  registered tills, the old window's state) is the owner's to give; nothing here invents it, and E-42 stays open
+  until it is written down.
+- **Not done in the publication:** the guide's step 4.1 (a `sitio-AAAA-MM-DD` tag on the previous site `44a0dab`
+  before publishing) was not done; no `sitio-2026-11-04` or `sitio-2026-11-05` tag exists. The way back of the
+  guide's 6.1 still works: republishing `v2026.11.03-1` rebuilds `44a0dab` exactly (every page and script compared,
+  only the build stamps differ), and the rehearsal proved `44a0dab` and `77a5fb1` on a copy migrated through 0038
+  (12 of 12 live-page tests each). Only the guide's fallback, «la copia exacta guardada en 4.1», does not exist, and
+  it can no longer be made from GitHub's form because gh-pages now names `77a5fb1`. The owner was told the same day.
+- **The baseline moves (as 66d2672 did for D-065):** `tests/pantallas/BASE` names `v2026.11.04-1` / 9d3f6ad;
+  `tests/rehearsal/LIVE_PAGES` names `77a5fb1`, the pages live today and the way back of the next version;
+  `tests/pantallas/no-tocar.sh` starts the next version with empty NEW and CHANGED lists, so the discounts' files are
+  back under the byte-for-byte rule.
+- **Migration 0039 is Proveedores (D-067).** D-065 and its guide called the old discount window's retirement (Q5)
+  «la 0039». `canopy.migration_begin` only accepts the number after the last one applied, so a Proveedores migration
+  numbered 0040 could not be applied before a 0039 exists, and Q5 is an undecided owner choice. The retirement takes
+  the next free number when the owner decides it; `docs/ACTIVACION-DESCUENTOS.md` now says «una migración
+  posterior». D-065's text stays as written.
+
