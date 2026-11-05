@@ -252,8 +252,8 @@ module.exports.tests = [
     name: 'a database without 0030 (or after its rollback): the page saves recipes the old way, without PIN or history',
     run: async ({ browser }) => {
       setup();
-      // newest first: 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, then 0030 (each reversal refuses to run while a later migration is still applied)
-      for (const f of ['reversion-0038.sql', 'reversion-0037.sql', 'reversion-0036.sql', 'reversion-0035.sql', 'reversion-0034.sql', 'reversion-0033.sql', 'reversion-0032.sql', 'reversion-0031.sql', 'reversion-0030.sql']) {
+      // newest first: 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, then 0030 (each reversal refuses to run while a later migration is still applied)
+      for (const f of ['reversion-0040.sql', 'reversion-0039.sql', 'reversion-0038.sql', 'reversion-0037.sql', 'reversion-0036.sql', 'reversion-0035.sql', 'reversion-0034.sql', 'reversion-0033.sql', 'reversion-0032.sql', 'reversion-0031.sql', 'reversion-0030.sql']) {
         const r = spawnSync('psql', ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '--single-transaction', '-d', process.env.CANOPY_E2E_DB,
           '-f', path.join(ROOT, 'supabase/tools', f)], { encoding: 'utf8' });
         assert.strictEqual(r.status, 0, 'the rollback ' + f + ' runs: ' + r.stderr);
@@ -277,11 +277,9 @@ module.exports.tests = [
     name: 'frozen fruit by the bag: a count in closed bags plus loose grams; a delivery in bags or grams; the pack hint',
     run: async ({ browser }) => {
       setup();
-      const VENDOR = '5b000000-0000-4000-8000-000000e30001', PO = '9a000000-0000-4000-8000-000000e30001';
+      const VENDOR = '5b000000-0000-4000-8000-000000e30001';
       sql(`insert into vendors (id, name) values ('${VENDOR}', 'Finca Fresa');
-           update stock_items set vendor_id = '${VENDOR}' where id = '${FRESA}';
-           insert into purchase_orders (id, vendor_id, status) values ('${PO}', '${VENDOR}', 'sent');
-           insert into purchase_lines (po_id, item_id, packs, qty, unit_cost) values ('${PO}', '${FRESA}', 2, 2000, 4)`);
+           update stock_items set vendor_id = '${VENDOR}' where id = '${FRESA}'`);
       const pg = await inventory(browser);
       await pg.click('#tabs [data-view=stock]');
       const fresa = pg.locator('#stockTable tr', { hasText: 'Fresa congelada' });
@@ -307,19 +305,15 @@ module.exports.tests = [
       assert.ok(await pg.locator('#mvCountPackRow').isHidden());
       await pg.click('#mvCancel');
 
-      // receiving: bags fill the grams and grams fill the bags
-      await pg.click('#tabs [data-view=orders]');
-      const card = pg.locator('#poList .po').first();
-      await until(async () => (await card.count()) > 0, 8000, 'order listed');
-      await card.locator('button', { hasText: /^Receive$/ }).click();
-      await pg.waitForSelector('#recvModal:not([hidden])');
-      const packs = pg.locator('#recvTable [data-f=packs]'), qty = pg.locator('#recvTable [data-f=qty]');
-      assert.strictEqual(await packs.inputValue(), '2'); assert.strictEqual(await qty.inputValue(), '2000');
+      // receiving (Stock › Receive; orders are received in Proveedores since D-067): bags fill the grams and grams fill the bags
+      await fresa.locator('button', { hasText: /^Receive$/ }).click();
+      await pg.waitForSelector('#moveModal:not([hidden])');
+      const packs = pg.locator('#mvPacks'), qty = pg.locator('#mvQty');
       await packs.fill('3');
       assert.strictEqual(await qty.inputValue(), '3000');
       await qty.fill('1500');
       assert.strictEqual(await packs.inputValue(), '1.5');
-      await pg.click('#recvCancel');
+      await pg.click('#mvCancel');
 
       // a new item: the hint says what "units per pack" means for grams
       await pg.click('#tabs [data-view=stock]');

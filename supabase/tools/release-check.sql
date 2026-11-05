@@ -14,7 +14,7 @@
 --     reglas de fotos del menú solo si existe ese depósito (menu_photos_bucket; un proyecto de PRUEBAS no lo tiene).
 -- Las listas van en orden de bytes (collate "C"): el mismo resultado en cualquier servidor, sea cual sea su idioma.
 -- =====================================================================================================
-with expected as (select generate_series(0, 38) as v),
+with expected as (select generate_series(0, 40) as v),
 applied as (select version from canopy.migrations),
 needed(fn) as (values
   ('pos_record_sale'), ('pos_record_tender'), ('register_open'), ('register_close'), ('register_expected'), ('register_today'),
@@ -34,7 +34,13 @@ needed(fn) as (values
   ('pantalla_datos'), ('pantallas_estado'), ('pantalla_guardar'), ('diapositiva_guardar'), ('diapositiva_estado'),
   ('descuento_estado'), ('descuento_autorizar'), ('descuento_liberar'), ('descuento_quitar_cuenta'), ('descuentos_informe'),
   ('descuento_cupo_devolver'), ('descuento_caja_registrar'), ('descuento_caja_volver'), ('descuento_cajas'),
-  ('descuento_caja_reanudar'), ('descuento_caja_quitar')),
+  ('descuento_caja_reanudar'), ('descuento_caja_quitar'),
+  ('turno_aqui'), ('turno_desde_caja'), ('turno_estado'), ('turno_terminar'), ('proveedores_lista'), ('proveedores_por_recibir'),
+  ('proveedor_ficha'), ('proveedor_pedido'), ('proveedor_historial'), ('proveedores_alertas'), ('proveedor_guardar'), ('proveedor_producto_guardar'),
+  ('proveedor_borrador_guardar'), ('proveedor_borrador_descartar'), ('proveedor_pedido_crear'), ('proveedor_pedido_editar'),
+  ('proveedor_pedido_cancelar'), ('proveedor_pedido_cerrar'), ('proveedor_pedido_confirmar'), ('proveedor_pedido_asignar'),
+  ('proveedor_recibir'), ('proveedor_recepcion_corregir'), ('proveedor_factura_registrar'), ('proveedor_factura_anular'),
+  ('proveedor_anticipos_aplicar'), ('proveedor_pago_registrar'), ('proveedor_pago_anular')),
 menu_photos as (select exists (select 1 from storage.buckets where id = 'menu-photos') as present),
 storage_rules(name) as (select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects')
 select jsonb_pretty(jsonb_build_object(

@@ -1,5 +1,5 @@
 /* Canopy OS rehearsal · the pages that are LIVE on hanginggardencafe.com today (the gh-pages build named in
-   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0038 today). Until the new pages are
+   tests/rehearsal/LIVE_PAGES), on the copy of production after every migration (0000-0040 today). Until the new pages are
    published, the café keeps using these: they must load and work exactly as before. Also run on the reset copy
    (tests/rehearsal/reset-pages.sh): nothing here assumes earlier sales, so the same checks hold on the empty café. */
 'use strict';
@@ -563,6 +563,95 @@ module.exports.tests = [
                    /^true\|card\|0\|-\|true\|true$/, 'a normal sale, as today');
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, ['400 POST /rest/v1/rpc/approve_discount'], 'only the refused call');
+    }
+  },
+  {
+    // Proveedores (D-067, 0039/0040): until proveedores.html is published, the live Inventory keeps its Orders tab, which
+    // writes purchase_orders and purchase_lines directly and receives with po_receive_and_settle. On the copy migrated
+    // through 0040 that works as before: the new triggers number and version the order and leave the new line columns
+    // empty, the old page's pending card (po_pending) lists the delivery, and Proveedores' money reads it as owed
+    name: 'the live Inventory\'s Orders tab on 0039/0040: a blank order, a line, received with po_receive_and_settle; its pending card and Proveedores read it',
+    run: async ({ browser }) => {
+      const inv = liveFile('inventory.html');
+      if (!inv.includes('id="newPoBtn"') || !/rpc\('po_receive_and_settle'/.test(inv)) { console.log('    (this build has no Orders tab: nothing to check)'); return; }
+      const v39 = sql(`select count(*) from canopy.migrations where version in (39, 40)`) === '2';
+      // the page's «+ Blank order» takes the first active supplier by name; one of its items goes on the order
+      const [vendor, vendorName] = sql(`select id || '|' || name from public.vendors where active order by name limit 1`).split('|');
+      const [item, packQty] = sql(`select id || '|' || trim_scale(pack_qty) from public.stock_items where active order by vendor_id is distinct from '${vendor}', name limit 1`).split('|');
+      const t0 = sql(`select now()`);
+      const pg = watchApi(await page(browser, { login: 'owner', aal: 'aal2', lang: 'en' }));
+      await goto(pg, '/inventory.html');
+      await until(async () => (await pg.locator('#kItems').textContent()) !== '–', 15000, 'inventory loaded');
+      await pg.click('#tabs [data-view=orders]');
+      await pg.waitForSelector('#pendCard:not([hidden])', { timeout: 10000 });   // po_pending answered: the page receives with po_receive_and_settle
+      await pg.click('#newPoBtn');
+      const po = await until(() => sql(`select id from public.purchase_orders where created_at >= '${t0}' and vendor_id = '${vendor}' and status = 'draft'`), 10000, 'the blank order written by the page');
+      const no = sql(`select po_number from public.purchase_orders where id = '${po}'`);
+      assert.ok(/^\d+$/.test(no), 'numbered: ' + no);
+      const card = () => pg.locator('#poList .po').filter({ hasText: new RegExp('Nº ' + no + '(?!\\d)') });
+      await until(async () => (await card().count()) === 1, 10000, 'the order Nº ' + no + ' listed');
+      await card().locator('button', { hasText: '+ Add line' }).click();
+      await pg.waitForSelector('#lineModal:not([hidden])', { timeout: 5000 });
+      await pg.selectOption('#lnItem', item);
+      await pg.fill('#lnPacks', '2');
+      await pg.click('#lineForm button[type=submit]');
+      await until(() => sql(`select count(*) from public.purchase_lines where po_id = '${po}'`) === '1', 10000, 'the line written by the page');
+      await until(async () => !/No lines yet/.test(await card().textContent()), 10000, 'the line on the card');
+      await card().locator('button', { hasText: /^Receive$/ }).click();
+      await pg.waitForSelector('#recvModal:not([hidden])', { timeout: 5000 });
+      assert.strictEqual(Number(await pg.locator('#recvTable [data-f=qty]').inputValue()), 2 * Number(packQty), 'the whole order proposed');
+      const answer = pg.waitForResponse((r) => /\/rest\/v1\/rpc\/po_receive_and_settle$/.test(r.url()) && r.request().method() === 'POST', { timeout: 10000 });
+      await pg.click('#recvGo');
+      const r = await answer;
+      const body = await r.json().catch(() => null);
+      assert.ok(r.status() === 200 && body && body.ok === true && body.status === 'received', 'po_receive_and_settle: ' + r.status() + ' ' + JSON.stringify(body));
+      await until(async () => /Order received, stock updated/.test(await pg.locator('#toast').textContent()), 8000, 'the page\'s «received» message');
+      // the old page's own reading of what is pending with suppliers lists the delivery (invoice to come)
+      await until(async () => new RegExp('Nº ' + no + '(?!\\d)').test(await pg.locator('#pendReceipts').textContent()), 10000, 'the delivery in the pending card');
+      // one delivery, the whole order at the line's cost (as the page wrote it), one purchase move; the invoice to come
+      assert.strictEqual(sql(`select o.status || '|' || (o.received_at is not null) || '|' || trim_scale(l.qty) || '|' || (l.received_qty = l.qty) || '|' || r.invoice_status || '|'
+                                     || (r.total_crc = round(l.qty * l.unit_cost, 2)) || '|' || (select count(*) || '|' || trim_scale(sum(m.qty)) || '|' || (round(sum(m.qty * m.unit_cost), 2) = r.total_crc)
+                                                                                                from public.stock_moves m where m.receipt_id = r.id and m.kind = 'purchase')
+                                from public.purchase_orders o join public.purchase_lines l on l.po_id = o.id join public.purchase_receipts r on r.po_id = o.id where o.id = '${po}'`),
+                         `received|true|${2 * Number(packQty)}|true|pending|true|1|${2 * Number(packQty)}|true`, 'received in full at the line\'s cost, the invoice to come');
+      if (v39) {
+        // 0039: the triggers number and version the order and keep the page's line as the old page wrote it; 0040 reads it as owed
+        assert.strictEqual(sql(`select (o.version > 0) || '|' || (l.vendor_item_id is null and l.pack_qty is null and l.ordered_unit_cost is null and l.pos is null and l.removed_at is null)
+                                  from public.purchase_orders o join public.purchase_lines l on l.po_id = o.id where o.id = '${po}'`), 'true|true', 'versioned; the new line columns untouched');
+        const money = JSON.parse(sql(`select public._prov_dinero('${po}')::text`));
+        assert.ok(money.status === 'pending' && money.invoice_missing === true && Number(money.due) === Number(sql(`select total_crc from public.purchase_receipts where po_id = '${po}'`)),
+                  'Proveedores reads the old page\'s delivery as owed (' + vendorName + '): ' + JSON.stringify(money));
+      }
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    // 0039 adds a trigger on stock_items (a supplier set on an item gets its catalog row) and Proveedores reads the same
+    // alert rule; the live Home's «Before it runs out» card (inventory_alerts) must load as before and list what the rule gives
+    name: 'the live Home\'s «Before it runs out» card on 0039/0040: it loads and lists what inventory_alerts gives the owner; an item saved with a supplier gets its catalog row',
+    run: async ({ browser }) => {
+      const level = Number(sql(`select public.canopy_schema_version()`));
+      const IT = '5c000000-0000-4000-8000-00000000d039';
+      // an item with a supplier and nothing on hand: «Out of stock» whatever the copy's history
+      sql(`insert into public.stock_items (id, name, unit, pack_label, pack_qty, cost_per_pack, vendor_id, par_level, reorder_point)
+             values ('${IT}', 'Ensayo agotado 0039', 'unit', 'caja de 12', 12, 6000, (select id from public.vendors where active order by name limit 1), 24, 12)`);
+      if (level >= 39) {
+        assert.strictEqual(sql(`select count(*) || '|' || min(trim_scale(pack_qty)) || '|' || min(usual_price) from public.vendor_items where item_id = '${IT}' and active`), '1|12|6000.00',
+                           'the catalog row from stock_items_vendor_catalog (0039)');
+      }
+      const owner = `select set_config('request.jwt.claims', '{"sub":"0e000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}', false); set role authenticated;`;
+      const expected = JSON.parse(sql(`${owner} select public.inventory_alerts()::text`).split('\n').pop());   // (psql prints each statement's result)
+      assert.ok(expected.ok && expected.out >= 1 && expected.items.length >= 1, 'inventory_alerts as the owner: ' + JSON.stringify(expected).slice(0, 200));
+      const pg = watchApi(await page(browser, { login: 'owner', aal: 'aal2', lang: 'en' }));
+      await goto(pg, '/home.html');
+      await pg.waitForSelector('#invCard:not([hidden])', { timeout: 15000 });
+      await until(async () => (await pg.locator('#invList .invrow').count()) === expected.items.length, 8000, expected.items.length + ' rows on the card');
+      assert.deepStrictEqual(await pg.locator('#invList .invrow b').allTextContents(), expected.items.map((i) => i.name), 'the rows inventory_alerts gives, in its order');
+      assert.ok((await pg.locator('#invCard').textContent()).includes('Before it runs out'), 'the card\'s title');
+      await quiet(1000);
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
     }
   }
 ];

@@ -69,8 +69,11 @@ select test.eq((select string_agg(policyname || case when qual ~ '_screen_owner_
                   from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like '%photos%'),
                'menu photos owner write menu photos read screen photos owner write*', 'the three photo rules, the slides'' one with the owner''s check');
 
--- 0038 (the POS discounts) comes after: it is reverted first (each reversal refuses while a later migration is applied)
+-- 0038 (the POS discounts), 0039 and 0040 (Proveedores) come after: they are reverted first (each reversal refuses while a
+-- later migration is applied)
 \o /dev/null
+\ir ../../supabase/tools/reversion-0040.sql
+\ir ../../supabase/tools/reversion-0039.sql
 \ir ../../supabase/tools/reversion-0038.sql
 \o
 -- 1) a later migration is applied: the script stops at its first statement and changes nothing ------------------------------
@@ -159,8 +162,8 @@ select test.throws($$delete from public.screen_changes$$, 'screen_changes_immuta
 \set rc `cat :'rc_file'`
 \pset tuples_only off
 \pset format aligned
-select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[37, 38]'::jsonb, 'release-check.sql: 37 (and 38, reverted first) are missing');
-select test.eq((:'rc'::jsonb) -> 'functions_missing', '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe"]'::jsonb, 'no function of the screens is missing (the five are back in their 0036 form; only the eleven of 0038, reverted first)');
+select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[37, 38, 39, 40]'::jsonb, 'release-check.sql: 37 (and 38, 39, 40, reverted first) are missing');
+select test.eq((:'rc'::jsonb) -> 'functions_missing', '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe", "proveedor_anticipos_aplicar", "proveedor_borrador_descartar", "proveedor_borrador_guardar", "proveedor_factura_anular", "proveedor_factura_registrar", "proveedor_ficha", "proveedor_guardar", "proveedor_historial", "proveedor_pago_anular", "proveedor_pago_registrar", "proveedor_pedido", "proveedor_pedido_asignar", "proveedor_pedido_cancelar", "proveedor_pedido_cerrar", "proveedor_pedido_confirmar", "proveedor_pedido_crear", "proveedor_pedido_editar", "proveedor_producto_guardar", "proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", "turno_estado", "turno_terminar"]'::jsonb, 'no function of the screens is missing (the five are back in their 0036 form; only the eleven of 0038 and the 27 of 0039 and 0040, reverted first)');
 select test.eq((:'rc'::jsonb) -> 'anon_can_run', '["canopy_schema_version", "order_status", "pantalla_datos", "place_room_order", "room_lookup"]'::jsonb, 'and a visitor runs what 0036 allowed');
 select test.eq((:'rc'::jsonb) -> 'storage_policies_missing', '[]'::jsonb, 'no Storage rule is missing');
 -- the 0036 behaviour of the writers, as the owner

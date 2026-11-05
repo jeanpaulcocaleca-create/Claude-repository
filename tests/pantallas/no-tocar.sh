@@ -19,8 +19,8 @@ export LC_ALL=C GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # Proveedores (D-067): the only new files it may add and the only files of BASE it may change (filled as the version is
 # built); the POS discounts' files, published with v2026.11.04-1, are back under the byte-for-byte rule
-NEW=()
-CHANGED=()
+NEW=(supabase/migrations/0039_proveedores.sql supabase/migrations/0040_proveedores_pagos.sql website/proveedores.html website/proveedores.js)
+CHANGED=(website/inventory.html website/home.html website/time.html website/contabilidad.js website/config.js website/lang.js)
 PATHS=(website supabase/migrations .github/workflows/pages.yml)
 fail() { echo "  FAIL  no tocar: $*"; exit 1; }
 

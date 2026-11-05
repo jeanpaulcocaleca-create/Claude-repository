@@ -27,7 +27,85 @@ select public.pos_record_sale(jsonb_build_object(
 select public.tab_pay('0d000000-0000-4000-8000-0000000000b2', 'cash_crc', null, null, 'Caja');
 -- 5) a manager voids the old-page sale
 select public.manager_void_order('a1000000-0000-4000-8000-000000000001', '4826', '0d000000-0000-4000-8000-0000000000c2', 'tarjeta rechazada');
--- 6) Luis clocks out (his shift began before the window)
+reset role;
+
+-- 5b) Proveedores (0039/0040, D-067). The old inventory page stays on the tablets until proveedores.html is published:
+--     it writes its orders directly and receives them with po_receive_and_settle (also while the supplier has a payment
+--     registered in Proveedores and not applied yet), and its drawer payouts are then documented by Proveedores' invoice.
+--     The new path: a catalog row, an order of 2 boxes of 12, received by the person on shift through «Recibe en este
+--     aparato» (no PIN in the receiving call) -> +24, the invoice, the SINPE payment -> «Pagado». Checked at the end.
+--     The answers are kept (as the superuser) in a temporary table for the final check; the work-session token is not.
+create temporary table ensayo_prov (k text primary key, v jsonb);
+-- the owner with the phone code: Proveedores' management and books door, no PIN for a payment
+select set_config('request.jwt.claims', '{"sub":"0e000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}', false);
+set role authenticated;
+-- a payment ahead to Lácteos Monteverde (no order and nothing owed: more than the balance, with a reason): it stays unapplied
+select public.proveedor_pago_registrar(jsonb_build_object('vendor_id', '5b000000-0000-4000-8000-000000000002', 'amount', 50000, 'method', 'sinpe',
+         'reference', 'ENSAYO 0040-0001', 'excess_ok', true, 'excess_reason', 'Prepago de la semana'), '5d390000-0000-4000-8000-0000000000a1') as prov_adv \gset
+-- the old page's order to that supplier, written directly as its createPo() does (a draft, then its line) ...
+select 2 * pack_qty as old_qty, cost_per_pack / pack_qty as old_uc, round(2 * cost_per_pack, 2) as old_net, round(2 * cost_per_pack * 0.13, 2) as old_iva,
+       round(2 * cost_per_pack, 2) + round(2 * cost_per_pack * 0.13, 2) as old_total
+  from public.stock_items where id = '5e000000-0000-4000-8000-000000000006' \gset
+insert into public.purchase_orders (id, vendor_id, status, by_name) values ('9a390000-0000-4000-8000-0000000000a1', '5b000000-0000-4000-8000-000000000002', 'draft', 'owner');
+insert into public.purchase_lines (id, po_id, item_id, packs, qty, unit_cost)
+  values ('9b390000-0000-4000-8000-0000000000a1', '9a390000-0000-4000-8000-0000000000a1', '5e000000-0000-4000-8000-000000000006', 2, :old_qty, :old_uc);
+-- ... received, its invoice confirmed and paid by bank in one call with a manager's PIN (its «Confirm reception»)
+select public.po_receive_and_settle('9a390000-0000-4000-8000-0000000000a1',
+         jsonb_build_array(jsonb_build_object('line_id', '9b390000-0000-4000-8000-0000000000a1', 'qty', :old_qty, 'unit_cost', :old_uc, 'expires_on', public.cr_today() + 7)),
+         '7e390000-0000-4000-8000-0000000000a1', false,
+         jsonb_build_object('mode', 'confirm', 'number', 'LM-0039', 'date', public.cr_today(), 'currency', 'CRC', 'net', :old_net, 'iva', :old_iva),
+         jsonb_build_array(jsonb_build_object('method', 'bank', 'amount_crc', :old_total, 'reference', 'BN ensayo 0039')),
+         'a1000000-0000-4000-8000-000000000001', '4826') as prov_old \gset
+-- the old page's order to Verduras Santa Elena, received with the invoice to come and paid in cash from the open register ...
+select 4 * pack_qty as pay_qty, cost_per_pack / pack_qty as pay_uc, round(4 * cost_per_pack, 2) as pay_net, round(4 * cost_per_pack * 0.13, 2) as pay_iva,
+       round(4 * cost_per_pack, 2) + round(4 * cost_per_pack * 0.13, 2) as pay_total
+  from public.stock_items where id = '5e000000-0000-4000-8000-000000000008' \gset
+insert into public.purchase_orders (id, vendor_id, status, by_name) values ('9a390000-0000-4000-8000-0000000000a2', '5b000000-0000-4000-8000-000000000004', 'draft', 'owner');
+insert into public.purchase_lines (id, po_id, item_id, packs, qty, unit_cost)
+  values ('9b390000-0000-4000-8000-0000000000a2', '9a390000-0000-4000-8000-0000000000a2', '5e000000-0000-4000-8000-000000000008', 4, :pay_qty, :pay_uc);
+select public.po_receive_and_settle('9a390000-0000-4000-8000-0000000000a2',
+         jsonb_build_array(jsonb_build_object('line_id', '9b390000-0000-4000-8000-0000000000a2', 'qty', :pay_qty, 'unit_cost', :pay_uc, 'expires_on', public.cr_today() + 7)),
+         '7e390000-0000-4000-8000-0000000000a2', false, '{"mode":"pending"}'::jsonb,
+         jsonb_build_array(jsonb_build_object('method', 'register', 'amount_crc', :pay_total)),
+         'a1000000-0000-4000-8000-000000000001', '4826') as prov_payout \gset
+-- ... and that drawer payout documented by the invoice registered in Proveedores (no number on the paper: S/N-…)
+select public.proveedor_factura_registrar('5b000000-0000-4000-8000-000000000004', array['7e390000-0000-4000-8000-0000000000a2']::uuid[],
+         jsonb_build_object('date', public.cr_today(), 'net', :pay_net, 'iva', :pay_iva), 'f1390000-0000-4000-8000-0000000000a2') as prov_doc \gset
+-- the new page: Distribuidora Central also sells Insumo 7, by the box of 12 (a second supplier for that item), and it is ordered
+select public.proveedor_producto_guardar(jsonb_build_object('id', 'c1390000-0000-4000-8000-0000000000a3', 'vendor_id', '5b000000-0000-4000-8000-000000000005',
+         'item_id', '5e000000-0000-4000-8000-000000000007', 'vendor_code', 'DC-12', 'pack_label', 'caja de 12', 'pack_qty', 12, 'usual_price', 9000)) as prov_cat \gset
+select public.proveedor_pedido_crear('5b000000-0000-4000-8000-000000000005',
+         '[{"vendor_item_id":"c1390000-0000-4000-8000-0000000000a3","packs":2}]'::jsonb, 'Entregar por la mañana', '9a390000-0000-4000-8000-0000000000a3') as prov_po \gset
+reset role;
+select on_hand as prov_before from public.stock_items where id = '5e000000-0000-4000-8000-000000000007' \gset
+-- Luis, on shift since this morning, on the café tablet (its own sign-in): «Recibe en este aparato» with his PIN once, then
+-- the delivery with «Todo recibido correctamente» and only the session's token
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1","session_id":"ensayo-bodega-1"}', false);
+set role authenticated;
+select public.turno_aqui('a1000000-0000-4000-8000-000000000002', '5284', 'Bodega') as prov_turno \gset
+-- (a refusal leaves no token: the calls below then answer no_session, reported by the final check)
+select coalesce((:'prov_turno'::jsonb) ->> 'token', '') as prov_tok \gset
+select public.proveedores_por_recibir(:'prov_tok') as prov_list \gset
+select public.proveedor_pedido('9a390000-0000-4000-8000-0000000000a3', :'prov_tok') as prov_doc_recv \gset
+select public.proveedor_recibir('9a390000-0000-4000-8000-0000000000a3', '7e390000-0000-4000-8000-0000000000a3', ((:'prov_doc_recv'::jsonb) #>> '{order,version}')::int,
+         jsonb_build_array(jsonb_build_object('line_id', (:'prov_doc_recv'::jsonb) #>> '{lines,0,id}', 'rest', true)), :'prov_tok') as prov_recv \gset
+reset role;
+select on_hand - :prov_before as prov_delta from public.stock_items where id = '5e000000-0000-4000-8000-000000000007' \gset
+-- the owner with the code: the supplier's invoice of that delivery, then the SINPE payment of the order
+select set_config('request.jwt.claims', '{"sub":"0e000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}', false);
+set role authenticated;
+select public.proveedor_factura_registrar('5b000000-0000-4000-8000-000000000005', array['7e390000-0000-4000-8000-0000000000a3']::uuid[],
+         jsonb_build_object('number', 'DC-0039', 'date', public.cr_today(), 'net', 18000, 'iva', 2340), 'f1390000-0000-4000-8000-0000000000a3') as prov_inv \gset
+select public.proveedor_pago_registrar(jsonb_build_object('vendor_id', '5b000000-0000-4000-8000-000000000005', 'po_id', '9a390000-0000-4000-8000-0000000000a3',
+         'amount', 20340, 'method', 'sinpe', 'reference', 'ENSAYO 0040-0002'), '5d390000-0000-4000-8000-0000000000a3') as prov_pay \gset
+reset role;
+insert into ensayo_prov (k, v) values ('adv', :'prov_adv'), ('old', :'prov_old'), ('payout', :'prov_payout'), ('doc', :'prov_doc'), ('cat', :'prov_cat'),
+  ('po', :'prov_po'), ('turno', (:'prov_turno'::jsonb) - 'token'), ('list', :'prov_list'), ('recv_doc', :'prov_doc_recv'), ('recv', :'prov_recv'),
+  ('delta', to_jsonb(:prov_delta::numeric)), ('inv', :'prov_inv'), ('pay', :'prov_pay');
+
+select set_config('request.jwt.claims', '{"sub":"c0000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal1"}', false);
+set role authenticated;
+-- 6) Luis clocks out (his shift began before the window): his «Recibe en este aparato» of 5b ends with it
 select public.clock_punch('a1000000-0000-4000-8000-000000000002', '5284');
 reset role;
 
@@ -146,6 +224,73 @@ begin
   if public.setting('pos_free_discount') #>> '{}' <> 'on' then raise exception 'after: the switch is not back on'; end if;
   if exists (select 1 from public.access_unlocks where session_id = 'ensayo-caja-1') then
     raise exception 'after: the owner areas stayed open on the registered till'; end if;
+  -- 0039/0040 (5b): every item with a supplier got its catalog row from the migration (new table only)
+  if exists (select 1 from public.stock_items s where s.vendor_id is not null
+              and not exists (select 1 from public.vendor_items v where v.vendor_id = s.vendor_id and v.item_id = s.id)) then
+    raise exception 'after: 0039 left an item with a supplier without its catalog row'; end if;
+  -- the payment ahead, registered in Proveedores, waits unapplied (nothing owed to that supplier yet)
+  if (select v ->> 'ok' || '|' || (v ->> 'unapplied_crc')::numeric from ensayo_prov where k = 'adv') is distinct from 'true|50000.00' then
+    raise exception 'after: the payment ahead in Proveedores: %', (select v from ensayo_prov where k = 'adv'); end if;
+  -- the old page's direct order, received, invoiced and paid by bank in one call while that payment is unapplied
+  if (select (v ->> 'ok') || '|' || (v ->> 'invoice_status') || '|' || (v ->> 'open_crc')::numeric || '|' || ((v ->> 'paid_crc')::numeric = (v ->> 'total_crc')::numeric)
+        from ensayo_prov where k = 'old') is distinct from 'true|confirmed|0.00|true' then
+    raise exception 'after: the old page''s receive-and-settle with a Proveedores payment unapplied: %', (select v from ensayo_prov where k = 'old'); end if;
+  if public._prov_unapplied('5d390000-0000-4000-8000-0000000000a1') <> 50000 then
+    raise exception 'after: the old page''s payment took the Proveedores payment: % unapplied', public._prov_unapplied('5d390000-0000-4000-8000-0000000000a1'); end if;
+  if (select status || '|' || (po_number is not null) || '|' || (version > 0) from public.purchase_orders where id = '9a390000-0000-4000-8000-0000000000a1') <> 'received|true|true'
+     or (select (vendor_item_id is null and pack_qty is null and ordered_unit_cost is null and pos is null and removed_at is null)::text || '|' || received_qty
+           from public.purchase_lines where id = '9b390000-0000-4000-8000-0000000000a1')
+        is distinct from 'true|' || (select qty from public.purchase_lines where id = '9b390000-0000-4000-8000-0000000000a1') then
+    raise exception 'after: the old page''s order, as Proveedores keeps it'; end if;
+  if (public._prov_dinero('9a390000-0000-4000-8000-0000000000a1') ->> 'status') <> 'paid' then
+    raise exception 'after: Proveedores does not read the old page''s paid order as «Pagado»: %', public._prov_dinero('9a390000-0000-4000-8000-0000000000a1'); end if;
+  -- the old page's drawer payout, documented by Proveedores' invoice: nothing open, «Pagado»
+  if (select (v ->> 'ok') || '|' || (v ->> 'invoice_status') || '|' || ((select payout_id from public.purchase_receipts where id = '7e390000-0000-4000-8000-0000000000a2') is not null)
+        from ensayo_prov where k = 'payout') is distinct from 'true|pending|true' then
+    raise exception 'after: the old page''s drawer payout: %', (select v from ensayo_prov where k = 'payout'); end if;
+  if (select (v ->> 'ok') || '|' || ((v ->> 'payout_crc')::numeric = (v ->> 'total_crc')::numeric) || '|' || (v ->> 'open_crc')::numeric from ensayo_prov where k = 'doc')
+       is distinct from 'true|true|0.00'
+     or (select count(*) from public.supplier_payments p join public.supplier_payment_allocations a on a.payment_id = p.id
+          where a.invoice_id = 'f1390000-0000-4000-8000-0000000000a2' and p.paid_from = 'payout' and p.voided_at is null
+            and p.payout_id = (select payout_id from public.purchase_receipts where id = '7e390000-0000-4000-8000-0000000000a2')) <> 1
+     or (public._prov_dinero('9a390000-0000-4000-8000-0000000000a2') ->> 'status') <> 'paid' then
+    raise exception 'after: the drawer payout documented by proveedor_factura_registrar: % · %', (select v from ensayo_prov where k = 'doc'),
+      public._prov_dinero('9a390000-0000-4000-8000-0000000000a2'); end if;
+  -- the new path: the catalog row, 2 boxes of 12 ordered = 24 units, received by Luis's work session: +24, no money shown to him
+  if (select string_agg(v ->> 'ok', '|' order by k) from ensayo_prov where k in ('cat', 'po', 'turno', 'list', 'recv_doc', 'recv')) <> 'true|true|true|true|true|true' then
+    raise exception 'after: the new page''s path: %', (select jsonb_object_agg(k, v) from ensayo_prov where k in ('cat', 'po', 'turno', 'list', 'recv_doc', 'recv')); end if;
+  if (select string_agg(packs || ' × ' || pack_qty || ' = ' || qty || ' @ ' || ordered_unit_cost, ', ') from public.purchase_lines where po_id = '9a390000-0000-4000-8000-0000000000a3')
+       is distinct from '2 × 12 = 24.0000 @ 750.000000' then
+    raise exception 'after: the order of 2 boxes of 12: %', (select string_agg(packs || ' × ' || pack_qty || ' = ' || qty || ' @ ' || ordered_unit_cost, ', ')
+                                                             from public.purchase_lines where po_id = '9a390000-0000-4000-8000-0000000000a3'); end if;
+  if not exists (select 1 from ensayo_prov, jsonb_array_elements(v -> 'orders') o where k = 'list' and o ->> 'id' = '9a390000-0000-4000-8000-0000000000a3')
+     or (select v ->> 'mode' || '|' || (v ? 'money') || '|' || (v -> 'order' ? 'note') from ensayo_prov where k = 'recv_doc') <> 'receive|false|false' then
+    raise exception 'after: the person on shift does not see the order to receive, or sees money: % · %', (select v from ensayo_prov where k = 'list'),
+      (select v from ensayo_prov where k = 'recv_doc'); end if;
+  if (select v ->> 'status' || '|' || not (v ? 'total_crc') from ensayo_prov where k = 'recv') <> 'received|true'
+     or (select v #>> '{}' from ensayo_prov where k = 'delta')::numeric <> 24 then
+    raise exception 'after: received by the work session: % · stock %', (select v from ensayo_prov where k = 'recv'), (select v from ensayo_prov where k = 'delta'); end if;
+  if (select r.by_name || '|' || (r.staff_id = 'a1000000-0000-4000-8000-000000000002') || '|' || (r.work_session_id = w.id) || '|' || r.total_crc || '|'
+             || (select sum(m.qty) || '@' || min(m.unit_cost) from public.stock_moves m where m.receipt_id = r.id and m.kind = 'purchase')
+        from public.purchase_receipts r join public.work_sessions w on w.staff_id = r.staff_id and w.session_id = 'ensayo-bodega-1'
+       where r.id = '7e390000-0000-4000-8000-0000000000a3') is distinct from 'Luis (en turno)|true|true|18000.00|24.0000@750.000000' then
+    raise exception 'after: the delivery as booked: %', (select to_jsonb(r) from public.purchase_receipts r where r.id = '7e390000-0000-4000-8000-0000000000a3'); end if;
+  -- his clock-out (step 6) ended that session
+  if (select string_agg(coalesce(ended_how, 'live'), ',') from public.work_sessions where session_id = 'ensayo-bodega-1') is distinct from 'clock_out' then
+    raise exception 'after: Luis''s work session after his clock-out: %', (select string_agg(coalesce(ended_how, 'live'), ',') from public.work_sessions where session_id = 'ensayo-bodega-1'); end if;
+  -- the invoice, then the SINPE payment of the order: applied at once, nothing open, «Pagado»
+  if (select (v ->> 'ok') || '|' || (v ->> 'total_crc')::numeric || '|' || (v ->> 'open_crc')::numeric from ensayo_prov where k = 'inv') is distinct from 'true|20340.00|20340.00'
+     or (select (v ->> 'ok') || '|' || (v ->> 'applied_crc')::numeric || '|' || (v #>> '{money,status}') from ensayo_prov where k = 'pay') is distinct from 'true|20340.00|paid'
+     or public._invoice_open('f1390000-0000-4000-8000-0000000000a3') <> 0
+     or (public._prov_dinero('9a390000-0000-4000-8000-0000000000a3') ->> 'status') <> 'paid' then
+    raise exception 'after: the new path''s invoice and payment: % · %', (select v from ensayo_prov where k = 'inv'), (select v from ensayo_prov where k = 'pay'); end if;
+  -- the books: every entry balanced, and 1160 «Anticipos a proveedores» holds exactly what is not applied yet
+  if exists (select 1 from acct.lines group by entry_id having sum(debit) <> sum(credit)) or (select sum(debit) - sum(credit) from acct.lines) <> 0 then
+    raise exception 'after: the ledger is not balanced'; end if;
+  if (select coalesce(sum(l.debit - l.credit), 0) from acct.lines l where l.account = '1160')
+     <> (select coalesce(sum(public._prov_unapplied(a.id)), 0) from public.supplier_advances a where a.voided_at is null) then
+    raise exception 'after: 1160 holds % but the unapplied payments are %', (select coalesce(sum(l.debit - l.credit), 0) from acct.lines l where l.account = '1160'),
+      (select coalesce(sum(public._prov_unapplied(a.id)), 0) from public.supplier_advances a where a.voided_at is null); end if;
   -- the sales made after the window are recorded in full, nothing is lost or invented
   if (select count(*) from public.orders where id in ('0d000000-0000-4000-8000-0000000000c1', '0d000000-0000-4000-8000-0000000000c2', '0d000000-0000-4000-8000-0000000000c3',
                                                      '0d000000-0000-4000-8000-0000000000c4', '0d000000-0000-4000-8000-0000000000c5', '0d000000-0000-4000-8000-0000000000c6')) <> 6 then

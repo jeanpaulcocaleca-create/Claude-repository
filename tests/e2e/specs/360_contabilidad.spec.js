@@ -145,6 +145,7 @@ module.exports.tests = [
       await pg.click('#ef-save');
       await until(() => sql(`select count(*) from expenses where vendor_id = '${VENDOR}'`) === '1', 10000, 'expense saved');
       assert.strictEqual(sql(`select account || ':' || amount_crc || ':' || iva_crc || ':' || paid_from || ':' || description from expenses`), '5101:11300.00:1300.00:cash:Café de Altura', 'account, IVA from the 13 %, cash, the supplier as description');
+      await until(() => sql(`select coalesce(receipt_path, '') from expenses`) !== '', 10000, 'the receipt is uploaded and attached after the save');
       assert.match(sql(`select receipt_path from expenses`), /^[0-9a-f-]{36}\/factura_caf.*\.jpg$/, 'the receipt is stored under the expense');
       assert.strictEqual(sql(`select default_account || ':' || default_paid_from || ':' || default_iva_rate from vendors where id = '${VENDOR}'`), '5101:cash:0.1300', 'the habits were remembered');
       assert.strictEqual(sql(`select string_agg(l.account || ':' || (l.debit - l.credit), ',' order by l.account) from acct.lines l join acct.entries e on e.id = l.entry_id where e.source = 'expense'`), '1101:-11300.00,1140:1300.00,5101:10000.00', 'posted with its IVA credit');

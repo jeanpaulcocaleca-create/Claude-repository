@@ -47,8 +47,15 @@ CLEARED = ('order_part_lines', 'tab_adds', 'order_items', 'orders', 'discount_ap
 PRESERVED = ('menu_categories', 'menu_items', 'recipes', 'vendors', 'staff', 'app_accounts', 'app_settings', 'board_settings', 'board_group_slides', 'rooms')
 # cleared tables that ops/backup/repositorio-respaldos/anonimizar.sql empties before a copy leaves the job (unlock tokens open
 # things: they never leave production), so on the owner's anonymized copy they are always empty before the reset; 0038's
-# tills registered for discounts (sign-in ids and device-key hashes) are emptied the same way
-ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'discount_tills')
+# tills registered for discounts (sign-in ids and device-key hashes) are emptied the same way, and so are 0039's «Recibe en
+# este aparato» sessions (token hashes, sign-in ids, PIN fingerprints)
+ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'discount_tills', 'work_sessions')
+# consistency-check.sql's Proveedores checks (0039/0040), each 0 on a sound copy: on the seeded copy after a day of work on the
+# old inventory page and the new one (tests/rehearsal/after-window.sql 5b). Not in 'after' mode: production's own history
+# before the window (a purchase booked at cost 0 by an old page, say) is reported by the tool, not made a difference here
+PROVEEDORES = ('receipts_total_vs_moves', 'sinpe_payments_without_reference', 'payments_applied_above_amount', 'advances_ledger_vs_unapplied',
+               'vendors_unapplied_with_open_invoices', 'advances_unapplied_over_30_days', 'purchase_moves_at_zero_cost',
+               'posted_days_with_purchases_not_posted')
 rows = lambda fp: int(fp.split(':')[0])   # a data fingerprint is 'rows:md5 of every original column'
 # every setting the migrations define and the value each one has until the owner or the accountant decides otherwise
 # (CLAUDE.md: prices as today, no automatic books, no e-invoices, no payroll rule, no receipt photos, operators not enforced,
@@ -196,11 +203,18 @@ elif mode == 'day-after':
     af = cd['after']
     for k in ('ledger_unbalanced', 'receipt_numbers_repeated', 'paid_orders_without_business_date', 'rows_without_location'):
         check(af.get(k) == '0', f'after a day of work, after.{k} = {af.get(k)}')
+    # 0039/0040: every Proveedores check of the owner's tool reads 0 (a copy migrated before 0039 has none of them)
+    prov = [k for k in PROVEEDORES if k in af]
+    check(prov in ([], list(PROVEEDORES)), f'after a day of work, only some Proveedores checks are reported: {prov}')
+    for k in prov:
+        check(af[k] == '0', f'after a day of work, after.{k} = {af[k]}')
     # 4 sales (an offline one from before the window, an old page's, a new page's, a room order) and 3 with discounts (0038:
     # the old window's, its queued sale after the switch is turned off, a late category sale)
     check(cd['kept']['orders'] == before_c['kept']['orders'] + 7, f"orders: {before_c['kept']['orders']} + 7 new -> {cd['kept']['orders']}")
     if not errors:
-        print('    old pages, an offline sale from before the window, new pages, discounts old and new (switch off and on), room order, stock, register close: all recorded; no new problems')
+        print('    old pages, an offline sale from before the window, new pages, discounts old and new (switch off and on), room order, stock, register close: all recorded; no new problems'
+              + (f'; Proveedores: the old page\'s orders (one paid by bank while a payment waits unapplied, one by the drawer documented by the new invoice), '
+                 f'the new path received on shift and paid by SINPE; its {len(prov)} checks at 0' if prov else ''))
 else:
     # before the reset (today's schema, the test period's history) -> right after it (today's schema, empty café) -> after the migrations
     # run.sh step 10 shares one folder with the main copy and prefixes its files 'reset-'; the owner's rehearsal (ensayo.sh

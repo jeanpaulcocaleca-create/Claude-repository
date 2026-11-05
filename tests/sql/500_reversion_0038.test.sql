@@ -118,6 +118,12 @@ create temp table snap500 (k text primary key, j jsonb);
 \set tmp500 `mktemp`
 
 -- 0) the state made under 0038, through the real functions ----------------------------------------------------------
+-- 0039 and 0040 (Proveedores) come after: they are reverted first (each reversal refuses while a later migration is applied)
+\o /dev/null
+\ir ../../supabase/tools/reversion-0040.sql
+\ir ../../supabase/tools/reversion-0039.sql
+\o
+set local lock_timeout = 0;   -- as before those two reversals (the check in 2 reads it)
 select test.eq(public.canopy_schema_version(), 38, '0 the database is at version 38');
 -- the 42 functions 0038 adds (api-0038 §4 and §6: 11 public, 28 internal, 3 for the triggers) and the 3 it replaces
 create temp table new500 (sig text);
@@ -253,14 +259,14 @@ insert into snap500 values ('cons_0038', :'j500'::jsonb);
 insert into snap500 values ('rc_0038', :'j500'::jsonb);
 \pset tuples_only off
 \pset format aligned
-select test.eq((select (j -> 'migrations_missing') || (j -> 'functions_missing') from snap500 where k = 'rc_0038'), '[]'::jsonb,
-               '0 release-check.sql under 0038: no migration and no function missing');
+select test.eq((select (j -> 'migrations_missing') || (j -> 'functions_missing') from snap500 where k = 'rc_0038'), '[39, 40, "proveedor_anticipos_aplicar", "proveedor_borrador_descartar", "proveedor_borrador_guardar", "proveedor_factura_anular", "proveedor_factura_registrar", "proveedor_ficha", "proveedor_guardar", "proveedor_historial", "proveedor_pago_anular", "proveedor_pago_registrar", "proveedor_pedido", "proveedor_pedido_asignar", "proveedor_pedido_cancelar", "proveedor_pedido_cerrar", "proveedor_pedido_confirmar", "proveedor_pedido_crear", "proveedor_pedido_editar", "proveedor_producto_guardar", "proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", "turno_estado", "turno_terminar"]'::jsonb,
+               '0 release-check.sql under 0038: no migration and no function missing but those of 0039 and 0040 (reverted first)');
 select test.eq((select (j #>> '{schema,functions_by_version,0038}') || ' ' || jsonb_array_length(j #> '{schema,functions_changed}')
                        || ' ' || jsonb_array_length(j #> '{schema,functions_unknown}') from snap500 where k = 'snap_0038'), '45 0 0',
                '0 production-snapshot.sql under 0038: 45 functions of 0038 (42 new + 3 replaced), none changed or unknown');
 
 -- 1) a later migration is applied: the script stops at its first statement and changes nothing ------------------------------
-insert into canopy.migrations (version, name) values (39, 'siguiente de prueba');
+insert into canopy.migrations (version, name) values (40, 'siguiente de prueba');
 savepoint later;
 \set ON_ERROR_STOP 0
 \set LAST_ERROR_SQLSTATE 00000
@@ -284,13 +290,13 @@ savepoint later_msg;
 \set ON_ERROR_STOP 1
 rollback to savepoint later_msg;
 select test.eq(:'LAST_ERROR_SQLSTATE' || ' ' || :'LAST_ERROR_MESSAGE',
-               'P0001 Hay una migración posterior a la 0038 aplicada (39): revierta esa primero. No se cambió nada.',
-               '1 its message: «Hay una migración posterior a la 0038 aplicada (39): revierta esa primero. No se cambió nada.»');
+               'P0001 Hay una migración posterior a la 0038 aplicada (40): revierta esa primero. No se cambió nada.',
+               '1 its message: «Hay una migración posterior a la 0038 aplicada (40): revierta esa primero. No se cambió nada.»');
 select test.eq(test.diff500('f38', '(select * from test.fns500())'), '', '1 every function exactly as 0038 left it (text, rights, settings)');
 select test.eq(test.diff500('t38', '(select * from test.trg500())'), '', '1 every trigger as it was (the four of 0038 included)');
 select test.eq(test.diff500('d38', '(select * from test.data500())'), '', '1 and no row of any table changed');
-select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 36), '36 37 38 39', '1 the ledger as it was');
-delete from canopy.migrations where version = 39;
+select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 36), '36 37 38 40', '1 the ledger as it was');
+delete from canopy.migrations where version = 40;
 
 -- 2) the reversal ---------------------------------------------------------------------------------------------------------
 select current_setting('lock_timeout') as lt_before \gset
@@ -417,10 +423,10 @@ insert into snap500 values ('rc_rev', :'j500'::jsonb);
 \pset tuples_only off
 \pset format aligned
 create function test.s500(key text, path text[]) returns jsonb language sql stable as $$ select j #> path from snap500 where k = key $$;
-select test.eq(test.s500('rc_rev', '{migrations_missing}'), '[38]'::jsonb, '2 release-check.sql: migrations_missing = [38]');
+select test.eq(test.s500('rc_rev', '{migrations_missing}'), '[38, 39, 40]'::jsonb, '2 release-check.sql: migrations_missing = [38, 39, 40] (39 and 40 reverted first)');
 select test.eq(test.s500('rc_rev', '{functions_missing}'),
-               '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe"]'::jsonb,
-               '2 release-check.sql: functions_missing = the eleven public functions of 0038, nothing else');
+               '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe", "proveedor_anticipos_aplicar", "proveedor_borrador_descartar", "proveedor_borrador_guardar", "proveedor_factura_anular", "proveedor_factura_registrar", "proveedor_ficha", "proveedor_guardar", "proveedor_historial", "proveedor_pago_anular", "proveedor_pago_registrar", "proveedor_pedido", "proveedor_pedido_asignar", "proveedor_pedido_cancelar", "proveedor_pedido_cerrar", "proveedor_pedido_confirmar", "proveedor_pedido_crear", "proveedor_pedido_editar", "proveedor_producto_guardar", "proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", "turno_estado", "turno_terminar"]'::jsonb,
+               '2 release-check.sql: functions_missing = the eleven public functions of 0038 and the 27 of 0039 and 0040, nothing else');
 select test.eq(test.s500('rc_rev', '{anon_can_run}'), test.s500('rc_0038', '{anon_can_run}'), '2 release-check.sql: a visitor runs what it ran (the same five)');
 select test.eq(test.s500('rc_rev', '{tables_without_rls}'), '[]'::jsonb, '2 release-check.sql: no table without row security');
 select test.eq(jsonb_build_array(test.s500('rc_rev', '{settings}'), test.s500('rc_rev', '{confirmations}')),
@@ -623,8 +629,8 @@ insert into snap500 values ('cons_again', :'j500'::jsonb);
 insert into snap500 values ('rc_again', :'j500'::jsonb);
 \pset tuples_only off
 \pset format aligned
-select test.eq(test.s500('rc_again', '{migrations_missing}') || test.s500('rc_again', '{functions_missing}'), '[]'::jsonb,
-               '4 release-check.sql: no migration and no function missing');
+select test.eq(test.s500('rc_again', '{migrations_missing}') || test.s500('rc_again', '{functions_missing}'), '[39, 40, "proveedor_anticipos_aplicar", "proveedor_borrador_descartar", "proveedor_borrador_guardar", "proveedor_factura_anular", "proveedor_factura_registrar", "proveedor_ficha", "proveedor_guardar", "proveedor_historial", "proveedor_pago_anular", "proveedor_pago_registrar", "proveedor_pedido", "proveedor_pedido_asignar", "proveedor_pedido_cancelar", "proveedor_pedido_cerrar", "proveedor_pedido_confirmar", "proveedor_pedido_crear", "proveedor_pedido_editar", "proveedor_producto_guardar", "proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", "turno_estado", "turno_terminar"]'::jsonb,
+               '4 release-check.sql: no migration and no function missing but those of 0039 and 0040 (reverted at the start)');
 select test.eq(test.s500('snap_again', '{schema}') - 'functions_total', test.s500('snap_0038', '{schema}') - 'functions_total',
                '4 production-snapshot.sql: the schema as under the first 0038 (functions by version, none changed, triggers, tables, indexes)');
 select test.eq(test.s500('snap_again', '{schema,functions_total}'), test.s500('snap_0038', '{schema,functions_total}'), '4 production-snapshot.sql: functions_total as the first time');

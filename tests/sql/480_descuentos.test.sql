@@ -971,6 +971,8 @@ select test.eq(test.pins480(jsonb_build_array(:'l1'::jsonb, :'lb1'::jsonb, :'e1'
 -- the database before 0038 (the reversal keeps every row and column), the café's old discounts made with the old
 -- functions, then 0038 again
 \o /dev/null
+\ir ../../supabase/tools/reversion-0040.sql
+\ir ../../supabase/tools/reversion-0039.sql
 \ir ../../supabase/tools/reversion-0038.sql
 \o
 select test.eq(public.canopy_schema_version(), 37, '14 (fixture) the reversal: the database is at 37, the old functions back');

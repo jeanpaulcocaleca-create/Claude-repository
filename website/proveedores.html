@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="__BUILD__">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Suppliers · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<!--
+  Canopy OS · Proveedores (D-067, migration 0039): the suppliers, their catalog, ordering with checkboxes, the order
+  document (Copy / PDF / Print), receiving (by management, or by any employee on shift with a work session on this
+  device), invoices and payments. Every read and write goes through the 0039 functions; the server decides every right.
+  The page's script is proveedores.js; English source text, Spanish in lang.js (loaded last).
+-->
+<link rel="icon" type="image/png" href="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/cbafe712-72c1-4ab4-b8cb-715ff9c5c120.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="config.js"></script>
+<script src="version.js" defer></script>
+<script src="keypad.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js"></script>
+<script src="login.js"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33;
+  --accent-soft:#7FA381; --muted:#C9CFB6; --gold:#B98A35; --sec:#54634F; --bad:#A8402F; --warn:#B98A35; --ok:#2F7A4F;
+  --line:rgba(201,207,182,.5); --row:#fff;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:'Figtree',system-ui,sans-serif;font-size:16px;line-height:1.5;overflow-x:hidden}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:400;margin:0}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;min-height:44px;padding:.45em 1em;touch-action:manipulation}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.small{padding:.3em .8em;font-size:.88rem}
+button.danger{background:var(--bad)}
+button.ghost.danger{background:transparent;color:var(--bad);border-color:#E3B9B0}
+button.gold{background:var(--gold)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+[hidden]{display:none !important}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:1.2rem 1rem 6rem}
+.login{max-width:380px;margin:14vh auto 0;text-align:center;background:var(--panel);border-radius:16px;padding:1.4rem}
+.login label{display:block;text-align:left;font-size:.85rem;color:var(--sec);margin:.9rem 0 .25rem}
+.login input{font:inherit;border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%;min-height:44px}
+.login button{width:100%;margin-top:1.2rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:.6rem}
+.err.ok{color:var(--ok)}
+.hint{color:var(--sec);font-size:.88rem}
+.btnlink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.45em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600;background:transparent}
+.btnlink.small{font-size:.88rem;padding:.3em .8em}
+.btnlink.solid{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.88rem;display:inline-flex;align-items:center;min-height:44px}
+button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.pagenav{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;margin:0 0 .9rem;font-size:.8rem}
+.pagenav a,.pagenav .here{padding:.3em .85em;border-radius:99px;text-decoration:none;color:var(--sec);border:1.5px solid transparent;min-height:0}
+.pagenav a:hover{color:var(--accent);border-color:var(--muted)}
+.pagenav .here{background:var(--panel);color:var(--ink);font-weight:600;border-color:var(--muted)}
+@media (pointer:coarse){.pagenav a,.pagenav .here{min-height:44px;display:inline-flex;align-items:center}}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1rem}
+header.top img{width:44px;height:44px;border-radius:50%}
+header.top h1{font-size:1.4rem}
+header.top .sub{font-size:.85rem;color:var(--sec)}
+header.top .grow{flex:1;min-width:10rem}
+#pillHost:empty{display:none}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem 1.2rem;margin-bottom:1rem;min-width:0}
+.card h2{font-size:1.1rem;margin-bottom:.7rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.card h2 .sp,.sp{flex:1}
+.card h2 a,.card h2 button,.card h2 .pill,.doc .dh .pill{font-family:'Figtree',system-ui,sans-serif}
+.card h3{font-size:1rem;margin:1rem 0 .5rem}
+.tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.8rem}
+input,select,textarea{font:inherit;font-size:1rem;color:var(--ink);background:#fff;border:1.5px solid var(--muted);border-radius:10px;padding:.45em .7em;min-height:44px;max-width:100%}
+textarea{width:100%;min-height:5em;resize:vertical}
+.tools input[type=search]{flex:1 1 12rem;min-width:0}
+label.f{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
+.form .row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.form input,.form select{width:100%}
+.btns{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-top:1rem}
+.btns .left{margin-right:auto}
+.checkline{display:flex;gap:.6rem;align-items:center;min-height:44px;margin-top:.4rem;cursor:pointer}
+.checkline input{width:22px;height:22px;min-height:0;margin:0;flex:none;accent-color:var(--accent)}
+.pill{display:inline-block;padding:.12em .6em;border-radius:99px;font-size:.74rem;font-weight:600;letter-spacing:.03em;white-space:nowrap;vertical-align:middle}
+.pill.out{background:var(--bad);color:#fff}.pill.low{background:#E7C7A0;color:#5a3a12}.pill.soon{background:#F1E3B3;color:#5a4a12}.pill.ok{background:#D6E7D5;color:#1E4B33}
+.pill.draft{background:var(--muted);color:var(--ink)}.pill.sent{background:#D9E6F2;color:#1e3a5a}.pill.partially_received{background:#F1E3B3;color:#5a4a12}.pill.received{background:#D6E7D5;color:#1E4B33}.pill.cancelled{background:#eee;color:#666}
+.pill.pay-pending{background:#F6DCD5;color:#7a2a1c}.pill.pay-partial{background:#F1E3B3;color:#5a4a12}.pill.pay-paid{background:#D6E7D5;color:#1E4B33}
+.pill.info{background:#E8E3CF;color:var(--ink)}.pill.gold{background:#F3E4C2;color:#5a4012}.pill.mute{background:#eee;color:#666}
+.n{display:inline-block;min-width:1.4em;padding:0 .4em;border-radius:99px;background:var(--bad);color:#fff;font-size:.74rem;line-height:1.55;text-align:center;font-weight:700}
+.empty{color:var(--sec);font-size:.92rem;padding:.6rem 0}
+.toast{position:fixed;left:50%;bottom:1.4rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6em 1.1em;border-radius:99px;font-size:.92rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:2147482500;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.note{background:#FFF6E5;border:1px solid #F1D7A4;border-radius:10px;padding:.55rem .75rem;margin:.5rem 0;font-size:.92rem}
+.note.ok{background:#E3F0E1;border-color:#B6D3B0}
+.note.bad{background:#F8E3DE;border-color:#E3B9B0}
+.note .btns{margin-top:.4rem}
+.loading{color:var(--sec);padding:1rem 0}
+.crumbs{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin:-.2rem 0 .8rem;font-size:.9rem}
+.crumbs a{text-decoration:none;font-weight:600;display:inline-flex;align-items:center;min-height:44px}
+/* mode bar: who receives on this device / owner areas */
+.modebar{display:flex;gap:.4rem .8rem;align-items:center;flex-wrap:wrap;background:var(--panel);border-radius:14px;padding:.4rem .9rem;margin-bottom:1rem;border:1.5px solid var(--muted)}
+.modebar b{font-weight:700}
+/* hub */
+.alerts{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.6rem;margin-bottom:.4rem}
+.acard{display:block;text-decoration:none;color:var(--ink);background:#fff;border:1.5px solid #E7C7A0;border-radius:14px;padding:.65rem .85rem;min-height:44px}
+.acard.out{border-color:var(--bad)}
+.acard:hover{box-shadow:0 6px 18px rgba(30,75,51,.12)}
+.acard .t{font-weight:700}
+.acard .d{font-size:.86rem;color:var(--sec)}
+.acard .o{font-size:.84rem;color:var(--accent);font-weight:600}
+.agroup{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--sec);margin:.6rem 0 .3rem;grid-column:1/-1}
+.chips{display:flex;gap:.4rem;flex-wrap:wrap}
+.chip{background:transparent;color:var(--sec);border:1.5px solid var(--muted);border-radius:99px;font-weight:600;font-size:.9rem;padding:.3em 1em}
+.chip[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.vgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:.8rem}
+@media (min-width:1024px){.vgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.vcard{display:flex;flex-direction:column;gap:.25rem;text-decoration:none;color:var(--ink);background:#fff;border-radius:14px;padding:.9rem 1.05rem;border:1.5px solid var(--muted);min-width:0}
+.vcard:hover{border-color:var(--muted);box-shadow:0 8px 22px rgba(30,75,51,.1)}
+.vcard .t{font-family:'Playfair Display',Georgia,serif;font-size:1.15rem}
+.vcard .d{font-size:.88rem;color:var(--sec);overflow-wrap:anywhere}
+.badges{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.2rem}
+.olist{display:flex;flex-direction:column;gap:.5rem}
+.orow{display:flex;gap:.4rem .8rem;align-items:center;flex-wrap:wrap;border:1.5px solid var(--muted);border-radius:12px;padding:.55rem .8rem;background:#fff;min-width:0}
+.orow .t{font-weight:700}
+.orow .d{font-size:.86rem;color:var(--sec);flex:1 1 12rem;min-width:0}
+.orow .acts{display:flex;gap:.4rem;flex-wrap:wrap;margin-left:auto}
+/* supplier file */
+.fhead{display:flex;gap:.6rem 1rem;flex-wrap:wrap;align-items:flex-start}
+.fhead h2{font-size:1.45rem;margin:0}
+.fhead .info{flex:1 1 16rem;min-width:0;font-size:.92rem;color:var(--sec)}
+.fhead .info a{display:inline-flex;align-items:center;gap:.3em;min-height:44px;margin-right:.7rem;font-weight:600;overflow-wrap:anywhere}
+.ftabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:1rem 0}
+.ftabs a{display:inline-flex;align-items:center;min-height:44px;padding:.3em 1em;border-radius:10px;border:1.5px solid var(--muted);color:var(--sec);text-decoration:none;font-weight:600;font-size:.95rem}
+.ftabs a[aria-current="page"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.prow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:.3rem .7rem;align-items:center;padding:.55rem .35rem;border-bottom:1px solid var(--line);border-radius:10px}
+.prow.on{background:#EEF3EA}
+.prow.pin{outline:3px solid var(--gold);outline-offset:-3px;background:#FBF1DC}
+.prow .ck{display:flex;align-items:center;justify-content:center;width:44px;height:44px;cursor:pointer}
+.prow .ck input{width:26px;height:26px;min-height:0;margin:0;accent-color:var(--accent);cursor:pointer}
+.prow .nm{font-weight:600;overflow-wrap:anywhere}
+.prow .ds{font-size:.85rem;color:var(--sec)}
+.prow .px{grid-column:2/-1}
+.step{display:inline-flex;align-items:center;gap:0;border:1.5px solid var(--muted);border-radius:12px;background:#fff;overflow:hidden;flex:none}
+.step button{background:transparent;color:var(--accent);min-width:44px;width:44px;height:44px;padding:0;border-radius:0;font-size:1.3rem;line-height:1}
+.step input{border:0;border-left:1.5px solid var(--muted);border-right:1.5px solid var(--muted);border-radius:0;width:4.6em;text-align:center;min-height:44px;padding:.2em .3em;font-family:'Spline Sans Mono',monospace}
+.step input.pre{color:var(--sec);font-style:italic}
+.step input::placeholder{color:#B4B9A6;font-style:italic}
+.priceIn{width:8.5em}
+@media (max-width:719.98px){.prow{grid-template-columns:44px minmax(0,1fr)}.prow .st{grid-column:2/-1;justify-self:start}}
+.bar{position:sticky;bottom:calc(.6rem + env(safe-area-inset-bottom));z-index:30;display:flex;gap:.5rem .9rem;align-items:center;flex-wrap:wrap;background:var(--ink);color:#FCF8EC;border-radius:14px;padding:.55rem .6rem .55rem 1rem;margin-top:1rem;box-shadow:0 10px 30px rgba(8,20,13,.25)}
+.bar .sum{flex:1 1 12rem;min-width:0;font-weight:600}
+.bar .sum span{white-space:nowrap}
+.bar button{background:#FCF8EC;color:var(--accent)}
+.bar button.ghost{background:transparent;color:#FCF8EC;border-color:rgba(252,248,236,.45)}
+.dstatus{font-size:.85rem;color:var(--sec);min-height:1.3em}
+/* tables that become cards on a phone */
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{text-align:left;color:var(--sec);font-weight:600;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .5rem;border-bottom:1.5px solid var(--muted)}
+td{padding:.5rem;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums}
+td .sub{display:block;font-size:.8rem;color:var(--sec)}
+td .lbl{display:none}
+tr.removed td{opacity:.55;text-decoration:line-through}
+tr.miss td{background:#FBEDEA}
+tr.pinline td{background:#FBF1DC}
+tfoot td{font-weight:700;border-bottom:0}
+@media (max-width:719.98px){
+  table.rt,table.rt tbody,table.rt tr,table.rt td,table.rt tfoot{display:block;width:100%}
+  table.rt thead{display:none}
+  table.rt tr{background:#fff;border:1.5px solid var(--muted);border-radius:12px;padding:.6rem .8rem;margin-bottom:.6rem;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.15rem .8rem}
+  table.rt td:first-child,#recvTable td,#prTable td:last-child{grid-column:1/-1}
+  table.rt tfoot tr{background:transparent;border:0;padding:.2rem 0;display:block}
+  table.rt td{border:0;padding:.2rem 0;text-align:left}
+  table.rt td.num{text-align:left}
+  table.rt td .lbl{display:block;font-family:'Figtree',system-ui,sans-serif;font-size:.76rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sec)}
+  table.rt td.hide-phone{display:none}
+}
+/* the order document on screen */
+.doc{background:#fff;border:1.5px solid var(--muted);border-radius:14px;padding:1rem 1.1rem}
+.doc .dh{display:flex;gap:.5rem 1rem;flex-wrap:wrap;align-items:baseline}
+.doc .dh h2{font-size:1.4rem;margin:0}
+.docacts{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.8rem 0}
+.docacts .primary{display:flex;gap:.5rem;flex-wrap:wrap}
+.tot{display:flex;flex-direction:column;align-items:flex-end;gap:.1rem;margin-top:.5rem;font-size:.95rem}
+.tot b{font-family:'Spline Sans Mono',monospace}
+.hist{font-size:.88rem;color:var(--sec);padding-left:1.1rem;margin:.3rem 0}
+.hist li{margin:.15rem 0}
+.rcpt{border:1.5px solid var(--muted);border-radius:12px;padding:.55rem .8rem;margin:.5rem 0;background:#fff}
+.rcpt .rh{display:flex;gap:.3rem .7rem;flex-wrap:wrap;align-items:baseline}
+.rcpt ul{margin:.3rem 0 0;padding-left:1.1rem;font-size:.9rem}
+/* receive */
+.recvhead{display:flex;gap:.5rem 1rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem}
+.bigok{width:100%;min-height:64px;font-size:1.15rem;border-radius:14px;margin:.4rem 0 .6rem}
+.choice{display:flex;gap:.5rem;flex-wrap:wrap;margin:.4rem 0}
+.choice button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.choice button[aria-pressed="false"]{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+.who{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem;margin:.5rem 0}
+.who button{background:#fff;color:var(--ink);border:1.5px solid var(--muted);min-height:56px;font-size:1rem}
+.who button[aria-pressed="true"]{border-color:var(--accent);background:#EEF3EA}
+.sumlist{margin:.3rem 0;padding-left:1.1rem}
+/* modals, as inventory */
+.modalbg{position:fixed;inset:0;background:rgba(20,30,20,.45);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
+.modal{background:var(--panel);border-radius:16px;padding:1.2rem 1.3rem;width:100%;max-width:560px;max-height:92vh;overflow:auto}
+.modal h2{font-size:1.2rem;margin-bottom:.4rem}
+.modal input,.modal select{width:100%}
+.modal .row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.seg{display:flex;gap:.4rem;flex-wrap:wrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.seg button[aria-pressed="false"]{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+.ticks{display:flex;flex-direction:column;gap:.2rem;max-height:40vh;overflow:auto;border:1.5px solid var(--muted);border-radius:10px;padding:.2rem .6rem;background:#fff}
+.inline{background:#fff;border:1.5px solid var(--muted);border-radius:14px;padding:.8rem 1rem;margin:.6rem 0}
+.found{display:flex;flex-direction:column;gap:.3rem;margin:.4rem 0}
+.found button{background:#fff;color:var(--ink);border:1.5px solid var(--muted);text-align:left;font-weight:500}
+@media (max-width:719.98px){
+  .form .row,.modal .row{grid-template-columns:1fr}
+  .modal .btns button,.inline .btns button{flex:1 1 40%;min-height:48px}
+  header.top h1{font-size:1.25rem}
+  .doc{padding:.6rem .1rem;border:0;background:transparent}
+  .card{padding:1rem .9rem}
+}
+input[data-pin]{-webkit-text-security:disc}
+/* the printed order: only #printDoc (a direct child of body), nothing else; no fixed heights, no forced breaks */
+#printDoc{display:none}
+@media print{
+  @page{size:A4;margin:14mm 12mm}
+  html,body{background:#fff !important;margin:0 !important;padding:0 !important;min-height:0 !important;height:auto !important;overflow:visible !important}
+  body>*{display:none !important}
+  body>#printDoc{display:block !important}
+  #printDoc{color:#1f2a24;font:10pt/1.4 'Figtree',Helvetica,Arial,sans-serif}
+  #printDoc h1{font:700 15pt/1.2 Helvetica,Arial,sans-serif;margin:0}
+  #printDoc .ph{display:flex;justify-content:space-between;gap:12pt;border-bottom:1.5pt solid #1E4B33;padding-bottom:6pt;margin-bottom:8pt}
+  #printDoc .pr{text-align:right}
+  #printDoc table{width:100%;border-collapse:collapse;margin-top:6pt;font-size:9.5pt}
+  #printDoc thead{display:table-header-group}
+  #printDoc th{text-align:left;font-size:8pt;text-transform:uppercase;letter-spacing:.04em;color:#555;border-bottom:1pt solid #999;padding:3pt 4pt}
+  #printDoc td{border-bottom:.5pt solid #ccc;padding:3pt 4pt;vertical-align:top}
+  #printDoc tr{break-inside:avoid;page-break-inside:avoid}
+  #printDoc .n{text-align:right;white-space:nowrap}
+  #printDoc .small{color:#666;font-size:8.5pt}
+  #printDoc .foot{margin-top:10pt;color:#444;font-size:9pt}
+}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <h1>Hanging Garden</h1>
+  <p class="hint">Suppliers · Monteverde, Costa Rica</p>
+  <form id="loginForm">
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p class="err" id="loginErr"></p>
+    <button type="button" class="linkbtn" id="forgotBtn">Forgot your password?</button>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="codeIn">Code from your phone app</label>
+    <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+    <button type="submit">Confirm</button>
+    <p class="err" id="codeErr"></p>
+  </form>
+</div>
+
+<div id="cafeView" class="login" hidden>
+  <h1>Hanging Garden</h1>
+  <p class="hint" id="cafeMsg" style="margin-top:.8rem">This login is not connected to the café yet.</p>
+  <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center">
+    <a class="btnlink" href="pos.html">Open the POS</a>
+    <button class="ghost" id="cafeOut" type="button">Sign out</button>
+  </div>
+</div>
+
+<div id="appView" class="wrap" hidden>
+  <nav class="pagenav" aria-label="Café pages">
+    <a href="home.html" data-owner>Home</a>
+    <a href="pos.html">POS</a>
+    <a href="sales.html">Sales</a>
+    <a href="time.html">Time clock</a>
+    <a href="inventory.html">Inventory</a>
+    <span class="here">Suppliers</span>
+  </nav>
+  <header class="top">
+    <img src="https://d2ol7oe51mr4n9.cloudfront.net/user_3H6COw6NT5LgBi3taquUkfS2Dxz/afe2442a-8427-4bb2-93c6-434deea1333f.png" alt="">
+    <div class="grow">
+      <h1>Suppliers</h1>
+      <div class="sub">Orders, receiving and payments to suppliers</div>
+    </div>
+    <span id="pillHost"></span>
+    <button class="ghost small" id="outBtn" type="button">Sign out</button>
+  </header>
+
+  <div class="modebar" id="modeBar" hidden></div>
+
+  <!-- «¿Quién recibe?»: an employee on shift says who they are on this device, once per shift (work session, 0039) -->
+  <section class="card" id="turnoView" hidden>
+    <h2>Who is receiving?</h2>
+    <p class="hint" id="turnoIntro">Tap your name and type your own PIN, once per shift on this device. Then you receive deliveries without a PIN.</p>
+    <p class="note bad" id="turnoMsg" role="alert" hidden></p>
+    <div class="who" id="turnoWho"></div>
+    <details id="turnoOthers" hidden>
+      <summary class="linkbtn" style="display:inline-flex;min-height:44px;align-items:center">Not clocked in yet?</summary>
+      <div class="who" id="turnoWhoOff"></div>
+    </details>
+    <form id="turnoForm" class="form" autocomplete="off" hidden>
+      <p><b id="turnoName"></b></p>
+      <label class="f" for="tqPin">Your PIN</label>
+      <input id="tqPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other">
+      <p class="err" id="turnoErr" role="alert"></p>
+      <div class="btns">
+        <button type="button" class="ghost" id="turnoBack">Back</button>
+        <button type="submit" id="turnoGo">I am on shift here</button>
+      </div>
+    </form>
+    <div class="btns">
+      <button type="button" class="ghost small" id="turnoOwner">Open the owner areas</button>
+    </div>
+  </section>
+
+  <main id="main"></main>
+</div>
+
+<!-- REGISTER A PAYMENT (SINPE or card) -->
+<div class="modalbg" id="payModal" hidden>
+  <form class="modal form" id="payForm" autocomplete="off">
+    <h2>Register a payment</h2>
+    <p class="hint" id="payIntro"></p>
+    <label class="f" for="payPo">Order</label>
+    <select id="payPo"></select>
+    <label class="f">How it was paid</label>
+    <div class="seg" id="payMethod">
+      <button type="button" data-m="sinpe" aria-pressed="true">SINPE</button>
+      <button type="button" data-m="card" aria-pressed="false">Card</button>
+    </div>
+    <div class="seg" id="payCardKind" style="margin-top:.4rem" hidden>
+      <button type="button" data-k="card_debit" aria-pressed="true">Debit card</button>
+      <button type="button" data-k="card_credit" aria-pressed="false">Credit card</button>
+    </div>
+    <div class="row">
+      <div><label class="f" for="payAmt">Amount (₡)</label><input id="payAmt" type="text" inputmode="decimal" data-keypad="qty" maxlength="14"></div>
+      <div><label class="f" for="payDate">Date</label><input id="payDate" type="date"></div>
+    </div>
+    <p class="hint" id="paySaldo"></p>
+    <div id="payRefSinpe"><label class="f" for="payRef">SINPE confirmation number</label><input id="payRef" maxlength="40" autocomplete="off" inputmode="text"></div>
+    <div id="payRefCard" hidden><label class="f" for="payRefC">Reference (optional)</label><input id="payRefC" maxlength="80" autocomplete="off"></div>
+    <div id="payExcessBox" hidden>
+      <label class="checkline"><input type="checkbox" id="payExcess"> <span>It is an overpayment (stays in favour)</span></label>
+      <label class="f" for="payExcessWhy">Reason</label><input id="payExcessWhy" maxlength="200">
+    </div>
+    <div class="row" id="payPinBox">
+      <div><label class="f" for="payWho">Who registers it</label><select id="payWho"></select></div>
+      <div><label class="f" for="payPin">PIN</label><input id="payPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div>
+    </div>
+    <p class="err" id="payErr" role="alert"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="payCancel">Cancel</button>
+      <button type="submit" id="payGo">Save payment</button>
+    </div>
+  </form>
+</div>
+
+<!-- VOID A PAYMENT REGISTERED IN PROVEEDORES -->
+<div class="modalbg" id="voidModal" hidden>
+  <form class="modal form" id="voidForm" autocomplete="off">
+    <h2>Void a payment</h2>
+    <p class="hint" id="voidIntro"></p>
+    <label class="f" for="voidWhy">Reason</label><input id="voidWhy" maxlength="200">
+    <div class="row" id="voidPinBox">
+      <div><label class="f" for="voidWho">Owner</label><select id="voidWho"></select></div>
+      <div><label class="f" for="voidPin">Owner PIN</label><input id="voidPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div>
+    </div>
+    <p class="err" id="voidErr" role="alert"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="voidCancel">Cancel</button>
+      <button type="submit" class="danger" id="voidGo">Void payment</button>
+    </div>
+  </form>
+</div>
+
+<!-- REGISTER A SUPPLIER INVOICE -->
+<div class="modalbg" id="invModal" hidden>
+  <form class="modal form" id="invForm" autocomplete="off">
+    <h2>Register the invoice</h2>
+    <p class="hint">Tick the deliveries on this invoice. Corrections of those deliveries go with them.</p>
+    <div class="ticks" id="invRecs"></div>
+    <p class="hint" id="invPayout"></p>
+    <div class="row">
+      <div><label class="f" for="invNum">Invoice Nº (optional)</label><input id="invNum" maxlength="40" autocomplete="off"></div>
+      <div><label class="f" for="invDate">Invoice date</label><input id="invDate" type="date"></div>
+    </div>
+    <div class="row">
+      <div><label class="f" for="invCur">Currency</label><select id="invCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div>
+      <div id="invFxBox" hidden><label class="f" for="invFx">Exchange rate (₡ per $)</label><input id="invFx" type="text" inputmode="decimal" data-keypad="qty" maxlength="10"></div>
+    </div>
+    <div class="row">
+      <div><label class="f" for="invNet">Subtotal without IVA</label><input id="invNet" type="text" inputmode="decimal" data-keypad="qty" maxlength="14"></div>
+      <div><label class="f" for="invIva">IVA</label><input id="invIva" type="text" inputmode="decimal" data-keypad="qty" maxlength="14"></div>
+    </div>
+    <div class="seg" style="margin-top:.4rem"><button type="button" class="ghost small" id="invIva13">13 %</button><button type="button" class="ghost small" id="invIva0">No IVA</button></div>
+    <p class="hint" id="invTotal"></p>
+    <label class="f" for="invDue">Due date (optional)</label><input id="invDue" type="date">
+    <p class="err" id="invErr" role="alert"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="invCancel">Cancel</button>
+      <button type="submit" id="invGo">Save invoice</button>
+    </div>
+  </form>
+</div>
+
+<!-- CORRECT A DELIVERY (a new receipt with the differences; nothing is deleted) -->
+<div class="modalbg" id="fixModal" hidden>
+  <form class="modal form" id="fixForm" autocomplete="off">
+    <h2>Correct a delivery</h2>
+    <p class="hint">Type the difference per line: −2 when 2 fewer arrived than recorded, +1 when one more arrived. The correction is a new record; nothing is deleted.</p>
+    <label class="f" for="fixRcpt">Delivery</label><select id="fixRcpt"></select>
+    <div id="fixLines"></div>
+    <label class="checkline"><input type="checkbox" id="fixExtra"> <span>More than was ordered arrived (I authorize it)</span></label>
+    <label class="f" for="fixWhy">Reason</label><input id="fixWhy" maxlength="200">
+    <p class="err" id="fixErr" role="alert"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="fixCancel">Cancel</button>
+      <button type="submit" id="fixGo">Save the correction</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- the order as the supplier sees it, for the browser's print (hard-coded Spanish, never translated) -->
+<div id="printDoc" data-no-translate></div>
+
+<script src="proveedores.js"></script>
+<script src="lang.js"></script>
+</body>
+</html>

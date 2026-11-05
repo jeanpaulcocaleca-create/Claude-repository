@@ -6,14 +6,15 @@
 -- que es lo que el ensayo necesita.
 --   * personal: nombre "Persona N", todos con el PIN de pruebas (secreto STAGING_PIN); sin bloqueos
 --   * huéspedes y cuentas abiertas: sin nombre real ni teléfono; enlaces de seguimiento y códigos QR de habitación nuevos
---   * proveedores: "Proveedor N", sin contacto
+--   * proveedores: "Proveedor N", sin contacto ni SINPE (0039)
 --   * quién lo hizo (bitácora, caja, inventario, compras, descuentos, contabilidad, planilla) → "Persona";
 --     el nombre de cada aparato → "Aparato N"
 --   * texto libre (notas, motivos, descripciones, referencias, líneas del banco, memos) → "texto"; la columna libre
 --     "note" de los pedidos de producción, a su valor por defecto
 --   * preguntas del chat del sitio: texto genérico
---   * cuentas de ingreso (app_accounts), llaves de desbloqueo, cajas registradas para descuentos y quién comparte un
---     PIN (0038): se quitan (en pruebas se crean otras)
+--   * cuentas de ingreso (app_accounts), llaves de desbloqueo, cajas registradas para descuentos, quién comparte un
+--     PIN (0038) y las sesiones «Recibe en este aparato» (0039): se quitan (en pruebas se crean otras)
+--   * pagos registrados en Proveedores (0039): número de confirmación SINPE o referencia → "texto N", uno distinto por pago
 -- Cada columna de texto de la copia está en una de las listas de abajo. Si una migración nueva agrega otra, el
 -- script se detiene ANTES de cambiar nada y nombra la columna (nunca su contenido): pruebas no recibe nada sin revisar.
 -- Uso: psql -v pin=NNNN -f anonimizar.sql   (funciona antes y después de cualquier migración)
@@ -54,11 +55,16 @@ declare
                        'public.expense_payments.void_reason',
                        -- 0038: the tour guide's company, typed at the till
                        'public.discount_approvals.company',
+                       -- 0039: the note of a supplier's order draft and of a delivery, why a supplier was paid more than
+                       -- owed, why a Proveedores payment was voided
+                       'public.purchase_drafts.note', 'public.purchase_receipts.note', 'public.supplier_advances.excess_reason',
+                       'public.supplier_advances.void_reason',
                        'acct.entries.memo', 'acct.lines.memo'];
   -- emptied (nullable): a bank account's last digits, the e-invoice receiver and Hacienda's answer about it
   cleared text[] := array['public.bank_accounts.last4', 'public.e_documents.receiver', 'public.e_documents.response',
                           'public.vendors.tax_id',    -- 0034: a supplier's cédula
-                          'public.discount_approvals.session_id'];   -- 0038: the sign-in that asked for a discount
+                          'public.discount_approvals.session_id',    -- 0038: the sign-in that asked for a discount
+                          'public.vendor_pay_info.sinpe'];           -- 0039: how a supplier is paid (a SINPE number, an account)
   -- handled one by one below
   special text[] := array['public.staff.name', 'public.staff.pin_hash', 'public.vendors.name', 'public.vendors.contact_name', 'public.vendors.phone',
                           'public.vendors.whatsapp', 'public.vendors.email', 'public.orders.guest_name', 'public.orders.guest_phone',
@@ -66,11 +72,14 @@ declare
                           'public.chat_questions.session', 'public.audit_log.summary', 'public.audit_log.details', 'public.audit_log.target_id',
                           'public.expenses.vendor_name', 'public.expenses.receipt_path', 'public.bank_lines.fingerprint',
                           'public.payroll_runs.rules', 'public.staff_profile.id_number', 'public.payroll_special_runs.lines',
-                          'public.purchase_receipts.invoice_draft'];
+                          'public.purchase_receipts.invoice_draft',
+                          -- 0039: a Proveedores payment's SINPE confirmation or card reference and its search key (below)
+                          'public.supplier_advances.reference', 'public.supplier_advances.ref_key'];
   -- logins and unlock tokens belong to production only: these tables are emptied (0038: the tills registered for
-  -- discounts hold sign-in ids and the hashes of their device keys; discount_pin_shared says who shares a PIN, owner-only)
+  -- discounts hold sign-in ids and the hashes of their device keys; discount_pin_shared says who shares a PIN, owner-only;
+  -- 0039: work_sessions holds the hashes of «Recibe en este aparato» tokens, sign-in ids and PIN fingerprints)
   emptied text[] := array['app_accounts', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'operator_sessions', 'discount_tills',
-                          'discount_pin_shared'];
+                          'discount_pin_shared', 'work_sessions'];
   -- about the business, not about anyone: menu, stock, chart of accounts, settings, codes, kinds and statuses
   keep text[] := array['acct.accounts.code', 'acct.accounts.name', 'acct.accounts.type', 'acct.entries.source', 'acct.entries.source_key',
                        'acct.lines.account', 'acct.mappings.account', 'acct.mappings.key', 'acct.mappings.label', 'acct.periods.status',
@@ -125,7 +134,13 @@ declare
                        'public.screen_slides.body_es', 'public.screen_slides.body_en', 'public.screen_slides.photo_url',
                        'public.screen_slides.link', 'public.screen_slides.screen_ids', 'public.screen_slides.status',
                        'public.screen_changes.target_kind', 'public.screen_changes.target_id', 'public.screen_changes.action',
-                       'public.screen_changes.summary', 'public.screen_changes.before', 'public.screen_changes.after'];
+                       'public.screen_changes.summary', 'public.screen_changes.before', 'public.screen_changes.after',
+                       -- 0039: each supplier's catalog (its own code, product name and presentation: "LE-12", "caja de 12"),
+                       -- a draft's lines (catalog row ids and quantities only, rebuilt by the server), statuses and kinds;
+                       -- who saved them (created_by, updated_by, voided_by) is "Persona" by name, above
+                       'public.vendor_items.vendor_code', 'public.vendor_items.label', 'public.vendor_items.pack_label',
+                       'public.purchase_drafts.lines', 'public.purchase_drafts.status', 'public.purchase_lines.pack_label',
+                       'public.purchase_receipts.origin', 'public.supplier_advances.method', 'public.supplier_payments.method'];
   unknown text;
 begin
   if pin !~ '^[0-9]{4,8}$' then raise exception 'STAGING_PIN debe tener de 4 a 8 dígitos'; end if;
@@ -202,6 +217,14 @@ begin
     execute $d$update public.purchase_receipts set invoice_draft = invoice_draft || jsonb_strip_nulls(jsonb_build_object(
                'captured_by', case when invoice_draft ? 'captured_by' then 'Persona' end, 'notes', case when invoice_draft ? 'notes' then 'texto' end))
              where invoice_draft is not null$d$;
+  end if;
+  -- 0039: one SINPE transfer is registered once (a unique key on its canonical reference), so each payment gets its own
+  -- text and its key is computed again from it, as proveedor_pago_registrar does (a card payment without one keeps none)
+  if exists (select 1 from _cols where q = 'public.supplier_advances.reference') then
+    execute $a$update public.supplier_advances s set reference = case when s.reference is not null then 'texto ' || x.n end,
+                                                     ref_key = case when s.ref_key is not null then 'texto' || x.n end
+                 from (select id, row_number() over (order by created_at, id) as n from public.supplier_advances) x
+                where x.id = s.id and (s.reference is not null or s.ref_key is not null)$a$;
   end if;
   if exists (select 1 from _cols where q = 'public.bank_lines.fingerprint') then
     execute 'update public.bank_lines set fingerprint = md5(random()::text || id::text)';

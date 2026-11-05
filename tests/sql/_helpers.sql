@@ -138,3 +138,13 @@ begin
     values (n, sid, uid, station, 'test fixture');
   return n;
 end $$;
+
+-- 0039 (Proveedores): «Recibe en este aparato» for that person on the sign-in set by test.login + test.session (clocking
+-- them in when they are not on shift yet), as the page does with turno_aqui; returns the work-session token
+create or replace function test.turno(staff uuid, pin text, station text default 'Recibo de prueba') returns text language plpgsql as $$
+declare r jsonb;
+begin
+  r := public.turno_aqui(staff, pin, station, true);
+  if not coalesce((r->>'ok')::boolean, false) then raise exception 'turno failed: %', r; end if;
+  return r->>'token';
+end $$;
