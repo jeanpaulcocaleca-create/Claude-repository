@@ -40,8 +40,11 @@ create function pg_temp.anon_definer() returns text language sql as $$
 select pg_temp.rows() as rows_before, pg_temp.fp() as fp_before, pg_temp.fns() as fns_0036 \gset
 select test.eq(pg_temp.anon_definer(), 'canopy_schema_version order_status pantalla_datos place_room_order room_lookup', 'under 0036 a visitor runs pantalla_datos too');
 
--- 0038 (the POS discounts) comes after: it is reverted first (each reversal refuses while a later migration is applied)
+-- 0038 (the POS discounts), 0039 and 0040 (Proveedores) come after: they are reverted first (each reversal refuses while a
+-- later migration is applied)
 \o /dev/null
+\ir ../../supabase/tools/reversion-0040.sql
+\ir ../../supabase/tools/reversion-0039.sql
 \ir ../../supabase/tools/reversion-0038.sql
 \o
 -- 1) a later migration is applied: the script stops at its first statement and changes nothing ------------------------------
@@ -114,8 +117,8 @@ reset role;
 \set rc `cat :'rc_file'`
 \pset tuples_only off
 \pset format aligned
-select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[36, 37, 38]'::jsonb, 'release-check.sql: 36, 37 and 38 are missing');
-select test.eq((:'rc'::jsonb) -> 'functions_missing', '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe", "diapositiva_estado", "diapositiva_guardar", "pantalla_datos", "pantalla_guardar", "pantallas_estado"]'::jsonb,
+select test.eq((:'rc'::jsonb) -> 'migrations_missing', '[36, 37, 38, 39, 40]'::jsonb, 'release-check.sql: 36, 37, 38, 39 and 40 are missing');
+select test.eq((:'rc'::jsonb) -> 'functions_missing', '["descuento_autorizar", "descuento_caja_quitar", "descuento_caja_reanudar", "descuento_caja_registrar", "descuento_caja_volver", "descuento_cajas", "descuento_cupo_devolver", "descuento_estado", "descuento_liberar", "descuento_quitar_cuenta", "descuentos_informe", "diapositiva_estado", "diapositiva_guardar", "pantalla_datos", "pantalla_guardar", "pantallas_estado", "proveedor_anticipos_aplicar", "proveedor_borrador_descartar", "proveedor_borrador_guardar", "proveedor_factura_anular", "proveedor_factura_registrar", "proveedor_ficha", "proveedor_guardar", "proveedor_historial", "proveedor_pago_anular", "proveedor_pago_registrar", "proveedor_pedido", "proveedor_pedido_asignar", "proveedor_pedido_cancelar", "proveedor_pedido_cerrar", "proveedor_pedido_confirmar", "proveedor_pedido_crear", "proveedor_pedido_editar", "proveedor_producto_guardar", "proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_bitacora", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", "turno_estado", "turno_terminar"]'::jsonb,
                'and the five functions of the screens (and the eleven of 0038, reverted first)');
 select test.eq((:'rc'::jsonb) -> 'anon_can_run', '["canopy_schema_version", "order_status", "place_room_order", "room_lookup"]'::jsonb,
                'and a visitor runs only what it ran before');

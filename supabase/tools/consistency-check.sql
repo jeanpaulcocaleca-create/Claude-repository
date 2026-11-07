@@ -7,7 +7,11 @@
 --             inventario, horas, personal, bitácora (huellas de lo que ya existía)
 --   problems  cosas que deberían ser 0 (filas huérfanas, inventario que no cuadra con sus movimientos, etc.).
 --             Si ya eran distintas de 0 antes, deben seguir IGUALES después (la migración no las crea).
---   after     revisiones que solo existen después de las migraciones (asientos cuadrados, recibos únicos…)
+--   after     revisiones que solo existen después de las migraciones (asientos cuadrados, recibos únicos…); desde la
+--             0039/0040 también Proveedores (entregas que no suman sus movimientos, pagos SINPE sin número, pagos
+--             aplicados de más, la 1160 contra los pagos sin aplicar, pagos sin aplicar de hace más de 30 días, días
+--             asentados con compras recibidas después, correcciones o pagos que apuntan a una entrega o un pedido que no
+--             existe): todas deben ser 0
 -- =====================================================================================================
 with
 d as (select (o.created_at at time zone 'America/Costa_Rica')::date as day, o.* from public.orders o),
@@ -84,7 +88,29 @@ after as (select jsonb_strip_nulls(jsonb_build_object(
   'orders_before_reset', case when exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'flags') then
       (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.orders where ''before_reset'' = any(flags)', false, true, '')))[1]::text end,
   'rows_without_location', case when exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'orders' and column_name = 'location_id') then
-      (xpath('/row/j/text()', query_to_xml('select ((select count(*) from public.orders where location_id is null) + (select count(*) from public.stock_moves where location_id is null) + (select count(*) from public.time_entries where location_id is null))::text as j', false, true, '')))[1]::text end
+      (xpath('/row/j/text()', query_to_xml('select ((select count(*) from public.orders where location_id is null) + (select count(*) from public.stock_moves where location_id is null) + (select count(*) from public.time_entries where location_id is null))::text as j', false, true, '')))[1]::text end,
+  -- Proveedores (0039/0040): each should be 0
+  'receipts_total_vs_moves', case when to_regclass('public.purchase_receipt_lines') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.purchase_receipts r where abs(r.total_crc - coalesce((select sum(m.qty * coalesce(m.unit_cost, 0)) from public.stock_moves m where m.receipt_id = r.id and m.kind = ''purchase''), 0)) >= 0.01', false, true, '')))[1]::text end,
+  'sinpe_payments_without_reference', case when to_regclass('public.supplier_advances') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.supplier_advances where method = ''sinpe'' and voided_at is null and (coalesce(reference, '''') = '''' or coalesce(ref_key, '''') = '''')', false, true, '')))[1]::text end,
+  'payments_applied_above_amount', case when to_regclass('public.supplier_advances') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.supplier_advances a where (select coalesce(sum(p.amount_crc), 0) from public.supplier_payments p where p.advance_id = a.id and p.voided_at is null) > a.amount_crc + 0.005', false, true, '')))[1]::text end,
+  'advances_ledger_vs_unapplied', case when to_regclass('public.supplier_advances') is not null then
+      (xpath('/row/j/text()', query_to_xml('select trim_scale(round(coalesce((select sum(l.debit - l.credit) from acct.lines l join acct.entries e on e.id = l.entry_id where l.account = (select account from acct.mappings where key = ''supplier_advance'') and (e.source_key like ''supadv:%'' or e.source_key like ''suppay:%'' or e.reverses in (select x.id from acct.entries x where x.source_key like ''supadv:%'' or x.source_key like ''suppay:%''))), 0) - coalesce((select sum(a.amount_crc - coalesce((select sum(p.amount_crc) from public.supplier_payments p where p.advance_id = a.id and p.voided_at is null), 0)) from public.supplier_advances a where a.voided_at is null), 0), 2))::text as j', false, true, '')))[1]::text end,
+  -- a payment and an open invoice it could go to now (a payment ahead for an order still open waits for that order's
+  -- own invoice by design, D-067: not a problem; an invoice of its own order saved elsewhere is)
+  'vendors_unapplied_with_open_invoices', case when to_regclass('public.supplier_advances') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(distinct a.vendor_id)::text as j from public.supplier_advances a join public.supplier_invoices i on i.vendor_id = a.vendor_id and i.voided_at is null and i.total_crc > (select coalesce(sum(al.amount_crc), 0) from public.supplier_payment_allocations al join public.supplier_payments p on p.id = al.payment_id where al.invoice_id = i.id and p.voided_at is null) left join public.purchase_orders po on po.id = a.po_id where a.voided_at is null and a.amount_crc > (select coalesce(sum(p.amount_crc), 0) from public.supplier_payments p where p.advance_id = a.id and p.voided_at is null) and not exists (select 1 from public.supplier_payments p join public.supplier_payment_allocations x on x.payment_id = p.id where p.advance_id = a.id and x.invoice_id = i.id and p.voided_at is not null) and (a.po_id is null or (po.status not in (''draft'', ''sent'', ''partially_received'') and not exists (select 1 from public.purchase_receipts r where r.po_id = a.po_id and r.invoice_id is null and r.total_crc <> 0)) or exists (select 1 from public.purchase_receipts r where r.id = any(i.receipt_ids) and r.po_id = a.po_id))', false, true, '')))[1]::text end,
+  'advances_unapplied_over_30_days', case when to_regclass('public.supplier_advances') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.supplier_advances a where a.voided_at is null and a.created_at < now() - interval ''30 days'' and a.amount_crc > (select coalesce(sum(p.amount_crc), 0) from public.supplier_payments p where p.advance_id = a.id and p.voided_at is null)', false, true, '')))[1]::text end,
+  -- references 0039 keeps without a foreign key (D-067 «Known limits»): a correction's delivery and a payment's order
+  'proveedores_dangling_references', case when to_regclass('public.purchase_receipt_lines') is not null then
+      (xpath('/row/j/text()', query_to_xml('select ((select count(*) from public.purchase_receipts r where r.corrects is not null and not exists (select 1 from public.purchase_receipts z where z.id = r.corrects)) + (select count(*) from public.supplier_payments p where p.po_id is not null and not exists (select 1 from public.purchase_orders o where o.id = p.po_id)))::text as j', false, true, '')))[1]::text end,
+  'purchase_moves_at_zero_cost', case when to_regclass('public.purchase_receipt_lines') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.stock_moves where kind = ''purchase'' and coalesce(unit_cost, 0) = 0', false, true, '')))[1]::text end,
+  'posted_days_with_purchases_not_posted', case when to_regclass('public.purchase_receipt_lines') is not null then
+      (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from (select (m.at at time zone ''America/Costa_Rica'')::date as d, sum(m.qty * coalesce(m.unit_cost, 0)) as c from public.stock_moves m where m.kind = ''purchase'' group by 1) x where exists (select 1 from acct.entries e where e.source = ''day'' and e.source_key like ''day:'' || x.d || '':%'') and x.c - coalesce((select sum(l.credit - l.debit) from acct.lines l join acct.entries e on e.id = l.entry_id where e.source = ''day'' and e.source_key like ''day:'' || x.d || '':%'' and l.account = (select account from acct.mappings where key = ''ap'')), 0) > 0.01', false, true, '')))[1]::text end
 )) as v)
 select jsonb_pretty(jsonb_build_object('checked_at', now(), 'kept', kept.v, 'problems', problems.v, 'after', after.v)) as consistency
   from kept, problems, after;

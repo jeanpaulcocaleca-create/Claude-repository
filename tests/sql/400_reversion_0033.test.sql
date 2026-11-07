@@ -9,6 +9,8 @@ select test.eq(public.manager_save_staff(null, null, null, 'Nuevo', '5284', true
 reset role;
 
 \o /dev/null
+\ir ../../supabase/tools/reversion-0040.sql
+\ir ../../supabase/tools/reversion-0039.sql
 \ir ../../supabase/tools/reversion-0038.sql
 \ir ../../supabase/tools/reversion-0037.sql
 \ir ../../supabase/tools/reversion-0036.sql

@@ -42,12 +42,13 @@ function problems(pg, where) {
 
 module.exports.tests = [
   {
-    name: 'the empty café: POS, Home, Sales, Inventory, Time clock, Kitchen, TV board, QR menu, Insights, Accounting and the customer screens (menu TV, promotions TV, the owner\'s page) open with their empty states, no script errors, no refused API call',
+    name: 'the empty café: POS, Home, Sales, Inventory, Suppliers (the owner\'s hub and the café tablet\'s receiving), Time clock, Kitchen, TV board, QR menu, Insights, Accounting and the customer screens (menu TV, promotions TV, the owner\'s page) open with their empty states, no script errors, no refused API call',
     run: async ({ browser }) => {
       // the reset copy as run.sh left it: nothing operational, everything configured
       assert.strictEqual(sql(`select count(*) from public.orders`) + '|' + sql(`select count(*) from public.register_days`) + '|' +
                          sql(`select count(*) from public.time_entries`) + '|' + sql(`select count(*) from public.stock_moves`), '0|0|0|0', 'the café is empty');
       const items = Number(sql(`select count(*) from public.stock_items where active`)), staff = Number(sql(`select count(*) from public.staff where active`));
+      const vendors = sql(`select coalesce(json_agg(name order by name), '[]') from public.vendors where active`);
       assert.ok(items > 0 && staff > 0, 'the configuration stayed');
       assert.strictEqual(sql(`select count(*) from public.stock_items where on_hand <> 0`), '0', 'every stock at zero');
       const found = [];
@@ -74,6 +75,24 @@ module.exports.tests = [
           const onHand = await pg.locator('#stockTable tbody tr td:nth-child(2)').allTextContents();
           assert.ok(onHand.length === items && onHand.every((t) => /^0(\.0)? /.test(t.trim())), 'every item at 0 on hand: ' + onHand.slice(0, 3).join(' · '));
           assert.match(await text(pg, '#kValue'), /^₡\s?0$/, 'stock value ₡0');
+        }],
+        /* Proveedores (0039/0040): the owner's hub lists the suppliers the reset kept, with no order, nothing owed and nothing
+           to receive; the low-stock cards come from the same rule as Home (every item at zero); opening it writes nothing */
+        ['owner', '/proveedores', async (pg) => {
+          await until(async () => (await pg.locator('#hubVendors .vcard').count()) === JSON.parse(vendors).length, 15000, JSON.parse(vendors).length + ' suppliers listed');
+          assert.deepStrictEqual((await pg.locator('#hubVendors .vcard .t').allTextContents()).sort(), JSON.parse(vendors).sort(), 'the suppliers the reset kept');
+          assert.strictEqual(await pg.locator('#hubVendors .vcard .badges').count(), 0, 'no order, draft, debt or payment badge on any supplier');
+          assert.strictEqual(await text(pg, '#hubReceive .empty'), 'Nothing to receive right now.');
+          await until(async () => (await pg.locator('#hubAlerts .acard').count()) === Math.min(6, items), 8000, 'the low-stock cards (every item at zero)');
+          assert.strictEqual(sql(`select (select count(*) from public.purchase_orders) || '|' || (select count(*) from public.purchase_drafts) || '|' ||
+                                         (select count(*) from public.supplier_advances) || '|' || (select count(*) from public.work_sessions)`), '0|0|0|0', 'nothing written by opening it');
+        }],
+        /* the café tablet without the owner areas: «¿Quién recibe?», nobody on shift yet, everyone under «not clocked in yet» */
+        ['cafe', '/proveedores', async (pg) => {
+          await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 15000 });
+          await until(async () => (await pg.locator('#turnoWhoOff button').count()) === staff, 10000, staff + ' people not clocked in yet');
+          assert.strictEqual(await text(pg, '#turnoWho .hint'), 'Nobody is clocked in right now.');
+          assert.strictEqual(await pg.locator('#main .card').count(), 0, 'no management data on the café tablet');
         }],
         ['cafe', '/time', async (pg) => {
           await until(async () => (await pg.locator('#staffGrid button').count()) === staff, 15000, staff + ' people on the clock-in grid');

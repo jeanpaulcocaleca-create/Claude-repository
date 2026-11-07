@@ -99,6 +99,47 @@ Si algo sale mal:
   se salen solos. Avise a un dueño (o a un encargado que ya tenga esa contraseña por escrito en el café), que vuelve
   a entrar con el correo y la contraseña de los aparatos del café. Nunca pida ni mande esa contraseña por chat.
 
+## Recibir un pedido de un proveedor («Recibe en este aparato»)
+
+Llega con Proveedores (D-067), cuando el dueño lo publique (E-43). Cualquier persona en turno, de cualquier puesto, recibe
+un pedido sin el PIN de un encargado. Solo hace falta que **ese aparato** sepa que usted está en turno, **una vez por
+turno**. La guía completa: `docs/PROVEEDORES.md`.
+
+1. En un aparato del café (la Caja, el iPad o la tableta del Reloj) abra «Proveedores»: en el Reloj, el enlace de
+   arriba; en la Caja, «Reloj» (arriba) → «Proveedores». Al terminar, vuelva a la Caja con «Caja» (arriba).
+2. Si arriba dice «Recibe: (su nombre)», ya está: siga en el paso 4. Pasa cuando en **ese mismo aparato**, en este turno,
+   usted escribió su PIN en «¿Quién cobra?» de la Caja, o ya hizo el paso 3.
+3. Si dice «¿Quién recibe?»: toque **su** nombre → escriba **su propio** PIN → «Estoy en turno aquí». Debe decir «Listo:
+   usted recibe en este aparato.». Si todavía no marcó entrada, su nombre está abajo, en «¿Todavía no marcó entrada?»:
+   su PIN → «Marcar entrada y empezar» (marca la entrada del Reloj y empieza, con el mismo PIN). Nunca escriba el PIN de
+   otra persona ni toque otro nombre.
+4. En «Pedidos por recibir», toque el pedido que llegó. Revise lo que vino contra la lista:
+   - todo igual: **«Todo recibido correctamente»**;
+   - algo distinto: cambie la cantidad con − y +, y el precio si la factura trae otro → «Confirmar recepción»;
+   - si la trae, el «Nº de factura (si la trae)»; algo que contar, en «Observaciones».
+5. Llegó menos: lo que falta queda pendiente. Si el proveedor dijo que no viene el resto: «Avisar que no llega el resto».
+   Llegó más: la página lo anota para el encargado («Llegó más de lo pedido: se anota para el encargado»). Un precio
+   distinto también se anota para el encargado; no cambia nada más.
+6. Si otra persona va a recibir en ese aparato: «¿No es usted? Cambiar». Al terminar puede tocar «Salir de este
+   aparato»; si no, la sesión termina sola al marcar la salida en el Reloj.
+
+**Mire siempre el nombre de arriba antes de recibir:** la entrega queda a nombre de quien dice «Recibe: …». Si no es el
+suyo, «¿No es usted? Cambiar».
+
+Si algo sale mal:
+- **No aparece su nombre en «¿Quién recibe?»** ni en «¿Todavía no marcó entrada?»: avise a un encargado (puede que su
+  perfil no esté activo).
+- **«Tiene un turno abierto desde …; avise a un encargado.»**: quedó abierto el turno de otro día. No marque nada: el
+  encargado lo corrige en «Horas y equipo» y después usted se identifica.
+- **«Ese PIN no es correcto.»** o **«Demasiados PIN incorrectos…»**: es el mismo PIN y la misma cuenta de errores del
+  Reloj (arriba, «Si algo sale mal»).
+- **Vuelve a preguntar «¿Quién recibe?»** a mitad del turno: su PIN cambió, otra persona se identificó en ese aparato, o
+  pasaron 16 horas desde su entrada. Identifíquese otra vez.
+- **«Sin conexión: no se guardó. Intente de nuevo.»**: recibir necesita internet; lo que escribió se conserva.
+
+Lo que la página no le muestra (no hace falta para recibir): totales, pagos, el contacto ni el SINPE del proveedor.
+Pedir, cambiar, cancelar o pagar un pedido lo hace un encargado con su PIN.
+
 ## Ventas: hoy la caja no sabe quién cobra
 
 - Hoy cada venta guarda **el nombre del aparato** ("Caja del frente", "iPad"), no el de la persona. Marcar entrada no

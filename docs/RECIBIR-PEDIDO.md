@@ -1,5 +1,17 @@
 # Recibir pedido con factura y pago · diagnóstico y propuesta (2026-10-15)
 
+> **Reemplazada por Proveedores (D-067, migraciones 0039 y 0040), en cuanto el dueño la publique (E-43).** Esta
+> propuesta sigue siendo el registro de lo que se construyó en la 0029 y de lo que publicó `v2026.11.04-1`. Con
+> Proveedores (`docs/PROVEEDORES.md`): se recibe en `proveedores.html`, no en Inventario → Pedidos; **cualquier persona
+> en turno recibe sin otro PIN** («Recibe en este aparato»), no solo un encargado con su PIN; recibir, la factura y el
+> pago son pasos aparte, y **un pago puede ir antes de la factura** (SINPE con su número de confirmación obligatorio, o
+> tarjeta), por la cuenta 1160 «Anticipos a proveedores», que esta propuesta daba por no usada; el efectivo de la caja
+> registradora ya no se ofrece al recibir (Contabilidad lo conserva); una entrega mal recibida se corrige con una
+> entrega nueva («Corregir una entrega»), sin borrar nada. Sigue igual: la factura se escribe a mano, sin fotos,
+> archivos ni lectura automática (D-042); el inventario y el costo promedio van sin IVA y el IVA entra solo con la
+> factura; la diferencia de precio va a 5103. Las funciones de la 0029 (`po_receive_and_settle` y las demás) quedan para
+> la página anterior y para la vuelta atrás (`docs/ACTIVACION-PROVEEDORES.md` §6.1).
+
 Pedido del dueño: en **Inventario → Pedidos → Recibir**, registrar en un solo paso la recepción, la factura del
 proveedor (foto, imagen o PDF, con lectura automática confirmable), el pago (efectivo de la caja, SINPE o
 transferencia, tarjeta, crédito del proveedor; parcial o combinado) y lo que queda pendiente, sin tocar el resto
