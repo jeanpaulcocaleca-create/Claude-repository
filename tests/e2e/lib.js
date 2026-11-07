@@ -1,5 +1,6 @@
 /* Canopy OS browser tests · helpers shared by the specs. */
 'use strict';
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
@@ -135,10 +136,32 @@ function guiaOn() {
        insert into public.settings (key, value) values ('pos_discount_guia', '"on"') on conflict (key) do update set value = excluded.value`);
 }
 
+/* one tap on a touch screen (touch events, not a mouse) and what the target saw of it: for the tap's pointerdown,
+   mousedown, mouseup and click, whether the event reached the target and where the target's top was at that moment.
+   D-068: a number pad that closed as the tap moved the focus away moved a button between the tap's press and its
+   release, so its click went elsewhere. -> [{ t, on, top }] */
+async function tapOnce(loc) {
+  const h = await loc.elementHandle();
+  await h.evaluate((b) => {
+    const log = b.__hgTapLog = [];
+    ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach((t) => document.addEventListener(t, (e) => {
+      log.push({ t, on: b === e.target || b.contains(e.target), top: Math.round(b.getBoundingClientRect().top) });
+    }, { capture: true, once: true }));
+  });
+  await loc.tap();
+  return h.evaluate((b) => b.__hgTapLog);
+}
+/* the tap of tapOnce() landed on its target, and the target did not move while it did */
+function tapLanded(log, what) {
+  const tops = log.map((x) => x.top);
+  assert.ok(log.length === 4 && log.every((x) => x.on) && tops.every((y) => y === tops[0]),
+    (what || 'the tap') + ' landed on its target, which stayed in place: ' + log.map((x) => x.t + (x.on ? '' : ' (elsewhere)') + ' @' + x.top).join(', '));
+}
+
 /* a cash payment opens the cash window (migration 0010): pay the exact amount */
 async function cashExact(pg) {
   await pg.waitForSelector('#cashModal:not([hidden])', { timeout: 5000 });
   await pg.click('#cashExact');
 }
 
-module.exports = { page, goto, until, settle, sql, sqlJson, openRegister, pos, cashExact, registerTill, guiaOn, SITE, STAFF, PINS, LOGINS, ROOT };
+module.exports = { page, goto, until, settle, sql, sqlJson, openRegister, pos, cashExact, registerTill, guiaOn, tapOnce, tapLanded, SITE, STAFF, PINS, LOGINS, ROOT };

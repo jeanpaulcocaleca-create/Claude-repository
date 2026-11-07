@@ -7,7 +7,7 @@
    café tablet). */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, settle, sql, STAFF, PINS } = require('../lib');
+const { page, goto, until, settle, sql, tapOnce, tapLanded, STAFF, PINS } = require('../lib');
 const P = require('../prov');
 const { V, I, text } = P;
 
@@ -212,6 +212,69 @@ module.exports.tests = [
         }
         for (const p of [pg, emp]) { assert.deepStrictEqual(p.errors, [], w); assert.deepStrictEqual(p.apiErrors, [], w); await p.context().close(); }
       }
+    }
+  },
+  {
+    name: 'a touch screen: «Estoy en turno aquí» tapped right after the PIN digits starts the work session with that one tap (tablet and phone, D-068)',
+    run: async ({ browser }) => {
+      P.seed(); P.clockIn('luis');
+      /* on the tablet the button jumped up as the pad closed (y≈781 → y≈516) and the first tap sent nothing; on the phone
+         the scroll position happened to hide it. Both: one tap, no ✓, no second try */
+      for (const size of [{ width: 820, height: 1180 }, { width: 360, height: 740 }]) {
+        const w = size.width + '×' + size.height;
+        const emp = await device(browser, size, { login: 'cafe' });
+        await goto(emp, '/proveedores');
+        const since = sql(`select now()::text`);
+        let log = null;
+        await P.iAmHere(emp, 'luis', { tap: true, go: (l) => { log = l; }, wait: false });
+        tapLanded(log, w + ': the tap on «Estoy en turno aquí»');
+        await P.seen(emp.locator('#modeBar'), /^Recibe: Luis/, w + ': Luis receives on this device after one tap', 8000);
+        assert.strictEqual(sql(`select count(*) from work_sessions where staff_id = '${STAFF.luis}' and ended_at is null and how = 'pin' and started_at >= '${since}'`), '1',
+                           w + ': the server started one work session with that tap');
+        assert.deepStrictEqual(emp.errors, [], w); assert.deepStrictEqual(emp.apiErrors, [], w);
+        await emp.context().close();
+      }
+    }
+  },
+  {
+    name: 'a touch screen: the row\'s tick right after a quantity typed on the pad, and «Guardar pago» right after the amount typed on the pad, each take one tap (tablet, D-068)',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.leche), rest: true }]);
+      const pg = await device(browser, { width: 820, height: 1180 }, { login: 'owner', aal: 'aal2' });
+      await goto(pg, '/proveedores');
+      await pg.waitForSelector('#hubVendors .vcard');
+      await P.nav(pg, '#p=' + V.lac, '#pList .prow');
+      /* Pedir: a digit on the yogurt's pad ticks the row; the tick box of the same row, tapped next, unticks it (the row is
+         centred, so the box moved as the pad under the quantity closed) */
+      const yog = pg.locator(`#pList .prow[data-vi="${P.vi(I.yogur)}"]`);
+      await yog.locator('.step input').tap();
+      const pad = yog.locator('.hg-pad');
+      await pad.waitFor({ state: 'visible', timeout: 3000 });
+      await pad.locator('button', { hasText: /^3$/ }).tap();
+      assert.strictEqual(await yog.locator('.ck input').isChecked(), true, 'the pad\'s 3 ticks the yogurt');
+      await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡13 500$/, '3 × 4 500', 3000);
+      tapLanded(await tapOnce(yog.locator('.ck input')), 'the tap on the yogurt\'s tick box');
+      assert.strictEqual(await yog.locator('.ck input').isChecked(), false, 'one tap unticks it');
+      await P.seen(pg.locator('#pSum'), /^0 productos · Total estimado ₡0$/, 'nothing ticked', 3000);
+      await pad.waitFor({ state: 'hidden', timeout: 3000 });
+      await until(async () => !/Guardando|Saving/.test(await text(pg.locator('#pStatus'))), 8000, 'the emptied draft saved');
+      /* the payment window: the amount typed on its pad, then «Guardar pago» tapped once (the owner with the phone code
+         types no PIN) */
+      await P.nav(pg, '#pedido=' + o.id, '#orderDoc');
+      await pg.locator('#docPay').tap();
+      await pg.waitForSelector('#payModal:not([hidden])');
+      await pg.fill('#payRef', 'SNP-7788');
+      await pg.locator('#payAmt').tap();
+      const apad = pg.locator('#payAmt + .hg-pad');
+      await apad.waitFor({ state: 'visible', timeout: 3000 });
+      for (const k of ['C', '7', '0', '0', '0']) await apad.locator('button', { hasText: new RegExp('^' + k + '$') }).tap();
+      assert.strictEqual(await pg.inputValue('#payAmt'), '7000');
+      tapLanded(await tapOnce(pg.locator('#payGo')), 'the tap on «Guardar pago»');
+      await until(() => sql(`select count(*) || '|' || string_agg(amount_crc::text, ',') || '|' || string_agg(reference, ',') from supplier_advances`) === '1|7000.00|SNP-7788', 8000, 'the payment saved once, by that tap');
+      await pg.waitForSelector('#payModal', { state: 'hidden', timeout: 8000 });
+      assert.deepStrictEqual(pg.errors, []); assert.deepStrictEqual(pg.apiErrors, []);
     }
   },
   {

@@ -7,7 +7,7 @@
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const zlib = require('zlib');
-const { page, goto, until, settle, sql, STAFF, PINS } = require('./lib');
+const { page, goto, until, settle, sql, tapOnce, STAFF, PINS } = require('./lib');
 
 const V = { lac: '5b000000-0000-4000-8000-00000000a410', pan: '5b000000-0000-4000-8000-00000000a411', fin: '5b000000-0000-4000-8000-00000000a412' };
 const I = {
@@ -216,13 +216,15 @@ async function iAmHere(pg, who, opts) {
   const name = { ana: 'Ana', luis: 'Luis', marta: 'Marta', dueno: 'Dueño' }[who];
   if (opts.tap) {
     /* a touch screen driven with touch events: the name, each digit on the PIN pad and the pad's ✓ (which sends the
-       «Estoy en turno aquí» form) are taps */
+       «Estoy en turno aquí» form) are taps; with opts.go the button «Estoy en turno aquí» itself is tapped once, right
+       after the digits, with the pad still open above it (D-068), and opts.go receives what the button saw of that tap */
     await pg.locator(`#turnoView .who button[data-staff="${STAFF[who]}"]`).tap();
     const pad = pg.locator('#tqPin + .hg-pad');
     await pad.waitFor({ state: 'visible', timeout: 3000 });
     for (const d of PINS[who]) await pad.locator('button', { hasText: new RegExp('^' + d + '$') }).tap();
     if ((await pg.inputValue('#tqPin')).length !== PINS[who].length) throw new Error('the PIN pad\'s taps did not type the PIN');   /* never prints it */
-    await pad.locator('.ok').tap();
+    if (opts.go) opts.go(await tapOnce(pg.locator('#turnoGo')));
+    else await pad.locator('.ok').tap();
   } else {
     await pg.locator(`#turnoView .who button[data-staff="${STAFF[who]}"]`).click();
     await pg.locator('#tqPin').pressSequentially(PINS[who]);   /* typed key by key: keypad.js wipes a PIN that was not typed */
