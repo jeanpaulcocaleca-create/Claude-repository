@@ -14,7 +14,10 @@
 --   * Estado de pago por pedido: Pendiente / Parcialmente pagado / Pagado.
 -- Qué cambia de lo que existe: supplier_invoice_save (la factura de Contabilidad, de la página de Inventario publicada y
 --   de Proveedores) toma primero los pedidos de las entregas y factura con cada entrega sus correcciones de Proveedores
---   todavía sin factura; nada más. La regla supplier_payments_paid_from_check acepta además 'advance' (los pagos
+--   todavía sin factura; supplier_payment_save (0029) y expense_pay (0035) ganan las guardas del dueño del 2026-11-07
+--   (los pagos de Proveedores se aplican primero y un número SINPE ya registrado en Proveedores se niega; sus textos
+--   originales vuelven con la reversión); dos disparadores de última defensa (una factura nunca recibe más de su total,
+--   un pago de Proveedores nunca se aplica más de su monto). La regla supplier_payments_paid_from_check acepta además 'advance' (los pagos
 --   aplicados). Ningún registro existente cambia; la página de Inventario publicada sigue pagando como hoy.
 -- Qué cambia para el personal: nada hasta que se publique proveedores.html.
 -- Cuándo: fuera del horario de atención, justo después de la 0039.
@@ -420,7 +423,8 @@ end $$;
 -- 5) invoices from Proveedores (the books' door or the owner areas) ---
 -- supplier_invoice_save (0025) gains two steps and nothing else, for Contabilidad, the published Inventario page and
 -- Proveedores alike: it takes the deliveries' orders before the vendor, and a correction of those orders without an
--- invoice goes with them (reversion-0040.sql puts the 0025 text back)
+-- invoice goes with them (reversion-0040.sql puts the 0025 text back). It applies nothing by itself (D-067 decision 5:
+-- the explicit calls, Contabilidad's page after it, and every payment route before taking money)
 create or replace function public.supplier_invoice_save(p_invoice jsonb, p_request_id uuid)
 returns jsonb language plpgsql security definer set search_path = public, acct as $$
 declare x public.supplier_invoices; v public.vendors; net numeric; iva numeric; num text; rids uuid[]; rec numeric; eid bigint; who text; d date;
@@ -633,6 +637,173 @@ begin
   return jsonb_build_object('ok', true, 'applied_crc', applied, 'money', public._prov_vendor_money(p_vendor_id));
 end $$;
 
+-- 5b) every route that pays or applies, guarded on the server (owner, 2026-11-07): Contabilidad's own functions take
+-- the Proveedores payments first and refuse a SINPE number Proveedores already holds; two triggers are the last guard
+-- against a double payment of one obligation, whatever page or call writes ---
+-- the same transfer elsewhere: a Proveedores SINPE (always), and with p_only_advances false also a bank payment of
+-- Contabilidad and a bank expense payment, by the number with spaces, dashes and case removed
+create or replace function public._prov_sinpe_taken(p_key text, p_only_advances boolean default false, out vendor_name text, out date date, out amount numeric)
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(p_key, '') = '' then return; end if;
+  select x.name, a.date, a.amount_crc into vendor_name, date, amount from public.supplier_advances a join public.vendors x on x.id = a.vendor_id
+   where a.method = 'sinpe' and a.voided_at is null and a.ref_key = p_key limit 1;
+  if vendor_name is not null or coalesce(p_only_advances, false) then return; end if;
+  select x.name, s.date, s.amount_crc into vendor_name, date, amount from public.supplier_payments s join public.vendors x on x.id = s.vendor_id
+   where s.paid_from = 'bank' and s.voided_at is null and regexp_replace(lower(coalesce(s.reference, '')), '[^a-z0-9]', '', 'g') = p_key limit 1;
+  if vendor_name is not null then return; end if;
+  select coalesce(x.name, e.vendor_name, e.description), s.date, s.amount_crc into vendor_name, date, amount
+    from public.expense_payments s join public.expenses e on e.id = s.expense_id left join public.vendors x on x.id = e.vendor_id
+   where s.paid_from = 'bank' and s.voided_at is null and regexp_replace(lower(coalesce(s.reference, '')), '[^a-z0-9]', '', 'g') = p_key limit 1;
+end $$;
+-- an invoice is never allocated more than its total (the live payments' allocations), a Proveedores payment never applied
+-- beyond its amount: every route holds the supplier's row, so these only ever catch a direct write or a route of tomorrow
+create or replace function public._prov_alloc_guard() returns trigger language plpgsql security definer set search_path = public as $$
+declare tot numeric; done numeric;
+begin
+  if new.amount_crc is null or new.amount_crc <= 0 then raise exception 'prov:bad_amount'; end if;
+  select i.total_crc into tot from public.supplier_invoices i where i.id = new.invoice_id;
+  select coalesce(sum(a.amount_crc), 0) into done from public.supplier_payment_allocations a join public.supplier_payments p on p.id = a.payment_id
+   where a.invoice_id = new.invoice_id and p.voided_at is null
+     and (tg_op = 'INSERT' or a.payment_id <> old.payment_id or a.invoice_id <> old.invoice_id);
+  if done + new.amount_crc > coalesce(tot, 0) + 0.005 then
+    raise exception 'prov:over_allocated' using detail = jsonb_build_object('invoice_id', new.invoice_id, 'total_crc', tot, 'allocated_crc', done, 'amount_crc', new.amount_crc)::text;
+  end if;
+  return new;
+end $$;
+drop trigger if exists supplier_payment_allocations_within_invoice on public.supplier_payment_allocations;
+create trigger supplier_payment_allocations_within_invoice before insert or update on public.supplier_payment_allocations
+  for each row execute function public._prov_alloc_guard();
+create or replace function public._prov_apply_guard() returns trigger language plpgsql security definer set search_path = public as $$
+declare tot numeric; done numeric;
+begin
+  if new.advance_id is null or new.voided_at is not null then return new; end if;
+  select a.amount_crc into tot from public.supplier_advances a where a.id = new.advance_id;
+  select coalesce(sum(p.amount_crc), 0) into done from public.supplier_payments p where p.advance_id = new.advance_id and p.voided_at is null and p.id <> new.id;
+  if done + new.amount_crc > coalesce(tot, 0) + 0.005 then
+    raise exception 'prov:over_applied' using detail = jsonb_build_object('advance_id', new.advance_id, 'amount_crc', tot, 'applied_crc', done, 'now_crc', new.amount_crc)::text;
+  end if;
+  return new;
+end $$;
+drop trigger if exists supplier_payments_within_advance on public.supplier_payments;
+create trigger supplier_payments_within_advance before insert or update of amount_crc, advance_id, voided_at on public.supplier_payments
+  for each row execute function public._prov_apply_guard();
+-- supplier_payment_save (0029) gains three steps and nothing else, for Contabilidad, the published Inventario page
+-- (po_receipt_settle) and a direct call alike (reversion-0040.sql puts the 0029 text back): a Proveedores SINPE number
+-- is refused, the Proveedores payments are applied first, and the ceiling is what is owed after that
+create or replace function public.supplier_payment_save(p_payment jsonb, p_request_id uuid)
+returns jsonb language plpgsql security definer set search_path = public, acct as $$
+declare v public.vendors; amt numeric; left_amt numeric; src text; d date; inv record; part numeric; eid bigint; who text; owed numeric; po uuid;
+        applied numeric := 0; rk text; dup record;
+begin
+  if not public._ap_allowed() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
+  if exists (select 1 from public.supplier_payments where id = p_request_id) then return jsonb_build_object('ok', true, 'repeat', true); end if;
+  select * into v from public.vendors where id = nullif(p_payment->>'vendor_id', '')::uuid;
+  if v.id is null then return jsonb_build_object('ok', false, 'error', 'no_vendor'); end if;
+  perform 1 from public.vendors where id = v.id for update;     -- one invoice or payment of a supplier at a time
+  if exists (select 1 from public.supplier_payments where id = p_request_id) then return jsonb_build_object('ok', true, 'repeat', true); end if;
+  amt := round(nullif(p_payment->>'amount_crc', '')::numeric, 2); src := p_payment->>'paid_from'; d := nullif(p_payment->>'date', '')::date;
+  po := nullif(p_payment->>'payout_id', '')::uuid;
+  if src = 'payout' and po is not null and not exists (select 1 from public.cash_movements m where m.id = po and m.purpose = 'payout' and m.voided_at is null) then
+    return jsonb_build_object('ok', false, 'error', 'bad_payout'); end if;
+  if p_request_id is null or amt is null or amt <= 0 or src not in ('cash', 'petty', 'bank', 'payout', 'card_debit', 'card_credit') or d is null or d > public.cr_today() then
+    return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+  -- D-067 (0040): a SINPE number already registered in Proveedores is the same transfer, not a second payment
+  if src = 'bank' then
+    rk := nullif(regexp_replace(lower(coalesce(p_payment->>'reference', '')), '[^a-z0-9]', '', 'g'), '');
+    if rk is not null and char_length(rk) >= 4 and rk ~ '[0-9]' then
+      select * into dup from public._prov_sinpe_taken(rk, true);
+      if dup.vendor_name is not null then
+        return jsonb_build_object('ok', false, 'error', 'duplicate_reference', 'vendor_name', dup.vendor_name, 'date', dup.date, 'amount', dup.amount); end if;
+    end if;
+  end if;
+  -- D-067 (0040): what Proveedores already paid goes to this supplier's open invoices first (Dr 2101 / Cr 1160), under
+  -- the supplier's row held above: a payment recorded here, by any page or call, never pays again what a SINPE or a
+  -- card paid there; the ceiling is what is still owed after that
+  applied := public._prov_aplicar(v.id);
+  select coalesce(sum(public._invoice_open(id)), 0) into owed from public.supplier_invoices where vendor_id = v.id and voided_at is null;
+  if amt > owed then return jsonb_build_object('ok', false, 'error', 'more_than_owed', 'owed', owed, 'applied_crc', applied); end if;
+  who := case when acct.can_read() then acct.actor() else public._owner_label() end;
+  begin
+    eid := acct.post(d, 'Pago a ' || v.name || coalesce(' · ' || nullif(trim(p_payment->>'reference'), ''), ''), 'ap', 'suppay:' || p_request_id,
+             jsonb_build_array(jsonb_build_object('account', acct.map('ap'), 'debit', amt, 'memo', v.name),
+                               jsonb_build_object('account', acct.map(case src when 'cash' then 'from_cash' when 'petty' then 'from_petty' when 'payout' then 'from_payout'
+                                                                               when 'card_debit' then 'from_card_debit' when 'card_credit' then 'from_card_credit'
+                                                                               else 'from_bank' end), 'credit', amt)),
+             null, who);
+  exception when others then
+    if sqlerrm ~ 'period_closed' then return jsonb_build_object('ok', false, 'error', 'period_closed'); end if;
+    raise;
+  end;
+  insert into public.supplier_payments (id, vendor_id, date, amount_crc, paid_from, reference, entry_id, created_by, payout_id)
+    values (p_request_id, v.id, d, amt, src, nullif(left(trim(coalesce(p_payment->>'reference', '')), 80), ''), eid, who, case when src = 'payout' then po end);
+  left_amt := amt;
+  for inv in select id from public.supplier_invoices
+              where vendor_id = v.id and voided_at is null and public._invoice_open(id) > 0
+              order by (id::text = any(array(select jsonb_array_elements_text(coalesce(p_payment->'invoice_ids', '[]'::jsonb))))) desc, coalesce(due_date, date), date, id loop
+    exit when left_amt <= 0;
+    part := least(left_amt, public._invoice_open(inv.id));
+    insert into public.supplier_payment_allocations (payment_id, invoice_id, amount_crc) values (p_request_id, inv.id, part);
+    left_amt := left_amt - part;
+  end loop;
+  return jsonb_build_object('ok', true, 'entry_id', eid, 'applied_crc', applied);
+end $$;
+
+-- expense_pay (0035) gains one step and nothing else (reversion-0040.sql puts the 0035 text back): a bank payment of an
+-- expense with a SINPE number Proveedores already holds is refused
+create or replace function public.expense_pay(p_payment jsonb, p_request_id uuid)
+returns jsonb language plpgsql security definer set search_path = public, acct as $$
+declare x public.expenses; amt numeric; open_amt numeric; src text; d date; eid bigint; who text; po uuid; ref text; rk text; dup record;
+begin
+  if not public._expense_allowed() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
+  if p_request_id is null then return jsonb_build_object('ok', false, 'error', 'bad_request'); end if;
+  if exists (select 1 from public.expense_payments where id = p_request_id) then return jsonb_build_object('ok', true, 'repeat', true); end if;
+  select * into x from public.expenses where id = nullif(p_payment->>'expense_id', '')::uuid for update;
+  if x.id is null then return jsonb_build_object('ok', false, 'error', 'not_found'); end if;
+  if x.voided_at is not null then return jsonb_build_object('ok', false, 'error', 'already_voided'); end if;
+  if x.paid_from <> 'credit' then return jsonb_build_object('ok', false, 'error', 'not_credit'); end if;
+  open_amt := public._expense_open(x.id);
+  amt := round(coalesce(nullif(p_payment->>'amount_crc', '')::numeric, open_amt), 2);
+  src := p_payment->>'paid_from'; d := nullif(p_payment->>'date', '')::date; po := nullif(p_payment->>'payout_id', '')::uuid;
+  ref := nullif(left(trim(coalesce(p_payment->>'reference', '')), 80), '');
+  if src = 'payout' and po is not null and not exists (select 1 from public.cash_movements m where m.id = po and m.purpose = 'payout' and m.voided_at is null) then
+    return jsonb_build_object('ok', false, 'error', 'bad_payout'); end if;
+  if amt is null or amt = 'NaN' or amt <= 0 or src is null or src not in ('cash', 'petty', 'bank', 'payout', 'card_debit', 'card_credit') or d is null then
+    return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+  if d > public.cr_today() then return jsonb_build_object('ok', false, 'error', 'future_date'); end if;
+  if d < x.date then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;   -- no payment dated before its expense
+  if amt > open_amt then return jsonb_build_object('ok', false, 'error', 'more_than_owed', 'owed', open_amt); end if;
+  -- D-067 (0040): a SINPE number already registered in Proveedores is the same transfer, not this expense's payment
+  if src = 'bank' and ref is not null then
+    rk := nullif(regexp_replace(lower(ref), '[^a-z0-9]', '', 'g'), '');
+    if rk is not null and char_length(rk) >= 4 and rk ~ '[0-9]' then
+      select * into dup from public._prov_sinpe_taken(rk, true);
+      if dup.vendor_name is not null then
+        return jsonb_build_object('ok', false, 'error', 'duplicate_reference', 'vendor_name', dup.vendor_name, 'date', dup.date, 'amount', dup.amount); end if;
+    end if;
+  end if;
+  who := acct.actor();
+  begin
+    eid := acct.post(d, 'Pago de gasto a crédito: ' || x.description || coalesce(' · ' || x.vendor_name, '') || coalesce(' · ' || ref, ''), 'expense', 'exppay:' || p_request_id,
+             jsonb_build_array(jsonb_build_object('account', acct.map('ap'), 'debit', amt, 'memo', coalesce(x.vendor_name, x.description)),
+                               jsonb_build_object('account', acct.map(case src when 'cash' then 'from_cash' when 'petty' then 'from_petty' when 'payout' then 'from_payout'
+                                                                               when 'card_debit' then 'from_card_debit' when 'card_credit' then 'from_card_credit'
+                                                                               else 'from_bank' end), 'credit', amt)),
+             null, who);
+  exception when others then
+    if sqlerrm ~ 'period_closed' then return jsonb_build_object('ok', false, 'error', 'period_closed'); end if;
+    if sqlerrm ~ 'unknown_account' then return jsonb_build_object('ok', false, 'error', 'bad_account'); end if;
+    raise;
+  end;
+  insert into public.expense_payments (id, expense_id, date, amount_crc, paid_from, reference, payout_id, entry_id, created_by)
+    values (p_request_id, x.id, d, amt, src, ref, case when src = 'payout' then po end, eid, who);
+  insert into public.audit_log (action, manager_id, manager_name, target_id, summary, details)
+    values ('expense_payment', null, who, x.id::text, 'pago de ' || amt || ' del gasto ' || x.description || coalesce(' · ' || x.vendor_name, ''),
+            jsonb_build_object('payment_id', p_request_id, 'paid_from', src, 'date', d, 'open_after', open_amt - amt));
+  return jsonb_build_object('ok', true, 'id', p_request_id, 'entry_id', eid, 'open_crc', open_amt - amt);
+end $$;
+
+
 -- 6) payments: SINPE (confirmation number required, one transfer once) or card; with a PIN unless the owner with the
 -- phone code or the accountant ---
 create or replace function public.proveedor_pago_registrar(p_payment jsonb, p_request_id uuid, p_staff_id uuid default null, p_pin text default null)
@@ -681,17 +852,7 @@ begin
     dupok := coalesce(public._prov_bool(p->'duplicate_ok'), false);
     -- the same transfer twice (any supplier, any page), or the same card payment a moment ago
     if meth = 'sinpe' then
-      select x.name as vendor_name, a.date, a.amount_crc as amount into dup from public.supplier_advances a join public.vendors x on x.id = a.vendor_id
-       where a.method = 'sinpe' and a.voided_at is null and a.ref_key = rk limit 1;
-      if dup.vendor_name is null then
-        select x.name as vendor_name, s.date, s.amount_crc as amount into dup from public.supplier_payments s join public.vendors x on x.id = s.vendor_id
-         where s.paid_from = 'bank' and s.voided_at is null and regexp_replace(lower(coalesce(s.reference, '')), '[^a-z0-9]', '', 'g') = rk limit 1;
-      end if;
-      if dup.vendor_name is null then
-        select coalesce(x.name, e.vendor_name, e.description) as vendor_name, s.date, s.amount_crc as amount into dup
-          from public.expense_payments s join public.expenses e on e.id = s.expense_id left join public.vendors x on x.id = e.vendor_id
-         where s.paid_from = 'bank' and s.voided_at is null and regexp_replace(lower(coalesce(s.reference, '')), '[^a-z0-9]', '', 'g') = rk limit 1;
-      end if;
+      select * into dup from public._prov_sinpe_taken(rk, false);
       if dup.vendor_name is not null then perform public._prov_fail('duplicate_reference', to_jsonb(dup)); end if;
     elsif not dupok then
       select a.id, a.date, a.amount_crc, a.method, a.reference, a.created_by, a.created_at into dup from public.supplier_advances a
@@ -784,7 +945,7 @@ end $$;
 -- 7) rights ---
 revoke all on function public._prov_dinero(uuid), public._prov_vendor_money(uuid), public._prov_po_brief(uuid, boolean), public._prov_mode(text),
   public._prov_can(), public._prov_date(jsonb), public._prov_reverse(bigint, text, text), public._prov_void_payment(uuid, text, text),
-  public._prov_aplicar(uuid) from public, anon, authenticated;
+  public._prov_aplicar(uuid), public._prov_sinpe_taken(text, boolean), public._prov_alloc_guard(), public._prov_apply_guard() from public, anon, authenticated;
 do $$ declare f text; begin
   foreach f in array array['proveedores_lista(text, boolean)', 'proveedores_por_recibir(text)', 'proveedor_ficha(uuid, text)', 'proveedor_pedido(uuid, text)',
     'proveedor_historial(uuid, timestamptz, int, uuid)', 'proveedor_factura_registrar(uuid, uuid[], jsonb, uuid)', 'proveedor_factura_anular(uuid, text)',

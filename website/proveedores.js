@@ -106,6 +106,7 @@
     try { r = await call(name, args); } finally { BUSY--; }
     if (r.error === 'no_session' && MODE === 'receive' && args && args.p_token) {
       if (r.why === 'moved' && !retried && await checkTurno(true) && TURNO) { args.p_token = TURNO.token; return rpc(name, args, true); }
+      if (r.why === 'idle' && TURNO) PRESELECT = { id: TURNO.staff_id, name: TURNO.name };   /* the same person types their PIN again */
       if (r.why !== 'moved' || retried) dropTurno(r.why);
       r.handled = true;
     } else if (r.error === 'locked' && MODE === 'manage') {
@@ -198,6 +199,8 @@
     inactive: 'That person is not active on the team.',
     pin_changed: 'Your PIN changed. Say who you are again.',
     not_on_shift: 'You no longer have an open shift. Clock in to receive.',
+    idle: 'More than 15 minutes since your PIN or your last delivery. Type your PIN again to keep receiving.',
+    confirm: 'Type your PIN to receive on this device.',
     in_use_elsewhere: ERR.in_use_elsewhere, too_many_rebinds: ERR.too_many_rebinds, device_taken: ERR.device_taken
   };
   function errText(r) {
@@ -545,7 +548,10 @@
   function openModal(id, first) {
     lastFocus = document.activeElement;
     $(id).hidden = false;
-    setTimeout(function () { var f = first ? $(first) : $(id).querySelector('input,select,button'); if (f) try { f.focus(); } catch (e) {} }, 30);
+    setTimeout(function () {
+      var m = $(id); if (!m || m.hidden || m.contains(document.activeElement)) return;   // a field already tapped in the window keeps its focus: a late timer never steals what a person is typing
+      var f = first ? $(first) : m.querySelector('input,select,button'); if (f) try { f.focus(); } catch (e) {}
+    }, 30);
   }
   function closeModal(id, quiet) {
     var m = $(id); if (!m || m.hidden) return;
@@ -583,7 +589,7 @@
      localStorage['hg-turnos'] = {"<login id>": {token, staff_id, name}}: one person per login on this device, checked
      with turno_estado (which may rotate the token). None: the POS's «¿Quién cobra?» (turno_desde_caja, silent), then
      «¿Quién recibe?»: tap a name, type one's own PIN (turno_aqui). */
-  var TURNO = null, TURNO_WHY = null;
+  var TURNO = null, TURNO_WHY = null, PRESELECT = null;   /* PRESELECT: the person the picker offers first (an idle session, the POS cashier) */
   function turnosAll() { var v = ls('hg-turnos'); return v && typeof v === 'object' ? v : {}; }
   function turnoSave(t) {
     var all = turnosAll();
@@ -609,12 +615,13 @@
       var r = await call('turno_estado', { p_tokens: [mine.token] });
       var s = r.ok && r.sessions && r.sessions[0];
       if (s && s.ok) {
-        TURNO = { token: s.token || mine.token, staff_id: s.staff_id || mine.staff_id, name: s.staff_name || mine.name, expires_at: s.expires_at };
-        turnoSave(TURNO);
+        TURNO = { token: s.token || mine.token, staff_id: s.staff_id || mine.staff_id, name: s.staff_name || mine.name, expires_at: s.expires_at, fresh_until: s.fresh_until };
+        turnoSave(TURNO); PRESELECT = null;
         return true;
       }
       if (r.offline) { TURNO = { token: mine.token, staff_id: mine.staff_id, name: mine.name }; return true; }
       TURNO = null; turnoSave(null); TURNO_WHY = (s && s.why) || (r.ok ? 'unknown' : null);
+      if (s && s.why === 'idle') PRESELECT = { id: s.staff_id || mine.staff_id, name: s.staff_name || mine.name };
       if (onlyRebind) { if (MODE === 'receive') showPicker(WHY[TURNO_WHY] || ERR.no_session); return false; }
     }
     if (onlyRebind) return false;
@@ -623,14 +630,22 @@
     if (out && (!op || !op.token || opMark(op.token) !== out)) { setLeft(null); out = null; }   /* the POS signed someone else in since */
     if (op && op.token && !out) {
       var c = await call('turno_desde_caja', { p_operator_token: String(op.token), p_station: stationName() });
-      if (c.ok && c.token) { TURNO = { token: c.token, staff_id: c.staff_id, name: c.staff_name || op.name }; turnoSave(TURNO); TURNO_WHY = null; return true; }
+      if (c.ok && c.token) { TURNO = { token: c.token, staff_id: c.staff_id, name: c.staff_name || op.name, fresh_until: c.fresh_until }; turnoSave(TURNO); TURNO_WHY = null; PRESELECT = null; return true; }
+      /* the cashier's PIN at the POS is older than 15 minutes: the same person types it here */
+      if (c.error === 'no_session' && c.why === 'confirm') { PRESELECT = { id: c.staff_id, name: c.staff_name || op.name }; TURNO_WHY = 'confirm'; }
     }
     TURNO = null;
     return false;
   }
+  function freshText() {
+    var t = TURNO && TURNO.fresh_until ? new Date(TURNO.fresh_until) : null;
+    return t && !isNaN(t) ? ' · <span>' + esc('PIN valid until ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0')) + '</span>' : '';
+  }
+  /* a delivery recorded extends the 15 minutes: the bar says until when */
+  function turnoFresh(until) { if (!TURNO || !until) return; TURNO.fresh_until = until; var w = $('modeWho'); if (w) w.innerHTML = '<span>Receiving:</span> <b>' + nt(TURNO.name) + '</b>' + freshText(); }
   function showTurnoBar() {
     var bar = $('modeBar'); bar.innerHTML = ''; bar.hidden = false;
-    var who = el('span'); who.innerHTML = '<span>Receiving:</span> <b>' + nt(TURNO.name) + '</b>';
+    var who = el('span'); who.id = 'modeWho'; who.innerHTML = '<span>Receiving:</span> <b>' + nt(TURNO.name) + '</b>' + freshText();
     bar.appendChild(who);
     bar.appendChild(btn('Not you? Change', 'linkbtn', function () { showPicker(); }));
     bar.appendChild(btn('Leave this device', 'linkbtn', async function () {
@@ -671,6 +686,12 @@
     off.forEach(function (s) { wo.appendChild(btn(s.name, '', function () { pickPerson(s, true); }, { 'data-staff': s.id, 'data-no-translate': '' })); });
     $('turnoOthers').hidden = !off.length;
     $('turnoOthers').open = !inShift.length && !!off.length;
+    /* the person whose PIN is wanted again (idle, or the POS cashier): their name chosen, only the PIN to type */
+    if (PRESELECT) {
+      var pre = PRESELECT; PRESELECT = null;
+      var ps = staff.filter(function (s) { return s.id === pre.id; })[0];
+      if (ps) { if (!on[ps.id]) $('turnoOthers').open = true; pickPerson(ps, !on[ps.id]); }
+    }
   }
   function pickPerson(s, clockIn) {
     PICK = { id: s.id, name: s.name, clockIn: !!clockIn };
@@ -694,7 +715,7 @@
     var r = await call('turno_aqui', { p_staff_id: PICK.id, p_pin: pin, p_station: stationName(), p_clock_in: PICK.clockIn });
     $('tqPin').value = ''; turnoBusy = false; $('turnoGo').disabled = false;
     if (r.ok && r.token) {
-      TURNO = { token: r.token, staff_id: r.staff_id || PICK.id, name: r.staff_name || PICK.name, expires_at: r.expires_at };
+      TURNO = { token: r.token, staff_id: r.staff_id || PICK.id, name: r.staff_name || PICK.name, expires_at: r.expires_at, fresh_until: r.fresh_until };
       turnoSave(TURNO); PICK = null; setLeft(null);
       toast(r.clocked_in ? 'Clocked in. You can receive now.' : 'Ready: you receive on this device.');
       showTurnoBar(); route();
@@ -2778,6 +2799,7 @@
   }
   /* the summary: what came, what is short, the price differences (management: «Usar ₡X como precio habitual») and extras */
   function recvDone(R, r, sent, all) {
+    if (r.fresh_until) turnoFresh(r.fresh_until);
     main.innerHTML = '';
     var c = el('section', 'card'); c.id = 'recvDone';
     var full = r.status === 'received';

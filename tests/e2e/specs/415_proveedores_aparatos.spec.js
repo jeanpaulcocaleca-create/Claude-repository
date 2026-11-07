@@ -4,10 +4,11 @@
    tablet (820×1180) and a desktop (1280×860): no sideways scroll, 44 px targets, and on the two touch screens the key
    actions tapped (a tick, the stepper's «+», a keypad digit, «Estoy en turno aquí» on the PIN pad, «Todo recibido
    correctamente»); the idle sign-out only for the owner with the phone code (never while a form is dirty, never on the
-   café tablet). */
+   café tablet); the POS's «¿Quién cobra?» on the same device counts like a PIN typed here for 15 minutes (owner,
+   2026-11-07): older, that cashier's PIN is asked here; younger, no PIN and the bar says until when. */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, settle, sql, STAFF, PINS } = require('../lib');
+const { page, goto, until, settle, sql, pos, STAFF, PINS } = require('../lib');
 const P = require('../prov');
 const { V, I, text } = P;
 
@@ -235,6 +236,69 @@ module.exports.tests = [
       await cafe.waitForTimeout(2500);
       assert.strictEqual(await cafe.locator('#loginView').isVisible(), false, 'the café tablet stays signed in');
       for (const p of [own, cafe]) assert.deepStrictEqual(p.errors, []);
+    }
+  },
+  {
+    name: 'the POS «¿Quién cobra?» on the same device counts like a PIN typed here for 15 minutes: older, Proveedores asks that cashier\'s PIN (the name chosen, «Escriba su PIN para recibir en este aparato.»); younger, no PIN and the bar says until when (the POS PIN + 15 minutes)',
+    run: async ({ browser }) => {
+      P.seed(); P.clockIn('marta'); P.clockIn('luis');
+      const o = P.create(V.pan, [{ vi: P.vi(I.pan, V.pan), packs: 3 }]);
+      sql(`insert into settings (key, value) values ('operator_mode', '"record"')`);
+      const NAME = { marta: 'Marta', luis: 'Luis' };
+      /* a device whose POS has this cashier signed in («¿Quién cobra?»: their PIN typed at the POS) */
+      async function cashier(who) {
+        const posPg = await pos(browser, { lang: 'es' });
+        await posPg.waitForSelector('#opModal:not([hidden])', { timeout: 10000 });
+        await settle(posPg);
+        await posPg.locator('#opWho button', { hasText: NAME[who] }).click();
+        await posPg.fill('#opPin', PINS[who]);
+        await posPg.click('#opGo');
+        await until(async () => (await posPg.locator('#opBtn').textContent()) === NAME[who], 8000, NAME[who] + ' rings up on the POS');
+        return posPg;
+      }
+      const posPlus15 = (who) => sql(`select to_char((started_at + interval '15 minutes') at time zone 'America/Costa_Rica', 'HH24:MI') from operator_sessions where ended_at is null and staff_id = '${STAFF[who]}'`);
+      // (a) Marta's PIN at the POS 15 minutes ago: Proveedores on that device asks it again, her name already chosen
+      const posA = await cashier('marta');
+      sql(`update operator_sessions set started_at = now() - interval '15 minutes' where ended_at is null and staff_id = '${STAFF.marta}'`);
+      const a = P.watchApi(await page(browser, { context: posA.context(), login: 'cafe', lang: 'es' }));
+      await goto(a, '/proveedores');
+      await a.waitForSelector('#turnoView:not([hidden])', { timeout: 15000 });
+      await P.seen(a.locator('#turnoMsg'), /^Escriba su PIN para recibir en este aparato\.$/, 'the message, in Spanish', 8000);
+      await until(() => a.locator('#turnoForm').isVisible(), 5000, 'the PIN box already open');
+      assert.strictEqual(await text(a.locator('#turnoName')), 'Marta', 'the cashier\'s name chosen');
+      assert.strictEqual(await a.locator(`#turnoView .who button[data-staff="${STAFF.marta}"]`).getAttribute('aria-pressed'), 'true', 'her button pressed');
+      assert.strictEqual(await a.locator('#modeBar').isVisible(), false, 'nobody receives without the PIN');
+      assert.strictEqual(sql(`select count(*) from work_sessions`), '0', 'no work session from a POS PIN older than 15 minutes');
+      await P.iAmHere(a, 'marta', { preselected: true });
+      await a.waitForSelector('#modeWho', { timeout: 8000 });
+      await P.seen(a.locator('#modeWho'), /^Recibe: Marta · PIN vigente hasta las \d\d:\d\d$/, 'Marta receives, with the PIN typed here', 8000);
+      assert.strictEqual(sql(`select how || '|' || staff_name from work_sessions where ended_at is null`), 'pin|Marta', 'a session from the PIN typed here, none from the POS');
+      assert.strictEqual(await P.freshTime(a), P.freshLive('marta'), 'her PIN here + 15 minutes');
+      assert.strictEqual(await posA.locator('#opBtn').textContent(), 'Marta', 'the POS keeps its cashier');
+      // (b) Luis's PIN at the POS 5 minutes ago: no PIN here; the bar says until when (that PIN + 15 minutes: about 10 left)
+      const posB = await cashier('luis');
+      sql(`update operator_sessions set started_at = now() - interval '5 minutes' where ended_at is null and staff_id = '${STAFF.luis}'`);
+      const b = P.watchApi(await page(browser, { context: posB.context(), login: 'cafe', lang: 'es' }));
+      await goto(b, '/proveedores');
+      await b.waitForSelector('#modeWho', { timeout: 15000 });
+      await P.seen(b.locator('#modeWho'), /^Recibe: Luis · PIN vigente hasta las \d\d:\d\d$/, 'Luis receives from the POS, no PIN', 8000);
+      assert.strictEqual(await b.locator('#turnoView').isVisible(), false, 'no «¿Quién recibe?»');
+      const shown = await P.freshTime(b);
+      assert.strictEqual(shown, posPlus15('luis'), 'the POS PIN + 15 minutes');
+      const left = P.minutesFrom(sql(`select to_char(now() at time zone 'America/Costa_Rica', 'HH24:MI')`), shown);
+      assert.ok(left >= 9 && left <= 10, 'about 10 minutes left: ' + left);
+      assert.strictEqual(sql(`select w.how || '|' || (w.confirmed_at = o.started_at) from work_sessions w join operator_sessions o on o.staff_id = w.staff_id and o.ended_at is null where w.ended_at is null and w.staff_id = '${STAFF.luis}'`),
+        'caja|true', 'the session\'s PIN moment is the POS\'s');
+      // the delivery goes without a PIN, and moves his 15 minutes on from it
+      await b.locator(`#main a[href="#recibir=${o.id}"]`).first().click();
+      await b.waitForSelector('#recvCard', { timeout: 10000 });
+      await b.click('#recvAll');
+      await b.waitForSelector('#recvDone', { timeout: 10000 });
+      assert.strictEqual(sql(`select by_name from purchase_receipts`), 'Luis (en turno)');
+      const after = await P.freshTime(b);
+      assert.strictEqual(after, P.freshLive('luis'), 'the bar reads the delivery + 15 minutes');
+      assert.ok(P.minutesFrom(shown, after) >= 4 && P.minutesFrom(shown, after) <= 6, 'moved on by about 5 minutes: ' + shown + ' → ' + after);
+      for (const p of [a, b]) { assert.deepStrictEqual(p.errors, []); assert.deepStrictEqual(p.apiErrors, []); }
     }
   }
 ];

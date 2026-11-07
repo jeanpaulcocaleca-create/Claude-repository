@@ -18,12 +18,12 @@ create function test.keys516(j jsonb) returns text language sql immutable as $$
   select string_agg(k, ' ' order by k collate "C") from jsonb_object_keys(j) k $$;
 
 -- 1) rights ---------------------------------------------------------------------------------------------------------------
-select test.eq((select count(*)::int || ' ' || count(*) filter (where public_fn) from fn516), '74 28', '1 74 new functions: 28 a page calls, 46 internal');
+select test.eq((select count(*)::int || ' ' || count(*) filter (where public_fn) from fn516), '79 28', '1 79 new functions: 28 a page calls, 51 internal');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where not p.prosecdef and (f.public_fn or p.prorettype <> 'trigger'::regtype)
                    and f.sig not in ('_prov_fail(text,jsonb)', '_prov_caught(text,text,text,text)', '_prov_uuid(text)', '_prov_num(jsonb)', '_prov_txt(jsonb,integer)',
                                      '_prov_bool(jsonb)', '_prov_id(jsonb)', '_prov_packs(jsonb,boolean,text)', '_prov_price(jsonb)', '_prov_pqe(numeric,numeric,numeric,numeric)',
-                                     '_prov_station(text)', '_prov_date(jsonb)', '_prov_draft_json(purchase_drafts)')), '',
+                                     '_prov_station(text)', '_prov_date(jsonb)', '_prov_draft_json(purchase_drafts)', '_prov_fresh_window()', '_prov_fresh_until(work_sessions)')), '',
                '1 every function that reads or writes is owner-rights (the pure helpers need none)');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where p.prosecdef and not exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%')), '', '1 each owner-rights one pins its search path');
@@ -136,7 +136,7 @@ select test.eq(test.keys516(:'l4'::jsonb) || ' | ' || test.keys516((:'l4'::jsonb
                '3 the order in receive mode: no totals, no money, no contact, no note');
 select test.eq(public.proveedor_pedido('9a000000-0000-4000-8000-000000051603', :'tok') ->> 'error', 'not_found', '3 a draft order does not exist for him');
 select test.eq(public.proveedor_pedido('9a000000-0000-4000-8000-000000051602', :'tok') ->> 'error', 'not_found', '3 nor an order without supplier');
-select test.eq(test.keys516(public.turno_estado(array[:'tok']) #> '{sessions,0}'), 'expires_at i ok staff_id staff_name', '3 turno_estado: whose, until when');
+select test.eq(test.keys516(public.turno_estado(array[:'tok']) #> '{sessions,0}'), 'expires_at fresh_until i ok staff_id staff_name', '3 turno_estado: whose, until when (the shift, and the PIN''s 15 minutes)');
 
 -- 4) management reads ----------------------------------------------------------------------------------------------------------
 select test.login('cafe'); select test.session('dev-516'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;

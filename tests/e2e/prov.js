@@ -2,7 +2,8 @@
    seed() inserts two suppliers with their catalogs (as the superuser, the way 160/290 seed theirs); the page is then opened
    as management (the owner with the phone code, or a café device unlocked with a manager's PIN through access.js's gate)
    or as an employee on shift (a work session on this device: «Estoy en turno aquí» with the PIN once, or the POS's
-   «¿Quién cobra?»). PINs come from lib.js by reference and are never printed. */
+   «¿Quién cobra?»; either counts for 15 minutes, then the same person's PIN again: iAmHere with preselected). PINs come
+   from lib.js by reference and are never printed. */
 'use strict';
 const assert = require('assert');
 const { spawnSync } = require('child_process');
@@ -165,6 +166,21 @@ async function seen(loc, re, what, ms) {
   return last;
 }
 
+/* the bar's «PIN vigente hasta las HH:MM» (the device's clock: America/Costa_Rica in the tests) -> 'HH:MM', or null
+   while nobody receives */
+async function freshTime(pg) {
+  if (!(await pg.locator('#modeWho').count())) return null;
+  const m = /PIN (?:vigente hasta las|valid until) (\d\d:\d\d)/.exec(await text(pg.locator('#modeWho')));
+  return m ? m[1] : null;
+}
+/* the server's fresh_until (the PIN or the last delivery + 15 minutes) of the newest live work session, on that clock */
+function freshLive(who) {
+  return sql(`select to_char(public._prov_fresh_until(w.*) at time zone 'America/Costa_Rica', 'HH24:MI') from work_sessions w
+               where w.ended_at is null${who ? ` and w.staff_id = '${STAFF[who]}'` : ''} order by w.started_at desc limit 1`);
+}
+/* the minutes from the clock time a to the clock time b ('HH:MM'), across midnight */
+function minutesFrom(a, b) { const m = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)); return (m(b) - m(a) + 1440) % 1440; }
+
 /* every RPC answer of the page with an HTTP error (a 4xx/5xx is a bug: the 0039 functions answer {ok:false}) */
 function watchApi(pg) {
   pg.apiErrors = [];
@@ -214,7 +230,16 @@ async function iAmHere(pg, who, opts) {
   await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 15000 });
   await settle(pg);
   const name = { ana: 'Ana', luis: 'Luis', marta: 'Marta', dueno: 'Dueño' }[who];
-  if (opts.tap) {
+  if (opts.preselected) {
+    /* the picker opened with this person's name already chosen (their PIN is wanted again after 15 idle minutes, or the
+       POS cashier's PIN is older than that): the name is not tapped, only the PIN is typed */
+    await until(() => pg.locator('#turnoForm').isVisible(), 5000, 'the PIN box already open for ' + name);
+    const chosen = plain(await pg.locator('#turnoName').textContent());
+    if (chosen !== name) throw new Error('the picker chose «' + chosen + '», not ' + name);
+    await pg.locator('#tqPin').pressSequentially(PINS[who]);
+    const ok = pg.locator('#tqPin + .hg-pad .ok');
+    if (await ok.isVisible()) await ok.click(); else await pg.click('#turnoGo');
+  } else if (opts.tap) {
     /* a touch screen driven with touch events: the name, each digit on the PIN pad and the pad's ✓ (which sends the
        «Estoy en turno aquí» form) are taps */
     await pg.locator(`#turnoView .who button[data-staff="${STAFF[who]}"]`).tap();
@@ -250,7 +275,8 @@ async function toasted(pg, re, what, ms) {
   catch (e) {
     /* what was on the screen besides the toast: an open window and its error line, the API's failed calls, page errors */
     const win = await pg.evaluate(() => Array.from(document.querySelectorAll('[id$="Modal"]:not([hidden])')).map((m) => m.id + ' «' +
-      Array.from(m.querySelectorAll('.err')).map((x) => x.textContent.trim()).filter(Boolean).join(' / ') + '»').join(', ')).catch(() => '?');
+      Array.from(m.querySelectorAll('.err')).map((x) => x.textContent.trim()).filter(Boolean).join(' / ') + '» ' +
+      Array.from(m.querySelectorAll('input,select')).filter((i) => i.id && !i.hasAttribute('data-pin')).map((i) => i.id + '=' + JSON.stringify(i.type === 'checkbox' ? i.checked : i.value)).join(' ')).join(', ')).catch(() => '?');
     throw new Error(e.message + ' · toast: «' + (await toast(pg)) + '» · open windows: ' + (win || 'none') + ' · api: ' + ((pg.apiErrors || []).join('; ') || 'none') +
       ' · page errors: ' + ((pg.errors || []).join('; ') || 'none') + ' · main: ' + plain(await pg.locator('#main').textContent()).slice(0, 400));
   }
@@ -272,4 +298,4 @@ async function layoutOk(pg, where) {
   assert.deepStrictEqual(r.small, [], (where || '') + ': targets under 44 px');
 }
 
-module.exports = { V, I, VI, seed, vi, order, asOwner, create, receive, lineOf, pdfRead, clockIn, plain, text, watchApi, loaded, owner, gate, cafeManager, iAmHere, employee, toast, untoast, toasted, layoutOk, seen, nav };
+module.exports = { V, I, VI, seed, vi, order, asOwner, create, receive, lineOf, pdfRead, clockIn, plain, text, watchApi, loaded, owner, gate, cafeManager, iAmHere, employee, toast, untoast, toasted, layoutOk, seen, nav, freshTime, freshLive, minutesFrom };

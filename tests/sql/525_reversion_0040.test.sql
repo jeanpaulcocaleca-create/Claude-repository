@@ -1,5 +1,5 @@
 -- supabase/tools/reversion-0040.sql alone: undoes migration 0040 (the Proveedores reads, invoices and payments) and 0040
--- then applies again. It refuses while 0040 is not applied or a later migration is; it drops the 20 functions of 0040 and
+-- then applies again. It refuses while 0040 is not applied or a later migration is; it drops the 23 functions of 0040 and
 -- nothing else (0039's 51 stay and keep working), deletes no data (the payments registered and applied, their entries, the
 -- account 1160, the two mappings and the widened payment rule stay), and takes version 40 off the ledger. Contabilidad
 -- keeps seeing the applied payments as supplier payments (and may void one). 0040 then applies again over that: every
@@ -54,8 +54,9 @@ select test.eq(concat_ws(' ', :'c1', :'r1', :'f1', :'p1', :'c2', :'p2'), 'true r
 create temp table new525 as select p.oid::regprocedure::text as sig from pg_proc p where p.pronamespace = 'public'::regnamespace
    and p.proname in ('proveedores_lista', 'proveedores_por_recibir', 'proveedor_ficha', 'proveedor_pedido', 'proveedor_historial', 'proveedor_factura_registrar',
                      'proveedor_factura_anular', 'proveedor_anticipos_aplicar', 'proveedor_pago_registrar', 'proveedor_pago_anular', '_prov_dinero', '_prov_vendor_money',
-                     '_prov_po_brief', '_prov_mode', '_prov_can', '_prov_date', '_prov_reverse', '_prov_void_payment', '_prov_aplicar', 'proveedores_bitacora');
-select test.eq((select count(*)::int from new525), 20, '0 the 20 functions of 0040');
+                     '_prov_po_brief', '_prov_mode', '_prov_can', '_prov_date', '_prov_reverse', '_prov_void_payment', '_prov_aplicar', 'proveedores_bitacora',
+                     '_prov_sinpe_taken', '_prov_alloc_guard', '_prov_apply_guard');
+select test.eq((select count(*)::int from new525), 23, '0 the 23 functions of 0040');
 create temp table f40 as select * from test.fns525();
 create temp table d40 as select * from test.data525();
 
@@ -81,13 +82,21 @@ select test.eq(test.diff525('f40', '(select * from test.fns525())') || test.diff
 \o
 select test.eq(public.canopy_schema_version(), 39, '2 back at version 39');
 select test.eq((select string_agg(f.k, ' ' order by f.k) from f40 f where not exists (select 1 from test.fns525() g where g.k = f.k)),
-               (select string_agg(sig, ' ' order by sig) from new525), '2 exactly the 20 functions of 0040 are gone');
-select test.eq(test.diff525('(select * from f40 where k not in (select sig from new525) and k <> ''supplier_invoice_save(jsonb,uuid)'')',
-                             '(select * from test.fns525() where k <> ''supplier_invoice_save(jsonb,uuid)'')'), '', '2 every other one (0039''s included) as it was');
+               (select string_agg(sig, ' ' order by sig) from new525), '2 exactly the 23 functions of 0040 are gone');
+select test.eq(test.diff525('(select * from f40 where k not in (select sig from new525) and k not in (''supplier_invoice_save(jsonb,uuid)'', ''supplier_payment_save(jsonb,uuid)'', ''expense_pay(jsonb,uuid)''))',
+                             '(select * from test.fns525() where k not in (''supplier_invoice_save(jsonb,uuid)'', ''supplier_payment_save(jsonb,uuid)'', ''expense_pay(jsonb,uuid)''))'), '',
+               '2 every other one (0039''s included) as it was');
 select test.ok((select prosrc !~ '0040' and prosrc ~ 'the deliveries are this vendor''s and not invoiced yet' from pg_proc where oid = 'public.supplier_invoice_save(jsonb,uuid)'::regprocedure),
                '2 supplier_invoice_save is back to its 0025 text (without the corrections that go with their delivery)');
-select test.eq((select acl from f40 where k = 'supplier_invoice_save(jsonb,uuid)'), (select acl from test.fns525() where k = 'supplier_invoice_save(jsonb,uuid)'),
-               '2 with the same rights');
+select test.ok((select prosrc !~ '_prov_aplicar' and prosrc !~ '_prov_sinpe_taken' and prosrc ~ 'one invoice or payment of a supplier at a time' from pg_proc where oid = 'public.supplier_payment_save(jsonb,uuid)'::regprocedure),
+               '2 supplier_payment_save is back to its 0029 text (the Proveedores payments no longer applied first, no SINPE cross-check)');
+select test.ok((select prosrc !~ '_prov_sinpe_taken' and prosrc ~ 'no payment dated before its expense' from pg_proc where oid = 'public.expense_pay(jsonb,uuid)'::regprocedure),
+               '2 expense_pay is back to its 0035 text');
+select test.eq((select string_agg(k || ':' || (acl = (select acl from test.fns525() g where g.k = f.k))::text, ' ' order by k) from f40 f
+                 where k in ('supplier_invoice_save(jsonb,uuid)', 'supplier_payment_save(jsonb,uuid)', 'expense_pay(jsonb,uuid)')),
+               'expense_pay(jsonb,uuid):true supplier_invoice_save(jsonb,uuid):true supplier_payment_save(jsonb,uuid):true', '2 the three with the same rights');
+select test.eq((select string_agg(tgname, ' ' order by tgname) from pg_trigger where tgname in ('supplier_payment_allocations_within_invoice', 'supplier_payments_within_advance') and not tgisinternal), null,
+               '2 the two guard triggers are gone');
 select test.eq(test.diff525('d40', '(select * from test.data525())'), '', '2 no row changed: payments, applications, entries, mappings');
 select test.eq((select string_agg(key, ' ' order by key) from acct.mappings where account = '1160'), 'from_advance supplier_advance', '2 the 1160 mappings stay');
 \pset format unaligned

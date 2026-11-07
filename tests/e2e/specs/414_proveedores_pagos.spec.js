@@ -3,7 +3,9 @@
    full → «Pagado»; a payment before receiving (an advance) that the invoice applies («Registrar factura» with the 13 % /
    «Sin IVA» buttons); over the balance: refused for a manager, the owner may record it in favour with a reason; a card
    payment just like the last one asks first; a payment voided by the books door; the employee never sees money; the
-   accountant (the books door: Pagos first, no ordering, no PIN, the SINPE only in the supplier's edit). */
+   accountant (the books door: Pagos first, no ordering, no PIN, the SINPE only in the supplier's edit). 8.27 (owner,
+   2026-11-07): the server itself applies the Proveedores payments first and refuses their SINPE numbers on every route
+   (Contabilidad's «Registrar pago» without its own pre-apply, a bank payment with that number, Gastos). */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql, STAFF, PINS } = require('../lib');
@@ -662,6 +664,101 @@ module.exports.tests = [
           body: JSON.stringify({ p_vendor_id: vid, p_lines: [], p_note: null, p_request_id: crypto.randomUUID() }) })).json();
       }, V.lac);
       assert.strictEqual(r.error, 'locked');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: '8.27 the server itself (0040) applies the Proveedores payments first and refuses their SINPE numbers, whatever calls it: «Registrar pago» without the page\'s own pre-apply (404 PGRST202, a page from before this version) still never pays twice; a bank payment with a Proveedores SINPE number is refused, nothing recorded',
+    run: async ({ browser }) => {
+      P.seed();
+      // (i) a SINPE of ₡5 000 recorded in Proveedores for order 1 (₡6 000 + 13 %), its invoice saved by SQL: nothing applied it
+      const o1 = P.create(V.lac, [{ vi: P.vi(I.natilla), packs: 1 }]);
+      P.receive(o1.id, [{ line: P.lineOf(o1.id, I.natilla), rest: true }]);
+      const a1 = sinpe(o1.id, 5000, 'SNP-82701');
+      invoiceBySql(o1.id, 'F-8271', 6000, 780);
+      assert.strictEqual(unapplied(a1) + '|' + openOf('F-8271'), '5000.00|6780.00', 'a payment not applied and an open invoice');
+      let pg = await contab(browser);
+      // this page's own pre-apply does nothing (the function «missing», as a page from before this version sees it)
+      const FN = '**/rest/v1/rpc/proveedor_anticipos_aplicar';
+      await pg.route(FN, (r) => r.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', details: null, hint: null, message: 'Could not find the function public.proveedor_anticipos_aplicar(p_vendor_id) in the schema cache' }) }));
+      await pg.click('#vc-pay');
+      await drawer(pg);
+      await pg.waitForSelector('#vp-save');
+      assert.strictEqual(await pg.inputValue('#vp-amt'), '6780', 'the whole invoice proposed: this page knows nothing of the SINPE');
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^₡5 000 pagados en Proveedores se aplicaron primero a las facturas de este proveedor\. Revise lo que todavía se debe\.$/, 'the SERVER applied the SINPE first, in Spanish');
+      await until(async () => (await pg.locator('#vp-amt').count()) === 1 && (await pg.inputValue('#vp-amt')) === '1780', 8000, 'the payment form reopened with the remainder (₡1 780)');
+      await P.seen(pg.locator('#drawerTitle'), /^Pagar a Lácteos Monteverde$/, 'the payment form, in Spanish', 3000);
+      assert.strictEqual(bankPays(), '', 'no bank row: the ₡6 780 were not paid again');
+      assert.strictEqual(unapplied(a1) + '|' + openOf('F-8271'), '0.00|1780.00', 'the SINPE went to the invoice');
+      assert.strictEqual(ledger('suppay:'), '1160:-5000.00,2101:5000.00', 'Dr 2101 / Cr 1160, by the server');
+      // the remainder, from the reopened form: once
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^Pago registrado$/, 'the remainder recorded');
+      assert.strictEqual(bankPays() + '|' + openOf('F-8271'), '1780.00|0.00', 'one bank payment, of what was still owed');
+      assert.deepStrictEqual(pg.apiErrors, ['404 rpc/proveedor_anticipos_aplicar', '404 rpc/proveedor_anticipos_aplicar'], 'only the two pre-applies answered «missing»');
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.close();
+      // (ii) order 2's invoice; a bank payment whose reference is that SINPE number (other letters, a space): refused by the
+      // server, nothing recorded; with its own number it goes through
+      const o2 = P.create(V.lac, [{ vi: P.vi(I.queso), packs: 1 }]);
+      P.receive(o2.id, [{ line: P.lineOf(o2.id, I.queso), rest: true }]);
+      invoiceBySql(o2.id, 'F-8272', 5200, 0);
+      pg = await contab(browser);
+      await pg.click('#vc-pay');
+      await drawer(pg);
+      await pg.waitForSelector('#vp-save');
+      assert.strictEqual(await pg.inputValue('#vp-amt'), '5200', 'the open invoice proposed');
+      await pg.fill('#vp-ref', 'snp 82701');
+      await pg.click('#vp-save');
+      await P.seen(pg.locator('#drawerFoot .err'), /^Ese número de SINPE ya está registrado en Proveedores: la misma transferencia no se registra dos veces\.$/, 'refused, in Spanish', 8000);
+      assert.strictEqual(bankPays() + '|' + openOf('F-8272'), '1780.00|5200.00', 'nothing recorded');
+      assert.strictEqual(sql(`select count(*) from supplier_payments`), '2', 'the applied SINPE and the one bank payment, nothing more');
+      await pg.fill('#vp-ref', 'TR-8272');
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^Pago registrado$/, 'with its own reference');
+      assert.strictEqual(bankPays() + '|' + openOf('F-8272'), '1780.00,5200.00|0.00');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: '8.27 Gastos: paying a credit expense by bank with a number that is a Proveedores SINPE is refused by the server (expense_pay, 0040), nothing recorded; with its own reference it goes through',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.natilla), packs: 1 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.natilla), rest: true }]);
+      sinpe(o.id, 5000, 'SNP-82702');
+      // a credit expense of the same supplier, recorded by the owner with the phone code as the page would
+      const made = P.asOwner(`select public.expense_save(jsonb_build_object('vendor_id', '${V.lac}', 'description', 'Hielo', 'account', '5101', 'amount_crc', 5000, 'iva_crc', 0, 'paid_from', 'credit', 'date', public.cr_today()::text), gen_random_uuid())`);
+      assert.ok(made && made.ok, 'expense_save: ' + JSON.stringify(made));
+      const pg = P.watchApi(await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' }));
+      await goto(pg, '/contabilidad');
+      await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
+      await pg.evaluate(() => { location.hash = 'gastos'; });
+      await until(async () => (await pg.locator('#tbl-gastos [data-act=pay]').count()) === 1, 10000, 'the credit expense with its «Pagar»');
+      await pg.click('#tbl-gastos [data-act=pay]');
+      await drawer(pg);
+      await pg.waitForSelector('#pf-save');
+      await P.seen(pg.locator('#drawerTitle'), /^Pagar gasto a crédito$/, 'the form, in Spanish', 3000);
+      assert.strictEqual(await pg.inputValue('#pf-amt'), '5000', 'what is owed proposed');
+      await pg.selectOption('#pf-pm', 'bank');
+      await pg.fill('#pf-ref', 'SNP-82702');
+      await pg.click('#pf-save');
+      await P.seen(pg.locator('#drawerFoot .err'), /^Ese número de SINPE ya está registrado en Proveedores: la misma transferencia no se registra dos veces\.$/, 'refused, in Spanish', 8000);
+      assert.strictEqual(sql(`select count(*) from expense_payments`), '0', 'nothing recorded');
+      assert.strictEqual(sql(`select count(*) from acct.entries where source_key like 'exppay:%'`), '0', 'no entry');
+      assert.strictEqual(sql(`select public._expense_open(id) from expenses`), '5000.00', 'still owed');
+      await pg.fill('#pf-ref', 'TR-82702');
+      await P.untoast(pg);
+      await pg.click('#pf-save');
+      await P.toasted(pg, /^Pago registrado/, 'recorded with its own reference, in Spanish');
+      assert.strictEqual(sql(`select count(*) || '|' || string_agg(paid_from || ':' || reference, ',') from expense_payments`), '1|bank:TR-82702');
+      assert.strictEqual(sql(`select public._expense_open(id) from expenses`), '0.00', 'settled');
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
     }

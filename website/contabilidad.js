@@ -50,6 +50,7 @@ var ERR = {not_allowed: 'Only the owner (with the phone code) and the accountant
   missing_reason: 'Write the reason.', already_voided: 'Already voided.', no_vendor: 'Pick the supplier.', bad_request: 'Could not save. Refresh the page and try again.',
   bad_receipts: 'One of those deliveries is of another supplier or already has its invoice. Refresh and try again.',
   more_than_owed: 'That is more than is owed.', bad_payout: 'That payout is not available: refresh and pick it again.',
+  duplicate_reference: 'That SINPE number is already registered in Proveedores: the same transfer is not recorded twice.',
   not_open: 'That was already done. Refresh the page.', no_match: 'The amounts are not the same.', already_matched: 'That entry is already matched to another movement.',
   parts_differ: 'The parts must add up to the bank\'s amount.', bad_rows: 'Some rows could not be read: check the date format and the columns.',
   usd_not_supported: 'Dollar accounts come later: their movements must be valued in colones first.', not_found: 'Not found. Refresh the page.',
@@ -923,8 +924,10 @@ async function paymentForm(v){
       if (applied == null){ footErr('Could not check the payments made in Proveedores, so nothing was recorded. Try again.'); return; }
       if (applied > 0){ forget(); toast('{x} paid in Proveedores was applied to this supplier\'s invoices first. Check what is still owed.'.replace('{x}', fmt(applied))); paymentForm(v); return; }
       var r = await db.rpc('supplier_payment_save', {p_payment: {vendor_id: v.id, amount_crc: amt, paid_from: B.querySelector('#vp-pm').value, date: B.querySelector('#vp-date').value, reference: B.querySelector('#vp-ref').value.trim() || null, invoice_ids: B.querySelector('#vp-inv').value ? [B.querySelector('#vp-inv').value] : [], payout_id: B.querySelector('#vp-pm').value === 'payout' ? (B.querySelector('#vp-payout').value || null) : null}, p_request_id: req});
+      /* the server itself applies the Proveedores payments first (0040) and refuses more than what is then owed */
+      if (r.data && r.data.error === 'more_than_owed' && Number(r.data.applied_crc) > 0){ forget(); toast('{x} paid in Proveedores was applied to this supplier\'s invoices first. Check what is still owed.'.replace('{x}', fmt(r.data.applied_crc))); paymentForm(v); return; }
       if (r.error || !r.data || !r.data.ok){ footErr(errText(r)); return; }
-      forget(); toast('Payment recorded'); render(); vendorCard(v);
+      forget(); toast(Number(r.data.applied_crc) > 0 ? 'Payment recorded · {x} paid in Proveedores applied first'.replace('{x}', fmt(r.data.applied_crc)) : 'Payment recorded'); render(); vendorCard(v);
     });
   });
 }

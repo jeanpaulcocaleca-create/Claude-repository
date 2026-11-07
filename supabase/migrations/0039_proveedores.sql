@@ -12,8 +12,10 @@
 --   * Recepción: lo pedido, lo recibido y el precio real por línea (purchase_receipt_lines), entregas parciales, nunca
 --     dos veces, más de lo pedido solo con un encargado, el precio del catálogo nunca cambia al recibir, correcciones
 --     como entregas nuevas (nada se borra).
---   * «Recibe en este aparato» (work_sessions): quien está en turno recibe sin otro PIN; el servidor revisa en cada
---     llamada que esa persona marcó su PIN en este mismo aparato durante su turno abierto.
+--   * «Recibe en este aparato» (work_sessions): quien está en turno recibe sin otro PIN en cada entrega; el servidor
+--     revisa en cada llamada que esa persona escribió su propio PIN en este mismo aparato durante su turno abierto y
+--     hace menos de 15 minutos (o registró una entrega hace menos de 15 minutos): pasado ese tiempo el aparato vuelve a
+--     pedirle su PIN, y nadie recibe a nombre de la última persona que se identificó en él.
 --   * Alertas de inventario bajo con la regla de siempre (inventory_stats), sin volver a pedir lo ya pedido.
 -- Qué NO cambia: ninguna función, regla ni permiso existente; ningún registro existente; la página de Inventario
 --   publicada sigue funcionando igual (sus pedidos y recepciones).
@@ -158,10 +160,18 @@ create table if not exists public.work_sessions (
   how text not null check (how in ('pin', 'caja')),
   started_at timestamptz not null default now(),
   expires_at timestamptz not null,
+  confirmed_at timestamptz not null default now(),   -- when the person typed their PIN (the POS's, for «¿Quién cobra?»)
+  last_receipt_at timestamptz,                       -- the last delivery recorded with it
   last_used_at timestamptz,
   rebinds int not null default 0, last_rebind_at timestamptz,
   ended_at timestamptz,
   ended_how text check (ended_how is null or ended_how in ('clock_out', 'pin_changed', 'inactive', 'replaced', 'signed_out', 'moved')));
+-- (a cluster that took this file's earlier text keeps its table: the two columns are added to it, and the two functions
+-- whose signatures changed are dropped before they are created again; no-ops on a fresh database)
+alter table public.work_sessions add column if not exists confirmed_at timestamptz not null default now(),
+                                  add column if not exists last_receipt_at timestamptz;
+drop function if exists public._prov_turno(text);
+drop function if exists public._prov_mint(uuid, text, uuid, timestamptz, text, text);
 create unique index if not exists work_sessions_live_session on public.work_sessions (session_id) where ended_at is null;
 create index if not exists work_sessions_staff on public.work_sessions (staff_id) where ended_at is null;
 create index if not exists work_sessions_entry on public.work_sessions (time_entry_id) where ended_at is null;
@@ -500,8 +510,13 @@ revoke all on function public._prov_pqe(numeric, numeric, numeric, numeric), pub
 -- 5) «Recibe en este aparato»: work sessions ---
 -- a session is good only while ALL hold (checked at every use): the token, not ended, not expired, this login (a café
 -- login), this sign-in (else «moved»: turno_estado rebinds), the person active with the PIN of the day it was issued, the
--- shift it was issued for still open and under 16 hours
-create or replace function public._prov_turno(p_token text, out why text, out wid uuid, out sid uuid, out sname text, out station text)
+-- shift it was issued for still open and under 16 hours, and FRESH: the person typed their PIN, or recorded a delivery
+-- with it, less than 15 minutes ago (else «idle»: the page asks that person's PIN again). So one PIN covers the
+-- deliveries of one visit to the device, and a device left on the counter identifies nobody.
+create or replace function public._prov_fresh_window() returns interval language sql immutable as $$ select interval '15 minutes' $$;
+create or replace function public._prov_fresh_until(w public.work_sessions) returns timestamptz language sql immutable as $$
+  select greatest(w.confirmed_at, coalesce(w.last_receipt_at, w.confirmed_at)) + public._prov_fresh_window() $$;
+create or replace function public._prov_turno(p_token text, out why text, out wid uuid, out sid uuid, out sname text, out station text, out fresh_until timestamptz)
 language plpgsql volatile security definer set search_path = public, extensions as $$
 declare w public.work_sessions; s public.staff; e public.time_entries; js text := public._jwt_session();
 begin
@@ -515,15 +530,17 @@ begin
     why := case when not coalesce(s.active, false) then 'inactive'
                 when s.pin_hash is null or encode(digest(s.pin_hash, 'sha256'), 'hex') <> w.pin_fp then 'pin_changed'
                 when e.id is null or e.clock_out is not null or e.clock_in <= now() - interval '16 hours' then 'not_on_shift'
+                when public._prov_fresh_until(w) <= now() then 'idle'
                 when js <> w.session_id then 'moved' end;
   end if;
-  wid := w.id; sid := w.staff_id; sname := w.staff_name; station := w.station;
+  wid := w.id; sid := w.staff_id; sname := w.staff_name; station := w.station; fresh_until := public._prov_fresh_until(w);
   if why is null then update public.work_sessions set last_used_at = now() where id = w.id; end if;
 end $$;
 -- a new session on this sign-in for that person's open entry: whoever held this sign-in is replaced, and that person's
 -- sessions on this login and station end (moved). Only the sha256 of the token is kept
 create or replace function public._prov_mint(p_sid uuid, p_sname text, p_entry uuid, p_clock_in timestamptz, p_station text, p_how text,
-                                              out token text, out expires_at timestamptz, out wid uuid)
+                                              p_confirmed timestamptz default now(),
+                                              out token text, out expires_at timestamptz, out wid uuid, out fresh_until timestamptz)
 language plpgsql volatile security definer set search_path = public, extensions as $$
 declare js text := public._jwt_session(); fp text; r record; h text;
 begin
@@ -537,10 +554,10 @@ begin
       jsonb_build_object('how', h, 'by', p_sname, 'station', r.station, 'session_tag', public._discount_tag(r.session_id)));
   end loop;
   token := encode(gen_random_bytes(32), 'hex');
-  insert into public.work_sessions (token_hash, staff_id, staff_name, time_entry_id, login_id, session_id, pin_fp, station, how, expires_at)
+  insert into public.work_sessions (token_hash, staff_id, staff_name, time_entry_id, login_id, session_id, pin_fp, station, how, expires_at, confirmed_at)
     values (encode(digest(token, 'sha256'), 'hex'), p_sid, p_sname, p_entry, auth.uid(), js, fp, p_station, p_how,
-            least(p_clock_in, now()) + interval '16 hours')
-    returning work_sessions.expires_at, work_sessions.id into expires_at, wid;
+            least(p_clock_in, now()) + interval '16 hours', least(coalesce(p_confirmed, now()), now()))
+    returning work_sessions.expires_at, work_sessions.id, public._prov_fresh_until(work_sessions.*) into expires_at, wid, fresh_until;
   perform public._prov_log('work_session_start', p_sid, p_sname, wid::text, 'Recibe en este aparato: ' || p_sname,
     jsonb_build_object('staff_id', p_sid, 'station', p_station, 'how', p_how, 'session_tag', public._discount_tag(js), 'time_entry_id', p_entry));
 end $$;
@@ -567,7 +584,7 @@ begin
       made := true;
     end if;
     select * into m from public._prov_mint(v.sid, v.sname, e.id, e.clock_in, public._prov_station(p_station), 'pin');
-    return jsonb_build_object('ok', true, 'token', m.token, 'staff_id', v.sid, 'staff_name', v.sname, 'expires_at', m.expires_at, 'clocked_in', made);
+    return jsonb_build_object('ok', true, 'token', m.token, 'staff_id', v.sid, 'staff_name', v.sname, 'expires_at', m.expires_at, 'fresh_until', m.fresh_until, 'clocked_in', made);
   exception when others then
     get stacked diagnostics e1 = returned_sqlstate, e2 = message_text, e3 = pg_exception_detail, e4 = constraint_name;
     r := public._prov_caught(e1, e2, e3, e4); if r is null then raise; end if; return r;
@@ -596,13 +613,18 @@ begin
       why := case when not coalesce(s.active, false) then 'inactive' when s.pin_hash is null then 'pin_changed' when e.id is null then 'not_on_shift'
                   when o.started_at < e.clock_in - interval '5 minutes' then 'not_on_shift'
                   when exists (select 1 from public.staff_pin_changes c where c.staff_id = o.staff_id and c.changed_at >= o.started_at) then 'pin_changed'
-                  when exists (select 1 from public.work_sessions w where w.session_id = js and w.ended_at is null) then 'device_taken' end;
+                  -- the cashier's PIN at the POS counts like one typed here, for the same 15 minutes: older, the person
+                  -- types it here (the page offers their name)
+                  when o.started_at <= now() - public._prov_fresh_window() then 'confirm'
+                  -- a live session still fresh takes the device; a stale one is replaced by the mint, as «Estoy en turno aquí» does
+                  when exists (select 1 from public.work_sessions w where w.session_id = js and w.ended_at is null and public._prov_fresh_until(w) > now()) then 'device_taken' end;
     end if;
   end if;
+  if why = 'confirm' then return jsonb_build_object('ok', false, 'error', 'no_session', 'why', why, 'staff_id', s.id, 'staff_name', s.name); end if;
   if why is not null then return jsonb_build_object('ok', false, 'error', 'no_session', 'why', why); end if;
   begin
-    select * into m from public._prov_mint(s.id, s.name, e.id, e.clock_in, public._prov_station(p_station), 'caja');
-    return jsonb_build_object('ok', true, 'token', m.token, 'staff_id', s.id, 'staff_name', s.name, 'expires_at', m.expires_at, 'clocked_in', false);
+    select * into m from public._prov_mint(s.id, s.name, e.id, e.clock_in, public._prov_station(p_station), 'caja', o.started_at);
+    return jsonb_build_object('ok', true, 'token', m.token, 'staff_id', s.id, 'staff_name', s.name, 'expires_at', m.expires_at, 'fresh_until', m.fresh_until, 'clocked_in', false);
   exception when others then
     get stacked diagnostics e1 = returned_sqlstate, e2 = message_text, e3 = pg_exception_detail, e4 = constraint_name;
     r := public._prov_caught(e1, e2, e3, e4); if r is null then raise; end if; return r;
@@ -639,8 +661,9 @@ begin
       end if;
     end if;
     res := res || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object('i', i - 1, 'ok', why is null,
-             'staff_id', case when why is null then t.sid end, 'staff_name', case when why is null then t.sname end,
+             'staff_id', case when why is null or why = 'idle' then t.sid end, 'staff_name', case when why is null or why = 'idle' then t.sname end,
              'expires_at', case when why is null then (select x.expires_at from public.work_sessions x where x.id = t.wid) end,
+             'fresh_until', case when why is null then t.fresh_until end,
              'why', why, 'token', tok)));
   end loop;
   return jsonb_build_object('ok', true, 'sessions', res);
@@ -1415,8 +1438,10 @@ begin
         'shared_device', (select count(*) from public.work_sessions w where w.login_id = auth.uid() and w.ended_at is null
                             and w.started_at > now() - interval '16 hours') > 1));
     if emp then
+      update public.work_sessions set last_receipt_at = now() where id = t.wid;   -- one PIN covers the deliveries of one visit
       return jsonb_build_object('ok', true, 'status', po.status, 'receipt_id', p_receipt_id, 'version', po.version, 'lines', n, 'short', short,
-                                'observed_diffs', obs, 'extra_reported', xrep, 'close_requested', coalesce(p_close, false));
+                                'observed_diffs', obs, 'extra_reported', xrep, 'close_requested', coalesce(p_close, false),
+                                'fresh_until', (select public._prov_fresh_until(w.*) from public.work_sessions w where w.id = t.wid));
     end if;
     return jsonb_build_object('ok', true, 'status', po.status, 'receipt_id', p_receipt_id, 'version', po.version, 'total_crc', round(total, 2),
                               'lines', n, 'price_diffs', diffs, 'short', short, 'extra', extra);
@@ -1563,7 +1588,8 @@ end $$;
 
 
 -- 11) rights ---
-revoke all on function public._prov_turno(text), public._prov_mint(uuid, text, uuid, timestamptz, text, text), public._prov_draft_json(public.purchase_drafts),
+revoke all on function public._prov_turno(text), public._prov_mint(uuid, text, uuid, timestamptz, text, text, timestamptz), public._prov_fresh_window(),
+  public._prov_fresh_until(public.work_sessions), public._prov_draft_json(public.purchase_drafts),
   public._prov_draft_lines(uuid, jsonb, int), public._prov_po_state(uuid), public._prov_new_line(public.purchase_orders, jsonb, int),
   public._prov_po_lock(uuid, int), public._prov_close(public.purchase_orders, text), public._prov_late_post() from public, anon, authenticated;
 do $$ declare f text; begin

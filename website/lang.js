@@ -1797,6 +1797,9 @@
     'The owner areas closed on this device. Type a manager PIN again.': 'Las áreas de dueños se cerraron en este aparato. Escriba otra vez un PIN de encargado.',
     'The owner areas closed on this device. Type the PIN again to continue.': 'Las áreas de dueños se cerraron en este aparato. Escriba el PIN otra vez para seguir.',
     'Your shift on this device ended. Say who you are again.': 'Su turno en este aparato terminó. Identifíquese de nuevo.',
+    'More than 15 minutes since your PIN or your last delivery. Type your PIN again to keep receiving.': 'Pasaron más de 15 minutos desde su PIN o su última entrega. Escriba su PIN otra vez para seguir recibiendo.',
+    'Type your PIN to receive on this device.': 'Escriba su PIN para recibir en este aparato.',
+    'PIN valid until {t}': 'PIN vigente hasta las {t}',
     'That is no longer here. Reload the page.': 'Eso ya no está aquí. Recargue la página.',
     'Something in the form is not right. Check it and try again.': 'Algo del formulario no está bien. Revíselo e intente de nuevo.',
     'Someone changed this a moment ago. Check it and try again.': 'Alguien cambió esto hace un momento. Revíselo e intente de nuevo.',
@@ -2050,6 +2053,8 @@
     'Invoice saved · {x} paid in Proveedores applied to it': 'Factura guardada · {x} pagados en Proveedores aplicados a ella',
     'Invoice saved · the payments made in Proveedores could not be applied yet: they go to it on the next invoice or payment of this supplier': 'Factura guardada · los pagos hechos en Proveedores todavía no se pudieron aplicar: se aplican en la próxima factura o pago de este proveedor',
     'Could not check the payments made in Proveedores, so nothing was recorded. Try again.': 'No se pudieron revisar los pagos hechos en Proveedores, así que no se registró nada. Intente de nuevo.',
+    'That SINPE number is already registered in Proveedores: the same transfer is not recorded twice.': 'Ese número de SINPE ya está registrado en Proveedores: la misma transferencia no se registra dos veces.',
+    'Payment recorded · {x} paid in Proveedores applied first': 'Pago registrado · {x} pagados en Proveedores aplicados primero',
     /* «Pedidos abiertos»: 'Open orders' alone is the POS's «Órdenes abiertas» */
     'Open orders with this supplier': 'Pedidos abiertos',
     'The number is typed by whoever records the payment: it is not a check by the bank. Accounting confirms it when it matches the bank statement.': 'El número lo escribe quien registra el pago: no es una verificación del banco. Contabilidad lo comprueba al conciliar el estado de cuenta.',

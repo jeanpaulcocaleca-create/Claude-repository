@@ -16,6 +16,10 @@
 #     into the invoice with its delivery (the invoice takes the delivery's order first);
 #  7) a third connection holds an item: a delivery of it gives way at once («busy», nothing booked) and a sale of it waits
 #     and goes through (a delivery takes its items up front with a short wait, so a sale is never the deadlock's victim).
+#  8) Contabilidad's «Registrar pago» (the owner, by bank, the whole invoice) and a Proveedores SINPE for that order at
+#     the same moment, the invoice saved by SQL: both finish, no deadlock; the supplier's row serialises them, so one pays
+#     and the other is refused («more than owed» or «over balance»); the invoice is never allocated above its total and the
+#     supplier is never paid twice (0040's guards, owner 2026-11-07).
 # Test PINs only (tests/db/90_seed.sql).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
@@ -218,6 +222,31 @@ ok "7) ... the delivery booked nothing" "$(q -c "select count(*) from public.pur
 ok "7) ... and goes through when tried again" "$(mgr conc-m "select 'R:' || coalesce(public.proveedor_recibir('$PO5', '7e000000-0000-4000-8000-0000000c3917', $(ver "$PO5"), '$(rest "$PO5")') ->> 'error', 'ok');" | q | r)" "ok"
 ok "7) ... the stock as booked, no deadlock anywhere" \
    "$(q -c "select count(*) from public.stock_items s left join (select item_id, sum(qty) q from public.stock_moves group by 1) m on m.item_id = s.id where round(s.on_hand, 3) <> round(coalesce(m.q, 0), 3)") $(grep -l 'deadlock' "$TMP"/*.out 2>/dev/null | wc -l | tr -d ' ')" "0 0"
+
+# 8) Contabilidad's bank payment of the whole invoice and a Proveedores SINPE for its order, at once ---------------------------
+V3=5b000000-0000-4000-8000-0000000c3908; PO6=9a000000-0000-4000-8000-0000000c3906; R8=7e000000-0000-4000-8000-0000000c3908; INV8=5e000000-0000-4000-8000-0000000c3908
+q >/dev/null <<SQL
+insert into public.vendors (id, name) values ('$V3', 'Panadería C39');
+insert into public.vendor_items (id, vendor_id, item_id, pack_label, pack_qty, usual_price) values ('5c000000-0000-4000-8000-0000000c3908', '$V3', '$MILK', 'caja de 12', 12, 12000);
+SQL
+own1() { printf "select test.login('owner', 'aal2');\nset role authenticated;\n%s\n" "$1" | q | r; }   # the owner with the phone code, one call
+ok "8) (an order of one box of milk from a third supplier, received)" \
+   "$(mgr conc-m "select 'R:' || (public.proveedor_pedido_crear('$V3', '[{\"vendor_item_id\":\"5c000000-0000-4000-8000-0000000c3908\",\"packs\":1}]', null, '$PO6') ->> 'ok');" | q | r) $(mgr conc-m "select 'R:' || coalesce(public.proveedor_recibir('$PO6', '$R8', $(ver "$PO6"), '$(rest "$PO6")') ->> 'error', 'ok');" | q | r)" "true ok"
+ok "8) (its invoice of ₡13 560 saved by SQL, as Contabilidad does: open in full, nothing applied, nothing paid)" \
+   "$(own1 "select 'R:' || (public.supplier_invoice_save(jsonb_build_object('vendor_id', '$V3', 'number', 'C39-F8', 'date', public.cr_today(), 'net_crc', 12000, 'iva_crc', 1560, 'receipt_ids', jsonb_build_array('$R8')), '$INV8') ->> 'ok');") $(q -c "select public._invoice_open('$INV8') || ' ' || (select count(*) from public.supplier_payments where vendor_id = '$V3') || ' ' || (select count(*) from public.supplier_advances where vendor_id = '$V3')")" "true 13560.00 0 0"
+gate_close g8
+own conc-b8 g8 "select 'R:' || coalesce(public.supplier_payment_save(jsonb_build_object('vendor_id', '$V3', 'date', public.cr_today(), 'amount_crc', 13560, 'paid_from', 'bank', 'reference', 'BN C39-8', 'invoice_ids', jsonb_build_array('$INV8')), '5f000000-0000-4000-8000-0000000c3908') ->> 'error', 'ok');"
+txn conc-s8 "select 'R:' || coalesce(public.proveedor_pago_registrar('{\"vendor_id\":\"$V3\",\"po_id\":\"$PO6\",\"amount\":13560,\"method\":\"sinpe\",\"reference\":\"FT-C39-0008\"}', '5d000000-0000-4000-8000-0000000c3908', '$ANA', '4826') ->> 'error', 'ok');" g8
+start conc-b8; B8=$bg; start conc-s8; S8=$bg
+until_t "$(waiting conc-b8)" && until_t "$(waiting conc-s8)" || { echo "  FAIL  the bank payment and the SINPE never met at the gate"; fail=$((fail + 1)); }
+gate_open g8; finish "$B8" "$S8"
+O8="$(outcome conc-b8) $(outcome conc-s8)"
+case "$O8" in "ok over_balance"|"more_than_owed ok") N8="one pays, the other is refused";; *) N8="$O8";; esac
+ok "8) Contabilidad's bank payment of the whole invoice and a Proveedores SINPE for its order at once: one pays, the other is refused («more than owed» / «over balance»), both finish" "$N8" "one pays, the other is refused"
+ok "8) ... the invoice holds ₡13 560 of live allocations (its total), the supplier was paid ₡13 560 in all (never twice), nothing left to apply" \
+   "$(q -c "select round((select coalesce(sum(a.amount_crc), 0) from public.supplier_payment_allocations a join public.supplier_payments p on p.id = a.payment_id where a.invoice_id = '$INV8' and p.voided_at is null), 2) || ' ' || round((select coalesce(sum(amount_crc), 0) from public.supplier_payments where vendor_id = '$V3' and voided_at is null and paid_from <> 'advance') + (select coalesce(sum(amount_crc), 0) from public.supplier_advances where vendor_id = '$V3' and voided_at is null), 2) || ' ' || (select total_crc from public.supplier_invoices where id = '$INV8') || ' ' || round((select coalesce(sum(public._prov_unapplied(id)), 0) from public.supplier_advances where vendor_id = '$V3'), 2)")" "13560.00 13560.00 13560.00 0.00"
+ok "8) ... the ledger balanced, no deadlock anywhere" \
+   "$(q -c "select count(*) from (select entry_id from acct.lines group by entry_id having sum(debit) <> sum(credit)) u") $(grep -l 'deadlock' "$TMP"/*.out 2>/dev/null | wc -l | tr -d ' ')" "0 0"
 
 echo "concurrency-proveedores: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

@@ -1,6 +1,7 @@
 -- supabase/tools/reversion-0040.sql then reversion-0039.sql: undo the Proveedores migrations (D-067), and they then apply
 -- again. Each reversal refuses while it is not applied or while a later migration is, and then changes nothing; together
--- they drop the 74 new functions and the 7 new triggers and nothing else (0039 and 0040 replaced no function), delete no
+-- they drop the 79 new functions and the 9 new triggers and nothing else (0039 replaced no function; 0040's three
+-- redefinitions go back to their 0025, 0029 and 0035 texts), delete no
 -- data (the six tables with their rows, the new columns, rules and indexes, the 1160 mappings and the widened payment
 -- rule stay) and take versions 40 and 39 off the ledger. The published Inventario page then works as before (orders,
 -- deliveries, receive-and-pay, items with a supplier, the clock). 0039 and 0040 then apply again over what the reversal
@@ -66,7 +67,7 @@ create temp table snap520 (k text primary key, j jsonb);
 select test.eq(public.canopy_schema_version(), 40, '0 the database is at version 40');
 create temp table new520 as select p.oid::regprocedure::text as sig from pg_proc p
  where p.pronamespace = 'public'::regnamespace and (p.proname ~ '^(proveedor|proveedores|turno)_' or p.proname ~ '^_prov_');
-select test.eq((select count(*)::int from new520), 74, '0 the 74 new functions exist (54 of 0039, 20 of 0040)');
+select test.eq((select count(*)::int from new520), 79, '0 the 79 new functions exist (56 of 0039, 23 of 0040)');
 insert into public.vendors (id, name) values ('5b000000-0000-4000-8000-000000052001', 'Lácteos Monteverde');
 insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack, vendor_id) values
   ('5a000000-0000-4000-8000-000000052001', 'Leche', 'unit', 12, 12000, '5b000000-0000-4000-8000-000000052001');
@@ -119,7 +120,7 @@ create function test.s520(key text, path text[]) returns jsonb language sql stab
 select test.eq(test.s520('rc_40', '{migrations_missing}') || test.s520('rc_40', '{functions_missing}'), '[]'::jsonb, '0 release-check.sql: nothing missing');
 select test.eq((test.s520('snap_40', '{schema,functions_by_version,0039}') #>> '{}') || ' ' || (test.s520('snap_40', '{schema,functions_by_version,0040}') #>> '{}')
                || ' ' || jsonb_array_length(test.s520('snap_40', '{schema,functions_changed}')) || ' ' || jsonb_array_length(test.s520('snap_40', '{schema,functions_unknown}')),
-               '54 21 0 0', '0 production-snapshot.sql: 54 functions of 0039, 21 of 0040 (its 20 new ones and supplier_invoice_save), none changed or unknown');
+               '56 26 0 0', '0 production-snapshot.sql: 56 functions of 0039, 26 of 0040 (its 23 new ones and supplier_invoice_save, supplier_payment_save and expense_pay redefined), none changed or unknown');
 
 -- 1) the guards: 0039 refuses while 0040 is applied; 0040 refuses while a later one is ----------------------------------------
 savepoint g1;
@@ -175,17 +176,22 @@ select test.eq(public.canopy_schema_version(), 38, '2 reversion-0039.sql: back a
 select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 37), '37 38', '2 the ledger: 39 and 40 deleted');
 select test.eq(:'lt_before' || ' -> ' || current_setting('lock_timeout'), '0 -> 8s', '2 each waits at most 8 seconds for a lock');
 select test.eq((select string_agg(f.k, ' ' order by f.k) from f40 f where not exists (select 1 from test.fns520() g where g.k = f.k)),
-               (select string_agg(sig, ' ' order by sig) from new520), '2 exactly the 74 new functions are gone');
-select test.eq(test.diff520('(select * from f40 where k not in (select sig from new520) and k <> ''supplier_invoice_save(jsonb,uuid)'')',
-                             '(select * from test.fns520() where k <> ''supplier_invoice_save(jsonb,uuid)'')'), '',
+               (select string_agg(sig, ' ' order by sig) from new520), '2 exactly the 79 new functions are gone');
+select test.eq(test.diff520('(select * from f40 where k not in (select sig from new520) and k not in (''supplier_invoice_save(jsonb,uuid)'', ''supplier_payment_save(jsonb,uuid)'', ''expense_pay(jsonb,uuid)''))',
+                             '(select * from test.fns520() where k not in (''supplier_invoice_save(jsonb,uuid)'', ''supplier_payment_save(jsonb,uuid)'', ''expense_pay(jsonb,uuid)''))'), '',
                '2 every other function byte for byte as it was, with its rights (0039 replaced none)');
 select test.ok((select prosrc !~ '0040' and prosrc ~ 'the deliveries are this vendor''s and not invoiced yet' from pg_proc where oid = 'public.supplier_invoice_save(jsonb,uuid)'::regprocedure),
                '2 supplier_invoice_save is back to its 0025 text (the snapshot below reads it as 0025''s)');
+select test.ok((select prosrc !~ '_prov_aplicar' and prosrc !~ '_prov_sinpe_taken' and prosrc ~ 'one invoice or payment of a supplier at a time' from pg_proc where oid = 'public.supplier_payment_save(jsonb,uuid)'::regprocedure),
+               '2 supplier_payment_save is back to its 0029 text (no Proveedores payments applied first, no SINPE cross-check)');
+select test.ok((select prosrc !~ '_prov_sinpe_taken' and prosrc ~ 'no payment dated before its expense' from pg_proc where oid = 'public.expense_pay(jsonb,uuid)'::regprocedure),
+               '2 expense_pay is back to its 0035 text');
 select test.eq((select string_agg(x.k, ' ' order by x.k) from t40 x where not exists (select 1 from test.trg520() y where y.k = x.k)),
                'purchase_lines.purchase_lines_po_version purchase_lines.purchase_lines_protect_new purchase_orders.purchase_orders_version '
-               || 'purchase_receipts.purchase_receipts_po_version staff.staff_work_session_end stock_items.stock_items_vendor_catalog time_entries.time_entries_work_session_end',
-               '2 the seven new triggers are gone');
-select test.eq(test.diff520('(select * from t40 where k !~ ''(po_version|protect_new|purchase_orders_version|work_session_end|vendor_catalog)$'')', '(select * from test.trg520())'), '',
+               || 'purchase_receipts.purchase_receipts_po_version staff.staff_work_session_end stock_items.stock_items_vendor_catalog '
+               || 'supplier_payment_allocations.supplier_payment_allocations_within_invoice supplier_payments.supplier_payments_within_advance time_entries.time_entries_work_session_end',
+               '2 the nine new triggers are gone (seven of 0039, the two guards of 0040)');
+select test.eq(test.diff520('(select * from t40 where k !~ ''(po_version|protect_new|purchase_orders_version|work_session_end|vendor_catalog|within_invoice|within_advance)$'')', '(select * from test.trg520())'), '',
                '2 every other trigger as it was (0038''s staff_pin_changed included)');
 select test.eq(test.diff520('s40', '(select * from test.str520())'), '', '2 every table, column, rule, index, right and row rule stays as it was');
 select test.eq(test.diff520('d40', '(select * from test.data520())'), '', '2 no row of any table changed, appeared or went');
@@ -227,9 +233,11 @@ select test.eq((test.s520('snap_rev', '{migrations_applied}') ->> -1), '38', '2 
 select test.eq(test.s520('snap_rev', '{schema,functions_changed}') || test.s520('snap_rev', '{schema,functions_unknown}'), '[]'::jsonb,
                '2 production-snapshot.sql: no function changed or unknown');
 select test.eq(test.s520('snap_rev', '{schema,functions_by_version}'), test.s520('snap_40', '{schema,functions_by_version}') - '0039' - '0040'
-                 || jsonb_build_object('0025', (test.s520('snap_40', '{schema,functions_by_version,0025}') #>> '{}')::int + 1),
-               '2 production-snapshot.sql: every version as before, without 0039 and 0040 (supplier_invoice_save is 0025''s again)');
-select test.eq((test.s520('snap_rev', '{schema,functions_total}'))::int, (test.s520('snap_40', '{schema,functions_total}'))::int - 74, '2 functions_total − 74');
+                 || jsonb_build_object('0025', (test.s520('snap_40', '{schema,functions_by_version,0025}') #>> '{}')::int + 1,
+                                       '0029', (test.s520('snap_40', '{schema,functions_by_version,0029}') #>> '{}')::int + 1,
+                                       '0035', (test.s520('snap_40', '{schema,functions_by_version,0035}') #>> '{}')::int + 1),
+               '2 production-snapshot.sql: every version as before, without 0039 and 0040 (supplier_invoice_save, supplier_payment_save and expense_pay are 0025''s, 0029''s and 0035''s again)');
+select test.eq((test.s520('snap_rev', '{schema,functions_total}'))::int, (test.s520('snap_40', '{schema,functions_total}'))::int - 79, '2 functions_total − 79');
 select test.eq(test.s520('snap_rev', '{schema,triggers_differ}'), '{}'::jsonb, '2 triggers_differ = {} (exactly the triggers of version 38)');
 select test.eq(test.s520('snap_rev', '{schema,tables_missing}') || test.s520('snap_rev', '{schema,live_pages_rpc_missing}'), '[]'::jsonb,
                '2 no table missing, nothing the published pages call missing');

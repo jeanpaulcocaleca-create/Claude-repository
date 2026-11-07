@@ -2,7 +2,9 @@
 -- receive call, through a work session the server checks at every use: this person typed their own PIN (turno_aqui, or
 -- the POS's «¿Quién cobra?» on the same device, turno_desde_caja) on this device sign-in during their open shift. It stops
 -- working at the clock-out, after 16 hours, on another login, on another device sign-in (until turno_estado moves it and
--- rotates the token), on a PIN change or a deactivation; one receiver per device sign-in. What an employee may do:
+-- rotates the token), on a PIN change or a deactivation, and 15 minutes after the PIN or the last delivery recorded with it
+-- (owner, 2026-11-07: the person types their PIN again; nobody receives as the last person who identified on a shared
+-- device); one receiver per device sign-in. What an employee may do:
 -- receive (never more than pending, prices never booked), report extras and «no llega el resto»; nothing else (the
 -- delivery recorded and its stock moves cannot be changed or deleted from the café login).
 begin;
@@ -81,7 +83,7 @@ select public.proveedor_recibir('9a000000-0000-4000-8000-000000051301', '7e00000
                            jsonb_build_object('line_id', test.line513('9a000000-0000-4000-8000-000000051301', 2), 'packs', 6)),
          :'tok_luis', false, 'F-77', 'Una caja golpeada') as r1 \gset
 select test.eq((select string_agg(k, ' ' order by k collate "C") from jsonb_object_keys(:'r1'::jsonb) k),
-               'close_requested extra_reported lines observed_diffs ok receipt_id short status version', '2 his answer carries no money (exactly these keys)');
+               'close_requested extra_reported fresh_until lines observed_diffs ok receipt_id short status version', '2 his answer carries no money (exactly these keys; fresh_until: until when his PIN counts)');
 select test.eq((:'r1'::jsonb) ->> 'status' || ' ' || ((:'r1'::jsonb) #>> '{extra_reported,0,packs}') || ' ' || ((:'r1'::jsonb) #>> '{observed_diffs,0,observed_pack_price}'),
                'partially_received 2.0000 12900.00', '2 received; 2 blocks of cheese beyond the order reported, the price he saw listed');
 reset role;
@@ -253,6 +255,96 @@ reset role;
 select test.eq((select how from public.work_sessions where token_hash = encode(extensions.digest((:'dc'::jsonb) ->> 'token', 'sha256'), 'hex')), 'caja', '4 (made «caja»)');
 select test.eq((select count(*)::int from public.work_sessions), (select count(*)::int from public.audit_log where action = 'work_session_start'),
                '4 every session is logged when made; none is ever deleted');
+
+-- 5) the identification lasts 15 minutes without a PIN or a delivery (owner, 2026-11-07) --------------------------------------
+-- a device left on the counter identifies nobody: after 15 minutes without that person's PIN or a delivery recorded
+-- with it, every use answers «idle» and the page asks the same person's PIN again; one PIN covers one visit's deliveries
+select test.login('cafe'); select test.session('dev-513-m2'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+select public.proveedor_pedido_crear('5b000000-0000-4000-8000-000000051301', '[{"vendor_item_id":"5c000000-0000-4000-8000-000000051301","packs":3}]', null,
+                                     '9a000000-0000-4000-8000-000000051305') ->> 'ok' as c5 \gset
+select test.login('cafe'); select test.session('dev-513-i'); set role authenticated;
+select public.turno_aqui(test.staff('luis'), '9999', 'Bodega') as t5 \gset
+select test.eq((:'t5'::jsonb) ->> 'ok' || ' ' || (((:'t5'::jsonb) ->> 'fresh_until')::timestamptz between now() + interval '14 minutes' and now() + interval '15 minutes'),
+               'true true', '5 «Estoy en turno aquí»: his PIN counts for 15 minutes (fresh_until, for the bar)');
+select (:'t5'::jsonb) ->> 'token' as tok5 \gset
+select test.eq(test.why513(:'tok5'), 'ok', '5 good now');
+reset role;
+update public.work_sessions set confirmed_at = now() - interval '14 minutes' where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex');
+set role authenticated;
+select test.eq(test.why513(:'tok5'), 'ok', '5 at minute 14: still good');
+reset role;
+update public.work_sessions set confirmed_at = now() - interval '15 minutes' where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex');
+set role authenticated;
+select public.turno_estado(array[:'tok5']) -> 'sessions' -> 0 as s5 \gset
+select test.eq((:'s5'::jsonb) ->> 'why' || ' ' || ((:'s5'::jsonb) ->> 'staff_name') || ' ' || ((:'s5'::jsonb) ->> 'staff_id' = test.staff('luis')::text) || ' ' || ((:'s5'::jsonb) ? 'token'),
+               'idle Luis true false', '5 at minute 15: «idle», with his name and id so the page offers him first, no token');
+select test.eq(public.proveedores_por_recibir(:'tok5') ->> 'why', 'idle', '5 the list of orders to receive refuses it');
+select test.eq(public.proveedor_pedido('9a000000-0000-4000-8000-000000051305', :'tok5') ->> 'why', 'idle', '5 an order too');
+select test.eq(public.proveedor_recibir('9a000000-0000-4000-8000-000000051305', '7e000000-0000-4000-8000-000000051351', test.v513('9a000000-0000-4000-8000-000000051305'),
+                 jsonb_build_array(jsonb_build_object('line_id', test.line513('9a000000-0000-4000-8000-000000051305', 1), 'packs', 1)), :'tok5') ->> 'why', 'idle',
+               '5 and a delivery: refused');
+reset role;
+select test.eq((select count(*)::int from public.purchase_receipts where po_id = '9a000000-0000-4000-8000-000000051305'), 0, '5 nothing booked');
+select test.eq((select ended_at is null from public.work_sessions where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex')), true,
+               '5 the session is not ended, only stale: the same PIN starts over');
+-- a delivery recorded with it extends the 15 minutes from that delivery
+update public.work_sessions set confirmed_at = now() - interval '14 minutes' where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex');
+set role authenticated;
+select public.proveedor_recibir('9a000000-0000-4000-8000-000000051305', '7e000000-0000-4000-8000-000000051351', test.v513('9a000000-0000-4000-8000-000000051305'),
+         jsonb_build_array(jsonb_build_object('line_id', test.line513('9a000000-0000-4000-8000-000000051305', 1), 'packs', 1)), :'tok5') as r5 \gset
+select test.eq((:'r5'::jsonb) ->> 'ok' || ' ' || (((:'r5'::jsonb) ->> 'fresh_until')::timestamptz between now() + interval '14 minutes' and now() + interval '15 minutes'),
+               'true true', '5 a delivery at minute 14: booked, and 15 more minutes from it');
+reset role;
+update public.work_sessions set confirmed_at = now() - interval '40 minutes', last_receipt_at = now() - interval '14 minutes'
+ where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex');
+set role authenticated;
+select test.eq(test.why513(:'tok5'), 'ok', '5 the PIN 40 minutes ago, the last delivery 14 minutes ago: still good');
+reset role;
+update public.work_sessions set last_receipt_at = now() - interval '15 minutes' where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex');
+set role authenticated;
+select test.eq(test.why513(:'tok5'), 'idle', '5 the last delivery 15 minutes ago: «idle»');
+select test.session('dev-513-i2');
+select test.eq(test.why513(:'tok5'), 'idle', '5 «idle» is said before «moved»: a new sign-in gets no stale session rebound');
+select test.session('dev-513-i');
+-- the same person types their PIN again: a new session, the old one ended «replaced»
+select public.turno_aqui(test.staff('luis'), '9999', 'Bodega') as t5b \gset
+select test.eq((:'t5b'::jsonb) ->> 'ok' || ' ' || test.why513((:'t5b'::jsonb) ->> 'token') || ' ' || test.why513(:'tok5'), 'true ok ended',
+               '5 his PIN again: a fresh session, the stale one ended');
+reset role;
+select test.eq((select ended_how from public.work_sessions where token_hash = encode(extensions.digest(:'tok5', 'sha256'), 'hex')), 'replaced', '5 «replaced»');
+-- the POS's «¿Quién cobra?» counts like a PIN typed here, for the same 15 minutes: older, the cashier types it here
+select test.login('cafe'); select test.session('dev-513-j'); set role authenticated;
+select public.pos_operator_start(test.staff('ana'), '4826', 'Caja 5') as ops5 \gset
+select test.eq((:'ops5'::jsonb) ->> 'ok', 'true', '5 (Ana signs in at the POS of another device: ' || (:'ops5'::jsonb)::text || ')');
+select (:'ops5'::jsonb) ->> 'token' as op_ana5 \gset
+reset role;
+-- (now() is one instant in this transaction: her shift is moved an hour back, so a POS PIN of 15 minutes ago is inside it)
+update public.time_entries set clock_in = now() - interval '1 hour' where staff_id = test.staff('ana') and clock_out is null;
+update public.operator_sessions set started_at = now() - interval '15 minutes' where token_hash = encode(extensions.digest(:'op_ana5', 'sha256'), 'hex');
+set role authenticated;
+select public.turno_desde_caja(:'op_ana5', 'Caja 5') as dc5 \gset
+select test.eq((:'dc5'::jsonb) ->> 'error' || ' ' || ((:'dc5'::jsonb) ->> 'why') || ' ' || ((:'dc5'::jsonb) ->> 'staff_name') || ' ' || ((:'dc5'::jsonb) ->> 'staff_id' = test.staff('ana')::text) || ' ' || ((:'dc5'::jsonb) ? 'token'),
+               'no_session confirm Ana true false', '5 her PIN at the POS 15 minutes ago: «confirm» with her name, no session');
+reset role;
+update public.operator_sessions set started_at = now() - interval '14 minutes' where token_hash = encode(extensions.digest(:'op_ana5', 'sha256'), 'hex');
+set role authenticated;
+select public.turno_desde_caja(:'op_ana5', 'Caja 5') as dc5b \gset
+select test.eq((:'dc5b'::jsonb) ->> 'ok' || ' ' || (((:'dc5b'::jsonb) ->> 'fresh_until')::timestamptz between now() + interval '30 seconds' and now() + interval '1 minute'),
+               'true true', '5 14 minutes ago: a session that counts from the POS PIN (about 1 minute left)');
+reset role;
+select test.eq((select (confirmed_at = o.started_at)::text from public.work_sessions w join public.operator_sessions o on o.token_hash = encode(extensions.digest(:'op_ana5', 'sha256'), 'hex')
+                 where w.token_hash = encode(extensions.digest((:'dc5b'::jsonb) ->> 'token', 'sha256'), 'hex')), 'true', '5 (its PIN moment is the POS''s)');
+-- a stale session on this sign-in (Ana's, past its 15 minutes) does not keep the POS cashier out: a fresh POS PIN
+-- replaces it, as a PIN typed here would; a fresh one still does («device_taken»)
+update public.work_sessions set confirmed_at = now() - interval '20 minutes' where token_hash = encode(extensions.digest((:'dc5b'::jsonb) ->> 'token', 'sha256'), 'hex');
+update public.operator_sessions set started_at = now() - interval '2 minutes' where token_hash = encode(extensions.digest(:'op_ana5', 'sha256'), 'hex');
+set role authenticated;
+select public.turno_desde_caja(:'op_ana5', 'Caja 5') as dc5c \gset
+select test.eq((:'dc5c'::jsonb) ->> 'ok' || ' ' || test.why513((:'dc5b'::jsonb) ->> 'token'), 'true ended', '5 a stale session on the sign-in: the fresh POS PIN takes over, the stale one ends');
+select test.eq(public.turno_desde_caja(:'op_ana5', 'Caja 5') ->> 'why', 'device_taken', '5 a fresh one on the sign-in still takes the device');
+reset role;
+select test.eq((select ended_how from public.work_sessions where token_hash = encode(extensions.digest((:'dc5b'::jsonb) ->> 'token', 'sha256'), 'hex')), 'replaced', '5 («replaced»)');
+set role authenticated;
 
 select test.done();
 rollback;

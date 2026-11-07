@@ -15,7 +15,7 @@ se guardó. Intente de nuevo.» y conserva lo escrito (solo la Caja vende sin in
 
 | Quién | Cómo entra | Puede | No puede |
 |---|---|---|---|
-| **Persona en turno** (cualquier puesto) | «Recibe en este aparato» (sección 2): su PIN en «¿Quién cobra?» de la Caja de ese aparato, o en «Estoy en turno aquí», una vez por aparato y por turno | Ver los pedidos por recibir y recibirlos; anotar lo que llegó de más, un precio distinto, el Nº de factura y observaciones; avisar que no llega el resto | Ver totales, pagos, el contacto del proveedor o su SINPE; pedir, editar, cancelar o cerrar pedidos; pagar |
+| **Persona en turno** (cualquier puesto) | «Recibe en este aparato» (sección 2): su propio PIN en «Estoy en turno aquí» en ese aparato (o el que escribió en «¿Quién cobra?» de la Caja hace menos de 15 minutos); vale 15 minutos y cada entrega lo extiende; después, su PIN otra vez | Ver los pedidos por recibir y recibirlos; anotar lo que llegó de más, un precio distinto, el Nº de factura y observaciones; avisar que no llega el resto | Ver totales, pagos, el contacto del proveedor o su SINPE; pedir, editar, cancelar o cerrar pedidos; pagar |
 | **Encargado** | En el aparato: «Abrir áreas de dueños» → su nombre y su PIN (15 minutos, como en Inventario) | Todo lo de pedidos: añadir, editar y desactivar proveedores; el catálogo; pedir; el documento; editar, cancelar y cerrar pedidos; recibir (también de más); corregir una entrega; registrar facturas; registrar pagos con **su** PIN hasta lo que se debe; aplicar pagos a facturas; ver el SINPE | Cambiar el SINPE; pagar más de lo que se debe; dejar un pago a favor (cancelar, recortar o cerrar lo pendiente de un pedido ya pagado); anular un pago o una factura |
 | **Puesto de dueño con su PIN** | Igual que el encargado, con su PIN | Lo del encargado, y además cambiar el SINPE, registrar un pago mayor que el saldo (con motivo) y anular un pago de Proveedores, con su PIN; dejar un pago a favor (sección 11) | Anular una factura |
 | **El dueño con el código del teléfono** | Su ingreso personal con el código | Todo; los pagos sin PIN; anular facturas | – |
@@ -31,13 +31,19 @@ café no se cierra sola.
 ## 2 · Recibir un pedido (cualquier persona en turno)
 
 1. En un aparato del café → «Proveedores» (en la Caja: «Reloj» → «Proveedores»).
-2. **Si el aparato ya la conoce en este turno**, arriba dice «Recibe: (nombre) · ¿No es usted? Cambiar · Salir de este
-   aparato». La conoce si en **ese mismo aparato**, durante este turno (después de marcar la entrada), escribió su PIN en
-   «¿Quién cobra?» de la Caja (no escribe nada más) o ya hizo el paso 3. Nadie recibe porque otra persona tenga el turno
-   abierto.
+2. **Si el aparato ya la conoce**, arriba dice «Recibe: (nombre) · PIN vigente hasta las HH:MM · ¿No es usted? Cambiar ·
+   Salir de este aparato». La conoce si en **ese mismo aparato**, durante este turno (después de marcar la entrada) y
+   **hace menos de 15 minutos**, escribió su PIN en «¿Quién cobra?» de la Caja (no escribe nada más), hizo el paso 3 o
+   registró una entrega. Nadie recibe porque otra persona tenga el turno abierto, ni a nombre de la última persona que
+   se identificó en ese aparato.
 3. **Si no**, «¿Quién recibe?» muestra a quienes tienen la entrada marcada: toque **su** nombre → **su propio** PIN →
-   «Estoy en turno aquí» («Listo: usted recibe en este aparato.»). Si todavía no marcó entrada, su nombre está debajo, en
-   «¿Todavía no marcó entrada?»: su PIN → «Marcar entrada y empezar» (marca la entrada del Reloj con el mismo PIN).
+   «Estoy en turno aquí» («Listo: usted recibe en este aparato.»). Su PIN vale **15 minutos**, y cada entrega que
+   registra lo extiende otros 15 (la barra dice hasta qué hora). Pasado ese tiempo sin su PIN ni una entrega, la página
+   dice «Pasaron más de 15 minutos desde su PIN o su última entrega. Escriba su PIN otra vez para seguir recibiendo.» y
+   abre «¿Quién recibe?» con su nombre ya elegido: solo escribe su PIN. En la Caja, si su PIN en «¿Quién cobra?» es de
+   hace más de 15 minutos: «Escriba su PIN para recibir en este aparato.», también con su nombre elegido. Si todavía no
+   marcó entrada, su nombre está debajo, en «¿Todavía no marcó entrada?»: su PIN → «Marcar entrada y empezar» (marca
+   la entrada del Reloj con el mismo PIN).
    - «Tiene un turno abierto desde …; avise a un encargado.»: quedó abierto un turno de otro día; un encargado lo corrige
      en el Reloj. No marca nada.
 4. «Pedidos por recibir» → toque el pedido que llegó → «Recibir el pedido Nº n». Cada producto con lo pedido, lo que ya
@@ -55,20 +61,23 @@ café no se cierra sola.
 
 **Nunca dos veces:** si otra persona registró una entrega del mismo pedido en otro aparato un momento antes, la página
 dice «Otra persona registró una entrega de este pedido hace un momento. Revise lo pendiente.» y muestra lo que queda.
-Un toque doble o una conexión que se corta guarda una sola entrega. Lo escrito se conserva si la página se recarga. Si
+Un toque doble o una conexión que se corta guarda una sola entrega. Lo escrito se conserva si la página se recarga, y
+si su PIN venció a medio formulario (vuelve después de escribir su PIN; solo para la misma persona). Si
 la conexión se cortó justo después de guardar, al volver dice «Su entrega anterior ya quedó guardada. Revise lo que
 falta.»: reciba solo lo pendiente. Si dice «La Caja está usando esos productos en este momento. Intente de nuevo en un
 momento.», no se guardó nada: toque otra vez en unos segundos (la entrega le cede el paso a la venta).
 
-**Cuándo vuelve a pedir el PIN:** al marcar la salida, si su PIN cambió o la desactivaron, si otra persona se identificó
-en ese aparato («¿No es usted? Cambiar»), 16 horas después de su entrada, o con «Salir de este aparato». Si el aparato
+**Cuándo vuelve a pedir el PIN:** a los 15 minutos de su PIN o de su última entrega (a la misma persona, con su nombre
+ya elegido), al marcar la salida, si su PIN cambió o la desactivaron, si otra persona se identificó en ese aparato
+(«¿No es usted? Cambiar»), 16 horas después de su entrada, o con «Salir de este aparato». Si el aparato
 cierra la sesión y vuelve a entrar con la contraseña del café, la página recupera sola a quien recibía (no si se usó en
 otro aparato en los últimos 2 minutos, ni más de 6 veces en una hora).
 
-**El límite (una decisión del dueño, E-43):** la página recibe a nombre de la **última persona que se identificó en ese
-aparato**. Antes de recibir, mire el nombre de arriba; si no es el suyo, «¿No es usted? Cambiar». En la Caja, si cambia
-quien cobra, Proveedores sigue con la persona anterior hasta que ella marque la salida o alguien toque «¿No es usted?
-Cambiar».
+**El límite (una decisión del dueño, E-43):** dentro de los 15 minutos de su PIN o de su última entrega, un aparato que
+se dejó en el mostrador sigue siendo esa persona: la barra la nombra («Recibe: Luis · PIN vigente hasta las 10:45»).
+Antes de recibir, mire el nombre de arriba; si no es el suyo, «¿No es usted? Cambiar». Pasados los 15 minutos, nadie
+recibe en ese aparato sin escribir su propio PIN. En la Caja, si cambia quien cobra, Proveedores sigue con la persona
+anterior mientras sus 15 minutos sigan vigentes; después pide el PIN de quien vaya a recibir.
 
 ## 3 · El centro (la primera pantalla de los encargados)
 
@@ -244,6 +253,13 @@ entregas sin factura y la lista de pagos (los de Contabilidad aparecen también,
   ejemplo, una factura guardada en Contabilidad): «Aplicar a facturas abiertas».
 - **Anular un pago:** «Anular» en la lista, con el motivo: el puesto de dueño con su PIN, o el dueño con el código o el
   contador sin PIN. Se revierte con asientos nuevos; nada se borra.
+- **Un pago registrado en Contabilidad** («Registrar pago»; también el recibir-y-pagar de la página de Inventario
+  anterior y cualquier llamada directa): el servidor aplica primero a las facturas de ese proveedor lo ya pagado en
+  Proveedores y solo acepta hasta lo que se debe después («{x} pagados en Proveedores se aplicaron primero…»); un número
+  SINPE ya registrado en Proveedores se niega también allí, y en el pago por banco de un gasto («Ese número de SINPE ya
+  está registrado en Proveedores: la misma transferencia no se registra dos veces.»). Dos reglas de la base son la
+  última defensa, escriba lo que escriba: una factura nunca recibe aplicaciones por más de su total y un pago de
+  Proveedores nunca se aplica por más de su monto.
 
 ## 12 · Alertas de inventario
 
@@ -260,7 +276,8 @@ persona en turno.
   presentación, activo), del preferido; cada pedido creado, editado, cancelado, cerrado o confirmado; **cada entrega**
   (quién, con «(en turno)» si fue una persona en turno, el aparato, lo pedido, lo recibido antes y ahora, lo pendiente,
   los precios esperado, registrado y visto, lo que llegó de más); cada corrección, factura, pago, aplicación y anulación;
-  cada sesión «Recibe en este aparato» (cuándo empezó y terminó, nunca el PIN ni el código de la sesión).
+  cada sesión «Recibe en este aparato» (cuándo empezó y terminó, nunca el PIN ni el código de la sesión; la hora del PIN
+  y de la última entrega, las que deciden los 15 minutos, quedan en la sesión, no en la bitácora).
 - **Nada se borra:** un pedido cancelado, un producto retirado o un proveedor desactivado se conservan; una corrección es
   una entrega nueva; una anulación, un asiento nuevo.
 - **El inventario** sube solo con las entregas, nunca dos veces.
@@ -271,7 +288,9 @@ persona en turno.
 ## 14 · Límites
 
 - Necesita internet.
-- «Recibe en este aparato» recibe a nombre de la última persona que se identificó en ese aparato (sección 2).
+- «Recibe en este aparato»: dentro de los 15 minutos de su PIN o de su última entrega, un aparato que se dejó en el
+  mostrador sigue siendo esa persona (la barra la nombra; «¿No es usted? Cambiar»); después, nadie recibe sin su propio
+  PIN (sección 2).
 - El efectivo no se registra en Proveedores: va por Contabilidad. Un pago en efectivo desde la Caja («Entrada o salida
   de dinero de la caja» → «Sale: pago de una compra o a un proveedor») no aparece en Proveedores hasta que se registre en
   Contabilidad: no lo pague otra vez por SINPE.

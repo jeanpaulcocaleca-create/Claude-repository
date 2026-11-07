@@ -4,8 +4,10 @@
    price the employee saw is noted, never booked, and the catalog price stays; more than ordered is reported, not booked;
    without a session there is only the guidance; another device's stale form is told «changed» (nothing twice); one
    receiver per device («¿No es usted? Cambiar»); «Salir de este aparato»; a new sign-in on the device takes the work
-   session along (the token rotated) only after two quiet minutes. Management: presentations of grams, the invoice number,
-   the price check, corrections by a new record. The speed target of a correct receipt (timed, taps counted). */
+   session along (the token rotated) only after two quiet minutes; the identification counts for 15 minutes after the PIN
+   or the last delivery (owner, 2026-11-07): the bar says until when, then the same person's PIN is asked again (the name
+   chosen, the typed form kept, nothing booked meanwhile). Management: presentations of grams, the invoice number, the
+   price check, corrections by a new record. The speed target of a correct receipt (timed, taps counted). */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, settle, sql, STAFF, PINS } = require('../lib');
@@ -33,7 +35,7 @@ module.exports.tests = [
       const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
       const o2 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 1 }]);
       const pg = await P.employee(browser, 'luis');
-      await P.seen(pg.locator('#modeBar'), /^Recibe: Luis ¿No es usted\? Cambiar Salir de este aparato Abrir áreas de dueños$/, 'who receives, in Spanish', 5000);
+      await P.seen(pg.locator('#modeBar'), /^Recibe: Luis · PIN vigente hasta las \d\d:\d\d ¿No es usted\? Cambiar Salir de este aparato Abrir áreas de dueños$/, 'who receives, and until when the PIN counts, in Spanish', 5000);
       assert.ok((await pg.inputValue('#tqPin')) === '', 'the PIN box is emptied');   /* never prints the box */
       assert.strictEqual(sql(`select how || '|' || staff_name || '|' || (ended_at is null) from work_sessions`), 'pin|Luis|true');
       await P.seen(pg.locator('#main'), /Pedidos por recibir/, 'the orders to receive', 5000);
@@ -524,6 +526,70 @@ module.exports.tests = [
       assert.strictEqual(sql(`select by_name from purchase_receipts`), 'Luis (en turno)');
       assert.ok(before);
       assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'the PIN counts for 15 minutes (owner, 2026-11-07): the bar says until when; idle, «Recibir» asks the same person\'s PIN (the name chosen, the typed form kept, nothing booked meanwhile); a delivery moves it on; idle again, the list itself asks on load',
+    run: async ({ browser }) => {
+      P.seed(); P.clockIn('luis');
+      const o = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 10 }]);
+      const sessions = () => sql(`select string_agg(how || ':' || coalesce(ended_how, 'live'), ',' order by started_at) from work_sessions`);
+      const pg = await P.employee(browser, 'luis');
+      await pg.waitForSelector('#modeWho', { timeout: 8000 });
+      await P.seen(pg.locator('#modeWho'), /^Recibe: Luis · PIN vigente hasta las \d\d:\d\d$/, 'the bar with the time, in Spanish', 5000);
+      assert.strictEqual(await P.freshTime(pg), P.freshLive(), 'the time is the server\'s fresh_until (the PIN + 15 minutes) on the device\'s clock');
+      await openOrder(pg, o.id);
+      await pg.fill('#rq0', '6');
+      // 15 minutes pass on the counter without his PIN or a delivery: «Recibir» is refused, the same person's PIN asked
+      sql(`update work_sessions set confirmed_at = now() - interval '15 minutes' where ended_at is null`);
+      await pg.click('#recvGo');
+      await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 10000 });
+      await P.seen(pg.locator('#turnoMsg'), /^Pasaron más de 15 minutos desde su PIN o su última entrega\. Escriba su PIN otra vez para seguir recibiendo\.$/, 'the idle message, in Spanish', 8000);
+      await until(() => pg.locator('#turnoForm').isVisible(), 5000, 'the PIN box already open');
+      assert.strictEqual(await text(pg.locator('#turnoName')), 'Luis', 'his name already chosen');
+      assert.strictEqual(await pg.locator(`#turnoView .who button[data-staff="${STAFF.luis}"]`).getAttribute('aria-pressed'), 'true', 'his button pressed');
+      assert.strictEqual(await pg.locator('#recvCard').count(), 0, 'the form left the screen');
+      assert.strictEqual(await pg.locator('#modeBar').isVisible(), false, 'nobody receives until the PIN');
+      assert.strictEqual(sql(`select count(*) from purchase_receipts`), '0', 'nothing booked while idle');
+      assert.strictEqual(sessions(), 'pin:live', 'the session is not ended, only stale');
+      // his PIN, nothing else: back on the order with the typed quantity, the bar with the new session's time
+      await P.iAmHere(pg, 'luis', { preselected: true });
+      await pg.waitForSelector('#recvCard', { timeout: 10000 });
+      assert.strictEqual(await pg.inputValue('#rq0'), '6', 'what he typed before the PIN expired is back');
+      assert.strictEqual(sessions(), 'pin:replaced,pin:live', 'a new session; the stale one ended «replaced»');
+      await until(async () => (await P.freshTime(pg)) === P.freshLive(), 5000, 'the bar reads the new session\'s fresh_until');
+      // that PIN was 10 minutes ago (the bar, reloaded, says so: 5 minutes left); the delivery recorded moves it on 15 minutes from it
+      sql(`update work_sessions set confirmed_at = now() - interval '10 minutes' where ended_at is null`);
+      await pg.reload({ waitUntil: 'domcontentloaded' });
+      await pg.waitForSelector('#recvCard', { timeout: 15000 });
+      await until(async () => (await P.freshTime(pg)) === P.freshLive(), 8000, 'the bar after the reload: 5 minutes left');
+      const before = await P.freshTime(pg);
+      assert.strictEqual(await pg.inputValue('#rq0'), '6', 'still the typed quantity');
+      await pg.click('#recvGo');
+      await pg.waitForSelector('#recvDone', { timeout: 10000 });
+      assert.strictEqual(sql(`select count(*) || '|' || string_agg(by_name, ',') from purchase_receipts`), '1|Luis (en turno)', 'the delivery, once, by Luis');
+      assert.strictEqual(sql(`select last_receipt_at is not null from work_sessions where ended_at is null`), 't', 'the delivery is the session\'s last');
+      const after = await P.freshTime(pg);
+      assert.strictEqual(after, P.freshLive(), 'the bar reads the answer\'s fresh_until: the delivery + 15 minutes');
+      assert.ok(P.minutesFrom(before, after) >= 9 && P.minutesFrom(before, after) <= 11, 'moved on by about 10 minutes: ' + before + ' → ' + after);
+      // 15 quiet minutes after that delivery: the list «Pedidos por recibir» itself leads to the picker on load, his name chosen
+      await P.nav(pg, '#', `#main a[href="#recibir=${o.id}"]`);
+      await P.seen(pg.locator('#main'), /Pedidos por recibir/, 'the list', 5000);
+      sql(`update work_sessions set confirmed_at = now() - interval '40 minutes', last_receipt_at = now() - interval '15 minutes' where ended_at is null`);
+      await pg.reload({ waitUntil: 'domcontentloaded' });
+      await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 15000 });
+      await P.seen(pg.locator('#turnoMsg'), /^Pasaron más de 15 minutos desde su PIN o su última entrega\./, 'the idle message on load', 8000);
+      await until(() => pg.locator('#turnoForm').isVisible(), 5000, 'the PIN box already open');
+      assert.strictEqual(await text(pg.locator('#turnoName')), 'Luis');
+      assert.strictEqual(await pg.locator('#modeBar').isVisible(), false, 'nobody receives until the PIN');
+      assert.doesNotMatch(await text(pg.locator('#main')), /Pedidos por recibir|Pedido Nº/, 'no list without the PIN');
+      assert.ok((await pg.inputValue('#tqPin')) === '', 'the PIN box is empty');   /* never prints the box */
+      await P.iAmHere(pg, 'luis', { preselected: true });
+      await P.seen(pg.locator('#main'), /Pedidos por recibir.*Pedido Nº \d+ .*Recibir/, 'the list again, the order still partly pending', 8000);
+      assert.strictEqual(sessions(), 'pin:replaced,pin:replaced,pin:live');
+      assert.strictEqual(sql(`select count(*) from purchase_receipts`), '1', 'still the one delivery');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
     }
   }
 ];

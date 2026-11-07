@@ -311,14 +311,19 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   una nueva, nada se borra; una entrega después del cierre de la caja entra en el asiento del día; la bitácora de cada
   entrega guarda lo pedido, lo recibido antes, lo recibido ahora y lo que falta, y la línea del pedido sigue diciendo lo
   pedido.
-- `tests/sql/513_proveedores_turnos.test.sql` (72): «Recibe en este aparato»: una persona en turno recibe sin PIN en la
+- `tests/sql/513_proveedores_turnos.test.sql` (94): «Recibe en este aparato»: una persona en turno recibe sin PIN en la
   llamada de recibir, con una sesión que el servidor revisa cada vez (escribió su propio PIN, con «Estoy en turno aquí» o
   en «¿Quién cobra?» de la Caja del mismo aparato, en ese inicio de sesión, durante su turno abierto); deja de servir al
   marcar la salida, a las 16 horas, en otro ingreso, en otro inicio de sesión del aparato (hasta que `turno_estado` la
   mueve y cambia la llave), con un PIN nuevo o una desactivación; una sola persona por inicio de sesión; lo que puede
   hacer quien está en turno (recibir, nunca más de lo pendiente, sus precios nunca se registran; avisar lo que llegó de
-  más y que no llega el resto) y nada más: no puede borrar ni cambiar la entrega que registró ni sus movimientos.
-- `tests/sql/514_proveedores_pagos.test.sql` (112): facturas y pagos: SINPE con su número obligatorio y una sola vez para
+  más y que no llega el resto) y nada más: no puede borrar ni cambiar la entrega que registró ni sus movimientos; y los
+  15 minutos (§5, la corrección del dueño del 2026-11-07): el PIN vale hasta el minuto 15 (justo a los 15, «idle» con el
+  nombre y sin llave en las listas, al abrir un pedido y al recibir; nada se registra; la sesión no termina, el mismo
+  PIN la reemplaza), cada entrega lo extiende 15 minutos desde ella, «idle» se contesta antes que «moved» (un inicio de
+  sesión nuevo no hereda una sesión vencida), y el PIN de «¿Quién cobra?» de la Caja cuenta solo dentro de esos 15
+  minutos («confirm» con el nombre y sin sesión si es más viejo; la sesión que abre cuenta desde el PIN de la Caja).
+- `tests/sql/514_proveedores_pagos.test.sql` (172): facturas y pagos: SINPE con su número obligatorio y una sola vez para
   todos los proveedores (también escrito de otra forma), tarjeta con referencia opcional y la pregunta por un pago casi
   igual; todo pago pasa por la 1160 y se aplica a las facturas (Dr 2101 / Cr 1160) solo en las llamadas explícitas;
   antes o después de recibir y de la factura, parcial o total: Pendiente / Parcialmente pagado / Pagado; más del saldo
@@ -327,7 +332,16 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   revierten y no borran; el libro cuadra (2101 y 1160); un pago, antes o después de recibir, no mueve el inventario; con
   la caja abierta, una entrega de quien está en turno, un SINPE, una tarjeta, una factura y una corrección no cambian la
   caja ni sus movimientos («No modificar cajas abiertas»); `consistency-check` cuenta una corrección o un pago que apunta
-  a algo que no existe.
+  a algo que no existe; la cuenta 1160 es de activo, activa, con sus dos mapeos, y no se ofrece como cuenta de una
+  factura (§9); y las guardas del servidor en toda ruta de pago (§10, la corrección del dueño del 2026-11-07): el
+  «Registrar pago» de Contabilidad después de un SINPE de Proveedores aplica primero ese SINPE y niega el total completo
+  («más de lo que se debe», con lo aplicado), el resto pasa y el reintento es «repeat»; un número SINPE vivo de
+  Proveedores se niega en un pago por banco de Contabilidad escrito de cualquier forma (no uno anulado, no una tarjeta,
+  no una clave de menos de 4 letras) y en el pago por banco de un gasto; la ruta de la página de Inventario anterior
+  (`po_receive_and_settle` → `po_receipt_settle` → `supplier_payment_save`) con un SINPE adelantado niega el total y no
+  guarda nada (ni la entrega), o paga una sola vez lo que queda; los dos disparadores sobre filas directas (una
+  asignación o una aplicación por más del total o del monto, también al editarla o al apuntarla a otro pago; una
+  anulada deja lugar); el libro cuadra y la 1160 es lo no aplicado después de todo.
 - `tests/sql/515_proveedores_alertas.test.sql` (17): las alertas usan la regla y los niveles de `inventory_stats(30)`
   (agotado, bajo, por acabarse; punto de reorden, nivel par, el uso en los días de entrega), apuntan al catálogo del
   proveedor preferido (la presentación más chica) y nunca vuelven a sugerir lo que ya está pedido a cualquier proveedor
@@ -340,7 +354,8 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   solo en la puerta de los libros) y el historial; una página no puede escribir ni borrar entregas ni movimientos (un
   visitante ni siquiera los lee); «Consultar historial»: la ficha lista primero lo abierto y después los 30 pedidos
   recibidos o cancelados más nuevos, y «Ver más» trae los demás, cada uno una vez, también con dos pedidos del mismo
-  momento justo en el borde de una página.
+  momento justo en el borde de una página; las 79 funciones nuevas (28 que llama una página, 51 internas);
+  `turno_estado` dice hasta cuándo vale el PIN (`fresh_until`).
 - `tests/sql/517_proveedores_saldo_favor.test.sql` (41): lo que corrigió la revisión independiente sobre permisos y
   dinero: cambiar el SINPE pide el PIN de alguien con puesto de dueño en la misma llamada (un PIN equivocado cuenta, uno
   bloqueado se niega, el que se anota es quien escribió el PIN); un «¿Quién cobra?» de antes de marcar la entrada, o de
@@ -357,30 +372,37 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   Contabilidad; `consistency-check` cuenta solo un pago que podría ir ya a una factura abierta; una factura de dos pedidos
   no cuenta dos veces un pago; el saldo a favor no cuenta pedidos pagados sin entregar; un retiro de la gaveta de más se
   niega con su monto; las facturas en dólares se redondean antes de convertir; un SINPE ya usado en un gasto de
-  Contabilidad tampoco se registra; una factura de una entrega nunca se lleva la corrección de otra entrega del mismo
+  Contabilidad tampoco se registra (y al revés, desde la corrección del dueño, el servidor niega en el «Registrar pago»
+  de Contabilidad y en el pago por banco de un gasto un número SINPE vivo de Proveedores: 514 §10); una factura de una
+  entrega nunca se lleva la corrección de otra entrega del mismo
   pedido (sin 5103 falso; esa entrega se sigue pudiendo corregir y su factura lleva su corrección); una factura de dos
   pedidos pagada por completo deja a los dos «pagado», también cuando el pago de uno pasaba su parte, y un encargado no
   puede pagar otra vez; una entrega de la página anterior se lee en las presentaciones de su línea.
-- `tests/sql/520_reversion_0039.test.sql` (56): `reversion-0040.sql` y después `reversion-0039.sql`: cada una se niega
-  si su migración no está aplicada o si hay una posterior; juntas quitan las 74 funciones y los 7 disparadores nuevos,
-  devuelven `supplier_invoice_save` a su texto exacto de la 0025 y nada más, no borran datos (las siete tablas con sus
+- `tests/sql/520_reversion_0039.test.sql` (58): `reversion-0040.sql` y después `reversion-0039.sql`: cada una se niega
+  si su migración no está aplicada o si hay una posterior; juntas quitan las 79 funciones y los 9 disparadores nuevos,
+  devuelven `supplier_invoice_save`, `supplier_payment_save` y `expense_pay` a sus textos exactos de la 0025, la 0029 y
+  la 0035 y nada más, no borran datos (las siete tablas con sus
   filas, columnas, reglas, índices, los mapeos de la 1160 y la regla de pagos ampliada quedan) y sacan la 40 y la 39 del
   registro; la página de Inventario publicada funciona como antes; la
   0039 y la 0040 se aplican otra vez como la primera vez, sin tocar ninguna fila de las tablas de siempre (solo copian a
   las tablas nuevas lo que la página publicada hizo mientras tanto, y nunca una presentación que el dueño cambió). Dos
   veces.
-- `tests/sql/525_reversion_0040.test.sql` (24): `reversion-0040.sql` sola: quita las 20 funciones de la 0040, devuelve
-  `supplier_invoice_save` a su texto de la 0025 y nada más (las 54 de la 0039 siguen funcionando), no borra datos (los pagos registrados y aplicados, sus asientos, la cuenta
+- `tests/sql/525_reversion_0040.test.sql` (27): `reversion-0040.sql` sola: quita las 23 funciones y los dos disparadores de la 0040,
+  devuelve `supplier_invoice_save`, `supplier_payment_save` y `expense_pay` a sus textos de la 0025, la 0029 y la 0035 y
+  nada más (las 56 de la 0039 siguen funcionando), no borra datos (los pagos registrados y aplicados, sus asientos, la cuenta
   1160, los mapeos y la regla ampliada quedan), Contabilidad sigue viendo los pagos aplicados; la 0040 se aplica otra vez
   igual. Dos veces.
-- `tests/sql/concurrency-proveedores.sh` (25): con dos conexiones a la vez, en una base propia: dos aparatos reciben la
+- `tests/sql/concurrency-proveedores.sh` (30): con dos conexiones a la vez, en una base propia: dos aparatos reciben la
   mitad del mismo pedido con la misma versión (una entrega se registra, la otra contesta «changed»; el inventario sube
   una vez); el mismo pago enviado dos veces a la vez (un solo pago); dos pagos con el mismo SINPE para dos proveedores
   (uno solo; el índice único es la última defensa); un pago y una entrega del mismo pedido, y una entrega y una venta de
   los mismos artículos, en los dos órdenes (los dos terminan, sin bloqueo mutuo); una factura y una corrección de su
   entrega, en los dos órdenes (la corrección espera y contesta «invoiced», o termina primero y entra en la factura); una
   entrega cuyos artículos tiene tomados una venta contesta «busy» sin registrar nada, la venta pasa, y la entrega pasa al
-  intentarla otra vez. Una sincronización que nunca ocurrió cuenta como falla. Lo corre `tests/run-sql.sh` después de
+  intentarla otra vez; el «Registrar pago» por banco de Contabilidad del total de una factura y un SINPE de Proveedores
+  para ese mismo pedido en el mismo instante (los dos terminan; la fila del proveedor los ordena: uno paga y el otro se
+  niega, «más de lo que se debe» o «más del saldo»; la factura nunca recibe más de su total, el proveedor nunca cobra
+  dos veces, nada queda sin aplicar, el libro cuadra, sin bloqueo mutuo). Una sincronización que nunca ocurrió cuenta como falla. Lo corre `tests/run-sql.sh` después de
   los archivos SQL cuando no se le da un patrón.
 - `tests/e2e/specs/410_proveedores_centro.spec.js` (10): el centro en la tableta del café con el PIN de un encargado: las
   alertas arriba, los proveedores con sus avisos, la búsqueda y los filtros, añadir, editar, el SINPE, desactivar; las
@@ -408,7 +430,7 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   nada de la página alrededor; el título del PDF se lee bien con tildes, «Ñ» y comillas); editar antes y después de una
   entrega parcial (el historial); «changed» desde otro aparato; cancelar; cerrar lo pendiente; Pedidos → Historial con
   los recibidos y los cancelados, y «Ver más» con más de 30 (sin repetir ni saltar ninguno).
-- `tests/e2e/specs/413_proveedores_recibir.spec.js` (14): una persona en turno recibe sin otro PIN («Estoy en turno
+- `tests/e2e/specs/413_proveedores_recibir.spec.js` (15): una persona en turno recibe sin otro PIN («Estoy en turno
   aquí» una vez, o «¿Quién cobra?» de la Caja en el mismo aparato, sin ningún PIN aquí); «Todo recibido correctamente» de
   un toque (2 cajas de 12 → +24); una entrega parcial (6 de 10, después las 4); el precio visto se anota y nunca se
   registra, el del catálogo se queda; lo que llegó de más se anota, no entra; sin sesión, solo la guía; el formulario
@@ -420,8 +442,12 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   que abre las áreas después, otro empleado); corregir una entrega de la página anterior se lee en cajas («registrado
   1 × caja de 12») y −1 devuelve una caja; las correcciones de un encargado como registro nuevo; después de una entrega
   parcial, «Pedidos abiertos» con «Parcialmente recibido» y lo pendiente, y «Parcialmente recibidos: 1» en el centro; el
-  tiempo de una entrega correcta (2 toques, unos 0,2 s de máquina).
-- `tests/e2e/specs/414_proveedores_pagos.spec.js` (13): SINPE sin su número se rechaza, el mismo número dos veces
+  tiempo de una entrega correcta (2 toques, unos 0,2 s de máquina); los 15 minutos (la corrección del dueño): pasados
+  en el mostrador sin su PIN ni una entrega, «Recibir» se niega y se pide el PIN de la misma persona (su nombre ya
+  elegido, solo el PIN; vuelve al pedido con la cantidad escrita y la barra con la hora nueva); un PIN de hace 10
+  minutos dice en la barra hasta cuándo vale, y la entrega registrada lo corre 15 minutos desde ella; 15 minutos quietos
+  después de esa entrega, la lista misma lleva a «¿Quién recibe?» con su nombre elegido.
+- `tests/e2e/specs/414_proveedores_pagos.spec.js` (15): SINPE sin su número se rechaza, el mismo número dos veces
   también (con espacios o guiones); tarjeta con referencia opcional; parcial → «Parcialmente pagado», total → «Pagado»;
   un pago antes de recibir que la factura aplica («Registrar factura» con «13 %» y «Sin IVA»); más del saldo: rechazado
   para un encargado, el dueño lo registra a favor con un motivo; un pago con tarjeta igual al anterior pregunta primero;
@@ -433,18 +459,27 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   tarjeta del proveedor nombra sus pagos en español; Contabilidad aplica primero lo pagado en Proveedores (en una
   factura y antes de un pago, que se vuelve a abrir con lo que falta), no registra nada si no puede revisarlo y lo dice,
   y sin la función de la 0040 registra pagos y facturas como antes; anular ahí un pago aplicado desde Proveedores
-  pregunta primero; bajo el número SINPE, que no es una verificación del banco.
-- `tests/e2e/specs/415_proveedores_aparatos.spec.js` (5): sin internet, «Sin conexión…» y nada se pierde (una entrega y
+  pregunta primero; bajo el número SINPE, que no es una verificación del banco; y las guardas del servidor (la
+  corrección del dueño): con un SINPE de Proveedores registrado y la factura guardada por SQL, el «Registrar pago» del
+  total lo niega el servidor aunque la página no haya podido aplicar nada antes (como una página de antes de esta
+  versión): se vuelve a abrir con lo que falta y el resto se registra una vez; un pago por banco cuya referencia es ese
+  número SINPE (otras letras, un espacio) se niega y no se registra nada, con su propio número pasa; igual en el pago
+  por banco de un gasto a crédito.
+- `tests/e2e/specs/415_proveedores_aparatos.spec.js` (6): sin internet, «Sin conexión…» y nada se pierde (una entrega y
   un pedido salen cuando vuelve la conexión); un ingreso vencido muestra el ingreso y lo escrito vuelve después (nunca el
   PIN); al cerrarse las áreas de dueños todo lo de encargados sale de la pantalla; un teléfono (360×740), una tableta
   (820×1180) y una computadora (1280×860): sin desplazamiento lateral, botones de 44 px (también la «×» del editor del
-  pedido); en la pantalla táctil, los toques reales (marcar, «+», el teclado numérico, «Todo recibido correctamente»).
+  pedido); en la pantalla táctil, los toques reales (marcar, «+», el teclado numérico, «Todo recibido correctamente»);
+  el PIN de la Caja (la corrección del dueño): en un aparato cuya Caja tiene a la cajera con su PIN en «¿Quién cobra?»
+  de hace 15 minutos, Proveedores se lo vuelve a pedir con su nombre ya elegido; con el PIN de hace 5 minutos, sin PIN
+  aquí y la barra dice hasta cuándo (ese PIN + 15 minutos); la entrega sin PIN corre sus 15 minutos desde ella.
 - `tests/e2e/specs/160_purchasing.spec.js` y `290_receive.spec.js`: las compras y la recepción de antes (0012, 0029), ahora
   por Proveedores; `300_recipes` y `340_pin_autofill` ajustadas (la recepción en Existencias; las casillas de PIN nuevas).
 
 En el ensayo de CI (`tests/rehearsal/after-window.sql`, paso 5b), el día después de la ventana con la 0039 y la 0040: la
 página de Inventario publicada crea un pedido directo y lo recibe con `po_receive_and_settle` y un pago por banco mientras
-el proveedor tiene un pago de Proveedores sin aplicar; otro pedido de esa página pagado con un retiro de la gaveta, que
+el proveedor tiene un pago de Proveedores sin aplicar (el servidor aplica primero ese pago a la factura y niega el pago
+del total completo sin guardar nada, ni la entrega; el encargado paga lo que se debe después); otro pedido de esa página pagado con un retiro de la gaveta, que
 documenta la factura registrada en Proveedores (S/N); el camino nuevo: un segundo proveedor para un artículo, un pedido
 de 2 cajas de 12, recibido por una persona en turno con «Recibe en este aparato» (+24), su factura y su pago por SINPE →
 «Pagado»; y la salida de esa persona termina su sesión. `compare.py` exige las ocho revisiones de Proveedores de

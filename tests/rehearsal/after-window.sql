@@ -31,7 +31,9 @@ reset role;
 
 -- 5b) Proveedores (0039/0040, D-067). The old inventory page stays on the tablets until proveedores.html is published:
 --     it writes its orders directly and receives them with po_receive_and_settle (also while the supplier has a payment
---     registered in Proveedores and not applied yet), and its drawer payouts are then documented by Proveedores' invoice.
+--     registered in Proveedores and not applied yet: the server applies that payment to the invoice first and refuses a
+--     bank payment of the whole total, owner 2026-11-07; the manager pays what is owed after it), and its drawer payouts
+--     are then documented by Proveedores' invoice.
 --     The new path: a catalog row, an order of 2 boxes of 12, received by the person on shift through «Recibe en este
 --     aparato» (no PIN in the receiving call) -> +24, the invoice, the SINPE payment -> «Pagado». Checked at the end.
 --     The answers are kept (as the superuser) in a temporary table for the final check; the work-session token is not.
@@ -39,22 +41,35 @@ create temporary table ensayo_prov (k text primary key, v jsonb);
 -- the owner with the phone code: Proveedores' management and books door, no PIN for a payment
 select set_config('request.jwt.claims', '{"sub":"0e000000-0000-4000-8000-000000000002","role":"authenticated","aal":"aal2"}', false);
 set role authenticated;
--- a payment ahead to Lácteos Monteverde (no order and nothing owed: more than the balance, with a reason): it stays unapplied
-select public.proveedor_pago_registrar(jsonb_build_object('vendor_id', '5b000000-0000-4000-8000-000000000002', 'amount', 50000, 'method', 'sinpe',
-         'reference', 'ENSAYO 0040-0001', 'excess_ok', true, 'excess_reason', 'Prepago de la semana'), '5d390000-0000-4000-8000-0000000000a1') as prov_adv \gset
--- the old page's order to that supplier, written directly as its createPo() does (a draft, then its line) ...
+-- the old page's order to that supplier (2 packs of an item of the copy; its amounts drive what follows) ...
 select 2 * pack_qty as old_qty, cost_per_pack / pack_qty as old_uc, round(2 * cost_per_pack, 2) as old_net, round(2 * cost_per_pack * 0.13, 2) as old_iva,
-       round(2 * cost_per_pack, 2) + round(2 * cost_per_pack * 0.13, 2) as old_total
+       round(2 * cost_per_pack, 2) + round(2 * cost_per_pack * 0.13, 2) as old_total,
+       least(50000, floor((round(2 * cost_per_pack, 2) + round(2 * cost_per_pack * 0.13, 2)) / 2)) as adv_amt
   from public.stock_items where id = '5e000000-0000-4000-8000-000000000006' \gset
+-- a payment ahead to Lácteos Monteverde (no order and nothing owed: more than the balance, with a reason), smaller than
+-- that order's invoice: it stays unapplied until an invoice of this supplier is paid
+select public.proveedor_pago_registrar(jsonb_build_object('vendor_id', '5b000000-0000-4000-8000-000000000002', 'amount', :adv_amt, 'method', 'sinpe',
+         'reference', 'ENSAYO 0040-0001', 'excess_ok', true, 'excess_reason', 'Prepago de la semana'), '5d390000-0000-4000-8000-0000000000a1') as prov_adv \gset
+-- ... written directly as its createPo() does (a draft, then its line) ...
 insert into public.purchase_orders (id, vendor_id, status, by_name) values ('9a390000-0000-4000-8000-0000000000a1', '5b000000-0000-4000-8000-000000000002', 'draft', 'owner');
 insert into public.purchase_lines (id, po_id, item_id, packs, qty, unit_cost)
   values ('9b390000-0000-4000-8000-0000000000a1', '9a390000-0000-4000-8000-0000000000a1', '5e000000-0000-4000-8000-000000000006', 2, :old_qty, :old_uc);
--- ... received, its invoice confirmed and paid by bank in one call with a manager's PIN (its «Confirm reception»)
+-- ... received, its invoice confirmed and paid by bank in one call with a manager's PIN (its «Confirm reception»): the
+-- whole total by bank is more than what is owed once the server applies the payment made ahead in Proveedores to this
+-- invoice, so the page is told «more_than_owed» and nothing is saved (the delivery included)
 select public.po_receive_and_settle('9a390000-0000-4000-8000-0000000000a1',
          jsonb_build_array(jsonb_build_object('line_id', '9b390000-0000-4000-8000-0000000000a1', 'qty', :old_qty, 'unit_cost', :old_uc, 'expires_on', public.cr_today() + 7)),
          '7e390000-0000-4000-8000-0000000000a1', false,
          jsonb_build_object('mode', 'confirm', 'number', 'LM-0039', 'date', public.cr_today(), 'currency', 'CRC', 'net', :old_net, 'iva', :old_iva),
          jsonb_build_array(jsonb_build_object('method', 'bank', 'amount_crc', :old_total, 'reference', 'BN ensayo 0039')),
+         'a1000000-0000-4000-8000-000000000001', '4826') as prov_old_full \gset
+select (select count(*) from public.purchase_receipts where po_id = '9a390000-0000-4000-8000-0000000000a1')::text as prov_old_full_left \gset
+-- the manager pays by bank what is owed after that payment
+select public.po_receive_and_settle('9a390000-0000-4000-8000-0000000000a1',
+         jsonb_build_array(jsonb_build_object('line_id', '9b390000-0000-4000-8000-0000000000a1', 'qty', :old_qty, 'unit_cost', :old_uc, 'expires_on', public.cr_today() + 7)),
+         '7e390000-0000-4000-8000-0000000000a1', false,
+         jsonb_build_object('mode', 'confirm', 'number', 'LM-0039', 'date', public.cr_today(), 'currency', 'CRC', 'net', :old_net, 'iva', :old_iva),
+         jsonb_build_array(jsonb_build_object('method', 'bank', 'amount_crc', :old_total - :adv_amt, 'reference', 'BN ensayo 0039')),
          'a1000000-0000-4000-8000-000000000001', '4826') as prov_old \gset
 -- the old page's order to Verduras Santa Elena, received with the invoice to come and paid in cash from the open register ...
 select 4 * pack_qty as pay_qty, cost_per_pack / pack_qty as pay_uc, round(4 * cost_per_pack, 2) as pay_net, round(4 * cost_per_pack * 0.13, 2) as pay_iva,
@@ -99,7 +114,7 @@ select public.proveedor_factura_registrar('5b000000-0000-4000-8000-000000000005'
 select public.proveedor_pago_registrar(jsonb_build_object('vendor_id', '5b000000-0000-4000-8000-000000000005', 'po_id', '9a390000-0000-4000-8000-0000000000a3',
          'amount', 20340, 'method', 'sinpe', 'reference', 'ENSAYO 0040-0002'), '5d390000-0000-4000-8000-0000000000a3') as prov_pay \gset
 reset role;
-insert into ensayo_prov (k, v) values ('adv', :'prov_adv'), ('old', :'prov_old'), ('payout', :'prov_payout'), ('doc', :'prov_doc'), ('cat', :'prov_cat'),
+insert into ensayo_prov (k, v) values ('adv', :'prov_adv'), ('old', :'prov_old'), ('old_full', :'prov_old_full'), ('old_full_left', :'prov_old_full_left'::jsonb), ('adv_amt', to_jsonb(:adv_amt::numeric)), ('payout', :'prov_payout'), ('doc', :'prov_doc'), ('cat', :'prov_cat'),
   ('po', :'prov_po'), ('turno', (:'prov_turno'::jsonb) - 'token'), ('list', :'prov_list'), ('recv_doc', :'prov_doc_recv'), ('recv', :'prov_recv'),
   ('delta', to_jsonb(:prov_delta::numeric)), ('inv', :'prov_inv'), ('pay', :'prov_pay');
 
@@ -229,14 +244,19 @@ begin
               and not exists (select 1 from public.vendor_items v where v.vendor_id = s.vendor_id and v.item_id = s.id)) then
     raise exception 'after: 0039 left an item with a supplier without its catalog row'; end if;
   -- the payment ahead, registered in Proveedores, waits unapplied (nothing owed to that supplier yet)
-  if (select v ->> 'ok' || '|' || (v ->> 'unapplied_crc')::numeric from ensayo_prov where k = 'adv') is distinct from 'true|50000.00' then
+  if (select v ->> 'ok' || '|' || ((v ->> 'unapplied_crc')::numeric = (select (x.v #>> '{}')::numeric from ensayo_prov x where x.k = 'adv_amt')) from ensayo_prov where k = 'adv') is distinct from 'true|true' then
     raise exception 'after: the payment ahead in Proveedores: %', (select v from ensayo_prov where k = 'adv'); end if;
-  -- the old page's direct order, received, invoiced and paid by bank in one call while that payment is unapplied
-  if (select (v ->> 'ok') || '|' || (v ->> 'invoice_status') || '|' || (v ->> 'open_crc')::numeric || '|' || ((v ->> 'paid_crc')::numeric = (v ->> 'total_crc')::numeric)
-        from ensayo_prov where k = 'old') is distinct from 'true|confirmed|0.00|true' then
-    raise exception 'after: the old page''s receive-and-settle with a Proveedores payment unapplied: %', (select v from ensayo_prov where k = 'old'); end if;
-  if public._prov_unapplied('5d390000-0000-4000-8000-0000000000a1') <> 50000 then
-    raise exception 'after: the old page''s payment took the Proveedores payment: % unapplied', public._prov_unapplied('5d390000-0000-4000-8000-0000000000a1'); end if;
+  -- the old page's direct order, received, invoiced and paid by bank in one call while that payment is unapplied: the
+  -- whole total by bank is refused (the server applied the payment ahead first) and nothing was saved; the remainder goes through
+  if (select (v ->> 'ok') || '|' || (v ->> 'error') || '|' || (v ->> 'step') from ensayo_prov where k = 'old_full') is distinct from 'false|more_than_owed|payment'
+     or (select v #>> '{}' from ensayo_prov where k = 'old_full_left') <> '0' then
+    raise exception 'after: the old page''s receive-and-settle paying the whole total while a payment ahead waited in Proveedores: % · receipts left %',
+      (select v from ensayo_prov where k = 'old_full'), (select v from ensayo_prov where k = 'old_full_left'); end if;
+  if (select (v ->> 'ok') || '|' || (v ->> 'invoice_status') from ensayo_prov where k = 'old') is distinct from 'true|confirmed'
+     or (select public._invoice_open(i.id) from public.supplier_invoices i where i.vendor_id = '5b000000-0000-4000-8000-000000000002' and i.number = 'LM-0039') <> 0 then
+    raise exception 'after: the old page''s receive-and-settle paying what is owed after the Proveedores payment: %', (select v from ensayo_prov where k = 'old'); end if;
+  if public._prov_unapplied('5d390000-0000-4000-8000-0000000000a1') <> 0 then
+    raise exception 'after: the Proveedores payment was not applied to the old page''s invoice: % unapplied', public._prov_unapplied('5d390000-0000-4000-8000-0000000000a1'); end if;
   if (select status || '|' || (po_number is not null) || '|' || (version > 0) from public.purchase_orders where id = '9a390000-0000-4000-8000-0000000000a1') <> 'received|true|true'
      or (select (vendor_item_id is null and pack_qty is null and ordered_unit_cost is null and pos is null and removed_at is null)::text || '|' || received_qty
            from public.purchase_lines where id = '9b390000-0000-4000-8000-0000000000a1')

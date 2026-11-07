@@ -3152,10 +3152,11 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   Spanish first; the Canopy OS look kept. Built on its own branch `claude/proveedores` (draft PR #8) from `9d3f6ad` =
   `v2026.11.04-1`, the release live since 2026-11-05 with 0000–0038 applied (D-066).
 - **Built on the branch (nothing applied, nothing published):**
-  - `supabase/migrations/0039_proveedores.sql` (125 097 bytes; additive, one transaction, safe to run again after its
+  - `supabase/migrations/0039_proveedores.sql` (127 531 bytes; additive, one transaction, safe to run again after its
     reversal): seven tables (`vendor_items` each supplier's catalog, `purchase_drafts` one open draft per supplier,
     `purchase_receipt_lines` what each delivery brought per order line, `supplier_advances` every payment registered in
-    Proveedores, `vendor_pay_info` the SINPE apart from `vendors`, `work_sessions` «Recibe en este aparato»,
+    Proveedores, `vendor_pay_info` the SINPE apart from `vendors`, `work_sessions` «Recibe en este aparato» (with
+    `confirmed_at`, the PIN moment, and `last_receipt_at`, the last delivery: the 15 minutes of decision 2),
     `staff_pin_changes` when each PIN changed, so a POS sign-in from before it starts no work session), each with
     row security on, everything revoked and select for `canopy_backup`, rows never deleted by any function; nullable or
     defaulted columns on `purchase_orders` (`version`), `purchase_lines` (`vendor_item_id`, `pack_label`, `pack_qty`,
@@ -3167,30 +3168,36 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     `purchase_lines_protect_new`: a page writing directly can never set the new line columns; `purchase_orders_version`,
     `purchase_lines_po_version`, `purchase_receipts_po_version`: every change moves the order's version;
     `time_entries_work_session_end`, `staff_work_session_end`: a clock-out, a PIN change or a deactivation ends the
-    work sessions); 54 functions (17 public: `turno_aqui`, `turno_desde_caja`, `turno_estado`, `turno_terminar`,
+    work sessions); 56 functions (17 public: `turno_aqui`, `turno_desde_caja`, `turno_estado`, `turno_terminar`,
     `proveedor_guardar`, `proveedor_producto_guardar`, `proveedor_borrador_guardar`, `proveedor_borrador_descartar`,
     `proveedor_pedido_crear`, `_editar`, `_cancelar`, `_cerrar`, `_confirmar`, `_asignar`, `proveedor_recibir`,
-    `proveedor_recepcion_corregir`, `proveedores_alertas`; 37 internal, revoked from every client). No existing
-    function, rule or record changes.
-  - `supabase/migrations/0040_proveedores_pagos.sql` (70 300 bytes): account 1160 «Anticipos a proveedores» required to
+    `proveedor_recepcion_corregir`, `proveedores_alertas`; 39 internal, `_prov_fresh_window` and `_prov_fresh_until`
+    (the 15 minutes of decision 2) among them, revoked from every client). No existing function, rule or record
+    changes.
+  - `supabase/migrations/0040_proveedores_pagos.sql` (84 850 bytes): account 1160 «Anticipos a proveedores» required to
     exist active as an asset (it is in the approved chart since 0013; inserted only if missing; any other name, type or
     an inactive 1160 refuses the migration), the mappings `supplier_advance` and `from_advance` → 1160,
     `supplier_payments_paid_from_check` dropped and re-added with `'advance'` (the one expand of an existing object);
-    20 functions (11 public: `proveedores_lista`, `proveedores_por_recibir`, `proveedor_ficha`, `proveedor_pedido`,
+    23 functions (11 public: `proveedores_lista`, `proveedores_por_recibir`, `proveedor_ficha`, `proveedor_pedido`,
     `proveedor_historial`, `proveedor_factura_registrar`, `proveedor_factura_anular`, `proveedor_anticipos_aplicar`,
-    `proveedor_pago_registrar`, `proveedor_pago_anular`, `proveedores_bitacora`; 9 internal); and the one existing
-    function replaced, `supplier_invoice_save` (0025's body plus two steps, decision 16).
+    `proveedor_pago_registrar`, `proveedor_pago_anular`, `proveedores_bitacora`; 12 internal, `_prov_sinpe_taken`,
+    `_prov_alloc_guard` and `_prov_apply_guard` among them); two constraint triggers on existing tables
+    (`supplier_payment_allocations_within_invoice`, `supplier_payments_within_advance`: decision 18); and three
+    existing functions redefined: `supplier_invoice_save` (0025's body plus two steps, decision 16),
+    `supplier_payment_save` (0029's body plus three steps) and `expense_pay` (0035's body plus one step), decision 18.
   - `supabase/tools/reversion-0040.sql` and `reversion-0039.sql` (in that order; each refuses while its migration is
     not applied or a later one is): they drop only their own functions and triggers and their ledger row, and
-    `reversion-0040.sql` puts back 0025's exact text of `supplier_invoice_save`; no data, no table, column, rule, index,
+    `reversion-0040.sql` puts back the exact 0025, 0029 and 0035 texts of `supplier_invoice_save`,
+    `supplier_payment_save` and `expense_pay` and drops its two triggers; no data, no table, column, rule, index,
     account or mapping is deleted. 0039 and 0040 then apply again, copying into the new
     tables what the published page did meanwhile.
   - `website/proveedores.html` + `website/proveedores.js` (the hub, the supplier file with Pedir / Pedidos / Pagos /
-    Productos, the order document, receiving, the payment, invoice, correction and void windows; a hand-written PDF 1.4
-    writer, no new external script); `website/lang.js` (408 entries); `inventory.html` (the Orders and Vendors sections,
+    Productos, the order document, receiving (the bar «Recibe: … · PIN vigente hasta las HH:MM» and the picker with the
+    name already chosen, decision 2), the payment, invoice, correction and void windows; a hand-written PDF 1.4
+    writer, no new external script); `website/lang.js` (413 entries); `inventory.html` (the Orders and Vendors sections,
     their windows and code removed; their tabs, «Pedir a proveedores →» and a «Pedir» on each Today alert lead to
     Proveedores; Stock, Recipes, History and By month untouched), `home.html`, `time.html` (a nav link only),
-    `contabilidad.js` (the links, the dollar-invoice hint, and the integration of decision 16), `config.js`
+    `contabilidad.js` (the links, the dollar-invoice hint, and the integration of decisions 16 and 18), `config.js`
     (`proveedores` in `STAFF`).
   - Tools: `release-check.sql` (series 0–40, the 28 new public functions), `production-snapshot.sql` (regenerated),
     `consistency-check.sql` (eight `after` checks, each 0 on a sound copy), `anonimizar.sql` (every new text column
@@ -3202,21 +3209,31 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   1. **Preferred supplier = `stock_items.vendor_id`**, the single source that `inventory_stats`, `stock_forecast` and
      the published page read; a catalog row is "preferred" when its supplier is the item's. `proveedor_producto_guardar`
      is the one way to change a catalog price; receiving never touches it.
-  2. **The work session and its guarantee (owner decision 1 in E-43).** An employee receives without typing anything
-     when this device already knows them for this shift: the POS's «¿Quién cobra?» on the same device
-     (`turno_desde_caja`, silent, from the device's own operator token) or «Estoy en turno aquí» (`turno_aqui`: their
-     own PIN, once per device per shift; not clocked in yet → the same PIN clocks them in). The server proves at every
-     use that THIS person typed THEIR OWN PIN on THIS device sign-in (the JWT `session_id`) during THEIR open shift
-     (entry open, under 16 hours), with the PIN unchanged (`pin_fp`) and the person active; one receiver per device
-     sign-in. A POS operator sign-in starts one only when it began during that person's own shift (5 minutes' grace
-     before the clock-in) and after their last PIN change (`staff_pin_changes`): another person's open shift, or an
-     earlier sign-in, grants nothing (second review). Tokens are stored only as sha256; audit rows carry 7-hex session tags. A new sign-in of the same login
-     moves the session only through `turno_estado`, which rotates the token (not when used elsewhere in the last 2
-     minutes, at most 6 an hour, never onto a sign-in that already has a receiver). **Residual limit, stated to the
-     owner:** whoever holds the device acts as the last person who identified on it; a copy of the device's storage is
-     that identity until the next re-sign-in rotation or the end of the shift. `time.html`'s punch mints nothing (the
-     review's B1: the clock tablet does not collect everyone's identity); Proveedores never arms the idle sign-out on a
-     café tablet.
+  2. **The work session and its guarantee (owner decision 1 in E-43; the owner's correction of 2026-11-07).** An
+     employee receives without a PIN per delivery, but the identification is individual and short-lived: their own PIN
+     on that device («Estoy en turno aquí», `turno_aqui`; not clocked in yet → the same PIN clocks them in), or the
+     POS's «¿Quién cobra?» PIN typed on the same device within the same 15 minutes (`turno_desde_caja`, silent, from
+     the device's own operator token; the session's `confirmed_at` is the POS `started_at`; an older POS PIN answers
+     `confirm` with the person's name and mints nothing), counts for 15 minutes (`_prov_fresh_window`,
+     `work_sessions.confirmed_at`) and is extended by each delivery recorded with it (`last_receipt_at`;
+     `_prov_fresh_until` = the later of the two + 15 minutes, answered as `fresh_until` by `turno_aqui`,
+     `turno_desde_caja`, `turno_estado` and `proveedor_recibir`). Then every use (the lists, opening an order,
+     receiving) answers `idle` and the page asks the same person's PIN again, their name already chosen
+     (`turno_estado` names them, no token; a receive form typed before the PIN expired is kept for that person and
+     comes back after their PIN); the stale session is not ended, only replaced by the new one. Nobody receives as
+     the last person who identified on a shared device. The server proves at every use that THIS person typed THEIR
+     OWN PIN on THIS device sign-in (the JWT `session_id`) during THEIR open shift (entry open, under 16 hours), with
+     the PIN unchanged (`pin_fp`) and the person active, and that the PIN or the last delivery is less than 15 minutes
+     old (`idle` is answered after `not_on_shift` and before `moved`); one receiver per device sign-in. A POS operator
+     sign-in starts one only when it began during that person's own shift (5 minutes' grace before the clock-in) and
+     after their last PIN change (`staff_pin_changes`): another person's open shift, or an earlier sign-in, grants
+     nothing (second review). Tokens are stored only as sha256; audit rows carry 7-hex session tags. A new sign-in of
+     the same login moves the session only through `turno_estado`, which rotates the token (not when used elsewhere
+     in the last 2 minutes, at most 6 an hour, never onto a sign-in that already has a receiver). **Residual limit,
+     stated to the owner:** within those 15 minutes a device left unattended is still that person (the bar names them,
+     «Recibe: … · PIN vigente hasta las HH:MM», and «¿No es usted? Cambiar» is one tap away); after them, nobody.
+     `time.html`'s punch mints nothing (the review's B1: the clock tablet does not collect everyone's identity);
+     Proveedores never arms the idle sign-out on a café tablet.
   3. **What an employee may do:** read the orders to receive (sent / partially received) with exact key sets (no money,
      totals, contact, SINPE or note) and receive. Never booked beyond the pending quantity (the excess is recorded as
      `extra_reported_packs` and in the audit); a typed price is stored only as `observed_pack_price`; the booked price
@@ -3235,8 +3252,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
      `paid_from = 'advance'` and an allocation (Dr 2101 / Cr 1160, key `suppay:<id>`, on the day applied), so every
      existing read (`_invoice_open`, `ap_aging`, `po_pending`, `vendor_history`, `purchases_list`, Contabilidad) sees
      them. Applying happens only in explicit calls (`proveedor_factura_registrar`, `proveedor_pago_registrar`,
-     `proveedor_anticipos_aplicar`), never from a trigger, so `supplier_invoice_save` and the published page's
-     receive-and-pay answer as before (the review's M6). Rationale for the pass-through instead of paying invoices
+     `proveedor_anticipos_aplicar`, and `supplier_payment_save` before it takes money: decision 18), never from a
+     trigger, so `supplier_invoice_save` answers as before (the review's M6) and the published page's receive-and-pay
+     applies them before it pays. Rationale for the pass-through instead of paying invoices
      directly (the review's m10, not adopted): one code path before and after the invoice, one owner-visible record per
      transfer, one SINPE uniqueness rule; the bank side is one entry on the payment date, which the bank matching sees.
      An advance tagged with an order waits for that order's invoices; only an advance without order, or whose order is
@@ -3247,8 +3265,9 @@ Major technical decisions, newest last. Each one says what was decided, why, and
      order it covers, with no phantom «a favor» on one and no phantom balance on another (final review).
   7. **SINPE:** the confirmation number is mandatory (4–40 of `[A-Za-z0-9 ./-]`, starting alphanumeric; its key at
      least 4 characters) and one transfer is registered once across every supplier, formatting variants included,
-     also against the bank payments (`supplier_payments` `bank`) and expense payments already in the books; the unique
-     index `supplier_advances_sinpe_once` is the final guard. A card payment equal to one of the last 10 minutes asks
+     also against the bank payments (`supplier_payments` `bank`) and expense payments already in the books, and the
+     other way round: a bank payment in Contabilidad or a bank expense payment with a live Proveedores SINPE number is
+     refused (`_prov_sinpe_taken`, decision 18); the unique index `supplier_advances_sinpe_once` is the final guard. A card payment equal to one of the last 10 minutes asks
      first (`possible_duplicate`).
   8. **The balance and its IVA allowance:** before an invoice exists the payment ceiling adds the supplier's usual IVA
      rate (13 % when none) to the uninvoiced deliveries and the order's pending estimate, labelled «estimado, IVA
@@ -3296,7 +3315,8 @@ Major technical decisions, newest last. Each one says what was decided, why, and
       same rule; everything else is 0025's text, and `reversion-0040.sql` restores it exactly;
       (b) `contabilidad.js` applies Proveedores payments (`proveedor_anticipos_aplicar`) after an invoice is saved and
       before a payment is recorded (one applied that way stops the new payment and reopens the form with the new
-      balance), asks before voiding an applied Proveedores payment («Esto solo deshace la aplicación…»), merges the
+      balance; since the owner's correction only a convenience: the server applies first on every route, decision
+      18), asks before voiding an applied Proveedores payment («Esto solo deshace la aplicación…»), merges the
       new read `proveedores_bitacora(from, to)` (acct.can_read; invoices, voids, payments, applications, SINPE changes)
       into its Audit tab, and in «New invoice» counts a delivery's Proveedores corrections with it (read from
       `proveedor_ficha`; shown «corregido −₡X → ₡Y» on the delivery), so «Recibido al costo» is what the server books;
@@ -3312,6 +3332,29 @@ Major technical decisions, newest last. Each one says what was decided, why, and
       «changed on another device». A receive form typed on a device is kept for the person who typed it (the person on
       shift, or the management unlock): another person starts from the order and is told, so an employee's count or
       the price an employee saw never goes in under a manager's name (final review).
+  18. **Payments never twice, on the server, every route (the owner's correction of 2026-11-07).** Every route that
+      records or applies a supplier payment is guarded in the database, not only in the pages: (a)
+      `supplier_payment_save` (Contabilidad's «Registrar pago», the published Inventario page's `po_receipt_settle` and
+      any direct call) is redefined in 0040 with 0029's text plus three steps after the input checks and under the
+      vendor lock: a `bank` payment whose reference key (lowercase, `[a-z0-9]` only, at least 4 characters with a
+      digit) is a live Proveedores SINPE number answers `duplicate_reference` (vendor, date, amount); the Proveedores
+      payments are applied to the supplier's open invoices first (`_prov_aplicar`, Dr 2101 / Cr 1160); what is owed is
+      computed after that (`more_than_owed` carries `owed` and `applied_crc`; success carries `applied_crc`); (b)
+      `expense_pay` (0035's text plus one step): a bank expense payment with a live Proveedores SINPE number answers
+      `duplicate_reference`; (c) `_prov_sinpe_taken(key, only_advances)` is the one lookup (`proveedor_pago_registrar`
+      uses it with `false`: advances, bank supplier payments and bank expense payments; the two Contabilidad functions
+      with `true`); (d) two constraint triggers are the last guard whatever writes, a direct row included:
+      `supplier_payment_allocations_within_invoice` (before insert or update: an invoice's live allocations plus the
+      new one never above its `total_crc` + 0.005, else `prov:over_allocated`) and `supplier_payments_within_advance`
+      (before insert or update of `amount_crc`, `advance_id` or `voided_at`: a Proveedores payment's live applications
+      never above its `amount_crc` + 0.005, else `prov:over_applied`). `reversion-0040.sql` restores the 0029 and 0035
+      texts and drops the two triggers. Contabilidad's client-side pre-apply (decision 16 b) stays only as a
+      convenience: the server applies first in any case, and the page reads `applied_crc` from the answer («{x}
+      pagados en Proveedores se aplicaron primero…» reopens the form on `more_than_owed`; «Pago registrado · {x}
+      pagados en Proveedores aplicados primero» on success; `duplicate_reference`: «Ese número de SINPE ya está
+      registrado en Proveedores: la misma transferencia no se registra dos veces.»). What is not covered, by design: a
+      cash payment from the POS drawer (Contabilidad records it), and a Contabilidad bank reference that is not a SINPE
+      number (no digit, or a key under 4 characters), which is not cross-checked.
 - **Superseded, explicitly** (the earlier texts stay as written):
   - **D-041 decision 1** (receiving needs the owner areas opened with a manager's PIN): any employee on shift receives
     through a work session (decision 2 above); management still receives with its unlock.
@@ -3337,18 +3380,33 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     not foresee; both only while `ledger_auto_post` is on as the owner set it (D-059). Information for the accountant:
     A-15.
 - **Tests (local test cluster only):** SQL `510_proveedores_catalogo` (70), `511_proveedores_pedidos` (76),
-  `512_proveedores_recibir` (73), `513_proveedores_turnos` (72), `514_proveedores_pagos` (112),
+  `512_proveedores_recibir` (73), `513_proveedores_turnos` (94), `514_proveedores_pagos` (172),
   `515_proveedores_alertas` (17), `516_proveedores_lecturas` (67: who may call what and the exact keys an employee
   reads; the purchase history and its paging), `517_proveedores_saldo_favor` (41: the owner-role PIN for the SINPE, the POS sign-in bound to its own shift
   and PIN, nothing leaves money in our favour without the owner), `518_proveedores_revision` (104: the second review's
-  corrections, section by section), `520_reversion_0039` (56) and `525_reversion_0040` (24);
-  `tests/sql/concurrency-proveedores.sh` (25; two receipts of one order at once, the same payment twice, one SINPE for
+  corrections, section by section), `520_reversion_0039` (58) and `525_reversion_0040` (27);
+  `tests/sql/concurrency-proveedores.sh` (30; two receipts of one order at once, the same payment twice, one SINPE for
   two suppliers, a payment against a receipt, a receipt against a sale of the same items, an invoice against a
   correction of its delivery in both orders, a delivery whose items a sale holds answering `busy` while the sale goes
-  through; a synchronisation that never happened counts as a failure); the reversal chains of SQL 340, 360, 370, 400, 420, 450, 470,
+  through, and Contabilidad's bank payment of a whole invoice against a Proveedores SINPE for its order at the same
+  instant (both finish, one pays and the other is refused, the invoice never allocated above its total, the supplier
+  never paid twice, the ledger balanced); a synchronisation that never happened counts as a failure). After the owner's
+  corrections of 2026-11-07: 513 §5 (the 15 minutes: `idle` at the minute on the lists, an order and a delivery with
+  nothing booked, the session not ended and replaced by the same PIN; a delivery extending them from itself; `idle`
+  before `moved`; the POS PIN within or outside them, `confirm` with the name), 514 §9–10 (1160 an active asset with
+  its two mappings, never offered for an invoice; every payment route guarded: Contabilidad's «Registrar pago» after a
+  SINPE applies it first and refuses the whole total, the SINPE number in every spelling and not a voided, card or
+  short one, a bank expense payment, the published page's route refusing or paying once, the two triggers on direct
+  rows, the ledger and 1160 after it all), 516 (the 79 new functions; `fresh_until` among `turno_estado`'s keys), 520
+  and 525 (the three texts restored, the triggers gone), browser 413 (the PIN asked again after 15 idle minutes with
+  the name chosen and the typed quantity kept, the bar's hour, a delivery moving it), 414 (the server's stop on
+  Contabilidad's whole-total payment and on a SINPE number with the page's own pre-apply disabled; a bank expense
+  payment), 415 (a POS PIN of 15 minutes asked again, one of 5 minutes not, the bar's hour) and the rehearsal's 5b (the
+  old page's receive-and-settle paying the whole total while a SINPE waited: refused, nothing saved, the remainder paid
+  once); the reversal chains of SQL 340, 360, 370, 400, 420, 450, 470,
   480 and 500 revert 0040 and 0039 first; browser `410_proveedores_centro` (10), `411_proveedores_pedir` (16),
-  `412_proveedores_documento` (6), `413_proveedores_recibir` (14), `414_proveedores_pagos` (13),
-  `415_proveedores_aparatos` (5); `160_purchasing` and `290_receive` rewritten through Proveedores; 300 and 340
+  `412_proveedores_documento` (6), `413_proveedores_recibir` (15), `414_proveedores_pagos` (15),
+  `415_proveedores_aparatos` (6); `160_purchasing` and `290_receive` rewritten through Proveedores; 300 and 340
   updated; the POS's `070_tabs` Q-b (two tabs, failing uploads) opens its second tab on the device's own sign-in: the
   test seeded a second session into the shared storage, the two tabs then refreshed each other's tokens in a loop and,
   under load, tab B's round never ended (red once on GitHub on `9d2f6f9`; reproduced here 2 in 12 on the published
@@ -3366,7 +3424,13 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   pedido» 3 taps and 0.37 s of machine time from opening the file to the document; six products ticked one by one with
   two quantities changed, 10 taps and one key, 0.87 s; a correct delivery received by an employee, 2 taps and 0.23 s.
   With a person's 2–3 s per tap, both orders stay well inside the request's 30–60 seconds and the delivery inside its
-  two minutes.
+  two minutes. After the owner's corrections, the full `tests/run.sh` again on 2026-11-07 (14:17–14:43 UTC, 27
+  minutes): lint, SQL 68/68 files (concurrency: descuentos 53, proveedores 30), backups, rehearsal, live pages 14/14 +
+  14/14, reset pages 2/2, browser 383/383, no-tocar. The run before it (382/383) caught `414` «a payment before
+  receiving» failing 1 in 6 under load: the SINPE number landed in the amount box, because a window's deferred focus
+  (30 ms after it opens, on its first field) fired after the test had already moved on to the number; `openModal` now
+  leaves the focus alone when it is already inside the window (a person who taps a field in that instant keeps it),
+  16/16 under load since.
 - **Independent review (three rounds):** the first (before the first commit) is in the decisions above (B1, B2, M6,
   m10). The second ran on the committed branch with five reviewers (security, integrity, accounting, requirements,
   compatibility), each finding checked by an independent verifier that tried to refute it: 40 findings, 2 refuted (an
@@ -3432,16 +3496,24 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   POS drawer for a Proveedores order is not seen by Proveedores until it is recorded in Contabilidad; an expected
   delivery date can be changed but not cleared; a delivery whose items a sale is using answers «busy» and is tapped
   again; an old page's delivery of an item ordered on several lines of one order cannot be corrected in Proveedores
-  (the page says so; Contabilidad's correction paths are unchanged); Contabilidad applies the Proveedores payments
-  before it records a payment (and records nothing when it cannot check), but `supplier_payment_save` itself is
-  unchanged: a payment recorded by a page from before this version still open on a device, or by a direct call, skips
-  that step, and `consistency-check` shows the payment left unapplied (`vendors_unapplied_with_open_invoices`); some
+  (the page says so; Contabilidad's correction paths are unchanged); every route that records a supplier payment
+  applies the Proveedores payments first on the server (decision 18), so a page from before this version still open
+  on a device, or a direct call, no longer skips that step; what remains: the cash payment from the POS drawer above,
+  and a Contabilidad bank reference that is not a SINPE number (no digit, or a key under 4 characters), which is not
+  cross-checked, by design; `consistency-check` still shows a payment left unapplied
+  (`vendors_unapplied_with_open_invoices`); some
   references 0039 adds have no foreign key on purpose: `purchase_receipts.staff_id` and `staff_pin_changes.staff_id`
   (security and history records never in the way of a staff tool), `purchase_receipts.work_session_id` (the
   anonymizer empties `work_sessions` on a copy), `work_sessions.time_entry_id` (`manager_delete_shift` deletes entries),
   `supplier_payments.po_id` (lock order) and `purchase_receipts.corrects`: only the SECURITY DEFINER functions write
   them, from rows they hold locked, and `consistency-check` counts a correction or a payment pointing nowhere
-  (`proveedores_dangling_references`, expected 0); on a touch screen, a button right below an open number pad (for
+  (`proveedores_dangling_references`, expected 0); the published Inventario page's receive-and-settle
+  (`po_receipt_settle`, 0029, not redefined) answers and logs «pagado / saldo» from its own payments only, so after a
+  Proveedores payment was applied first inside the same call its toast and its `po_settle` audit line can show a stale
+  balance (the invoice, the books and Proveedores are right; the way-back guide says so); the two ceilings differ by
+  design: Contabilidad's payment is capped at the supplier's open invoices as a whole (0029's rule, an excess goes to
+  the oldest due invoice), Proveedores' at the order's balance, and no obligation is paid twice either way (514 §10,
+  concurrency case 8); on a touch screen, a button right below an open number pad (for
   example «Estoy en turno aquí» after the PIN, or «Guardar pago» after the amount) can need a second tap, because
   `keypad.js` hides the pad as the field loses the focus and the button moves before the tap ends: the pad's own ✓ saves
   the form in one tap; `keypad.js` is shared with the POS and is not changed here (a separate task).

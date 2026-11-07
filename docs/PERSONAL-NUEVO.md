@@ -102,17 +102,20 @@ Si algo sale mal:
 ## Recibir un pedido de un proveedor («Recibe en este aparato»)
 
 Llega con Proveedores (D-067), cuando el dueño lo publique (E-43). Cualquier persona en turno, de cualquier puesto, recibe
-un pedido sin el PIN de un encargado. Solo hace falta que **ese aparato** sepa que usted está en turno, **una vez por
-turno**. La guía completa: `docs/PROVEEDORES.md`.
+un pedido sin el PIN de un encargado ni otro código por entrega. Solo hace falta que **ese aparato** sepa que es usted:
+**su propio PIN**, que vale **15 minutos** y se extiende con cada entrega que registra. La guía completa:
+`docs/PROVEEDORES.md`.
 
 1. En un aparato del café (la Caja, el iPad o la tableta del Reloj) abra «Proveedores»: en el Reloj, el enlace de
    arriba; en la Caja, «Reloj» (arriba) → «Proveedores». Al terminar, vuelva a la Caja con «Caja» (arriba).
-2. Si arriba dice «Recibe: (su nombre)», ya está: siga en el paso 4. Pasa cuando en **ese mismo aparato**, en este turno,
-   usted escribió su PIN en «¿Quién cobra?» de la Caja, o ya hizo el paso 3.
+2. Si arriba dice «Recibe: (su nombre) · PIN vigente hasta las …», ya está: siga en el paso 4. Pasa cuando en **ese
+   mismo aparato**, hace menos de 15 minutos, usted escribió su PIN en «¿Quién cobra?» de la Caja, hizo el paso 3 o
+   registró una entrega.
 3. Si dice «¿Quién recibe?»: toque **su** nombre → escriba **su propio** PIN → «Estoy en turno aquí». Debe decir «Listo:
    usted recibe en este aparato.». Si todavía no marcó entrada, su nombre está abajo, en «¿Todavía no marcó entrada?»:
    su PIN → «Marcar entrada y empezar» (marca la entrada del Reloj y empieza, con el mismo PIN). Nunca escriba el PIN de
-   otra persona ni toque otro nombre.
+   otra persona ni toque otro nombre. Si pasaron más de 15 minutos sin su PIN ni una entrega, la página se lo vuelve a
+   pedir con su nombre ya elegido: solo escribe su PIN.
 4. En «Pedidos por recibir», toque el pedido que llegó. Revise lo que vino contra la lista:
    - todo igual: **«Todo recibido correctamente»**;
    - algo distinto: cambie la cantidad con − y +, y el precio si la factura trae otro → «Confirmar recepción»;
@@ -124,7 +127,8 @@ turno**. La guía completa: `docs/PROVEEDORES.md`.
    aparato»; si no, la sesión termina sola al marcar la salida en el Reloj.
 
 **Mire siempre el nombre de arriba antes de recibir:** la entrega queda a nombre de quien dice «Recibe: …». Si no es el
-suyo, «¿No es usted? Cambiar».
+suyo, «¿No es usted? Cambiar». Pasados 15 minutos sin su PIN ni una entrega, nadie recibe en ese aparato sin escribir su
+propio PIN.
 
 Si algo sale mal:
 - **No aparece su nombre en «¿Quién recibe?»** ni en «¿Todavía no marcó entrada?»: avise a un encargado (puede que su

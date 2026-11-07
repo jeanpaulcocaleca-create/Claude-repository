@@ -7,7 +7,8 @@ cada resultado que pide la guía y yo lo compruebo antes de que siga.
 
 **Qué se activa:** la página nueva **Proveedores**, que reúne lo que hacían Inventario → «Pedidos» e Inventario →
 «Proveedores» y agrega lo que faltaba: el catálogo de cada proveedor, pedir con casillas, el documento del pedido
-(Copiar, PDF, Imprimir), recibir por **cualquier persona en turno sin otro PIN** («Recibe en este aparato»), las
+(Copiar, PDF, Imprimir), recibir por **cualquier persona en turno sin otro PIN por entrega** («Recibe en este aparato»:
+su propio PIN en ese aparato, que vale 15 minutos), las
 facturas, los pagos por **SINPE** (con su número de confirmación) o **tarjeta**, antes o después de recibir, y las
 alertas de inventario bajo que abren al proveedor preferido. Llegan con las migraciones **0039** y **0040**, que se
 pegan una después de la otra en la misma noche. La Caja, la Cocina, el menú QR, la TV, las pantallas y los descuentos
@@ -16,17 +17,17 @@ quedan byte por byte como en la versión publicada hoy (`v2026.11.04-1`); de lo 
 
 | Pieza | Qué hace | Archivo |
 |---|---|---|
-| 0039 · Proveedores, 1 de 2 | El catálogo de cada proveedor (presentación, unidades por presentación, precio habitual sin IVA, código; un artículo puede venir de varios proveedores; el preferido sigue siendo el proveedor del artículo en Inventario), borradores de pedido, pedidos con número y versión, edición con historial, cancelar, cerrar lo pendiente; la recepción por línea (lo pedido, lo recibido, el precio), entregas parciales, nunca dos veces, correcciones como entregas nuevas; «Recibe en este aparato» (la sesión de turno que el servidor revisa en cada llamada); las alertas con la regla de siempre; nadie deja un saldo a favor del café sin el nivel de dueño. Siete tablas nuevas, columnas nuevas en `purchase_orders`, `purchase_lines`, `purchase_receipts` y `supplier_payments`, siete disparadores y 54 funciones nuevas (17 que llama la página, 37 internas). Copia al catálogo el proveedor de cada artículo y lo pedido antes, **solo en tablas nuevas**. Ninguna función, regla ni registro existente cambia | `supabase/migrations/0039_proveedores.sql` |
-| 0040 · Proveedores, 2 de 2 | Lo que lee la página (la lista, la ficha, el pedido, lo que falta por recibir, el historial; a quien está en turno solo lo que necesita para recibir), las facturas desde Proveedores (por `supplier_invoice_save`, como siempre), los pagos por SINPE o tarjeta y su aplicación a las facturas, el estado de pago de cada pedido. Revisa que la cuenta **1160 «Anticipos a proveedores»** exista (está en el plan aprobado desde la 0013) y le agrega dos mapeos; la regla `supplier_payments_paid_from_check` acepta además `'advance'` (los pagos aplicados). 20 funciones nuevas (11 que llama la página, entre ellas la bitácora de Proveedores para Contabilidad; 9 internas). **Una función existente cambia**: `supplier_invoice_save` (la que guarda toda factura de proveedor, también desde Contabilidad y la página anterior) toma primero los pedidos de esas entregas y lleva con su entrega una corrección de Proveedores todavía sin factura; lo demás lo hace igual, y la reversión le devuelve su texto exacto de la 0025 (decisión 8). Ningún registro existente cambia | `supabase/migrations/0040_proveedores_pagos.sql` |
+| 0039 · Proveedores, 1 de 2 | El catálogo de cada proveedor (presentación, unidades por presentación, precio habitual sin IVA, código; un artículo puede venir de varios proveedores; el preferido sigue siendo el proveedor del artículo en Inventario), borradores de pedido, pedidos con número y versión, edición con historial, cancelar, cerrar lo pendiente; la recepción por línea (lo pedido, lo recibido, el precio), entregas parciales, nunca dos veces, correcciones como entregas nuevas; «Recibe en este aparato» (la sesión de turno que el servidor revisa en cada llamada: su propio PIN en ese aparato, que vale 15 minutos y que cada entrega extiende; después, su PIN otra vez); las alertas con la regla de siempre; nadie deja un saldo a favor del café sin el nivel de dueño. Siete tablas nuevas, columnas nuevas en `purchase_orders`, `purchase_lines`, `purchase_receipts` y `supplier_payments`, siete disparadores y 56 funciones nuevas (17 que llama la página, 39 internas). Copia al catálogo el proveedor de cada artículo y lo pedido antes, **solo en tablas nuevas**. Ninguna función, regla ni registro existente cambia | `supabase/migrations/0039_proveedores.sql` |
+| 0040 · Proveedores, 2 de 2 | Lo que lee la página (la lista, la ficha, el pedido, lo que falta por recibir, el historial; a quien está en turno solo lo que necesita para recibir), las facturas desde Proveedores (por `supplier_invoice_save`, como siempre), los pagos por SINPE o tarjeta y su aplicación a las facturas, el estado de pago de cada pedido. Revisa que la cuenta **1160 «Anticipos a proveedores»** exista (está en el plan aprobado desde la 0013) y le agrega dos mapeos; la regla `supplier_payments_paid_from_check` acepta además `'advance'` (los pagos aplicados). 23 funciones nuevas (11 que llama la página, entre ellas la bitácora de Proveedores para Contabilidad; 12 internas) y dos disparadores de última defensa (una factura nunca recibe aplicaciones por más de su total; un pago de Proveedores nunca se aplica por más de su monto). **Tres funciones existentes cambian**: `supplier_invoice_save` (la que guarda toda factura de proveedor, también desde Contabilidad y la página anterior) toma primero los pedidos de esas entregas y lleva con su entrega una corrección de Proveedores todavía sin factura; y, por su corrección del 2026-11-07, `supplier_payment_save` (la que registra todo pago a proveedor en Contabilidad y en la página de Inventario anterior) aplica primero lo pagado en Proveedores a las facturas de ese proveedor, solo acepta lo que se debe después y niega un número SINPE ya registrado en Proveedores, y `expense_pay` niega ese número en el pago por banco de un gasto; lo demás lo hacen igual, y la reversión les devuelve su texto exacto de la 0025, la 0029 y la 0035 (decisión 8). Ningún registro existente cambia | `supabase/migrations/0040_proveedores_pagos.sql` |
 | La página Proveedores | El centro (alertas, proveedores, por recibir), la ficha de cada proveedor (Pedir, Pedidos, Pagos, Productos), el documento del pedido, la recepción, las ventanas de pago, de factura, de corrección y de anulación | `website/proveedores.html`, `website/proveedores.js`, `website/lang.js` |
 | Inventario | Las pestañas «Pedidos» y «Proveedores» llevan a Proveedores; desaparecen «Pedido sugerido» y «Crear todos los pedidos»; «Pedir a proveedores →» y un «Pedir» en cada fila de «Antes de que se acabe»; «Proveedores» en el menú de arriba. Existencias, Recetas, Historial y Por mes no cambian | `website/inventory.html` |
 | Inicio | El recuadro «Proveedores»; las filas de «Antes de que se acabe» abren al proveedor; «Pedir a proveedores» junto a «Abrir inventario» | `website/home.html` |
 | Reloj de marcas | Solo el enlace «Proveedores» arriba; las marcas no cambian | `website/time.html` |
-| Contabilidad | «Abrir en Proveedores →» en Compras, «Abrir en Proveedores» en la tarjeta del proveedor, el aviso de las facturas en dólares, el nombre «Pago aplicado (Proveedores)»; al guardar una factura, y antes de registrar un pago, aplica primero lo pagado en Proveedores; anular un pago de Proveedores ya aplicado pide confirmación; la pestaña «Auditoría» muestra también la bitácora de Proveedores (decisión 8) | `website/contabilidad.js` |
+| Contabilidad | «Abrir en Proveedores →» en Compras, «Abrir en Proveedores» en la tarjeta del proveedor, el aviso de las facturas en dólares, el nombre «Pago aplicado (Proveedores)»; al guardar una factura, y antes de registrar un pago, aplica primero lo pagado en Proveedores (desde su corrección del 2026-11-07, el servidor lo hace por su cuenta en todo pago, decisión 8); anular un pago de Proveedores ya aplicado pide confirmación; la pestaña «Auditoría» muestra también la bitácora de Proveedores (decisión 8) | `website/contabilidad.js` |
 | Dirección de la página | `proveedores.html` entre las páginas del personal (la protección de D-005) | `website/config.js` |
 | Herramientas del dueño (SQL Editor) | `release-check.sql` (serie hasta la 40 y las 28 funciones nuevas), `production-snapshot.sql` (las funciones y disparadores de la 0039 y la 0040), `consistency-check.sql` (ocho revisiones nuevas de Proveedores, cada una debe dar 0) | `supabase/tools/` |
 | Ensayo | `anonimizar.sql` conoce las columnas nuevas (el SINPE se vacía, las referencias de pago se reemplazan, las sesiones de turno se vacían) | `ops/backup/repositorio-respaldos/anonimizar.sql` |
-| Reversión | Primero la 0040 y luego la 0039: quitan solo sus funciones y disparadores; no borran ningún dato | `supabase/tools/reversion-0040.sql`, `supabase/tools/reversion-0039.sql` |
+| Reversión | Primero la 0040 y luego la 0039: quitan solo sus funciones y disparadores y devuelven a su texto anterior las tres funciones que la 0040 redefine; no borran ningún dato | `supabase/tools/reversion-0040.sql`, `supabase/tools/reversion-0039.sql` |
 
 **No incluye (y no se enciende con esta guía):** pagos en **efectivo** en Proveedores (decisión 2: el efectivo sigue en
 Contabilidad, como hoy); enviar el pedido por WhatsApp o correo desde el sistema (se copia o se manda el PDF a mano);
@@ -44,13 +45,14 @@ la 0038 y el sitio en `v2026.11.04-1` (commit `9d3f6ad`, `gh-pages` `77a5fb1`).
 **Qué se probó (en desarrollo, nunca en producción):** las pruebas SQL `510_proveedores_catalogo`,
 `511_proveedores_pedidos`, `512_proveedores_recibir`, `513_proveedores_turnos`, `514_proveedores_pagos`,
 `515_proveedores_alertas`, `516_proveedores_lecturas`, `517_proveedores_saldo_favor`, `518_proveedores_revision`,
-`520_reversion_0039` y `525_reversion_0040` (712 comprobaciones),
-las pruebas con dos conexiones a la vez (`tests/sql/concurrency-proveedores.sh`, 25 comprobaciones: dos entregas del
+`520_reversion_0039` y `525_reversion_0040` (799 comprobaciones),
+las pruebas con dos conexiones a la vez (`tests/sql/concurrency-proveedores.sh`, 30 comprobaciones: dos entregas del
 mismo pedido a la vez, el mismo pago dos veces, el mismo SINPE para dos proveedores, un pago y una entrega del mismo
-pedido, una entrega y una venta de los mismos artículos), las de navegador de la página nueva (`410_proveedores_centro`,
+pedido, una entrega y una venta de los mismos artículos, y un pago por banco de Contabilidad y un SINPE de Proveedores
+del mismo pedido en el mismo instante), las de navegador de la página nueva (`410_proveedores_centro`,
 `411_proveedores_pedir`, `412_proveedores_documento`, `413_proveedores_recibir`, `414_proveedores_pagos` y
-`415_proveedores_aparatos`: 64 pruebas), las de compras y recepción de antes rehechas sobre Proveedores (`160`, `290`) y
-toda la batería de «Tests» (en desarrollo, el 2026-11-07: 68 de 68 archivos de pruebas SQL y 379 de 379 pruebas de navegador),
+`415_proveedores_aparatos`: 68 pruebas), las de compras y recepción de antes rehechas sobre Proveedores (`160`, `290`) y
+toda la batería de «Tests» (en desarrollo, el 2026-11-07, después de las dos correcciones del dueño: 68 de 68 archivos de pruebas SQL y 383 de 383 pruebas de navegador),
 con el ensayo de las páginas publicadas hoy (`77a5fb1`, su pestaña «Pedidos» incluida) sobre una copia con la 0039 y la
 0040.
 
@@ -112,13 +114,16 @@ proveedor, «Abrir en Proveedores»; las facturas en dólares se registran en Pr
 1. Cuando llega un pedido, en un aparato del café (la Caja, el iPad o la tableta del Reloj) abra «Proveedores»: el enlace
    de arriba del Reloj o de Inventario, o el recuadro de Inicio (en la Caja: «Reloj» → «Proveedores»). Sin las áreas de dueños
    abiertas, la página abre para recibir.
-2. Si ese aparato ya sabe quién está en turno, arriba dice «Recibe: (nombre) · ¿No es usted? Cambiar · Salir de este
-   aparato» y abajo «Pedidos por recibir». El aparato lo sabe cuando, **en ese mismo aparato y durante este turno**, la
-   persona escribió su PIN en «¿Quién cobra?» de la Caja después de marcar la entrada (entonces no escribe nada más), o
-   ya hizo el paso 3.
+2. Si ese aparato ya sabe quién recibe, arriba dice «Recibe: (nombre) · PIN vigente hasta las HH:MM · ¿No es usted?
+   Cambiar · Salir de este aparato» y abajo «Pedidos por recibir». Lo sabe cuando, **en ese mismo aparato y hace menos
+   de 15 minutos**, la persona escribió su PIN en «¿Quién cobra?» de la Caja (después de marcar la entrada; entonces no
+   escribe nada más), hizo el paso 3, o registró una entrega con esa identificación.
 3. Si no lo sabe, la página pregunta «¿Quién recibe?» con las personas que tienen la entrada marcada: la persona toca
-   **su** nombre, escribe **su propio** PIN y toca «Estoy en turno aquí». Es **una vez por aparato y por turno**. Quien
-   todavía no marcó entrada está debajo, en «¿Todavía no marcó entrada?»: su nombre → su PIN → «Marcar entrada y
+   **su** nombre, escribe **su propio** PIN y toca «Estoy en turno aquí». Su PIN vale **15 minutos** y cada entrega que
+   registra lo extiende otros 15 (la barra dice hasta qué hora); pasado ese tiempo sin su PIN ni una entrega, la página
+   dice «Pasaron más de 15 minutos desde su PIN o su última entrega. Escriba su PIN otra vez para seguir recibiendo.» y
+   vuelve a «¿Quién recibe?» con su nombre ya elegido: solo escribe su PIN (lo que tenía escrito en una entrega vuelve).
+   Quien todavía no marcó entrada está debajo, en «¿Todavía no marcó entrada?»: su nombre → su PIN → «Marcar entrada y
    empezar» (con el mismo PIN marca la entrada del Reloj y empieza a recibir).
 4. Toque el pedido que llegó. Se abre «Recibir el pedido Nº n» con cada producto: lo pedido, lo que ya llegó antes, lo
    pendiente y el precio esperado. Si todo vino como se pidió: **«Todo recibido correctamente»** (un toque). Si algo es
@@ -133,7 +138,8 @@ proveedor, «Abrir en Proveedores»; las facturas en dólares se registran en Pr
    inventario ni el precio del proveedor.
 8. Si otra persona va a recibir en ese aparato: «¿No es usted? Cambiar». «Salir de este aparato» termina la sesión en
    el acto. Al marcar la salida en el Reloj termina sola; también si su PIN cambia, si la desactivan, si otra persona se
-   identifica en ese aparato, o 16 horas después de su entrada.
+   identifica en ese aparato, o 16 horas después de su entrada. A los 15 minutos sin su PIN ni una entrega no termina:
+   vuelve a pedir el PIN de esa misma persona.
 9. Si la página dice «La Caja está usando esos productos en este momento. Intente de nuevo en un momento.», no se guardó
    nada: toque otra vez en unos segundos (la entrega le cede el paso a la venta). Si dice «Su entrega anterior ya quedó
    guardada. Revise lo que falta.», la entrega de antes sí quedó (por ejemplo, se fue el internet justo después):
@@ -144,11 +150,14 @@ pedido, lo que ya llegó, lo pendiente y el precio esperado por presentación. *
 proveedor ni su SINPE, y no puede pedir, editar, cancelar ni cerrar pedidos. Cada entrega queda con su nombre y «(en
 turno)», el aparato y la hora.
 
-**Ojo con quién tiene el aparato:** la página recibe a nombre de la **última persona que se identificó en ese aparato**
-durante su turno. Si Luis se identificó en el iPad y Marta recibe ahí, la entrega queda a nombre de Luis. Quien recibe
-mira el nombre de arriba y, si no es el suyo, toca «¿No es usted? Cambiar». En la Caja, si nadie se identificó antes en
-Proveedores, el nombre es el de quien escribió su PIN en «¿Quién cobra?»; si después cambia quien cobra, Proveedores
-sigue con la persona anterior hasta que marque la salida o alguien toque «¿No es usted? Cambiar» (decisión 1).
+**Ojo con quién tiene el aparato:** la página recibe solo a nombre de quien escribió **su propio** PIN en ese aparato
+hace menos de 15 minutos (o registró una entrega en ese tiempo). Pasados los 15 minutos, nadie recibe en ese aparato
+sin escribir su PIN: un aparato que quedó en el mostrador no identifica a nadie. Dentro de esos 15 minutos, si Luis se
+identificó en el iPad y Marta recibe ahí sin cambiar el nombre, la entrega queda a nombre de Luis: quien recibe mira el
+nombre de arriba («Recibe: Luis · PIN vigente hasta las 10:45») y, si no es el suyo, toca «¿No es usted? Cambiar». En la
+Caja, el nombre es el de quien escribió su PIN en «¿Quién cobra?» hace menos de 15 minutos; más viejo, Proveedores le
+pide su PIN con su nombre ya elegido («Escriba su PIN para recibir en este aparato.»); si después cambia quien cobra,
+Proveedores sigue con la persona anterior mientras sus 15 minutos sigan vigentes (decisión 1).
 
 **Los encargados** (con su PIN en «Abrir áreas de dueños», 15 minutos, como en Inventario): todo lo de antes en un solo
 lugar. Pedir con casillas en la ficha del proveedor (la casilla, la cantidad, el total estimado en vivo, «Crear
@@ -170,6 +179,12 @@ entrega con un registro nuevo («Corregir una entrega», nada se borra); registr
 - Lo que dejaría dinero a favor del café (cancelar un pedido ya pagado, bajarle cantidades, cerrar lo pendiente o
   corregir una entrega a menos) solo lo hace el dueño: «Eso dejaría ₡X a nuestro favor con este proveedor (un pago ya
   hecho). Solo el dueño puede hacerlo.» (decisión 6).
+- **Nunca dos veces, tampoco desde Contabilidad:** un pago registrado en Contabilidad («Registrar pago», también el de
+  la página de Inventario anterior y cualquier llamada directa) aplica primero en el servidor lo ya pagado en
+  Proveedores a las facturas de ese proveedor y solo acepta lo que se debe después («{x} pagados en Proveedores se
+  aplicaron primero…»); un número SINPE ya registrado en Proveedores se niega también allí, y en el pago por banco de
+  un gasto («Ese número de SINPE ya está registrado en Proveedores: la misma transferencia no se registra dos veces.»)
+  (decisión 8).
 - **El efectivo ya no se ofrece en Proveedores** (ni «Efectivo de la caja registradora» al recibir, que era la opción de
   la ventana de Inventario, ni la caja fuerte ni la caja chica). Un pago en efectivo se registra en Contabilidad, como hoy
   (decisión 2).
@@ -230,9 +245,11 @@ cambiado el … por …», decisión 3).
    puntos 1 a 8). La condición es la **1**, la garantía de «Recibe en este aparato»; sin ella no se activa. La línea que
    pido:
 
-   > Apruebo que cualquier persona en turno reciba pedidos sin otro PIN cuando ese aparato ya la conoce en su turno (su
-   > PIN en «¿Quién cobra?» de la Caja o en «Estoy en turno aquí», una vez por aparato y por turno), sabiendo que quien
-   > tenga el aparato en la mano recibe a nombre de la última persona que se identificó en él.
+   > Apruebo que cualquier persona en turno reciba pedidos sin otro código por entrega, identificándose con su propio
+   > PIN en ese aparato (o con el PIN que escribió en «¿Quién cobra?» de la Caja hace menos de 15 minutos): la
+   > identificación vale 15 minutos y se extiende con cada entrega que registra; pasado ese tiempo nadie recibe en ese
+   > aparato sin su propio PIN, sabiendo que dentro de esos 15 minutos (que cada entrega renueva) el aparato sigue a
+   > nombre de esa persona.
 
    Se copia palabra por palabra en `docs/DEPENDENCIES.md` (E-43) en el commit de después de la activación («Registro»),
    o en un commit antes de la etiqueta con «Tests» corrido otra vez sobre él. Nunca en un commit entre la etiqueta y la
@@ -331,10 +348,11 @@ cambiado el … por …», decisión 3).
 8. **La foto de después.** `production-snapshot.sql` otra vez → «snapshot-después», **antes de tocar los aparatos**.
    Debe decir:
    - `migrations_applied` termina en `40` (con la `39` antes);
-   - en `schema`: `functions_by_version` con `"0039": 54` y `"0040": 21` (las 20 nuevas y `supplier_invoice_save`), `"0025"`
-     uno menos que en «snapshot-antes» (esa función ahora es la de la 0040) y las demás claves (también `"legacy"`)
+   - en `schema`: `functions_by_version` con `"0039": 56` y `"0040": 26` (las 23 nuevas y `supplier_invoice_save`,
+     `supplier_payment_save` y `expense_pay`, redefinidas), `"0025"`, `"0029"` y `"0035"` uno menos cada una que en
+     «snapshot-antes» (esas tres funciones ahora son las de la 0040) y las demás claves (también `"legacy"`)
      iguales, sin la clave `"?"`; `functions_changed` = `[]`; `functions_unknown` = `[]`; `tables_missing` = `[]`;
-     `functions_total` = el de antes + 74; `tables_other` incluye `public.purchase_drafts`,
+     `functions_total` = el de antes + 79; `tables_other` incluye `public.purchase_drafts`,
      `public.purchase_receipt_lines`, `public.staff_pin_changes`, `public.supplier_advances`, `public.vendor_items`,
      `public.vendor_pay_info` y `public.work_sessions`; `tables_columns_differ` y `triggers_differ` iguales a los de
      antes;
@@ -411,8 +429,8 @@ los prueban las pruebas automáticas. Lo de abajo solo **mira**.
 | A | Inicio → el recuadro «Proveedores». Inventario → pestaña «Pedidos» | Las dos llevan a Proveedores. En una tableta sin áreas de dueños abiertas, Proveedores abre para recibir («¿Quién recibe?» o «Recibe: …») |
 | B | Un encargado, en una tableta del café: Proveedores → «Abrir áreas de dueños» → su nombre y su PIN. Mire el centro, abra un proveedor con artículos: pestañas «Pedir», «Pedidos», «Pagos», «Productos». Al terminar, «Bloquear» | Arriba «Antes de que se acabe» (si hay artículos bajos), la lista de proveedores con sus insignias («N por recibir», «Debe ₡X»…); en «Pedir» y «Productos», los artículos de ese proveedor que copió la 0039, con su presentación y su precio habitual «sin IVA» (del proveedor preferido, el «Costo por paquete» de Inventario; de otro proveedor, el del último pedido); en «Pedidos», los pedidos de antes con su Nº; ningún mensaje de error. Al bloquear, la página vuelve a recibir y no queda ningún monto en pantalla |
 | C | Con las áreas abiertas: tocar una alerta de «Antes de que se acabe» (en Proveedores, en Inicio o el «Pedir» de Inventario → Hoy). **No cree el pedido** salvo que sea uno real | Abre la ficha del proveedor preferido de ese artículo, con el artículo marcado en dorado y la cantidad sugerida, **sin la casilla marcada**. Un artículo sin proveedor (o con uno inactivo) abre «Asociar proveedor» |
-| D | Una persona con la entrada marcada, en la tableta del Reloj o el iPad (sin áreas abiertas): Proveedores → «¿Quién recibe?» → su nombre → su PIN → «Estoy en turno aquí» | «Listo: usted recibe en este aparato.», arriba «Recibe: (nombre)», abajo «Pedidos por recibir» (o «Nada por recibir en este momento.»). **No reciba nada que no haya llegado.** Luego «Salir de este aparato» → «Listo: ya nadie recibe en este aparato.» |
-| E | En la Caja donde alguien escribió su PIN en «¿Quién cobra?»: «Reloj» → «Proveedores» (arriba) | «Recibe: (esa persona)» sin pedir ningún PIN. Vuelva a la Caja («Caja», arriba) |
+| D | Una persona con la entrada marcada, en la tableta del Reloj o el iPad (sin áreas abiertas): Proveedores → «¿Quién recibe?» → su nombre → su PIN → «Estoy en turno aquí» | «Listo: usted recibe en este aparato.», arriba «Recibe: (nombre) · PIN vigente hasta las HH:MM» (15 minutos después de su PIN), abajo «Pedidos por recibir» (o «Nada por recibir en este momento.»). **No reciba nada que no haya llegado.** Luego «Salir de este aparato» → «Listo: ya nadie recibe en este aparato.» |
+| E | En la Caja donde alguien escribió su PIN en «¿Quién cobra?» hace menos de 15 minutos: «Reloj» → «Proveedores» (arriba) | «Recibe: (esa persona) · PIN vigente hasta las HH:MM» sin pedir ningún PIN (el aparato conoce a su cajero sin PIN solo durante los 15 minutos que siguen al PIN de la Caja). Si ese PIN es de hace más de 15 minutos, pide su PIN con su nombre ya elegido («Escriba su PIN para recibir en este aparato.»): también es correcto. Vuelva a la Caja («Caja», arriba) |
 | F | Con las áreas abiertas, en un pedido abierto que exista: «Copiar» y pegar en las notas del teléfono; «PDF»; «Imprimir» → ver la vista previa → cancelar. **No lo mande al proveedor** salvo que sea real | El texto empieza «Pedido Nº … · Hanging Garden Café», trae proveedor, fecha, productos y cantidades, sin precios, nombres del personal ni SINPE; el PDF se llama «Pedido-…-(proveedor).pdf»; la impresión muestra solo el documento |
 | G | Si alguien entra a Contabilidad: Compras → un pedido abierto | «Abrir en Proveedores →» abre ese pedido |
 | H | **Al día siguiente:** el primer pedido real con casillas («Crear pedido»), mandado con Copiar o PDF; la primera entrega real recibida por una persona en turno con «Todo recibido correctamente»; el primer pago real por SINPE con su número | El pedido con su Nº; la entrega sube el inventario una vez («Parcialmente recibido» o «Recibido»); el pago queda en «Pagos» y el pedido pasa a «Parcialmente pagado» o «Pagado» |
@@ -468,10 +486,12 @@ ventas sin internet).
    - lo hecho en Proveedores **se queda**: los pedidos creados ahí aparecen en «Pedidos» con su Nº (una línea que se
      quitó en Proveedores aparece con 0), las entregas y las facturas cuentan, los borradores quedan guardados sin verse;
    - **los pagos registrados en Proveedores se quedan.** Uno que todavía no se aplicó a una factura (pagado antes de la
-     factura) queda en la cuenta 1160 y las páginas anteriores **no lo ven**, ni Inventario ni Contabilidad: antes de
-     registrar cualquier pago a un proveedor, en Contabilidad o en Inventario, el contador y los encargados miran la
-     consulta de abajo; un proveedor que aparece ahí no se paga otra vez hasta que ese pago se aplique (volviendo a
-     publicar Proveedores, o el contador lo resuelve, A-15). **Dígaselo al contador directamente**, no solo al equipo;
+     factura) queda en la cuenta 1160 y las páginas anteriores **no lo muestran**, ni Inventario ni Contabilidad; pero
+     la base sí lo tiene en cuenta: con la 0040 aplicada, un pago registrado en la Contabilidad o en el Inventario
+     anteriores aplica primero por su cuenta ese pago a las facturas de ese proveedor y niega un número SINPE ya
+     registrado en Proveedores (decisión 8), así que no se paga dos veces aunque la página no lo vea. La consulta de
+     abajo queda como comprobación para el contador y los encargados (qué pagos esperan su factura), ya no como la única
+     defensa. **Dígaselo al contador directamente**, no solo al equipo. Y una nota: si esa página paga por banco una factura a la que el servidor acaba de aplicar un pago de Proveedores, su aviso y su línea de auditoría pueden decir un «saldo» viejo (la factura, los libros y Proveedores están bien);
    - «Recibe en este aparato» deja de usarse (sus sesiones terminan solas).
 5. La base se queda en la 0040 y las páginas anteriores funcionan con ella: lo prueba «Tests» en cada ejecución (las
    páginas publicadas `77a5fb1`, con su pestaña «Pedidos», sobre una copia con la 0040). Si más adelante vuelve a
@@ -500,9 +520,10 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
    la rama ni los de `v2026.11.04-1`. **SQL Editor** → **New query** → pegar **todo** `supabase/tools/reversion-0040.sql`.
    Antes de **Run**, baje al final del texto pegado: las dos últimas líneas son
    `delete from canopy.migrations where version = 40;` y `notify pgrst, 'reload schema';` (si no están, el texto quedó
-   cortado: borre y pegue de nuevo). Si el editor pide confirmar una «destructive operation», es lo esperado (quita las 20
-   funciones de la 0040, devuelve `supplier_invoice_save` a su texto de la 0025 y quita la fila 40 del registro; no borra
-   datos) → **Run** → **Success** (sin filas).
+   cortado: borre y pegue de nuevo). Si el editor pide confirmar una «destructive operation», es lo esperado (quita las 23
+   funciones y los dos disparadores de la 0040, devuelve `supplier_invoice_save`, `supplier_payment_save` y `expense_pay`
+   a sus textos de la 0025, la 0029 y la 0035, y quita la fila 40 del registro; no borra datos) → **Run** → **Success**
+   (sin filas).
    - «La migración 0040 no está aplicada: no hay nada que revertir. No se cambió nada.» → ya estaba revertida.
    - «Hay una migración posterior a la 0040 aplicada (…): revierta esa primero. No se cambió nada.» → avíseme.
 3. `release-check.sql`: `migrations_missing` = `[40]`; `functions_missing` = los 11 de la 0040
@@ -511,7 +532,7 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
    `proveedores_lista`, `proveedores_por_recibir`). Si yo le dije que la falla es solo de la 0040 (pagos o lecturas), deténgase aquí.
 4. **New query** → pegar **todo** `supabase/tools/reversion-0039.sql`. Las dos últimas líneas:
    `delete from canopy.migrations where version = 39;` y `notify pgrst, 'reload schema';`. «Destructive operation»: es lo
-   esperado (quita los siete disparadores, las 54 funciones de la 0039 y la fila 39; no borra datos) → **Run** →
+   esperado (quita los siete disparadores, las 56 funciones de la 0039 y la fila 39; no borra datos) → **Run** →
    **Success**.
    - «La migración 0039 no está aplicada: no hay nada que revertir. No se cambió nada.» → ya estaba revertida.
    - «Hay una migración posterior a la 0039 aplicada (40): revierta esa primero. No se cambió nada.» → falta el paso 2.
@@ -545,18 +566,21 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
 
 ## Lo que usted debe aprobar o decidir
 
-1. **La garantía de «Recibe en este aparato» y su límite (la condición, 1.7).** Lo construido y probado: una persona en
-   turno recibe sin escribir nada cuando ese aparato ya la conoce en este turno: su PIN en «¿Quién cobra?» de la Caja de
-   ese aparato, o en «Estoy en turno aquí» (su propio PIN, una vez por aparato y por turno; si todavía no marcó entrada,
-   el mismo PIN la marca). El servidor comprueba en cada entrega que **esa** persona escribió **su propio** PIN en
-   **ese** inicio de sesión del aparato durante **su** turno abierto (y que su PIN no cambió, que sigue activa, que no
-   marcó la salida y que no pasaron 16 horas). Un «¿Quién cobra?» escrito antes de marcar la entrada, o antes de un
-   cambio de PIN, no sirve: hace falta escribirlo otra vez en ese turno. Nadie recibe porque otra persona tenga el turno
-   abierto. **El límite:** quien tenga el aparato en la mano recibe a nombre de la
-   última persona que se identificó en él; y una copia de los datos del aparato es esa persona hasta el próximo inicio
-   de sesión (que cambia la llave) o el fin del turno. Una garantía sobre la persona en un aparato compartido solo la da
-   un PIN en cada entrega, que es lo que usted pidió quitar. Recomendado: aprobarla, con la costumbre de mirar el nombre
-   de arriba y tocar «¿No es usted? Cambiar». Esto reemplaza la regla de D-041 (recibir con el PIN de un encargado).
+1. **La garantía de «Recibe en este aparato» y su límite (la condición, 1.7).** Lo construido y probado, con su
+   corrección del 2026-11-07: una persona en turno recibe sin escribir un código en cada entrega, pero la identificación
+   es individual y corta. **Su propio PIN en ese aparato** («Estoy en turno aquí»; si todavía no marcó entrada, el mismo
+   PIN la marca), o el PIN que escribió en «¿Quién cobra?» de la Caja de ese aparato **hace menos de 15 minutos**, vale
+   **15 minutos** y se extiende con cada entrega que registra. Pasado ese tiempo, el servidor contesta «idle» a
+   cualquier uso (las listas, abrir un pedido, recibir) y la página vuelve a pedir el PIN **de esa misma persona** (su
+   nombre ya elegido; lo que tenía escrito vuelve). El servidor comprueba en cada entrega que **esa** persona escribió
+   **su propio** PIN en **ese** inicio de sesión del aparato durante **su** turno abierto (que su PIN no cambió, que
+   sigue activa, que no marcó la salida, que no pasaron 16 horas) y que su PIN o su última entrega es de hace menos de
+   15 minutos. Un «¿Quién cobra?» escrito antes de marcar la entrada, antes de un cambio de PIN o hace más de 15 minutos
+   no sirve. Nadie recibe porque otra persona tenga el turno abierto, y **nadie recibe a nombre de la última persona que
+   se identificó en un aparato compartido**. **El límite que queda:** dentro de esos 15 minutos, un aparato que se dejó
+   en el mostrador sigue siendo esa persona (la barra la nombra: «Recibe: Luis · PIN vigente hasta las 10:45», y «¿No es
+   usted? Cambiar» está a un toque); después, nadie. Recomendado: aprobarlo, con la costumbre de mirar el nombre de
+   arriba. Esto reemplaza la regla de D-041 (recibir con el PIN de un encargado).
 2. **El efectivo ya no se ofrece en Proveedores.** Sus dos formas de pago son SINPE y tarjeta (débito o crédito). La
    ventana de recibir de Inventario ofrecía «Efectivo de la caja registradora» (un retiro de la gaveta documentado con la
    factura) y
@@ -582,7 +606,8 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
 5. **Los libros: la cuenta 1160 y la entrega después del cierre (A-15, información para el contador).** Cada pago de
    Proveedores pasa primero por 1160 «Anticipos a proveedores» y se aplica a la factura cuando existe; una entrega
    registrada en Proveedores después de cerrar la caja del día entra en el asiento de ese día en el acto (solo con la
-   contabilidad automática encendida). No es una condición (D-042): compártalo con el contador cuando quiera.
+   contabilidad automática encendida). No es una condición (D-042): compártalo con el contador cuando quiera, con la
+   lista «Lo que debe confirmar el contador» de abajo.
 6. **Más de lo que se debe, solo el dueño.** Un encargado no puede registrar un pago mayor que el saldo (con la
    tolerancia de IVA antes de la factura, más ₡1): contesta con el saldo. Solo un PIN con puesto de dueño, usted con el
    código del teléfono o el contador pueden registrarlo, con un motivo («Es un pago de más (queda a favor)»), y queda «a
@@ -603,8 +628,17 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
    ella (si no, esa corrección quedaría sin factura para siempre); la reversión de la 0040 le devuelve su texto exacto;
    (b) en la página de Contabilidad, al guardar una factura y antes de registrar un pago se aplica primero lo pagado en
    Proveedores (para no pagar dos veces), anular un pago de Proveedores ya aplicado pide confirmación, y la pestaña
-   «Auditoría» muestra también lo que se hizo en Proveedores con dinero (facturas, pagos, SINPE). Recomendado:
-   aprobarlo.
+   «Auditoría» muestra también lo que se hizo en Proveedores con dinero (facturas, pagos, SINPE); (c) por su corrección
+   del 2026-11-07, las guardas en el servidor en **todas** las rutas de pago: `supplier_payment_save` (la función que
+   registra todo pago a proveedor: el «Registrar pago» de Contabilidad, el recibir-y-pagar de la página de Inventario
+   anterior y cualquier llamada directa) la redefine la 0040 con el texto de la 0029 más tres pasos (niega un número
+   SINPE vivo de Proveedores; aplica primero a las facturas de ese proveedor lo ya pagado en Proveedores; el tope es lo
+   que se debe después de eso), y `expense_pay` (el pago de un gasto a crédito) con el texto de la 0035 más un paso
+   (niega ese número SINPE en un pago por banco); dos disparadores son la última defensa, escriba lo que escriba: una
+   factura nunca recibe aplicaciones por más de su total y un pago de Proveedores nunca se aplica por más de su monto.
+   La reversión de la 0040 devuelve los textos exactos de la 0029 y la 0035 y quita los dos disparadores. Lo que la
+   página de Contabilidad hace antes de llamar (b) queda como comodidad: el servidor lo hace de todos modos.
+   Recomendado: aprobarlo.
 9. **El registro de los descuentos (E-42)**, que sigue pendiente (1.6, D-066).
 10. La vista previa privada (1.4).
 11. Aprobar el commit de la versión y crear su etiqueta (2.1).
@@ -613,6 +647,59 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
 14. Aplicar la 0039 y la 0040 en producción con el SQL Editor (3.3, 3.5).
 15. Guardar el sitio y publicar la etiqueta con «Publish website» (4.1, 4.2).
 16. Solo si hace falta: la vuelta atrás (6.1, y 6.2 solo por una falla de una función).
+
+---
+
+## Lo que debe confirmar el contador
+
+Información (A-15; no es una condición, D-042): compártala con el contador cuando quiera. Lo que debe confirmar:
+
+1. La cuenta **1160 «Anticipos a proveedores»** es de activo y está activa (está en el plan aprobado desde la 0013; la
+   0040 se niega si tiene otro nombre, otro tipo o está inactiva, 1.5).
+2. Cada pago registrado en Proveedores asienta en su fecha **Dr 1160 / Cr 1110 Banco** (SINPE o tarjeta de débito) o
+   **Cr 2160 Tarjeta de crédito por pagar** (tarjeta de crédito), clave `supadv:<id>`.
+3. Cuando la factura existe, su aplicación asienta **Dr 2101 Compras por pagar / Cr 1160** el día que se aplica (clave
+   `suppay:<id>`); Contabilidad la muestra como «Pago aplicado (Proveedores)».
+4. **El saldo de la 1160 = los pagos de Proveedores todavía sin aplicar** (`consistency-check.sql`,
+   `advances_ledger_vs_unapplied` = 0; la primera consulta de abajo).
+5. Una anulación (de un pago o de una factura) se revierte con asientos nuevos; nada se borra. Una factura anulada
+   devuelve a la 1160 las aplicaciones que tenía.
+6. El número de SINPE lo escribe quien registra el pago: **no es una verificación del banco**. La transferencia se
+   confirma al conciliar el estado de cuenta (Contabilidad → Banco y efectivo).
+7. El IVA acreditable (1140) se asienta **solo con la factura**; lo que se calcula antes de la factura es un tope para
+   el pago, no una regla de impuestos.
+8. Un cierre de mes con saldo en la 1160 es normal: son pagos adelantados a facturas que todavía no llegan (la segunda
+   consulta lista los de más de 30 días).
+9. Los pagos propios de Contabilidad («Registrar pago», `supplier_payment_save`) aplican primero lo pagado en
+   Proveedores a las facturas de ese proveedor y niegan un número SINPE ya registrado allí; también el pago por banco
+   de un gasto con ese número (`expense_pay`; decisión 8). Un pago en efectivo desde la Caja no lo ve Proveedores hasta
+   que se registre en Contabilidad (decisión 2).
+
+Las dos consultas (solo lectura; SQL Editor, cada una en su «New query»):
+
+```sql
+-- solo lectura: el saldo de la 1160 en los libros frente a los pagos de Proveedores sin aplicar (deben ser iguales)
+select (select coalesce(sum(l.debit - l.credit), 0) from acct.lines l where l.account = '1160') as saldo_1160,
+       (select coalesce(sum(a.amount_crc - coalesce((select sum(p.amount_crc) from public.supplier_payments p
+                                                       where p.advance_id = a.id and p.voided_at is null), 0)), 0)
+          from public.supplier_advances a where a.voided_at is null) as pagos_sin_aplicar;
+```
+Esperado: los dos números iguales (`0` y `0` la noche de la activación). Distintos solo si alguien asentó a mano en la
+1160, que hoy nadie usa: avíseme.
+
+```sql
+-- solo lectura: pagos registrados en Proveedores hace más de 30 días y todavía sin aplicar a una factura
+select v.name as proveedor, a.date as fecha, a.amount_crc as monto, a.method as forma, a.reference as referencia,
+       a.amount_crc - coalesce((select sum(p.amount_crc) from public.supplier_payments p
+                                 where p.advance_id = a.id and p.voided_at is null), 0) as sin_aplicar
+  from public.supplier_advances a join public.vendors v on v.id = a.vendor_id
+ where a.voided_at is null and a.created_at < now() - interval '30 days'
+   and a.amount_crc > coalesce((select sum(p.amount_crc) from public.supplier_payments p
+                                 where p.advance_id = a.id and p.voided_at is null), 0)
+ order by a.date;
+```
+Esperado: ninguna fila, o los pagos adelantados cuya factura todavía no se registró (se registra en Proveedores o en
+Contabilidad y el pago se le aplica solo).
 
 ---
 
