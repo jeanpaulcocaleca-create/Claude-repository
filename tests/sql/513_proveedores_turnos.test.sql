@@ -3,7 +3,8 @@
 -- the POS's «¿Quién cobra?» on the same device, turno_desde_caja) on this device sign-in during their open shift. It stops
 -- working at the clock-out, after 16 hours, on another login, on another device sign-in (until turno_estado moves it and
 -- rotates the token), on a PIN change or a deactivation; one receiver per device sign-in. What an employee may do:
--- receive (never more than pending, prices never booked), report extras and «no llega el resto»; nothing else.
+-- receive (never more than pending, prices never booked), report extras and «no llega el resto»; nothing else (the
+-- delivery recorded and its stock moves cannot be changed or deleted from the café login).
 begin;
 insert into public.vendors (id, name) values ('5b000000-0000-4000-8000-000000051301', 'Lácteos Monteverde');
 insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack) values ('5a000000-0000-4000-8000-000000051301', 'Leche', 'unit', 1, 1000),
@@ -96,6 +97,23 @@ select test.eq((select by_name || ' ' || (staff_id = test.staff('luis')) || ' ' 
 select test.eq((select manager_name || ' ' || (details ->> 'station') || ' ' || (details ->> 'shared_device') || ' ' || (details ->> 'session_tag' ~ '^s[0-9a-f]{7}$')
                   from public.audit_log where action = 'stock_receive' and details ->> 'receipt_id' = '7e000000-0000-4000-8000-000000051301'),
                'Luis (en turno) Bodega false true', '2 the log: who, where, a tag of the sign-in, one person on this login');
+-- the delivery is written once: the café login, with Luis's session on it, has no way to change or remove it by hand
+select (select md5(r::text) from public.purchase_receipts r where r.id = '7e000000-0000-4000-8000-000000051301') as rc513,
+       (select count(*) || ':' || md5(string_agg(m::text, '|' order by m.id)) from public.stock_moves m where m.receipt_id = '7e000000-0000-4000-8000-000000051301') as mv513 \gset
+set role authenticated;
+select test.throws($$delete from public.purchase_receipts where id = '7e000000-0000-4000-8000-000000051301'$$, 'permission denied',
+                   '2 the café login (Luis on shift) cannot delete the delivery he recorded');
+select test.throws($$update public.purchase_receipts set total_crc = 0, lines = 0, note = 'nada' where id = '7e000000-0000-4000-8000-000000051301'$$, 'permission denied',
+                   '2 nor change it');
+select test.throws($$delete from public.stock_moves where receipt_id = '7e000000-0000-4000-8000-000000051301'$$, 'permission denied',
+                   '2 nor delete its stock moves');
+select test.throws($$update public.stock_moves set qty = 0 where receipt_id = '7e000000-0000-4000-8000-000000051301'$$, 'permission denied',
+                   '2 nor change them');
+reset role;
+select test.eq((select md5(r::text) from public.purchase_receipts r where r.id = '7e000000-0000-4000-8000-000000051301') || ' '
+               || (select count(*) || ':' || md5(string_agg(m::text, '|' order by m.id)) from public.stock_moves m where m.receipt_id = '7e000000-0000-4000-8000-000000051301'),
+               :'rc513' || ' ' || :'mv513', '2 the delivery and its 2 moves are exactly as recorded');
+select test.eq(split_part(:'mv513', ':', 1), '2', '2 (its 2 moves: milk and cheese)');
 set role authenticated;
 -- «Avisar que no llega el resto»: only a request
 select test.eq(public.proveedor_recibir('9a000000-0000-4000-8000-000000051301', '7e000000-0000-4000-8000-000000051302', test.v513('9a000000-0000-4000-8000-000000051301'),

@@ -321,14 +321,18 @@ begin
                   from (select * from public.audit_log a where a.target_id = po.id::text or a.target_id = any(rids) order by a.at desc, a.id desc limit 100) a));
 end $$;
 
-create or replace function public.proveedor_historial(p_vendor_id uuid, p_before timestamptz default null, p_limit int default 50)
+-- «Ver más»: the next page after the last order shown, in the file's own order (created_at desc, id); p_before_id breaks
+-- a tie of two orders made at the same moment, so none is skipped at a page edge
+create or replace function public.proveedor_historial(p_vendor_id uuid, p_before timestamptz default null, p_limit int default 50,
+                                                      p_before_id uuid default null)
 returns jsonb language plpgsql stable security definer set search_path = public, extensions as $$
 begin
   if not public._prov_books() then return '{"ok":false,"error":"locked"}'::jsonb; end if;
   if p_limit is null or p_limit < 1 or p_limit > 100 then return '{"ok":false,"error":"bad_request"}'::jsonb; end if;
   return jsonb_build_object('ok', true, 'orders', (select coalesce(jsonb_agg(public._prov_po_brief(q.id, true) order by q.created_at desc, q.id), '[]')
     from (select o.id, o.created_at from public.purchase_orders o where o.vendor_id = p_vendor_id and o.status in ('received', 'cancelled')
-             and o.created_at < coalesce(p_before, 'infinity') order by o.created_at desc, o.id limit p_limit) q));
+             and (p_before is null or o.created_at < p_before or (p_before_id is not null and o.created_at = p_before and o.id > p_before_id))
+           order by o.created_at desc, o.id limit p_limit) q));
 end $$;
 
 
@@ -783,7 +787,7 @@ revoke all on function public._prov_dinero(uuid), public._prov_vendor_money(uuid
   public._prov_aplicar(uuid) from public, anon, authenticated;
 do $$ declare f text; begin
   foreach f in array array['proveedores_lista(text, boolean)', 'proveedores_por_recibir(text)', 'proveedor_ficha(uuid, text)', 'proveedor_pedido(uuid, text)',
-    'proveedor_historial(uuid, timestamptz, int)', 'proveedor_factura_registrar(uuid, uuid[], jsonb, uuid)', 'proveedor_factura_anular(uuid, text)',
+    'proveedor_historial(uuid, timestamptz, int, uuid)', 'proveedor_factura_registrar(uuid, uuid[], jsonb, uuid)', 'proveedor_factura_anular(uuid, text)',
     'proveedor_anticipos_aplicar(uuid)', 'proveedor_pago_registrar(jsonb, uuid, uuid, text)', 'proveedor_pago_anular(uuid, text, uuid, text)',
     'proveedores_bitacora(date, date)'] loop
     execute format('revoke all on function public.%s from public, anon', f);

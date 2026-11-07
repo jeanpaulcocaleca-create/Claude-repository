@@ -10,7 +10,8 @@
 --   after     revisiones que solo existen después de las migraciones (asientos cuadrados, recibos únicos…); desde la
 --             0039/0040 también Proveedores (entregas que no suman sus movimientos, pagos SINPE sin número, pagos
 --             aplicados de más, la 1160 contra los pagos sin aplicar, pagos sin aplicar de hace más de 30 días, días
---             asentados con compras recibidas después): todas deben ser 0
+--             asentados con compras recibidas después, correcciones o pagos que apuntan a una entrega o un pedido que no
+--             existe): todas deben ser 0
 -- =====================================================================================================
 with
 d as (select (o.created_at at time zone 'America/Costa_Rica')::date as day, o.* from public.orders o),
@@ -103,6 +104,9 @@ after as (select jsonb_strip_nulls(jsonb_build_object(
       (xpath('/row/j/text()', query_to_xml('select count(distinct a.vendor_id)::text as j from public.supplier_advances a join public.supplier_invoices i on i.vendor_id = a.vendor_id and i.voided_at is null and i.total_crc > (select coalesce(sum(al.amount_crc), 0) from public.supplier_payment_allocations al join public.supplier_payments p on p.id = al.payment_id where al.invoice_id = i.id and p.voided_at is null) left join public.purchase_orders po on po.id = a.po_id where a.voided_at is null and a.amount_crc > (select coalesce(sum(p.amount_crc), 0) from public.supplier_payments p where p.advance_id = a.id and p.voided_at is null) and not exists (select 1 from public.supplier_payments p join public.supplier_payment_allocations x on x.payment_id = p.id where p.advance_id = a.id and x.invoice_id = i.id and p.voided_at is not null) and (a.po_id is null or (po.status not in (''draft'', ''sent'', ''partially_received'') and not exists (select 1 from public.purchase_receipts r where r.po_id = a.po_id and r.invoice_id is null and r.total_crc <> 0)) or exists (select 1 from public.purchase_receipts r where r.id = any(i.receipt_ids) and r.po_id = a.po_id))', false, true, '')))[1]::text end,
   'advances_unapplied_over_30_days', case when to_regclass('public.supplier_advances') is not null then
       (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.supplier_advances a where a.voided_at is null and a.created_at < now() - interval ''30 days'' and a.amount_crc > (select coalesce(sum(p.amount_crc), 0) from public.supplier_payments p where p.advance_id = a.id and p.voided_at is null)', false, true, '')))[1]::text end,
+  -- references 0039 keeps without a foreign key (D-067 «Known limits»): a correction's delivery and a payment's order
+  'proveedores_dangling_references', case when to_regclass('public.purchase_receipt_lines') is not null then
+      (xpath('/row/j/text()', query_to_xml('select ((select count(*) from public.purchase_receipts r where r.corrects is not null and not exists (select 1 from public.purchase_receipts z where z.id = r.corrects)) + (select count(*) from public.supplier_payments p where p.po_id is not null and not exists (select 1 from public.purchase_orders o where o.id = p.po_id)))::text as j', false, true, '')))[1]::text end,
   'purchase_moves_at_zero_cost', case when to_regclass('public.purchase_receipt_lines') is not null then
       (xpath('/row/j/text()', query_to_xml('select count(*)::text as j from public.stock_moves where kind = ''purchase'' and coalesce(unit_cost, 0) = 0', false, true, '')))[1]::text end,
   'posted_days_with_purchases_not_posted', case when to_regclass('public.purchase_receipt_lines') is not null then

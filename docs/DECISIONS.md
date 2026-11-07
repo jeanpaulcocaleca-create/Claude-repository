@@ -3337,17 +3337,17 @@ Major technical decisions, newest last. Each one says what was decided, why, and
     not foresee; both only while `ledger_auto_post` is on as the owner set it (D-059). Information for the accountant:
     A-15.
 - **Tests (local test cluster only):** SQL `510_proveedores_catalogo` (70), `511_proveedores_pedidos` (76),
-  `512_proveedores_recibir` (71), `513_proveedores_turnos` (66), `514_proveedores_pagos` (94),
-  `515_proveedores_alertas` (17), `516_proveedores_lecturas` (44: who may call what and the exact keys an employee
-  reads), `517_proveedores_saldo_favor` (41: the owner-role PIN for the SINPE, the POS sign-in bound to its own shift
+  `512_proveedores_recibir` (73), `513_proveedores_turnos` (72), `514_proveedores_pagos` (112),
+  `515_proveedores_alertas` (17), `516_proveedores_lecturas` (67: who may call what and the exact keys an employee
+  reads; the purchase history and its paging), `517_proveedores_saldo_favor` (41: the owner-role PIN for the SINPE, the POS sign-in bound to its own shift
   and PIN, nothing leaves money in our favour without the owner), `518_proveedores_revision` (104: the second review's
   corrections, section by section), `520_reversion_0039` (56) and `525_reversion_0040` (24);
   `tests/sql/concurrency-proveedores.sh` (25; two receipts of one order at once, the same payment twice, one SINPE for
   two suppliers, a payment against a receipt, a receipt against a sale of the same items, an invoice against a
   correction of its delivery in both orders, a delivery whose items a sale holds answering `busy` while the sale goes
   through; a synchronisation that never happened counts as a failure); the reversal chains of SQL 340, 360, 370, 400, 420, 450, 470,
-  480 and 500 revert 0040 and 0039 first; browser `410_proveedores_centro` (9), `411_proveedores_pedir` (12),
-  `412_proveedores_documento` (5), `413_proveedores_recibir` (14), `414_proveedores_pagos` (10),
+  480 and 500 revert 0040 and 0039 first; browser `410_proveedores_centro` (10), `411_proveedores_pedir` (16),
+  `412_proveedores_documento` (6), `413_proveedores_recibir` (14), `414_proveedores_pagos` (13),
   `415_proveedores_aparatos` (5); `160_purchasing` and `290_receive` rewritten through Proveedores; 300 and 340
   updated; the POS's `070_tabs` Q-b (two tabs, failing uploads) opens its second tab on the device's own sign-in: the
   test seeded a second session into the shared storage, the two tabs then refreshed each other's tokens in a loop and,
@@ -3360,7 +3360,13 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   (`415` «an expired sign-in», once; 25/25 alone and 20/20 under load since, and its wait now reports what it saw);
   365/370 from 00:13 Costa Rica time (the five of `080_open_local`, whose sales «rung 15 minutes ago» fell on the day
   before: the time window the activation guides already name; 10/10 at 00:30); then 370/370 (00:33–00:52 Costa Rica
-  time). The SQL suite also on an en_US.UTF-8 cluster as CI's (68/68).
+  time). The SQL suite also on an en_US.UTF-8 cluster as CI's (68/68). After the traceability audit below, the full
+  `tests/run.sh` again on 2026-11-07 (09:11–09:37 UTC, 26 minutes): lint, SQL 68/68 files, backups, rehearsal, live
+  pages 14/14 + 14/14, reset pages 2/2, browser 379/379, no-tocar. Measured there: a habitual order with «Repetir último
+  pedido» 3 taps and 0.37 s of machine time from opening the file to the document; six products ticked one by one with
+  two quantities changed, 10 taps and one key, 0.87 s; a correct delivery received by an employee, 2 taps and 0.23 s.
+  With a person's 2–3 s per tap, both orders stay well inside the request's 30–60 seconds and the delivery inside its
+  two minutes.
 - **Independent review (three rounds):** the first (before the first commit) is in the decisions above (B1, B2, M6,
   m10). The second ran on the committed branch with five reviewers (security, integrity, accounting, requirements,
   compatibility), each finding checked by an independent verifier that tried to refute it: 40 findings, 2 refuted (an
@@ -3396,6 +3402,25 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   server does not book, and its payment methods in English; a «difference {x}» pattern swallowing «difference with the
   invoice {x}» in lang.js; the rollback guide warning only about Inventario (6.1 and E-43 now name Contabilidad); and
   two wording fixes in the guide (1.3, «Qué se probó»).
+- **Traceability audit (after `ef66d8a`):** every point of the owner's request (sections 1–18, its mandatory tests of
+  section 15 included) traced to its code, its test and its document by five auditors, each gap checked by a skeptic who
+  tried to refute it: 370 points, 336 met with evidence, 7 deliberate and documented (Órdenes folded in with the walk-in
+  «Recibir» left in Existencias; no photos or invoice readers, D-042; a manager never leaves money in our favour,
+  decision 8; receiving on the device that knows the person, decision 2; 1160 for payments ahead, decision 6), 22
+  confirmed gaps, none blocking, all closed: two defects (Contabilidad turned a failed «apply the Proveedores payments»
+  into «nothing to apply» and could then record a bank payment of an invoice a SINPE had already paid: it now records
+  nothing and says so; the Pedidos tab's heading read the POS's «Órdenes abiertas»: now «Pedidos abiertos»), «Ver más»
+  paging on the date alone (two orders made at the same moment at a page edge: one skipped; now date and id), the
+  list's «Editar» (each supplier card of someone who may edit opens the file with «Editar proveedor» open, where
+  «Desactivar» is), the SINPE hint (the number is not a bank verification), `consistency-check`'s count of references
+  pointing nowhere, the paragraph on what could not be tested in development (`docs/ACTIVACION-PROVEEDORES.md`), and the
+  missing tests: the purchase history and its paging, an open register untouched by receipts, payments, invoices and
+  corrections, payments never moving stock, a confirmed delivery and its moves impossible to delete or change from a
+  page, the log keeping what was ordered, received before, now and still pending, the hub's partial badge and the
+  Pedidos list, the Pedir rows' presentation and price, a product without a usual price, the search by code and
+  presentation, the usual and last quantities as suggestions, an order ticked one by one timed, real taps on touch, and
+  Contabilidad's side of the Proveedores payments (applied on an invoice and before a payment, the stop when that
+  check fails, the confirm before voiding an applied payment).
 - **Not done, on purpose:** nothing applied (0039, 0040), no tag, no publication (E-43); no cash in Proveedores; the
   walk-in «Recibir» in Inventario → Existencias left as it is (`stock_receive`, owner decision 4; the D-037 gap stays);
   no photos, files or invoice readers (D-042); no received e-invoice acceptance (A-02, A-10); no WhatsApp or email
@@ -3407,7 +3432,19 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   POS drawer for a Proveedores order is not seen by Proveedores until it is recorded in Contabilidad; an expected
   delivery date can be changed but not cleared; a delivery whose items a sale is using answers «busy» and is tapped
   again; an old page's delivery of an item ordered on several lines of one order cannot be corrected in Proveedores
-  (the page says so; Contabilidad's correction paths are unchanged).
+  (the page says so; Contabilidad's correction paths are unchanged); Contabilidad applies the Proveedores payments
+  before it records a payment (and records nothing when it cannot check), but `supplier_payment_save` itself is
+  unchanged: a payment recorded by a page from before this version still open on a device, or by a direct call, skips
+  that step, and `consistency-check` shows the payment left unapplied (`vendors_unapplied_with_open_invoices`); some
+  references 0039 adds have no foreign key on purpose: `purchase_receipts.staff_id` and `staff_pin_changes.staff_id`
+  (security and history records never in the way of a staff tool), `purchase_receipts.work_session_id` (the
+  anonymizer empties `work_sessions` on a copy), `work_sessions.time_entry_id` (`manager_delete_shift` deletes entries),
+  `supplier_payments.po_id` (lock order) and `purchase_receipts.corrects`: only the SECURITY DEFINER functions write
+  them, from rows they hold locked, and `consistency-check` counts a correction or a payment pointing nowhere
+  (`proveedores_dangling_references`, expected 0); on a touch screen, a button right below an open number pad (for
+  example «Estoy en turno aquí» after the PIN, or «Guardar pago» after the amount) can need a second tap, because
+  `keypad.js` hides the pad as the field loses the focus and the button moves before the tap ends: the pad's own ✓ saves
+  the form in one tap; `keypad.js` is shared with the POS and is not changed here (a separate task).
 - **Records:** E-43 (activation and the owner's decisions), A-15 (information for the accountant), CHECKLIST rows 82–84,
   102, 112, 113, 119 and 141 updated and the new row 156, `docs/MIGRACIONES.md` (0039 and 0040), `docs/PRUEBAS.md`
   («Pruebas automáticas de Proveedores»), `docs/RECIBIR-PEDIDO.md` (superseded note), `docs/PERSONAL-NUEVO.md`

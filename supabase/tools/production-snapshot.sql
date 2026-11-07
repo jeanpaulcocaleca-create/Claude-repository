@@ -482,7 +482,7 @@ known_fn(fn, h, ver) as (values
   ('public.proveedor_factura_registrar(p_vendor_id uuid, p_receipt_ids uuid[], p_invoice jsonb, p_request_id uuid)', 'b9a6915b2af6', '0040'),
   ('public.proveedor_ficha(p_vendor_id uuid, p_token text)', 'f33f407c79b8', '0040'),
   ('public.proveedor_guardar(p_vendor jsonb, p_staff_id uuid, p_pin text)', '3c861150cc53', '0039'),
-  ('public.proveedor_historial(p_vendor_id uuid, p_before timestamp with time zone, p_limit integer)', 'bd55a48ddb96', '0040'),
+  ('public.proveedor_historial(p_vendor_id uuid, p_before timestamp with time zone, p_limit integer, p_before_id uuid)', '1ef88cc6382f', '0040'),
   ('public.proveedor_pago_anular(p_id uuid, p_reason text, p_staff_id uuid, p_pin text)', '74c87ea5a1dd', '0040'),
   ('public.proveedor_pago_registrar(p_payment jsonb, p_request_id uuid, p_staff_id uuid, p_pin text)', 'de02c80478ba', '0040'),
   ('public.proveedor_pedido(p_po_id uuid, p_token text)', 'b5dd14386a74', '0040'),

@@ -17,6 +17,35 @@ const advances = () => sql(`select coalesce(string_agg(method || ':' || amount_c
 function ledger(prefix) {
   return sql(`select coalesce(string_agg(l.account || ':' || (l.debit - l.credit), ',' order by e.id, l.account), '') from acct.lines l join acct.entries e on e.id = l.entry_id where e.source_key like '${prefix}%'`);
 }
+/* 8.26 · Proveedores' money as Contabilidad meets it: a SINPE recorded in Proveedores (the owner with the phone code) for
+   an order of Lácteos Monteverde -> its supplier_advances id; an invoice saved by SQL (supplier_invoice_save, which applies
+   nothing by itself); what is open of an invoice; what is not applied of a payment */
+function sinpe(po, amount, ref) {
+  const r = P.asOwner(`select public.proveedor_pago_registrar('{"vendor_id":"${V.lac}","po_id":"${po}","amount":${amount},"method":"sinpe","reference":"${ref}"}', gen_random_uuid())`);
+  if (!r || !r.ok) throw new Error('proveedor_pago_registrar: ' + JSON.stringify(r));
+  return r.id;
+}
+function invoiceBySql(po, num, net, iva) {
+  const rc = sql(`select id from purchase_receipts where po_id = '${po}'`);
+  const r = P.asOwner(`select public.supplier_invoice_save(jsonb_build_object('vendor_id', '${V.lac}', 'number', '${num}', 'date', public.cr_today(), 'net_crc', ${net}, 'iva_crc', ${iva}, 'receipt_ids', jsonb_build_array('${rc}')), gen_random_uuid())`);
+  if (!r || !r.ok) throw new Error('supplier_invoice_save: ' + JSON.stringify(r));
+}
+const openOf = (num) => sql(`select public._invoice_open(id) from supplier_invoices where number = '${num}'`);
+const unapplied = (id) => sql(`select public._prov_unapplied('${id}')`);
+const bankPays = () => sql(`select coalesce(string_agg(amount_crc::text, ',' order by created_at), '') from supplier_payments where paid_from = 'bank'`);
+/* Contabilidad's drawer open and loaded */
+const drawer = (pg) => until(() => pg.evaluate(() => document.getElementById('drawer').classList.contains('open') && !document.querySelector('#drawerBody .loading')), 8000, 'the drawer open');
+/* Contabilidad › Proveedores › the card of Lácteos Monteverde, signed in with the phone code as who (the owner or the accountant) */
+async function contab(browser, who) {
+  const pg = P.watchApi(await page(browser, { login: who || 'owner', aal: 'aal2', lang: 'es' }));
+  await goto(pg, '/contabilidad');
+  await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
+  await pg.evaluate(() => { location.hash = 'proveedores'; });
+  await until(async () => (await pg.locator('#tbl-prov tbody tr.row', { hasText: 'Lácteos Monteverde' }).count()) === 1, 10000, 'the supplier listed');
+  await pg.locator('#tbl-prov tbody tr.row', { hasText: 'Lácteos Monteverde' }).click();
+  await drawer(pg);
+  return pg;
+}
 
 module.exports.tests = [
   {
@@ -33,6 +62,10 @@ module.exports.tests = [
       assert.strictEqual(await pg.inputValue('#payAmt'), '23052', 'the server\'s balance proposed: ₡20 400 with the IVA allowance before the invoice (13 %)');
       await P.seen(pg.locator('#docMoney'), /A pagar ₡23 052 estimado, IVA incl\./, 'the document shows the estimate with IVA, labelled, in Spanish', 3000);
       assert.strictEqual(await pg.locator('#payMethod button[data-m=sinpe]').getAttribute('aria-pressed'), 'true', 'SINPE first');
+      // 8.23: under the SINPE number, what it is (typed by whoever records the payment) and who checks it (Contabilidad)
+      await P.seen(pg.locator('#payRefNote'), /^El número lo escribe quien registra el pago: no es una verificación del banco\. Contabilidad lo comprueba al conciliar el estado de cuenta\.$/, 'the SINPE number hint, in Spanish', 3000);
+      assert.ok(await pg.locator('#payRefNote').isVisible(), 'shown with the SINPE number');
+      assert.strictEqual(await pg.getAttribute('#payRef', 'aria-describedby'), 'payRefNote', 'read out with the number box');
       assert.strictEqual(await pg.inputValue('#payWho'), STAFF.ana, 'who registers: the manager who opened the owner areas');
       // no confirmation number: refused before anything is sent
       await pg.fill('#payAmt', '10000');
@@ -66,6 +99,7 @@ module.exports.tests = [
       await pg.locator('#payMethod button[data-m=card]').click();
       assert.strictEqual(await pg.locator('#payCardKind button[data-k=card_debit]').getAttribute('aria-pressed'), 'true');
       assert.ok(await pg.locator('#payRefC').isVisible() && !(await pg.locator('#payRef').isVisible()), 'the reference is optional for a card');
+      assert.strictEqual(await pg.locator('#payRefNote').isVisible(), false, 'the SINPE number hint goes with the SINPE number');
       await pg.fill('#payPin', PINS.ana);
       await save(pg);
       await P.toasted(pg, /^Pago guardado/, 'the card payment');
@@ -381,6 +415,185 @@ module.exports.tests = [
       await P.seen(p2.locator('#drawerBody'), /Transferencia o SINPE/, 'the payment method in Spanish', 5000);
       assert.doesNotMatch(await text(p2.locator('#drawerBody')), /Bank transfer or SINPE/);
       assert.deepStrictEqual(pg.errors.concat(p2.errors), []);
+    }
+  },
+  {
+    name: '8.26 Contabilidad takes what was paid in Proveedores: «Nueva factura» applies a SINPE paid before it; «Registrar pago» applies one first and reopens the form (nothing paid twice); when that check fails, nothing is recorded and an invoice says they are still to be applied',
+    run: async ({ browser }) => {
+      P.seed();
+      // (i) a SINPE recorded in Proveedores before the invoice (₡18 000 received + 13 %): it waits for the invoice
+      const o1 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]);
+      P.receive(o1.id, [{ line: P.lineOf(o1.id, I.yogur), rest: true }]);
+      const a1 = sinpe(o1.id, 20340, 'SNP-82601');
+      assert.strictEqual(unapplied(a1), '20340.00', 'it waits for the invoice');
+      let pg = await contab(browser);
+      await pg.click('#vc-inv');
+      await drawer(pg);
+      await until(() => pg.evaluate(() => !!document.querySelector('#drawerBody [data-rec]')), 8000, 'the delivery offered');
+      await pg.check('#drawerBody [data-rec]');
+      await pg.fill('#vi-num', 'F-8261'); await pg.fill('#vi-net', '18000'); await pg.fill('#vi-iva', '2340');
+      await P.untoast(pg);
+      await pg.click('#vi-save');
+      await P.toasted(pg, /^Factura guardada · ₡20 340 pagados en Proveedores aplicados a ella$/, 'the invoice took the SINPE, in Spanish');
+      assert.strictEqual(openOf('F-8261'), '0.00', 'nothing left open on that invoice');
+      assert.strictEqual(unapplied(a1), '0.00', 'the SINPE is all applied');
+      assert.strictEqual(sql(`select paid_from || ':' || amount_crc from supplier_payments`), 'advance:20340.00', 'applied from the SINPE: no other payment');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+      await pg.close();
+      // (ii) a SINPE of order 2, then its invoice saved by SQL (nothing applied it): «Registrar pago» applies it first
+      const o2 = P.create(V.lac, [{ vi: P.vi(I.natilla), packs: 1 }]);
+      P.receive(o2.id, [{ line: P.lineOf(o2.id, I.natilla), rest: true }]);
+      const a2 = sinpe(o2.id, 5000, 'SNP-82602');
+      invoiceBySql(o2.id, 'F-8262', 6000, 780);
+      assert.strictEqual(unapplied(a2) + '|' + openOf('F-8262'), '5000.00|6780.00', 'a payment not applied and an open invoice');
+      pg = await contab(browser);
+      await pg.click('#vc-pay');
+      await drawer(pg);
+      await pg.waitForSelector('#vp-save');
+      assert.strictEqual(await pg.inputValue('#vp-amt'), '6780', 'the open invoice proposed');
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^₡5 000 pagados en Proveedores se aplicaron primero a las facturas de este proveedor\. Revise lo que todavía se debe\.$/, 'applied first, in Spanish');
+      await until(async () => (await pg.locator('#vp-amt').count()) === 1 && (await pg.inputValue('#vp-amt')) === '1780', 8000, 'the payment form reopened with what is still owed (₡1 780)');
+      await P.seen(pg.locator('#drawerTitle'), /^Pagar a Lácteos Monteverde$/, 'the payment form, in Spanish', 3000);
+      assert.strictEqual(bankPays(), '', 'nothing recorded from the bank yet');
+      assert.strictEqual(unapplied(a2) + '|' + openOf('F-8262'), '0.00|1780.00', 'the SINPE went to the invoice');
+      // the rest, recorded from the reopened form: once
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^Pago registrado$/, 'the payment recorded');
+      assert.strictEqual(bankPays(), '1780.00', 'one bank payment, of what was still owed');
+      assert.strictEqual(openOf('F-8262'), '0.00');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+      await pg.close();
+      // (iii) Proveedores' check fails (500): «Registrar pago» records nothing; an invoice saved meanwhile says so
+      const o3 = P.create(V.lac, [{ vi: P.vi(I.queso), packs: 1 }]);
+      P.receive(o3.id, [{ line: P.lineOf(o3.id, I.queso), rest: true }]);
+      const a3 = sinpe(o3.id, 3000, 'SNP-82603');
+      invoiceBySql(o3.id, 'F-8263', 5200, 0);
+      const o4 = P.create(V.lac, [{ vi: P.vi(I.crema), packs: 1 }]);
+      P.receive(o4.id, [{ line: P.lineOf(o4.id, I.crema), rest: true }]);
+      pg = await contab(browser);
+      const FAIL = '**/rest/v1/rpc/proveedor_anticipos_aplicar';
+      await pg.route(FAIL, (r) => r.fulfill({ status: 500, contentType: 'application/json', body: '{"code":"XX000","details":null,"hint":null,"message":"prueba: el servidor falló"}' }));
+      await pg.click('#vc-pay');
+      await drawer(pg);
+      await pg.waitForSelector('#vp-save');
+      const rows = sql(`select count(*) from supplier_payments`);
+      await pg.click('#vp-save');
+      await P.seen(pg.locator('#drawerFoot .err'), /^No se pudieron revisar los pagos hechos en Proveedores, así que no se registró nada\. Intente de nuevo\.$/, 'the payment stops, in Spanish', 8000);
+      assert.strictEqual(sql(`select count(*) from supplier_payments`), rows, 'nothing recorded');
+      assert.strictEqual(bankPays(), '1780.00', 'no new bank payment');
+      assert.strictEqual(unapplied(a3) + '|' + openOf('F-8263'), '3000.00|5200.00', 'nothing applied either');
+      await pg.click('#vp-cancel');
+      await pg.waitForSelector('#vc-inv');
+      await drawer(pg);
+      await pg.click('#vc-inv');
+      await drawer(pg);
+      await until(() => pg.evaluate(() => !!document.querySelector('#drawerBody [data-rec]')), 8000, 'the delivery offered');
+      assert.strictEqual(await pg.locator('#drawerBody [data-rec]').count(), 1, 'order 4\'s delivery only');
+      await pg.check('#drawerBody [data-rec]');
+      await pg.fill('#vi-num', 'F-8264'); await pg.fill('#vi-net', '2100'); await pg.fill('#vi-iva', '273');
+      await P.untoast(pg);
+      await pg.click('#vi-save');
+      await P.toasted(pg, /^Factura guardada · los pagos hechos en Proveedores todavía no se pudieron aplicar: se aplican en la próxima factura o pago de este proveedor$/, 'the invoice saved, its Proveedores payments still to apply, in Spanish');
+      assert.strictEqual(openOf('F-8264'), '2373.00', 'the invoice is saved, not failed');
+      assert.strictEqual(unapplied(a3), '3000.00', 'still to be applied');
+      assert.ok(pg.apiErrors.length === 2 && pg.apiErrors.every((e) => /^500 rpc\/proveedor_anticipos_aplicar$/.test(e)), 'only the two failed checks: ' + pg.apiErrors.join('; '));
+      // Proveedores answers again: the next payment applies the SINPE first
+      await pg.unroute(FAIL);
+      await pg.waitForSelector('#vc-pay');
+      await drawer(pg);
+      await pg.click('#vc-pay');
+      await drawer(pg);
+      await pg.waitForSelector('#vp-save');
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^₡3 000 pagados en Proveedores se aplicaron primero a las facturas de este proveedor\./, 'applied on the next payment');
+      assert.strictEqual(unapplied(a3) + '|' + openOf('F-8263') + '|' + bankPays(), '0.00|2200.00|1780.00', 'to its order\'s invoice; still no new bank payment');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: '8.26 without Proveedores\' function (before 0040 is applied, or after reversion-0040.sql with these pages published): Contabilidad records a payment and an invoice as before (PostgREST\'s 404 PGRST202, then its 42883)',
+    run: async ({ browser }) => {
+      P.seed();
+      const o1 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 1 }]);
+      P.receive(o1.id, [{ line: P.lineOf(o1.id, I.yogur), rest: true }]);
+      invoiceBySql(o1.id, 'F-8271', 4500, 585);
+      const o2 = P.create(V.lac, [{ vi: P.vi(I.natilla), packs: 1 }]);
+      P.receive(o2.id, [{ line: P.lineOf(o2.id, I.natilla), rest: true }]);
+      const pg = await contab(browser);
+      const FN = '**/rest/v1/rpc/proveedor_anticipos_aplicar';
+      const missing = (code, message, hint) => (r) => r.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code, details: null, hint, message }) });
+      await pg.route(FN, missing('PGRST202', 'Could not find the function public.proveedor_anticipos_aplicar(p_vendor_id) in the schema cache', null));
+      await pg.click('#vc-pay');
+      await drawer(pg);
+      await pg.waitForSelector('#vp-save');
+      assert.strictEqual(await pg.inputValue('#vp-amt'), '5085', 'the open invoice proposed');
+      await P.untoast(pg);
+      await pg.click('#vp-save');
+      await P.toasted(pg, /^Pago registrado$/, 'the payment recorded as before 0040, in Spanish');
+      assert.strictEqual(bankPays(), '5085.00', 'one bank payment');
+      assert.strictEqual(openOf('F-8271'), '0.00', 'the invoice paid');
+      // the function missing while PostgREST's schema cache is still stale: 42883
+      await pg.unroute(FN);
+      await pg.route(FN, missing('42883', 'function public.proveedor_anticipos_aplicar(p_vendor_id => uuid) does not exist', 'No function matches the given name and argument types. You might need to add explicit type casts.'));
+      await pg.waitForSelector('#vc-inv');
+      await drawer(pg);
+      await pg.click('#vc-inv');
+      await drawer(pg);
+      await until(() => pg.evaluate(() => !!document.querySelector('#drawerBody [data-rec]')), 8000, 'the delivery offered');
+      await pg.check('#drawerBody [data-rec]');
+      await pg.fill('#vi-num', 'F-8272'); await pg.fill('#vi-net', '6000'); await pg.fill('#vi-iva', '780');
+      await P.untoast(pg);
+      await pg.click('#vi-save');
+      await P.toasted(pg, /^Factura guardada$/, 'the invoice saved as before 0040 (no «todavía no se pudieron aplicar»)');
+      assert.strictEqual(openOf('F-8272'), '6780.00', 'the invoice is open');
+      assert.deepStrictEqual(pg.apiErrors, ['404 rpc/proveedor_anticipos_aplicar', '404 rpc/proveedor_anticipos_aplicar'], 'only the two checks answered «missing»');
+      assert.deepStrictEqual(pg.errors, []);
+      await pg.close();
+    }
+  },
+  {
+    name: '8.26 voiding in Contabilidad a payment applied from Proveedores asks first (only the application is undone): dismissed → nothing voided; accepted, with the reason → voided, the Proveedores payment stays',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.yogur), rest: true }]);
+      const a = sinpe(o.id, 20340, 'SNP-82604');
+      invoiceBySql(o.id, 'F-8265', 18000, 2340);
+      assert.strictEqual(P.asOwner(`select public.proveedor_anticipos_aplicar('${V.lac}')`).applied_crc, 20340, 'applied to the invoice');
+      const sp = sql(`select id from supplier_payments where paid_from = 'advance'`);
+      const pg = await contab(browser, 'accountant');
+      const voidBtn = pg.locator(`#drawerBody [data-voidpay="${sp}"]`);
+      assert.strictEqual(await voidBtn.getAttribute('data-adv'), '1', 'marked as applied from Proveedores');
+      const asked = [];
+      pg.onDialog = async (d) => { asked.push(d.type() + ': ' + d.message()); await d.dismiss(); };
+      await voidBtn.click();
+      await until(() => asked.length === 1, 5000, 'the confirm');
+      await pg.waitForTimeout(400);
+      const ADV = 'confirm: Esto solo deshace la aplicación: el pago de Proveedores queda sin aplicar y no vuelve a esta factura. Para anular el pago mismo, use Proveedores › Pagos.';
+      assert.deepStrictEqual(asked, [ADV], 'asked first, in Spanish; dismissed: no reason asked');
+      assert.strictEqual(sql(`select (voided_at is null) || '|' || public._invoice_open('${sql(`select id from supplier_invoices where number = 'F-8265'`)}') from supplier_payments where id = '${sp}'`), 'true|0.00', 'nothing voided');
+      // accepted, and the reason given
+      pg.onDialog = async (d) => { asked.push(d.type() + ': ' + d.message()); if (d.type() === 'prompt') await d.accept('aplicado a la factura equivocada'); else await d.accept(); };
+      await P.untoast(pg);
+      await voidBtn.click();
+      await P.toasted(pg, /^Pago anulado$/, 'voided, in Spanish');
+      assert.deepStrictEqual(asked, [ADV, ADV, 'prompt: ¿Por qué se anula este pago?']);
+      assert.strictEqual(sql(`select (voided_at is not null) || '|' || void_reason from supplier_payments where id = '${sp}'`), 'true|aplicado a la factura equivocada');
+      // only the application is undone: the Proveedores payment stays live and unapplied, the invoice is owed again, and the
+      // payment never goes back to that invoice
+      assert.strictEqual(sql(`select voided_at is null from supplier_advances where id = '${a}'`), 't', 'the Proveedores payment is not voided');
+      assert.strictEqual(unapplied(a) + '|' + openOf('F-8265'), '20340.00|20340.00');
+      assert.strictEqual(P.asOwner(`select public.proveedor_anticipos_aplicar('${V.lac}')`).applied_crc, 0, 'not to that invoice again');
+      assert.strictEqual(sql(`select count(*) from supplier_payments`), '1', 'nothing deleted');
+      await until(async () => (await pg.locator(`#drawerBody [data-voidpay="${sp}"]`).count()) === 0, 8000, 'the card shows it voided');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
     }
   },
   {

@@ -79,7 +79,9 @@ Cambiar».
   inactivo: «Asociar proveedor» (elija a quién se lo compra; la alerta abrirá ese proveedor).
 - «Buscar un proveedor», «Añadir proveedor», y los filtros «Activos», «Inactivos» y «Por recibir».
 - Cada proveedor: nombre, contacto, teléfono y sus avisos: «N por recibir», «Parcialmente recibidos: N», «Borrador»,
-  «Debe ₡X», «Saldo a favor ₡X», «Pago sin aplicar de hace más de 30 días».
+  «Debe ₡X», «Saldo a favor ₡X», «Pago sin aplicar de hace más de 30 días». Quien puede editar proveedores (encargados,
+  dueños, el contador) ve además **«Editar»** en cada tarjeta: abre la ficha con «Editar proveedor» ya abierto, donde
+  está **«Desactivar»** (pide confirmación: desactivar no es un toque que se dé por error desde la lista).
 - «Por recibir»: todos los pedidos que esperan entrega. Un pedido viejo sin proveedor: «Sin proveedor · Asignar».
 
 ## 4 · La ficha del proveedor
@@ -216,7 +218,9 @@ entregas sin factura y la lista de pagos (los de Contabilidad aparecen también,
 4. **SINPE:** el «Número de confirmación SINPE» es obligatorio (de 4 a 40 letras o números). El mismo número no se
    registra dos veces, ni para otro proveedor ni escrito con espacios o guiones: «Ese número de SINPE ya está registrado
    (proveedor, fecha, monto).». **Tarjeta:** «Referencia (opcional)»; un pago igual a uno de hace unos minutos pregunta
-   «¿Es otro pago distinto?» → «Sí, es otro pago».
+   «¿Es otro pago distinto?» → «Sí, es otro pago». El número lo escribe quien registra el pago: **no es una
+   verificación del banco**. El pago se comprueba en Contabilidad → Banco y efectivo, al conciliar el estado de cuenta
+   (la página lo dice bajo el campo).
 5. **Quién lo registra:** su nombre y su PIN (encargados y puesto de dueño). El dueño con el código y el contador no
    escriben PIN.
 6. «Guardar pago». Si todavía no hay factura: «Pago guardado · queda esperando la factura»; cuando la factura se

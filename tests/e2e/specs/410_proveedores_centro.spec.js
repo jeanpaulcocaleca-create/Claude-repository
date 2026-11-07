@@ -1,9 +1,9 @@
 /* Proveedores (D-067, migrations 0039/0040) · the hub: a manager opens the owner areas on the café tablet (access.js's
-   gate); alerts on top; the suppliers with their badges, search and chips; add, edit, SINPE, deactivate; the low-stock
-   alerts on Home and in Inventario open the preferred supplier's file with the item highlighted and NOT ticked until
-   tapped; «Asociar proveedor» for an item without supplier (the suppliers whose catalog has it come with the alert: no
-   read per supplier); Inventario's old Orders / Vendors tabs lead here; Productos (preferred, usual price, retire); an
-   old page's order without supplier gets one («Sin proveedor · Asignar»). */
+   gate); alerts on top; the suppliers with their badges, search and chips; add, edit, SINPE, deactivate (also from the
+   «Editar» on each hub card); the low-stock alerts on Home and in Inventario open the preferred supplier's file with the
+   item highlighted and NOT ticked until tapped; «Asociar proveedor» for an item without supplier (the suppliers whose
+   catalog has it come with the alert: no read per supplier); Inventario's old Orders / Vendors tabs lead here; Productos
+   (preferred, usual price, retire); an old page's order without supplier gets one («Sin proveedor · Asignar»). */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql, STAFF, PINS } = require('../lib');
@@ -120,6 +120,95 @@ module.exports.tests = [
       await P.seen(pg.locator(`#hubVendors .vcard[data-vendor="${id}"]`), /Frutas Don Beto.*inactive/, 'among the inactive ones', 3000);
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    /* request §2 «Opciones Editar y Desactivar proveedor» on the main page (audit 2.m4, 2.m5) */
+    name: '«Editar» on each hub card (a manager, the owner, the accountant): the file opens with «Editar proveedor» («Desactivar» in it), the hash drops «edit» so a reload does not reopen it; the card itself opens Pedir; at 360 px «Editar» never covers the name',
+    run: async ({ browser }) => {
+      P.seed();
+      const long = '5b000000-0000-4000-8000-00000000b410';   /* a name long enough to wrap on a phone */
+      sql(`insert into vendors (id, name, contact_name, phone) values ('${long}', 'Distribuidora Centroamericana de Lácteos y Quesos Finos', 'María Fernanda Villalobos', '2645 3333')`);
+      const edit = (pg, vid) => pg.locator(`#hubVendors .vwrap:has(> .vcard[data-vendor="${vid}"]) > a.vedit`);
+      const hash = (pg) => pg.evaluate(() => location.hash);
+      // a manager on the café tablet: one «Editar» on every active supplier's card
+      const pg = await P.cafeManager(browser);
+      await pg.waitForSelector('#hubVendors .vcard');
+      assert.strictEqual(await pg.locator('#hubVendors .vcard').count(), 4);
+      assert.strictEqual(await pg.locator('#hubVendors .vwrap > a.vedit').count(), 4, 'one «Editar» per card');
+      await P.seen(edit(pg, V.lac), /^Editar$/, '«Editar», in Spanish', 3000);
+      assert.strictEqual(await edit(pg, V.lac).getAttribute('href'), `#p=${V.lac}&edit=1`);
+      await edit(pg, V.lac).click();
+      await pg.waitForSelector(`#ficha[data-vendor="${V.lac}"] #vendorForm`, { timeout: 10000 });
+      await until(async () => (await hash(pg)) === '#p=' + V.lac, 3000, 'the hash without «edit»');
+      await P.seen(pg.locator('#vendorForm h3'), /^Editar proveedor$/, 'the «Editar proveedor» form', 3000);
+      assert.strictEqual(await pg.inputValue('#vfName'), 'Lácteos Monteverde');
+      await P.seen(pg.locator('#vendorForm .btns'), /^Desactivar Cancelar Guardar$/, '«Desactivar» is in that form', 3000);
+      assert.strictEqual(await pg.locator('#pList .prow').count() > 0, true, 'the file opened on Pedir');
+      // a reload opens the file, not the form again
+      await pg.reload({ waitUntil: 'domcontentloaded' });
+      await pg.waitForSelector(`#ficha[data-vendor="${V.lac}"] #pList .prow`, { timeout: 15000 });
+      await pg.waitForTimeout(500);
+      assert.strictEqual(await pg.locator('#vendorForm').count(), 0, 'a reload does not reopen the form');
+      assert.strictEqual(await hash(pg), '#p=' + V.lac);
+      // the card itself (its name) still opens the file on Pedir, without the form
+      await P.nav(pg, '#', '#hubVendors .vcard');
+      await pg.locator(`#hubVendors .vcard[data-vendor="${V.pan}"] .t`).click();
+      await pg.waitForSelector(`#ficha[data-vendor="${V.pan}"] #pList .prow`, { timeout: 10000 });
+      await pg.waitForTimeout(300);
+      assert.strictEqual(await hash(pg), '#p=' + V.pan);
+      assert.strictEqual(await pg.locator('#vendorForm').count(), 0, 'the card opens the file without the form');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+      // the owner on a phone (360 px): «Editar» beside the name, never on it; «Desactivar» one tap further
+      const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, hasTouch: true, isMobile: true, locale: 'es-CR', timezoneId: 'America/Costa_Rica' });
+      const ph = P.watchApi(await page(browser, { context: ctx, login: 'owner', aal: 'aal2', lang: 'es' }));
+      await goto(ph, '/proveedores');
+      await ph.waitForSelector('#hubVendors a.vedit');
+      await until(async () => (await ph.locator('#hubVendors a.vedit').allTextContents()).join() === 'Editar,Editar,Editar,Editar', 3000, 'four «Editar», translated');
+      const boxes = await ph.evaluate(() => Array.from(document.querySelectorAll('#hubVendors .vwrap')).map((w) => {
+        const R = (b) => ({ l: b.left, r: b.right, t: b.top, b: b.bottom });
+        const rg = document.createRange(); rg.selectNodeContents(w.querySelector('.vcard .t'));
+        return { id: w.querySelector('.vcard').getAttribute('data-vendor'), name: Array.from(rg.getClientRects()).map(R), edit: R(w.querySelector('a.vedit').getBoundingClientRect()), card: R(w.getBoundingClientRect()) };
+      }));
+      const meets = (a, b) => a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
+      assert.strictEqual(boxes.length, 4);
+      for (const x of boxes) {
+        assert.ok(x.name.length > 0, x.id + ': the name is drawn');
+        x.name.forEach((n) => assert.ok(!meets(n, x.edit), x.id + ': «Editar» ' + JSON.stringify(x.edit) + ' covers the name ' + JSON.stringify(n)));
+        assert.ok(x.edit.l >= x.card.l && x.edit.r <= x.card.r && x.edit.t >= x.card.t && x.edit.b <= x.card.b, x.id + ': «Editar» inside its card');
+        assert.ok(x.edit.b - x.edit.t >= 43.5, x.id + ': a 44 px target');
+      }
+      const lines = new Set(boxes.find((x) => x.id === long).name.map((n) => Math.round(n.t)));
+      assert.ok(lines.size >= 2, 'the long name wraps (so the check means something): ' + lines.size + ' line(s)');
+      await P.layoutOk(ph, '360 hub with «Editar»');
+      const asked = []; ph.onDialog = async (d) => { asked.push(d.message()); await d.accept(); };
+      await edit(ph, V.fin).tap();
+      await ph.waitForSelector(`#ficha[data-vendor="${V.fin}"] #vendorForm`, { timeout: 10000 });
+      await until(async () => (await hash(ph)) === '#p=' + V.fin, 3000, 'the hash without «edit»');
+      const off = ph.locator('#vendorForm button', { hasText: 'Desactivar' });
+      await off.waitFor({ timeout: 3000 });
+      await off.tap();
+      await P.toasted(ph, /^Proveedor desactivado$/, 'deactivated from the hub\'s «Editar»');
+      assert.deepStrictEqual(asked, ['¿Desactivar Finca La Fresa? Su historial se conserva.']);
+      assert.strictEqual(sql(`select active from vendors where id = '${V.fin}'`), 'f');
+      await P.nav(ph, '#', '#hubVendors .vcard');
+      assert.strictEqual(await ph.locator(`#hubVendors .vcard[data-vendor="${V.fin}"]`).count(), 0, 'no longer among the active ones');
+      assert.deepStrictEqual(ph.errors, []);
+      assert.deepStrictEqual(ph.apiErrors, []);
+      await ctx.close();
+      // the accountant (the books door) has «Editar» too, like the file's: the SINPE only, no «Desactivar»
+      const ac = P.watchApi(await page(browser, { login: 'accountant', aal: 'aal2', lang: 'es' }));
+      await goto(ac, '/proveedores');
+      await ac.waitForSelector('#hubVendors .vcard');
+      assert.strictEqual(await ac.locator('#hubVendors .vwrap > a.vedit').count(), await ac.locator('#hubVendors .vcard').count(), 'the accountant: one «Editar» per card');
+      await edit(ac, V.lac).click();
+      await ac.waitForSelector(`#ficha[data-vendor="${V.lac}"] #vendorForm`, { timeout: 10000 });
+      await until(async () => (await hash(ac)) === '#p=' + V.lac, 3000, 'the hash without «edit»');
+      assert.deepStrictEqual(await ac.locator('#vendorForm input').evaluateAll((l) => l.map((i) => i.id)), ['vfSinpe']);
+      await P.seen(ac.locator('#vendorForm .btns'), /^Cancelar Guardar$/, 'no «Desactivar» for the accountant', 3000);
+      assert.deepStrictEqual(ac.errors, []);
+      assert.deepStrictEqual(ac.apiErrors, []);
     }
   },
   {

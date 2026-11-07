@@ -4,7 +4,9 @@
 -- explicit calls; before or after receiving and the invoice, partial or full: Pendiente / Parcialmente pagado / Pagado.
 -- More than the balance only at owner level with a reason. The published page's receive-and-pay still works while a
 -- supplier has a payment not applied; its drawer payouts are documented by the invoice and counted as paid. Voids reverse
--- entries and delete nothing; the ledger stays balanced and ties out (2101, 1160).
+-- entries and delete nothing; the ledger stays balanced and ties out (2101, 1160). A payment never moves stock; with a
+-- register open, receiving, paying, invoicing and correcting leave the register and its drawer movements as they were;
+-- consistency-check.sql counts a correction or a payment that points at nothing.
 begin;
 insert into public.vendors (id, name, credit_days) values ('5b000000-0000-4000-8000-000000051401', 'Lácteos Monteverde', 15),
                                                           ('5b000000-0000-4000-8000-000000051402', 'Verduras del Valle', null);
@@ -29,6 +31,9 @@ begin
 end $$;
 create function test.pay514(p jsonb, id uuid, pin text default '4826', who text default 'ana') returns jsonb language sql as $$
   select public.proveedor_pago_registrar(p, id, test.staff(who), pin) $$;
+-- the stock as a whole: units on hand of every item, and how many stock moves there are
+create function test.stock514() returns text language sql security definer as $$
+  select (select coalesce(sum(on_hand), 0) from public.stock_items) || ' ' || (select count(*) from public.stock_moves) $$;
 select code as exp_acct from acct.accounts where type = 'expense' and active and not cash and public._ap_target(code) order by code limit 1 \gset
 select test.login('cafe'); select test.session('dev-514'); set role authenticated;
 select test.eq(public.proveedor_pago_registrar('{"vendor_id":"5b000000-0000-4000-8000-000000051401","amount":1,"method":"card_debit"}', gen_random_uuid()) ->> 'error', 'locked',
@@ -48,11 +53,13 @@ select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401",
 reset role;
 select test.eq((select failed_pins from public.staff where id = test.staff('ana')), 1, '1 and counted');
 set role authenticated;
+select test.stock514() as stock514a \gset
 select test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401","po_id":"9a000000-0000-4000-8000-000000051401","amount":135600,"method":"sinpe","reference":" 2026-1105-8841 "}',
                    '5d000000-0000-4000-8000-000000051401') as p1 \gset
 select test.eq((:'p1'::jsonb) ->> 'ok' || ' ' || ((:'p1'::jsonb) ->> 'applied_crc') || ' ' || ((:'p1'::jsonb) ->> 'unapplied_crc') || ' ' || ((:'p1'::jsonb) #>> '{money,status}')
                || ' ' || ((:'p1'::jsonb) #>> '{money,credit}'), 'true 0.00 135600.00 paid 0.00',
                '1 ₡135 600 (with IVA) before the goods: registered, nothing to apply yet; the order shows «Pagado», no credit (IVA allowance before the invoice)');
+select test.eq(test.stock514(), :'stock514a', '1 a payment before the goods moves no stock: the units on hand and the stock moves are as they were');
 select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401","amount":1,"method":"sinpe","reference":"x"}', '5d000000-0000-4000-8000-000000051401', '0000'),
                '{"ok":true,"repeat":true,"id":"5d000000-0000-4000-8000-000000051401"}'::jsonb, '1 the same request again (a lost answer) is a repeat, before any PIN');
 select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051402","amount":1000,"method":"sinpe","reference":"202611058841"}', '5d000000-0000-4000-8000-000000051402'),
@@ -110,6 +117,7 @@ select public.proveedor_factura_registrar('5b000000-0000-4000-8000-000000051401'
          array(select id from public.purchase_receipts where po_id = '9a000000-0000-4000-8000-000000051402'),
          jsonb_build_object('number', 'F-502', 'date', public.cr_today(), 'net', 60000, 'iva', 7800), '5e000000-0000-4000-8000-000000051402') as f2 \gset
 select test.eq((:'f2'::jsonb) ->> 'open_crc' || ' ' || test.st514('9a000000-0000-4000-8000-000000051402'), '67800.00 pending 67800.00 0.00', '3 invoiced, nothing paid: «Pago pendiente»');
+select test.stock514() as stock514b \gset
 select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401","po_id":"9a000000-0000-4000-8000-000000051402","amount":10000,"method":"card_debit"}',
                  '5d000000-0000-4000-8000-000000051403') ->> 'applied_crc', '10000.00', '3 ₡10 000 by debit card (no reference): applied at once to its invoice');
 select test.eq(test.st514('9a000000-0000-4000-8000-000000051402'), 'partial 67800.00 10000.00', '3 «Parcialmente pagado»');
@@ -119,6 +127,7 @@ select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401",
                  '5d000000-0000-4000-8000-000000051404') ->> 'ok', 'true', '3 yes, another one');
 select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401","po_id":"9a000000-0000-4000-8000-000000051402","amount":47800,"method":"card_credit","reference":"VISA 4417"}',
                  '5d000000-0000-4000-8000-000000051405') #>> '{money,status}', 'paid', '3 the rest by credit card: «Pagado»');
+select test.eq(test.stock514(), :'stock514b', '3 card payments after the goods move no stock either (units on hand, stock moves)');
 reset role;
 select test.eq((select string_agg(l.account || ':' || l.credit, ' ') from acct.lines l join acct.entries e on e.id = l.entry_id
                  where e.source_key = 'supadv:5d000000-0000-4000-8000-000000051405' and l.credit > 0), '2160:47800.00', '3 a credit card payment is owed to the card (2160)');
@@ -205,6 +214,37 @@ select test.eq((select number from public.supplier_invoices where id = '5e000000
                '6 an invoice without a number gets «S/N-<fecha>-…»');
 select test.eq((select invoice_no from public.purchase_receipts where id = '7e000000-0000-4000-8000-000000051405') = (select number from public.supplier_invoices where id = '5e000000-0000-4000-8000-000000051405'),
                true, '6 written on the delivery');
+-- «No modificar cajas abiertas»: with today's register open, an employee's delivery, a SINPE and a card payment, the
+-- invoice and a correction leave the register's day and every drawer movement exactly as they were
+select test.eq((select count(*)::int from public.register_days where business_date = public.cr_today() and closed_at is null), 1, '6 (today''s register is open)');
+select (select md5(r::text) from public.register_days r where r.business_date = public.cr_today()) as reg514,
+       (select count(*) || ':' || md5(coalesce(string_agg(c::text, '|' order by c.id), '')) from public.cash_movements c) as cash514 \gset
+select test.login('cafe'); select test.session('dev-514'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+select test.eq(test.order514('9a000000-0000-4000-8000-000000051461', 3, false), 'sent', '6 (an order of 3 boxes: ₡36 000)');
+select test.turno(test.staff('luis'), '5284', 'Bodega') as tok514 \gset
+select test.eq(public.proveedor_recibir('9a000000-0000-4000-8000-000000051461', '7e000000-0000-4000-8000-000000051461', test.v514('9a000000-0000-4000-8000-000000051461'),
+                 jsonb_build_array(jsonb_build_object('line_id', test.line514('9a000000-0000-4000-8000-000000051461'), 'packs', 3)), :'tok514') ->> 'status', 'received',
+               '6 Luis, on shift, receives the 3 boxes');
+select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401","po_id":"9a000000-0000-4000-8000-000000051461","amount":20000,"method":"sinpe","reference":"FT-51466001"}',
+                 '5d000000-0000-4000-8000-000000051461') ->> 'unapplied_crc', '20000.00', '6 ₡20 000 by SINPE (waits for the invoice)');
+select test.eq(test.pay514('{"vendor_id":"5b000000-0000-4000-8000-000000051401","po_id":"9a000000-0000-4000-8000-000000051461","amount":7120,"method":"card_debit","reference":"VISA 6602"}',
+                 '5d000000-0000-4000-8000-000000051462') ->> 'unapplied_crc', '7120.00', '6 ₡7 120 by debit card');
+select test.eq(public.proveedor_recepcion_corregir('7e000000-0000-4000-8000-000000051461', '7e000000-0000-4000-8000-000000051462',
+                 jsonb_build_array(jsonb_build_object('line_id', test.line514('9a000000-0000-4000-8000-000000051461'), 'packs_delta', -1)), 'Eran 2 cajas, no 3') ->> 'status',
+               'partially_received', '6 a correction: 2 boxes came, not 3');
+select public.proveedor_factura_registrar('5b000000-0000-4000-8000-000000051401', array['7e000000-0000-4000-8000-000000051461']::uuid[],
+         jsonb_build_object('number', 'F-561', 'date', public.cr_today(), 'net', 24000, 'iva', 3120), '5e000000-0000-4000-8000-000000051461') as f61 \gset
+select test.eq((:'f61'::jsonb) ->> 'total_crc' || ' ' || ((:'f61'::jsonb) ->> 'applied_crc') || ' ' || ((:'f61'::jsonb) ->> 'open_crc'), '27120.00 27120.00 0.00',
+               '6 the invoice of the 2 boxes (the correction with it) takes both payments');
+reset role;
+select test.eq((select count(*)::int from public.purchase_receipts where po_id = '9a000000-0000-4000-8000-000000051461') || ' '
+               || (select count(*) from public.supplier_advances where id in ('5d000000-0000-4000-8000-000000051461', '5d000000-0000-4000-8000-000000051462')),
+               '2 2', '6 (the delivery, its correction and the two payments are recorded)');
+select test.eq((select md5(r::text) from public.register_days r where r.business_date = public.cr_today()), :'reg514',
+               '6 «No modificar cajas abiertas»: today''s register row is exactly as it was');
+select test.eq((select count(*) || ':' || md5(coalesce(string_agg(c::text, '|' order by c.id), '')) from public.cash_movements c), :'cash514',
+               '6 and so is every drawer movement (amounts, voids, everything)');
+select test.eq((select count(*)::int from public.register_days where business_date = public.cr_today() and closed_at is null), 1, '6 the register is still open');
 
 -- 7) a dollar invoice -----------------------------------------------------------------------------------------------------------
 select test.login('cafe'); select test.session('dev-514'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
@@ -294,10 +334,40 @@ select test.eq((select coalesce(sum(l.debit - l.credit), 0) from acct.lines l jo
 \pset format aligned
 select test.eq((select string_agg(key || '=' || value, ' ' order by key collate "C") from jsonb_each_text((:'cons514'::jsonb) -> 'after')
                  where key in ('receipts_total_vs_moves', 'sinpe_payments_without_reference', 'payments_applied_above_amount', 'advances_ledger_vs_unapplied',
-                               'vendors_unapplied_with_open_invoices', 'advances_unapplied_over_30_days', 'purchase_moves_at_zero_cost', 'posted_days_with_purchases_not_posted')),
+                               'vendors_unapplied_with_open_invoices', 'advances_unapplied_over_30_days', 'purchase_moves_at_zero_cost', 'posted_days_with_purchases_not_posted',
+                               'proveedores_dangling_references')),
                'advances_ledger_vs_unapplied=0 advances_unapplied_over_30_days=0 payments_applied_above_amount=0 posted_days_with_purchases_not_posted=0 '
-               || 'purchase_moves_at_zero_cost=0 receipts_total_vs_moves=0 sinpe_payments_without_reference=0 vendors_unapplied_with_open_invoices=0',
+               || 'proveedores_dangling_references=0 purchase_moves_at_zero_cost=0 receipts_total_vs_moves=0 sinpe_payments_without_reference=0 vendors_unapplied_with_open_invoices=0',
                '9 consistency-check.sql: every Proveedores check is 0');
+-- proveedores_dangling_references counts what has no foreign key to hold it: in a savepoint (rolled back at once, the
+-- results kept in psql variables), a correction pointing at no delivery, then also a payment pointing at no order
+select (select corrects::text from public.purchase_receipts where id = '7e000000-0000-4000-8000-000000051462') as corr514,
+       (select id::text || ' ' || po_id::text from public.supplier_payments where advance_id = '5d000000-0000-4000-8000-000000051461') as sppo514 \gset
+savepoint dangling514;
+update public.purchase_receipts set corrects = gen_random_uuid() where id = '7e000000-0000-4000-8000-000000051462';
+\pset format unaligned
+\pset tuples_only on
+\o :tmp514
+\ir ../../supabase/tools/consistency-check.sql
+\o
+\set dang514a `cat :'tmp514'`
+update public.supplier_payments set po_id = gen_random_uuid() where advance_id = '5d000000-0000-4000-8000-000000051461';
+\o :tmp514
+\ir ../../supabase/tools/consistency-check.sql
+\o
+\set dang514b `cat :'tmp514'`
+\pset tuples_only off
+\pset format aligned
+rollback to savepoint dangling514;
+release savepoint dangling514;
+select test.eq((:'dang514a'::jsonb) #>> '{after,proveedores_dangling_references}', '1',
+               '9 consistency-check.sql: a correction whose delivery does not exist is counted (proveedores_dangling_references = 1)');
+select test.eq((:'dang514b'::jsonb) #>> '{after,proveedores_dangling_references}', '2', '9 and a payment whose order does not exist too (= 2)');
+select test.eq((select corrects::text from public.purchase_receipts where id = '7e000000-0000-4000-8000-000000051462') || ' '
+               || (select id::text || ' ' || po_id::text from public.supplier_payments where advance_id = '5d000000-0000-4000-8000-000000051461'),
+               :'corr514' || ' ' || :'sppo514', '9 (rolled back: the correction and the payment point where they did)');
+select test.eq(:'corr514' || ' ' || split_part(:'sppo514', ' ', 2), '7e000000-0000-4000-8000-000000051461 9a000000-0000-4000-8000-000000051461',
+               '9 (the correction of Luis''s delivery, the payment of its order)');
 -- a delivery after the day was posted, with the automatic posting off: the check names that day
 select test.login('cafe'); select test.session('dev-514'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
 select test.eq(test.order514('9a000000-0000-4000-8000-000000051408', 1, true), 'received', '9 (one more box received after the day was posted, automatic posting off)');
@@ -311,6 +381,7 @@ reset role;
 \pset tuples_only off
 \pset format aligned
 select test.eq((:'cons514'::jsonb) #>> '{after,posted_days_with_purchases_not_posted}', '1', '9 consistency-check.sql: one posted day has purchases not posted yet');
+select test.eq((:'cons514'::jsonb) #>> '{after,proveedores_dangling_references}', '0', '9 consistency-check.sql: no dangling reference again after the savepoint');
 
 select test.done();
 rollback;

@@ -206,6 +206,47 @@ module.exports.tests = [
       assert.match(await text(pg.locator('#docLines thead')), /Faltó/i);
       assert.strictEqual(await pg.locator(`#docLines tr.miss[data-line="${P.lineOf(b.id, I.yogur)}"]`).count(), 1, 'marked as missing');
       assert.ok(Number(sql(`select count(*) from audit_log where action = 'po_close'`)) === 1 && Number(sql(`select count(*) from audit_log where action = 'po_cancel'`)) === 1);
+      // 15.F8 «Consultar historial»: Pedidos › Historial lists both, the cancelled one and the received one; neither is open
+      await P.nav(pg, '#p=' + V.lac + '&t=pedidos', '#hist .orow');
+      await P.seen(pg.locator('#fTab h3').nth(1), /^Historial$/, 'the history heading, in Spanish', 5000);
+      await P.seen(pg.locator(`#hist .orow[data-po="${a.id}"]`), new RegExp('^Pedido Nº ' + a.po_number + ' Cancelado\\b'), 'the cancelled order in the history', 5000);
+      await P.seen(pg.locator(`#hist .orow[data-po="${b.id}"]`), new RegExp('^Pedido Nº ' + b.po_number + ' Recibido\\b'), 'the received order in the history', 5000);
+      assert.deepStrictEqual(await pg.locator('#hist .orow').evaluateAll((l) => l.map((r) => r.dataset.po)), [b.id, a.id], 'the two closed orders, newest first');
+      assert.strictEqual(await pg.locator(`#fTab .olist:not(#hist) .orow[data-po="${a.id}"], #fTab .olist:not(#hist) .orow[data-po="${b.id}"]`).count(), 0, 'not among the open orders');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: '15.F8 the history pages on: «Ver más» after 30 closed orders brings the rest in the file\'s order (two made at the same moment at the edge: none repeated, none skipped), then goes away',
+    run: async ({ browser }) => {
+      P.seed();
+      // 33 closed orders of Finca La Fresa, one a day, received and cancelled in turns; the 30th and the 31st share their
+      // moment, so the first page (30) ends between the two (the file sorts created_at desc, then id)
+      const id = (k) => '6d000000-0000-4000-8000-000000f8' + String(k).padStart(4, '0');
+      sql(`insert into purchase_orders (id, vendor_id, status, created_at, sent_at, received_at, by_name)
+           select ('6d000000-0000-4000-8000-000000f8' || lpad(k::text, 4, '0'))::uuid, '${V.fin}', case when k % 3 = 0 then 'cancelled' else 'received' end,
+                  t, t, case when k % 3 = 0 then null else t + interval '1 hour' end, 'Dueño'
+             from generate_series(1, 33) k
+             cross join lateral (select date_trunc('second', now()) - make_interval(days => case when k = 31 then 30 else k end) as t) x`);
+      const order = sql(`select string_agg(id::text, ',' order by created_at desc, id) from purchase_orders where vendor_id = '${V.fin}' and status in ('received', 'cancelled')`).split(',');
+      assert.strictEqual(order.length, 33);
+      assert.deepStrictEqual([order[29], order[30]], [id(30), id(31)], 'the tie sits on the edge of the first page');
+      assert.strictEqual(sql(`select count(distinct created_at) from purchase_orders where id in ('${id(30)}', '${id(31)}')`), '1', 'the same moment');
+      const pg = await P.owner(browser, { hash: '#p=' + V.fin + '&t=pedidos', wait: '#hist .orow' });
+      const shown = () => pg.locator('#hist .orow').evaluateAll((l) => l.map((r) => r.dataset.po));
+      assert.deepStrictEqual(await shown(), order.slice(0, 30), 'the first 30, newest first');
+      const no = (k) => sql(`select po_number from purchase_orders where id = '${id(k)}'`);
+      await P.seen(pg.locator(`#hist .orow[data-po="${id(1)}"]`), new RegExp('^Pedido Nº ' + no(1) + ' Recibido\\b'), 'a received one, in Spanish', 5000);
+      await P.seen(pg.locator(`#hist .orow[data-po="${id(3)}"]`), new RegExp('^Pedido Nº ' + no(3) + ' Cancelado\\b'), 'a cancelled one, in Spanish', 5000);
+      const more = pg.locator('#fTab button', { hasText: 'Ver más' });
+      await more.waitFor({ timeout: 5000 });
+      await more.click();
+      await until(async () => (await shown()).length >= 33, 8000, 'the rest appended');
+      await pg.waitForTimeout(300);   // nothing more arrives after it
+      assert.deepStrictEqual(await shown(), order, 'all 33 in the file\'s order: the order made at the same moment as the 30th is there, none twice');
+      await P.seen(pg.locator(`#hist .orow[data-po="${id(31)}"]`), new RegExp('^Pedido Nº ' + no(31) + ' Recibido\\b'), 'the 31st, past the edge', 3000);
+      assert.strictEqual(await pg.locator('#fTab button', { hasText: /Ver más|See more/ }).count(), 0, '«Ver más» is gone: nothing more to show');
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
     }

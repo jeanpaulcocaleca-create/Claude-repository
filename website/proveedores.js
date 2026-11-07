@@ -514,6 +514,14 @@
     if (q.recibir) return viewRecibir(gen, q.recibir);
     if (q.alerta) return viewAlerta(gen, q.alerta);
     if ('nuevo' in q) return viewNuevo(gen);
+    if (q.p && 'edit' in q) {
+      /* from the list's «Editar»: the file, then its form open (the hash loses «edit», so a reload does not reopen it) */
+      return viewFicha(gen, q.p, q.t, q.item).then(function () {
+        if (stale(gen) || !FICHA || FICHA.vendor.id !== q.p || !$('fEditBtn') || $('vendorForm')) return;
+        SKIP_HASH = true; location.replace('#p=' + encodeURIComponent(q.p) + (q.t ? '&t=' + encodeURIComponent(q.t) : '')); PREV_HASH = location.hash;
+        editVendor(FICHA.vendor);
+      });
+    }
     if (q.p) return viewFicha(gen, q.p, q.t, q.item);
     return viewHub(gen);
   }
@@ -884,10 +892,16 @@
     if (sd) b.push('<span class="pill gold">' + esc(sd > 0 ? 'Unapplied payment for ' + sd + ' days now' : 'Unapplied payment older than 30 days') + '</span>');
     if (!v.active) b.push('<span class="pill mute">' + esc('inactive') + '</span>');
     var contact = [v.contact_name, v.phone || v.whatsapp].filter(Boolean);
-    a.innerHTML = '<span class="t">' + nt(v.name) + '</span>' + (contact.length ? '<span class="d">' + contact.map(nt).join(' · ') + '</span>' : '') +
+    a.innerHTML = '<span class="t" id="vn-' + esc(v.id) + '">' + nt(v.name) + '</span>' + (contact.length ? '<span class="d">' + contact.map(nt).join(' · ') + '</span>' : '') +
       (v.last_order_at ? '<span class="d">' + esc('Last order ' + fmtD(v.last_order_at)) + '</span>' : '') +
       (b.length ? '<span class="badges">' + b.join('') + '</span>' : '');
-    return a;
+    if (!(FLAGS.can_manage || FLAGS.can_owner || isBooksDoor())) return a;
+    /* «Editar» from the list (request §2): it opens the file with its «Editar proveedor» form, where «Desactivar» is */
+    var w = el('div', 'vwrap'); w.appendChild(a);
+    var e = document.createElement('a'); e.className = 'btnlink small vedit'; e.href = '#p=' + encodeURIComponent(v.id) + '&edit=1'; e.textContent = 'Edit';
+    e.setAttribute('aria-describedby', 'vn-' + v.id);   /* «Editar» … which one: the card's name (no 'Edit {x}' pattern in lang.js) */
+    w.appendChild(e);
+    return w;
   }
 
   /* ---------- 8) «Asociar proveedor»: an alert whose item has no active preferred supplier ---------- */
@@ -1708,8 +1722,8 @@
     row.appendChild(el('span', 't', esc('Order Nº ' + (o.po_number || ''))));
     var d = el('span', 'd');
     var tot = Number(o.received_total) > 0 ? 'received ' + fmt(o.received_total) : 'estimated ' + fmt(o.est_total);
-    d.innerHTML = statusPill(o.status) + payPill(o.money) + ' · <span>' + esc(fmtD(o.created_at)) + '</span> · <span>' + esc((o.lines || 0) + ' lines') + '</span>' +
-      (Number(o.pending_lines) > 0 && o.status !== 'received' && o.status !== 'cancelled' ? ' · <span>' + esc(o.pending_lines + ' pending') + '</span>' : '') + ' · <span>' + esc(tot) + '</span>' +
+    d.innerHTML = statusPill(o.status) + payPill(o.money) + ' · <span>' + esc(fmtD(o.created_at)) + '</span> · <span>' + esc(Number(o.lines) === 1 ? '1 line' : (o.lines || 0) + ' lines') + '</span>' +
+      (Number(o.pending_lines) > 0 && o.status !== 'received' && o.status !== 'cancelled' ? ' · <span>' + esc(Number(o.pending_lines) === 1 ? '1 pending' : o.pending_lines + ' pending') + '</span>' : '') + ' · <span>' + esc(tot) + '</span>' +
       (o.close_requested ? ' · <span class="pill gold">' + esc('The rest is not coming') + '</span>' : '');
     row.appendChild(d);
     var a = el('span', 'acts');
@@ -1727,7 +1741,7 @@
   function renderPedidos(body, F) {
     var V = F.vendor, open = [], closed = [];
     (F.orders || []).forEach(function (o) { (/^(draft|sent|partially_received)$/.test(o.status) ? open : closed).push(o); });
-    body.appendChild(el('h3', '', esc('Open orders')));
+    body.appendChild(el('h3', '', esc('Open orders with this supplier')));
     var ol = el('div', 'olist'); open.forEach(function (o) { ol.appendChild(orderCard(o, V.id)); });
     if (!open.length) ol.appendChild(el('p', 'empty', esc('No open orders with this supplier.')));
     body.appendChild(ol);
@@ -1736,16 +1750,16 @@
     closed.forEach(function (o) { hl.appendChild(orderCard(o, V.id)); });
     if (!closed.length) hl.appendChild(el('p', 'empty', esc('Nothing received yet.')));
     body.appendChild(hl);
-    var before = closed.length ? closed[closed.length - 1].created_at : null;
+    var before = closed.length ? closed[closed.length - 1].created_at : null, beforeId = closed.length ? closed[closed.length - 1].id : null;
     if (closed.length >= 30) {
       var more = btn('See more', 'ghost small', async function () {
         more.disabled = true;
-        var r = await rpc('proveedor_historial', { p_vendor_id: V.id, p_before: before, p_limit: 50 });
+        var r = await rpc('proveedor_historial', { p_vendor_id: V.id, p_before: before, p_limit: 50, p_before_id: beforeId });
         more.disabled = false;
         if (!r.ok) { if (!r.handled) toast(errText(r)); return; }
         var rows = r.orders || [];
         rows.forEach(function (o) { hl.appendChild(orderCard(o, V.id)); });
-        if (rows.length) before = rows[rows.length - 1].created_at;
+        if (rows.length) { before = rows[rows.length - 1].created_at; beforeId = rows[rows.length - 1].id; }
         if (rows.length < 50) more.remove();
       });
       body.appendChild(more);

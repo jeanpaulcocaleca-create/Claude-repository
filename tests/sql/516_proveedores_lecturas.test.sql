@@ -3,7 +3,9 @@
 -- nobody; the new tables are closed (row security, no rule, no right). A café device without the owner areas, a work
 -- session's holder against management, and the accountant against orders and the catalog get «locked». What an employee
 -- on shift reads has exactly the keys it needs to receive (no money, no contact, no SINPE); management reads money, the
--- SINPE (the payment notes only at the books' door) and the order's history.
+-- SINPE (the payment notes only at the books' door) and the order's history. Deliveries and stock moves are written by no
+-- page and no visitor. «Consultar historial»: closed orders come after the open ones, and «Ver más» walks them page by
+-- page with no order skipped or repeated, two made at the same moment included.
 begin;
 insert into public.vendors (id, name, phone, email, payment_notes) values ('5b000000-0000-4000-8000-000000051601', 'Lácteos Monteverde', '2645-0000', 'ventas@lacteos.test', 'Cuenta IBAN de prueba');
 insert into public.vendor_pay_info (vendor_id, sinpe, updated_by) values ('5b000000-0000-4000-8000-000000051601', '8888-0000', 'Dueño (owner)');
@@ -50,9 +52,22 @@ select test.eq((select string_agg(conname, ' ' order by conname collate "C") fro
                || 'purchase_receipt_lines_observed_pack_price_finite purchase_receipt_lines_pack_price_finite purchase_receipt_lines_pack_qty_finite purchase_receipt_lines_packs_finite '
                || 'purchase_receipt_lines_qty_finite purchase_receipt_lines_unit_cost_finite supplier_advances_amount_crc_finite vendor_items_pack_qty_finite '
                || 'vendor_items_usual_price_finite vendor_items_usual_qty_finite', '1 every new number has its finite check');
+-- deliveries and stock moves are written only by the owner-rights functions: no page and no visitor writes them, not even
+-- one column (anon does not even read the deliveries)
+select test.eq((select coalesce(string_agg(r || ':' || t || ':' || p, ' ' order by r, t, p), '')
+                  from (values ('anon'), ('authenticated')) r0(r) cross join (values ('purchase_receipts'), ('stock_moves')) t0(t)
+                  cross join (values ('insert'), ('update'), ('delete'), ('truncate')) p0(p)
+                 where has_table_privilege(r, ('public.' || t)::regclass, p)
+                    or (p in ('insert', 'update') and has_any_column_privilege(r, ('public.' || t)::regclass, p))), '',
+               '1 authenticated and anon may not insert, update, delete or truncate purchase_receipts or stock_moves');
+select test.eq(has_table_privilege('anon', 'public.purchase_receipts', 'select') or has_any_column_privilege('anon', 'public.purchase_receipts', 'select')
+               or has_table_privilege('anon', 'public.stock_moves', 'select') or has_any_column_privilege('anon', 'public.stock_moves', 'select'), false,
+               '1 anon cannot even read purchase_receipts (nor stock_moves)');
 select test.login('anon'); set role anon;
 select test.throws($$select public.proveedores_lista()$$, 'permission denied', '1 a visitor (anon) cannot call them');
 select test.throws($$select public.turno_aqui('a1000000-0000-4000-8000-000000000002', '0000')$$, 'permission denied', '1 nor start a work session');
+select test.throws($$select count(*) from public.purchase_receipts$$, 'permission denied', '1 nor read the deliveries');
+select test.throws($$delete from public.stock_moves$$, 'permission denied', '1 nor delete a stock move');
 reset role;
 select test.login('cafe'); select test.session('dev-516'); set role authenticated;
 select test.throws($$select public._prov_dinero(gen_random_uuid())$$, 'permission denied', '1 a page cannot call an internal one');
@@ -172,6 +187,104 @@ select test.eq(public.turno_aqui(test.staff('luis'), '5284') ->> 'error', 'no_ac
 reset role;
 select test.eq((select count(*)::int from public.purchase_orders) || ' ' || (select count(*) from public.purchase_receipts) || ' ' || (select count(*) from public.stock_moves),
                '3 1 1', '4 reads change nothing');
+
+-- 5) «Consultar historial»: closed orders after the open ones, then «Ver más» page by page -----------------------------------
+-- the page's «Ver más»: each next page starts after the last order shown (its created_at and id); returns every id read
+-- in order, how many pages, and their sizes
+create function test.walk516(v uuid, lim int, b timestamptz default null, bid uuid default null, out ids text, out pages int, out sizes text)
+language plpgsql as $$
+declare r jsonb; n int;
+begin
+  ids := ''; pages := 0; sizes := '';
+  loop
+    r := public.proveedor_historial(v, b, lim, bid);
+    if r ->> 'ok' is distinct from 'true' then ids := 'error ' || r::text; return; end if;
+    n := jsonb_array_length(r -> 'orders');
+    exit when n = 0;
+    pages := pages + 1; sizes := ltrim(sizes || ' ' || n);
+    ids := ltrim(ids || ' ' || (select string_agg(o ->> 'id', ' ' order by k) from jsonb_array_elements(r -> 'orders') with ordinality x(o, k)));
+    b := (r #>> array['orders', (n - 1)::text, 'created_at'])::timestamptz;
+    bid := (r #>> array['orders', (n - 1)::text, 'id'])::uuid;
+    exit when n < lim or pages >= 100;
+  end loop;
+end $$;
+-- the closed orders of the supplier in the file's order (created_at desc, id), with their place
+create function test.closed516() returns table (rn bigint, id uuid, created_at timestamptz) language sql security definer as $$
+  select row_number() over (order by o.created_at desc, o.id), o.id, o.created_at from public.purchase_orders o
+   where o.vendor_id = '5b000000-0000-4000-8000-000000051601' and o.status in ('received', 'cancelled') $$;
+select test.login('cafe'); select test.session('dev-516'); select test.unlock(test.staff('ana'), '4826'); set role authenticated;
+-- one order received in full, one cancelled (both made now: newer than the draft of yesterday)
+select public.proveedor_pedido_crear('5b000000-0000-4000-8000-000000051601', jsonb_build_array(jsonb_build_object('vendor_item_id', :'vi', 'packs', 1)), null,
+                                     '9a000000-0000-4000-8000-000000051604') ->> 'ok' as c4 \gset
+select test.eq(public.proveedor_recibir('9a000000-0000-4000-8000-000000051604', '7e000000-0000-4000-8000-000000051604',
+                 (public.proveedor_pedido('9a000000-0000-4000-8000-000000051604') #>> '{order,version}')::int,
+                 (select jsonb_agg(jsonb_build_object('line_id', id, 'rest', true)) from public.purchase_lines where po_id = '9a000000-0000-4000-8000-000000051604'))
+                 ->> 'status', 'received', '5 (an order received in full)');
+select public.proveedor_pedido_crear('5b000000-0000-4000-8000-000000051601', jsonb_build_array(jsonb_build_object('vendor_item_id', :'vi', 'packs', 2)), null,
+                                     '9a000000-0000-4000-8000-000000051605') ->> 'ok' as c5 \gset
+select test.eq(public.proveedor_pedido_cancelar('9a000000-0000-4000-8000-000000051605', (public.proveedor_pedido('9a000000-0000-4000-8000-000000051605') #>> '{order,version}')::int,
+                 'Ya no hace falta') ->> 'status', 'cancelled', '5 (and one cancelled)');
+select public.proveedor_ficha('5b000000-0000-4000-8000-000000051601') as h1 \gset
+select test.eq((select string_agg((o ->> 'status') || ':' || right(o ->> 'id', 5), ' ' order by k) from jsonb_array_elements((:'h1'::jsonb) -> 'orders') with ordinality x(o, k)),
+               'partially_received:51601 draft:51603 received:51604 cancelled:51605',
+               '5 the file lists the open orders first (the draft of yesterday included), then the received and the cancelled one, newer as they are');
+select test.eq((select string_agg(test.keys516(o), ' | ') from jsonb_array_elements((:'h1'::jsonb) -> 'orders') x(o) where o ->> 'status' in ('received', 'cancelled')),
+               'close_requested created_at est_total expected_on id lines money pending_lines po_number received_at received_total sent_at status | '
+               || 'close_requested created_at est_total expected_on id lines money pending_lines po_number received_at received_total sent_at status',
+               '5 a closed order is read like any other in the file');
+select test.eq((select (o ->> 'received_total') || ' ' || ((o ->> 'received_at') is not null) from jsonb_array_elements((:'h1'::jsonb) -> 'orders') x(o) where o ->> 'status' = 'received'),
+               '12000.00 true', '5 the received one with what came and when');
+-- 33 more closed orders of the past half hour (received or cancelled); two pairs made at the same moment fall on rows 10–11
+-- and 30–31: the edge of a 10-order page and of the file's 30 closed orders. The ids run against the order they were made in.
+reset role;
+insert into public.purchase_orders (id, vendor_id, status, created_at, received_at)
+select ('9a000000-0000-4000-8000-00000516' || lpad((100 - k)::text, 4, '0'))::uuid, '5b000000-0000-4000-8000-000000051601',
+       case when k % 3 = 0 then 'cancelled' else 'received' end,
+       now() - make_interval(mins => case k when 9 then 8 when 29 then 28 else k end),
+       case when k % 3 <> 0 then now() - make_interval(mins => k) end
+  from generate_series(1, 33) k;
+select test.eq((select count(*)::int from test.closed516()), 35, '5 (35 closed orders)');
+select test.eq((select string_agg(a.rn::text, ' ' order by a.rn) from test.closed516() a join test.closed516() b on b.rn = a.rn + 1 and b.created_at = a.created_at),
+               '1 10 30', '5 (orders made at the same moment: rows 1–2, the two above, and the pairs on rows 10–11 and 30–31)');
+select (select string_agg(id::text, ' ' order by rn) from test.closed516()) as all516,
+       (select string_agg(id::text, ' ' order by rn) from test.closed516() where rn <= 30) as first30,
+       (select string_agg(id::text, ' ' order by rn) from test.closed516() where rn between 21 and 30) as rows21_30,
+       (select created_at from test.closed516() where rn = 20) as at20 \gset
+set role authenticated;
+select public.proveedor_ficha('5b000000-0000-4000-8000-000000051601') as h2 \gset
+select test.eq((select string_agg(o ->> 'id', ' ' order by k) from jsonb_array_elements((:'h2'::jsonb) -> 'orders') with ordinality x(o, k)
+                 where o ->> 'status' in ('received', 'cancelled')), :'first30', '5 the file shows the 30 newest closed orders, in created_at desc, id order');
+select test.eq(jsonb_array_length((:'h2'::jsonb) -> 'orders'), 32, '5 after the 2 open ones');
+-- «Ver más» from the last one the file shows (row 30, the first of a pair): the rest, row 31 (its twin) included
+select w.ids as more516, w.pages as more516p, w.sizes as more516s from (
+  select * from test.walk516('5b000000-0000-4000-8000-000000051601', 50,
+                             ((:'h2'::jsonb) #>> '{orders,31,created_at}')::timestamptz, ((:'h2'::jsonb) #>> '{orders,31,id}')::uuid)) w \gset
+select test.eq(:'first30' || ' ' || :'more516', :'all516', '5 «Ver más» after the file''s 30: the other 5, the twin of the last one shown included; none twice');
+select test.eq(:'more516p' || ' ' || :'more516s', '1 5', '5 (one page of 5)');
+-- page by page from the start: 10 at a time (a pair on two page edges), then 1 at a time (every row an edge)
+select w.ids as walk10, w.pages || ' ' || w.sizes as walk10s from test.walk516('5b000000-0000-4000-8000-000000051601', 10) w \gset
+select test.eq(:'walk10'::text, :'all516', '5 10 per page: every closed order exactly once (no skip, no repeat), in created_at desc, id order');
+select test.eq(:'walk10s'::text, '4 10 10 10 5', '5 (4 pages: 10 10 10 5)');
+select w.ids as walk1, w.pages as walk1p from test.walk516('5b000000-0000-4000-8000-000000051601', 1) w \gset
+select test.eq(:'walk1'::text, :'all516', '5 1 per page: the same 35, each once, in the same order');
+select test.eq(:'walk1p'::int, 35, '5 (35 pages)');
+-- the 3-argument call of an older page (no p_before_id) still works: what was made before that moment
+select test.eq((select string_agg(o ->> 'id', ' ' order by k) from jsonb_array_elements(public.proveedor_historial('5b000000-0000-4000-8000-000000051601', :'at20', 10) -> 'orders')
+                  with ordinality x(o, k)), :'rows21_30', '5 proveedor_historial(vendor, before, limit) as before: the 10 made before row 20');
+select test.eq((select string_agg(o ->> 'id', ' ' order by k) from jsonb_array_elements(public.proveedor_historial(p_vendor_id => '5b000000-0000-4000-8000-000000051601',
+                  p_before => :'at20', p_limit => 10) -> 'orders') with ordinality x(o, k)), :'rows21_30', '5 and by name, as an older copy of the page sends it through the API');
+-- the page size stays 1..100
+select test.eq((select string_agg(coalesce(r ->> 'error', 'ok ' || jsonb_array_length(r -> 'orders')), ' ') from (values
+                  (public.proveedor_historial('5b000000-0000-4000-8000-000000051601', :'at20', 0, gen_random_uuid())),
+                  (public.proveedor_historial('5b000000-0000-4000-8000-000000051601', :'at20', 101, gen_random_uuid())),
+                  (public.proveedor_historial('5b000000-0000-4000-8000-000000051601', null, null, gen_random_uuid())),
+                  (public.proveedor_historial('5b000000-0000-4000-8000-000000051601', null, 100, null)),
+                  (public.proveedor_historial('5b000000-0000-4000-8000-000000051601', p_limit => 100))) v(r)),
+               'bad_request bad_request bad_request ok 35 ok 35', '5 with p_before_id too, the page size is 1..100 (0, 101, none refused; 100 reads all 35)');
+select test.login('cafe'); select test.session('dev-516-r'); set role authenticated;
+select test.eq(public.proveedor_historial('5b000000-0000-4000-8000-000000051601', :'at20', 10, gen_random_uuid()), '{"ok":false,"error":"locked"}'::jsonb,
+               '5 a café device without the owner areas: «locked» (with p_before_id too)');
+reset role;
 
 select test.done();
 rollback;

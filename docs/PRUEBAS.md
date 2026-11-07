@@ -303,36 +303,44 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   misma transacción; un pedido repetido o un borrador viejo nunca hacen un segundo pedido; editar antes y después de
   recibir con su versión y su historial; cancelar, cerrar lo pendiente, confirmar, asignar proveedor; lo que escribe
   directo la página publicada sigue funcionando, mueve la versión y nunca toca las columnas nuevas.
-- `tests/sql/512_proveedores_recibir.test.sql` (71): recibir como encargado: lo que trajo cada entrega por línea, junto
+- `tests/sql/512_proveedores_recibir.test.sql` (73): recibir como encargado: lo que trajo cada entrega por línea, junto
   a su movimiento; 2 cajas de 12 suman 24; entregas completas y parciales (10 pedidas, 6 y después 4); una entrega nunca
   suma dos veces (un reintento, otro aparato con una versión vieja, la página publicada y la nueva sobre el mismo
   pedido); más de lo pedido solo si el encargado lo dice; un precio distinto se registra y se lista mientras el precio del
   catálogo se queda; el total de la entrega es lo que asentaron los movimientos; una entrega mal recibida se corrige con
-  una nueva, nada se borra; una entrega después del cierre de la caja entra en el asiento del día.
-- `tests/sql/513_proveedores_turnos.test.sql` (66): «Recibe en este aparato»: una persona en turno recibe sin PIN en la
+  una nueva, nada se borra; una entrega después del cierre de la caja entra en el asiento del día; la bitácora de cada
+  entrega guarda lo pedido, lo recibido antes, lo recibido ahora y lo que falta, y la línea del pedido sigue diciendo lo
+  pedido.
+- `tests/sql/513_proveedores_turnos.test.sql` (72): «Recibe en este aparato»: una persona en turno recibe sin PIN en la
   llamada de recibir, con una sesión que el servidor revisa cada vez (escribió su propio PIN, con «Estoy en turno aquí» o
   en «¿Quién cobra?» de la Caja del mismo aparato, en ese inicio de sesión, durante su turno abierto); deja de servir al
   marcar la salida, a las 16 horas, en otro ingreso, en otro inicio de sesión del aparato (hasta que `turno_estado` la
   mueve y cambia la llave), con un PIN nuevo o una desactivación; una sola persona por inicio de sesión; lo que puede
   hacer quien está en turno (recibir, nunca más de lo pendiente, sus precios nunca se registran; avisar lo que llegó de
-  más y que no llega el resto) y nada más.
-- `tests/sql/514_proveedores_pagos.test.sql` (94): facturas y pagos: SINPE con su número obligatorio y una sola vez para
+  más y que no llega el resto) y nada más: no puede borrar ni cambiar la entrega que registró ni sus movimientos.
+- `tests/sql/514_proveedores_pagos.test.sql` (112): facturas y pagos: SINPE con su número obligatorio y una sola vez para
   todos los proveedores (también escrito de otra forma), tarjeta con referencia opcional y la pregunta por un pago casi
   igual; todo pago pasa por la 1160 y se aplica a las facturas (Dr 2101 / Cr 1160) solo en las llamadas explícitas;
   antes o después de recibir y de la factura, parcial o total: Pendiente / Parcialmente pagado / Pagado; más del saldo
   solo con puesto de dueño y motivo; la recepción con pago de la página publicada sigue funcionando con un pago sin
   aplicar; los retiros de la gaveta de esa página se documentan con la factura y cuentan como pagados; las anulaciones
-  revierten y no borran; el libro cuadra (2101 y 1160).
+  revierten y no borran; el libro cuadra (2101 y 1160); un pago, antes o después de recibir, no mueve el inventario; con
+  la caja abierta, una entrega de quien está en turno, un SINPE, una tarjeta, una factura y una corrección no cambian la
+  caja ni sus movimientos («No modificar cajas abiertas»); `consistency-check` cuenta una corrección o un pago que apunta
+  a algo que no existe.
 - `tests/sql/515_proveedores_alertas.test.sql` (17): las alertas usan la regla y los niveles de `inventory_stats(30)`
   (agotado, bajo, por acabarse; punto de reorden, nivel par, el uso en los días de entrega), apuntan al catálogo del
   proveedor preferido (la presentación más chica) y nunca vuelven a sugerir lo que ya está pedido a cualquier proveedor
   («Ya pedido» con sus números); solo para encargados; `inventory_alerts` no cambia.
-- `tests/sql/516_proveedores_lecturas.test.sql` (44): quién puede llamar qué y qué lee cada uno: cada función nueva con
+- `tests/sql/516_proveedores_lecturas.test.sql` (67): quién puede llamar qué y qué lee cada uno: cada función nueva con
   los derechos del dueño y su ruta de búsqueda fija, ninguna para un visitante ni para PUBLIC, las internas para nadie;
   las tablas nuevas cerradas; una tableta sin áreas abiertas, quien está en turno frente a lo de encargados, y el
   contador frente a pedidos y catálogo reciben `locked`; lo que lee quien está en turno tiene exactamente las claves que
   necesita para recibir (sin montos, contactos ni SINPE); los encargados leen los montos, el SINPE (las notas de pago
-  solo en la puerta de los libros) y el historial.
+  solo en la puerta de los libros) y el historial; una página no puede escribir ni borrar entregas ni movimientos (un
+  visitante ni siquiera los lee); «Consultar historial»: la ficha lista primero lo abierto y después los 30 pedidos
+  recibidos o cancelados más nuevos, y «Ver más» trae los demás, cada uno una vez, también con dos pedidos del mismo
+  momento justo en el borde de una página.
 - `tests/sql/517_proveedores_saldo_favor.test.sql` (41): lo que corrigió la revisión independiente sobre permisos y
   dinero: cambiar el SINPE pide el PIN de alguien con puesto de dueño en la misma llamada (un PIN equivocado cuenta, uno
   bloqueado se niega, el que se anota es quien escribió el PIN); un «¿Quién cobra?» de antes de marcar la entrada, o de
@@ -374,12 +382,14 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   entrega cuyos artículos tiene tomados una venta contesta «busy» sin registrar nada, la venta pasa, y la entrega pasa al
   intentarla otra vez. Una sincronización que nunca ocurrió cuenta como falla. Lo corre `tests/run-sql.sh` después de
   los archivos SQL cuando no se le da un patrón.
-- `tests/e2e/specs/410_proveedores_centro.spec.js` (9): el centro en la tableta del café con el PIN de un encargado: las
+- `tests/e2e/specs/410_proveedores_centro.spec.js` (10): el centro en la tableta del café con el PIN de un encargado: las
   alertas arriba, los proveedores con sus avisos, la búsqueda y los filtros, añadir, editar, el SINPE, desactivar; las
   alertas de Inicio y de Inventario abren al proveedor preferido con el artículo marcado en dorado y sin la casilla
   marcada; «Asociar proveedor»; las pestañas viejas de Inventario llevan aquí; las seis alertas del centro son las más
-  urgentes (un agotado nunca queda escondido detrás de «Ver todas»).
-- `tests/e2e/specs/411_proveedores_pedir.spec.js` (12): pedir con casillas (marcar, desmarcar, cantidades, el total en
+  urgentes (un agotado nunca queda escondido detrás de «Ver todas»); «Editar» en cada tarjeta del centro abre la ficha
+  con «Editar proveedor» abierto (allí está «Desactivar»; el contador ve solo el SINPE), sin volver a abrirse al recargar
+  y sin tapar el nombre a 360 px.
+- `tests/e2e/specs/411_proveedores_pedir.spec.js` (16): pedir con casillas (marcar, desmarcar, cantidades, el total en
   vivo, «+ Producto nuevo» sin perder lo marcado, «Crear pedido» con un toque doble hace un solo pedido, 2 cajas de 12
   son 24 unidades); el borrador que se guarda solo (vuelve al recargar, otro aparato abre el del servidor, un aparato
   viejo recibe «changed» y puede tomar el otro o unir); dos aparatos sobre el mismo borrador («Crear pedido» apagado
@@ -387,12 +397,17 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   y volver sin un conflicto falso; un producto retirado del catálogo sale del borrador con su aviso; la cantidad sugerida
   de una alerta se reemplaza con la primera tecla (también con el teclado de la tableta), nunca «62»; «Repetir último
   pedido» y «Duplicar»; un pedido solo con el teclado; un guardado del borrador cuya respuesta se perdió y un cambio
-  más después: nunca «se cambió en otro aparato» ni vuelve lo que se desmarcó; el tiempo de un pedido habitual.
-- `tests/e2e/specs/412_proveedores_documento.spec.js` (5): el documento del pedido: «Pedido Nº n» y sus estados;
+  más después: nunca «se cambió en otro aparato» ni vuelve lo que se desmarcó; cada fila con su presentación y su precio
+  habitual, y una sin precio habitual que pide el precio; buscar por nombre, por el código del proveedor y por la
+  presentación; la cantidad habitual y la del último pedido como sugerencia; el tiempo de un pedido habitual con
+  «Repetir último pedido» (3 toques, unos 0,35 s de máquina) y marcando uno por uno (6 productos y 2 cantidades: 10
+  toques y una tecla, menos de 1 s de máquina).
+- `tests/e2e/specs/412_proveedores_documento.spec.js` (6): el documento del pedido: «Pedido Nº n» y sus estados;
   Copiar (proveedor, productos, cantidades, nota; sin precios, personal, SINPE ni datos internos), PDF (un PDF real: sus
   bytes, su texto, sus páginas) e Imprimir (A4: una página para un pedido corto, ninguna en blanco después de uno largo,
   nada de la página alrededor; el título del PDF se lee bien con tildes, «Ñ» y comillas); editar antes y después de una
-  entrega parcial (el historial); «changed» desde otro aparato; cancelar; cerrar lo pendiente.
+  entrega parcial (el historial); «changed» desde otro aparato; cancelar; cerrar lo pendiente; Pedidos → Historial con
+  los recibidos y los cancelados, y «Ver más» con más de 30 (sin repetir ni saltar ninguno).
 - `tests/e2e/specs/413_proveedores_recibir.spec.js` (14): una persona en turno recibe sin otro PIN («Estoy en turno
   aquí» una vez, o «¿Quién cobra?» de la Caja en el mismo aparato, sin ningún PIN aquí); «Todo recibido correctamente» de
   un toque (2 cajas de 12 → +24); una entrega parcial (6 de 10, después las 4); el precio visto se anota y nunca se
@@ -403,9 +418,10 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   este aparato») no impide que la tableta se actualice; el contador nunca ve «Recibir»; «Recibe: el dueño» en español;
   un periodo de pago aprobado tiene su texto; lo que escribió una persona no pasa al formulario de otra (un encargado
   que abre las áreas después, otro empleado); corregir una entrega de la página anterior se lee en cajas («registrado
-  1 × caja de 12») y −1 devuelve una caja; las correcciones de un encargado como registro nuevo; el tiempo de una
-  entrega correcta.
-- `tests/e2e/specs/414_proveedores_pagos.spec.js` (10): SINPE sin su número se rechaza, el mismo número dos veces
+  1 × caja de 12») y −1 devuelve una caja; las correcciones de un encargado como registro nuevo; después de una entrega
+  parcial, «Pedidos abiertos» con «Parcialmente recibido» y lo pendiente, y «Parcialmente recibidos: 1» en el centro; el
+  tiempo de una entrega correcta (2 toques, unos 0,2 s de máquina).
+- `tests/e2e/specs/414_proveedores_pagos.spec.js` (13): SINPE sin su número se rechaza, el mismo número dos veces
   también (con espacios o guiones); tarjeta con referencia opcional; parcial → «Parcialmente pagado», total → «Pagado»;
   un pago antes de recibir que la factura aplica («Registrar factura» con «13 %» y «Sin IVA»); más del saldo: rechazado
   para un encargado, el dueño lo registra a favor con un motivo; un pago con tarjeta igual al anterior pregunta primero;
@@ -414,12 +430,15 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   (ni al cambiar de moneda ni al marcar entregas); una factura escrita vuelve con su número, sus entregas marcadas y
   sus montos después de un ingreso vencido; una corrección de Proveedores aparece dentro de la entrega que corrige y va
   en su factura; en Contabilidad, «Nueva factura» cuenta esa corrección con su entrega (sin diferencia falsa) y la
-  tarjeta del proveedor nombra sus pagos en español.
+  tarjeta del proveedor nombra sus pagos en español; Contabilidad aplica primero lo pagado en Proveedores (en una
+  factura y antes de un pago, que se vuelve a abrir con lo que falta), no registra nada si no puede revisarlo y lo dice,
+  y sin la función de la 0040 registra pagos y facturas como antes; anular ahí un pago aplicado desde Proveedores
+  pregunta primero; bajo el número SINPE, que no es una verificación del banco.
 - `tests/e2e/specs/415_proveedores_aparatos.spec.js` (5): sin internet, «Sin conexión…» y nada se pierde (una entrega y
   un pedido salen cuando vuelve la conexión); un ingreso vencido muestra el ingreso y lo escrito vuelve después (nunca el
   PIN); al cerrarse las áreas de dueños todo lo de encargados sale de la pantalla; un teléfono (360×740), una tableta
   (820×1180) y una computadora (1280×860): sin desplazamiento lateral, botones de 44 px (también la «×» del editor del
-  pedido).
+  pedido); en la pantalla táctil, los toques reales (marcar, «+», el teclado numérico, «Todo recibido correctamente»).
 - `tests/e2e/specs/160_purchasing.spec.js` y `290_receive.spec.js`: las compras y la recepción de antes (0012, 0029), ahora
   por Proveedores; `300_recipes` y `340_pin_autofill` ajustadas (la recepción en Existencias; las casillas de PIN nuevas).
 

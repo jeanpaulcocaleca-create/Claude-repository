@@ -1,8 +1,10 @@
 /* Proveedores (D-067) · devices: without internet «Sin conexión…» and nothing is lost (a receipt and an order go once
    the connection is back); an expired sign-in shows the login view and the typed form comes back afterwards (never the
    PIN); when the unlock ends (the pill's Lock) every piece of management data leaves the screen; a phone (360×740), a
-   tablet (820×1180) and a desktop (1280×860): no sideways scroll, 44 px targets; the idle sign-out only for the owner with
-   the phone code (never while a form is dirty, never on the café tablet). */
+   tablet (820×1180) and a desktop (1280×860): no sideways scroll, 44 px targets, and on the two touch screens the key
+   actions tapped (a tick, the stepper's «+», a keypad digit, «Estoy en turno aquí» on the PIN pad, «Todo recibido
+   correctamente»); the idle sign-out only for the owner with the phone code (never while a form is dirty, never on the
+   café tablet). */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, settle, sql, STAFF, PINS } = require('../lib');
@@ -130,13 +132,43 @@ module.exports.tests = [
       P.receive(o.id, [{ line: P.lineOf(o.id, I.leche), rest: true }]);
       for (const size of [{ width: 360, height: 740 }, { width: 820, height: 1180 }, { width: 1280, height: 860 }]) {
         const w = size.width + '×' + size.height;
+        /* the phone and the tablet have a touch screen (device()): there the key actions are taps, touch events rather
+           than mouse clicks (audit 15.I5), and their results are checked */
+        const touch = size.width < 1024;
         const pg = await device(browser, size, { login: 'owner', aal: 'aal2' });
         await goto(pg, '/proveedores');
         await pg.waitForSelector('#hubVendors .vcard');
         await P.layoutOk(pg, w + ' hub');
         await P.nav(pg, '#p=' + V.lac, '#pList .prow');
-        await pg.locator(`#pList .prow[data-vi="${P.vi(I.leche)}"] .ck input`).check();
+        const milk = pg.locator(`#pList .prow[data-vi="${P.vi(I.leche)}"]`), yog = pg.locator(`#pList .prow[data-vi="${P.vi(I.yogur)}"]`);
+        if (touch) {
+          await P.seen(pg.locator('#pSum'), /^0 productos · Total estimado ₡0$/, w + ': nothing ticked yet', 3000);
+          await milk.locator('.ck input').tap();
+          await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡20 400$/, w + ': a tap on the box ticks the milk (the last order\'s 2 boxes)', 3000);
+          await milk.locator('button[data-a=plus]').tap();
+          await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡30 600$/, w + ': the stepper\'s «+» tapped: three boxes', 3000);
+          assert.strictEqual(await milk.locator('.step input').inputValue(), '3', w);
+        } else await milk.locator('.ck input').check();
         await P.layoutOk(pg, w + ' file');
+        if (touch) {
+          /* the number pad under the yogurt's box: a tapped digit is the quantity and ticks it; its ✓ closes the pad */
+          await yog.locator('.step input').tap();
+          const pad = yog.locator('.hg-pad');
+          await pad.waitFor({ state: 'visible', timeout: 3000 });
+          await pad.locator('button', { hasText: /^3$/ }).tap();
+          assert.strictEqual(await yog.locator('.step input').inputValue(), '3', w + ': the keypad\'s 3');
+          assert.strictEqual(await yog.locator('.ck input').isChecked(), true, w + ': typing on the pad ticks it');
+          await P.seen(pg.locator('#pSum'), /^2 productos · Total estimado ₡44 100$/, w + ': 30 600 + 3 × 4 500', 3000);
+          await pad.locator('.ok').tap();
+          await pad.waitFor({ state: 'hidden', timeout: 3000 });
+          /* untick both with a tap: the next device opens this supplier with an empty draft */
+          await yog.locator('.ck input').tap();
+          await milk.locator('.ck input').tap();
+          await P.seen(pg.locator('#pSum'), /^0 productos · Total estimado ₡0$/, w + ': a tap unticks', 3000);
+          /* an emptied draft is discarded on the server: nothing ticked waits there for the next device */
+          await until(async () => !/Guardando|Saving/.test(await text(pg.locator('#pStatus'))) &&
+                                  sql(`select count(*) from purchase_drafts where vendor_id = '${V.lac}' and status = 'open' and jsonb_array_length(lines) > 0`) === '0', 8000, w + ': the emptied draft saved');
+        }
         for (const t of ['pedidos', 'pagos', 'productos']) { await P.nav(pg, '#p=' + V.lac + '&t=' + t, '#fTab > *'); await P.layoutOk(pg, w + ' ' + t); }
         await P.nav(pg, '#pedido=' + o.id, '#orderDoc');
         await P.layoutOk(pg, w + ' order');
@@ -152,12 +184,32 @@ module.exports.tests = [
         await P.layoutOk(pg, w + ' receive (management)');
         const emp = await device(browser, size, { login: 'cafe' });
         await goto(emp, '/proveedores');
-        await P.iAmHere(emp, 'luis');
+        const since = sql(`select now()::text`);
+        await P.iAmHere(emp, 'luis', { tap: touch });   /* on a touch screen: the name, the PIN pad's digits and its ✓ tapped */
+        if (touch) {
+          await P.seen(emp.locator('#modeBar'), /^Recibe: Luis/, w + ': Luis receives on this device', 3000);
+          assert.strictEqual(sql(`select count(*) from work_sessions where staff_id = '${STAFF.luis}' and ended_at is null and how = 'pin' and started_at >= '${since}'`), '1',
+                             w + ': the server started his work session with the PIN');
+        }
         await P.layoutOk(emp, w + ' receive list (employee)');
         await P.nav(emp, '#recibir=' + o.id, '#recvCard');
         await P.layoutOk(emp, w + ' receive form (employee)');
         const big = await emp.locator('#recvAll').boundingBox();
         assert.ok(big.height >= 60, w + ': «Todo recibido correctamente» is a big button (' + big.height + ')');
+        if (touch) {
+          /* «Todo recibido correctamente» tapped, on a delivery of its own (the order above stays for the next device) */
+          const t = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+          const stock = () => Number(sql(`select on_hand from stock_items where id = '${I.leche}'`));
+          const before = stock();
+          await P.nav(emp, '#recibir=' + t.id, '#recvAll');
+          await P.seen(emp.locator('#recvAll'), /^Todo recibido correctamente$/, w + ': the big button, in Spanish', 3000);
+          await emp.locator('#recvAll').tap();
+          await emp.waitForSelector('#recvDone', { timeout: 10000 });
+          await P.seen(emp.locator('#recvDone'), /^Pedido recibido, existencias actualizadas 2 × Leche entera Recibir otro pedido$/, w + ': received', 3000);
+          assert.strictEqual(stock() - before, 24, w + ': 2 boxes of 12 into stock, once');
+          assert.strictEqual(sql(`select o.status || '|' || count(r.*) || '|' || string_agg(r.by_name, ',') from purchase_orders o join purchase_receipts r on r.po_id = o.id where o.id = '${t.id}' group by o.status`),
+                             'received|1|Luis (en turno)', w + ': one delivery, by Luis');
+        }
         for (const p of [pg, emp]) { assert.deepStrictEqual(p.errors, [], w); assert.deepStrictEqual(p.apiErrors, [], w); await p.context().close(); }
       }
     }

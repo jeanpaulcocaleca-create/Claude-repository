@@ -888,15 +888,20 @@ async function invoiceForm(v){
       var r = await db.rpc('supplier_invoice_save', {p_invoice: x, p_request_id: req});
       if (r.error || !r.data || !r.data.ok){ footErr(r.data && r.data.error === 'bad_account' ? 'Pick what the invoice was for.' : errText(r)); return; }
       var applied = await applyProvPayments(v.id);
-      forget(); toast(applied > 0 ? 'Invoice saved · {x} paid in Proveedores applied to it'.replace('{x}', fmt(applied)) : 'Invoice saved'); render(); vendorCard(v);
+      forget(); toast(applied == null ? 'Invoice saved · the payments made in Proveedores could not be applied yet: they go to it on the next invoice or payment of this supplier' : applied > 0 ? 'Invoice saved · {x} paid in Proveedores applied to it'.replace('{x}', fmt(applied)) : 'Invoice saved'); render(); vendorCard(v);
     });
   });
 }
 /* Proveedores (0040) registers SINPE and card payments before or after the invoice and applies them to invoices only by
-   its own calls: an invoice saved here, or a payment about to be recorded here, takes them first. Nothing before 0040. */
+   its own calls: an invoice saved here, or a payment about to be recorded here, takes them first. Nothing before 0040
+   (the function does not exist: 0). Any other failure is null: a payment is then not recorded here (it could pay again
+   what Proveedores already paid), and a saved invoice says its Proveedores payments are still to be applied. */
 async function applyProvPayments(vid){
-  try { var r = await db.rpc('proveedor_anticipos_aplicar', {p_vendor_id: vid}); return r && !r.error && r.data && r.data.ok ? Number(r.data.applied_crc) || 0 : 0; }
-  catch (e){ return 0; }
+  try {
+    var r = await db.rpc('proveedor_anticipos_aplicar', {p_vendor_id: vid});
+    if (r && r.error) return /PGRST202|42883|Could not find the function/.test(String(r.error.code || '') + ' ' + String(r.error.message || '')) ? 0 : null;
+    return r && r.data && r.data.ok ? Number(r.data.applied_crc) || 0 : null;
+  } catch (e){ return null; }
 }
 var ADV_VOID = 'This only undoes the application: the Proveedores payment stays unapplied and does not go to this invoice again. To void the payment itself, use Proveedores › Pagos.';
 async function paymentForm(v){
@@ -915,6 +920,7 @@ async function paymentForm(v){
     busy(this, async function(){
       /* a payment already registered in Proveedores goes to these invoices first: never paid twice */
       var applied = await applyProvPayments(v.id);
+      if (applied == null){ footErr('Could not check the payments made in Proveedores, so nothing was recorded. Try again.'); return; }
       if (applied > 0){ forget(); toast('{x} paid in Proveedores was applied to this supplier\'s invoices first. Check what is still owed.'.replace('{x}', fmt(applied))); paymentForm(v); return; }
       var r = await db.rpc('supplier_payment_save', {p_payment: {vendor_id: v.id, amount_crc: amt, paid_from: B.querySelector('#vp-pm').value, date: B.querySelector('#vp-date').value, reference: B.querySelector('#vp-ref').value.trim() || null, invoice_ids: B.querySelector('#vp-inv').value ? [B.querySelector('#vp-inv').value] : [], payout_id: B.querySelector('#vp-pm').value === 'payout' ? (B.querySelector('#vp-payout').value || null) : null}, p_request_id: req});
       if (r.error || !r.data || !r.data.ok){ footErr(errText(r)); return; }

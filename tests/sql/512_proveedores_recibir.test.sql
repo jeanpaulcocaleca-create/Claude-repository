@@ -4,6 +4,8 @@
 -- with an older version, the published page and the new one on the same order); more than ordered only when management
 -- says so; a different price is booked and listed while the catalog price stays; the delivery's total is what the moves
 -- booked; a wrong delivery is corrected by a new one, nothing deleted; a delivery after the day's register close is posted.
+-- The log of each delivery keeps, per line, what was ordered, received before, received now and still pending; the order
+-- line keeps what was ordered.
 begin;
 insert into public.vendors (id, name) values ('5b000000-0000-4000-8000-000000051201', 'Lácteos Monteverde');
 insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack, avg_cost) values
@@ -73,6 +75,15 @@ select test.eq((select string_agg(packs::text, ' ' order by receipt_id) from pub
                '6.0000 4.0000', '2 each delivery''s line: 6, then 4');
 select test.eq((select string_agg(final::text, ' ' order by received_at, id) from public.purchase_receipts where po_id = '9a000000-0000-4000-8000-000000051202'), 'false true',
                '2 the second delivery completes the order');
+-- the history of each delivery: what was ordered, what had come before, what came now, what is still to come
+select test.eq((select string_agg(jsonb_array_length(a.details -> 'lines') || ':' || (a.details #>> '{lines,0,item}') || ' ' || (a.details #>> '{lines,0,ordered_qty}')
+                                  || ' ' || (a.details #>> '{lines,0,received_before}') || ' ' || (a.details #>> '{lines,0,received_now}')
+                                  || ' ' || (a.details #>> '{lines,0,pending_after}'), ' | ' order by a.id)
+                  from public.audit_log a where a.action = 'stock_receive' and a.details ->> 'receipt_id' in ('7e000000-0000-4000-8000-000000051202', '7e000000-0000-4000-8000-000000051203')),
+               '1:Queso 20000.0000 0 12000.0000 8000.0000 | 1:Queso 20000.0000 12000.0000 8000.0000 0.0000',
+               '2 the log of each delivery keeps ordered / received before / received now / still to come (20 000 g: 0 + 12 000, then 12 000 + 8 000)');
+select test.eq((select packs || ' ' || qty || ' ' || received_qty from public.purchase_lines where id = test.line512('9a000000-0000-4000-8000-000000051202')::uuid),
+               '10 20000.0000 20000.0000', '2 the order line still says what was ordered (10 blocks, 20 000 g): receiving never rewrites it');
 set role authenticated;
 select test.eq(public.proveedor_recibir('9a000000-0000-4000-8000-000000051202', '7e000000-0000-4000-8000-000000051204', test.v512('9a000000-0000-4000-8000-000000051202'),
                  jsonb_build_array(jsonb_build_object('line_id', test.line512('9a000000-0000-4000-8000-000000051202'), 'packs', 1))) ->> 'error',

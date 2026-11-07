@@ -94,7 +94,7 @@ drop function if exists public.proveedor_anticipos_aplicar(uuid);
 drop function if exists public.proveedor_factura_anular(uuid, text);
 drop function if exists public.proveedor_factura_registrar(uuid, uuid[], jsonb, uuid);
 drop function if exists public.proveedor_ficha(uuid, text);
-drop function if exists public.proveedor_historial(uuid, timestamptz, int);
+drop function if exists public.proveedor_historial(uuid, timestamptz, int, uuid);
 drop function if exists public.proveedor_pago_anular(uuid, text, uuid, text);
 drop function if exists public.proveedor_pago_registrar(jsonb, uuid, uuid, text);
 drop function if exists public.proveedor_pedido(uuid, text);

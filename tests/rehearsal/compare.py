@@ -55,7 +55,7 @@ ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'discoun
 # before the window (a purchase booked at cost 0 by an old page, say) is reported by the tool, not made a difference here
 PROVEEDORES = ('receipts_total_vs_moves', 'sinpe_payments_without_reference', 'payments_applied_above_amount', 'advances_ledger_vs_unapplied',
                'vendors_unapplied_with_open_invoices', 'advances_unapplied_over_30_days', 'purchase_moves_at_zero_cost',
-               'posted_days_with_purchases_not_posted')
+               'posted_days_with_purchases_not_posted', 'proveedores_dangling_references')
 rows = lambda fp: int(fp.split(':')[0])   # a data fingerprint is 'rows:md5 of every original column'
 # every setting the migrations define and the value each one has until the owner or the accountant decides otherwise
 # (CLAUDE.md: prices as today, no automatic books, no e-invoices, no payroll rule, no receipt photos, operators not enforced,

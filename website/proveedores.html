@@ -120,6 +120,9 @@ label.f{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
 .vcard:hover{border-color:var(--muted);box-shadow:0 8px 22px rgba(30,75,51,.1)}
 .vcard .t{font-family:'Playfair Display',Georgia,serif;font-size:1.15rem}
 .vcard .d{font-size:.88rem;color:var(--sec);overflow-wrap:anywhere}
+.vwrap{position:relative;display:flex;min-width:0}
+.vwrap>.vcard{flex:1 1 auto;padding-right:5.6rem}
+.vwrap>.vedit{position:absolute;top:.55rem;right:.6rem;background:#fff}
 .badges{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.2rem}
 .olist{display:flex;flex-direction:column;gap:.5rem}
 .orow{display:flex;gap:.4rem .8rem;align-items:center;flex-wrap:wrap;border:1.5px solid var(--muted);border-radius:12px;padding:.55rem .8rem;background:#fff;min-width:0}
@@ -344,7 +347,7 @@ input[data-pin]{-webkit-text-security:disc}
       <div><label class="f" for="payDate">Date</label><input id="payDate" type="date"></div>
     </div>
     <p class="hint" id="paySaldo"></p>
-    <div id="payRefSinpe"><label class="f" for="payRef">SINPE confirmation number</label><input id="payRef" maxlength="40" autocomplete="off" inputmode="text"></div>
+    <div id="payRefSinpe"><label class="f" for="payRef">SINPE confirmation number</label><input id="payRef" maxlength="40" autocomplete="off" inputmode="text" aria-describedby="payRefNote"><p class="hint" id="payRefNote">The number is typed by whoever records the payment: it is not a check by the bank. Accounting confirms it when it matches the bank statement.</p></div>
     <div id="payRefCard" hidden><label class="f" for="payRefC">Reference (optional)</label><input id="payRefC" maxlength="80" autocomplete="off"></div>
     <div id="payExcessBox" hidden>
       <label class="checkline"><input type="checkbox" id="payExcess"> <span>It is an overpayment (stays in favour)</span></label>

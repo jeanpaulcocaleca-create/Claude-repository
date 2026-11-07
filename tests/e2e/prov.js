@@ -214,11 +214,22 @@ async function iAmHere(pg, who, opts) {
   await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 15000 });
   await settle(pg);
   const name = { ana: 'Ana', luis: 'Luis', marta: 'Marta', dueno: 'Dueño' }[who];
-  await pg.locator(`#turnoView .who button[data-staff="${STAFF[who]}"]`).click();
-  await pg.locator('#tqPin').pressSequentially(PINS[who]);   /* typed key by key: keypad.js wipes a PIN that was not typed */
-  /* on a touch screen the PIN pad is open under the box: its ✓ sends the form (a tap elsewhere first closes the pad) */
-  const ok = pg.locator('#tqPin + .hg-pad .ok');
-  if (await ok.isVisible()) await ok.click(); else await pg.click('#turnoGo');
+  if (opts.tap) {
+    /* a touch screen driven with touch events: the name, each digit on the PIN pad and the pad's ✓ (which sends the
+       «Estoy en turno aquí» form) are taps */
+    await pg.locator(`#turnoView .who button[data-staff="${STAFF[who]}"]`).tap();
+    const pad = pg.locator('#tqPin + .hg-pad');
+    await pad.waitFor({ state: 'visible', timeout: 3000 });
+    for (const d of PINS[who]) await pad.locator('button', { hasText: new RegExp('^' + d + '$') }).tap();
+    if ((await pg.inputValue('#tqPin')).length !== PINS[who].length) throw new Error('the PIN pad\'s taps did not type the PIN');   /* never prints it */
+    await pad.locator('.ok').tap();
+  } else {
+    await pg.locator(`#turnoView .who button[data-staff="${STAFF[who]}"]`).click();
+    await pg.locator('#tqPin').pressSequentially(PINS[who]);   /* typed key by key: keypad.js wipes a PIN that was not typed */
+    /* on a touch screen the PIN pad is open under the box: its ✓ sends the form (a tap elsewhere first closes the pad) */
+    const ok = pg.locator('#tqPin + .hg-pad .ok');
+    if (await ok.isVisible()) await ok.click(); else await pg.click('#turnoGo');
+  }
   if (opts.wait !== false) {
     try { await until(async () => plain(await pg.locator('#modeBar').textContent()).includes(name), 10000, name + ' receives on this device'); }
     catch (e) { throw new Error(e.message + ' · the PIN box said: «' + plain(await pg.locator('#turnoErr').textContent()) + '» · ' + plain(await pg.locator('#turnoView').innerText()).slice(0, 300)); }
@@ -236,7 +247,13 @@ const toast = async (pg) => plain(await pg.locator('#toast').textContent());
 async function untoast(pg) { await pg.evaluate(() => { const t = document.getElementById('toast'); if (t) t.textContent = ''; }); }
 async function toasted(pg, re, what, ms) {
   try { await until(async () => re.test(await toast(pg)), ms || 10000, what); }
-  catch (e) { throw new Error(e.message + ' · toast: «' + (await toast(pg)) + '» · main: ' + plain(await pg.locator('#main').textContent()).slice(0, 400)); }
+  catch (e) {
+    /* what was on the screen besides the toast: an open window and its error line, the API's failed calls, page errors */
+    const win = await pg.evaluate(() => Array.from(document.querySelectorAll('[id$="Modal"]:not([hidden])')).map((m) => m.id + ' «' +
+      Array.from(m.querySelectorAll('.err')).map((x) => x.textContent.trim()).filter(Boolean).join(' / ') + '»').join(', ')).catch(() => '?');
+    throw new Error(e.message + ' · toast: «' + (await toast(pg)) + '» · open windows: ' + (win || 'none') + ' · api: ' + ((pg.apiErrors || []).join('; ') || 'none') +
+      ' · page errors: ' + ((pg.errors || []).join('; ') || 'none') + ' · main: ' + plain(await pg.locator('#main').textContent()).slice(0, 400));
+  }
 }
 /* no horizontal page scroll; every visible button / link / input / select of the page at least 44 px high (and wide,
    for buttons and the checkboxes' targets) */

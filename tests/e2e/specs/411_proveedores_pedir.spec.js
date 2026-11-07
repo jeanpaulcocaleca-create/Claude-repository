@@ -2,7 +2,9 @@
    losing the ticks, «Crear pedido» (a double tap makes ONE order; 2 boxes of 12 are 24 units on the order); the draft
    saves itself (a reload brings it back; another device opens the server's; a stale device is told «changed» and may
    take the other's or merge; the base_version rules on open); «Repetir último pedido» and «Duplicar»; an order made
-   with the keyboard only; and the speed target of a habitual order (timed, taps counted). */
+   with the keyboard only; the speed target of a habitual order, repeated and tick by tick (timed, taps counted); what
+   each row says (presentation, units, usual price; a product without one asks for its price); the search; the usual
+   quantity as the suggestion. */
 'use strict';
 const assert = require('assert');
 const { page, goto, until, sql } = require('../lib');
@@ -377,6 +379,9 @@ module.exports.tests = [
       const pg = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
       await pg.focus('#pSearch');
       await pg.keyboard.type('leche');
+      /* the search filters (else the milk's box is reached with Tab anyway, after Crema dulce's controls) */
+      await until(async () => (await pg.locator('#pList .prow').count()) === 1, 3000, 'only the milk is listed');
+      assert.strictEqual(await pg.locator('#pList .prow').getAttribute('data-vi'), P.vi(I.leche));
       const ck = row(pg, I.leche).locator('.ck input');
       for (let i = 0; i < 8 && !(await ck.evaluate((e) => e === document.activeElement)); i++) await pg.keyboard.press('Tab');
       assert.ok(await ck.evaluate((e) => e === document.activeElement), 'the checkbox is reached with Tab');
@@ -416,6 +421,141 @@ module.exports.tests = [
       assert.ok(taps <= 3, 'three taps');
       assert.ok(ms < 6000, 'under 6 s on the test machine: ' + ms);
       assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    /* audit 1.exp1: the order made tick by tick (no earlier order to repeat), timed the same way */
+    name: 'speed, tick by tick: from the hub, open the file, tick 6 products, change 2 quantities, «Crear pedido» (timed, taps counted)',
+    run: async ({ browser }) => {
+      P.seed();
+      const pg = await P.owner(browser, { wait: '#hubVendors .vcard' });
+      let taps = 0, keys = 0;
+      const t0 = await pg.evaluate(() => performance.now());
+      await pg.click(`#hubVendors .vcard[data-vendor="${V.lac}"]`); taps++;
+      for (const it of [I.crema, I.leche, I.mant, I.natilla, I.queso, I.yogur]) { await row(pg, it).locator('.ck input').check(); taps++; }
+      await row(pg, I.leche).locator('button[data-a=plus]').click(); taps++;        /* 1 → 2 boxes */
+      await row(pg, I.crema).locator('.step input').fill('4'); taps++; keys++;      /* the box tapped, 4 typed over the 1 */
+      await P.seen(pg.locator('#pSum'), /^6 productos · Total estimado ₡47 600$/, '2 × 10 200 + 4 500 + 5 200 + 3 100 + 4 × 2 100 + 6 000', 3000);
+      await pg.click('#pCreate'); taps++;
+      await pg.waitForSelector('#orderDoc', { timeout: 10000 });
+      const ms = Math.round((await pg.evaluate(() => performance.now())) - t0);
+      console.log(`        speed · order of 6 products ticked one by one, 2 quantities changed: ${taps} taps and ${keys} key, ${ms} ms from opening the file to the document`);
+      assert.strictEqual(sql(`select string_agg(i.name || ':' || trim_scale(l.packs), ', ' order by i.name) from purchase_lines l join stock_items i on i.id = l.item_id`),
+        'Crema dulce:4, Leche entera:2, Mantequilla:1, Natilla:1, Queso turrialba:1, Yogur natural:1', 'the order has what was ticked and changed');
+      assert.strictEqual(sql(`select count(*) from purchase_orders`), '1');
+      assert.ok(taps <= 10, 'ten taps at most: ' + taps);
+      assert.ok(ms < 10000, 'under 10 s on the test machine: ' + ms);
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    /* audit 3.row3, 3.row4 */
+    name: 'each Pedir row says its presentation, units and usual price without IVA; a product with no usual price: «sin precio habitual», its price box once ticked, «Crear pedido» asks for the price, then the order goes with it (the catalog price stays empty)',
+    run: async ({ browser }) => {
+      P.seed();
+      const azu = '5c000000-0000-4000-8000-00000000b411';   /* sugar at Lácteos too, without a usual price */
+      sql(`insert into vendor_items (id, vendor_id, item_id, pack_label, pack_qty, usual_price, created_by) values ('${azu}', '${V.lac}', '${I.azucar}', 'bolsa de 2 kg', 2, null, 'test')`);
+      const pg = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      const az = pg.locator(`#pList .prow[data-vi="${azu}"]`);
+      await P.seen(row(pg, I.leche).locator('.ds'), /^caja de 12 · 12 unidades · ₡10 200 sin IVA$/, 'the milk: presentation · units · usual price', 5000);
+      await P.seen(row(pg, I.queso).locator('.ds'), /^1 kg · ₡5 200 sin IVA$/, 'the cheese: no presentation name, by the kilo', 3000);
+      await P.seen(row(pg, I.mant).locator('.ds'), /^barra de 500 g · 500 g · ₡3 100 sin IVA$/, 'the butter, in grams', 3000);
+      await P.seen(row(pg, I.crema).locator('.ds'), /^cartón de 946 ml · 946 ml · ₡2 100 sin IVA$/, 'the cream, in millilitres', 3000);
+      await P.seen(az.locator('.ds'), /^bolsa de 2 kg · 2 kg · sin precio habitual$/, 'no usual price, said', 3000);
+      assert.strictEqual(await az.locator('.px').isVisible(), false, 'no price box before it is ticked');
+      assert.strictEqual(await row(pg, I.leche).locator('.px').count(), 0, 'a product with a usual price has no price box');
+      await row(pg, I.leche).locator('.ck input').check();
+      await az.locator('.ck input').check();
+      await az.locator('.px').waitFor({ state: 'visible', timeout: 3000 });
+      await P.seen(az.locator('.px label'), /^Precio por presentación sin IVA \(₡\)$/, 'the price box, in Spanish', 3000);
+      await P.seen(pg.locator('#pSum'), /^2 productos · Total estimado ₡10 200 · 1 sin precio$/, 'the bar says one has no price', 3000);
+      await pg.click('#pCreate');
+      await P.seen(pg.locator('#pErr'), /^Escriba el precio de Azúcar\.$/, 'the price asked for, in Spanish', 3000);
+      assert.ok(await pg.locator(`#px-${azu}`).evaluate((e) => e === document.activeElement), 'the price box is focused');
+      assert.strictEqual(sql(`select count(*) from purchase_orders`), '0', 'no order without the price');
+      await pg.fill(`#px-${azu}`, '1800');
+      await P.seen(pg.locator('#pSum'), /^2 productos · Total estimado ₡12 000$/, 'the typed price counts', 3000);
+      assert.strictEqual(await text(pg.locator('#pErr')), '', 'the message goes once a price is typed');
+      await pg.click('#pCreate');
+      await pg.waitForSelector('#orderDoc', { timeout: 10000 });
+      assert.strictEqual(sql(`select string_agg(i.name || ':' || trim_scale(l.packs) || ':' || trim_scale(l.qty) || ':' || trim_scale(round(l.unit_cost * l.pack_qty, 2)), ', ' order by i.name)
+                                from purchase_lines l join stock_items i on i.id = l.item_id`), 'Azúcar:1:2:1800, Leche entera:1:12:10200', 'the order with the typed price');
+      assert.strictEqual(sql(`select coalesce(usual_price::text, 'null') from vendor_items where id = '${azu}'`), 'null', 'the catalog\'s usual price is not set behind the owner\'s back');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    /* audit 3.X1 */
+    name: 'the product search: by name, by the supplier\'s code, by the presentation (accents or not); nothing found says so; a ticked product the search hides stays on the order',
+    run: async ({ browser }) => {
+      P.seed();
+      const pg = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      const all = [I.leche, I.yogur, I.queso, I.mant, I.crema, I.natilla].map((i) => P.vi(i));
+      const listed = async () => (await pg.locator('#pList .prow').evaluateAll((l) => l.map((r) => r.getAttribute('data-vi')))).sort().join();
+      async function find(q, want, what) {
+        await pg.fill('#pSearch', q);
+        const w = want.slice().sort().join();
+        try { await until(async () => (await listed()) === w, 3000, what); }
+        catch (e) { throw new Error(e.message + ' · «' + q + '» listed: ' + (await listed())); }
+      }
+      assert.strictEqual(await listed(), all.slice().sort().join(), 'the six products of Lácteos');
+      await row(pg, I.leche).locator('.ck input').check();
+      await find('queso', [P.vi(I.queso)], 'by name');
+      await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡10 200$/, 'the milk, hidden by the search, stays ticked', 3000);
+      await find('LE-12', [P.vi(I.leche)], 'by the supplier\'s code');
+      await find('le-12', [P.vi(I.leche)], 'the code in small letters');
+      await find('paquete', [P.vi(I.yogur), P.vi(I.natilla)], 'by the presentation (paquete de 6, paquete de 12)');
+      await find('barra', [P.vi(I.mant)], 'by the presentation (barra de 500 g)');
+      await find('carton', [P.vi(I.crema)], 'cartón, typed without its accent');
+      await find('zzz', [], 'nothing');
+      await P.seen(pg.locator('#pList'), /^Ningún producto con ese nombre\.$/, 'nothing found, in Spanish', 3000);
+      await find('', all, 'the search emptied: all of them again');
+      assert.strictEqual(await row(pg, I.leche).locator('.ck input').isChecked(), true, 'still ticked');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    /* audit 3.X7 */
+    name: '«Cantidad habitual» set in Productos › Editar is stored and is the Pedir box\'s suggestion (its placeholder, what a tick puts; typing replaces it); without one, the last order\'s packs',
+    run: async ({ browser }) => {
+      P.seed();
+      P.order(V.lac, [{ vi: P.vi(I.natilla), packs: 2 }], { ago: '3 days' });
+      const yog = P.vi(I.yogur);
+      const pg = await P.owner(browser, { hash: '#p=' + V.lac + '&t=productos', wait: '#prTable' });
+      await pg.locator(`#prTable tr[data-vi="${yog}"] button`, { hasText: 'Editar' }).click();
+      await pg.waitForSelector('#prodEdit');
+      await P.seen(pg.locator('label[for=peUsual]'), /^Cantidad habitual \(opcional\)$/, 'the box, in Spanish', 3000);
+      assert.strictEqual(await pg.inputValue('#peUsual'), '', 'none yet');
+      await pg.fill('#peUsual', '3');
+      await pg.click('#peGo');
+      await P.toasted(pg, /^Producto guardado$/, 'saved');
+      assert.strictEqual(sql(`select trim_scale(usual_qty) from vendor_items where id = '${yog}'`), '3', 'stored on the catalog row');
+      await P.seen(pg.locator(`#prTable tr[data-vi="${yog}"]`), /normalmente 3/, 'shown in Productos', 5000);
+      await P.nav(pg, '#p=' + V.lac + '&t=pedir', '#pList .prow');
+      const box = row(pg, I.yogur).locator('.step input');
+      assert.strictEqual(await box.getAttribute('placeholder'), '3', 'the usual quantity is the box\'s suggestion');
+      assert.strictEqual(await box.inputValue(), '', 'a suggestion, not a quantity: nothing is ordered until ticked');
+      await row(pg, I.yogur).locator('.ck input').check();
+      assert.strictEqual(await box.inputValue(), '3', 'a tick puts the usual quantity');
+      await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡13 500$/, '3 × 4 500', 3000);
+      await row(pg, I.yogur).locator('.ck input').uncheck();
+      await box.click();
+      await pg.keyboard.type('5');
+      assert.strictEqual(await box.inputValue(), '5', 'what is typed replaces the suggestion (5, not 35)');
+      assert.strictEqual(await row(pg, I.yogur).locator('.ck input').isChecked(), true, 'typing ticks it');
+      await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡22 500$/, '5 × 4 500', 3000);
+      // no usual quantity: the packs of the last order (2 natillas); never ordered: 1
+      const nat = row(pg, I.natilla).locator('.step input');
+      assert.strictEqual(await nat.getAttribute('placeholder'), '2', 'the last order\'s packs');
+      assert.strictEqual(await row(pg, I.queso).locator('.step input').getAttribute('placeholder'), '1', 'never ordered: 1');
+      await row(pg, I.natilla).locator('.ck input').check();
+      assert.strictEqual(await nat.inputValue(), '2', 'a tick puts the last order\'s 2');
+      await P.seen(pg.locator('#pSum'), /^2 productos · Total estimado ₡34 500$/, '22 500 + 2 × 6 000', 3000);
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
     }
   }
 ];

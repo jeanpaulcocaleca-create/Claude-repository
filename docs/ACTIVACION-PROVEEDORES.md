@@ -44,15 +44,24 @@ la 0038 y el sitio en `v2026.11.04-1` (commit `9d3f6ad`, `gh-pages` `77a5fb1`).
 **Qué se probó (en desarrollo, nunca en producción):** las pruebas SQL `510_proveedores_catalogo`,
 `511_proveedores_pedidos`, `512_proveedores_recibir`, `513_proveedores_turnos`, `514_proveedores_pagos`,
 `515_proveedores_alertas`, `516_proveedores_lecturas`, `517_proveedores_saldo_favor`, `518_proveedores_revision`,
-`520_reversion_0039` y `525_reversion_0040` (663 comprobaciones),
+`520_reversion_0039` y `525_reversion_0040` (712 comprobaciones),
 las pruebas con dos conexiones a la vez (`tests/sql/concurrency-proveedores.sh`, 25 comprobaciones: dos entregas del
 mismo pedido a la vez, el mismo pago dos veces, el mismo SINPE para dos proveedores, un pago y una entrega del mismo
 pedido, una entrega y una venta de los mismos artículos), las de navegador de la página nueva (`410_proveedores_centro`,
 `411_proveedores_pedir`, `412_proveedores_documento`, `413_proveedores_recibir`, `414_proveedores_pagos` y
-`415_proveedores_aparatos`: 55 pruebas), las de compras y recepción de antes rehechas sobre Proveedores (`160`, `290`) y
-toda la batería de «Tests» (en desarrollo, el 2026-11-07: 68 de 68 archivos de pruebas SQL y 370 de 370 pruebas de navegador),
+`415_proveedores_aparatos`: 64 pruebas), las de compras y recepción de antes rehechas sobre Proveedores (`160`, `290`) y
+toda la batería de «Tests» (en desarrollo, el 2026-11-07: 68 de 68 archivos de pruebas SQL y 379 de 379 pruebas de navegador),
 con el ensayo de las páginas publicadas hoy (`77a5fb1`, su pestaña «Pedidos» incluida) sobre una copia con la 0039 y la
 0040.
+
+**Qué no se pudo probar en desarrollo y qué riesgo queda:**
+- **El iPad con Safari y su hoja de compartir.** Las pruebas de navegador corren en Chromium, con pantalla táctil y
+  tamaños de teléfono, tableta y computadora simulados. El riesgo: que en el iPad el PDF se comparta o se vea distinto, o
+  que un toque se comporte diferente. Lo cubre la etapa 1.4 (la vista previa en el iPad) y la 5.F.
+- **Una impresora real.** La prueba comprueba una sola hoja A4 sin menús en la vista de impresión de Chromium. El riesgo:
+  márgenes o una segunda hoja en la impresora del café. Lo cubre la 5.F (ver la vista previa y cancelar).
+- **El ensayo sobre la copia de producción.** Solo usted lo corre (CLAUDE.md). El riesgo: datos de producción que el
+  ensayo de desarrollo no tiene. Lo cubren las etapas 1.3 y 3.10.
 
 **En orden:**
 
@@ -338,9 +347,10 @@ cambiado el … por …», decisión 3).
    error, copie el mensaje y avíseme; no publique.
 10. **Consistencia.** `consistency-check.sql` otra vez:
     - todo `kept` idéntico a «consistencia-antes», y `problems` igual que antes;
-    - en `after`, ocho celdas nuevas. Cinco miran los pagos de Proveedores, que todavía no existen, y deben dar `0`:
-      `sinpe_payments_without_reference`, `payments_applied_above_amount`, `advances_ledger_vs_unapplied`,
-      `vendors_unapplied_with_open_invoices`, `advances_unapplied_over_30_days`;
+    - en `after`, nueve celdas nuevas. Seis miran lo que solo Proveedores registra, que todavía no existe, y deben dar
+      `0`: `sinpe_payments_without_reference`, `payments_applied_above_amount`, `advances_ledger_vs_unapplied`,
+      `vendors_unapplied_with_open_invoices`, `advances_unapplied_over_30_days` y `proveedores_dangling_references`
+      (una corrección cuya entrega, o un pago cuyo pedido, no existe);
     - las otras tres miran lo que ya se había registrado antes de la 0039 (`receipts_total_vs_moves`,
       `purchase_moves_at_zero_cost`, `posted_days_with_purchases_not_posted`): anote cada número; deben ser los mismos
       de `consistency-after.json` del ensayo (1.3). Si alguno es distinto (por ejemplo, porque entre el

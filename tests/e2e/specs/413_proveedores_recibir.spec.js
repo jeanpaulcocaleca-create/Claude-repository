@@ -225,6 +225,15 @@ module.exports.tests = [
       const m = await P.owner(browser, { hash: '#pedido=' + o.id, wait: '#orderDoc' });
       await P.seen(m.locator('#orderDoc .dh'), /Parcialmente recibido/, 'partly received', 5000);
       await P.seen(m.locator('#docLines tbody tr'), /10 ₡4 500 ₡45 000 6 4$/, 'received 6, pending 4', 3000);
+      // 2.o3: the supplier's file, Pedidos: «Pedidos abiertos» (an order to a supplier, never the POS's «Órdenes abiertas»),
+      // the order there partly received with its line still pending; the hub card counts it
+      await P.nav(m, '#p=' + V.lac + '&t=pedidos', '#fTab .orow');
+      await P.seen(m.locator('#fTab h3').first(), /^Pedidos abiertos$/, 'the open orders heading, in Spanish', 5000);
+      await P.seen(m.locator(`#fTab .olist:not(#hist) .orow[data-po="${o.id}"]`), new RegExp('^Pedido Nº ' + o.po_number + ' Parcialmente recibido Pago pendiente · .* · 1 pendientes? · recibido ₡27 000 Abrir Recibir Duplicar$'),
+        'the order partly received, its pending line, in Spanish', 5000);
+      assert.doesNotMatch(await text(m.locator('#appView')), /Órdenes abiertas|Open orders/, 'the POS\'s word is not used for supplier orders');
+      await P.nav(m, '#', `#hubVendors .vcard[data-vendor="${V.lac}"]`);
+      await P.seen(m.locator(`#hubVendors .vcard[data-vendor="${V.lac}"] .badges`), /(^| )Parcialmente recibidos: 1( |$)/, 'the hub card counts the partly received order', 8000);
       // the rest arrives: the form proposes the 4
       await P.nav(pg, '#');
       await openOrder(pg, o.id);
