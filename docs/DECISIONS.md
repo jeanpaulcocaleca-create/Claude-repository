@@ -3442,10 +3442,86 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   `supplier_payments.po_id` (lock order) and `purchase_receipts.corrects`: only the SECURITY DEFINER functions write
   them, from rows they hold locked, and `consistency-check` counts a correction or a payment pointing nowhere
   (`proveedores_dangling_references`, expected 0); on a touch screen, a button right below an open number pad (for
-  example «Estoy en turno aquí» after the PIN, or «Guardar pago» after the amount) can need a second tap, because
-  `keypad.js` hides the pad as the field loses the focus and the button moves before the tap ends: the pad's own ✓ saves
-  the form in one tap; `keypad.js` is shared with the POS and is not changed here (a separate task).
+  example «Estoy en turno aquí» after the PIN, or «Guardar pago» after the amount) could need a second tap, because
+  `keypad.js` hid the pad as the field lost the focus and the button moved before the tap ended (the pad's own ✓ saves
+  the form in one tap); `keypad.js` is shared with the POS and is not changed by this decision: D-068 fixes it on its own
+  (the pad opens and closes after the tap; one tap is enough, tested on these buttons and on the POS), and it ships only
+  with the owner's approval of D-068 (E-44): until then this limit stands on the published pages.
 - **Records:** E-43 (activation and the owner's decisions), A-15 (information for the accountant), CHECKLIST rows 82–84,
   102, 112, 113, 119 and 141 updated and the new row 156, `docs/MIGRACIONES.md` (0039 and 0040), `docs/PRUEBAS.md`
   («Pruebas automáticas de Proveedores»), `docs/RECIBIR-PEDIDO.md` (superseded note), `docs/PERSONAL-NUEVO.md`
   («Recibir un pedido»), `docs/PROVEEDORES.md`, `docs/ACTIVACION-PROVEEDORES.md`.
+
+## D-068 · 2026-11-07 · The number pad no longer moves a button away from a tap: `keypad.js` opens and closes it after the tap (nothing published; the owner's approval before it ships)
+
+- **The problem (found while testing Proveedores, D-067; reproduced by two agents and again here):** on a touch screen
+  `keypad.js` puts a number pad right under a PIN, amount or quantity box. The pad is part of the page, so when it closed
+  everything under it moved up. It closed as the box lost the focus, and a touch screen moves the focus at the start of
+  a tap and looks again for what is under the finger at its end: the button tapped right under an open pad had moved by
+  then, its click went elsewhere and a second tap was needed. Measured on the café tablet's shape (820×1180, touch):
+  «Estoy en turno aquí» after the PIN digits y≈782 → 516, nothing sent; the yogurt's tick box in Pedir after a digit
+  984 → 838, the tick unchanged; in the POS «Anular este pedido» after the manager's PIN 943 → 811, «Abrir caja» after
+  the float 981 → 808 and «Cobrar» after an amount typed in the cash window 985 → 830, each click lost. In a window
+  scrolled to its end (the POS on a landscape screen, Proveedores on a phone) the scroll could keep the button in place,
+  so it sometimes worked. The pad's own ✓ always worked, which is why the earlier tests used it.
+- **Why it is its own decision:** the owner's limit for Proveedores was «No alteres los módulos de POS … fuera de lo
+  estrictamente necesario», and `keypad.js` is loaded by the POS and by twelve other pages (`accounting`, `admin`,
+  `contabilidad`, `home`, `insights`, `inventory`, `kitchen`, `pantallas`, `proveedores`, `reset`, `sales`, `time`),
+  so D-067 left it out on purpose («Known limits»). This change touches only `website/keypad.js`; no page, no
+  migration, no database function.
+- **What changed (`keypad.js`, about 20 lines):** a pad opens and closes only once the tap or click that moved the
+  focus has landed. With no press held (a tap on a touch screen, a key, a page's own `focus()`), the pad changes on the
+  next turn of the page, after the tap's click; a mouse button or pen still pressed is waited for until its release
+  (`pointerup` / `pointercancel`), then the next turn; never longer than 1.5 s for a press the page never hears end.
+  When the time comes the pad changes only if the focus still says so: it does not close if the focus is back in its
+  box, and does not open if the focus has already left. The box's `inputmode` still changes at once (that is what
+  keeps the phone keyboard away; it moves nothing). The opening waits too: a pad opening at once could move its own box
+  in a window centred on the screen (the sweep below saw 26 px in the POS's Hoy window).
+- **Why this way (the three options of the task):** hiding on the next turn alone was the first; it fixes the taps but
+  not a mouse click held a little (the hide ran during the press). Keeping the pad's space (`visibility:hidden`) until
+  `pointerup` does not help a touch screen, where `pointerup` comes before the browser moves the focus. Hiding on a tap
+  outside instead of on the blur would leave a pad open when the focus moves by the keyboard or by a page's script,
+  which every page relies on. A pad that closes after the press it caused keeps every page's behaviour and timing as
+  it was, only a moment later.
+- **Unchanged:** which boxes get a pad, its keys and ✓, the PIN guards (D-052, D-053), the text keyboard (already
+  hidden on the next turn), the per-device setting (`HG_KEYPAD.setMode`), a computer without a touch screen (no pad), a
+  physical keyboard. `keypad.js` reads nothing from the network: the POS without internet works as before (a cash sale
+  typed on the pad without internet is a test below). What staff see: the pad stays on screen until the finger lifts,
+  then goes; one tap is enough for the button under it.
+- **Checked:** the new browser tests fail on the previous `keypad.js` and pass with this one.
+  `110_keypad_spanish` (9; 4 new): in the POS on the upright tablet, «Anular este pedido» tapped right after the PIN
+  digits voids with that one tap, «Abrir caja» right after the float typed on the pad opens the register, and without
+  internet «Cobrar» right under the open pad of the cash window queues the sale, saved once when the connection is
+  back; on a register PC with the pad on and a mouse, a press held on the box under an open pad changes neither pad
+  until the release and its click lands there (also when an earlier click's 1.5 s limit ends during that press), a
+  `focus()` with no press closes the pad on the next turn, the focus back at once keeps it, and a press held off any box
+  holds the pad at most 1.5 s. `415_proveedores_aparatos` (7; 2 new): «Estoy en turno aquí» tapped right after the PIN
+  digits starts the work session with that one tap on the tablet and on the phone; the row's tick right after a quantity
+  digit unticks it with one tap, and «Guardar pago» right after the amount typed on the pad saves the payment once. Each
+  new test checks with `tapOnce` / `tapLanded` (`tests/e2e/lib.js`) that the tap's pointerdown, mousedown, mouseup and
+  click reached the button and that the button did not move meanwhile. The existing keypad tests (110's five, 340's
+  PIN boxes, 411's PIN pad, 415's taps) pass unchanged. A sweep (scratch, not in CI) on all 13 pages that load
+  `keypad.js`, on the upright tablet, as the café login and as the owner with the phone code: every pad box on screen,
+  and every pad box of a hidden window shown the way the page shows it (its `hidden` attributes removed), tapped, a
+  digit tapped, then the nearest control under the pad tapped once (its click swallowed, so nothing was sent): **62 of
+  67 taps lost with the previous `keypad.js`, 0 of 67 with this one** (the POS's open and close of the register, cash in
+  and out, void, history, the cash window, a tab's removal, the operator PIN; the time clock's six PIN boxes; access.js's
+  «Abrir» on six pages; the owner's exchange rate on Home; Inventario's and Ventas' gates and a receipt; the amounts of
+  `accounting.html`; Proveedores' work session, payment and invoice; `contabilidad.html` builds its boxes only when a
+  form opens, so its pad boxes are covered by the same code, not by the sweep).
+- **Not tested here:** Safari on the café's iPad and a real touch PC. The tests run Chromium only (Playwright's WebKit is
+  not installed in the development environment). Safari also moves the focus at the start of a tap and finds the target
+  again at its end within one turn, so waiting for the next turn covers it, but that is reasoning, not a test: the
+  owner's check on the café tablet (E-44) is the proof.
+- **Known limits:** a mouse or pen held down more than 1.5 s on a control right under an open pad can still miss it (the
+  limit lets the pad close during the press; a tap is far shorter). Tab from a pad box first reaches the pad's own
+  keys and leaves the focus on the page, then the next box: as before this change (checked with both versions).
+- **Not done, on purpose:** nothing published; no tag. `docs/ACTIVACION-PROVEEDORES.md` is not changed: its steps use
+  the pad's ✓ or the buttons, which work either way.
+- **The owner's approval (E-44):** `keypad.js` is used by the POS, so it ships only after the owner approves this
+  decision, proposed in these words: «Apruebo que el teclado numérico de la pantalla táctil se cierre después del toque
+  y no antes (D-068), en todas las páginas que lo usan, la Caja incluida.» It can go with Proveedores' release (E-43:
+  the same tag and the same publication; `tests/pantallas/no-tocar.sh` lists `website/keypad.js` among that version's
+  changed files) or in its own release afterwards. Way back: republish the previous release tag; no database step.
+- **Records:** D-067's known limit about the number pad, CHECKLIST rows 72 and 73 and the new row 157, DEPENDENCIES E-44,
+  `docs/PRUEBAS.md` («Pruebas automáticas del teclado numérico»), `tests/pantallas/no-tocar.sh`.

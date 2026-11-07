@@ -98,6 +98,28 @@
     }
     return pad;
   }
+  /* A pad opens and closes only once the tap or click that moved the focus has landed (D-068). Closing it at once moved
+     everything under it up while that tap was still under way: a touch screen moves the focus at the start of a tap and
+     looks again for what is under the finger at its end, so a button right below an open pad lost its first tap (and a
+     pad opening at once could move its own field in a window centred on the screen). A press still held (a mouse button,
+     a pen) waits for its release; then the pad changes on the next turn, if the focus still says so. The field's
+     inputmode changes at once: that is what keeps the phone keyboard away, and it moves nothing. */
+  var presses = 0, held = 0, afterRelease = [];       // held: the number of the press still down (0: none)
+  function released(n) {
+    if (n && n !== held) return;                      // the time limit of a press that has already ended
+    held = 0;
+    var q = afterRelease; afterRelease = [];
+    q.forEach(function (f) { setTimeout(f, 0); });
+  }
+  document.addEventListener('pointerdown', function (e) { if (e.isTrusted && e.button === 0) held = ++presses; }, true);
+  document.addEventListener('pointerup', function () { released(0); }, true);
+  document.addEventListener('pointercancel', function () { released(0); }, true);
+  function afterTap(f) {
+    if (!held) { setTimeout(f, 0); return; }
+    afterRelease.push(f);
+    var n = held;
+    setTimeout(function () { released(n); }, 1500);   // a release the page never heard of holds nothing back for long
+  }
   function attachNum(input) {
     if (input.__hgPad !== undefined) return;
     var kind = kindOf(input);
@@ -109,14 +131,15 @@
     input.__hgPad = pad;
     input.__hgMode = input.getAttribute('inputmode');
     input.addEventListener('blur', function () {
-      pad.hidden = true;
       if (input.__hgMode === null) input.removeAttribute('inputmode'); else input.setAttribute('inputmode', input.__hgMode);
+      afterTap(function () { if (document.activeElement !== input || !document.hasFocus()) pad.hidden = true; });
     });
   }
   function showNum(input) {
     if (!input.__hgPad || !numOn() || input.disabled || input.readOnly) return;
     input.setAttribute('inputmode', 'none');      // no phone keyboard on top of ours
-    input.__hgPad.hidden = false;
+    var pad = input.__hgPad;
+    afterTap(function () { if (document.activeElement === input) pad.hidden = false; });
   }
 
   /* ---------- the text keyboard (opt-in per device) ---------- */

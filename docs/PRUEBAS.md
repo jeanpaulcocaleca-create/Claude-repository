@@ -434,11 +434,13 @@ sobre producción. Una línea por archivo (entre paréntesis, las comprobaciones
   factura y antes de un pago, que se vuelve a abrir con lo que falta), no registra nada si no puede revisarlo y lo dice,
   y sin la función de la 0040 registra pagos y facturas como antes; anular ahí un pago aplicado desde Proveedores
   pregunta primero; bajo el número SINPE, que no es una verificación del banco.
-- `tests/e2e/specs/415_proveedores_aparatos.spec.js` (5): sin internet, «Sin conexión…» y nada se pierde (una entrega y
+- `tests/e2e/specs/415_proveedores_aparatos.spec.js` (7): sin internet, «Sin conexión…» y nada se pierde (una entrega y
   un pedido salen cuando vuelve la conexión); un ingreso vencido muestra el ingreso y lo escrito vuelve después (nunca el
   PIN); al cerrarse las áreas de dueños todo lo de encargados sale de la pantalla; un teléfono (360×740), una tableta
   (820×1180) y una computadora (1280×860): sin desplazamiento lateral, botones de 44 px (también la «×» del editor del
-  pedido); en la pantalla táctil, los toques reales (marcar, «+», el teclado numérico, «Todo recibido correctamente»).
+  pedido); en la pantalla táctil, los toques reales (marcar, «+», el teclado numérico, «Todo recibido correctamente»);
+  con un solo toque justo debajo del teclado numérico abierto (D-068): «Estoy en turno aquí» después de los dígitos del
+  PIN (tableta y teléfono), la casilla de la fila después de un dígito de la cantidad, «Guardar pago» después del monto.
 - `tests/e2e/specs/160_purchasing.spec.js` y `290_receive.spec.js`: las compras y la recepción de antes (0012, 0029), ahora
   por Proveedores; `300_recipes` y `340_pin_autofill` ajustadas (la recepción en Existencias; las casillas de PIN nuevas).
 
@@ -451,6 +453,29 @@ de 2 cajas de 12, recibido por una persona en turno con «Recibe en este aparato
 `consistency-check.sql` en 0 ese día, y cuenta `work_sessions` entre las tablas de llaves que `anonimizar.sql` vacía. Las páginas publicadas (`77a5fb1`,
 `tests/rehearsal/LIVE_PAGES`) se prueban sobre la copia con la 0040, con su pestaña «Pedidos» (14 pruebas), y la página
 nueva sobre el café vacío (`tests/rehearsal/reset-pages/`).
+
+## Pruebas automáticas del teclado numérico (D-068)
+
+El teclado numérico de la pantalla táctil (`website/keypad.js`) se abre y se cierra después del toque que movió el
+foco, no antes: así un botón justo debajo del teclado abierto recibe el primer toque. Las pruebas tocan la pantalla como
+un dedo (eventos táctiles, no el ratón) y comprueban con `tapOnce` / `tapLanded` (`tests/e2e/lib.js`) que el toque llegó
+al botón y que el botón no se movió mientras tanto. Cada una falla con el `keypad.js` anterior.
+
+- `tests/e2e/specs/110_keypad_spanish.spec.js` (9; 4 nuevas): en la Caja, en la tableta en vertical (820×1180),
+  «Anular este pedido» justo después de los dígitos del PIN anula con ese toque; «Abrir caja» justo después del fondo
+  escrito en el teclado abre la caja; sin internet, «Cobrar» justo debajo del teclado abierto de la ventana de efectivo
+  deja la venta en el aparato y se guarda una sola vez al volver la conexión; en una computadora de caja con el teclado
+  encendido y un ratón, un clic sostenido sobre la casilla de abajo no cambia ningún teclado hasta soltarlo y cae en esa
+  casilla (también cuando el límite de 1,5 s de un clic anterior termina durante ese clic), un `focus()` sin toque
+  cierra el teclado en el turno siguiente, el foco que vuelve enseguida lo deja abierto y un clic sostenido fuera de
+  toda casilla lo retiene 1,5 s como máximo.
+- `tests/e2e/specs/415_proveedores_aparatos.spec.js` (7; 2 nuevas): ver arriba.
+
+Fuera de CI se tocó, en las 13 páginas que cargan `keypad.js` y en la tableta en vertical, con el ingreso del café y con
+el del dueño con el código, cada casilla con teclado (también las de las ventanas ocultas, mostradas como las muestra la
+página), un dígito y el control más cercano debajo del teclado (su clic se anuló, así que no se envió nada): 62 de 67
+toques se perdían con el `keypad.js` anterior y 0 de 67 con este. No se probó Safari (el iPad del café): solo Chromium;
+esa comprobación es del dueño en la tableta (E-44).
 
 ## Si algún día quiere un proyecto de pruebas permanente
 

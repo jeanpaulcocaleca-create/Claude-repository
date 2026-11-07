@@ -18,9 +18,11 @@ set -euo pipefail
 export LC_ALL=C GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # Proveedores (D-067): the only new files it may add and the only files of BASE it may change (filled as the version is
-# built); the POS discounts' files, published with v2026.11.04-1, are back under the byte-for-byte rule
+# built); the POS discounts' files, published with v2026.11.04-1, are back under the byte-for-byte rule. The number pad
+# (D-068, built on Proveedores' branch): website/keypad.js, shared with the POS, changes only to open and close the pad
+# after the tap that moved the focus; it ships only with the owner's approval of D-068 (DEPENDENCIES E-44)
 NEW=(supabase/migrations/0039_proveedores.sql supabase/migrations/0040_proveedores_pagos.sql website/proveedores.html website/proveedores.js)
-CHANGED=(website/inventory.html website/home.html website/time.html website/contabilidad.js website/config.js website/lang.js)
+CHANGED=(website/inventory.html website/home.html website/time.html website/contabilidad.js website/config.js website/lang.js website/keypad.js)
 PATHS=(website supabase/migrations .github/workflows/pages.yml)
 fail() { echo "  FAIL  no tocar: $*"; exit 1; }
 
