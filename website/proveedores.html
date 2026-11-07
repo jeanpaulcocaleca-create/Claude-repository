@@ -80,6 +80,7 @@ label.f{display:block;font-size:.85rem;color:var(--sec);margin:.7rem 0 .25rem}
 .form input,.form select{width:100%}
 .btns{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-top:1rem}
 .btns .left{margin-right:auto}
+.btns button.x{min-width:44px;padding:0}
 .checkline{display:flex;gap:.6rem;align-items:center;min-height:44px;margin-top:.4rem;cursor:pointer}
 .checkline input{width:22px;height:22px;min-height:0;margin:0;flex:none;accent-color:var(--accent)}
 .pill{display:inline-block;padding:.12em .6em;border-radius:99px;font-size:.74rem;font-weight:600;letter-spacing:.03em;white-space:nowrap;vertical-align:middle}
@@ -392,7 +393,7 @@ input[data-pin]{-webkit-text-security:disc}
     </div>
     <div class="row">
       <div><label class="f" for="invCur">Currency</label><select id="invCur"><option value="CRC">Colones (₡)</option><option value="USD">Dollars ($)</option></select></div>
-      <div id="invFxBox" hidden><label class="f" for="invFx">Exchange rate (₡ per $)</label><input id="invFx" type="text" inputmode="decimal" data-keypad="qty" maxlength="10"></div>
+      <div id="invFxBox" hidden><label class="f" for="invFx">Exchange rate (₡ per $)</label><input id="invFx" type="text" inputmode="decimal" data-keypad="qty" maxlength="10"><p class="hint" id="invFxHint" style="margin:.3rem 0 0">Type the invoice's amounts in dollars.</p></div>
     </div>
     <div class="row">
       <div><label class="f" for="invNet">Subtotal without IVA</label><input id="invNet" type="text" inputmode="decimal" data-keypad="qty" maxlength="14"></div>

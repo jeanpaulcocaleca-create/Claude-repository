@@ -12,8 +12,10 @@
 --     de recibir y de la factura: primero a la cuenta 1160 «Anticipos a proveedores» (Dr 1160 / Cr Bancos o la
 --     tarjeta) y luego aplicados a las facturas (Dr 2101 / Cr 1160) solo por estas funciones, nunca por un disparador.
 --   * Estado de pago por pedido: Pendiente / Parcialmente pagado / Pagado.
--- Qué NO cambia: ninguna función, regla ni registro existente; la página de Inventario publicada sigue pagando como hoy.
---   La regla supplier_payments_paid_from_check acepta además 'advance' (los pagos aplicados).
+-- Qué cambia de lo que existe: supplier_invoice_save (la factura de Contabilidad, de la página de Inventario publicada y
+--   de Proveedores) toma primero los pedidos de las entregas y factura con cada entrega sus correcciones de Proveedores
+--   todavía sin factura; nada más. La regla supplier_payments_paid_from_check acepta además 'advance' (los pagos
+--   aplicados). Ningún registro existente cambia; la página de Inventario publicada sigue pagando como hoy.
 -- Qué cambia para el personal: nada hasta que se publique proveedores.html.
 -- Cuándo: fuera del horario de atención, justo después de la 0039.
 -- Reversión: supabase/tools/reversion-0040.sql (quita las funciones nuevas; cuentas, mapeos, tablas y pagos quedan).
@@ -38,8 +40,10 @@ alter table public.supplier_payments add constraint supplier_payments_paid_from_
   check (paid_from in ('cash', 'petty', 'bank', 'payout', 'card_debit', 'card_credit', 'advance'));
 
 -- 2) money per order and per supplier (read only) ---
--- due = the invoices' share of this order + deliveries not invoiced + what is still to come; paid = this order's
--- payments applied to its invoices + the other payments of those invoices × share + what of its payments is not applied
+-- due = the invoices' share of this order + deliveries not invoiced + what is still to come; paid = on each invoice, this
+-- order's own (tagged) payments up to its share, plus the rest of that invoice's payments spread over the orders still
+-- owing on it (in proportion to what each still owes there), so a fully paid invoice reads paid for every order it covers
+-- + what of its payments is not applied
 -- yet + drawer payouts of its deliveries still without an invoice. Before an invoice exists the IVA is not known: the
 -- payment ceiling and «saldo a favor» allow coalesce(vendors.default_iva_rate, 0.13) on that part (a tolerance)
 create or replace function public._prov_dinero(p_po_id uuid) returns jsonb language plpgsql stable security definer set search_path = public as $$
@@ -51,19 +55,28 @@ begin
   select coalesce(array_agg(id), '{}'), coalesce(sum(total_crc) filter (where invoice_id is null), 0),
          coalesce(bool_or(invoice_id is null and total_crc <> 0), false), coalesce(sum(public._prov_payout_open(payout_id)) filter (where payout_id is not null), 0)
     into rids, unv, miss, a4 from public.purchase_receipts where po_id = po.id;
-  with i as (select x.*, (select coalesce(sum(r.total_crc) filter (where r.po_id = po.id), 0) from public.purchase_receipts r where r.id = any(x.receipt_ids)) as mine,
-                         (select coalesce(sum(r.total_crc), 0) from public.purchase_receipts r where r.id = any(x.receipt_ids)) as alls,
-                         (select count(*) filter (where r.po_id = po.id) from public.purchase_receipts r where r.id = any(x.receipt_ids)) as nmine
-               from public.supplier_invoices x where x.voided_at is null and x.receipt_ids && rids),
-       s as (select i.*, case when i.alls <> 0 then i.mine / i.alls else i.nmine::numeric / greatest(cardinality(i.receipt_ids), 1) end as share,
+  with i as (select x.* from public.supplier_invoices x where x.voided_at is null and x.receipt_ids && rids),
+       -- every order an invoice covers, with its part of the invoice (the receipts' values; by count when they net to 0)
+       o as (select i.id as inv_id, r.po_id, sum(r.total_crc) as mine, count(*) as nmine
+               from i join public.purchase_receipts r on r.id = any(i.receipt_ids) group by i.id, r.po_id),
+       os as (select o.*, i.total_crc as tot,
+                     case when sum(o.mine) over w <> 0 then o.mine / sum(o.mine) over w else o.nmine::numeric / greatest(cardinality(i.receipt_ids), 1) end as share,
+                     (select coalesce(sum(a.amount_crc), 0) from public.supplier_payment_allocations a join public.supplier_payments p on p.id = a.payment_id
+                        join public.supplier_advances v on v.id = p.advance_id where a.invoice_id = o.inv_id and p.voided_at is null and v.po_id = o.po_id) as own
+                from o join i on i.id = o.inv_id window w as (partition by o.inv_id)),
+       oc as (select os.*, least(os.own, greatest(os.tot * os.share, 0)) as capped from os),
+       oq as (select oc.*, greatest(oc.tot * oc.share - oc.capped, 0) as need, sum(oc.capped) over w as capsum,
+                     sum(greatest(oc.tot * oc.share - oc.capped, 0)) over w as needsum
+                from oc window w as (partition by oc.inv_id)),
+       s as (select i.*, oq.share, oq.capped, oq.need, oq.capsum, oq.needsum,
                     (select coalesce(sum(a.amount_crc), 0) from public.supplier_payment_allocations a join public.supplier_payments p on p.id = a.payment_id
-                       join public.supplier_advances v on v.id = p.advance_id where a.invoice_id = i.id and p.voided_at is null and v.po_id = po.id) as own,
-                    (select coalesce(sum(a.amount_crc), 0) from public.supplier_payment_allocations a join public.supplier_payments p on p.id = a.payment_id
-                       where a.invoice_id = i.id and p.voided_at is null) as allp from i)
+                       where a.invoice_id = i.id and p.voided_at is null) as allp
+               from i join oq on oq.inv_id = i.id and oq.po_id = po.id)
   select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'number', s.number, 'date', s.date, 'total_crc', s.total_crc,
                                                'open_crc', public._invoice_open(s.id), 'share', round(s.share, 4), 'currency', s.currency,
                                                'fx_rate', s.fx_rate, 'total_fx', case when s.currency = 'USD' then s.net_fx + s.iva_fx end) order by s.date, s.id), '[]'),
-         coalesce(sum(s.total_crc * s.share), 0), coalesce(sum(s.own), 0), coalesce(sum((s.allp - s.own) * s.share), 0)
+         coalesce(sum(s.total_crc * s.share), 0), coalesce(sum(s.capped), 0),
+         coalesce(sum(case when s.needsum > 0 then least(greatest(s.allp - s.capsum, 0), s.needsum) * s.need / s.needsum else 0 end), 0)
     into inv, ish, a1, a2 from s;
   if po.status in ('draft', 'sent', 'partially_received') then
     select coalesce(sum(greatest(l.qty - coalesce(l.received_qty, 0), 0) * coalesce(l.unit_cost, l.ordered_unit_cost, 0)), 0) into est
@@ -95,7 +108,8 @@ create or replace function public._prov_vendor_money(p_vendor_id uuid) returns j
         from public.purchase_lines l join public.purchase_orders o on o.id = l.po_id
        where o.vendor_id = p_vendor_id and o.status in ('draft', 'sent', 'partially_received') and l.removed_at is null) as est,
      (select coalesce(v.default_iva_rate, 0.13) from public.vendors v where v.id = p_vendor_id) as rate)
-  select jsonb_build_object('owed_crc', round(greatest(inv + unv - pay - adv, 0), 2), 'credit_crc', round(greatest(adv + pay - inv - unv, 0), 2),
+  -- in our favour = beyond everything still owed, the open orders' estimates and the IVA allowance included (_prov_excess)
+  select jsonb_build_object('owed_crc', round(greatest(inv + unv - pay - adv, 0), 2), 'credit_crc', public._prov_excess(p_vendor_id),
                             'unapplied_crc', round(adv, 2), 'stale_advances', stale,
                             'saldo', round(greatest(inv + (unv + est) * (1 + coalesce(rate, 0.13)) - adv - pay, 0), 2))
     from m $$;
@@ -109,7 +123,8 @@ create or replace function public._prov_po_brief(p_id uuid, p_full boolean) retu
                               'received_total', (select coalesce(sum(r.total_crc), 0) from public.purchase_receipts r where r.po_id = o.id),
                               'close_requested', o.status = 'partially_received' and exists (select 1 from public.purchase_receipts r where r.po_id = o.id and r.close_requested),
                               'money', (select jsonb_build_object('due', m->'due', 'paid', m->'paid', 'status', m->'status', 'invoice_missing', m->'invoice_missing',
-                                                                  'estimate', m->'estimate') from public._prov_dinero(o.id) m)) end
+                                                                  'estimate', m->'estimate', 'due_iva', m->'due_iva', 'saldo', m->'saldo')
+                                         from public._prov_dinero(o.id) m)) end
     from public.purchase_orders o left join public.vendors v on v.id = o.vendor_id
    cross join lateral (select count(*) filter (where l.removed_at is null) as n,
                               count(*) filter (where l.removed_at is null and coalesce(l.received_qty, 0) < l.qty) as p,
@@ -225,7 +240,8 @@ begin
                           from public.supplier_invoices i where i.vendor_id = v.id and i.voided_at is null and public._invoice_open(i.id) > 0),
       'uninvoiced', (select coalesce(jsonb_agg(jsonb_build_object('receipt_id', r.id, 'po_id', r.po_id, 'po_number', o.po_number, 'received_at', r.received_at,
                         'total_crc', r.total_crc, 'invoice_no', r.invoice_no, 'invoice_status', r.invoice_status, 'invoice_draft', r.invoice_draft,
-                        'payout_crc', case when r.payout_id is not null then public._prov_payout_open(r.payout_id) else 0 end, 'origin', r.origin)
+                        'payout_crc', case when r.payout_id is not null then public._prov_payout_open(r.payout_id) else 0 end, 'origin', r.origin,
+                        'corrects', r.corrects)
                         order by r.received_at, r.id), '[]')
                        from public.purchase_receipts r join public.purchase_orders o on o.id = r.po_id where r.vendor_id = v.id and r.invoice_id is null),
       'advances', (select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'date', a.date, 'amount_crc', a.amount_crc, 'method', a.method,
@@ -288,9 +304,15 @@ begin
                                 'extra_reported_packs', x.extra_reported_packs) as j, i.name || x.line_id::text as k
                          from public.purchase_receipt_lines x join public.stock_items i on i.id = x.item_id where x.receipt_id = r.id
                        union all   -- deliveries of the old page the copy could not tie to one line: their stock moves
-                       select jsonb_build_object('line_id', null, 'item_name', i.name, 'packs', null, 'qty', mv.qty, 'pack_price', null,
+                       -- (the line is the order's one live line of that item, as the copy's rule; none when there are several)
+                       select jsonb_build_object('line_id', f1.lid, 'item_name', i.name,
+                                'packs', case when f2.pq > 0 then round(mv.qty / f2.pq, 4) end, 'qty', mv.qty, 'pack_price', null,
                                 'unit_cost', mv.unit_cost), i.name || mv.id::text
                          from public.stock_moves mv join public.stock_items i on i.id = mv.item_id
+                         left join lateral (select case when count(*) = 1 then min(pl.id::text) end as lid from public.purchase_lines pl
+                                             where pl.po_id = po.id and pl.item_id = mv.item_id and pl.removed_at is null) f1 on true
+                         -- the presentation the corrections count in (the same size proveedor_recepcion_corregir multiplies by)
+                         left join lateral (select z.pack_qty as pq from public._prov_lines(po.id) z where z.id::text = f1.lid) f2 on true
                         where mv.receipt_id = r.id and mv.kind = 'purchase'
                           and not exists (select 1 from public.purchase_receipt_lines x where x.receipt_id = r.id and x.item_id = mv.item_id)) z))
                     order by r.received_at, r.id), '[]') from public.purchase_receipts r where r.po_id = po.id),
@@ -392,6 +414,77 @@ begin
 end $$;
 
 -- 5) invoices from Proveedores (the books' door or the owner areas) ---
+-- supplier_invoice_save (0025) gains two steps and nothing else, for Contabilidad, the published Inventario page and
+-- Proveedores alike: it takes the deliveries' orders before the vendor, and a correction of those orders without an
+-- invoice goes with them (reversion-0040.sql puts the 0025 text back)
+create or replace function public.supplier_invoice_save(p_invoice jsonb, p_request_id uuid)
+returns jsonb language plpgsql security definer set search_path = public, acct as $$
+declare x public.supplier_invoices; v public.vendors; net numeric; iva numeric; num text; rids uuid[]; rec numeric; eid bigint; who text; d date;
+        a acct.accounts; diff_acct text;
+begin
+  if not public._ap_allowed() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
+  if p_request_id is null then return jsonb_build_object('ok', false, 'error', 'bad_request'); end if;
+  select * into x from public.supplier_invoices where id = p_request_id;
+  if x.id is not null then return jsonb_build_object('ok', true, 'repeat', true, 'id', x.id); end if;
+  select * into v from public.vendors where id = nullif(p_invoice->>'vendor_id', '')::uuid;
+  if v.id is null then return jsonb_build_object('ok', false, 'error', 'no_vendor'); end if;
+  select coalesce(array_agg(r::uuid), '{}') into rids from jsonb_array_elements_text(coalesce(p_invoice->'receipt_ids', '[]'::jsonb)) r;
+  -- 0040: the orders of those deliveries before the vendor (the lock order: order → vendor), so a correction of one of
+  -- them is either finished first (and goes with it below) or waits and then sees this invoice («invoiced»)
+  perform 1 from public.purchase_orders o where o.id in (select z.po_id from public.purchase_receipts z where z.id = any(rids)) order by o.id for share;
+  perform 1 from public.vendors where id = v.id for update;     -- one invoice or payment of a supplier at a time
+  num := nullif(left(trim(coalesce(p_invoice->>'number', '')), 50), '');
+  net := round(nullif(p_invoice->>'net_crc', '')::numeric, 2); iva := round(coalesce(nullif(p_invoice->>'iva_crc', '')::numeric, 0), 2);
+  d := nullif(p_invoice->>'date', '')::date;
+  if num is null or net is null or net < 0 or iva < 0 or d is null or net + iva = 0
+     or nullif(p_invoice->>'due_date', '')::date < d then return jsonb_build_object('ok', false, 'error', 'bad_value'); end if;
+  if d > public.cr_today() then return jsonb_build_object('ok', false, 'error', 'future_date'); end if;
+  if exists (select 1 from public.supplier_invoices where vendor_id = v.id and lower(number) = lower(num) and voided_at is null) then
+    return jsonb_build_object('ok', false, 'error', 'duplicate_invoice'); end if;
+  -- the deliveries are this vendor's and not invoiced yet
+  if exists (select 1 from unnest(rids) r left join public.purchase_receipts pr on pr.id = r
+              where pr.id is null or pr.vendor_id is distinct from v.id or pr.invoice_id is not null) then
+    return jsonb_build_object('ok', false, 'error', 'bad_receipts'); end if;
+  -- 0040: a Proveedores correction (origin 'correccion') of one of those deliveries, still without an invoice, goes with
+  -- the delivery it corrects (corrections of corrections too), from every page that saves an invoice: the received cost is
+  -- what those deliveries net to (no false 5103); another delivery's correction waits for that delivery's invoice
+  if cardinality(rids) > 0 then
+    with recursive fam(id) as (
+      select u.rid from unnest(rids) as u(rid)
+      union
+      select c.id from public.purchase_receipts c join fam on c.corrects = fam.id
+       where c.origin = 'correccion' and c.invoice_id is null and c.vendor_id = v.id)
+    select array_agg(distinct fam.id order by fam.id) into rids from fam;
+  end if;
+  select coalesce(sum(total_crc), 0) into rec from public.purchase_receipts where id = any(rids);
+  -- with deliveries, a price difference is an inventory adjustment; without them, the invoice says what it was for
+  if cardinality(rids) > 0 then diff_acct := acct.map('price_variance');
+  else
+    select * into a from acct.accounts where code = p_invoice->>'account';
+    if a.code is null or not a.active or a.cash or a.type not in ('expense', 'asset') or not public._ap_target(a.code) then
+      return jsonb_build_object('ok', false, 'error', 'bad_account'); end if;
+    diff_acct := a.code;
+  end if;
+  who := case when acct.can_read() then acct.actor() else public._owner_label() end;
+  -- the deliveries were owed at their cost already (the day's entry); the invoice adds its IVA and any price
+  -- difference. An invoice equal to what was received, without IVA, has nothing more to post.
+  if iva <> 0 or net <> rec then
+    begin
+      eid := acct.post(d, 'Factura ' || num || ' · ' || v.name, 'ap', 'supinv:' || p_request_id,
+               jsonb_build_array(jsonb_build_object('account', acct.map('iva_in'), 'debit', iva),
+                                 jsonb_build_object('account', diff_acct, 'debit', net - rec),
+                                 jsonb_build_object('account', acct.map('ap'), 'credit', net - rec + iva, 'memo', v.name)),
+               null, who);
+    exception when others then
+      if sqlerrm ~ 'period_closed' then return jsonb_build_object('ok', false, 'error', 'period_closed'); end if;
+      raise;
+    end;
+  end if;
+  insert into public.supplier_invoices (id, vendor_id, number, date, due_date, net_crc, iva_crc, receipt_ids, account, received_crc, entry_id, created_by)
+    values (p_request_id, v.id, num, d, nullif(p_invoice->>'due_date', '')::date, net, iva, rids, case when cardinality(rids) = 0 then diff_acct end, rec, eid, who);
+  update public.purchase_receipts set invoice_id = p_request_id where id = any(rids);
+  return jsonb_build_object('ok', true, 'id', p_request_id, 'entry_id', eid, 'difference', net - rec);
+end $$;
 create or replace function public.proveedor_factura_registrar(p_vendor_id uuid, p_receipt_ids uuid[], p_invoice jsonb, p_request_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path = public, acct, extensions as $$
 declare vd public.vendors; i jsonb := p_invoice; rids uuid[]; num text; d date; due date; cur text; rate numeric; net numeric; iva numeric; nc numeric;
@@ -412,21 +505,30 @@ begin
        or exists (select 1 from unnest(p_receipt_ids) x left join public.purchase_receipts pr on pr.id = x
                    where pr.id is null or pr.vendor_id is distinct from vd.id or pr.invoice_id is not null) then
       perform public._prov_fail('bad_receipts'); end if;
-    -- the corrections of those orders still without an invoice go with them
-    select array_agg(distinct pr.id order by pr.id) into rids from public.purchase_receipts pr
-     where pr.id = any(p_receipt_ids) or (pr.origin = 'correccion' and pr.invoice_id is null and pr.vendor_id = vd.id
-                                          and pr.po_id in (select z.po_id from public.purchase_receipts z where z.id = any(p_receipt_ids)));
+    -- the orders of those deliveries first (the lock order: order → vendor): a correction of one of them waits for this
+    -- invoice and then sees it («invoiced»), or one already in flight is finished first and goes into the invoice below
+    perform 1 from public.purchase_orders o where o.id in (select z.po_id from public.purchase_receipts z where z.id = any(p_receipt_ids))
+     order by o.id for share;
+    -- the corrections of those deliveries still without an invoice go with them (as supplier_invoice_save above)
+    with recursive fam(id) as (
+      select u.rid from unnest(p_receipt_ids) as u(rid)
+      union
+      select c.id from public.purchase_receipts c join fam on c.corrects = fam.id
+       where c.origin = 'correccion' and c.invoice_id is null and c.vendor_id = vd.id)
+    select array_agg(distinct fam.id order by fam.id) into rids from fam;
     cur := coalesce(public._prov_txt(i->'currency', 3), 'CRC');
     if cur not in ('CRC', 'USD') then perform public._prov_fail('bad_request'); end if;
     d := public._prov_date(i->'date'); due := public._prov_date(i->'due_date');
     if d is null then perform public._prov_fail('bad_date'); end if;
     net := public._prov_num(i->'net'); iva := coalesce(public._prov_num(i->'iva'), 0);
     if net is null or net < 0 or iva < 0 or net + iva = 0 or net > 100000000 or iva > 100000000 then perform public._prov_fail('bad_amount'); end if;
+    -- as po_receipt_settle (0029): the amounts and the rate to 2 decimals first, so the stored dollars give the colones
+    net := round(net, 2); iva := round(iva, 2);
     if cur = 'USD' then
-      rate := public._prov_num(i->'fx_rate');
+      rate := round(public._prov_num(i->'fx_rate'), 2);
       if rate is null or rate < 100 or rate > 2000 then perform public._prov_fail('bad_rate'); end if;
       nc := round(net * rate, 2); ic := round(iva * rate, 2);
-    else nc := round(net, 2); ic := round(iva, 2);
+    else nc := net; ic := iva;
     end if;
     tot := nc + ic;
     num := public._prov_txt(i->'number', 50);
@@ -455,7 +557,12 @@ begin
       res := public.supplier_payment_save(jsonb_build_object('vendor_id', vd.id, 'date', public.cr_today(), 'amount_crc', rr.amt, 'paid_from', 'payout',
                'payout_id', rr.payout_id, 'invoice_ids', jsonb_build_array(p_request_id), 'reference', 'Pedido Nº ' || rr.po_number || ' · retiro de caja'),
                public._settle_uuid(p_request_id, 'payout-doc', k));
-      if not coalesce((res->>'ok')::boolean, false) then perform public._prov_fail(coalesce(res->>'error', 'bad_request')); end if;
+      -- its refusals in the page's words: a payout above what this invoice leaves open; a payout voided meanwhile
+      if not coalesce((res->>'ok')::boolean, false) then
+        if res->>'error' = 'more_than_owed' then perform public._prov_fail('payout_exceeds', jsonb_build_object('payout_crc', pays, 'total_crc', tot)); end if;
+        if res->>'error' = 'bad_payout' then perform public._prov_fail('changed'); end if;
+        perform public._prov_fail(coalesce(res->>'error', 'bad_request'));
+      end if;
       k := k + 1;
     end loop;
     -- the number on the deliveries that have none (unless this supplier already uses it on another delivery)
@@ -589,7 +696,8 @@ begin
       if dup.id is not null then perform public._prov_fail('possible_duplicate', jsonb_build_object('payment', to_jsonb(dup))); end if;
     end if;
     -- what is still owed (before an invoice exists, with an IVA allowance); more needs a reason and the owner level
-    saldo := case when poid is not null then (public._prov_dinero(poid)->>'saldo')::numeric else (public._prov_vendor_money(vid)->>'saldo')::numeric end;
+    saldo := (public._prov_vendor_money(vid)->>'saldo')::numeric;
+    if poid is not null then saldo := least(saldo, (public._prov_dinero(poid)->>'saldo')::numeric); end if;
     if amt > saldo + 1 then
       if not xok then perform public._prov_fail('over_balance', jsonb_build_object('saldo', saldo)); end if;
       if xr is null or char_length(xr) < 5 then perform public._prov_fail('needs_reason', jsonb_build_object('saldo', saldo)); end if;
@@ -652,6 +760,23 @@ begin
   end;
 end $$;
 
+-- Contabilidad's audit list (acct_audit, 0034) keeps its fixed list of actions: Proveedores' invoices, payments, their
+-- voids and the changes of a supplier's SINPE are read here, with the same range rule and row shape, and the page merges
+-- them (who did what in the books stays complete as staff move to Proveedores)
+create or replace function public.proveedores_bitacora(p_from date, p_to date)
+returns jsonb language plpgsql stable security definer set search_path = public, acct, extensions as $$
+begin
+  if not acct.can_read() then return jsonb_build_object('ok', false, 'error', 'not_allowed'); end if;
+  if p_from is null or p_to is null or p_to < p_from or p_to - p_from > 400 then return jsonb_build_object('ok', false, 'error', 'bad_range'); end if;
+  return jsonb_build_object('ok', true, 'from', p_from, 'to', p_to, 'rows', (
+    select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'at', a.at, 'action', a.action, 'who', a.manager_name, 'target', a.target_id, 'summary', a.summary, 'details', a.details)
+                              order by a.at desc, a.id desc), '[]')
+      from (select l.* from public.audit_log l
+             where (l.at at time zone 'America/Costa_Rica')::date between p_from and p_to
+               and l.action in ('po_invoice', 'po_invoice_void', 'supplier_advance', 'supplier_advance_apply', 'supplier_advance_void', 'vendor_sinpe')
+             order by l.at desc, l.id desc limit 500) a));
+end $$;
+
 -- 7) rights ---
 revoke all on function public._prov_dinero(uuid), public._prov_vendor_money(uuid), public._prov_po_brief(uuid, boolean), public._prov_mode(text),
   public._prov_can(), public._prov_date(jsonb), public._prov_reverse(bigint, text, text), public._prov_void_payment(uuid, text, text),
@@ -659,7 +784,8 @@ revoke all on function public._prov_dinero(uuid), public._prov_vendor_money(uuid
 do $$ declare f text; begin
   foreach f in array array['proveedores_lista(text, boolean)', 'proveedores_por_recibir(text)', 'proveedor_ficha(uuid, text)', 'proveedor_pedido(uuid, text)',
     'proveedor_historial(uuid, timestamptz, int)', 'proveedor_factura_registrar(uuid, uuid[], jsonb, uuid)', 'proveedor_factura_anular(uuid, text)',
-    'proveedor_anticipos_aplicar(uuid)', 'proveedor_pago_registrar(jsonb, uuid, uuid, text)', 'proveedor_pago_anular(uuid, text, uuid, text)'] loop
+    'proveedor_anticipos_aplicar(uuid)', 'proveedor_pago_registrar(jsonb, uuid, uuid, text)', 'proveedor_pago_anular(uuid, text, uuid, text)',
+    'proveedores_bitacora(date, date)'] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;

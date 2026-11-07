@@ -154,6 +154,8 @@
     over_balance: 'That is more than what is owed.',
     needs_reason: 'Write the reason (at least 5 letters).',
     needs_owner: 'Only the owner can do that.',
+    not_receiver: 'Receiving is done by the owner, a manager or the staff on shift.',
+    busy: 'The stock of these products is being used by a sale right now. Try again in a moment.',
     credit_needs_owner: 'That would leave money in our favour with this supplier (a payment already made). Only the owner can do it.',
     bad_amount: 'Check the amount.',
     future_date: 'The date cannot be in the future.',
@@ -170,6 +172,7 @@
     below_received: 'That is less than what already arrived.',
     no_receipts: 'Nothing has arrived for this order yet.',
     not_clocked_in: 'You are not clocked in.',
+    period_locked: 'That pay period is approved: you cannot clock in now. Tell a manager.',
     stale_shift: 'You have a shift open since an earlier day; tell a manager.',
     bad_rate: 'The exchange rate must be between 100 and 2000.',
     bad_receipts: 'Tick deliveries of this supplier that have no invoice yet.',
@@ -179,6 +182,7 @@
     invoiced: 'That delivery already has its invoice: it cannot be corrected here.',
     no_account: 'This login is not connected to the café yet.',
     unknown_account: 'An account of the books is missing. Tell the accountant.',
+    bad_account: 'An account of the books is not valid. Tell the accountant.',
     in_use_elsewhere: 'Your shift is in use on another device right now. Say who you are again here.',
     too_many_rebinds: 'Too many sign-ins on this device in the last hour. Say who you are again.',
     device_taken: 'Someone else is already receiving on this device.'
@@ -368,11 +372,20 @@
   async function onLocked() {
     if (LOCKING) return; LOCKING = true;
     try {
+      /* the books door (the accountant) asked for what is management's: no unlock closed, nothing to type again and
+         nothing to drop; it says so and goes back to where it was */
+      if (isBooksDoor() && !FLAGS.can_manage) {
+        closeAllModals();
+        var q = parseHash();
+        showMainError(ERR.needs_owner, function () { if (q.recibir) go('#pedido=' + q.recibir); else route(); }, 'Back');
+        return;
+      }
       keepDirty('locked');
       dropManagement();
       main.innerHTML = '';
       if (ACCOUNT === 'cafe' || ACCOUNT === 'owner_needs_code' || (ST && ST.via === 'pin')) { await openGate('The owner areas closed on this device. Type the PIN again to continue.'); }
-      else { showMainError(ERR.locked, refreshAuth); }
+      /* the same sign-in decided again (refreshAuth alone returns at once while the mode is open) */
+      else { showMainError(ERR.locked, function () { leaveMode(); refreshAuth(); }); }
     } finally { LOCKING = false; }
   }
 
@@ -453,10 +466,10 @@
   }
   window.HG_SAFE_TO_RELOAD = function () { return !isDirty(); };
 
-  function showMainError(msg, retry) {
+  function showMainError(msg, retry, label) {
     main.innerHTML = '';
     var c = el('div', 'card'); var p = el('p', 'note bad'); p.textContent = msg; c.appendChild(p);
-    if (retry) c.appendChild(btn('Try again', 'small', function () { retry(); }));
+    if (retry) c.appendChild(btn(label || 'Try again', 'small', function () { retry(); }));
     main.appendChild(c);
   }
 
@@ -487,6 +500,9 @@
     formClosed();
     closeAllModals();
     var q = parseHash();
+    /* a receive form left for another route: its typed values wait in localStorage (hg-prov-recv:<po>), so it no longer
+       holds the page back from a reload (version.js) or the idle sign-out */
+    if (RECV && (q.recibir || (MODE === 'receive' && q.pedido)) !== RECV.po) RECV = null;
     window.scrollTo(0, 0);
     if (MODE === 'receive') {
       if (!TURNO) { showPicker(); return; }
@@ -566,6 +582,13 @@
     if (t) all[UID] = { token: t.token, staff_id: t.staff_id, name: t.name }; else delete all[UID];
     ls('hg-turnos', all);
   }
+  /* «Salir de este aparato» while the POS's «¿Quién cobra?» is signed in on this device: that operator does not come
+     back here on the next load (turno_desde_caja) until the POS has another operator sign-in or someone types a PIN
+     here. localStorage['hg-turnos-out'] = {"<login id>": a fingerprint of that operator token (never the token)} */
+  function opMark(tok) { var h = 2166136261; tok = String(tok || ''); for (var i = 0; i < tok.length; i++) { h ^= tok.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(16); }
+  function outAll() { var v = ls('hg-turnos-out'); return v && typeof v === 'object' ? v : {}; }
+  function leftMark() { return outAll()[UID] || null; }
+  function setLeft(tok) { var all = outAll(); if (tok) all[UID] = opMark(tok); else delete all[UID]; ls('hg-turnos-out', all); }
   function dropTurno(why) {
     TURNO = null; TURNO_WHY = why || null; turnoSave(null);
     if (MODE === 'receive') showPicker(WHY[why] || ERR.no_session);
@@ -588,7 +611,9 @@
     }
     if (onlyRebind) return false;
     var op = ls('hg-pos-operator');
-    if (op && op.token) {
+    var out = leftMark();
+    if (out && (!op || !op.token || opMark(op.token) !== out)) { setLeft(null); out = null; }   /* the POS signed someone else in since */
+    if (op && op.token && !out) {
       var c = await call('turno_desde_caja', { p_operator_token: String(op.token), p_station: stationName() });
       if (c.ok && c.token) { TURNO = { token: c.token, staff_id: c.staff_id, name: c.staff_name || op.name }; turnoSave(TURNO); TURNO_WHY = null; return true; }
     }
@@ -603,8 +628,10 @@
     bar.appendChild(btn('Leave this device', 'linkbtn', async function () {
       var r = await call('turno_terminar', { p_token: TURNO.token });
       if (!r.ok && r.offline) { toast(ERR.offline); return; }
+      var op = ls('hg-pos-operator');
+      if (op && op.token) setLeft(op.token);
       TURNO = null; turnoSave(null); showPicker();
-      toast('Done: nobody receives on this device now.');
+      toast(op && op.token && op.name ? 'Done: nobody receives on this device now. {n} is still ringing up at the POS.'.replace('{n}', function () { return String(op.name).slice(0, 40); }) : 'Done: nobody receives on this device now.');
     }));
     bar.appendChild(el('span', 'sp'));
     bar.appendChild(btn('Open the owner areas', 'ghost small', function () { openGate(); }));
@@ -614,6 +641,7 @@
   async function showPicker(msg) {
     if (MODE !== 'receive') return;
     GEN++;
+    RECV = null;   /* a typed receive form left this way waits in localStorage too: it never holds back a reload */
     main.innerHTML = '';
     $('modeBar').hidden = true;
     var v = $('turnoView'); v.hidden = false;
@@ -659,7 +687,7 @@
     $('tqPin').value = ''; turnoBusy = false; $('turnoGo').disabled = false;
     if (r.ok && r.token) {
       TURNO = { token: r.token, staff_id: r.staff_id || PICK.id, name: r.staff_name || PICK.name, expires_at: r.expires_at };
-      turnoSave(TURNO); PICK = null;
+      turnoSave(TURNO); PICK = null; setLeft(null);
       toast(r.clocked_in ? 'Clocked in. You can receive now.' : 'Ready: you receive on this device.');
       showTurnoBar(); route();
       return;
@@ -712,7 +740,8 @@
       row.appendChild(d);
       var acts = el('span', 'acts');
       if (!o.vendor_name && !receiveOnly && FLAGS.can_manage) acts.appendChild(btn('No supplier · Assign', 'ghost small', function () { assignInline(row, o); }));
-      acts.appendChild(link('Receive', '#recibir=' + o.id, 'btnlink small solid'));
+      /* receiving is the owner's, a manager's or the staff on shift's (never the accountant's) */
+      if (receiveOnly || FLAGS.can_manage) acts.appendChild(link('Receive', '#recibir=' + o.id, 'btnlink small solid'));
       if (!receiveOnly) acts.appendChild(link('Open', '#pedido=' + o.id));
       row.appendChild(acts);
       box.appendChild(row);
@@ -769,13 +798,16 @@
     CACHE.lista = L; setFlags(L);
     if (A.ok) CACHE.alertas = A;
     main.innerHTML = '';
-    /* alerts on top: at most 6, grouped by supplier */
+    /* alerts on top: the 6 most urgent (the server sends them out → low → soon, then by days left), grouped by supplier;
+       the groups keep that order (the group of the most urgent alert first) */
     if (A.ok && (A.items || []).length) {
       var ac = el('section', 'card'); ac.id = 'hubAlerts';
       var h = el('h2', '', esc('Before it runs out') + ' <span class="n">' + esc(A.count != null ? A.count : A.items.length) + '</span>');
       ac.appendChild(h);
-      var items = A.items.slice().sort(function (a, b) { return norm(a.vendor_name || '~').localeCompare(norm(b.vendor_name || '~')) || 0; });
-      var shown = HUB.allAlerts ? items : items.slice(0, 6);
+      var items = A.items, rank = Object.create(null);
+      items.forEach(function (i, k) { var vk = i.vendor_name || ''; if (!(vk in rank)) rank[vk] = k; });
+      var shown = (HUB.allAlerts ? items : items.slice(0, 6)).map(function (i, k) { return { i: i, k: k }; })
+        .sort(function (a, b) { return rank[a.i.vendor_name || ''] - rank[b.i.vendor_name || ''] || a.k - b.k; }).map(function (x) { return x.i; });
       var grid = el('div', 'alerts'), lastV = null;
       shown.forEach(function (i) {
         var vk = i.vendor_name || '';
@@ -943,7 +975,10 @@
   async function viewFicha(gen, vid, tab, itemId, force) {
     if (!isUuid(vid)) { go('#'); return; }
     if (!FICHA || FICHA.vendor.id !== vid) main.innerHTML = '<p class="loading">Loading…</p>';
-    var r = await loadFicha(vid, force);
+    /* money and deliveries are read as they are now (another device may have received or paid a moment ago); the
+       60-second copy only serves Pedir and Productos (the books door opens on Pagos) */
+    var fresh = force || tab === 'pagos' || tab === 'pedidos' || (!tab && isBooksDoor() && !FLAGS.can_manage);
+    var r = await loadFicha(vid, fresh);
     if (stale(gen)) return;
     if (!r.ok) return loadErr(gen, r);
     FICHA = r; setFlags(r);
@@ -1125,7 +1160,7 @@
       d.req = isUuid(loc.req) ? loc.req : null;
       var lines = cleanLines(loc.lines);
       if (loc.dirty && Number(loc.base_version || 0) === sv) { d.lines = lines; d.note = String(loc.note || '').slice(0, 500); d.dirty = true; }
-      else if (loc.dirty && (lines.length || loc.note)) d.leftover = { lines: lines, note: String(loc.note || '').slice(0, 500) };
+      else if (loc.dirty && (lines.length || loc.note) && !sameDraft(server, { lines: lines, note: loc.note })) d.leftover = { lines: lines, note: String(loc.note || '').slice(0, 500) };
       else { /* a priced line typed on this device keeps its price on the server's lines */
         lines.forEach(function (l) { if (l.pack_price != null) d.lines.forEach(function (x) { if (x.vendor_item_id === l.vendor_item_id) x.pack_price = l.pack_price; }); });
       }
@@ -1158,11 +1193,12 @@
     if (!D || D.stopped || !D.dirty) return;
     if (draftFlight) { D.again = true; return draftFlight; }
     if (!D.lines.length && !D.note && !D.base_version) { D.dirty = false; draftSaveLocal(); draftStatus(''); return; }
-    var edits = D.edits;
-    draftFlight = rpc('proveedor_borrador_guardar', { p_vendor_id: D.vendor, p_lines: serverLines(), p_note: D.note || null, p_version: D.base_version });
+    var edits = D.edits, sent = { lines: serverLines(), note: D.note || null };
+    draftFlight = rpc('proveedor_borrador_guardar', { p_vendor_id: D.vendor, p_lines: sent.lines, p_note: sent.note, p_version: D.base_version });
     var r = await draftFlight; draftFlight = null;
     if (DRAFT !== D) return;
     if (r.ok) {
+      D.unanswered = null;
       D.base_version = r.discarded ? 0 : Number(r.version) || D.base_version;
       D.updated_at = r.updated_at || new Date().toISOString();
       if (D.edits === edits) D.dirty = false;
@@ -1171,16 +1207,45 @@
       if (D.dirty || D.again) { D.again = false; draftSchedule(); }
       return;
     }
-    if (r.offline) { draftStatus('No connection: saved on this device', 'err'); clearTimeout(draftTimer); draftTimer = setTimeout(draftPush, 15000); return; }
+    if (r.offline) {
+      /* it may have reached the server: what it sent is kept, so its version is recognised on the next answer */
+      D.unanswered = (D.unanswered || []).concat([{ key: draftKey(sent.lines, sent.note), base: D.base_version }]).slice(-5);
+      draftStatus('No connection: saved on this device', 'err'); clearTimeout(draftTimer); draftTimer = setTimeout(draftPush, 15000); return;
+    }
     if (r.handled) return;
+    /* «changed» with exactly what this device sent: its own earlier save got there (a lost answer, or the save made as
+       the page went to the background), not another device: take that version and go on */
+    if (r.error === 'changed' && r.draft && sameDraft(r.draft, sent)) {
+      D.unanswered = null;
+      D.base_version = Number(r.draft.version) || D.base_version; D.updated_at = r.draft.updated_at || D.updated_at;
+      if (D.edits === edits) D.dirty = false;
+      draftSaveLocal(); draftStatus('Draft saved ' + hhmm(D.updated_at));
+      if (D.dirty || D.again) { D.again = false; draftSchedule(); }
+      return;
+    }
+    /* «changed» with what an earlier save of this device sent, one version on: that save got there (its answer was lost)
+       and the person changed more since; take that version and send what is ticked now */
+    var mine = r.error === 'changed' && r.draft && (D.unanswered || []).filter(function (u) {
+      return u.key === draftKey(r.draft.lines, r.draft.note) && Number(r.draft.version) === Number(u.base || 0) + 1; })[0];
+    if (mine) {
+      D.unanswered = null;
+      D.base_version = Number(r.draft.version); D.updated_at = r.draft.updated_at || D.updated_at;
+      D.dirty = true; draftSaveLocal(); draftSchedule();
+      return;
+    }
     if (r.error === 'changed' && r.draft) { D.stopped = true; D.conflict = r.draft; draftStatus(''); paintDraftNotes(); return; }
     if (r.error === 'draft_used') { D.stopped = true; D.used = r.po_id || true; draftStatus(''); paintDraftNotes(); return; }
     draftStatus(errText(r), 'err');
   }
-  /* the page goes away: what is not on the server yet goes with keepalive (the local copy is already saved) */
+  function draftKey(lines, note) {
+    return JSON.stringify([(lines || []).map(function (l) { return [String(l.vendor_item_id), round(Number(l.packs) || 0, 3)]; }).sort(), note || null]);
+  }
+  function sameDraft(server, sent) { return !!server && draftKey(server.lines, server.note) === draftKey(sent.lines, sent.note); }
+  /* the page goes away for good: what is not on the server yet goes with keepalive (the local copy is already saved);
+     never beside a save already on its way */
   function draftBeacon() {
     var D = DRAFT;
-    if (!D || D.stopped || !D.dirty || MODE !== 'manage') return;
+    if (!D || D.stopped || !D.dirty || MODE !== 'manage' || draftFlight) return;
     if (!D.lines.length && !D.note && !D.base_version) return;
     try {
       var s = ls('sb-' + new URL(CFG.url).hostname.split('.')[0] + '-auth-token');
@@ -1192,10 +1257,26 @@
     } catch (e) {}
   }
   window.addEventListener('pagehide', draftBeacon);
-  document.addEventListener('visibilitychange', function () { if (document.hidden) draftBeacon(); });
+  /* switching apps: the ordinary save, tracked like any other (its answer moves the version on), not a blind beacon */
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden || !DRAFT || DRAFT.stopped || !DRAFT.dirty || MODE !== 'manage') return;
+    if (draftFlight) { DRAFT.again = true; return; }
+    draftPush();
+  });
   async function draftFlush() { clearTimeout(draftTimer); if (draftFlight) await draftFlight; if (DRAFT && DRAFT.dirty && !DRAFT.stopped) await draftPush(); }
 
   function prodById(id) { return FICHA ? (FICHA.products || []).filter(function (p) { return p.id === id; })[0] || null : null; }
+  /* only a live catalog row (active, its inventory item active) is counted, shown or ordered */
+  function liveById(id) { return liveProducts().filter(function (p) { return p.id === id; })[0] || null; }
+  /* a ticked product retired from the catalog (or whose inventory item was switched off) since: off the draft, said once */
+  function pruneDraft() {
+    if (!DRAFT || !FICHA || FICHA.vendor.id !== DRAFT.vendor) return;
+    var gone = DRAFT.lines.filter(function (l) { return !liveById(l.vendor_item_id); });
+    if (!gone.length) return;
+    DRAFT.lines = DRAFT.lines.filter(function (l) { return !!liveById(l.vendor_item_id); });
+    DRAFT.removed = gone.map(function (l) { var p = prodById(l.vendor_item_id); return { name: p ? pname(p) : null, packs: l.packs, inactive: !!(p && p.item_active === false) }; });
+    draftTouched();
+  }
   function liveProducts() { return FICHA ? (FICHA.products || []).filter(function (p) { return p.active && p.item_active !== false; }) : []; }
   function suggestion(p) {
     if (PIN && PIN.vi === p.id && Number(PIN.suggest) > 0) return Number(PIN.suggest);
@@ -1205,6 +1286,7 @@
   async function renderPedir(body, F, itemId) {
     var V = F.vendor;
     if (!DRAFT || DRAFT.vendor !== V.id) draftOpen(V.id, F.draft);
+    pruneDraft();
     PIN = null;
     if (itemId && isUuid(itemId)) {
       var A = await alertItem(itemId), rows = liveProducts().filter(function (p) { return p.item_id === itemId; });
@@ -1235,6 +1317,10 @@
     list.addEventListener('click', onRowClick);
     list.addEventListener('input', onRowInput);
     list.addEventListener('change', onRowChange);
+    /* the alert's prefilled suggestion: the first key typed replaces it (a keyboard or the on-screen pad, which adds to
+       what is in the box), so typing 2 gives 2, never 62; the suggestion stays in sight as the box's placeholder and
+       comes back if nothing is typed */
+    list.addEventListener('focusin', function (e) { var t = e.target; if (t.matches('.step input.pre')) { t.placeholder = t.value; t.value = ''; } });
     list.addEventListener('focusout', function (e) { if (e.target.matches('.step input')) paintRow(e.target.closest('.prow')); });
     paintRows(); paintDraftNotes(); paintUnmatched();
     if (DUP) { var dp = DUP; DUP = null; orderToTicks(dp); }
@@ -1336,7 +1422,7 @@
   function draftTotals() {
     var n = 0, tot = 0, noPrice = 0;
     (DRAFT ? DRAFT.lines : []).forEach(function (l) {
-      var p = prodById(l.vendor_item_id); if (!p) return;
+      var p = liveById(l.vendor_item_id); if (!p) return;
       n++; var pr = priceOf(p, l);
       if (pr == null) noPrice++; else tot += pr * Number(l.packs);
     });
@@ -1347,12 +1433,23 @@
     var t = draftTotals();
     s.innerHTML = '<span>' + esc(t.n === 1 ? '1 product' : t.n + ' products') + '</span> · <span>' + esc('Estimated total ' + fmtC(t.total)) + '</span>' +
       (t.noPrice ? ' · <span>' + esc(t.noPrice + ' without price') + '</span>' : '');
-    $('pCreate').disabled = !t.n || CREATING;
+    /* a draft in conflict, or one another device already turned into an order: the choice above first */
+    $('pCreate').disabled = !t.n || CREATING || !!(DRAFT && (DRAFT.conflict || DRAFT.used));
   }
   /* the notices above the list: local changes left by a newer server draft; a conflict; the draft became an order */
   function paintDraftNotes() {
     var box = $('pNotes'); if (!box || !DRAFT) return;
     box.innerHTML = '';
+    paintBar();   /* «Crear pedido» follows the notices (off while one asks for a choice) */
+    if (DRAFT.removed && DRAFT.removed.length) {
+      var rm = el('div', 'note'); rm.setAttribute('role', 'status');
+      rm.appendChild(el('p', '', esc('Taken off this order (no longer in the catalog, or the inventory item is inactive):')));
+      var rl = el('ul', 'hist');
+      DRAFT.removed.forEach(function (x) { rl.appendChild(el('li', '', (x.name ? nt(x.name) : esc('A product no longer in the catalog')) + ' · ' + esc(num(x.packs)) + (x.inactive ? ' · <span>' + esc('inventory item inactive') + '</span>' : ''))); });
+      rm.appendChild(rl);
+      var rb = el('div', 'btns'); rb.appendChild(btn('Understood', 'ghost small', function () { DRAFT.removed = null; paintDraftNotes(); })); rm.appendChild(rb);
+      box.appendChild(rm);
+    }
     if (DRAFT.leftover) {
       var n = el('div', 'note'); n.innerHTML = '<span>' + esc('There were unsaved changes on this device') + '</span>';
       var b = el('div', 'btns');
@@ -1361,7 +1458,7 @@
         DRAFT.leftover.lines.forEach(function (l) { var p = prodById(l.vendor_item_id); ul.appendChild(el('li', '', (p ? nt(pname(p)) : esc('A product no longer in the catalog')) + ' · ' + esc(num(l.packs)))); });
         if (DRAFT.leftover.note) ul.appendChild(el('li', '', esc('Note:') + ' ' + nt(DRAFT.leftover.note)));
         n.insertBefore(ul, b);
-        b.insertBefore(btn('Use these', 'small', function () { DRAFT.lines = DRAFT.leftover.lines.filter(function (l) { return !!prodById(l.vendor_item_id); }); DRAFT.note = DRAFT.leftover.note || DRAFT.note; DRAFT.leftover = null; $('pNote').value = DRAFT.note || ''; draftTouched(); paintRows(); paintDraftNotes(); }), b.firstChild);
+        b.insertBefore(btn('Use these', 'small', function () { DRAFT.lines = DRAFT.leftover.lines.filter(function (l) { return !!liveById(l.vendor_item_id); }); DRAFT.note = DRAFT.leftover.note || DRAFT.note; DRAFT.leftover = null; $('pNote').value = DRAFT.note || ''; draftTouched(); paintRows(); paintDraftNotes(); }), b.firstChild);
         this.remove();
       }));
       b.appendChild(btn('Discard', 'ghost small', function () { DRAFT.leftover = null; draftSaveLocal(); paintDraftNotes(); }));
@@ -1434,11 +1531,11 @@
   /* «Crear pedido»: one request id kept until the server answers; the button waits for it */
   var CREATING = false;
   async function createOrder() {
-    if (CREATING || !DRAFT) return;
+    if (CREATING || !DRAFT || DRAFT.conflict || DRAFT.used) return;
     var err = $('pErr'); err.textContent = '';
     var D = DRAFT, lines = [], missing = null;
     D.lines.forEach(function (l) {
-      var p = prodById(l.vendor_item_id); if (!p) return;
+      var p = liveById(l.vendor_item_id); if (!p) return;
       var o = { vendor_item_id: l.vendor_item_id, packs: l.packs };
       if (l.pack_price != null) { o.pack_price = l.pack_price; if (Number(l.pack_price) === 0) o.free = true; }
       else if (p.usual_price == null) missing = missing || p;
@@ -1451,9 +1548,11 @@
     try {
       await draftFlush();
       if (DRAFT !== D) return;
+      /* the flush itself may find that the draft became an order or changed on another device: that choice first */
+      if (D.used || D.conflict) { paintDraftNotes(); return; }
       if (!D.req) { D.req = uuid(); draftSaveLocal(); }
       var r = await rpc('proveedor_pedido_crear', { p_vendor_id: D.vendor, p_lines: lines, p_note: D.note || null, p_request_id: D.req,
-        p_draft_version: D.base_version > 0 && !D.stopped ? D.base_version : null, p_expected_on: null });
+        p_draft_version: D.base_version > 0 ? D.base_version : null, p_expected_on: null });
       if (DRAFT !== D) return;
       if (r.ok) {
         ls(dkey(D.vendor), null); DRAFT = null; UNMATCHED[D.vendor] = [];
@@ -1466,9 +1565,22 @@
       if (r.error === 'draft_used') { ls(dkey(D.vendor), null); DRAFT = null; forgetFicha(D.vendor); toast(ERR.draft_used); if (r.po_id) go('#pedido=' + r.po_id); else reloadFicha('pedir'); return; }
       if (r.error === 'draft_changed') {
         var s = r.draft || {};
+        /* the id kept here already made an order (its answer was lost): these ticks are a new order with a new id */
+        if (r.stale_request) D.req = uuid();
         D.lines = cleanLines(s.lines); D.note = s.note || ''; D.base_version = Number(s.version) || 0; D.dirty = false; D.stopped = false; D.conflict = null; draftSaveLocal();
         $('pNote').value = D.note; paintRows(); paintDraftNotes();
-        err.textContent = ERR.draft_changed; return;
+        err.textContent = r.stale_request ? 'This device already made order Nº {n} earlier. What is ticked now is a new order: check it and tap «Create order».'.replace('{n}', r.po_number || '') : ERR.draft_changed;
+        return;
+      }
+      /* a product retired or switched off on another device a moment ago: off the order, said, never «reload» */
+      if ((r.error === 'not_found' || r.error === 'item_inactive') && r.vendor_item_id && dline(r.vendor_item_id)) {
+        var gp = prodById(r.vendor_item_id), gl = dline(r.vendor_item_id);
+        if (gp) { if (r.error === 'item_inactive') gp.item_active = false; else gp.active = false; }   /* as the server has it now */
+        D.lines = D.lines.filter(function (l) { return l.vendor_item_id !== r.vendor_item_id; });
+        D.removed = (D.removed || []).concat([{ name: gp ? pname(gp) : null, packs: gl ? gl.packs : 0, inactive: r.error === 'item_inactive' }]);
+        draftTouched(); paintRows(); paintDraftNotes();
+        err.textContent = 'A product can no longer be ordered and was taken off the order. Check it and tap «Create order» again.';
+        return;
       }
       err.textContent = errText(r) + (r.line_id || r.vendor_item_id ? ' ' : '');
       var bad = r.vendor_item_id && document.querySelector('.prow[data-vi="' + r.vendor_item_id + '"]'); if (bad) bad.classList.add('pin');
@@ -1602,7 +1714,7 @@
     row.appendChild(d);
     var a = el('span', 'acts');
     a.appendChild(link('Open', '#pedido=' + o.id));
-    if (/^(draft|sent|partially_received)$/.test(o.status)) a.appendChild(link('Receive', '#recibir=' + o.id, 'btnlink small solid'));
+    if (FLAGS.can_manage && /^(draft|sent|partially_received)$/.test(o.status)) a.appendChild(link('Receive', '#recibir=' + o.id, 'btnlink small solid'));
     if (FLAGS.can_manage && o.status !== 'cancelled') a.appendChild(btn('Duplicate', 'ghost small', function () { duplicateOrder(vid, o.id); }));
     row.appendChild(a);
     return row;
@@ -1667,9 +1779,9 @@
     var ol = el('div', 'olist');
     if (!dueOrders.length) ol.appendChild(el('p', 'empty', esc('Nothing pending to pay on the orders.')));
     dueOrders.forEach(function (o) {
-      var m = o.money, row = el('div', 'orow');
-      row.innerHTML = '<span class="t">' + esc('Order Nº ' + o.po_number) + '</span><span class="d">' + payPill(m) + ' · <span>' + esc('to pay ' + fmtC(m.due)) + '</span> · <span>' + esc('paid ' + fmtC(m.paid)) + '</span>' +
-        (m.estimate ? ' · <span>' + esc('estimated, IVA incl.') + '</span>' : '') + (m.invoice_missing ? ' · <span class="pill gold">' + esc('Invoice missing') + '</span>' : '') + '</span>';
+      var m = o.money, tp = toPay(m), row = el('div', 'orow');
+      row.innerHTML = '<span class="t">' + esc('Order Nº ' + o.po_number) + '</span><span class="d">' + payPill(m) + ' · <span>' + esc('to pay ' + fmtC(tp.v)) + '</span> · <span>' + esc('paid ' + fmtC(m.paid)) + '</span>' +
+        (tp.est ? ' · <span>' + esc('estimated, IVA incl.') + '</span>' : '') + (m.invoice_missing ? ' · <span class="pill gold">' + esc('Invoice missing') + '</span>' : '') + '</span>';
       var a = el('span', 'acts');
       if (FLAGS.can_pay) a.appendChild(btn('Pay now', 'small', function () { openPay(V.id, o.id); }));
       a.appendChild(link('Open', '#pedido=' + o.id));
@@ -1816,15 +1928,15 @@
     if (PAY && opts && opts.extra) { PAY.method = opts.extra.method === 'card' ? 'card' : 'sinpe'; PAY.card = opts.extra.card === 'card_credit' ? 'card_credit' : 'card_debit'; paintPayMethod(); }
   };
   async function openPay(vid, poId, req) {
-    /* the supplier's money as it is now (a payment or a delivery since the file was read has made it forget the copy) */
-    var fr = await loadFicha(vid); if (!fr.ok) { if (!fr.handled) toast(errText(fr)); return; } FICHA = fr;
+    /* the supplier's money as it is now: read again (a delivery or a payment on another device is not in an older copy) */
+    var fr = await loadFicha(vid, true); if (!fr.ok) { if (!fr.handled) toast(errText(fr)); return; } FICHA = fr;
     var F = FICHA, M = F.money || {};
     PAY = { vendor: vid, req: req || uuid(), method: 'sinpe', card: 'card_debit', excess: false, dup_ok: false };
     var sel = $('payPo'); sel.innerHTML = '';
     var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'No order (on account)'; sel.appendChild(o0);
     (F.orders || []).filter(function (o) { return o.status !== 'cancelled'; }).forEach(function (o) {
       var op = document.createElement('option'); op.value = o.id;
-      var left = o.money ? Math.max(0, Number(o.money.due) - Number(o.money.paid)) : 0;
+      var left = leftToPay(o.money);
       op.textContent = 'Order Nº ' + o.po_number + ' · ' + (ST_TXT[o.status] || o.status) + (left > 0.5 ? ' · owes ' + fmtC(left) : '');
       sel.appendChild(op);
     });
@@ -1840,10 +1952,14 @@
     openModal('payModal', 'payAmt');
     formOpened('pay', [vid, poId || null], $('payForm'), PAY.req);
   }
+  /* what is left to pay: the server's saldo (with the IVA allowance before the invoice); an older server: due − paid */
+  function leftToPay(m) { return !m ? 0 : m.saldo != null ? Math.max(0, Number(m.saldo) || 0) : Math.max(0, Number(m.due) - Number(m.paid)); }
+  /* «to pay»: before the invoice the estimate with the IVA allowance, labelled; else what is due */
+  function toPay(m) { var d = Number(m && m.due) || 0, di = Number(m && m.due_iva); return m && m.due_iva != null && di - d > 0.5 ? { v: di, est: true } : { v: d, est: false }; }
   function paySaldo() {
     var F = FICHA, po = $('payPo').value, M = F.money || {}, s;
-    if (po) { var o = (F.orders || []).filter(function (x) { return x.id === po; })[0]; s = o && o.money ? Math.max(0, Number(o.money.due) - Number(o.money.paid)) : 0; }
-    else s = Number(M.owed_crc) || 0;
+    if (po) { var o = (F.orders || []).filter(function (x) { return x.id === po; })[0]; s = o ? leftToPay(o.money) : 0; }
+    else s = M.saldo != null ? Math.max(0, Number(M.saldo) || 0) : Number(M.owed_crc) || 0;
     $('payAmt').value = s > 0 ? plainNum(round(s, 2)) : '';
     $('paySaldo').textContent = s > 0 ? (po ? 'Balance: ' : 'Balance of all orders: ') + fmtC(s) : 'Nothing owed right now: the payment stays in favour.';
   }
@@ -1885,7 +2001,9 @@
     $('payPin').value = ''; payBusy = false; $('payGo').disabled = false; $('payGo').textContent = 'Save payment';
     if (r.ok) {
       var vid = PAY.vendor, po = p.po_id; PAY = null; closeModal('payModal'); forgetFicha(vid);
-      toast(r.repeat ? 'That payment was already saved' : 'Payment saved' + (Number(r.unapplied_crc) > 0.005 ? ' · ' + fmtC(r.unapplied_crc) + ' in favour' : ''));
+      /* «in favour» only when the supplier really holds money of ours beyond what is owed (an order paid ahead waits) */
+      var cr = r.money ? Number(r.money.credit != null ? r.money.credit : r.money.credit_crc) || 0 : 0;
+      toast(r.repeat ? 'That payment was already saved' : 'Payment saved' + (cr > 0.5 ? ' · ' + fmtC(cr) + ' in favour' : Number(r.unapplied_crc) > 0.005 ? ' · it waits for the invoice' : ''));
       var o = po && FICHA ? (FICHA.orders || []).filter(function (x) { return x.id === po; })[0] : null;
       if (o && FICHA && (FICHA.money.uninvoiced || []).some(function (u) { return u.po_id === po; })) AFTER_PAY = po;
       route();
@@ -1946,42 +2064,65 @@
   var INV = null;
   FORMS.invoice = async function (vid, poId, opts) { await openInvoice(vid, poId, opts && opts.req); };
   async function openInvoice(vid, poId, req) {
-    /* the deliveries without invoice as they are now (one just received is in a fresh read, not in an older copy) */
-    var fr = await loadFicha(vid); if (!fr.ok) { if (!fr.handled) toast(errText(fr)); return; } FICHA = fr;
-    var U = (FICHA.money && FICHA.money.uninvoiced) || [];
-    INV = { vendor: vid, req: req || uuid() };
+    /* the deliveries without invoice as they are now: read again (one received on another device is not in an older copy) */
+    var fr = await loadFicha(vid, true); if (!fr.ok) { if (!fr.handled) toast(errText(fr)); return; } FICHA = fr;
+    var U = invRows((FICHA.money && FICHA.money.uninvoiced) || []);
+    INV = { vendor: vid, req: req || uuid(), autoNum: '', autoNet: '' };
     var box = $('invRecs'); box.innerHTML = '';
     if (!U.length) box.appendChild(el('p', 'empty', esc('Every delivery of this supplier already has its invoice.')));
     U.forEach(function (u) {
       var l = el('label', 'checkline');
       var tick = poId ? u.po_id === poId : U.length === 1;
-      l.innerHTML = '<input type="checkbox" data-rec="' + esc(u.receipt_id) + '"' + (tick ? ' checked' : '') + '> <span><span>' + esc('Order Nº ' + (u.po_number || '')) + '</span> · <span>' + esc(fmtD(u.received_at)) + '</span> · <span class="mono">' + esc(fmtC(u.total_crc)) + '</span>' +
+      /* a Proveedores correction goes with the delivery it corrects (the server invoices them together): shown inside it */
+      var fixed = u.fixes.length ? ' · <span>' + esc('corrected') + '</span> <span class="mono">' + esc(fmtC(u.fix_crc)) + '</span> → <span class="mono">' + esc(fmtC(u.net_crc)) + '</span>' : '';
+      l.innerHTML = '<input type="checkbox" id="invR-' + esc(u.receipt_id) + '" data-rec="' + esc(u.receipt_id) + '"' + (tick ? ' checked' : '') + '> <span><span>' + esc('Order Nº ' + (u.po_number || '')) + '</span> · <span>' + esc(fmtD(u.received_at)) + '</span> · <span class="mono">' + esc(fmtC(u.total_crc)) + '</span>' + fixed +
         (u.invoice_no ? ' · <span>' + esc('invoice') + '</span> ' + nt(u.invoice_no) : '') + (u.invoice_status === 'review' ? ' · <span class="pill gold">' + esc('to review') + '</span>' : '') + '</span>';
       box.appendChild(l);
     });
-    $('invDate').value = todayIso(); $('invDate').max = todayIso(); $('invDue').value = ''; $('invCur').value = 'CRC'; $('invFx').value = ''; $('invFxBox').hidden = true;
+    $('invNum').value = ''; $('invNet').value = '';
+    $('invDate').value = todayIso(); $('invDate').max = todayIso(); $('invDue').value = ''; $('invCur').value = 'CRC'; invCurNow = 'CRC'; $('invFx').value = ''; $('invFxBox').hidden = true;
     $('invIva').value = ''; $('invErr').textContent = '';
     invPrefill();
     openModal('invModal');
     formOpened('invoice', [vid, poId || null], $('invForm'), INV.req);
   }
+  /* the deliveries waiting for their invoice, each with its Proveedores corrections (corrections of corrections too);
+     a correction whose delivery is not in the list (already invoiced elsewhere) stands on its own */
+  function invRows(list) {
+    var by = {}, rows = [], at = {};
+    list.forEach(function (u) { by[u.receipt_id] = u; });
+    function root(u) { var r = u, n = 0; while (r.corrects && by[r.corrects] && n++ < 50) r = by[r.corrects]; return r; }
+    list.forEach(function (u) {
+      var r = root(u);
+      if (!at[r.receipt_id]) { at[r.receipt_id] = Object.assign({}, r, { fixes: [], fix_crc: 0, net_crc: Number(r.total_crc) || 0 }); rows.push(at[r.receipt_id]); }
+      if (r !== u) { var w = at[r.receipt_id]; w.fixes.push(u); w.fix_crc = round(w.fix_crc + (Number(u.total_crc) || 0), 2); w.net_crc = round(w.net_crc + (Number(u.total_crc) || 0), 2); }
+    });
+    return rows;
+  }
   function invTicked() {
     var ids = Array.prototype.map.call(document.querySelectorAll('#invRecs [data-rec]:checked'), function (i) { return i.getAttribute('data-rec'); });
-    var U = (FICHA && FICHA.money && FICHA.money.uninvoiced) || [];
+    var U = invRows((FICHA && FICHA.money && FICHA.money.uninvoiced) || []);
     return U.filter(function (u) { return ids.indexOf(u.receipt_id) > -1; });
   }
+  function invPayoutPaint() {
+    var payout = invTicked().reduce(function (s, u) { return s + (Number(u.payout_crc) || 0); }, 0);
+    $('invPayout').textContent = payout > 0 ? 'Register cash paid ' + fmtC(payout) : '';
+  }
+  /* the number and the subtotal follow the ticked deliveries only while they still hold what the page itself filled in:
+     a number or an amount the person typed is never overwritten (the delivery ticked after it, the currency switched) */
   function invPrefill() {
-    var T = invTicked(), net = 0, payout = 0, nos = {};
+    var T = invTicked(), net = 0, nos = {};
     T.forEach(function (u) {
       var d = u.invoice_draft || null, dn = d ? Number(d.net != null ? d.net : d.net_crc != null ? d.net_crc : d.subtotal) : NaN;
-      net += u.invoice_status === 'review' && isFinite(dn) && dn > 0 ? dn : Number(u.total_crc) || 0;
-      payout += Number(u.payout_crc) || 0;
+      net += (u.invoice_status === 'review' && isFinite(dn) && dn > 0 ? dn : Number(u.total_crc) || 0) + (Number(u.fix_crc) || 0);
       if (u.invoice_no) nos[u.invoice_no] = 1;
     });
-    var keys = Object.keys(nos);
-    $('invNum').value = keys.length === 1 ? keys[0] : '';
-    $('invNet').value = T.length ? plainNum(round(net, 2)) : '';
-    $('invPayout').textContent = payout > 0 ? 'Register cash paid ' + fmtC(payout) : '';
+    var keys = Object.keys(nos), num = keys.length === 1 ? keys[0] : '';
+    if (INV && ($('invNum').value.trim() === '' || $('invNum').value === INV.autoNum)) { $('invNum').value = num; INV.autoNum = num; }
+    /* the received value is in colones: in dollars the subtotal is the one the person types, never ₡ read as $ */
+    var nv = T.length ? plainNum(round(net, 2)) : '';
+    if (INV && $('invCur').value !== 'USD' && ($('invNet').value.trim() === '' || $('invNet').value === INV.autoNet)) { $('invNet').value = nv; INV.autoNet = nv; }
+    invPayoutPaint();
     invTotal();
   }
   function invTotal() {
@@ -1990,11 +2131,25 @@
     var fx = cur === 'USD' ? parseNum($('invFx').value) : NaN;
     $('invTotal').textContent = n >= 0 ? 'Total ' + (cur === 'USD' ? '$' + round(t, 2).toFixed(2) + (fx >= 100 && fx <= 2000 ? ' = ' + fmtC(round(round(n, 2) * fx, 2) + (i >= 0 ? round(round(i, 2) * fx, 2) : 0)) : '') : fmtC(t)) + (i >= 0 ? '' : ' · choose the IVA') : '';
   }
-  $('invRecs').addEventListener('change', invPrefill);
+  $('invRecs').addEventListener('change', function () { invPrefill(); });
+  $('invRecs').addEventListener('input', invPayoutPaint);   /* a form brought back ticks its deliveries with «input» only */
   ['invNet', 'invIva', 'invFx'].forEach(function (id) { $(id).addEventListener('input', invTotal); });
   $('invIva13').addEventListener('click', function () { var n = parseNum($('invNet').value); if (n >= 0) { $('invIva').value = plainNum(round(n * 0.13, 2)); invTotal(); } });
   $('invIva0').addEventListener('click', function () { $('invIva').value = '0'; invTotal(); });
-  $('invCur').addEventListener('change', function () { $('invFxBox').hidden = $('invCur').value !== 'USD'; invTotal(); });
+  /* the prefilled subtotal is the received value in colones: in dollars the person types the invoice's own amounts
+     (never ₡18 000 read as $18 000); back in colones the prefill returns */
+  /* only a real switch acts: a form brought back (resume) fires «change» with the same currency and keeps what was typed */
+  var invCurNow = 'CRC';
+  $('invCur').addEventListener('change', function () {
+    var cur = $('invCur').value; if (cur === invCurNow) return;
+    invCurNow = cur;
+    var usd = cur === 'USD';
+    $('invFxBox').hidden = !usd;
+    $('invIva').value = '';
+    /* an amount typed in one currency means nothing in the other: the subtotal starts again (the number typed stays) */
+    $('invNet').value = '';
+    if (usd) invTotal(); else invPrefill();
+  });
   $('invCancel').addEventListener('click', function () { closeModal('invModal'); });
   var invBusy = false;
   $('invForm').addEventListener('submit', async function (e) {
@@ -2084,7 +2239,7 @@
     c.appendChild(d);
     /* the actions */
     var acts = el('div', 'btns'); acts.id = 'docActs';
-    if (open) acts.appendChild(link('Receive', '#recibir=' + O.id, 'btnlink solid'));
+    if (open && FLAGS.can_manage) acts.appendChild(link('Receive', '#recibir=' + O.id, 'btnlink solid'));
     if (FLAGS.can_manage) {
       if (O.status === 'draft') acts.appendChild(btn('Confirm the order', 'ghost', confirmOrder));
       acts.appendChild(btn('Edit', 'ghost', function () { editOrder(); }, { id: 'docEdit' }));
@@ -2110,7 +2265,8 @@
     main.appendChild(dc);
     var M2 = r.money || {};
     var mc = el('section', 'card'); mc.id = 'docMoney'; mc.appendChild(el('h2', '', esc('Payment') + ' ' + payPill(M2)));
-    mc.appendChild(el('p', '', '<span>' + esc('To pay') + '</span> <b class="mono">' + esc(fmtC(M2.due)) + '</b>' + (M2.estimate ? ' <span class="hint">' + esc('estimated, IVA incl.') + '</span>' : '') +
+    var tp2 = toPay(M2);
+    mc.appendChild(el('p', '', '<span>' + esc('To pay') + '</span> <b class="mono">' + esc(fmtC(tp2.v)) + '</b>' + (tp2.est ? ' <span class="hint">' + esc('estimated, IVA incl.') + '</span>' : '') +
       ' · <span>' + esc('Paid') + '</span> <b class="mono">' + esc(fmtC(M2.paid)) + '</b>' + (Number(M2.credit) > 0.5 ? ' · <span>' + esc('In favour ' + fmtC(M2.credit)) + '</span>' : '')));
     if (M2.invoice_missing && anyRecv) mc.appendChild(el('p', 'hint', esc('The invoice is missing.')));
     if (Number(M2.payout_crc) > 0) mc.appendChild(el('p', 'hint', esc('Register cash paid ' + fmtC(M2.payout_crc) + ' · the invoice is missing')));
@@ -2224,7 +2380,7 @@
           var pp = document.createElement('input'); pp.type = 'text'; pp.inputMode = 'decimal'; pp.setAttribute('data-keypad', 'qty'); pp.maxLength = 14; pp.value = r.price != null ? plainNum(r.price) : ''; pp.className = 'priceIn'; pp.id = 'oeP' + i; pp.placeholder = '₡'; pp.setAttribute('aria-label', 'Price per presentation of ' + r.name);
           pp.addEventListener('input', function () { r.price = pp.value.trim() === '' ? null : parseNum(pp.value); });
           right.appendChild(q); right.appendChild(pp);
-          var x = btn('×', 'ghost small', function () { r.removed = true; paintLines(); paintAdd(); f.dispatchEvent(new Event('input')); }, { 'aria-label': 'Take ' + r.name + ' off the order' });
+          var x = btn('×', 'ghost small x', function () { r.removed = true; paintLines(); paintAdd(); f.dispatchEvent(new Event('input')); }, { 'aria-label': 'Take ' + r.name + ' off the order' });
           if (r.received > 0) { x.disabled = true; x.title = 'It already has deliveries'; }
           right.appendChild(x);
         } else right.appendChild(el('span', 'mono', esc(num(r.packs))));
@@ -2297,7 +2453,11 @@
     var rid = $('fixRcpt').value, x = (ORDER.receipts || []).filter(function (r) { return r.id === rid; })[0], box = $('fixLines'); box.innerHTML = '';
     (x ? x.lines || [] : []).forEach(function (l, i) {
       var d = el('div', 'row');
-      d.innerHTML = '<div><label class="f" for="fxL' + i + '">' + nt(l.item_name) + ' · <span>' + esc('recorded ' + num(l.packs)) + '</span></label></div>' +
+      /* an old page's delivery that cannot be tied to one line of the order (the item is on several): not here */
+      if (!l.line_id) { d.innerHTML = '<p class="hint">' + nt(l.item_name) + ' · <span>' + esc('This line of an old delivery cannot be corrected here.') + '</span></p>'; box.appendChild(d); return; }
+      var ol = (ORDER.lines || []).filter(function (z) { return z.id === l.line_id; })[0];
+      var pres = ol ? (ol.pack_label ? nt(ol.pack_label) : '<span>' + esc(qtyU(ol.pack_qty, ol.unit)) + '</span>') : '';
+      d.innerHTML = '<div><label class="f" for="fxL' + i + '">' + nt(l.item_name) + ' · <span>' + esc('recorded ' + (l.packs != null ? num(l.packs) : num(l.qty))) + '</span>' + (pres && l.packs != null ? ' × ' + pres : '') + '</label></div>' +
         '<div><input id="fxL' + i + '" data-line="' + esc(l.line_id) + '" type="text" inputmode="decimal" maxlength="10" placeholder="−1 / +1"></div>';
       box.appendChild(d);
     });
@@ -2395,11 +2555,13 @@
      values, invoice_no, note, close, extra_ok}; the receipt id is kept until the server answers, so it is booked once. */
   var RECV = null;
   function rkey(po) { return 'hg-prov-recv:' + po; }
+  /* who is typing this receive form on this device: the person on shift, or the management unlock (never a PIN) */
+  function recvWho(emp) { return emp ? 'e:' + ((TURNO && TURNO.staff_id) || '') : 'm:' + (UID || '') + ':' + ((ST && (ST.staff_id || ST.name)) || ACCOUNT || ''); }
   function recvSave() {
     if (!RECV) return;
     var vals = {};
     RECV.lines.forEach(function (l) { if (l.typed !== undefined || l.price !== undefined) vals[l.id] = { packs: l.typed, price: l.price }; });
-    ls(rkey(RECV.po), { receipt_id: RECV.receipt_id, version: RECV.version, values: vals, invoice_no: RECV.invoice_no || '', note: RECV.note || '', close: !!RECV.close, extra_ok: !!RECV.extra_ok });
+    ls(rkey(RECV.po), { who: RECV.who, receipt_id: RECV.receipt_id, version: RECV.version, values: vals, invoice_no: RECV.invoice_no || '', note: RECV.note || '', close: !!RECV.close, extra_ok: !!RECV.extra_ok });
   }
   async function viewRecibir(gen, poId) {
     if (!isUuid(poId)) { go('#'); return; }
@@ -2414,6 +2576,7 @@
     }
     if (!emp) setFlags(r);
     var O = r.order;
+    if (!emp && !FLAGS.can_manage) { showMainError(ERR.not_receiver, function () { go('#pedido=' + poId); }, 'Back'); return; }
     if (!/^(draft|sent|partially_received)$/.test(O.status) || (emp && O.status === 'draft')) {
       ls(rkey(poId), null);
       showMainError(O.status === 'received' ? ERR.already_received : O.status === 'cancelled' ? ERR.cancelled : 'That order is not waiting to be received.', function () { go(emp ? '#' : '#pedido=' + poId); });
@@ -2424,7 +2587,15 @@
        saved; what is typed now is a new delivery with a new id (never a «repeat» that books nothing) */
     var spent = isUuid(saved.receipt_id) && (r.receipts || []).some(function (x) { return x && x.id === saved.receipt_id; });
     if (spent) { ls(rkey(poId), null); saved = {}; }
-    RECV = { po: poId, emp: emp, version: O.version, receipt_id: isUuid(saved.receipt_id) ? saved.receipt_id : uuid(), invoice_no: saved.invoice_no || '', note: saved.note || '',
+    /* what another person typed here (a person on shift who left, or before a manager's unlock) is never carried into this
+       one's form: their counts and the prices an employee saw would go in under this person's name */
+    var who = recvWho(emp);
+    if (Object.keys(saved).length && saved.who !== who) {
+      var hadTyped = Object.keys(saved.values || {}).length > 0 || !!saved.note || !!saved.invoice_no;
+      ls(rkey(poId), null); saved = {};
+      if (hadTyped) toast('What someone else typed on this device for this order was not kept. Count the delivery again.');
+    }
+    RECV = { po: poId, emp: emp, who: who, version: O.version, receipt_id: isUuid(saved.receipt_id) ? saved.receipt_id : uuid(), invoice_no: saved.invoice_no || '', note: saved.note || '',
              close: !!saved.close, extra_ok: !!saved.extra_ok, price_ok: false, touched: false, order: O, vendor_name: O.vendor_name, po_number: O.po_number,
              lines: (r.lines || []).filter(function (l) { return !l.removed; }).sort(function (a, b) { return (Number(a.pos) || 999) - (Number(b.pos) || 999); }).map(function (l) {
                var v = (saved.values || {})[l.id] || {};
@@ -2446,9 +2617,10 @@
     main.appendChild(crumbs(R.emp ? [{ href: '#', text: 'Orders to receive' }, { text: 'Order Nº ' + (R.po_number || '') }]
       : [{ href: '#', text: 'Suppliers' }, { href: '#pedido=' + R.po, text: 'Order Nº ' + (R.po_number || '') }, { text: 'Receive' }]));
     var c = el('section', 'card'); c.id = 'recvCard';
-    var who = R.emp ? TURNO.name : (ST && ST.name) || (ACCOUNT === 'owner' ? 'the owner' : '');
+    /* a person's name stays as typed; «the owner» (the phone code names nobody) is the page's own text, for lang.js */
+    var who = R.emp ? nt(TURNO.name) : ST && ST.name ? nt(ST.name) : ACCOUNT === 'owner' ? '<span>' + esc('the owner') + '</span>' : '';
     c.appendChild(el('div', 'recvhead', '<h2 style="margin:0">' + esc('Receive order Nº ' + (R.po_number || '')) + '</h2>' + (R.vendor_name ? '<span class="hint">' + nt(R.vendor_name) + '</span>' : '') +
-      '<span class="sp"></span><span class="hint"><span>' + esc('Receiving:') + '</span> <b>' + nt(who) + '</b></span>'));
+      '<span class="sp"></span><span class="hint"><span>' + esc('Receiving:') + '</span> <b>' + who + '</b></span>'));
     if (msg) { var m = el('p', 'note'); m.setAttribute('role', 'status'); m.textContent = msg; c.appendChild(m); }
     var pend = R.lines.filter(function (l) { return l.pending > 0.0005; });
     if (pend.length) {
@@ -2569,7 +2741,7 @@
     if (r.error === 'changed' && r.receipt_used) { R.touched = false; viewRecibir(++GEN, R.po); return; }   /* the id was spent: a new delivery, new id */
     if (r.error === 'changed' && r.order) {
       var moved = (r.order.lines || []).some(function (x) { var l = R.lines.filter(function (y) { return y.id === x.id; })[0]; return l && Math.abs(Number(x.received_qty || 0) - l.seen) > 1e-6; });
-      if (moved) { R.touched = false; ls(rkey(R.po), { receipt_id: R.receipt_id }); toast('Someone else recorded a delivery of this order a moment ago. Check what is pending.'); viewRecibir(++GEN, R.po).then(function () { if (RECV) paintRecv('Someone else recorded a delivery of this order a moment ago. Check what is pending.'); }); return; }
+      if (moved) { R.touched = false; ls(rkey(R.po), { who: R.who, receipt_id: R.receipt_id }); toast('Someone else recorded a delivery of this order a moment ago. Check what is pending.'); viewRecibir(++GEN, R.po).then(function () { if (RECV) paintRecv('Someone else recorded a delivery of this order a moment ago. Check what is pending.'); }); return; }
       R.version = r.order.version;
       (r.order.lines || []).forEach(function (x) { var l = R.lines.filter(function (y) { return y.id === x.id; })[0]; if (l && x.pending_packs != null) l.pending = Math.max(0, Number(x.pending_packs)); });
       recvSave(); paintRecv('The order changed a moment ago. Check what is pending and confirm again.'); return;
@@ -2692,6 +2864,14 @@
       return lines;
     }
     function fx(n) { return (Math.round(n * 100) / 100).toString(); }
+    /* a text string of the document's Info (its title): PDF readers take it as PDFDocEncoding or UTF-16BE, never
+       WinAnsi (where — “ ” would show as Š ﬁ ﬂ): UTF-16BE with its byte order mark, in hex (ASCII only in the file) */
+    function utf16(s) {
+      s = String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ');
+      var h = '<FEFF';
+      for (var i = 0; i < s.length; i++) h += ('000' + s.charCodeAt(i).toString(16).toUpperCase()).slice(-4);
+      return h + '>';
+    }
     function make() {
       var pages = [], ops = null;
       return {
@@ -2712,7 +2892,7 @@
       objs[2] = '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + n + ' >>';
       objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
       objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
-      objs[5] = '<< /Title ' + str(codes(title)) + ' /Producer (Canopy OS) >>';
+      objs[5] = '<< /Title ' + utf16(title) + ' /Producer (Canopy OS) >>';
       pages.forEach(function (p, i) {
         var stream = p.join('\n');
         objs[6 + i * 2] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + (7 + i * 2) + ' 0 R >>';

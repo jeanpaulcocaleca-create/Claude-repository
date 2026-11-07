@@ -92,7 +92,10 @@ module.exports.tests = [
       await P.toasted(pg, /^Lo que escribió volvió\. Revíselo y guarde\.$|volvió/, 'told', 5000);
       await pg.fill('#payPin', PINS.ana);
       await pg.click('#payGo');
-      await until(() => sql(`select count(*) || '|' || string_agg(amount_crc::text, ',') from supplier_advances`) === '1|7000.00', 8000, 'the payment saved once');
+      try { await until(() => sql(`select count(*) || '|' || string_agg(amount_crc::text, ',') from supplier_advances`) === '1|7000.00', 8000, 'the payment saved once'); }
+      catch (e) {   /* say what the window showed (never the PIN box) */
+        throw new Error(e.message + ' · window open: ' + (await pg.locator('#payModal').isVisible()) + ' · its message: «' + (await text(pg.locator('#payErr'))) + '» · toast: «' + (await text(pg.locator('#toast')).catch(() => '')) + '» · api errors: ' + JSON.stringify(pg.apiErrors) + ' · page errors: ' + JSON.stringify(pg.errors));
+      }
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -137,6 +140,11 @@ module.exports.tests = [
         for (const t of ['pedidos', 'pagos', 'productos']) { await P.nav(pg, '#p=' + V.lac + '&t=' + t, '#fTab > *'); await P.layoutOk(pg, w + ' ' + t); }
         await P.nav(pg, '#pedido=' + o.id, '#orderDoc');
         await P.layoutOk(pg, w + ' order');
+        /* «Editar»: each line's «×» (one with deliveries, disabled; one without) is a 44 px target too */
+        await pg.click('#docEdit'); await pg.waitForSelector('#orderEdit');
+        assert.strictEqual(await pg.locator('#oeLines button', { hasText: '×' }).count(), 2);
+        await P.layoutOk(pg, w + ' order editor');
+        await pg.click('#oeCancel');
         await pg.click('#docPay'); await pg.waitForSelector('#payModal:not([hidden])');
         await P.layoutOk(pg, w + ' payment window');
         await pg.click('#payCancel');

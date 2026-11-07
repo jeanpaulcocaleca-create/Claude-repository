@@ -84,6 +84,25 @@ module.exports.tests = [
     }
   },
   {
+    name: 'the PDF\'s title (the tab, the share sheet) reads as the supplier is called, its punctuation included (— “ ” \\ ( ))',
+    run: async ({ browser }) => {
+      P.seed();
+      const NAME = 'Lácteos (Monteverde) \\ Ñandú — “Sol”';
+      sql(`update vendors set name = '${NAME}' where id = '${V.lac}'`);
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      const pg = await P.owner(browser, { hash: '#pedido=' + o.id, wait: '#orderDoc' });
+      const f = await pdfOf(pg);
+      const pdf = P.pdfRead(f.bytes);
+      // a viewer reads the Info title as PDFDocEncoding or UTF-16BE (never WinAnsi, where — “ ” are Š ﬁ ﬂ)
+      assert.strictEqual(pdf.title, 'Pedido Nº ' + o.po_number + ' · ' + NAME);
+      assert.ok(/\/Title\s*<FEFF[0-9A-F]+>/.test(f.bytes.toString('latin1')), 'written as UTF-16BE with its byte order mark');
+      // the page text stays WinAnsi, the same name on paper
+      assert.ok(pdf.pages[0].text.includes('Proveedor: ' + NAME), 'the page says the name:\n' + pdf.pages[0].text);
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
     name: 'a long order: the PDF goes on with «Página n de m»; the print has no blank page at the end',
     run: async ({ browser }) => {
       P.seed();

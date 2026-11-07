@@ -193,8 +193,11 @@ select i.vendor_id, i.id, left(i.pack_label, 60), i.pack_qty, case when i.cost_p
        i.active, 'migración 0039'
   from public.stock_items i
  where i.vendor_id is not null and i.pack_qty > 0 and i.pack_qty < 1e9
-   and not exists (select 1 from public.vendor_items x where x.vendor_id = i.vendor_id and x.item_id = i.id and x.pack_qty = i.pack_qty);
--- (b) what was ordered from each supplier in another presentation (the latest price)
+   -- as the trigger does: only a (supplier, item) without any catalog row (applied again after a reversal, a row the owner
+   -- edited to another size is never revived)
+   and not exists (select 1 from public.vendor_items x where x.vendor_id = i.vendor_id and x.item_id = i.id);
+-- (b) what was ordered from each supplier in another presentation (the latest price): the old page's lines only, and
+--     never a presentation a catalog row was moved away from (applied again after a reversal)
 insert into public.vendor_items (vendor_id, item_id, pack_label, pack_qty, usual_price, active, created_by)
 select distinct on (o.vendor_id, l.item_id, q.pqe) o.vendor_id, l.item_id, case when q.pqe = i.pack_qty then left(i.pack_label, 60) end, q.pqe,
        case when l.unit_cost * q.pqe between 0.01 and 100000000 then round(l.unit_cost * q.pqe, 2) end, i.active, 'migración 0039'
@@ -202,6 +205,10 @@ select distinct on (o.vendor_id, l.item_id, q.pqe) o.vendor_id, l.item_id, case 
   cross join lateral (select public._prov_pqe(l.pack_qty, l.packs, l.qty, i.pack_qty) as pqe) q
  where o.vendor_id is not null and o.status <> 'cancelled' and q.pqe > 0 and q.pqe < 1e9
    and not exists (select 1 from public.vendor_items x where x.vendor_id = o.vendor_id and x.item_id = l.item_id and x.pack_qty = q.pqe)
+   and l.vendor_item_id is null
+   and not exists (select 1 from public.audit_log g join public.vendor_items x on x.id::text = g.target_id
+                    where g.action = 'vendor_item_save' and x.vendor_id = o.vendor_id and x.item_id = l.item_id
+                      and (g.details -> 'before' ->> 'pack_qty')::numeric = q.pqe and (g.details -> 'after' ->> 'pack_qty')::numeric is distinct from q.pqe)
  order by o.vendor_id, l.item_id, q.pqe, (l.unit_cost is null), o.created_at desc, l.id;
 -- what each existing delivery brought per line, from its stock moves (one live line of that item; else skipped)
 insert into public.purchase_receipt_lines (receipt_id, line_id, item_id, packs, qty, pack_qty, unit_cost, pack_price, move_id)
@@ -347,6 +354,25 @@ begin
   end if;
   return round(greatest(x1 - coalesce(p_x0, 0), 0), 2);
 end $$;
+-- a delivery or a correction takes every stock item it moves at once, in id order, before its moves (whose foreign
+-- key would first take a KEY SHARE and then the move trigger FOR UPDATE: two calls holding KEY SHARE on one item
+-- deadlock on the upgrade). It waits at most 300 ms, under the server's deadlock check: when a sale holds those items
+-- the delivery gives way («busy», nothing booked) and the sale is never the one refused. lock_timeout is put back at
+-- once (a failure inside the caller's block reverts it anyway).
+create or replace function public._prov_lock_items(p_items uuid[]) returns void
+language plpgsql volatile security definer set search_path = public as $$
+declare lt text := current_setting('lock_timeout');
+begin
+  if coalesce(cardinality(p_items), 0) = 0 then return; end if;
+  perform set_config('lock_timeout', '300ms', true);
+  begin
+    perform 1 from public.stock_items where id = any(p_items) order by id for update;
+  exception when lock_not_available then
+    perform set_config('lock_timeout', lt, true);
+    perform public._prov_fail('busy');
+  end;
+  perform set_config('lock_timeout', lt, true);
+end $$;
 
 -- every line of an order, with what was received and what is pending, in presentations
 create or replace function public._prov_lines(p_po_id uuid)
@@ -466,6 +492,7 @@ revoke all on function public._prov_pqe(numeric, numeric, numeric, numeric), pub
   public._prov_packs(jsonb, boolean, text), public._prov_price(jsonb), public._prov_manage(), public._prov_books(), public._prov_actor(),
   public._prov_station(text), public._prov_log(text, uuid, text, text, text, jsonb), public._prov_vi_match(uuid, uuid, numeric),
   public._prov_payout_open(uuid), public._prov_unapplied(uuid), public._prov_excess(uuid), public._prov_excess_guard(uuid, numeric),
+  public._prov_lock_items(uuid[]),
   public._prov_lines(uuid), public._prov_item_vendor(),
   public._prov_line_protect(), public._prov_po_version(), public._prov_po_bump(), public._prov_entry_end(), public._prov_staff_end()
   from public, anon, authenticated;
@@ -948,13 +975,21 @@ begin
   if not public._prov_manage() then return '{"ok":false,"error":"locked"}'::jsonb; end if;
   if p_request_id is null or p_vendor_id is null then return '{"ok":false,"error":"bad_request"}'::jsonb; end if;
   begin
-    if p_draft_version is not null then
-      select * into d from public.purchase_drafts where vendor_id = p_vendor_id and status = 'open' for update;   -- first: two devices never both use it
-    end if;
+    -- the supplier's open draft first, always: two devices never both use it, and an order is never made beside it
+    select * into d from public.purchase_drafts where vendor_id = p_vendor_id and status = 'open' for update;
     select * into po from public.purchase_orders where id = p_request_id;
     if po.id is not null then
       if po.vendor_id is distinct from p_vendor_id then perform public._prov_fail('bad_request'); end if;
+      -- a real retry finds no open draft (its first call used it); an open draft now means the page kept the id of an
+      -- order already made for a new draft: never a «repeat» that leaves the new draft and its ticks unordered
+      if p_draft_version is not null and d.id is not null and d.po_id is distinct from po.id then
+        perform public._prov_fail('draft_changed', jsonb_build_object('draft', public._prov_draft_json(d), 'stale_request', true,
+                                                           'po_id', po.id, 'po_number', po.po_number)); end if;
       return jsonb_build_object('ok', true, 'repeat', true, 'id', po.id, 'po_number', po.po_number, 'version', po.version);
+    end if;
+    -- without a draft version (nothing saved from this device) while the supplier has an open draft: that draft first
+    if p_draft_version is null and d.id is not null then
+      perform public._prov_fail('draft_changed', jsonb_build_object('draft', public._prov_draft_json(d)));
     end if;
     if p_draft_version is not null then
       if d.id is null then
@@ -1334,6 +1369,7 @@ begin
       values (p_receipt_id, po.id, po.vendor_id, inv, who, 0, 0, false, case when emp then t.sid end, case when emp then t.wid end, nt, 'proveedores',
               emp and coalesce(p_close, false));
     perform 1 from public.purchase_lines where id = any(seen) order by id for update;
+    perform public._prov_lock_items(array(select distinct (e->>'item_id')::uuid from jsonb_array_elements(plan) e));
     for x in select e from jsonb_array_elements(plan) e order by e->>'item_id', e->>'line_id' loop
       q := (x->>'qty')::numeric; mv_id := null; mv_uc := null;
       if q > 0 then
@@ -1398,7 +1434,7 @@ create or replace function public.proveedor_recepcion_corregir(p_receipt_id uuid
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
 declare rc public.purchase_receipts; po public.purchase_orders; ln record; l jsonb; lid uuid; d numeric; q numeric; uc numeric; seen uuid[] := '{}';
         plan jsonb := '[]'; x jsonb; mv record; total numeric := 0; n int := 0; short_before boolean; done boolean; st text; det jsonb := '[]';
-        why text := nullif(btrim(coalesce(p_reason, '')), ''); who text := public._prov_actor(); x0 numeric; xc numeric;
+        why text := nullif(btrim(coalesce(p_reason, '')), ''); who text := public._prov_actor(); x0 numeric; xc numeric; net numeric;
         e1 text; e2 text; e3 text; e4 text; r jsonb;
 begin
   if not public._prov_manage() then return '{"ok":false,"error":"locked"}'::jsonb; end if;
@@ -1432,6 +1468,17 @@ begin
       if d is null or d = 0 or abs(d) > 100000 or d <> round(d, 3) then perform public._prov_fail('bad_qty', jsonb_build_object('line_id', lid)); end if;
       q := round(d * ln.pack_qty, 4);
       if ln.received_qty + q < 0 then perform public._prov_fail('bad_qty', jsonb_build_object('line_id', lid)); end if;
+      -- a correction down takes back at most what this delivery (with its earlier corrections) brought of that line, at
+      -- its own cost; an old page's delivery without lines counts its stock moves of the item
+      if q < 0 then
+        select coalesce(sum(z.qty), 0) into net from public.purchase_receipt_lines z
+         where z.line_id = lid and (z.receipt_id = rc.id or z.receipt_id in (select c.id from public.purchase_receipts c where c.corrects = rc.id));
+        if not exists (select 1 from public.purchase_receipt_lines z where z.receipt_id = rc.id and z.item_id = ln.item_id) then
+          net := net + coalesce((select sum(m.qty) from public.stock_moves m where m.receipt_id = rc.id and m.item_id = ln.item_id and m.kind = 'purchase'), 0);
+        end if;
+        if net + q < -0.0001 then
+          perform public._prov_fail('bad_qty', jsonb_build_object('line_id', lid, 'max_packs', round(greatest(net, 0) / ln.pack_qty, 4))); end if;
+      end if;
       if q > ln.pending_qty and not coalesce(public._prov_bool(l->'extra_ok'), false) then
         perform public._prov_fail('over_pending', jsonb_build_object('line_id', lid, 'pending_packs', ln.pending_packs)); end if;
       select coalesce((select z.unit_cost from public.purchase_receipt_lines z where z.receipt_id = rc.id and z.line_id = lid),
@@ -1445,6 +1492,7 @@ begin
     insert into public.purchase_receipts (id, po_id, vendor_id, by_name, lines, total_crc, final, note, origin, corrects)
       values (p_request_id, po.id, po.vendor_id, who, 0, 0, false, why, 'correccion', rc.id);
     perform 1 from public.purchase_lines where id = any(seen) order by id for update;
+    perform public._prov_lock_items(array(select distinct (e->>'item_id')::uuid from jsonb_array_elements(plan) e));
     for x in select e from jsonb_array_elements(plan) e order by e->>'item_id', e->>'line_id' loop
       q := (x->>'qty')::numeric;
       insert into public.stock_moves (item_id, kind, qty, unit_cost, po_id, note, by_name, receipt_id)

@@ -91,6 +91,21 @@ module.exports.tests = [
       await pg.waitForSelector('#recvDone', { timeout: 10000 });
       assert.strictEqual(onHand(I.pan), '30', '3 bags of 10');
       assert.strictEqual(sql(`select by_name from purchase_receipts`), 'Marta (en turno)');
+      // «Salir de este aparato»: nobody receives here, also after a reload (Marta still rings up at the POS)
+      await P.nav(pg, '#');
+      await pg.locator('#modeBar button', { hasText: 'Salir de este aparato' }).click();
+      await P.toasted(pg, /^Listo: ya nadie recibe en este aparato\. Marta sigue cobrando en la caja\.$/, 'signed out of the device, in Spanish');
+      await pg.reload({ waitUntil: 'domcontentloaded' });
+      await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 10000 });
+      await settle(pg);
+      assert.strictEqual(await pg.locator('#modeBar').isVisible(), false, 'nobody receives after the reload');
+      assert.strictEqual(sql(`select string_agg(how || ':' || coalesce(ended_how, 'live'), ',' order by started_at) from work_sessions`), 'caja:signed_out', 'no new session from the POS');
+      const op = await pg.evaluate(() => JSON.parse(localStorage.getItem('hg-pos-operator')).token);
+      assert.ok(!(await pg.evaluate(() => localStorage.getItem('hg-turnos-out'))).includes(op), 'only a fingerprint of the operator is kept');
+      assert.strictEqual(await posPg.locator('#opBtn').textContent(), 'Marta', 'the POS keeps its operator');
+      // someone says who they are with their PIN: they receive, and the mark is gone
+      await P.iAmHere(pg, 'marta');
+      assert.strictEqual(await pg.evaluate(() => localStorage.getItem('hg-turnos-out')), '{}');
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
     }
@@ -120,6 +135,73 @@ module.exports.tests = [
       assert.strictEqual(onHand(I.yogur), '100', '40 + 10 × 6: both deliveries booked, each once');
       assert.strictEqual(sql(`select count(*) from purchase_receipts where po_id = '${o.id}'`), '2', 'two deliveries');
       assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'a receive form typed and left with «Volver»: the page may update again (what was typed waits on this device for that order)',
+    run: async ({ browser }) => {
+      P.seed(); P.clockIn('luis');
+      const o = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 10 }]);
+      const pg = await P.employee(browser, 'luis', { hash: '#recibir=' + o.id });
+      await pg.waitForSelector('#recvCard');
+      await pg.fill('#rq0', '1');
+      assert.strictEqual(await pg.evaluate(() => window.HG_SAFE_TO_RELOAD()), false, 'not while the typed form is on the screen');
+      await pg.locator('#recvCard a.btnlink', { hasText: 'Volver' }).click();
+      await pg.waitForSelector(`#main a[href="#recibir=${o.id}"]`, { timeout: 8000 });
+      await until(() => pg.evaluate(() => window.HG_SAFE_TO_RELOAD()), 3000, 'safe to reload once the form is left (version.js may update the tablet)');
+      await openOrder(pg, o.id);
+      assert.strictEqual(await pg.inputValue('#rq0'), '1', 'what was typed is back');
+      // left through «Salir de este aparato» (the picker replaces the screen without a route): safe to reload too
+      await pg.fill('#rq0', '2');
+      assert.strictEqual(await pg.evaluate(() => window.HG_SAFE_TO_RELOAD()), false, 'typed again: not while on the screen');
+      await pg.locator('#modeBar button', { hasText: 'Salir de este aparato' }).click();
+      await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 8000 });
+      assert.strictEqual(await pg.locator('#recvCard').count(), 0, 'the form is off the screen');
+      await until(() => pg.evaluate(() => window.HG_SAFE_TO_RELOAD()), 3000, 'safe to reload after «Salir de este aparato»');
+      assert.strictEqual(sql(`select count(*) from purchase_receipts`), '0');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: 'the accountant (the books door) is never offered «Recibir»; #recibir= says who receives; a management-only answer says so with «Volver» (no PIN screen); the owner\'s «Intentar de nuevo» works',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      const pg = P.watchApi(await page(browser, { login: 'accountant', aal: 'aal2', lang: 'es' }));
+      await goto(pg, '/proveedores');
+      await P.seen(pg.locator('#hubReceive .orow'), new RegExp('^Pedido Nº ' + o.po_number + ' Lácteos Monteverde · .* Abrir$'), 'only «Abrir» on the hub', 15000);
+      assert.strictEqual(await pg.locator('#main a[href^="#recibir="]').count(), 0, 'no «Recibir» on the hub');
+      await P.nav(pg, '#p=' + V.lac + '&t=pedidos', '#fTab .orow');
+      assert.strictEqual(await pg.locator('#main a[href^="#recibir="]').count(), 0, 'none in Pedidos');
+      await P.nav(pg, '#pedido=' + o.id, '#orderDoc');
+      await P.seen(pg.locator('#docActs'), /^Registrar pago$/, 'the order\'s actions: the payment', 5000);
+      assert.strictEqual(await pg.locator('#main a[href^="#recibir="]').count(), 0, 'none on the order');
+      // the receive route typed by hand: who receives, and back to the order
+      await P.nav(pg, '#recibir=' + o.id);
+      await P.seen(pg.locator('#main'), /^La recepción la hacen el dueño, un encargado o el personal en turno\. Volver$/, 'who receives, in Spanish', 8000);
+      assert.strictEqual(await pg.locator('#recvCard').count(), 0, 'no receive form');
+      await pg.locator('#main button', { hasText: 'Volver' }).click();
+      await pg.waitForSelector('#orderDoc', { timeout: 8000 });
+      assert.ok(pg.url().endsWith('#pedido=' + o.id), pg.url());
+      // a management-only answer at the books door: said so, never «Escriba otra vez un PIN»; «Volver» goes on
+      await pg.route('**/rest/v1/rpc/proveedor_ficha', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"error":"locked"}' }), { times: 1 });
+      await P.nav(pg, '#p=' + V.lac + '&t=pagos');
+      await P.seen(pg.locator('#main'), /^Solo el dueño puede hacer eso\. Volver$/, 'only the owner', 8000);
+      await pg.locator('#main button', { hasText: 'Volver' }).click();
+      await pg.waitForSelector('#pgPay', { timeout: 8000 });
+      assert.strictEqual(sql(`select count(*) from purchase_receipts`), '0');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+      // the owner with the phone code: «Intentar de nuevo» on that screen opens the page again
+      const own = await P.owner(browser, { hash: '#p=' + V.lac + '&t=pagos', wait: '#pgPay' });
+      await own.route('**/rest/v1/rpc/proveedor_ficha', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"error":"locked"}' }), { times: 1 });
+      await P.nav(own, '#p=' + V.lac + '&t=pedidos');
+      await P.seen(own.locator('#main'), /Intentar de nuevo$/, 'the closed-areas screen', 8000);
+      await own.locator('#main button', { hasText: 'Intentar de nuevo' }).click();
+      await own.waitForSelector('#ficha #fTab .orow', { timeout: 10000 });
+      assert.ok(own.url().endsWith('&t=pedidos'), own.url());
+      assert.deepStrictEqual(own.errors, []);
     }
   },
   {
@@ -266,6 +348,13 @@ module.exports.tests = [
       await P.seen(pg.locator('#turnoErr'), /^Tiene un turno abierto desde .*; avise a un encargado\.$/, 'the stale shift', 8000);
       assert.strictEqual(sql(`select count(*) from work_sessions where staff_name = 'Marta'`), '0');
       assert.ok((await pg.inputValue('#tqPin')) === '', 'the PIN box emptied after the call');   /* never prints the box */
+      // the pay period of today is approved: no clock-in, told why (not «Algo salió mal»)
+      sql(`insert into pay_periods (starts_on, ends_on, status, created_by) values (current_date - 3, current_date + 3, 'approved', 'test')`);
+      await pg.locator(`#turnoWhoOff button[data-staff="${STAFF.ana}"]`).click();
+      await pg.locator('#tqPin').pressSequentially(PINS.ana);
+      await pg.click('#turnoGo');
+      await P.seen(pg.locator('#turnoErr'), /^Ese periodo de pago ya está aprobado: no se puede marcar entrada\. Avise a un encargado\.$/, 'the locked pay period', 8000);
+      assert.strictEqual(sql(`select count(*) from time_entries where staff_id = '${STAFF.ana}'`), '0', 'no punch');
       assert.ok(o.id);
       assert.deepStrictEqual(pg.errors, []);
     }
@@ -276,6 +365,8 @@ module.exports.tests = [
       P.seed();
       const o = P.create(V.lac, [{ vi: P.vi(I.mant), packs: 3 }]);
       const pg = await P.owner(browser, { hash: '#recibir=' + o.id, wait: '#recvCard' });
+      // the phone code names nobody: «the owner» is the page's own text, so it is in Spanish too
+      await P.seen(pg.locator('#recvCard .recvhead'), /Recibe: el dueño$/, 'who receives, in Spanish', 3000);
       assert.match(await text(pg.locator('#recvTable tbody')), /Mantequilla barra de 500 g · 500 g 3/);
       await pg.fill('#rq0', '2.5');
       await P.seen(pg.locator('#recvTable'), /Faltan 0,5/, 'half a bar short', 3000);
@@ -335,6 +426,63 @@ module.exports.tests = [
       assert.strictEqual(sql(`select status from purchase_orders where id = '${o.id}'`), 'partially_received', 'the order goes back to partly received');
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: 'a receive form typed by one person is never carried into another\'s: Luis leaves («Salir de este aparato»), Ana unlocks on the same tablet and starts from the order (Luis\'s count and seen price are not booked as hers); the same between two employees',
+    run: async ({ browser }) => {
+      P.seed(); P.clockIn('luis'); P.clockIn('marta');
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      const pg = await P.employee(browser, 'luis', { hash: '#recibir=' + o.id });
+      await pg.waitForSelector('#recvCard');
+      await pg.fill('#rq0', '1'); await pg.fill('#rp0', '15000'); await pg.fill('#rNote', 'nota de Luis');
+      await pg.locator('#modeBar button', { hasText: 'Salir de este aparato' }).click();
+      await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 8000 });
+      await pg.click('#turnoOwner');
+      await P.gate(pg, 'ana');
+      await pg.waitForSelector('#recvCard', { timeout: 15000 });
+      await P.toasted(pg, /^Lo que otra persona escribió en este aparato para este pedido no se usó\. Cuente la entrega otra vez\.$/, 'told, in Spanish', 5000);
+      assert.deepStrictEqual([await pg.inputValue('#rq0'), await pg.inputValue('#rp0'), await pg.inputValue('#rNote')], ['2', '10200', ''], 'Ana starts from the order: what is pending at the expected price');
+      await pg.click('#recvGo');
+      await pg.waitForSelector('#recvDone', { timeout: 10000 });
+      assert.strictEqual(sql(`select r.by_name || '|' || coalesce(r.note, '') || '|' || trim_scale(x.packs) || '|' || x.pack_price from purchase_receipts r join purchase_receipt_lines x on x.receipt_id = r.id`),
+        'Ana (manager)||2|10200.00', 'what Ana confirmed, never Luis\'s 1 box at ₡15 000');
+      assert.strictEqual(sql(`select trim_scale(cost_per_pack) from stock_items where id = '${I.leche}'`), '10200', 'the item\'s cost is not the price an employee saw');
+      // two employees: Luis types, «¿No es usted? Cambiar», Marta starts from the order too
+      const o2 = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 3 }]);
+      const p2 = await P.employee(browser, 'luis', { hash: '#recibir=' + o2.id });
+      await p2.waitForSelector('#recvCard');
+      await p2.fill('#rq0', '1'); await p2.fill('#rNote', 'nota de Luis');
+      await p2.locator('#modeBar button', { hasText: /No es usted/ }).click();
+      await P.iAmHere(p2, 'marta');
+      await p2.waitForSelector('#recvCard', { timeout: 15000 });
+      assert.deepStrictEqual([await p2.inputValue('#rq0'), await p2.inputValue('#rNote')], ['3', ''], 'Marta does not get Luis\'s count');
+      assert.deepStrictEqual(pg.errors.concat(p2.errors), []);
+    }
+  },
+  {
+    name: 'correcting a delivery the published Inventario page booked (in units): it reads in the line\'s presentations («registrado 1 × caja de 12»), −1 takes back one box, −2 is refused',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      const line = P.lineOf(o.id, I.leche), rc = sql(`select gen_random_uuid()`);
+      P.asOwner(`select public.po_receive_and_settle('${o.id}', jsonb_build_array(jsonb_build_object('line_id', '${line}', 'qty', 12)), '${rc}', false, '{}'::jsonb, '[]'::jsonb, null, null)`);
+      const before = Number(onHand(I.leche));
+      const pg = await P.owner(browser, { hash: '#pedido=' + o.id, wait: '#orderDoc' });
+      await pg.locator('#docActs button', { hasText: 'Corregir una entrega' }).click();
+      await pg.waitForSelector('#fixModal:not([hidden])');
+      await pg.selectOption('#fixRcpt', rc);
+      await P.seen(pg.locator('#fixLines'), /^Leche entera · registrado 1 × caja de 12$/, 'the old delivery in boxes, like every other line', 5000);
+      await pg.fill('#fxL0', '−2');
+      await pg.fill('#fixWhy', 'contamos de más');
+      await pg.click('#fixGo');
+      await P.seen(pg.locator('#fixErr'), /.+/, 'two boxes from a delivery of one: refused', 5000);
+      assert.strictEqual(Number(onHand(I.leche)), before, 'nothing moved');
+      await pg.fill('#fxL0', '−1');
+      await pg.click('#fixGo');
+      await P.toasted(pg, /^Corrección guardada$/, 'the correction', 5000);
+      assert.strictEqual(Number(onHand(I.leche)), before - 12, 'one box of 12 back');
+      assert.deepStrictEqual(pg.errors, []);
     }
   },
   {

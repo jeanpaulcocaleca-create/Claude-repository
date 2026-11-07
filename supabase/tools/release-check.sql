@@ -40,7 +40,7 @@ needed(fn) as (values
   ('proveedor_borrador_guardar'), ('proveedor_borrador_descartar'), ('proveedor_pedido_crear'), ('proveedor_pedido_editar'),
   ('proveedor_pedido_cancelar'), ('proveedor_pedido_cerrar'), ('proveedor_pedido_confirmar'), ('proveedor_pedido_asignar'),
   ('proveedor_recibir'), ('proveedor_recepcion_corregir'), ('proveedor_factura_registrar'), ('proveedor_factura_anular'),
-  ('proveedor_anticipos_aplicar'), ('proveedor_pago_registrar'), ('proveedor_pago_anular')),
+  ('proveedor_anticipos_aplicar'), ('proveedor_pago_registrar'), ('proveedor_pago_anular'), ('proveedores_bitacora')),
 menu_photos as (select exists (select 1 from storage.buckets where id = 'menu-photos') as present),
 storage_rules(name) as (select policyname from pg_policies where schemaname = 'storage' and tablename = 'objects')
 select jsonb_pretty(jsonb_build_object(

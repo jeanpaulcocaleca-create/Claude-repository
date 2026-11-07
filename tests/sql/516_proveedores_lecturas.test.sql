@@ -16,7 +16,7 @@ create function test.keys516(j jsonb) returns text language sql immutable as $$
   select string_agg(k, ' ' order by k collate "C") from jsonb_object_keys(j) k $$;
 
 -- 1) rights ---------------------------------------------------------------------------------------------------------------
-select test.eq((select count(*)::int || ' ' || count(*) filter (where public_fn) from fn516), '72 27', '1 72 new functions: 27 a page calls, 45 internal');
+select test.eq((select count(*)::int || ' ' || count(*) filter (where public_fn) from fn516), '74 28', '1 74 new functions: 28 a page calls, 46 internal');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where not p.prosecdef and (f.public_fn or p.prorettype <> 'trigger'::regtype)
                    and f.sig not in ('_prov_fail(text,jsonb)', '_prov_caught(text,text,text,text)', '_prov_uuid(text)', '_prov_num(jsonb)', '_prov_txt(jsonb,integer)',
@@ -28,10 +28,10 @@ select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where f.public_fn and (has_function_privilege('anon', p.oid, 'execute') or not has_function_privilege('authenticated', p.oid, 'execute')
                                         or coalesce(p.proacl::text, '') ~ '(^|[{,])=X')), '',
-               '1 a page may call the 27, a visitor and PUBLIC none (the backup account included)');
+               '1 a page may call the 28, a visitor and PUBLIC none (the backup account included)');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where not f.public_fn and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
-                                            or coalesce(p.proacl::text, '') ~ '(^|[{,])=X')), '', '1 nobody may call the 45 internal ones directly');
+                                            or coalesce(p.proacl::text, '') ~ '(^|[{,])=X')), '', '1 nobody may call the 46 internal ones directly');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where p.provolatile <> 'v' and f.sig ~ '^(turno_|proveedor_recibir|proveedores_lista|proveedores_por_recibir|proveedor_ficha|proveedor_pedido\(|proveedor_pago_)'), '',
                '1 every function that takes a work-session token or a PIN is volatile (a PIN try is never lost)');
@@ -145,7 +145,7 @@ select test.eq((:'m2'::jsonb) #>> '{products,0,times_ordered}' || ' ' || ((:'m2'
 select test.eq(test.keys516((:'m2'::jsonb) -> 'money'), 'advances credit_crc open_invoices other_payments owed_crc saldo stale_advances unapplied_crc uninvoiced',
                '4 the money of the file');
 select test.eq(test.keys516((:'m2'::jsonb) #> '{orders,0}') || ' | ' || test.keys516((:'m2'::jsonb) #> '{orders,0,money}'),
-               'close_requested created_at est_total expected_on id lines money pending_lines po_number received_at received_total sent_at status | due estimate invoice_missing paid status',
+               'close_requested created_at est_total expected_on id lines money pending_lines po_number received_at received_total sent_at status | due due_iva estimate invoice_missing paid saldo status',
                '4 each order with its money');
 select public.proveedor_pedido('9a000000-0000-4000-8000-000000051601') as m3 \gset
 select test.eq(test.keys516(:'m3'::jsonb) || ' | ' || test.keys516((:'m3'::jsonb) -> 'money'),

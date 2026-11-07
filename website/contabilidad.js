@@ -336,7 +336,14 @@ function loadCashDays(from, to){ return merged('cash', from, to, 92, 'cash_recon
 function loadPatterns(from, to){ return merged('patterns', from, to, 366, 'sales_patterns', null, 'days'); }
 function loadPurchases(from, to){ return merged('purchases', from, to, 400, 'purchases_list', {p_vendor_id: null}, 'orders'); }
 function loadJournal(from, to, acct){ return merged('journal:' + (acct || ''), from, to, 400, 'acct_journal', {p_account: acct || null}, 'entries'); }
-function loadAudit(from, to){ return merged('audit', from, to, 400, 'acct_audit', null, 'rows'); }
+/* the books' audit list, and (0040) Proveedores' invoices, payments, voids and SINPE changes beside it, newest first */
+function loadAudit(from, to){
+  return cached('audit-all:' + from + ':' + to, TTL, async function(){
+    var a = await merged('audit', from, to, 400, 'acct_audit', null, 'rows'), b = [];
+    try { b = await merged('audit-prov', from, to, 400, 'proveedores_bitacora', null, 'rows'); } catch (e){ if (!missing(e)) throw e; }
+    return a.concat(b).sort(function(x, y){ return x.at < y.at ? 1 : x.at > y.at ? -1 : Number(y.id) - Number(x.id); });
+  });
+}
 function loadEdocs(from, to){ return cached('edocs:' + from + to, TTL, function(){ return rpc('einvoice_list', {p_from: from, p_to: to}); }); }
 function loadVendorHistory(id, from, to){ return cached('vh:' + id + from + to, TTL, function(){ return rpc('vendor_history', {p_vendor_id: id, p_from: from, p_to: to}); }); }
 function loadBank(id, from, to){ return cached('bank:' + (id || '') + from + to, TTL, function(){ return rpc('bank_overview', {p_account_id: id || null, p_from: from, p_to: to}); }); }
@@ -634,7 +641,7 @@ async function expenseDetail(e){
     '<dt>Paid with</dt><dd>' + esc(pmName(e.paid_from)) + '</dd><dt>Status</dt><dd>' + expensePill(e) + (e.voided_at ? ' <span class="hint">' + esc(crDate(e.voided_at) + ' · ' + (e.void_reason || '')) + '</span>' : '') + '</dd>' +
     '<dt>Invoice Nº</dt><dd>' + esc(e.invoice_no || '—') + '</dd><dt>Invoice date</dt><dd class="mono">' + esc(e.invoice_date || '—') + '</dd><dt>Recorded by</dt><dd>' + esc(e.created_by || '') + '</dd>' + (e.schedule_id ? '<dt>Recurring bill</dt><dd><span>Period</span> <span class="mono">' + esc(e.period_key) + '</span></dd>' : '') + '</dl>';
   body += '<h3>Receipt</h3>' + (e.receipt_path ? '<div class="attach"><span class="mono" style="overflow-wrap:anywhere">' + esc(e.receipt_path.split('/').pop()) + '</span><span style="flex:1"></span><button type="button" class="ghost small" id="xd-open">Open</button></div>' : e.voided_at ? '<p class="hint">No receipt.</p>' : RECEIPTS ? '<div class="attach"><span class="pill p-bad">no receipt</span><button type="button" class="ghost small" id="xd-attach">Attach image or PDF</button><input type="file" id="xd-file" accept="image/*,application/pdf"></div>' : '<div class="attach"><span class="pill p-bad">no receipt</span><span class="hint">Receipt files from this page are off until the backup of the private files is verified (E-17, Home → Settings).</span></div>');
-  if ((e.payments || []).length) body += '<h3>Payments</h3><ul class="list">' + e.payments.map(function(p){ return '<li><span class="t"><span class="mono">' + esc(p.date) + '</span> · ' + esc(pmName(p.paid_from)) + (p.reference ? ' · ' + esc(p.reference) : '') + (p.voided_at ? ' ' + tag('rev', 'voided') : '') + '</span><span class="mono">' + fmt(p.amount_crc) + '</span>' + (p.voided_at ? '' : '<button type="button" class="ghost small" data-voidpay="' + esc(p.id) + '">Void</button>') + '</li>'; }).join('') + '</ul>';
+  if ((e.payments || []).length) body += '<h3>Payments</h3><ul class="list">' + e.payments.map(function(p){ return '<li><span class="t"><span class="mono">' + esc(p.date) + '</span> · ' + esc(pmName(p.paid_from)) + (p.reference ? ' · ' + esc(p.reference) : '') + (p.voided_at ? ' ' + tag('rev', 'voided') : '') + '</span><span class="mono">' + fmt(p.amount_crc) + '</span>' + (p.voided_at ? '' : '<button type="button" class="ghost small" data-voidpay="' + esc(p.id) + (p.paid_from === 'advance' ? '" data-adv="1' : '') + '">Void</button>') + '</li>'; }).join('') + '</ul>';
   if (entry) body += '<h3>Entry Nº ' + esc(entry.entry_no) + (entry.reversed ? ' ' + tag('rev', 'reversed') : '') + '</h3>' + linesTable(entry.lines);
   $('drawerBody').innerHTML = body;
   $('drawerFoot').innerHTML = (e.voided_at ? '' : '<button type="button" class="danger small" id="xd-void">Void</button>') + '<button type="button" class="ghost small" id="xd-dup">Duplicate</button>' + (s === 'credit' ? '<button type="button" class="small" id="xd-pay">Record payment · ' + fmt(e.open_crc) + '</button>' : '');
@@ -648,7 +655,7 @@ async function expenseDetail(e){
     var r = up.error ? null : await db.rpc('expense_attach', {p_id: e.id, p_path: path});
     if (up.error || !r || r.error || !r.data || !r.data.ok){ toast('Could not save the file. Try again.'); return; }
     toast('Receipt attached'); closeDrawer(); forget('expenses'); render(); }); }
-  B.querySelectorAll('[data-voidpay]').forEach(function(b){ b.addEventListener('click', async function(){ var why = prompt('Why is this payment voided?'); if (!why) return; var r = await db.rpc('expense_payment_void', {p_id: b.dataset.voidpay, p_reason: why}); if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } toast('Payment voided'); closeDrawer(); forget(); render(); }); });
+  B.querySelectorAll('[data-voidpay]').forEach(function(b){ b.addEventListener('click', async function(){ if (b.dataset.adv && !confirm(ADV_VOID)) return; var why = prompt('Why is this payment voided?'); if (!why) return; var r = await db.rpc('expense_payment_void', {p_id: b.dataset.voidpay, p_reason: why}); if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } toast('Payment voided'); closeDrawer(); forget(); render(); }); });
   var vb = $('xd-void'); if (vb) vb.addEventListener('click', async function(){ var why = prompt('Why is this expense voided?'); if (!why) return; var r = await busy(vb, function(){ return db.rpc('expense_void', {p_id: e.id, p_reason: why}); }); if (r.error || !r.data || !r.data.ok){ footErr(errText(r)); return; } toast('Expense voided'); closeDrawer(); forget(); render(); });
   $('xd-dup').addEventListener('click', function(){ expenseForm({vendor_id: e.vendor_id, vendor_name: e.vendor_name, amount_crc: e.amount_crc, description: e.description, account: e.account, paid_from: e.paid_from, iva_crc: e.iva_crc}); });
   var pb = $('xd-pay'); if (pb) pb.addEventListener('click', function(){ payExpenseForm(e); });
@@ -758,7 +765,7 @@ async function vendorCard(v){
     (Number(V.owed_expenses) > 0.005 ? '<p class="hint" style="margin:.5rem 0 0">Credit expenses still open: <span class="mono">' + fmt(V.owed_expenses) + '</span> (paid from <a href="#gastos">Expenses</a>).</p>' : '');
   body += '<h3>Last 12 months <span class="hint">· invoiced ' + fmt(vh.totals.invoiced) + ' · paid ' + fmt(vh.totals.paid) + ' · expenses ' + fmt(vh.totals.expenses) + ' · received ' + fmt(vh.totals.received) + '</span></h3>';
   if (vh.invoices.length) body += '<div class="eyebrow" style="margin:.4rem 0 .2rem">Invoices</div><ul class="list">' + vh.invoices.slice(0, 8).map(function(i){ return li('<span class="mono">' + esc(i.date) + '</span> · ' + esc(i.number) + ' <span class="hint">· due ' + esc(i.due_date) + (i.deliveries ? ' · ' + i.deliveries + ' deliveries' : '') + '</span>', fmt(i.total), i.voided ? pill('p-mute', 'voided') : Number(i.open) > 0.005 ? (i.due_date < t ? pill('p-bad', 'overdue') : pill('p-warn', 'owes ' + fmt(i.open))) + (canEdit || KIND === 'accountant' ? '<button type="button" class="ghost small" data-voidinv="' + esc(i.id) + '">Void</button>' : '') : pill('p-ok', 'paid')); }).join('') + '</ul>';
-  if (vh.payments.length) body += '<div class="eyebrow" style="margin:.6rem 0 .2rem">Payments</div><ul class="list">' + vh.payments.slice(0, 8).map(function(p){ return li('<span class="mono">' + esc(p.date) + '</span> · ' + esc(pmName(p.paid_from)) + (p.reference ? ' <span class="hint">· ' + esc(p.reference) + '</span>' : '') + (p.invoices ? ' <span class="hint">· ' + esc(p.invoices) + '</span>' : ''), fmt(p.amount), p.voided ? pill('p-mute', 'voided') : '<button type="button" class="ghost small" data-voidpay="' + esc(p.id) + '">Void</button>'); }).join('') + '</ul>';
+  if (vh.payments.length) body += '<div class="eyebrow" style="margin:.6rem 0 .2rem">Payments</div><ul class="list">' + vh.payments.slice(0, 8).map(function(p){ return li('<span class="mono">' + esc(p.date) + '</span> · <span>' + esc(pmName(p.paid_from)) + '</span>' + (p.reference ? ' <span class="hint">· ' + esc(p.reference) + '</span>' : '') + (p.invoices ? ' <span class="hint">· ' + esc(p.invoices) + '</span>' : ''), fmt(p.amount), p.voided ? pill('p-mute', 'voided') : '<button type="button" class="ghost small" data-voidpay="' + esc(p.id) + (p.paid_from === 'advance' ? '" data-adv="1' : '') + '">Void</button>'); }).join('') + '</ul>';
   if (vh.expenses.length) body += '<div class="eyebrow" style="margin:.6rem 0 .2rem">Expenses</div><ul class="list">' + vh.expenses.slice(0, 8).map(function(e){ return li('<span class="mono">' + esc(e.date) + '</span> · ' + esc(e.description), fmt(e.amount_crc), expensePill(e)); }).join('') + '</ul>';
   if (vh.orders.length) body += '<div class="eyebrow" style="margin:.6rem 0 .2rem">Orders</div><ul class="list">' + vh.orders.slice(0, 6).map(function(o){ return li('<span class="mono">' + esc(crDate(o.created_at)) + '</span> · Nº ' + esc(o.po_number || '') + ' <span class="hint">· ' + esc(o.lines) + ' lines' + (o.invoice_no ? ' · ' + esc(o.invoice_no) : '') + '</span>', fmt(o.received_crc || o.ordered_crc), tag('', o.status)); }).join('') + '<li><span class="t"></span><a href="#compras">Purchases ›</a></li></ul>';
   $('drawerBody').innerHTML = body;
@@ -767,7 +774,7 @@ async function vendorCard(v){
   var ed = B.querySelector('#vc-edit'); if (ed) ed.addEventListener('click', function(){ vendorForm(V, function(){ forget('vendors'); forget('vh'); ensureVendors().then(function(){ render(); vendorCard(VEND.filter(function(x){ return x.id === V.id; })[0] || V); }); }); });
   B.querySelector('#vc-habits').addEventListener('click', function(){ vendorDefaultsForm(V); });
   B.querySelectorAll('[data-voidinv]').forEach(function(b){ b.addEventListener('click', async function(){ var why = prompt('Why is this invoice voided?'); if (!why) return; var r = await db.rpc('supplier_invoice_void', {p_id: b.dataset.voidinv, p_reason: why}); if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } toast('Invoice voided'); forget(); render(); vendorCard(V); }); });
-  B.querySelectorAll('[data-voidpay]').forEach(function(b){ b.addEventListener('click', async function(){ var why = prompt('Why is this payment voided?'); if (!why) return; var r = await db.rpc('supplier_payment_void', {p_id: b.dataset.voidpay, p_reason: why}); if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } toast('Payment voided'); forget(); render(); vendorCard(V); }); });
+  B.querySelectorAll('[data-voidpay]').forEach(function(b){ b.addEventListener('click', async function(){ if (b.dataset.adv && !confirm(ADV_VOID)) return; var why = prompt('Why is this payment voided?'); if (!why) return; var r = await db.rpc('supplier_payment_void', {p_id: b.dataset.voidpay, p_reason: why}); if (r.error || !r.data || !r.data.ok){ toast(errText(r)); return; } toast('Payment voided'); forget(); render(); vendorCard(V); }); });
   $('vc-inv').addEventListener('click', function(){ invoiceForm(V); });
   $('vc-exp').addEventListener('click', function(){ expenseForm({vendor_id: V.id}); });
   var pb = $('vc-pay'); if (pb) pb.addEventListener('click', function(){ paymentForm(V); });
@@ -830,17 +837,32 @@ function plain(t){ return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '
 async function invoiceForm(v){
   var ap = await loadAP(), req = uuid(), t = today();
   var recs = (ap.uninvoiced || []).filter(function(r){ return r.vendor_id === v.id; });
+  /* 0040: a Proveedores correction goes with the delivery it corrects (supplier_invoice_save invoices them together), so
+     «received at cost» counts it with that delivery; read from Proveedores, nothing before 0040 */
+  var fixes = {}, fixIds = {};
+  try {
+    var pf = await db.rpc('proveedor_ficha', {p_vendor_id: v.id}), un = pf && !pf.error && pf.data && pf.data.ok && pf.data.money ? pf.data.money.uninvoiced || [] : [], by = {};
+    un.forEach(function(u){ by[u.receipt_id] = u; });
+    un.forEach(function(u){
+      if (u.origin !== 'correccion' || !u.corrects) return;
+      var r = u, n = 0; while (r.corrects && by[r.corrects] && n++ < 50) r = by[r.corrects];
+      if (r === u) return;
+      (fixes[r.receipt_id] = fixes[r.receipt_id] || []).push(u); fixIds[u.receipt_id] = 1;
+    });
+  } catch (e) {}
+  recs = recs.filter(function(r){ return !fixIds[r.id]; });
+  var fixOf = function(id){ return (fixes[id] || []).reduce(function(s, u){ return s + Number(u.total_crc); }, 0); };
   openDrawer('New invoice · ' + v.name, '<form id="viForm" class="form">' +
     '<div class="full"><label>Fill in from the supplier\'s electronic invoice (XML file)</label><div class="attach"><button type="button" class="ghost small" id="vi-xmlBtn">Choose XML</button><span class="hint" id="vi-xmlMsg"></span><input type="file" id="vi-xml" accept=".xml,text/xml,application/xml"></div></div>' +
     '<div><label for="vi-num">Invoice Nº</label><input id="vi-num" maxlength="50"></div><div><label for="vi-date">Invoice date</label><input type="date" id="vi-date" value="' + t + '" max="' + t + '"></div>' +
     '<div><label for="vi-due">Due date</label><input type="date" id="vi-due" value="' + addDays(t, Number(v.credit_days != null ? v.credit_days : 30)) + '"></div><div></div>' +
     '<div><label for="vi-net">Amount before IVA (₡)</label><input id="vi-net" type="number" inputmode="decimal" min="0" step="any" data-keypad="amount"></div><div><label for="vi-iva">IVA on the invoice (₡)</label><input id="vi-iva" type="number" inputmode="decimal" min="0" step="any" value="0"></div>' +
-    '<div class="full"><label>Deliveries of this supplier waiting for their invoice (tick the ones on it)</label>' + (recs.length ? recs.map(function(r){ return '<label class="check"><input type="checkbox" value="' + esc(r.id) + '" data-rec> ' + esc(crDate(r.received_at) + (r.po_number ? ' · Nº ' + r.po_number : '') + (r.invoice_no ? ' · ' + r.invoice_no : '') + ' · ' + fmt(r.total_crc)) + '</label>'; }).join('') : '<p class="hint" style="margin:0">None: this invoice is for something else (a service, equipment…).</p>') + '<p class="hint mono" id="vi-diff" style="margin:.3rem 0 0"></p></div>' +
+    '<div class="full"><label>Deliveries of this supplier waiting for their invoice (tick the ones on it)</label>' + (recs.length ? recs.map(function(r){ var fx = fixes[r.id] ? ' · <span>corrected</span> <span class="mono">' + esc(fmt(fixOf(r.id))) + '</span> → <span class="mono">' + esc(fmt(Number(r.total_crc) + fixOf(r.id))) + '</span>' : ''; return '<label class="check"><input type="checkbox" value="' + esc(r.id) + '" data-rec> ' + esc(crDate(r.received_at) + (r.po_number ? ' · Nº ' + r.po_number : '') + (r.invoice_no ? ' · ' + r.invoice_no : '') + ' · ' + fmt(r.total_crc)) + fx + '</label>'; }).join('') : '<p class="hint" style="margin:0">None: this invoice is for something else (a service, equipment…).</p>') + '<p class="hint mono" id="vi-diff" style="margin:.3rem 0 0"></p></div>' +
     '<div class="full" id="vi-acctBox"><label for="vi-acct">What was it for (no delivery)</label><select id="vi-acct">' + (ap.accounts || []).map(function(a){ return '<option value="' + esc(a.code) + '"' + (a.code === v.default_account ? ' selected' : '') + '>' + esc(a.code + ' · ' + a.name) + '</option>'; }).join('') + '</select></div></form>',
     '<button type="button" class="ghost small" id="vi-cancel">Cancel</button><button type="button" id="vi-save">Save invoice</button>');
   var B = $('drawerBody');
   function checked(){ return Array.prototype.map.call(B.querySelectorAll('[data-rec]:checked'), function(i){ return i.value; }); }
-  function diff(){ var ids = checked(), rec = 0; recs.forEach(function(r){ if (ids.indexOf(r.id) >= 0) rec += Number(r.total_crc); }); B.querySelector('#vi-acctBox').hidden = ids.length > 0; var net = Number(B.querySelector('#vi-net').value) || 0; B.querySelector('#vi-diff').textContent = ids.length ? 'Received at cost ' + fmt(rec) + (net ? ' · difference with the invoice ' + fmt(net - rec) : '') : ''; }
+  function diff(){ var ids = checked(), rec = 0; recs.forEach(function(r){ if (ids.indexOf(r.id) >= 0) rec += Number(r.total_crc) + fixOf(r.id); }); B.querySelector('#vi-acctBox').hidden = ids.length > 0; var net = Number(B.querySelector('#vi-net').value) || 0; B.querySelector('#vi-diff').textContent = ids.length ? 'Received at cost ' + fmt(rec) + (net ? ' · difference with the invoice ' + fmt(net - rec) : '') : ''; }
   B.querySelectorAll('[data-rec]').forEach(function(c){ c.addEventListener('change', diff); }); B.querySelector('#vi-net').addEventListener('input', diff); diff();
   B.querySelector('#vi-xmlBtn').addEventListener('click', function(){ B.querySelector('#vi-xml').click(); });
   B.querySelector('#vi-xml').addEventListener('change', async function(){
@@ -865,10 +887,18 @@ async function invoiceForm(v){
     busy(this, async function(){
       var r = await db.rpc('supplier_invoice_save', {p_invoice: x, p_request_id: req});
       if (r.error || !r.data || !r.data.ok){ footErr(r.data && r.data.error === 'bad_account' ? 'Pick what the invoice was for.' : errText(r)); return; }
-      forget(); toast('Invoice saved'); render(); vendorCard(v);
+      var applied = await applyProvPayments(v.id);
+      forget(); toast(applied > 0 ? 'Invoice saved · {x} paid in Proveedores applied to it'.replace('{x}', fmt(applied)) : 'Invoice saved'); render(); vendorCard(v);
     });
   });
 }
+/* Proveedores (0040) registers SINPE and card payments before or after the invoice and applies them to invoices only by
+   its own calls: an invoice saved here, or a payment about to be recorded here, takes them first. Nothing before 0040. */
+async function applyProvPayments(vid){
+  try { var r = await db.rpc('proveedor_anticipos_aplicar', {p_vendor_id: vid}); return r && !r.error && r.data && r.data.ok ? Number(r.data.applied_crc) || 0 : 0; }
+  catch (e){ return 0; }
+}
+var ADV_VOID = 'This only undoes the application: the Proveedores payment stays unapplied and does not go to this invoice again. To void the payment itself, use Proveedores › Pagos.';
 async function paymentForm(v){
   var ap = await loadAP(), payouts = await loadPayouts(), req = uuid(), t = today();
   var av = (ap.vendors || []).filter(function(x){ return x.vendor_id === v.id; })[0], invs = av ? av.invoices.filter(function(i){ return Number(i.open) > 0; }) : [], owed = av ? Number(av.total) : 0;
@@ -883,6 +913,9 @@ async function paymentForm(v){
   $('vp-save').addEventListener('click', function(){
     var amt = Number(B.querySelector('#vp-amt').value); if (!(amt > 0)){ footErr('Write the amount.'); return; }
     busy(this, async function(){
+      /* a payment already registered in Proveedores goes to these invoices first: never paid twice */
+      var applied = await applyProvPayments(v.id);
+      if (applied > 0){ forget(); toast('{x} paid in Proveedores was applied to this supplier\'s invoices first. Check what is still owed.'.replace('{x}', fmt(applied))); paymentForm(v); return; }
       var r = await db.rpc('supplier_payment_save', {p_payment: {vendor_id: v.id, amount_crc: amt, paid_from: B.querySelector('#vp-pm').value, date: B.querySelector('#vp-date').value, reference: B.querySelector('#vp-ref').value.trim() || null, invoice_ids: B.querySelector('#vp-inv').value ? [B.querySelector('#vp-inv').value] : [], payout_id: B.querySelector('#vp-pm').value === 'payout' ? (B.querySelector('#vp-payout').value || null) : null}, p_request_id: req});
       if (r.error || !r.data || !r.data.ok){ footErr(errText(r)); return; }
       forget(); toast('Payment recorded'); render(); vendorCard(v);
@@ -904,10 +937,10 @@ VIEW.proveedores = async function(){
     '<div class="card" style="margin-top:1rem"><h2>Invoices of the last 3 months</h2>' + ((ap.recent_invoices || []).length ? '<div class="tbox"><table><thead><tr><th>Date</th><th>Supplier</th><th>Invoice</th><th>Due</th><th class="num">Total</th><th class="num">Still owed</th><th></th></tr></thead><tbody>' +
       ap.recent_invoices.map(function(x){ return '<tr><td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td class="mono">' + esc(x.number) + (x.voided ? ' ' + tag('rev', 'voided') : '') + '</td><td class="mono">' + esc(x.due_date || '') + '</td><td class="num mono">' + fmt(x.total) + '</td><td class="num mono">' + (x.voided ? '' : fmt(x.open)) + '</td><td>' + (x.voided ? '' : '<button type="button" class="ghost small" data-voidinv="' + esc(x.id) + '">Void</button>') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="hint">No invoices in the last three months.</p>') +
     '<h3>Payments of the last 3 months</h3>' + ((ap.payments || []).length ? '<div class="tbox"><table><thead><tr><th>Date</th><th>Supplier</th><th>Paid with</th><th>Reference</th><th>Invoices</th><th class="num">Amount</th><th></th></tr></thead><tbody>' +
-      ap.payments.map(function(x){ return '<tr><td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td>' + esc(pmName(x.paid_from)) + '</td><td>' + esc(x.reference || '') + '</td><td class="mono">' + esc(x.invoices || '') + '</td><td class="num mono">' + fmt(x.amount) + '</td><td><button type="button" class="ghost small" data-voidpay="' + esc(x.id) + '">Void</button></td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="hint">No payments in the last three months.</p>') + '</div>');
+      ap.payments.map(function(x){ return '<tr><td class="mono">' + esc(x.date) + '</td><td>' + esc(x.vendor) + '</td><td>' + esc(pmName(x.paid_from)) + '</td><td>' + esc(x.reference || '') + '</td><td class="mono">' + esc(x.invoices || '') + '</td><td class="num mono">' + fmt(x.amount) + '</td><td><button type="button" class="ghost small" data-voidpay="' + esc(x.id) + (x.paid_from === 'advance' ? '" data-adv="1' : '') + '">Void</button></td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="hint">No payments in the last three months.</p>') + '</div>');
   host.querySelector('#agCsv').addEventListener('click', function(){ var out = [['supplier', 'not_due', 'late_1_30', 'late_31_60', 'late_over_60', 'total']].concat(agRows.map(function(v){ return [v.name, v.current, v.d30, v.d60, v.older, v.total]; })); (ap.vendors || []).forEach(function(v){ (v.invoices || []).forEach(function(i){ if (Number(i.open) > 0) out.push([v.name + ' · ' + i.number, i.date, i.due_date, '', '', i.open]); }); }); download('cuentas-por-pagar-' + (ap.as_of || today()) + '.csv', out); });
   host.querySelectorAll('[data-voidinv]').forEach(function(b){ b.addEventListener('click', async function(){ var why = prompt('Why is this invoice voided?'); if (!why) return; var r2 = await db.rpc('supplier_invoice_void', {p_id: b.dataset.voidinv, p_reason: why}); if (r2.error || !r2.data || !r2.data.ok){ toast(errText(r2)); return; } toast('Invoice voided'); forget(); render(); }); });
-  host.querySelectorAll('[data-voidpay]').forEach(function(b){ b.addEventListener('click', async function(){ var why = prompt('Why is this payment voided?'); if (!why) return; var r2 = await db.rpc('supplier_payment_void', {p_id: b.dataset.voidpay, p_reason: why}); if (r2.error || !r2.data || !r2.data.ok){ toast(errText(r2)); return; } toast('Payment voided'); forget(); render(); }); });
+  host.querySelectorAll('[data-voidpay]').forEach(function(b){ b.addEventListener('click', async function(){ if (b.dataset.adv && !confirm(ADV_VOID)) return; var why = prompt('Why is this payment voided?'); if (!why) return; var r2 = await db.rpc('supplier_payment_void', {p_id: b.dataset.voidpay, p_reason: why}); if (r2.error || !r2.data || !r2.data.ok){ toast(errText(r2)); return; } toast('Payment voided'); forget(); render(); }); });
   host.querySelector('#vTable').appendChild(table({id: 'prov', rows: VEND, defaultSort: 'owed', pageSize: 25, onRow: vendorCard,
     columns: [{key: 'name', label: 'Supplier', text: function(v){ return v.name + ' ' + (v.contact_name || ''); }, render: function(v){ return '<b>' + esc(v.name) + '</b>' + (v.active ? '' : ' ' + tag('', 'inactive')) + (v.contact_name ? '<span class="sub">' + esc(v.contact_name) + '</span>' : ''); }},
       {key: 'phone', label: 'Contact', text: function(v){ return [v.phone, v.whatsapp, v.email].filter(Boolean).join(' '); }, render: function(v){ return esc(v.phone || v.whatsapp || '—') + (v.email ? '<span class="sub">' + esc(v.email) + '</span>' : ''); }},

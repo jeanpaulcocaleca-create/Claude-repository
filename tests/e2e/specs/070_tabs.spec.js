@@ -289,7 +289,10 @@ module.exports.tests = [
     name: 'Q-b: two tabs of the till on one device, uploads failing: neither tab wipes the other\'s sale',
     run: async ({ browser }) => {
       const pgA = await till(browser, { viewport: { width: 820, height: 1180 } });
-      const pgB = await till(browser, { context: pgA.context() });
+      /* a second tab of the same device shares its sign-in (no login of its own seeded over tab A's): two different
+         sessions written into one storage made the two tabs refresh each other's tokens in a loop, and under load tab B's
+         round sometimes never ended (seen on GitHub on 2026-11-07, and here on the published v2026.11.04-1 too) */
+      const pgB = await till(browser, { context: pgA.context(), login: null });
       let fail = true;
       for (const p of [pgA, pgB]) {
         await p.route(/rest\/v1\/rpc\/pos_record_sale/, (r) => (r.request().method() === 'POST' && fail)

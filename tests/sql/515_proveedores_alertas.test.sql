@@ -65,10 +65,12 @@ select test.eq((select (x -> 'suppliers')::text from al515 where x ->> 'name' = 
 select test.eq((select (x -> 'suppliers' -> 0 ->> 'vendor_active') from al515 where x ->> 'name' = 'D Crema'), 'false', '1 cream: an inactive supplier is marked so');
 select test.eq((select (x ->> 'days_left') || ' ' || (x ->> 'suggest_packs') || ' ' || (x ->> 'pack_label') from al515 where x ->> 'name' = 'E Pan'), '3.0 4 bolsa de 5',
                '1 bread: 3 days left; par 20 − 3 + 2 days of use = 19 units → 4 bags of 5 (inventory_stats''s own quantity)');
--- an order sent for the milk: it is no longer suggested, and the legacy card is the same as before
+-- an order sent for the milk (from the supplier's open draft, as the page does): it is no longer suggested, and the
+-- legacy card is the same as before
+select version as dv515 from public.purchase_drafts where vendor_id = '5b000000-0000-4000-8000-000000051501' and status = 'open' \gset
 set role authenticated;
 select test.eq(public.proveedor_pedido_crear('5b000000-0000-4000-8000-000000051501', '[{"vendor_item_id":"5c000000-0000-4000-8000-000000051511","packs":8}]', null,
-                 '9a000000-0000-4000-8000-000000051503') ->> 'ok', 'true', '2 (8 half boxes of milk are ordered)');
+                 '9a000000-0000-4000-8000-000000051503', :dv515) ->> 'ok', 'true', '2 (8 half boxes of milk are ordered)');
 select test.eq((select x ->> 'suggest_packs' || ' ' || (x ->> 'on_order') from jsonb_array_elements(public.proveedores_alertas() -> 'items') x where x ->> 'name' = 'A Leche'), '0 48.0000',
                '2 milk is still out, but on order: nothing suggested again');
 select test.eq(public.proveedores_lista() -> 'alerts', public.proveedores_alertas() -> 'items', '2 the supplier list carries the same alerts for the hub');

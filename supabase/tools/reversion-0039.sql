@@ -8,7 +8,7 @@
 -- Qué hace
 --   * Quita los siete disparadores nuevos (stock_items_vendor_catalog, purchase_lines_protect_new,
 --     purchase_orders_version, purchase_lines_po_version, purchase_receipts_po_version, time_entries_work_session_end,
---     staff_work_session_end) y las 53 funciones nuevas de la 0039 (17 que llama la página, 36 internas).
+--     staff_work_session_end) y las 54 funciones nuevas de la 0039 (17 que llama la página, 37 internas).
 --   * Quita la 0039 del registro de migraciones (la base vuelve a la versión 38).
 -- Qué NO hace: no borra ningún dato ni cambia ninguna función de antes (la 0039 no reemplazó ninguna). Las tablas
 --   nuevas (vendor_items, purchase_drafts, purchase_receipt_lines, supplier_advances, vendor_pay_info, work_sessions,
@@ -89,6 +89,7 @@ drop function if exists public._prov_staff_end();
 drop function if exists public._prov_station(text);
 drop function if exists public._prov_turno(text);
 drop function if exists public._prov_txt(jsonb, int);
+drop function if exists public._prov_lock_items(uuid[]);
 drop function if exists public._prov_excess_guard(uuid, numeric);
 drop function if exists public._prov_excess(uuid);
 drop function if exists public._prov_unapplied(uuid);

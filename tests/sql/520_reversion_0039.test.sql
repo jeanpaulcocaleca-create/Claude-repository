@@ -1,6 +1,6 @@
 -- supabase/tools/reversion-0040.sql then reversion-0039.sql: undo the Proveedores migrations (D-067), and they then apply
 -- again. Each reversal refuses while it is not applied or while a later migration is, and then changes nothing; together
--- they drop the 72 new functions and the 7 new triggers and nothing else (0039 and 0040 replaced no function), delete no
+-- they drop the 74 new functions and the 7 new triggers and nothing else (0039 and 0040 replaced no function), delete no
 -- data (the six tables with their rows, the new columns, rules and indexes, the 1160 mappings and the widened payment
 -- rule stay) and take versions 40 and 39 off the ledger. The published Inventario page then works as before (orders,
 -- deliveries, receive-and-pay, items with a supplier, the clock). 0039 and 0040 then apply again over what the reversal
@@ -66,7 +66,7 @@ create temp table snap520 (k text primary key, j jsonb);
 select test.eq(public.canopy_schema_version(), 40, '0 the database is at version 40');
 create temp table new520 as select p.oid::regprocedure::text as sig from pg_proc p
  where p.pronamespace = 'public'::regnamespace and (p.proname ~ '^(proveedor|proveedores|turno)_' or p.proname ~ '^_prov_');
-select test.eq((select count(*)::int from new520), 72, '0 the 72 new functions exist (53 of 0039, 19 of 0040)');
+select test.eq((select count(*)::int from new520), 74, '0 the 74 new functions exist (54 of 0039, 20 of 0040)');
 insert into public.vendors (id, name) values ('5b000000-0000-4000-8000-000000052001', 'Lácteos Monteverde');
 insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack, vendor_id) values
   ('5a000000-0000-4000-8000-000000052001', 'Leche', 'unit', 12, 12000, '5b000000-0000-4000-8000-000000052001');
@@ -78,6 +78,9 @@ select public.proveedor_recibir('9a000000-0000-4000-8000-000000052001', '7e00000
          test.lines520('9a000000-0000-4000-8000-000000052001', 2)) ->> 'status' as r1 \gset
 select public.proveedor_pago_registrar('{"vendor_id":"5b000000-0000-4000-8000-000000052001","po_id":"9a000000-0000-4000-8000-000000052001","amount":20000,"method":"sinpe","reference":"52001-SINPE"}',
          '5d000000-0000-4000-8000-000000052001', test.staff('ana'), '4826') ->> 'ok' as p1 \gset
+-- the milk's catalog row is moved to boxes of 24 (its earlier order was by 12): applied again, the copy must not revive the 12
+select public.proveedor_producto_guardar(jsonb_build_object('id', :'vi', 'pack_label', 'caja de 24', 'pack_qty', 24, 'usual_price', 24000)) ->> 'ok' as e1 \gset
+select test.eq(:'e1'::text, 'true', '0 (the milk''s row edited to boxes of 24)');
 select public.proveedor_borrador_guardar('5b000000-0000-4000-8000-000000052001', jsonb_build_array(jsonb_build_object('vendor_item_id', :'vi', 'packs', 1)), null, 0) ->> 'ok' as d1 \gset
 select public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000052001","notes":"Entrega martes"}') ->> 'ok' as g1 \gset
 select test.login('cafe'); select test.session('dev-520-r'); set role authenticated;
@@ -116,7 +119,7 @@ create function test.s520(key text, path text[]) returns jsonb language sql stab
 select test.eq(test.s520('rc_40', '{migrations_missing}') || test.s520('rc_40', '{functions_missing}'), '[]'::jsonb, '0 release-check.sql: nothing missing');
 select test.eq((test.s520('snap_40', '{schema,functions_by_version,0039}') #>> '{}') || ' ' || (test.s520('snap_40', '{schema,functions_by_version,0040}') #>> '{}')
                || ' ' || jsonb_array_length(test.s520('snap_40', '{schema,functions_changed}')) || ' ' || jsonb_array_length(test.s520('snap_40', '{schema,functions_unknown}')),
-               '53 19 0 0', '0 production-snapshot.sql: 53 functions of 0039, 19 of 0040, none changed or unknown');
+               '54 21 0 0', '0 production-snapshot.sql: 54 functions of 0039, 21 of 0040 (its 20 new ones and supplier_invoice_save), none changed or unknown');
 
 -- 1) the guards: 0039 refuses while 0040 is applied; 0040 refuses while a later one is ----------------------------------------
 savepoint g1;
@@ -172,9 +175,12 @@ select test.eq(public.canopy_schema_version(), 38, '2 reversion-0039.sql: back a
 select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 37), '37 38', '2 the ledger: 39 and 40 deleted');
 select test.eq(:'lt_before' || ' -> ' || current_setting('lock_timeout'), '0 -> 8s', '2 each waits at most 8 seconds for a lock');
 select test.eq((select string_agg(f.k, ' ' order by f.k) from f40 f where not exists (select 1 from test.fns520() g where g.k = f.k)),
-               (select string_agg(sig, ' ' order by sig) from new520), '2 exactly the 72 new functions are gone');
-select test.eq(test.diff520('(select * from f40 where k not in (select sig from new520))', '(select * from test.fns520())'), '',
-               '2 every other function byte for byte as it was, with its rights (none was replaced)');
+               (select string_agg(sig, ' ' order by sig) from new520), '2 exactly the 74 new functions are gone');
+select test.eq(test.diff520('(select * from f40 where k not in (select sig from new520) and k <> ''supplier_invoice_save(jsonb,uuid)'')',
+                             '(select * from test.fns520() where k <> ''supplier_invoice_save(jsonb,uuid)'')'), '',
+               '2 every other function byte for byte as it was, with its rights (0039 replaced none)');
+select test.ok((select prosrc !~ '0040' and prosrc ~ 'the deliveries are this vendor''s and not invoiced yet' from pg_proc where oid = 'public.supplier_invoice_save(jsonb,uuid)'::regprocedure),
+               '2 supplier_invoice_save is back to its 0025 text (the snapshot below reads it as 0025''s)');
 select test.eq((select string_agg(x.k, ' ' order by x.k) from t40 x where not exists (select 1 from test.trg520() y where y.k = x.k)),
                'purchase_lines.purchase_lines_po_version purchase_lines.purchase_lines_protect_new purchase_orders.purchase_orders_version '
                || 'purchase_receipts.purchase_receipts_po_version staff.staff_work_session_end stock_items.stock_items_vendor_catalog time_entries.time_entries_work_session_end',
@@ -212,17 +218,18 @@ select test.eq(test.s520('rc_rev', '{functions_missing}'),
                '["proveedor_anticipos_aplicar", "proveedor_borrador_descartar", "proveedor_borrador_guardar", "proveedor_factura_anular", "proveedor_factura_registrar", '
                '"proveedor_ficha", "proveedor_guardar", "proveedor_historial", "proveedor_pago_anular", "proveedor_pago_registrar", "proveedor_pedido", "proveedor_pedido_asignar", '
                '"proveedor_pedido_cancelar", "proveedor_pedido_cerrar", "proveedor_pedido_confirmar", "proveedor_pedido_crear", "proveedor_pedido_editar", "proveedor_producto_guardar", '
-               '"proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", '
-               '"turno_estado", "turno_terminar"]'::jsonb, '2 release-check.sql: functions_missing = the 27 public functions, nothing else');
+               '"proveedor_recepcion_corregir", "proveedor_recibir", "proveedores_alertas", "proveedores_bitacora", "proveedores_lista", "proveedores_por_recibir", "turno_aqui", "turno_desde_caja", '
+               '"turno_estado", "turno_terminar"]'::jsonb, '2 release-check.sql: functions_missing = the 28 public functions, nothing else');
 select test.eq(jsonb_build_array(test.s520('rc_rev', '{anon_can_run}'), test.s520('rc_rev', '{tables_without_rls}'), test.s520('rc_rev', '{settings}')),
                jsonb_build_array(test.s520('rc_40', '{anon_can_run}'), test.s520('rc_40', '{tables_without_rls}'), test.s520('rc_40', '{settings}')),
                '2 release-check.sql: a visitor runs the same, no table without row security, the same switches');
 select test.eq((test.s520('snap_rev', '{migrations_applied}') ->> -1), '38', '2 production-snapshot.sql: migrations_applied ends in 38');
 select test.eq(test.s520('snap_rev', '{schema,functions_changed}') || test.s520('snap_rev', '{schema,functions_unknown}'), '[]'::jsonb,
                '2 production-snapshot.sql: no function changed or unknown');
-select test.eq(test.s520('snap_rev', '{schema,functions_by_version}'), test.s520('snap_40', '{schema,functions_by_version}') - '0039' - '0040',
-               '2 production-snapshot.sql: every version as before, without 0039 and 0040');
-select test.eq((test.s520('snap_rev', '{schema,functions_total}'))::int, (test.s520('snap_40', '{schema,functions_total}'))::int - 72, '2 functions_total − 72');
+select test.eq(test.s520('snap_rev', '{schema,functions_by_version}'), test.s520('snap_40', '{schema,functions_by_version}') - '0039' - '0040'
+                 || jsonb_build_object('0025', (test.s520('snap_40', '{schema,functions_by_version,0025}') #>> '{}')::int + 1),
+               '2 production-snapshot.sql: every version as before, without 0039 and 0040 (supplier_invoice_save is 0025''s again)');
+select test.eq((test.s520('snap_rev', '{schema,functions_total}'))::int, (test.s520('snap_40', '{schema,functions_total}'))::int - 74, '2 functions_total − 74');
 select test.eq(test.s520('snap_rev', '{schema,triggers_differ}'), '{}'::jsonb, '2 triggers_differ = {} (exactly the triggers of version 38)');
 select test.eq(test.s520('snap_rev', '{schema,tables_missing}') || test.s520('snap_rev', '{schema,live_pages_rpc_missing}'), '[]'::jsonb,
                '2 no table missing, nothing the published pages call missing');
@@ -272,6 +279,8 @@ select test.eq((select count(*)::int from acct.mappings where key in ('supplier_
 select test.eq((select string_agg(vendor_id || ':' || pack_qty || ':' || created_by, ' ') from public.vendor_items where item_id = '5a000000-0000-4000-8000-000000052002'),
                '5b000000-0000-4000-8000-000000052001:500:migración 0039 5b000000-0000-4000-8000-000000052001:2000:migración 0039',
                '4 the item the published page saved with a supplier gets its row, and its order''s presentation (2 blocks of 2 kg) another');
+select test.eq((select string_agg(pack_qty || ':' || coalesce(pack_label, '-'), ' ' order by pack_qty) from public.vendor_items where item_id = '5a000000-0000-4000-8000-000000052001'),
+               '24:caja de 24', '4 the row moved to boxes of 24 is not revived as a row of 12 (neither from the item nor from its earlier order)');
 select test.eq((select packs || ' ' || qty || ' ' || pack_qty || ' ' || unit_cost || ' ' || pack_price from public.purchase_receipt_lines where receipt_id = '7e000000-0000-4000-8000-000000052003'),
                '2.0000 4000 2000 3.5 7000.00', '4 the delivery received the old way gets its line (2 blocks of 2 000 g at ₡7 000)');
 select test.eq((select count(*)::int from public.purchase_receipt_lines where receipt_id in ('7e000000-0000-4000-8000-000000052001', '7e000000-0000-4000-8000-000000052002')), 2,

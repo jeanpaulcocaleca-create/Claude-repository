@@ -30,7 +30,8 @@ module.exports.tests = [
       await pg.click('#docPay');
       await payForm(pg);
       assert.strictEqual(await pg.inputValue('#payPo'), o.id, 'this order');
-      assert.strictEqual(await pg.inputValue('#payAmt'), '20400', 'the balance proposed');
+      assert.strictEqual(await pg.inputValue('#payAmt'), '23052', 'the server\'s balance proposed: ₡20 400 with the IVA allowance before the invoice (13 %)');
+      await P.seen(pg.locator('#docMoney'), /A pagar ₡23 052 estimado, IVA incl\./, 'the document shows the estimate with IVA, labelled, in Spanish', 3000);
       assert.strictEqual(await pg.locator('#payMethod button[data-m=sinpe]').getAttribute('aria-pressed'), 'true', 'SINPE first');
       assert.strictEqual(await pg.inputValue('#payWho'), STAFF.ana, 'who registers: the manager who opened the owner areas');
       // no confirmation number: refused before anything is sent
@@ -44,13 +45,13 @@ module.exports.tests = [
       await pg.fill('#payRef', '12345678');
       await pg.fill('#payPin', PINS.ana);
       await save(pg);
-      await P.toasted(pg, /^Pago guardado · ₡10 000 a favor$/, 'saved (no invoice yet: it waits in favour)');
+      await P.toasted(pg, /^Pago guardado · queda esperando la factura$/, 'saved (no invoice yet: it waits for the invoice)');
       assert.strictEqual(advances(), 'sinpe:10000.00:12345678:-:false');
       assert.strictEqual(ledger('supadv:'), '1110:-10000.00,1160:10000.00', 'Dr 1160 anticipos / Cr 1110 bank');
       await P.seen(pg.locator('#orderDoc .dh'), /Parcialmente pagado$/, 'partly paid', 8000);
       // the same SINPE number again, with spaces and a dash: refused, it says where it is
       await pg.click('#docPay'); await payForm(pg);
-      assert.strictEqual(await pg.inputValue('#payAmt'), '10400');
+      assert.strictEqual(await pg.inputValue('#payAmt'), '13052', 'what is left of the server\'s balance');
       await pg.fill('#payRef', ' 1234-5678 ');
       await pg.fill('#payPin', PINS.ana);
       await save(pg);
@@ -68,13 +69,13 @@ module.exports.tests = [
       await pg.fill('#payPin', PINS.ana);
       await save(pg);
       await P.toasted(pg, /^Pago guardado/, 'the card payment');
-      assert.strictEqual(advances(), 'sinpe:10000.00:12345678:-:false,card_debit:10400.00:-:-:false');
+      assert.strictEqual(advances(), 'sinpe:10000.00:12345678:-:false,card_debit:13052.00:-:-:false');
       await P.seen(pg.locator('#orderDoc .dh'), /Recibido Pagado$/, 'paid', 8000);
-      // more than the balance (the IVA allowance before the invoice: 20 400 × 13 % = ₡2 652): a manager cannot
+      // more than the balance (nothing is left of it, the IVA allowance included): a manager cannot
       await pg.click('#docPay'); await payForm(pg);
       await pg.fill('#payAmt', '5000'); await pg.fill('#payRef', 'SNP-99881'); await pg.fill('#payPin', PINS.ana);
       await save(pg);
-      await P.seen(pg.locator('#payErr'), /^Es más de lo que se debe: el saldo es ₡2 652\. Solo el dueño puede registrar un pago mayor que el saldo\.$/, 'over the balance', 8000);
+      await P.seen(pg.locator('#payErr'), /^Es más de lo que se debe: el saldo es ₡0\. Solo el dueño puede registrar un pago mayor que el saldo\.$/, 'over the balance', 8000);
       assert.strictEqual(await pg.locator('#payExcessBox').isVisible(), false, 'no overpayment box for a manager');
       assert.strictEqual(sql(`select count(*) from supplier_advances`), '2');
       // a wrong PIN: refused and counted
@@ -98,7 +99,7 @@ module.exports.tests = [
       await pg.selectOption('#payPo', o.id);
       await pg.fill('#payAmt', '5000'); await pg.fill('#payRef', 'SNP-777');
       await save(pg);
-      await P.toasted(pg, /^Pago guardado · ₡5 000 a favor$/, 'an advance before receiving');
+      await P.toasted(pg, /^Pago guardado · queda esperando la factura$/, 'an advance before receiving');
       assert.strictEqual(sql(`select po_id from supplier_advances`), o.id);
       // the goods arrive; the invoice: «Sin IVA», then «13 %» (the person chooses); it applies the advance
       P.receive(o.id, [{ line: P.lineOf(o.id, I.yogur), rest: true }]);
@@ -166,6 +167,220 @@ module.exports.tests = [
       await P.seen(pg.locator(`#hubVendors .vcard[data-vendor="${V.lac}"]`), /Debe ₡13 340/, 'the hub badge «Debe»', 8000);
       assert.deepStrictEqual(pg.errors, []);
       assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: 'deliveries recorded on another device a moment ago: Pagos, the payment window and the invoice window read them (no 60-second old copy)',
+    run: async ({ browser }) => {
+      P.seed();
+      const o1 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]), o2 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 2 }]), o3 = P.create(V.lac, [{ vi: P.vi(I.natilla), packs: 1 }]);
+      const pg = await P.owner(browser, { hash: '#p=' + V.lac + '&t=pagos', wait: '#pgPay' });
+      assert.strictEqual(await pg.locator('#pgInv').count(), 0, 'nothing received yet');
+      // the door tablet receives order 1; the owner looks at it, then goes back to Pagos
+      P.receive(o1.id, [{ line: P.lineOf(o1.id, I.yogur), rest: true }]);
+      await P.nav(pg, '#pedido=' + o1.id, '#orderDoc');
+      await P.nav(pg, '#p=' + V.lac + '&t=pagos', '#pgPay');
+      await P.seen(pg.locator('#fTab'), new RegExp('Entregas sin factura Pedido Nº ' + o1.po_number + ' .* recibido ₡18 000'), 'Pagos shows the new delivery', 5000);
+      assert.strictEqual(await pg.locator('#pgInv').count(), 1, '«Registrar factura» is offered');
+      // order 2 arrives elsewhere: the payment window opened from its document knows it was received
+      P.receive(o2.id, [{ line: P.lineOf(o2.id, I.yogur), rest: true }]);
+      await P.nav(pg, '#pedido=' + o2.id, '#orderDoc');
+      await pg.click('#docPay');
+      await pg.waitForSelector('#payModal:not([hidden])');
+      /* read once lang.js has translated the list (the page writes it in English first) */
+      await until(async () => new RegExp('^Pedido Nº ' + o2.po_number + ' · Recibido').test(await pg.locator(`#payPo option[value="${o2.id}"]`).textContent()), 3000, 'the order as it is now, in Spanish: «Pedido Nº ' + o2.po_number + ' · Recibido»');
+      await pg.click('#payCancel');
+      // order 3 arrives elsewhere: the invoice window opened from its document has that delivery, ticked
+      P.receive(o3.id, [{ line: P.lineOf(o3.id, I.natilla), rest: true }]);
+      await P.nav(pg, '#pedido=' + o3.id, '#docInv');
+      await pg.click('#docInv');
+      await pg.waitForSelector('#invModal:not([hidden])');
+      await P.seen(pg.locator('#invRecs'), new RegExp('Pedido Nº ' + o3.po_number + ' · '), 'the new delivery is listed', 3000);
+      assert.strictEqual(await pg.locator('#invRecs input:checked').count(), 1, 'ticked');
+      assert.strictEqual(await pg.inputValue('#invNet'), '6000', 'its received value');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: 'an invoice in dollars: the colones prefill leaves the boxes (typed in dollars, with the rate); back in colones it returns; every error has a text',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.yogur), rest: true }]);
+      const pg = await P.owner(browser, { hash: '#p=' + V.lac + '&t=pagos', wait: '#pgInv' });
+      await pg.click('#pgInv');
+      await pg.waitForSelector('#invModal:not([hidden])');
+      assert.strictEqual(await pg.inputValue('#invNet'), '18000', 'the received value in colones');
+      await pg.click('#invIva13');
+      assert.strictEqual(await pg.inputValue('#invIva'), '2340');
+      await pg.selectOption('#invCur', 'USD');
+      assert.strictEqual(await pg.inputValue('#invNet'), '', 'no colones amount left to read as dollars');
+      assert.strictEqual(await pg.inputValue('#invIva'), '');
+      await P.seen(pg.locator('#invFxBox'), /Escriba los montos de la factura en dólares\./, 'told to type the dollar amounts, in Spanish', 3000);
+      await pg.fill('#invNet', '34.62');
+      await pg.fill('#invFx', '520');
+      await pg.click('#invIva13');
+      assert.strictEqual(await pg.inputValue('#invIva'), '4.5');
+      await P.seen(pg.locator('#invTotal'), /^Total \$39\.12 = ₡20 342,40$/, 'the dollar total and its colones', 3000);
+      await pg.selectOption('#invCur', 'CRC');
+      assert.strictEqual(await pg.inputValue('#invNet'), '18000', 'the colones prefill is back');
+      assert.strictEqual(await pg.inputValue('#invIva'), '', 'the IVA is chosen again');
+      assert.strictEqual(await pg.locator('#invFxBox').isVisible(), false);
+      // an error code of the books (bad_account) has its own text, not «Algo salió mal»
+      await pg.click('#invIva0');
+      await pg.route('**/rest/v1/rpc/proveedor_factura_registrar', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":false,"error":"bad_account"}' }), { times: 1 });
+      await pg.click('#invGo');
+      await P.seen(pg.locator('#invErr'), /^Una cuenta de la contabilidad no es válida\. Avise al contador\.$/, 'bad_account, in Spanish', 5000);
+      assert.strictEqual(sql(`select count(*) from supplier_invoices`), '0');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: 'dollars chosen before the deliveries: ticking one never puts the colones total in the dollar subtotal, and the dollars typed stay',
+    run: async ({ browser }) => {
+      P.seed();
+      const o1 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]), o2 = P.create(V.lac, [{ vi: P.vi(I.natilla), packs: 1 }]);
+      P.receive(o1.id, [{ line: P.lineOf(o1.id, I.yogur), rest: true }]);
+      P.receive(o2.id, [{ line: P.lineOf(o2.id, I.natilla), rest: true }]);
+      const pg = await P.owner(browser, { hash: '#p=' + V.lac + '&t=pagos', wait: '#pgInv' });
+      await pg.click('#pgInv');
+      await pg.waitForSelector('#invModal:not([hidden])');
+      assert.strictEqual(await pg.locator('#invRecs input:checked').count(), 0, 'two deliveries: none ticked at first');
+      await pg.selectOption('#invCur', 'USD');
+      await pg.fill('#invFx', '520');
+      await pg.locator('#invRecs input[type=checkbox]').first().check();
+      assert.strictEqual(await pg.inputValue('#invNet'), '', 'ticked in dollars: no colones amount in the dollar box');
+      await pg.fill('#invNet', '34.62');
+      await pg.locator('#invRecs input[type=checkbox]').nth(1).check();
+      assert.strictEqual(await pg.inputValue('#invNet'), '34.62', 'the dollars typed stay when another delivery is ticked');
+      await pg.click('#invIva13');
+      await P.seen(pg.locator('#invTotal'), /^Total \$39\.12 = ₡20 342,40$/, 'the dollar total and its colones', 3000);
+      await pg.selectOption('#invCur', 'CRC');
+      assert.strictEqual(await pg.inputValue('#invNet'), '24000', 'back in colones: the two deliveries\' received value');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
+    name: 'an invoice form typed in colones, and one in dollars, come back after the sign-in ends with the number, the amounts and the currency typed',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.yogur), rest: true }]);
+      for (const usd of [false, true]) {
+        const pg = await P.cafeManager(browser, { hash: '#p=' + V.lac + '&t=pagos', wait: '#pgInv' });
+        await pg.click('#pgInv');
+        await pg.waitForSelector('#invModal:not([hidden])');
+        if (usd) { await pg.selectOption('#invCur', 'USD'); await pg.fill('#invFx', '520'); }
+        await pg.fill('#invNum', usd ? 'INV-77' : 'F-1234');
+        await pg.fill('#invNet', usd ? '34.62' : '17500');
+        await pg.click('#invIva13');
+        const iva = await pg.inputValue('#invIva');
+        await pg.route('**/rest/v1/rpc/proveedor_factura_registrar', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{"code":"PGRST301","message":"JWT expired"}' }), { times: 1 });
+        await pg.evaluate(() => { for (const k of Object.keys(localStorage)) if (/^sb-.*-auth-token$/.test(k)) localStorage.removeItem(k); });
+        await pg.click('#invGo');
+        await pg.waitForSelector('#loginView:not([hidden])', { timeout: 10000 });
+        await pg.fill('#em', 'cafe@test.local');
+        await pg.fill('#pw', 'test');
+        await pg.click('#loginForm button[type=submit]');
+        await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 10000 });
+        await pg.click('#turnoOwner');
+        await P.gate(pg, 'ana');
+        await pg.waitForSelector('#invModal:not([hidden])', { timeout: 10000 });
+        await P.toasted(pg, /volvió/, 'told what came back', 5000);
+        const got = [await pg.inputValue('#invCur'), await pg.inputValue('#invNum'), await pg.inputValue('#invNet'), await pg.inputValue('#invIva'), usd ? await pg.inputValue('#invFx') : '-'];
+        assert.deepStrictEqual(got, usd ? ['USD', 'INV-77', '34.62', iva, '520'] : ['CRC', 'F-1234', '17500', iva, '-'], (usd ? 'dollars' : 'colones') + ': everything typed is back, the number too');
+        assert.strictEqual(sql(`select count(*) from supplier_invoices`), '0', 'nothing saved meanwhile');
+        assert.deepStrictEqual(pg.errors, []);
+        await pg.close();
+      }
+    }
+  },
+  {
+    name: 'the invoice window: a Proveedores correction is shown inside the delivery it corrects (one row, its net value), and the invoice takes both; a number typed before ticking stays; with two deliveries both ticks come back after an expired sign-in',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.leche), rest: true }]);
+      const rc = sql(`select id from purchase_receipts where po_id = '${o.id}'`);
+      P.asOwner(`select public.proveedor_recepcion_corregir('${rc}', gen_random_uuid(), jsonb_build_array(jsonb_build_object('line_id', '${P.lineOf(o.id, I.leche)}', 'packs_delta', -1)), 'Una caja venía vacía')`);
+      const o2 = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 4 }]);
+      P.receive(o2.id, [{ line: P.lineOf(o2.id, I.yogur), rest: true }]);
+      const pg = await P.cafeManager(browser, { hash: '#p=' + V.lac + '&t=pagos', wait: '#pgInv' });
+      await pg.click('#pgInv');
+      await pg.waitForSelector('#invModal:not([hidden])');
+      assert.strictEqual(await pg.locator('#invRecs [data-rec]').count(), 2, 'two deliveries; the correction is not a row of its own');
+      await P.seen(pg.locator('#invRecs label').first(), /^Pedido Nº \d+ · .+ · ₡20 400 · corregido ₡-10 200 → ₡10 200$/, 'the correction inside its delivery', 3000);
+      await pg.fill('#invNum', 'F-9');
+      await pg.locator('#invRecs [data-rec]').first().check();
+      assert.strictEqual(await pg.inputValue('#invNum'), 'F-9', 'the number typed before ticking stays');
+      assert.strictEqual(await pg.inputValue('#invNet'), '10200', 'the delivery net of its correction');
+      await pg.locator('#invRecs [data-rec]').nth(1).check();
+      assert.strictEqual(await pg.inputValue('#invNet'), '28200', 'both deliveries');
+      await pg.fill('#invNet', '28000');
+      await pg.click('#invIva13');
+      const iva = await pg.inputValue('#invIva');
+      // the sign-in ends on «Guardar»: everything comes back, both ticks too
+      await pg.route('**/rest/v1/rpc/proveedor_factura_registrar', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{"code":"PGRST301","message":"JWT expired"}' }), { times: 1 });
+      await pg.evaluate(() => { for (const k of Object.keys(localStorage)) if (/^sb-.*-auth-token$/.test(k)) localStorage.removeItem(k); });
+      await pg.click('#invGo');
+      await pg.waitForSelector('#loginView:not([hidden])', { timeout: 10000 });
+      await pg.fill('#em', 'cafe@test.local'); await pg.fill('#pw', 'test');
+      await pg.click('#loginForm button[type=submit]');
+      await pg.waitForSelector('#turnoView:not([hidden])', { timeout: 10000 });
+      await pg.click('#turnoOwner');
+      await P.gate(pg, 'ana');
+      await pg.waitForSelector('#invModal:not([hidden])', { timeout: 10000 });
+      await P.toasted(pg, /volvió/, 'told what came back', 5000);
+      assert.deepStrictEqual([await pg.locator('#invRecs [data-rec]:checked').count(), await pg.inputValue('#invNum'), await pg.inputValue('#invNet'), await pg.inputValue('#invIva')],
+        [2, 'F-9', '28000', iva], 'both ticks, the number, the subtotal and the IVA are back');
+      await pg.click('#invGo');
+      await until(() => sql(`select count(*) from supplier_invoices`) === '1', 8000, 'the invoice saved');
+      assert.strictEqual(sql(`select cardinality(receipt_ids) || '|' || received_crc from supplier_invoices`), '3|28200.00', 'the two deliveries and the correction, received ₡28 200');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'Contabilidad: the invoice form counts a Proveedores correction with its delivery (no false difference shown), and the supplier card names its payments in Spanish',
+    run: async ({ browser }) => {
+      P.seed();
+      const o = P.create(V.lac, [{ vi: P.vi(I.leche), packs: 2 }]);
+      P.receive(o.id, [{ line: P.lineOf(o.id, I.leche), rest: true }]);
+      const rc = sql(`select id from purchase_receipts where po_id = '${o.id}'`);
+      P.asOwner(`select public.proveedor_recepcion_corregir('${rc}', gen_random_uuid(), jsonb_build_array(jsonb_build_object('line_id', '${P.lineOf(o.id, I.leche)}', 'packs_delta', -1)), 'Una caja venía vacía')`);
+      const drawer = (pg) => until(() => pg.evaluate(() => document.getElementById('drawer').classList.contains('open') && !document.querySelector('#drawerBody .loading')), 8000, 'the drawer open');
+      const open = async () => {
+        const pg = P.watchApi(await page(browser, { login: 'owner', aal: 'aal2', lang: 'es' }));
+        await goto(pg, '/contabilidad');
+        await pg.waitForSelector('#appView:not([hidden])', { timeout: 15000 });
+        await pg.evaluate(() => { location.hash = 'proveedores'; });
+        await until(async () => (await pg.locator('#tbl-prov tbody tr.row', { hasText: 'Lácteos Monteverde' }).count()) === 1, 10000, 'the supplier listed');
+        await pg.locator('#tbl-prov tbody tr.row', { hasText: 'Lácteos Monteverde' }).click();
+        await drawer(pg);
+        return pg;
+      };
+      const pg = await open();
+      await pg.click('#vc-inv');
+      await drawer(pg);
+      await until(() => pg.evaluate(() => !!document.querySelector('#drawerBody [data-rec]')), 8000, 'the delivery offered');
+      assert.strictEqual(await pg.locator('#drawerBody [data-rec]').count(), 1, 'one row: the delivery (its correction goes with it)');
+      await P.seen(pg.locator('#drawerBody label.check').first(), /₡20 400 · corregido −₡10 200 → ₡10 200$/, 'the correction shown inside the delivery, in Spanish', 3000);
+      await pg.check('#drawerBody [data-rec]');
+      await pg.fill('#vi-num', 'F-CORR'); await pg.fill('#vi-net', '10200'); await pg.fill('#vi-iva', '0');
+      await P.seen(pg.locator('#vi-diff'), /^Recibido al costo ₡10 200 · diferencia con la factura ₡0$/, 'what the server will book: no difference', 3000);
+      await pg.click('#vi-save');
+      await until(() => sql(`select count(*) from supplier_invoices`) === '1', 8000, 'the invoice saved');
+      assert.strictEqual(sql(`select cardinality(receipt_ids) || '|' || received_crc from supplier_invoices`), '2|10200.00', 'the delivery and its correction');
+      assert.strictEqual(sql(`select count(*) from acct.lines l join acct.entries e on e.id = l.entry_id where e.source_key like 'supinv:%' and l.account = acct.map('price_variance')`), '0', 'no 5103');
+      await pg.close();
+      // a bank payment recorded in Contabilidad: the card's payments in Spanish
+      P.asOwner(`select public.supplier_payment_save(jsonb_build_object('vendor_id', '${V.lac}', 'amount_crc', 10200, 'paid_from', 'bank', 'date', public.cr_today(), 'reference', 'TR-1'), gen_random_uuid())`);
+      const p2 = await open();
+      await P.seen(p2.locator('#drawerBody'), /Transferencia o SINPE/, 'the payment method in Spanish', 5000);
+      assert.doesNotMatch(await text(p2.locator('#drawerBody')), /Bank transfer or SINPE/);
+      assert.deepStrictEqual(pg.errors.concat(p2.errors), []);
     }
   },
   {

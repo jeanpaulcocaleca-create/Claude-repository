@@ -82,6 +82,44 @@ module.exports.tests = [
     }
   },
   {
+    name: 'the alert\'s highlighted row shows its suggestion; the first key typed replaces it (keyboard and the tablet\'s keypad): 2 is 2, never 62',
+    run: async ({ browser }) => {
+      P.seed();
+      // a keyboard: the box focused and left alone keeps the suggestion; typed, the typed number is the quantity
+      const pg = await P.owner(browser, { hash: '#alerta=' + I.leche, wait: '#pList .prow.pin' });
+      const pin = pg.locator('#pList .prow.pin'), box = pin.locator('.step input');
+      assert.strictEqual(await box.inputValue(), '6', 'the suggestion is shown');
+      await box.click();
+      await pg.locator('#pSearch').click();   /* left without typing */
+      assert.strictEqual(await box.inputValue(), '6', 'the suggestion comes back');
+      assert.strictEqual(await pin.locator('.ck input').isChecked(), false, 'still not ticked');
+      await box.click();
+      await pg.keyboard.type('2');
+      assert.strictEqual(await box.inputValue(), '2', 'the first key replaced the suggestion');
+      await P.seen(pg.locator('#pSum'), /^1 producto · Total estimado ₡20 400$/, 'two boxes, ticked', 3000);
+      assert.strictEqual(await pin.locator('.ck input').isChecked(), true);
+      assert.deepStrictEqual(pg.errors, []);
+      // the café tablet's on-screen keypad adds to what is in the box: its first key replaces the suggestion too
+      const ctx = await browser.newContext({ viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, locale: 'es-CR', timezoneId: 'America/Costa_Rica' });
+      const tab = P.watchApi(await page(browser, { context: ctx, login: 'owner', aal: 'aal2', lang: 'es' }));
+      await goto(tab, '/proveedores#p=' + V.pan + '&item=' + I.pan);
+      const tpin = tab.locator('#pList .prow.pin');
+      await tpin.waitFor({ timeout: 10000 });
+      const tbox = tpin.locator('.step input');
+      const sug = await tbox.inputValue();
+      assert.ok(Number(sug) > 0, 'a suggestion is shown: ' + sug);
+      await tbox.click();
+      const pad = tpin.locator('.hg-pad');
+      await pad.waitFor({ state: 'visible', timeout: 3000 });
+      await pad.locator('button', { hasText: /^2$/ }).click();
+      assert.strictEqual(await tbox.inputValue(), '2', 'the keypad\'s 2 replaced the suggestion ' + sug + ' (not ' + sug + '2)');
+      await P.seen(tab.locator('#pSum'), /^1 producto · Total estimado ₡6 000$/, 'two bags of bread', 3000);
+      assert.deepStrictEqual(tab.errors, []);
+      assert.deepStrictEqual(tab.apiErrors, []);
+      await ctx.close();
+    }
+  },
+  {
     name: 'the draft saves itself: a reload brings it back; a second device opens it; a stale device gets «changed» and merges',
     run: async ({ browser }) => {
       P.seed();
@@ -118,6 +156,130 @@ module.exports.tests = [
     }
   },
   {
+    name: 'two devices on one draft: when the other device already made the order, or changed the draft, «Crear pedido» waits for the choice; never a second order of the same things',
+    run: async ({ browser }) => {
+      P.seed();
+      const orders = () => sql(`select count(*) from purchase_orders where vendor_id = '${V.lac}' and status <> 'cancelled'`);
+      const n0 = orders();
+      const a = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      await row(a, I.leche).locator('.ck input').check();
+      await saved(a);
+      const b = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      assert.strictEqual(await row(b, I.leche).locator('.ck input').isChecked(), true, 'the other device has the draft');
+      // A makes the order; B, still showing the draft, ticks the yogurt
+      await a.click('#pCreate');
+      await a.waitForSelector('#orderDoc', { timeout: 10000 });
+      assert.strictEqual(orders(), String(Number(n0) + 1));
+      await row(b, I.yogur).locator('.ck input').check();
+      await P.seen(b.locator('#pNotes'), /Este borrador ya se convirtió en un pedido/, 'B is told the draft became an order', 8000);
+      assert.strictEqual(await b.locator('#pCreate').isDisabled(), true, '«Crear pedido» waits for the choice');
+      assert.strictEqual(orders(), String(Number(n0) + 1), 'no second order');
+      await b.locator('#pNotes button', { hasText: 'Empezar otro borrador con lo marcado' }).click();
+      await saved(b, 'B\'s new draft saved');
+      assert.strictEqual(await b.locator('#pCreate').isDisabled(), false, 'the choice made: «Crear pedido» again');
+      // A opens the supplier again and changes the new draft; B, on the older version, ticks more and taps at once
+      await P.nav(a, '#p=' + V.lac, '#pList .prow');
+      await row(a, I.queso).locator('.ck input').check();
+      await saved(a, 'A changed the new draft');
+      await row(b, I.natilla).locator('.ck input').check();
+      await b.click('#pCreate');
+      await P.seen(b.locator('#pNotes'), /Este borrador se cambió en otro aparato/, 'B is told the draft changed elsewhere', 8000);
+      assert.strictEqual(orders(), String(Number(n0) + 1), 'still no second order from a draft in conflict');
+      assert.strictEqual(await b.locator('#pCreate').isDisabled(), true);
+      await b.locator('#pNotes button', { hasText: 'Unir' }).click();
+      await saved(b, 'the union saved');
+      await b.click('#pCreate');
+      await b.waitForSelector('#orderDoc', { timeout: 10000 });
+      assert.strictEqual(orders(), String(Number(n0) + 2), 'one order from the union');
+      assert.strictEqual(sql(`select count(*) from purchase_drafts where vendor_id = '${V.lac}' and status = 'open'`), '0', 'the draft it used is closed');
+      for (const pg of [a, b]) assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'the answer of «Crear pedido» is lost: the supplier opened again with other ticks makes a new order (the old id is not taken for a «repeat»), and says which order was already made',
+    run: async ({ browser }) => {
+      P.seed();
+      const orders = () => sql(`select count(*) from purchase_orders where vendor_id = '${V.lac}' and status <> 'cancelled'`);
+      const n0 = Number(orders());
+      const a = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      await row(a, I.leche).locator('.ck input').check();
+      await saved(a);
+      await a.route('**/rest/v1/rpc/proveedor_pedido_crear', async (route) => { await route.fetch(); await route.abort('connectionreset'); }, { times: 1 });
+      await a.click('#pCreate');
+      await until(() => Number(orders()) === n0 + 1, 10000, 'the order is made on the server');
+      const first = sql(`select po_number from purchase_orders where vendor_id = '${V.lac}' order by created_at desc limit 1`);
+      await P.seen(a.locator('#pErr'), /.+/, 'the tablet could not confirm it', 8000);
+      // later: the supplier opened again, the yogurt ticked
+      await a.reload({ waitUntil: 'domcontentloaded' });
+      await a.waitForSelector('#pList .prow', { timeout: 15000 });
+      await row(a, I.yogur).locator('.ck input').check();
+      await saved(a, 'the new draft saved');
+      await a.click('#pCreate');
+      await P.seen(a.locator('#pErr'), new RegExp('Este aparato ya había hecho el pedido Nº ' + first + '\\. Lo marcado ahora es un pedido nuevo'), 'told which order was already made', 8000);
+      assert.strictEqual(Number(orders()), n0 + 1, 'nothing taken as a «repeat», nothing made twice');
+      await a.click('#pCreate');
+      await a.waitForSelector('#orderDoc', { timeout: 10000 });
+      assert.strictEqual(Number(orders()), n0 + 2, 'the new ticks are a new order');
+      assert.match(await text(a.locator('#orderDoc')), /Yogur/);
+      assert.deepStrictEqual(a.errors, []);
+    }
+  },
+  {
+    name: 'switching apps right after a tick (the page hidden while its save waits): no false «changed», the draft keeps saving, and the order uses it',
+    run: async ({ browser }) => {
+      P.seed();
+      const a = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      const hide = (h) => a.evaluate((hidden) => {
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, h);
+      await row(a, I.leche).locator('.ck input').check();
+      await hide(true); await a.waitForTimeout(150); await hide(false);       /* WhatsApp for a moment, within the 1.2 s */
+      await saved(a, 'the draft saved');
+      await a.waitForTimeout(1500);                                          /* the debounced save fires too */
+      assert.doesNotMatch(await text(a.locator('#pNotes')), /se cambió en otro aparato/, 'no conflict with itself');
+      await row(a, I.yogur).locator('.ck input').check();
+      await saved(a, 'it keeps saving');
+      assert.strictEqual(linesOf(), [P.vi(I.leche) + ':1', P.vi(I.yogur) + ':1'].sort().join(','), 'the server has both ticks');
+      await a.click('#pCreate');
+      await a.waitForSelector('#orderDoc', { timeout: 10000 });
+      assert.strictEqual(sql(`select count(*) from purchase_drafts where vendor_id = '${V.lac}' and status = 'open'`), '0', 'the order used the draft');
+      await P.nav(a, '#p=' + V.lac, '#pList .prow');
+      assert.strictEqual(await row(a, I.leche).locator('.ck input').isChecked(), false, 'reopened: nothing ticked again');
+      assert.deepStrictEqual(a.errors, []);
+    }
+  },
+  {
+    name: 'a ticked product retired from the catalog (or its inventory item switched off) leaves the draft with a notice; the order goes with the rest, never blocked by a line nobody can see',
+    run: async ({ browser }) => {
+      P.seed();
+      const a = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      await row(a, I.leche).locator('.ck input').check();
+      await row(a, I.natilla).locator('.ck input').check();
+      await row(a, I.yogur).locator('.ck input').check();
+      await saved(a);
+      // another device retires the natilla; this one opens the supplier again
+      P.asOwner(`select public.proveedor_producto_guardar('{"id":"${P.vi(I.natilla)}","active":false}')`);
+      await a.reload({ waitUntil: 'domcontentloaded' });
+      await a.waitForSelector('#pList .prow', { timeout: 15000 });
+      await P.seen(a.locator('#pNotes'), /Se quitó de este pedido.*Natilla/, 'the notice names it', 8000);
+      await P.seen(a.locator('#pSum'), /^2 productos/, 'the bar counts what can be ordered', 3000);
+      await saved(a, 'the draft saved without it');
+      assert.strictEqual(linesOf(), [P.vi(I.leche) + ':1', P.vi(I.yogur) + ':1'].sort().join(','), 'the server draft without it (a reload does not bring it back)');
+      // the yogurt's inventory item switched off a moment before «Crear pedido»
+      sql(`update stock_items set active = false where id = '${I.yogur}'`);
+      await a.click('#pCreate');
+      await P.seen(a.locator('#pErr'), /Un producto ya no se puede pedir y se quitó del pedido/, 'said, never «reload»', 8000);
+      await P.seen(a.locator('#pSum'), /^1 producto/, 'one left', 3000);
+      await a.click('#pCreate');
+      await a.waitForSelector('#orderDoc', { timeout: 10000 });
+      assert.strictEqual(sql(`select count(*) from purchase_lines l join purchase_orders o on o.id = l.po_id where o.vendor_id = '${V.lac}' and o.created_at > now() - interval '1 minute'`), '1',
+                         'the order with the milk only');
+      assert.deepStrictEqual(a.errors, []);
+    }
+  },
+  {
     name: 'on open: unsaved changes on the same version win; a newer server draft wins and the local changes are offered (Ver · Descartar)',
     run: async ({ browser, setOffline }) => {
       P.seed();
@@ -147,6 +309,28 @@ module.exports.tests = [
       assert.strictEqual(await a.inputValue('#pNote'), 'de este aparato');
       await saved(a, 'the local changes taken and saved');
       assert.match(draft(), /^3\|.*\|de este aparato$/);
+      assert.deepStrictEqual(a.errors, []);
+    }
+  },
+  {
+    name: 'a draft save whose answer is lost, then one more change on the same device (an untick): that save is recognised, never «changed on another device», and what was unticked stays off',
+    run: async ({ browser }) => {
+      P.seed();
+      const a = await P.owner(browser, { hash: '#p=' + V.lac, wait: '#pList .prow' });
+      await row(a, I.leche).locator('.ck input').check();
+      await saved(a, 'v1 saved');
+      // the next save reaches the server but its answer is lost (café Wi-Fi, or the tablet suspending the page)
+      await a.route('**/rest/v1/rpc/proveedor_borrador_guardar', async (route) => { await route.fetch(); await route.abort('connectionreset'); }, { times: 1 });
+      await row(a, I.yogur).locator('.ck input').check();
+      await P.seen(a.locator('#pStatus'), /conexi/i, 'the lost answer reads as no connection', 8000);
+      await until(() => linesOf().includes(P.vi(I.yogur)), 5000, 'that save did reach the server');
+      await row(a, I.yogur).locator('.ck input').uncheck();
+      await saved(a, 'the untick saved on the version that lost save made');
+      assert.strictEqual(await text(a.locator('#pNotes')), '', 'no conflict with itself');
+      assert.strictEqual(await a.locator('#pCreate').isDisabled(), false, '«Crear pedido» stays on');
+      assert.strictEqual(await row(a, I.yogur).locator('.ck input').isChecked(), false, 'the yogurt stays unticked');
+      assert.ok(linesOf().includes(P.vi(I.leche)) && !linesOf().includes(P.vi(I.yogur)), 'the server holds what is ticked now: ' + linesOf());
+      assert.strictEqual(draft().split('|')[0], '3', 'one version on from the lost save');
       assert.deepStrictEqual(a.errors, []);
     }
   },

@@ -87,8 +87,32 @@ function receive(po, lines, opts) {
 }
 function lineOf(po, item) { return sql(`select id from purchase_lines where po_id = '${po}' and item_id = '${item}' and removed_at is null`); }
 
+/* the bytes 128–159 of the two encodings a PDF text uses: WinAnsi (the page's Helvetica text) and PDFDocEncoding (a text
+   string of the document Info, e.g. its /Title, as PDF viewers read it when it has no UTF-16 byte order mark) */
+const WINANSI = { 128: '€', 130: '‚', 131: 'ƒ', 132: '„', 133: '…', 134: '†', 135: '‡', 136: 'ˆ', 137: '‰', 138: 'Š', 139: '‹', 140: 'Œ', 142: 'Ž',
+  145: '‘', 146: '’', 147: '“', 148: '”', 149: '•', 150: '–', 151: '—', 152: '˜', 153: '™', 154: 'š', 155: '›', 156: 'œ', 158: 'ž', 159: 'Ÿ' };
+const PDFDOC = { 128: '•', 129: '†', 130: '‡', 131: '…', 132: '—', 133: '–', 134: 'ƒ', 135: '⁄', 136: '‹', 137: '›', 138: '−', 139: '‰', 140: '„',
+  141: '“', 142: '”', 143: '‘', 144: '’', 145: '‚', 146: '™', 147: 'ﬁ', 148: 'ﬂ', 149: 'Ł', 150: 'Œ', 151: 'Š', 152: 'Ÿ', 153: 'Ž', 154: 'ı',
+  155: 'ł', 156: 'œ', 157: 'š', 158: 'ž', 160: '€' };
+const byteText = (bytes, table) => bytes.map((b) => table[b] || String.fromCharCode(b)).join('');
+/* a PDF text string, <hex> or (literal), as a viewer shows it: UTF-16BE after FE FF, else PDFDocEncoding */
+function pdfString(t) {
+  let bytes = [];
+  if (t[0] === '<') { const h = t.slice(1, -1).replace(/\s+/g, ''); for (let i = 0; i < h.length; i += 2) bytes.push(parseInt((h.slice(i, i + 2) + '0').slice(0, 2), 16)); }
+  else {
+    const b = t.slice(1, -1), esc = { n: 10, r: 13, t: 9, b: 8, f: 12 };
+    for (let i = 0; i < b.length; i++) {
+      if (b[i] !== '\\') { bytes.push(b.charCodeAt(i) & 255); continue; }
+      const c = b[++i], o = /^[0-7]{1,3}/.exec(b.slice(i));
+      if (o) { bytes.push(parseInt(o[0], 8) & 255); i += o[0].length - 1; } else if (c in esc) bytes.push(esc[c]); else if (c !== '\n') bytes.push(c.charCodeAt(0) & 255);
+    }
+  }
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) { let out = ''; for (let i = 2; i + 1 < bytes.length; i += 2) out += String.fromCharCode(bytes[i] * 256 + bytes[i + 1]); return out; }
+  return byteText(bytes, PDFDOC);
+}
 /* a small PDF reader for the tests (no library): the pages in order, each with its content stream (inflated when it is
-   compressed, as Chromium's are) and the text of its (…) Tj strings (the page's own writer, WinAnsi) */
+   compressed, as Chromium's are) and the text of its (…) Tj strings (the page's own writer, WinAnsi); the document's
+   title (Info /Title) as a viewer reads it */
 function pdfRead(buf) {
   const s = buf.toString('latin1'), objs = {};
   const re = /(\d+) 0 obj\b/g; let m;
@@ -120,10 +144,12 @@ function pdfRead(buf) {
     const ids = c ? (c[1].match(/\d+(?=\s+0\s+R)/g) || []) : [];
     const ops = ids.map(stream).join('\n');
     const strs = [];
-    ops.replace(/\(((?:\\.|[^\\)])*)\)\s*Tj/g, (x, t) => { strs.push(t.replace(/\\([\\()])/g, '$1')); return x; });
+    ops.replace(/\(((?:\\.|[^\\)])*)\)\s*Tj/g, (x, t) => { strs.push(byteText(Array.from(t.replace(/\\([\\()])/g, '$1'), (ch) => ch.charCodeAt(0)), WINANSI)); return x; });
     pages.push({ ops, text: strs.join('\n'), drawsText: /\bT[jJ]\b/.test(ops) });
   })(rootPages);
-  return { pages, head: s.slice(0, 8), eof: /%%EOF\s*$/.test(s) };
+  const info = /\/Info\s+(\d+)\s+0\s+R/.exec(s.slice(s.lastIndexOf('trailer')));
+  const tm = info && /\/Title\s*(<[0-9A-Fa-f\s]*>|\((?:\\.|[^\\)])*\))/.exec(dict(info[1]));
+  return { pages, head: s.slice(0, 8), eof: /%%EOF\s*$/.test(s), title: tm ? pdfString(tm[1]) : null };
 }
 function clockIn(who, minutesAgo) {
   sql(`insert into time_entries (staff_id, clock_in) values ('${STAFF[who]}', now() - interval '${minutesAgo == null ? 60 : minutesAgo} minutes')`);

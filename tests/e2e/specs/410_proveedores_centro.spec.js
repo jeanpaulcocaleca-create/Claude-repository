@@ -52,6 +52,35 @@ module.exports.tests = [
     }
   },
   {
+    name: 'the hub\'s six alerts are the most urgent ones (out of stock first), grouped by supplier in that order; «Ver todas» shows the rest',
+    run: async ({ browser }) => {
+      P.seed();
+      // six low fruits from Finca La Fresa (a supplier that sorts before Panadería Sol): the out-of-stock bread still shows
+      sql(`insert into stock_items (id, name, category, unit, pack_qty, cost_per_pack, avg_cost, vendor_id, on_hand, reorder_point, par_level)
+           select ('5a000000-0000-4000-8000-0000000c' || lpad(g::text, 4, '0'))::uuid, 'Fruta ' || g, 'produce', 'kg', 1, 1000, 1000, '${V.fin}', 1, 5, 20
+             from generate_series(1, 6) g`);
+      const server = P.asOwner(`select public.proveedores_alertas()`).items;
+      assert.strictEqual(server[0].item_id, I.pan, 'the server sends the out-of-stock bread first');
+      const pg = await P.owner(browser);
+      await P.seen(pg.locator('#hubAlerts h2'), /Antes de que se acabe 9$/, 'nine alerts', 8000);
+      const cards = () => pg.locator('#hubAlerts a.acard').evaluateAll((l) => l.map((a) => a.getAttribute('data-item')));
+      const shown = await cards();
+      assert.deepStrictEqual(shown.slice().sort(), server.slice(0, 6).map((i) => i.item_id).sort(), 'the six most urgent, in the server\'s order');
+      assert.strictEqual(shown[0], I.pan, 'the out-of-stock bread is the first card, not behind «Ver todas»');
+      assert.deepStrictEqual(await pg.locator('#hubAlerts .agroup').allTextContents(), ['Panadería Sol', 'Sin proveedor', 'Finca La Fresa'], 'the group of the most urgent alert first');
+      assert.match(await text(pg.locator(`#hubAlerts a.acard[data-item="${I.pan}"]`)), /^Pan baguette Agotado · Panadería Sol$/);
+      // «Ver todas (9)»: every alert, still grouped in the order of each supplier's most urgent one
+      await pg.locator('#hubAlerts button', { hasText: 'Ver todas (9)' }).click();
+      await until(async () => (await cards()).length === 9, 5000, 'all nine alerts');
+      assert.deepStrictEqual(await pg.locator('#hubAlerts .agroup').allTextContents(), ['Panadería Sol', 'Sin proveedor', 'Finca La Fresa', 'Lácteos Monteverde']);
+      const all = await cards();
+      assert.deepStrictEqual(all.slice(0, 2), [I.pan, I.azucar]);
+      assert.strictEqual(all[8], I.leche, 'Lácteos (its milk ranks last) comes last');
+      assert.deepStrictEqual(pg.errors, []);
+      assert.deepStrictEqual(pg.apiErrors, []);
+    }
+  },
+  {
     name: 'add, edit (SINPE by the owner) and deactivate a supplier; a repeated save adds one; a duplicate name is refused (English)',
     run: async ({ browser }) => {
       P.seed();
