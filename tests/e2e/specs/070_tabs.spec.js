@@ -293,10 +293,14 @@ module.exports.tests = [
          sessions written into one storage made the two tabs refresh each other's tokens in a loop, and under load tab B's
          round sometimes never ended (seen on GitHub on 2026-11-07, and here on the published v2026.11.04-1 too) */
       const pgB = await till(browser, { context: pgA.context(), login: null });
+      /* the system refuses the sign-in (401, kind «auth»: every sale waits), with a reason that is not «JWT expired»:
+         login.js renews a token the database calls expired, so a mock that calls every token expired, new ones too, made
+         the two tabs renew it without end (183 renewals and some 4 000 requests in 18 s here; on GitHub's slower runner
+         tab B's round never ended within 10 s, red on 2026-11-07). A real server accepts the renewed token. */
       let fail = true;
       for (const p of [pgA, pgB]) {
         await p.route(/rest\/v1\/rpc\/pos_record_sale/, (r) => (r.request().method() === 'POST' && fail)
-          ? r.fulfill({ status: 401, contentType: 'application/json', headers: CORS, body: JSON.stringify({ code: 'PGRST301', message: 'JWT expired' }) })
+          ? r.fulfill({ status: 401, contentType: 'application/json', headers: CORS, body: JSON.stringify({ code: 'PGRST301', message: 'JWSError JWSInvalidSignature' }) })
           : r.fallback());
       }
       const sA = sale('A', { id: id(1), total_crc: 2222, items: [{ id: line(1), item_name: 'T Latte', price_crc: 2222, qty: 1 }] });

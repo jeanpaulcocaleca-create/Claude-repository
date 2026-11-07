@@ -3430,7 +3430,20 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   receiving» failing 1 in 6 under load: the SINPE number landed in the amount box, because a window's deferred focus
   (30 ms after it opens, on its first field) fired after the test had already moved on to the number; `openModal` now
   leaves the focus alone when it is already inside the window (a person who taps a field in that instant keeps it),
-  16/16 under load since.
+  16/16 under load since. GitHub's «Tests» on `c67a933` (run 42406192667) was red on two POS tests, both the tests'
+  own timing, neither a concurrency fault of the pages (`pos.html`, `login.js` and `access.js` are the published ones,
+  byte for byte): `070_tabs` Q-b mocked every `pos_record_sale` answer as 401 «JWT expired», new tokens included;
+  `login.js` renews a token the database calls expired, so the two tabs renewed it without end (183 renewals and some
+  4 000 requests in 18 s here, traced request by request) and on the slower runner tab B's round never ended within the
+  10 s wait; the mock now refuses the sign-in without calling the token expired (a real server accepts the renewed
+  token): Q-b takes 1 s instead of 11–25. `402_descuentos_cajas` item 36 read the device key as soon as the station
+  window's line read «registered», but that text was the previous opening's (the page repaints it only when
+  `descuento_estado` answers, after the rebind by key), so the test read the key before the rebind's answer brought the
+  new one; reproduced here by slowing every rebind answer 600 ms (the same assertion failed) and fixed by emptying the
+  line before opening the window and waiting for the fresh one with no rebind on its way (600 ms slower it passes).
+  Then the full `tests/run.sh` again (20:17–20:44 UTC, 28 minutes: lint, SQL 68/68 files, backups, rehearsal, live pages
+  14/14 + 14/14, reset pages 2/2, browser 383/383 with Q-b in 0.9 s, no-tocar), and GitHub's «Tests» on that commit is
+  the confirmation the owner asked for before deciding the activation.
 - **Independent review (three rounds):** the first (before the first commit) is in the decisions above (B1, B2, M6,
   m10). The second ran on the committed branch with five reviewers (security, integrity, accounting, requirements,
   compatibility), each finding checked by an independent verifier that tried to refute it: 40 findings, 2 refuted (an

@@ -250,9 +250,16 @@ async function lineSays(pg, want, what) {
 }
 /* «¿Qué dispositivo es este?»: its one read-only line (it asks the server, and comes back by the key first) */
 async function stationLine(pg, want) {
+  /* the page paints the line after descuento_estado answers (after the rebind by key, when the till is not on this
+     sign-in yet), and leaves the last opening's text until then: a wait that read that text was satisfied at once and
+     the test read the device key before the rebind's answer brought the new one (GitHub's slower runner, 2026-11-07;
+     reproduced here with every rebind answer 600 ms slower). The line is emptied first, and the wait is for the
+     fresh one with no rebind on its way */
+  await pg.evaluate(() => { const el = document.getElementById('stDisc'); el.textContent = ''; el.hidden = true; });
   await pg.click('#stationBtn');
   await pg.waitForSelector('#stationModal:not([hidden])', { timeout: 5000 });
   await see(pg, '#stDisc', want, 10000);
+  await until(() => pg.evaluate(() => discBack === null), 5000, 'no rebind on its way');
   assert.ok(await pg.isVisible('#stDisc'), 'the line shows');
   assert.strictEqual(await pg.locator('#stationModal input[data-pin]').count(), 0, 'no PIN box in «¿Qué dispositivo es este?»');
   await pg.click('#stationForm button[type=submit]');
