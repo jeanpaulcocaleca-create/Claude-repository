@@ -206,7 +206,8 @@ begin
                   where x.line_id = any(array_agg(l.id)) and x.qty > 0 and coalesce(r.origin, '') <> 'correccion' order by r.received_at desc limit 1) as last_price
            from public.purchase_lines l join public.purchase_orders o on o.id = l.po_id join public.stock_items li on li.id = l.item_id
           where o.vendor_id = vi.vendor_id and o.status <> 'cancelled' and l.removed_at is null and l.item_id = vi.item_id
-            and coalesce(l.vendor_item_id, public._prov_vi_match(o.vendor_id, l.item_id, public._prov_pqe(l.pack_qty, l.packs, l.qty, li.pack_qty))) = vi.id) h
+            and coalesce(l.vendor_item_id, public._prov_vi_match(o.vendor_id, l.item_id, public._prov_pqe(l.pack_qty, l.packs, l.qty, li.pack_qty))) = vi.id
+            and public._prov_pqe(l.pack_qty, l.packs, l.qty, li.pack_qty) = vi.pack_qty) h
        cross join lateral (select coalesce(sum(greatest(l.qty - coalesce(l.received_qty, 0), 0)), 0) as q from public.purchase_lines l
                             join public.purchase_orders o on o.id = l.po_id where l.item_id = i.id and l.removed_at is null
                              and o.status in ('sent', 'partially_received')) oo
@@ -256,7 +257,10 @@ begin
                    'pack_label', l.pack_label, 'pack_qty', l.pack_qty, 'unit', l.unit, 'packs', l.packs, 'received_packs', l.received_packs,
                    'pending_packs', l.pending_packs, 'expected_pack_price', l.expected_pack_price, 'removed', l.removed)
                    order by coalesce(l.pos, 1000000), l.item_name, l.id), '[]') from public._prov_lines(po.id) l),
-      'receipts', (select coalesce(jsonb_agg(jsonb_build_object('received_at', r.received_at, 'by_name', r.by_name,
+      -- an owner who received without a PIN unlock is recorded as their login («owner login · email», as every module
+      -- records it): the employee on shift reads «Dueño», never the email
+      'receipts', (select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'received_at', r.received_at,
+                      'by_name', case when r.by_name like 'owner login%' then 'Dueño' else r.by_name end,
                       'lines', (select coalesce(jsonb_agg(jsonb_build_object('line_id', x.line_id, 'packs', x.packs) order by x.line_id), '[]')
                                   from public.purchase_receipt_lines x where x.receipt_id = r.id))
                       order by r.received_at, r.id), '[]') from public.purchase_receipts r where r.po_id = po.id));

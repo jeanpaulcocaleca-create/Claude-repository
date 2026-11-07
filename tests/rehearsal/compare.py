@@ -49,7 +49,7 @@ PRESERVED = ('menu_categories', 'menu_items', 'recipes', 'vendors', 'staff', 'ap
 # things: they never leave production), so on the owner's anonymized copy they are always empty before the reset; 0038's
 # tills registered for discounts (sign-in ids and device-key hashes) are emptied the same way, and so are 0039's «Recibe en
 # este aparato» sessions (token hashes, sign-in ids, PIN fingerprints)
-ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'discount_tills', 'work_sessions')
+ANON_EMPTIED = ('access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'discount_tills', 'work_sessions', 'staff_pin_changes')
 # consistency-check.sql's Proveedores checks (0039/0040), each 0 on a sound copy: on the seeded copy after a day of work on the
 # old inventory page and the new one (tests/rehearsal/after-window.sql 5b). Not in 'after' mode: production's own history
 # before the window (a purchase booked at cost 0 by an old page, say) is reported by the tool, not made a difference here

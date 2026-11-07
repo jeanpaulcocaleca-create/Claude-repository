@@ -1,6 +1,6 @@
 -- supabase/tools/reversion-0040.sql then reversion-0039.sql: undo the Proveedores migrations (D-067), and they then apply
 -- again. Each reversal refuses while it is not applied or while a later migration is, and then changes nothing; together
--- they drop the 70 new functions and the 7 new triggers and nothing else (0039 and 0040 replaced no function), delete no
+-- they drop the 72 new functions and the 7 new triggers and nothing else (0039 and 0040 replaced no function), delete no
 -- data (the six tables with their rows, the new columns, rules and indexes, the 1160 mappings and the widened payment
 -- rule stay) and take versions 40 and 39 off the ledger. The published Inventario page then works as before (orders,
 -- deliveries, receive-and-pay, items with a supplier, the clock). 0039 and 0040 then apply again over what the reversal
@@ -66,7 +66,7 @@ create temp table snap520 (k text primary key, j jsonb);
 select test.eq(public.canopy_schema_version(), 40, '0 the database is at version 40');
 create temp table new520 as select p.oid::regprocedure::text as sig from pg_proc p
  where p.pronamespace = 'public'::regnamespace and (p.proname ~ '^(proveedor|proveedores|turno)_' or p.proname ~ '^_prov_');
-select test.eq((select count(*)::int from new520), 70, '0 the 70 new functions exist (51 of 0039, 19 of 0040)');
+select test.eq((select count(*)::int from new520), 72, '0 the 72 new functions exist (53 of 0039, 19 of 0040)');
 insert into public.vendors (id, name) values ('5b000000-0000-4000-8000-000000052001', 'Lácteos Monteverde');
 insert into public.stock_items (id, name, unit, pack_qty, cost_per_pack, vendor_id) values
   ('5a000000-0000-4000-8000-000000052001', 'Leche', 'unit', 12, 12000, '5b000000-0000-4000-8000-000000052001');
@@ -116,7 +116,7 @@ create function test.s520(key text, path text[]) returns jsonb language sql stab
 select test.eq(test.s520('rc_40', '{migrations_missing}') || test.s520('rc_40', '{functions_missing}'), '[]'::jsonb, '0 release-check.sql: nothing missing');
 select test.eq((test.s520('snap_40', '{schema,functions_by_version,0039}') #>> '{}') || ' ' || (test.s520('snap_40', '{schema,functions_by_version,0040}') #>> '{}')
                || ' ' || jsonb_array_length(test.s520('snap_40', '{schema,functions_changed}')) || ' ' || jsonb_array_length(test.s520('snap_40', '{schema,functions_unknown}')),
-               '51 19 0 0', '0 production-snapshot.sql: 51 functions of 0039, 19 of 0040, none changed or unknown');
+               '53 19 0 0', '0 production-snapshot.sql: 53 functions of 0039, 19 of 0040, none changed or unknown');
 
 -- 1) the guards: 0039 refuses while 0040 is applied; 0040 refuses while a later one is ----------------------------------------
 savepoint g1;
@@ -172,7 +172,7 @@ select test.eq(public.canopy_schema_version(), 38, '2 reversion-0039.sql: back a
 select test.eq((select string_agg(version::text, ' ' order by version) from canopy.migrations where version >= 37), '37 38', '2 the ledger: 39 and 40 deleted');
 select test.eq(:'lt_before' || ' -> ' || current_setting('lock_timeout'), '0 -> 8s', '2 each waits at most 8 seconds for a lock');
 select test.eq((select string_agg(f.k, ' ' order by f.k) from f40 f where not exists (select 1 from test.fns520() g where g.k = f.k)),
-               (select string_agg(sig, ' ' order by sig) from new520), '2 exactly the 70 new functions are gone');
+               (select string_agg(sig, ' ' order by sig) from new520), '2 exactly the 72 new functions are gone');
 select test.eq(test.diff520('(select * from f40 where k not in (select sig from new520))', '(select * from test.fns520())'), '',
                '2 every other function byte for byte as it was, with its rights (none was replaced)');
 select test.eq((select string_agg(x.k, ' ' order by x.k) from t40 x where not exists (select 1 from test.trg520() y where y.k = x.k)),
@@ -222,7 +222,7 @@ select test.eq(test.s520('snap_rev', '{schema,functions_changed}') || test.s520(
                '2 production-snapshot.sql: no function changed or unknown');
 select test.eq(test.s520('snap_rev', '{schema,functions_by_version}'), test.s520('snap_40', '{schema,functions_by_version}') - '0039' - '0040',
                '2 production-snapshot.sql: every version as before, without 0039 and 0040');
-select test.eq((test.s520('snap_rev', '{schema,functions_total}'))::int, (test.s520('snap_40', '{schema,functions_total}'))::int - 70, '2 functions_total − 70');
+select test.eq((test.s520('snap_rev', '{schema,functions_total}'))::int, (test.s520('snap_40', '{schema,functions_total}'))::int - 72, '2 functions_total − 72');
 select test.eq(test.s520('snap_rev', '{schema,triggers_differ}'), '{}'::jsonb, '2 triggers_differ = {} (exactly the triggers of version 38)');
 select test.eq(test.s520('snap_rev', '{schema,tables_missing}') || test.s520('snap_rev', '{schema,live_pages_rpc_missing}'), '[]'::jsonb,
                '2 no table missing, nothing the published pages call missing');
@@ -250,6 +250,10 @@ select test.eq(:'gone'::text || ' ' || ((:'old1'::jsonb) ->> 'ok') || ' ' || ((:
 select test.eq((select on_hand from public.stock_items where id = '5a000000-0000-4000-8000-000000052002'), 4000.0000, '3 the cheese is in stock');
 select test.eq((select count(*)::int from public.vendor_items where item_id = '5a000000-0000-4000-8000-000000052002'), 0, '3 no catalog row is made while reverted');
 select test.eq((select count(*)::int from public.work_sessions where ended_at is null and staff_id = test.staff('luis')), 1, '3 the clock-out ends no session while reverted (nobody reads them)');
+select count(*)::int as pinch_rev from public.staff_pin_changes \gset
+update public.staff set pin_hash = pin_hash where id = test.staff('marta');
+update public.staff set pin_hash = extensions.crypt('6173', extensions.gen_salt('bf')) where id = test.staff('marta');
+select test.eq((select count(*)::int from public.staff_pin_changes), :pinch_rev, '3 a PIN change while reverted writes no PIN-change row (the trigger is gone; the table stays)');
 create temp table d38 as select * from test.data520();
 create temp table f38 as select * from test.fns520();
 

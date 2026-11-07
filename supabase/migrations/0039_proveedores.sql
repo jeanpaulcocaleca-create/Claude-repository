@@ -166,9 +166,17 @@ create unique index if not exists work_sessions_live_session on public.work_sess
 create index if not exists work_sessions_staff on public.work_sessions (staff_id) where ended_at is null;
 create index if not exists work_sessions_entry on public.work_sessions (time_entry_id) where ended_at is null;
 create index if not exists work_sessions_login on public.work_sessions (login_id, started_at);
+-- when a person's PIN changed (written by the staff trigger below; append-only): a POS identification older than the
+-- change never starts a work session (turno_desde_caja)
+create table if not exists public.staff_pin_changes (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null,                   -- no foreign key: a security record, never in the way of a staff tool
+  changed_at timestamptz not null default now());
+create index if not exists staff_pin_changes_staff on public.staff_pin_changes (staff_id, changed_at);
 
 do $$ declare t text; begin
-  foreach t in array array['vendor_items', 'purchase_drafts', 'purchase_receipt_lines', 'supplier_advances', 'vendor_pay_info', 'work_sessions'] loop
+  foreach t in array array['vendor_items', 'purchase_drafts', 'purchase_receipt_lines', 'supplier_advances', 'vendor_pay_info', 'work_sessions',
+                           'staff_pin_changes'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated', t);
     execute format('grant select on public.%I to canopy_backup', t);
@@ -309,6 +317,36 @@ create or replace function public._prov_unapplied(p_id uuid) returns numeric lan
   select case when a.voided_at is not null then 0 else a.amount_crc - coalesce((select sum(p.amount_crc) from public.supplier_payments p
                 where p.advance_id = a.id and p.voided_at is null), 0) end
     from public.supplier_advances a where a.id = p_id $$;
+-- what a supplier would hold of ours beyond everything still owed to it: payments not yet applied and undocumented
+-- drawer payouts, minus the open invoices, the deliveries without an invoice and the open orders' estimates (these two
+-- with the IVA allowance, as the payment ceiling counts them). Paying an open order ahead leaves it at 0; cancelling,
+-- shrinking or closing that order afterwards is what makes it grow.
+create or replace function public._prov_excess(p_vendor_id uuid) returns numeric language sql stable security definer set search_path = public as $$
+  select round(greatest(adv + pay - inv - (unv + est) * (1 + coalesce(rate, 0.13)), 0), 2) from (select
+     (select coalesce(sum(public._invoice_open(i.id)), 0) from public.supplier_invoices i where i.vendor_id = p_vendor_id and i.voided_at is null) as inv,
+     (select coalesce(sum(r.total_crc), 0) from public.purchase_receipts r where r.vendor_id = p_vendor_id and r.invoice_id is null) as unv,
+     (select coalesce(sum(public._prov_payout_open(r.payout_id)), 0) from public.purchase_receipts r where r.vendor_id = p_vendor_id and r.payout_id is not null) as pay,
+     (select coalesce(sum(public._prov_unapplied(a.id)), 0) from public.supplier_advances a where a.vendor_id = p_vendor_id and a.voided_at is null) as adv,
+     (select coalesce(sum(greatest(l.qty - coalesce(l.received_qty, 0), 0) * coalesce(l.unit_cost, l.ordered_unit_cost, 0)), 0)
+        from public.purchase_lines l join public.purchase_orders o on o.id = l.po_id
+       where o.vendor_id = p_vendor_id and o.status in ('draft', 'sent', 'partially_received') and l.removed_at is null) as est,
+     (select v.default_iva_rate from public.vendors v where v.id = p_vendor_id) as rate) m $$;
+-- a change that lowers what is owed to a supplier (cancel, edit, close what is pending, a correction) must not turn a
+-- payment already made into money in our favour unless the owner level makes it («payments above the balance» are
+-- owner level, D-067): p_x0 = the excess before the change. Takes the vendor row (last, as the lock order says).
+-- Raises needs_owner_credit (the caller's block rolls the change back) or answers the excess the change added.
+create or replace function public._prov_excess_guard(p_vendor_id uuid, p_x0 numeric) returns numeric
+language plpgsql volatile security definer set search_path = public as $$
+declare x1 numeric;
+begin
+  if p_vendor_id is null then return 0; end if;
+  perform 1 from public.vendors where id = p_vendor_id for update;
+  x1 := public._prov_excess(p_vendor_id);
+  if x1 > coalesce(p_x0, 0) + 1 and not (public.is_true_owner() or acct.can_read()) then
+    perform public._prov_fail('credit_needs_owner', jsonb_build_object('credit_crc', round(x1 - coalesce(p_x0, 0), 2)));
+  end if;
+  return round(greatest(x1 - coalesce(p_x0, 0), 0), 2);
+end $$;
 
 -- every line of an order, with what was received and what is pending, in presentations
 create or replace function public._prov_lines(p_po_id uuid)
@@ -317,8 +355,10 @@ returns table (id uuid, pos int, vendor_item_id uuid, item_id uuid, item_name te
                pending_packs numeric, exp_unit numeric, expected_pack_price numeric, line_total_est numeric, received_value numeric,
                removed boolean, shelf_life_days int)
 language sql stable security definer set search_path = public as $$
-  select l.id, l.pos, vi.id, l.item_id, i.name, i.unit, vi.label, vi.vendor_code,
-         coalesce(l.pack_label, vi.pack_label, case when q.pqe = i.pack_qty then i.pack_label end), q.pqe, l.packs, l.qty,
+  -- the catalog row's presentation only when it has the line's own size (an old line matched to another size, or a row
+  -- whose size was edited since, shows the line's units and offers no price for that row)
+  select l.id, l.pos, case when vi.pack_qty = q.pqe then vi.id end, l.item_id, i.name, i.unit, vi.label, vi.vendor_code,
+         coalesce(l.pack_label, case when vi.pack_qty = q.pqe then vi.pack_label end, case when q.pqe = i.pack_qty then i.pack_label end), q.pqe, l.packs, l.qty,
          coalesce(l.received_qty, 0), greatest(l.qty - coalesce(l.received_qty, 0), 0),
          round(coalesce(l.received_qty, 0) / q.pqe, 4), round(greatest(l.qty - coalesce(l.received_qty, 0), 0) / q.pqe, 4),
          coalesce(l.unit_cost, l.ordered_unit_cost), round(coalesce(l.unit_cost, l.ordered_unit_cost) * q.pqe, 2),
@@ -410,6 +450,12 @@ begin
      where staff_id = new.id and ended_at is null;
   exception when others then null;
   end;
+  if old.pin_hash is distinct from new.pin_hash then
+    begin
+      insert into public.staff_pin_changes (staff_id) values (new.id);
+    exception when others then null;
+    end;
+  end if;
   return null;
 end $$;
 drop trigger if exists staff_work_session_end on public.staff;
@@ -419,7 +465,8 @@ revoke all on function public._prov_pqe(numeric, numeric, numeric, numeric), pub
   public._prov_uuid(text), public._prov_num(jsonb), public._prov_txt(jsonb, int), public._prov_bool(jsonb), public._prov_id(jsonb),
   public._prov_packs(jsonb, boolean, text), public._prov_price(jsonb), public._prov_manage(), public._prov_books(), public._prov_actor(),
   public._prov_station(text), public._prov_log(text, uuid, text, text, text, jsonb), public._prov_vi_match(uuid, uuid, numeric),
-  public._prov_payout_open(uuid), public._prov_unapplied(uuid), public._prov_lines(uuid), public._prov_item_vendor(),
+  public._prov_payout_open(uuid), public._prov_unapplied(uuid), public._prov_excess(uuid), public._prov_excess_guard(uuid, numeric),
+  public._prov_lines(uuid), public._prov_item_vendor(),
   public._prov_line_protect(), public._prov_po_version(), public._prov_po_bump(), public._prov_entry_end(), public._prov_staff_end()
   from public, anon, authenticated;
 
@@ -517,7 +564,11 @@ begin
       select * into s from public.staff where id = o.staff_id;
       select * into e from public.time_entries t where t.staff_id = o.staff_id and t.clock_out is null
          and t.clock_in > now() - interval '16 hours' and t.clock_in <= now() + interval '5 minutes' order by t.clock_in desc limit 1;
+      -- the identification must belong to this shift and to the person's current PIN: a POS operator session started
+      -- before the open shift (an earlier shift's) or before a PIN change gives no work session
       why := case when not coalesce(s.active, false) then 'inactive' when s.pin_hash is null then 'pin_changed' when e.id is null then 'not_on_shift'
+                  when o.started_at < e.clock_in - interval '5 minutes' then 'not_on_shift'
+                  when exists (select 1 from public.staff_pin_changes c where c.staff_id = o.staff_id and c.changed_at >= o.started_at) then 'pin_changed'
                   when exists (select 1 from public.work_sessions w where w.session_id = js and w.ended_at is null) then 'device_taken' end;
     end if;
   end if;
@@ -583,15 +634,25 @@ begin
 end $$;
 
 -- 6) suppliers and their catalog (management) ---
--- partial update; SINPE only at owner level or the books' door; repeat create (same id, nothing new) → repeat
-create or replace function public.proveedor_guardar(p_vendor jsonb)
+-- partial update; SINPE only at owner level or the books' door; repeat create (same id, nothing new) → repeat.
+-- Changing how a supplier is paid (SINPE) under a PIN unlock needs an owner-role person's PIN in the call, as voiding
+-- a payment does: an owner unlock left open on the café tablet is not enough (the owner with the code and the
+-- accountant need none). Checked before anything else and answered, never raised, so a wrong PIN stays counted.
+create or replace function public.proveedor_guardar(p_vendor jsonb, p_staff_id uuid default null, p_pin text default null)
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
 declare p jsonb := p_vendor; vid uuid; v public.vendors; nv public.vendors; k text; n numeric; dup uuid; who text := public._prov_actor();
-        s0 text; s1 text; ch boolean; res jsonb; e1 text; e2 text; e3 text; e4 text; r jsonb;
+        s0 text; s1 text; ch boolean; res jsonb; perr text; psid uuid; pname text; prole text; e1 text; e2 text; e3 text; e4 text; r jsonb;
 begin
   if jsonb_typeof(p) is distinct from 'object' then return '{"ok":false,"error":"bad_request"}'::jsonb; end if;
   if not (public._prov_manage() or (acct.can_read() and not exists (select 1 from jsonb_object_keys(p) x where x not in ('id', 'sinpe')))) then
     return '{"ok":false,"error":"locked"}'::jsonb; end if;
+  if p ? 'sinpe' and not acct.can_read() then
+    if not public.is_true_owner() then return '{"ok":false,"error":"needs_owner"}'::jsonb; end if;
+    select err, sid, sname into perr, psid, pname from public._verify_pin(p_staff_id, p_pin, true);
+    if perr is not null then return jsonb_build_object('ok', false, 'error', case perr when 'locked' then 'pin_locked' else perr end); end if;
+    select role into prole from public.staff where id = psid;
+    if prole is distinct from 'owner' then return '{"ok":false,"error":"not_owner"}'::jsonb; end if;
+  end if;
   begin
     for k in select jsonb_object_keys(p) loop
       if k not in ('id', 'name', 'contact_name', 'phone', 'whatsapp', 'email', 'notes', 'lead_days', 'order_days', 'credit_days', 'active', 'sinpe') then
@@ -650,9 +711,9 @@ begin
                            'after', (select jsonb_object_agg(key, value) from jsonb_each(to_jsonb(nv)) where to_jsonb(v)->key is distinct from value)));
     end if;
     if p ? 'sinpe' and s0 is distinct from s1 then
-      insert into public.vendor_pay_info (vendor_id, sinpe, updated_at, updated_by) values (vid, s1, now(), who)
+      insert into public.vendor_pay_info (vendor_id, sinpe, updated_at, updated_by) values (vid, s1, now(), coalesce(pname, who))
         on conflict (vendor_id) do update set sinpe = excluded.sinpe, updated_at = now(), updated_by = excluded.updated_by;
-      perform public._prov_log('vendor_sinpe', null, who, vid::text, 'SINPE de ' || nv.name || ' cambiado',
+      perform public._prov_log('vendor_sinpe', psid, coalesce(pname, who), vid::text, 'SINPE de ' || nv.name || ' cambiado',
         jsonb_build_object('before', s0, 'after', s1));
     end if;
     res := jsonb_build_object('ok', true, 'id', vid);
@@ -942,7 +1003,8 @@ create or replace function public.proveedor_pedido_editar(p_po_id uuid, p_versio
                                                           p_expected_on date default null)
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
 declare po public.purchase_orders; ln record; l jsonb; lid uuid; keep uuid[] := '{}'; seen uuid[] := '{}'; u uuid; n numeric; q numeric; pp numeric;
-        chg jsonb := '[]'; sm text[] := '{}'; i int; nt text; who text := public._prov_actor(); e1 text; e2 text; e3 text; e4 text; r jsonb;
+        chg jsonb := '[]'; sm text[] := '{}'; i int; nt text; who text := public._prov_actor(); x0 numeric; xc numeric;
+        e1 text; e2 text; e3 text; e4 text; r jsonb;
 begin
   if not public._prov_manage() then return '{"ok":false,"error":"locked"}'::jsonb; end if;
   begin
@@ -950,6 +1012,7 @@ begin
     if po.id is null then perform public._prov_fail('not_found'); end if;
     if po.version is distinct from p_version then perform public._prov_fail('changed', jsonb_build_object('order', public._prov_po_state(po.id))); end if;
     perform 1 from public.purchase_lines where po_id = po.id order by id for update;
+    x0 := public._prov_excess(po.vendor_id);
     if p_lines is not null and jsonb_typeof(p_lines) <> 'null' then
       if po.status in ('received', 'cancelled') then perform public._prov_fail('closed'); end if;
       if jsonb_typeof(p_lines) <> 'array' or jsonb_array_length(p_lines) > 200 then perform public._prov_fail('bad_request'); end if;
@@ -1026,8 +1089,9 @@ begin
       sm := sm || ('entrega ' || to_char(p_expected_on, 'DD/MM/YYYY'));
     end if;
     if jsonb_array_length(chg) > 0 then
+      xc := case when p_lines is not null then public._prov_excess_guard(po.vendor_id, x0) else 0 end;
       perform public._prov_log('po_edit', null, who, po.id::text, 'pedido Nº ' || po.po_number || ': ' || left(array_to_string(sm, '; '), 400),
-        jsonb_build_object('changes', chg, 'status_before', po.status));
+        jsonb_build_object('changes', chg, 'status_before', po.status) || case when xc > 0 then jsonb_build_object('credit_crc', xc) else '{}'::jsonb end);
     end if;
     select * into po from public.purchase_orders where id = po.id;
     return jsonb_build_object('ok', true, 'version', po.version, 'status', po.status);
@@ -1048,7 +1112,7 @@ begin
 end $$;
 create or replace function public.proveedor_pedido_cancelar(p_po_id uuid, p_version int, p_reason text default null)
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
-declare po public.purchase_orders; why text := nullif(btrim(coalesce(p_reason, '')), ''); e1 text; e2 text; e3 text; e4 text; r jsonb;
+declare po public.purchase_orders; why text := nullif(btrim(coalesce(p_reason, '')), ''); x0 numeric; xc numeric; e1 text; e2 text; e3 text; e4 text; r jsonb;
 begin
   if not public._prov_manage() then return '{"ok":false,"error":"locked"}'::jsonb; end if;
   begin
@@ -1058,9 +1122,11 @@ begin
     if po.status = 'received' then perform public._prov_fail('closed'); end if;
     if po.status = 'partially_received' or exists (select 1 from public.purchase_receipts x where x.po_id = po.id) then
       perform public._prov_fail('has_receipts'); end if;
+    x0 := public._prov_excess(po.vendor_id);
     update public.purchase_orders set status = 'cancelled' where id = po.id returning * into po;
+    xc := public._prov_excess_guard(po.vendor_id, x0);
     perform public._prov_log('po_cancel', null, public._prov_actor(), po.id::text, 'pedido Nº ' || po.po_number || ' cancelado' || coalesce(': ' || why, ''),
-      jsonb_build_object('reason', why));
+      jsonb_build_object('reason', why) || case when xc > 0 then jsonb_build_object('credit_crc', xc) else '{}'::jsonb end);
     return jsonb_build_object('ok', true, 'version', po.version, 'status', po.status);
   exception when others then
     get stacked diagnostics e1 = returned_sqlstate, e2 = message_text, e3 = pg_exception_detail, e4 = constraint_name;
@@ -1070,16 +1136,19 @@ end $$;
 -- «Cerrar lo pendiente»: what did not come is not coming (the audit keeps what was missing per line)
 create or replace function public._prov_close(p_po public.purchase_orders, p_reason text) returns public.purchase_orders
 language plpgsql volatile security definer set search_path = public as $$
-declare po public.purchase_orders;
+declare po public.purchase_orders; x0 numeric; xc numeric;
 begin
   if p_po.status = 'cancelled' then perform public._prov_fail('cancelled'); end if;
   if p_po.status = 'received' then perform public._prov_fail('already_received'); end if;
   if not exists (select 1 from public.purchase_receipts x where x.po_id = p_po.id) then perform public._prov_fail('no_receipts'); end if;
+  x0 := public._prov_excess(p_po.vendor_id);
   update public.purchase_orders set status = 'received', received_at = now() where id = p_po.id returning * into po;
+  xc := public._prov_excess_guard(po.vendor_id, x0);
   perform public._prov_log('po_close', null, public._prov_actor(), po.id::text, 'pedido Nº ' || po.po_number || ': se cierra lo pendiente' || coalesce(': ' || p_reason, ''),
     jsonb_build_object('reason', p_reason, 'missing', (select coalesce(jsonb_agg(jsonb_build_object('line_id', l.id, 'item', l.item_name, 'pending_packs', l.pending_packs,
                                                                        'pending_qty', l.pending_qty)), '[]')
-                                                         from public._prov_lines(po.id) l where not l.removed and l.pending_qty > 0)));
+                                                         from public._prov_lines(po.id) l where not l.removed and l.pending_qty > 0))
+      || case when xc > 0 then jsonb_build_object('credit_crc', xc) else '{}'::jsonb end);
   return po;
 end $$;
 create or replace function public.proveedor_pedido_cerrar(p_po_id uuid, p_version int, p_reason text default null)
@@ -1169,7 +1238,7 @@ create or replace function public.proveedor_recibir(p_po_id uuid, p_receipt_id u
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
 declare t record; emp boolean; po public.purchase_orders; rc public.purchase_receipts; it public.stock_items; ln record; l jsonb; lid uuid;
         inv text := nullif(btrim(coalesce(p_invoice_no, '')), ''); nt text := nullif(btrim(coalesce(p_note, '')), ''); who text;
-        seen uuid[] := '{}'; plan jsonb := '[]'; x jsonb; mv_id bigint; mv_uc numeric; n int := 0; total numeric := 0; done boolean; st text;
+        seen uuid[] := '{}'; plan jsonb := '[]'; x jsonb; mv_id bigint; mv_uc numeric; n int := 0; total numeric := 0; done boolean; st text; x0 numeric;
         xp numeric; pp numeric; uc numeric; q numeric; pk numeric; ex numeric; xr numeric; rest boolean; bp numeric; anyin boolean := false;
         diffs jsonb := '[]'; obs jsonb := '[]'; extra jsonb := '[]'; xrep jsonb := '[]'; miss jsonb := '[]'; det jsonb := '[]'; short jsonb;
         e1 text; e2 text; e3 text; e4 text; r jsonb;
@@ -1187,6 +1256,10 @@ begin
     select * into rc from public.purchase_receipts where id = p_receipt_id;
     if rc.id is not null then
       if rc.po_id <> po.id then perform public._prov_fail('bad_request'); end if;
+      -- a retry of a lost answer carries the version from before that delivery (the delivery moved it on); the order's
+      -- current version means the id was reused for a new delivery: never a silent «repeat» that books nothing
+      if p_version is not distinct from po.version then
+        perform public._prov_fail('changed', jsonb_build_object('receipt_used', true, 'order', public._prov_po_state(po.id))); end if;
       return jsonb_build_object('ok', true, 'repeat', true, 'status', po.status, 'receipt_id', rc.id, 'version', po.version);
     end if;
     if po.status = 'cancelled' then perform public._prov_fail('cancelled'); end if;
@@ -1291,7 +1364,10 @@ begin
             or not exists (select 1 from public.purchase_lines z where z.po_id = po.id and z.removed_at is null and coalesce(z.received_qty, 0) < z.qty);
     st := case when done then 'received' else 'partially_received' end;
     update public.purchase_receipts set lines = n, total_crc = round(total, 2), final = done where id = p_receipt_id;
+    -- «close what is pending» by management: what did not come must not turn a payment into money in our favour (_prov_close)
+    if done and not emp and coalesce(p_close, false) then x0 := public._prov_excess(po.vendor_id); end if;
     update public.purchase_orders set status = st, received_at = case when done then now() else received_at end where id = po.id returning * into po;
+    if x0 is not null then perform public._prov_excess_guard(po.vendor_id, x0); end if;
     perform public._prov_late_post();
     select coalesce(jsonb_agg(jsonb_build_object('line_id', z.id, 'item_name', z.item_name, 'pending_packs', z.pending_packs) order by coalesce(z.pos, 1000000), z.id), '[]')
       into short from public._prov_lines(po.id) z where not z.removed and z.pending_qty > 0;
@@ -1322,7 +1398,8 @@ create or replace function public.proveedor_recepcion_corregir(p_receipt_id uuid
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
 declare rc public.purchase_receipts; po public.purchase_orders; ln record; l jsonb; lid uuid; d numeric; q numeric; uc numeric; seen uuid[] := '{}';
         plan jsonb := '[]'; x jsonb; mv record; total numeric := 0; n int := 0; short_before boolean; done boolean; st text; det jsonb := '[]';
-        why text := nullif(btrim(coalesce(p_reason, '')), ''); who text := public._prov_actor(); e1 text; e2 text; e3 text; e4 text; r jsonb;
+        why text := nullif(btrim(coalesce(p_reason, '')), ''); who text := public._prov_actor(); x0 numeric; xc numeric;
+        e1 text; e2 text; e3 text; e4 text; r jsonb;
 begin
   if not public._prov_manage() then return '{"ok":false,"error":"locked"}'::jsonb; end if;
   if p_request_id is null or p_receipt_id is null then return '{"ok":false,"error":"bad_request"}'::jsonb; end if;
@@ -1330,6 +1407,7 @@ begin
     select * into rc from public.purchase_receipts where id = p_receipt_id;
     if rc.id is null then perform public._prov_fail('not_found'); end if;
     select * into po from public.purchase_orders where id = rc.po_id for update;
+    x0 := public._prov_excess(po.vendor_id);
     if exists (select 1 from public.purchase_receipts z where z.id = p_request_id) then
       if exists (select 1 from public.purchase_receipts z where z.id = p_request_id and z.corrects = p_receipt_id) then
         return jsonb_build_object('ok', true, 'repeat', true, 'receipt_id', p_request_id, 'status', po.status, 'version', po.version); end if;
@@ -1384,10 +1462,12 @@ begin
     update public.purchase_receipts set lines = n, total_crc = round(total, 2) where id = p_request_id;
     update public.purchase_orders set status = st, received_at = case when not done then null when po.status = 'received' then received_at else now() end
      where id = po.id returning * into po;
+    xc := public._prov_excess_guard(po.vendor_id, x0);
     perform public._prov_late_post();
     perform public._prov_log('stock_receive_fix', null, who, po.id::text, 'pedido Nº ' || po.po_number || ': corrección de una entrega · ' || why,
       jsonb_build_object('receipt_id', p_request_id, 'corrects', rc.id, 'lines', det, 'total_crc', round(total, 2), 'reason', why,
-                         'status_before', case when short_before then 'received' end));
+                         'status_before', case when short_before then 'received' end)
+        || case when xc > 0 then jsonb_build_object('credit_crc', xc) else '{}'::jsonb end);
     return jsonb_build_object('ok', true, 'receipt_id', p_request_id, 'status', po.status, 'version', po.version, 'total_crc', round(total, 2));
   exception when others then
     get stacked diagnostics e1 = returned_sqlstate, e2 = message_text, e3 = pg_exception_detail, e4 = constraint_name;
@@ -1440,7 +1520,7 @@ revoke all on function public._prov_turno(text), public._prov_mint(uuid, text, u
   public._prov_po_lock(uuid, int), public._prov_close(public.purchase_orders, text), public._prov_late_post() from public, anon, authenticated;
 do $$ declare f text; begin
   foreach f in array array['turno_aqui(uuid, text, text, boolean)', 'turno_desde_caja(text, text)', 'turno_estado(text[])', 'turno_terminar(text)',
-    'proveedor_guardar(jsonb)', 'proveedor_producto_guardar(jsonb)', 'proveedor_borrador_guardar(uuid, jsonb, text, int)',
+    'proveedor_guardar(jsonb, uuid, text)', 'proveedor_producto_guardar(jsonb)', 'proveedor_borrador_guardar(uuid, jsonb, text, int)',
     'proveedor_borrador_descartar(uuid, int)', 'proveedor_pedido_crear(uuid, jsonb, text, uuid, int, date)',
     'proveedor_pedido_editar(uuid, int, jsonb, text, date)', 'proveedor_pedido_cancelar(uuid, int, text)', 'proveedor_pedido_cerrar(uuid, int, text)',
     'proveedor_pedido_confirmar(uuid, int)', 'proveedor_pedido_asignar(uuid, int, uuid)',

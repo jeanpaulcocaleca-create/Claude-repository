@@ -16,7 +16,7 @@ create function test.keys516(j jsonb) returns text language sql immutable as $$
   select string_agg(k, ' ' order by k collate "C") from jsonb_object_keys(j) k $$;
 
 -- 1) rights ---------------------------------------------------------------------------------------------------------------
-select test.eq((select count(*)::int || ' ' || count(*) filter (where public_fn) from fn516), '70 27', '1 70 new functions: 27 a page calls, 43 internal');
+select test.eq((select count(*)::int || ' ' || count(*) filter (where public_fn) from fn516), '72 27', '1 72 new functions: 27 a page calls, 45 internal');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where not p.prosecdef and (f.public_fn or p.prorettype <> 'trigger'::regtype)
                    and f.sig not in ('_prov_fail(text,jsonb)', '_prov_caught(text,text,text,text)', '_prov_uuid(text)', '_prov_num(jsonb)', '_prov_txt(jsonb,integer)',
@@ -31,7 +31,7 @@ select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg
                '1 a page may call the 27, a visitor and PUBLIC none (the backup account included)');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where not f.public_fn and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
-                                            or coalesce(p.proacl::text, '') ~ '(^|[{,])=X')), '', '1 nobody may call the 43 internal ones directly');
+                                            or coalesce(p.proacl::text, '') ~ '(^|[{,])=X')), '', '1 nobody may call the 45 internal ones directly');
 select test.eq((select coalesce(string_agg(f.sig, ' '), '') from fn516 f join pg_proc p on p.oid = f.sig::regprocedure
                  where p.provolatile <> 'v' and f.sig ~ '^(turno_|proveedor_recibir|proveedores_lista|proveedores_por_recibir|proveedor_ficha|proveedor_pedido\(|proveedor_pago_)'), '',
                '1 every function that takes a work-session token or a PIN is volatile (a PIN try is never lost)');
@@ -117,7 +117,7 @@ select public.proveedor_pedido('9a000000-0000-4000-8000-000000051601', :'tok') a
 select test.eq(test.keys516(:'l4'::jsonb) || ' | ' || test.keys516((:'l4'::jsonb) -> 'order') || ' | ' || test.keys516((:'l4'::jsonb) #> '{lines,0}')
                || ' | ' || test.keys516((:'l4'::jsonb) #> '{receipts,0}') || ' | ' || test.keys516((:'l4'::jsonb) #> '{receipts,0,lines,0}'),
                'lines mode ok order receipts | expected_on id po_number sent_at status vendor_name version | expected_pack_price id item_name label pack_label pack_qty packs '
-               || 'pending_packs pos received_packs removed unit vendor_code | by_name lines received_at | line_id packs',
+               || 'pending_packs pos received_packs removed unit vendor_code | by_name id lines received_at | line_id packs',
                '3 the order in receive mode: no totals, no money, no contact, no note');
 select test.eq(public.proveedor_pedido('9a000000-0000-4000-8000-000000051603', :'tok') ->> 'error', 'not_found', '3 a draft order does not exist for him');
 select test.eq(public.proveedor_pedido('9a000000-0000-4000-8000-000000051602', :'tok') ->> 'error', 'not_found', '3 nor an order without supplier');

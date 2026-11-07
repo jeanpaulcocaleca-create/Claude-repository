@@ -207,6 +207,30 @@ reset role;
 update public.time_entries set clock_out = now() where staff_id = test.staff('marta') and clock_out is null;
 set role authenticated;
 select test.eq(public.turno_desde_caja(:'op_marta') ->> 'why', 'not_on_shift', '4 a cashier who is not on shift gets none');
+-- the identification must be of this shift: Marta's POS session from her earlier shift, then a new shift opened later
+reset role;
+update public.operator_sessions set started_at = now() - interval '3 hours' where token_hash = encode(extensions.digest(:'op_marta', 'sha256'), 'hex');
+insert into public.time_entries (staff_id, clock_in) values (test.staff('marta'), now() - interval '1 hour');
+set role authenticated;
+select test.eq(public.turno_desde_caja(:'op_marta') ->> 'why', 'not_on_shift', '4 a POS identification from before the open shift (an earlier shift''s) gives none');
+-- and of the person's current PIN: Luis (PIN 2468 since section 3) identifies on the POS, then his PIN is changed again
+select test.login('cafe'); select test.session('dev-513-h'); set role authenticated;
+select public.pos_operator_start(test.staff('luis'), '2468', 'Caja 4') ->> 'token' as op_luis \gset
+reset role;
+update public.operator_sessions set started_at = now() - interval '10 minutes' where token_hash = encode(extensions.digest(:'op_luis', 'sha256'), 'hex');
+update public.time_entries set clock_in = now() - interval '20 minutes' where staff_id = test.staff('luis') and clock_out is null;
+update public.staff_pin_changes set changed_at = now() - interval '30 minutes' where staff_id = test.staff('luis');   -- section 3's change came before
+update public.staff set pin_hash = extensions.crypt('9999', extensions.gen_salt('bf')) where id = test.staff('luis');
+select test.eq((select count(*)::int from public.staff_pin_changes where staff_id = test.staff('luis')), 2, '4 each PIN change is recorded (append-only)');
+set role authenticated;
+select test.eq(public.turno_desde_caja(:'op_luis') ->> 'why', 'pin_changed', '4 a POS identification from before a PIN change gives none');
+reset role;
+select test.eq((select count(*)::int from public.work_sessions where staff_id = test.staff('luis') and ended_at is null), 0, '4 and Luis has no live session');
+-- the positive control: identified during the shift and after every PIN change
+update public.staff_pin_changes set changed_at = now() - interval '30 minutes' where staff_id = test.staff('luis');
+set role authenticated;
+select test.eq(public.turno_desde_caja(:'op_luis', 'Caja 4') ->> 'staff_name', 'Luis', '4 identified during the shift and after the PIN changes: a session');
+select test.throws($$select count(*) from public.staff_pin_changes$$, 'permission denied', '4 a page cannot read the PIN-change record');
 reset role;
 select test.eq((select how from public.work_sessions where token_hash = encode(extensions.digest((:'dc'::jsonb) ->> 'token', 'sha256'), 'hex')), 'caja', '4 (made «caja»)');
 select test.eq((select count(*)::int from public.work_sessions), (select count(*)::int from public.audit_log where action = 'work_session_start'),

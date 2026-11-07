@@ -6,7 +6,7 @@
    old page's order without supplier gets one («Sin proveedor · Asignar»). */
 'use strict';
 const assert = require('assert');
-const { page, goto, until, sql } = require('../lib');
+const { page, goto, until, sql, STAFF, PINS } = require('../lib');
 const P = require('../prov');
 const { V, I, VI, text, plain } = P;
 
@@ -102,7 +102,44 @@ module.exports.tests = [
       await P.seen(pg.locator('#ficha .fhead'), /SINPE: 8888 1111 Lácteos MV/, 'the SINPE shown to a manager', 8000);
       await pg.click('#fEditBtn');
       assert.strictEqual(await pg.locator('#vfSinpe').count(), 0, 'no SINPE box for a manager');
-      assert.match(await text(pg.locator('#vendorForm')), /Solo el dueño o el contador cambian el SINPE/);
+      /* lang.js translates the new form on its next frame */
+      await P.seen(pg.locator('#vendorForm'), /Solo el dueño o el contador cambian el SINPE/, 'the hint, in Spanish', 3000);
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'the owner areas opened with the owner\'s PIN on the café tablet: changing a SINPE asks an owner\'s PIN in the call (a wrong one refused and counted), saved under that owner',
+    run: async ({ browser }) => {
+      P.seed();
+      P.asOwner(`select public.proveedor_guardar('{"id":"${V.lac}","sinpe":"8888 1111 Lácteos MV"}')`);
+      const pg = await P.cafeManager(browser, { hash: '#p=' + V.lac, who: 'dueno' });
+      await P.seen(pg.locator('#ficha .fhead'), /SINPE: 8888 1111 Lácteos MV/, 'the SINPE shown', 8000);
+      await pg.click('#fEditBtn');
+      await pg.waitForSelector('#vfSinpe');
+      assert.strictEqual(await pg.locator('#vfPinBox').isVisible(), false, 'no PIN box while the SINPE is unchanged');
+      await pg.fill('#vfSinpe', '8888 0000 Otra cuenta');
+      await pg.locator('#vfPinBox').waitFor({ state: 'visible', timeout: 3000 });
+      await P.seen(pg.locator('#vfPinBox'), /pide el PIN de un dueño/, 'why the PIN is asked, in Spanish', 3000);
+      await until(async () => (await pg.locator('#vfWho option[value]:not([value=""])').count()) > 0, 5000, 'the owners to pick are loaded');
+      const owners = await pg.locator('#vfWho option').allTextContents();
+      assert.ok(owners.length >= 1 && owners.every((o) => !/Ana|Luis|Marta/.test(o)), 'only owners to pick: ' + owners.join(', '));
+      await pg.click('#vendorForm button[type=submit]');
+      await P.seen(pg.locator('#vfErr'), /Elija al dueño y escriba el PIN/, 'no PIN typed: nothing sent', 3000);
+      assert.strictEqual(sql(`select sinpe from vendor_pay_info where vendor_id = '${V.lac}'`), '8888 1111 Lácteos MV');
+      await pg.selectOption('#vfWho', STAFF.dueno);
+      await pg.locator('#vfPin').pressSequentially('0000');
+      await pg.click('#vendorForm button[type=submit]');
+      await P.seen(pg.locator('#vfErr'), /PIN no es correcto/, 'a wrong owner PIN refused', 5000);
+      assert.strictEqual(await pg.locator('#vfPin').inputValue(), '', 'the PIN box is cleared after the answer');
+      assert.strictEqual(sql(`select failed_pins from staff where id = '${STAFF.dueno}'`), '1', 'the wrong try is counted');
+      assert.strictEqual(sql(`select sinpe from vendor_pay_info where vendor_id = '${V.lac}'`), '8888 1111 Lácteos MV', 'nothing changed');
+      await pg.locator('#vfPin').pressSequentially(PINS.dueno);
+      await pg.click('#vendorForm button[type=submit]');
+      await P.toasted(pg, /Proveedor guardado/, 'saved with the owner\'s PIN');
+      assert.strictEqual(sql(`select sinpe || ' · ' || updated_by from vendor_pay_info where vendor_id = '${V.lac}'`), '8888 0000 Otra cuenta · Dueño');
+      assert.strictEqual(sql(`select manager_id || ' ' || manager_name from audit_log where action = 'vendor_sinpe' order by id desc limit 1`), STAFF.dueno + ' Dueño',
+                         'logged under the owner of the PIN');
+      assert.strictEqual(sql(`select failed_pins from staff where id = '${STAFF.dueno}'`), '0');
       assert.deepStrictEqual(pg.errors, []);
     }
   },

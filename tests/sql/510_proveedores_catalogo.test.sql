@@ -82,15 +82,33 @@ select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-00000005
 reset role;
 select test.eq((select phone from public.vendors where id = '5b000000-0000-4000-8000-000000051001') || ' ' || (select count(*) from public.vendor_pay_info),
                '2645-0000 0', '2 the refused save changed nothing');
--- the owner level (an owner-role PIN unlock) may
+-- the owner level (an owner-role PIN unlock) may, but only with an owner's PIN in the call: an owner unlock left open
+-- on the café tablet is not enough to redirect a supplier's payments
 select test.login('cafe'); select test.session('dev-510-d'); select test.unlock(test.staff('dueno'), '7391'); set role authenticated;
-select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"8888-0000"}') ->> 'ok', 'true', '2 the owner level changes the SINPE');
-select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"8888-0000"}') ->> 'repeat', 'true', '2 the same SINPE again changes nothing');
+select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"8888-0000"}') ->> 'error', 'unknown_staff',
+               '2 the owner unlock alone (no PIN in the call) cannot change the SINPE');
+select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"8888-0000"}', test.staff('ana'), '4826') ->> 'error', 'not_owner',
+               '2 a manager''s PIN is not enough');
+select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","phone":"2645-1112","sinpe":"8888-0000"}', test.staff('dueno'), '0000') ->> 'error', 'bad_pin',
+               '2 a wrong owner PIN is refused (and nothing of the save is kept)');
 reset role;
-select test.eq((select sinpe || ' ' || updated_by from public.vendor_pay_info where vendor_id = '5b000000-0000-4000-8000-000000051001'), '8888-0000 Dueño (owner)',
-               '2 stored apart from vendors, with who changed it');
-select test.eq((select string_agg(coalesce(details ->> 'before', 'null') || '>' || (details ->> 'after'), ' ') from public.audit_log where action = 'vendor_sinpe'),
-               'null>8888-0000', '2 logged once with before and after');
+select test.eq((select failed_pins from public.staff where id = test.staff('dueno')), 1, '2 the wrong owner PIN stays counted (the answer did not roll it back)');
+select test.eq((select phone from public.vendors where id = '5b000000-0000-4000-8000-000000051001') || ' ' || (select count(*) from public.vendor_pay_info),
+               '2645-0000 0', '2 the refused saves changed nothing');
+set role authenticated;
+select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"8888-0000"}', test.staff('dueno'), '7391') ->> 'ok', 'true',
+               '2 the owner level with the owner''s PIN changes the SINPE');
+select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"8888-0000"}', test.staff('dueno'), '7391') ->> 'repeat', 'true',
+               '2 the same SINPE again changes nothing');
+select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","notes":"Paga por SINPE"}'), '{"ok":true,"id":"5b000000-0000-4000-8000-000000051001"}'::jsonb,
+               '2 the rest of the supplier needs no PIN');
+reset role;
+select test.eq((select failed_pins from public.staff where id = test.staff('dueno')), 0, '2 the right PIN clears the count');
+select test.eq((select sinpe || ' ' || updated_by from public.vendor_pay_info where vendor_id = '5b000000-0000-4000-8000-000000051001'), '8888-0000 Dueño',
+               '2 stored apart from vendors, with who changed it (the person of the PIN)');
+select test.eq((select string_agg(coalesce(details ->> 'before', 'null') || '>' || (details ->> 'after') || ' ' || manager_id || ' ' || manager_name, ' ')
+                  from public.audit_log where action = 'vendor_sinpe'),
+               'null>8888-0000 a1000000-0000-4000-8000-000000000004 Dueño', '2 logged once with before and after, under the person of the PIN');
 -- the books' door (the accountant): only the SINPE
 select test.login('accountant', 'aal2'); set role authenticated;
 select test.eq(public.proveedor_guardar('{"id":"5b000000-0000-4000-8000-000000051001","sinpe":"7777-0000"}') ->> 'ok', 'true', '2 the accountant changes the SINPE');

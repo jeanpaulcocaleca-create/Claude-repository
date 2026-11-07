@@ -77,9 +77,10 @@ declare
                           'public.supplier_advances.reference', 'public.supplier_advances.ref_key'];
   -- logins and unlock tokens belong to production only: these tables are emptied (0038: the tills registered for
   -- discounts hold sign-in ids and the hashes of their device keys; discount_pin_shared says who shares a PIN, owner-only;
-  -- 0039: work_sessions holds the hashes of «Recibe en este aparato» tokens, sign-in ids and PIN fingerprints)
+  -- 0039: work_sessions holds the hashes of «Recibe en este aparato» tokens, sign-in ids and PIN fingerprints;
+  -- staff_pin_changes says when each person's PIN changed)
   emptied text[] := array['app_accounts', 'access_unlocks', 'sales_unlocks', 'inventory_unlocks', 'operator_sessions', 'discount_tills',
-                          'discount_pin_shared', 'work_sessions'];
+                          'discount_pin_shared', 'work_sessions', 'staff_pin_changes'];
   -- about the business, not about anyone: menu, stock, chart of accounts, settings, codes, kinds and statuses
   keep text[] := array['acct.accounts.code', 'acct.accounts.name', 'acct.accounts.type', 'acct.entries.source', 'acct.entries.source_key',
                        'acct.lines.account', 'acct.mappings.account', 'acct.mappings.key', 'acct.mappings.label', 'acct.periods.status',

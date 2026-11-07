@@ -154,6 +154,7 @@
     over_balance: 'That is more than what is owed.',
     needs_reason: 'Write the reason (at least 5 letters).',
     needs_owner: 'Only the owner can do that.',
+    credit_needs_owner: 'That would leave money in our favour with this supplier (a payment already made). Only the owner can do it.',
     bad_amount: 'Check the amount.',
     future_date: 'The date cannot be in the future.',
     bad_date: 'That date is too far back.',
@@ -195,7 +196,12 @@
     not_on_shift: 'You no longer have an open shift. Clock in to receive.',
     in_use_elsewhere: ERR.in_use_elsewhere, too_many_rebinds: ERR.too_many_rebinds, device_taken: ERR.device_taken
   };
-  function errText(r) { if (!r) return ERR.server; if (r.offline) return ERR.offline; return ERR[r.error] || ERR.server; }
+  function errText(r) {
+    if (!r) return ERR.server; if (r.offline) return ERR.offline;
+    /* a cancel, an edit, a close or a correction that would turn a payment into money in our favour: the amount */
+    if (r.error === 'credit_needs_owner' && Number(r.credit_crc) > 0) return 'That would leave {x} in our favour with this supplier (a payment already made). Only the owner can do it.'.replace('{x}', fmtC(r.credit_crc));
+    return ERR[r.error] || ERR.server;
+  }
 
   /* ---------- 3) who is signed in ---------- */
   var ACCOUNT = null, UID = null, ST = null, MODE = null, FLAGS = { can_manage: false, can_pay: false, can_owner: false };
@@ -992,12 +998,19 @@
     var box = $('fEdit'); if (!box) return;
     if (box.firstChild) { box.innerHTML = ''; formClosed(); return; }
     var full = FLAGS.can_manage, sinpeOk = FLAGS.can_owner || isBooksDoor();
+    /* under a PIN unlock the server asks an owner's PIN in the call itself to change the SINPE (never for the owner
+       with the phone code or the accountant): the box shows once the SINPE typed differs from the saved one */
+    var sinpePin = sinpeOk && !noPinNeeded();
     var f = el('form', 'inline form'); f.id = 'vendorForm'; f.setAttribute('autocomplete', 'off');
     var inp = function (id, label, val, max, type) { return '<div><label class="f" for="' + id + '">' + esc(label) + '</label><input id="' + id + '"' + (type ? ' type="' + type + '"' : '') + ' maxlength="' + max + '" value="' + esc(val == null ? '' : val) + '"></div>'; };
     f.innerHTML = '<h3 style="margin-top:0">' + esc('Edit supplier') + '</h3>' +
       (full ? inp('vfName', 'Name', V.name, 80) + '<div class="row">' + inp('vfContact', 'Contact person', V.contact_name, 80) + inp('vfPhone', 'Phone', V.phone, 40, 'tel') + '</div>' +
         '<div class="row">' + inp('vfWa', 'WhatsApp (with country code)', V.whatsapp, 40, 'tel') + inp('vfEmail', 'Email', V.email, 120, 'email') + '</div>' : '') +
-      (sinpeOk ? inp('vfSinpe', 'SINPE (number and name for transfers)', V.sinpe, 120) : (V.sinpe ? '<p class="hint">' + esc('Only the owner or the accountant changes the SINPE.') + '</p>' : '')) +
+      (sinpeOk ? inp('vfSinpe', 'SINPE (number and name for transfers)', V.sinpe, 120) +
+        (sinpePin ? '<div id="vfPinBox" hidden><p class="hint">' + esc('Changing how this supplier is paid needs an owner\'s PIN.') + '</p><div class="row">' +
+          '<div><label class="f" for="vfWho">' + esc('Owner') + '</label><select id="vfWho"></select></div>' +
+          '<div><label class="f" for="vfPin">' + esc('Owner PIN') + '</label><input id="vfPin" type="text" data-pin inputmode="numeric" maxlength="8" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></div></div></div>' : '')
+        : (V.sinpe ? '<p class="hint">' + esc('Only the owner or the accountant changes the SINPE.') + '</p>' : '')) +
       (full ? '<label class="f" for="vfNotes">' + esc('Notes') + '</label><textarea id="vfNotes" maxlength="500">' + esc(V.notes || '') + '</textarea>' +
         '<details><summary class="linkbtn">' + esc('More') + '</summary><div class="row">' + inp('vfDays', 'Takes orders on', V.order_days, 60) + inp('vfLead', 'Days to deliver', V.lead_days, 3, 'number') + '</div>' +
         '<div class="row">' + inp('vfCredit', 'Credit days (empty = 30)', V.credit_days, 3, 'number') + '<div></div></div></details>' : '') +
@@ -1016,6 +1029,12 @@
     box.appendChild(f);
     formOpened('vendor', [V.id], f);
     var first = f.querySelector('input'); if (first) first.focus();
+    var sinpeIn = $('vfSinpe'), pinBox = $('vfPinBox'), whoFilled = false;
+    function sinpeChanged() { return !!sinpeIn && sinpeIn.value.trim() !== (V.sinpe || ''); }
+    if (sinpeIn && pinBox) sinpeIn.addEventListener('input', function () {
+      pinBox.hidden = !sinpeChanged();
+      if (!pinBox.hidden && !whoFilled) { whoFilled = true; staffList().then(function (l) { fillWho($('vfWho'), l, true); }); }
+    });
     f.addEventListener('submit', async function (e) {
       e.preventDefault();
       var p = { id: V.id }, val = function (id) { var i = $(id); return i ? i.value.trim() : undefined; };
@@ -1025,8 +1044,15 @@
       if ($('vfCredit') && val('vfCredit') !== String(V.credit_days == null ? '' : V.credit_days)) { var cd = val('vfCredit') === '' ? null : parseNum(val('vfCredit')); if (cd !== null && !(cd >= 0 && cd <= 180 && cd === Math.floor(cd))) { $('vfErr').textContent = 'Credit days: a whole number from 0 to 180, or empty.'; return; } p.credit_days = cd; }
       if ('name' in p && !p.name) { $('vfErr').textContent = 'The name cannot be empty.'; return; }
       if (Object.keys(p).length === 1) { box.innerHTML = ''; formClosed(f); return; }
+      var args = { p_vendor: p };
+      if ('sinpe' in p && pinBox) {
+        var pin = $('vfPin').value.trim();
+        if (!$('vfWho').value || !pin) { pinBox.hidden = false; $('vfErr').textContent = 'Pick the owner and type the PIN.'; (pin ? $('vfWho') : $('vfPin')).focus(); return; }
+        args.p_staff_id = $('vfWho').value; args.p_pin = pin;
+      }
       save.disabled = true;
-      var r = await rpc('proveedor_guardar', { p_vendor: p });
+      var r = await rpc('proveedor_guardar', args);
+      if ($('vfPin')) $('vfPin').value = '';
       save.disabled = false;
       if (!r.ok) { if (!r.handled) $('vfErr').textContent = errText(r); return; }
       formClosed(f); toast('Supplier saved'); reloadFicha();
@@ -2394,6 +2420,10 @@
       return;
     }
     var saved = ls(rkey(poId)) || {};
+    /* the id kept for a delivery whose answer was lost: if that delivery is already among the order's receipts, it was
+       saved; what is typed now is a new delivery with a new id (never a «repeat» that books nothing) */
+    var spent = isUuid(saved.receipt_id) && (r.receipts || []).some(function (x) { return x && x.id === saved.receipt_id; });
+    if (spent) { ls(rkey(poId), null); saved = {}; }
     RECV = { po: poId, emp: emp, version: O.version, receipt_id: isUuid(saved.receipt_id) ? saved.receipt_id : uuid(), invoice_no: saved.invoice_no || '', note: saved.note || '',
              close: !!saved.close, extra_ok: !!saved.extra_ok, price_ok: false, touched: false, order: O, vendor_name: O.vendor_name, po_number: O.po_number,
              lines: (r.lines || []).filter(function (l) { return !l.removed; }).sort(function (a, b) { return (Number(a.pos) || 999) - (Number(b.pos) || 999); }).map(function (l) {
@@ -2405,7 +2435,8 @@
              }) };
     RECV.touched = RECV.lines.some(function (l) { return l.typed !== undefined || l.price !== undefined; }) || !!RECV.invoice_no || !!RECV.note;
     recvSave();
-    paintRecv(saved.version != null && saved.version !== O.version && RECV.touched ? 'This order changed since you started. Check what is pending and confirm again.' : null);
+    paintRecv(spent ? 'Your earlier delivery was already saved. Check what is still pending.'
+      : saved.version != null && saved.version !== O.version && RECV.touched ? 'This order changed since you started. Check what is pending and confirm again.' : null);
   }
   function rPacks(l) { return l.typed !== undefined ? l.typed : l.pending; }
   function rPrice(l) { return l.price !== undefined ? l.price : l.expected; }
@@ -2535,6 +2566,7 @@
     if (RECV !== R) return;
     if (r.ok) { ls(rkey(R.po), null); R.touched = false; RECV = null; recvDone(R, r, sent, all); return; }
     if (r.handled) return;
+    if (r.error === 'changed' && r.receipt_used) { R.touched = false; viewRecibir(++GEN, R.po); return; }   /* the id was spent: a new delivery, new id */
     if (r.error === 'changed' && r.order) {
       var moved = (r.order.lines || []).some(function (x) { var l = R.lines.filter(function (y) { return y.id === x.id; })[0]; return l && Math.abs(Number(x.received_qty || 0) - l.seen) > 1e-6; });
       if (moved) { R.touched = false; ls(rkey(R.po), { receipt_id: R.receipt_id }); toast('Someone else recorded a delivery of this order a moment ago. Check what is pending.'); viewRecibir(++GEN, R.po).then(function () { if (RECV) paintRecv('Someone else recorded a delivery of this order a moment ago. Check what is pending.'); }); return; }

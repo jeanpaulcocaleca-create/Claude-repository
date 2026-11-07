@@ -96,6 +96,33 @@ module.exports.tests = [
     }
   },
   {
+    name: 'the answer of a saved delivery is lost: reopening the order says it was saved, and the rest goes as a new delivery (never a «repeat» that books nothing)',
+    run: async ({ browser }) => {
+      P.seed(); P.clockIn('luis');
+      const o = P.create(V.lac, [{ vi: P.vi(I.yogur), packs: 10 }]);
+      const pg = await P.employee(browser, 'luis', { hash: '#recibir=' + o.id });
+      await pg.waitForSelector('#recvCard');
+      await pg.fill('#rq0', '6');
+      // the server saves the delivery, but its answer never reaches the tablet
+      await pg.route('**/rest/v1/rpc/proveedor_recibir', async (route) => { await route.fetch(); await route.abort('connectionreset'); }, { times: 1 });
+      await pg.click('#recvGo');
+      await until(() => sql(`select count(*) from purchase_receipts where po_id = '${o.id}'`) === '1', 10000, 'the delivery is saved on the server');
+      await P.seen(pg.locator('#rErr'), /.+/, 'the tablet says it could not confirm', 8000);
+      assert.strictEqual(onHand(I.yogur), '76', '40 + 6 × 6');
+      // the order opened again later on the same tablet
+      await pg.reload({ waitUntil: 'domcontentloaded' });
+      await pg.waitForSelector('#recvCard', { timeout: 15000 });
+      await P.seen(pg.locator('#recvCard'), /Su entrega anterior ya quedó guardada/, 'told the earlier delivery was saved', 8000);
+      assert.strictEqual(await pg.inputValue('#rq0'), '4', 'only the 4 pending are proposed');
+      await pg.click('#recvAll');
+      await pg.waitForSelector('#recvDone', { timeout: 10000 });
+      assert.strictEqual(sql(`select status from purchase_orders where id = '${o.id}'`), 'received');
+      assert.strictEqual(onHand(I.yogur), '100', '40 + 10 × 6: both deliveries booked, each once');
+      assert.strictEqual(sql(`select count(*) from purchase_receipts where po_id = '${o.id}'`), '2', 'two deliveries');
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
     name: 'a partial delivery: 6 of 10 → «Parcialmente recibido», 4 pending; then the 4; never twice',
     run: async ({ browser }) => {
       P.seed(); P.clockIn('luis');
