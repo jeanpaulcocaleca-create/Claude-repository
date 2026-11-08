@@ -123,6 +123,8 @@ proveedor, «Abrir en Proveedores»; las facturas en dólares se registran en Pr
    registra lo extiende otros 15 (la barra dice hasta qué hora); pasado ese tiempo sin su PIN ni una entrega, la página
    dice «Pasaron más de 15 minutos desde su PIN o su última entrega. Escriba su PIN otra vez para seguir recibiendo.» y
    vuelve a «¿Quién recibe?» con su nombre ya elegido: solo escribe su PIN (lo que tenía escrito en una entrega vuelve).
+   **El PIN es personal y no se comparte** (indicación del dueño, 2026-11-08): cada recepción queda a nombre de quien la
+   registra, y un PIN compartido solo haría que figure otra persona.
    Quien todavía no marcó entrada está debajo, en «¿Todavía no marcó entrada?»: su nombre → su PIN → «Marcar entrada y
    empezar» (con el mismo PIN marca la entrada del Reloj y empieza a recibir).
 4. Toque el pedido que llegó. Se abre «Recibir el pedido Nº n» con cada producto: lo pedido, lo que ya llegó antes, lo
@@ -565,6 +567,12 @@ del horario de atención, salvo urgencia. **Primero la 0040, después la 0039** 
 ---
 
 ## Lo que usted debe aprobar o decidir
+
+**Hecho el 2026-11-08:** las decisiones 1 a 8 constan por escrito en el chat y en E-43 (`docs/DEPENDENCIES.md`): la 1
+palabra por palabra, con dos indicaciones suyas al equipo (cada recepción queda a nombre de quien la registra; los PIN
+no se comparten); la 4 como **A**; la 7 aprueba el procedimiento sin autorizar todavía la instalación; el contador conserva el nivel dueño de la 3 y la 6.
+El mismo día: la vista previa aprobada (versión 4, 1.4) y el equipo avisado (1.8). Quedan 9 a 16; la etiqueta (11)
+espera su autorización.
 
 1. **La garantía de «Recibe en este aparato» y su límite (la condición, 1.7).** Lo construido y probado, con su
    corrección del 2026-11-07: una persona en turno recibe sin escribir un código en cada entrega, pero la identificación

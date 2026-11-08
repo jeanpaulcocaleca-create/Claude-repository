@@ -3534,3 +3534,17 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   102, 112, 113, 119 and 141 updated and the new row 156, `docs/MIGRACIONES.md` (0039 and 0040), `docs/PRUEBAS.md`
   («Pruebas automáticas de Proveedores»), `docs/RECIBIR-PEDIDO.md` (superseded note), `docs/PERSONAL-NUEVO.md`
   («Recibir un pedido»), `docs/PROVEEDORES.md`, `docs/ACTIVACION-PROVEEDORES.md`.
+- **The owner's decisions for the activation (2026-11-08, guide 1.7):** the eight decisions given in writing, copied
+  into E-43. Decision 1 word for word as the guide proposed, plus two instructions for the team (every receipt is
+  recorded under the person who records it — built: the receipt and its audit row carry the work session's person; PINs
+  are never shared — Equipo refuses a PIN two people share since 0033, the discount window since 0038, and Proveedores
+  binds the session to the person's own PIN, so a shared PIN would only misname who received). 2, 5, 7 and 8 as the
+  guide's 2, 5, 7 and 8. 3 and 6 say «owner level», which here means an owner-role PIN, the owner with the phone code or
+  the accountant (E-18); 6 as built also covers whatever would leave the supplier owing the café (the guide's 6). 4 is
+  read as option A (Existencias → «Recibir» stays as built): the owner asked to keep it available without forcing
+  anyone into Proveedores and named no letter. Conditions: nothing in production yet, no publication or migration
+  without the owner's express go, Guía Turista off, the register records pending reconciliation untouched, E-42
+  installed and pending its operational validation. Stage 2 (the tag) waits for the owner's authorization; this record
+  is the commit the guide allows before the tag, with «Tests» run on it. Later the same day the owner approved the private preview (version 4, 1.4), said the team was told (1.8) and kept
+  the accountant's owner-level rights (decisions 3 and 6). Still open before the tag: 1.9 (who is there: a manager with
+  a PIN for 5.B, a person with a clock-in for 5.D) and, recommended, 1.6 (E-42's record).
