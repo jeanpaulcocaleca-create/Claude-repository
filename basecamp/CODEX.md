@@ -912,11 +912,37 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
 - **Also:** update P-8 to say Hotel Link asks for first name, surname, email, phone and country, keeping the required country apart from the optional nationality.
 - **Rules:** no setting changed; the policy stays a draft and the site private; nothing published and no bookings activated; no new phases.
 
+**BD-058 · 2026-11-09 · Owner · Preview protection: the page opens without a password in Safari.**
+- **Reported:** `https://basecamp-website-b99.pages.dev` opens directly, even in a private Safari window, with no password prompt.
+- **Context:** last successful deployment 42ae5a9; `PREVIEW_PASSWORD` is a Secret in Cloudflare Pages; the domain is not connected and GoDaddy nameservers are unchanged.
+- **Asked:**
+  - review the gate and the Pages Functions, find why it does not run in production, and fix only what is needed, branch and deployment previews included;
+  - keep the password a Secret, never printed, logged or written in code;
+  - check assets and other routes;
+  - confirm with unauthenticated HTTP requests, not only a build;
+  - say whether a deployment or a manual step in Cloudflare is needed before doing it.
+- **Rules:**
+  - no Cloudflare Zero Trust;
+  - no DNS, GoDaddy, Hotel Link, payment, content, design or launch changes;
+  - nothing published or activated without authorization.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-09 · Claude.** BD-058: investigation only. No code, deployment or Cloudflare change.
+  - **Code:** `functions/_middleware.js` is unchanged since 8178e15. It runs on every route: there is no `_routes.json` and no `_worker.js`. It only lets a request through when the Basic password matches, and with no password set it answers 503.
+  - **Production, from outside:** unauthenticated requests on deployment 42ae5a9 return 401 with a Basic password challenge on all 21 routes, including pages, `/admin/`, `/assets/`-style files, `/brand/og-image.jpg`, `robots.txt`, `sitemap.xml` and unknown paths. Wrong, empty and malformed passwords also get 401, and http redirects to https.
+    - CI run 63 (push, 15:23 UTC) and run 64 (started on demand, 20:49 UTC) both passed.
+  - **Local Pages emulator** (wrangler 4.40, throwaway test password, not the real one):
+    - every route, `/assets/`, `/img/`, `/fonts/`, `/index.html` and other paths, plus HEAD, OPTIONS and POST, return 401 without the password;
+    - with the test password, responses carry `Cache-Control: private, no-store`.
+    - The emulator and its files were removed afterwards.
+  - **Conclusion:** the server refuses unauthenticated requests. A page that opens without a prompt means the browser is already sending the password. The likely cause is that Safari reuses credentials entered earlier in the same private session, or saved in Passwords. This is not confirmed: the owner checks with `curl` or another browser.
+  - **Proposed change:** none to the code. No deployment or Cloudflare step is needed.
+  - **Not covered from here:** this environment cannot reach `pages.dev`, and the per-deployment address (hash subdomain) is only listed in Cloudflare. It is served by the same deployment and middleware, and the branch preview passed in BD-018.
 
 - **2026-11-09 · Claude.** BD-057: `basecamp-website` commit 42ae5a9, documentation only. No Hotel Link setting was changed; the site and bookings are unchanged.
   - **Support email:** `docs/HOTEL-LINK-PRIVACIDAD.md` section 5 now holds the email, ready for the owner to send. Its seven questions:
