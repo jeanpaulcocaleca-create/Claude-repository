@@ -928,7 +928,7 @@ Newest first. Claude adds a line after every working session.
     6. where the answers can be seen, how long they are kept, correcting or deleting them, and a data processing agreement;
     7. effect on the current link parameters, the payment and guarantee step and the booking policies box; booking engine only, not OTAs; mobile.
   - **Privacy draft [P-8]:** Hotel Link requires first name, surname, email, phone and country. Country is Hotel Link's required field and its meaning is unknown. Nationality is the hotel's optional field for country statistics, neither derived from country nor replaced by it. The policy must also name the surname and country; the wording waits for Hotel Link's answer.
-  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 63: running at the time of writing.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 63: green.
 
 - **2026-11-09 · Claude.** BD-056: `basecamp-website` commit 092fdc0, documentation only. No Hotel Link setting was changed; the site and bookings are unchanged.
   - **New `docs/HOTEL-LINK-PRIVACIDAD.md`.** Hotel Link's help centre and policies are blocked here, so they were read through search extracts.
