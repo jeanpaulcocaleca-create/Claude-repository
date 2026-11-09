@@ -934,7 +934,7 @@ Newest first. Claude adds a line after every working session.
 
 - **2026-11-09 · Claude.** BD-058: investigation only. No code, deployment or Cloudflare change.
   - **Code:** `functions/_middleware.js` is unchanged since 8178e15. It runs on every route: there is no `_routes.json` and no `_worker.js`. It only lets a request through when the Basic password matches, and with no password set it answers 503.
-  - **Production, from outside:** unauthenticated requests on deployment 42ae5a9 return 401 with a Basic password challenge on all 21 routes, including pages, `/admin/`, `/assets/`-style files, `/brand/og-image.jpg`, `robots.txt`, `sitemap.xml` and unknown paths. Wrong, empty and malformed passwords also get 401, and http redirects to https.
+  - **Production, from outside:** unauthenticated requests on deployment 42ae5a9 return 401 with a Basic password challenge on all 21 routes, including pages, `/admin/`, `/brand/og-image.jpg`, `robots.txt`, `sitemap.xml` and unknown paths. Wrong, empty and malformed passwords also get 401, and http redirects to https.
     - CI run 63 (push, 15:23 UTC) and run 64 (started on demand, 20:49 UTC) both passed.
   - **Local Pages emulator** (wrangler 4.40, throwaway test password, not the real one):
     - every route, `/assets/`, `/img/`, `/fonts/`, `/index.html` and other paths, plus HEAD, OPTIONS and POST, return 401 without the password;
