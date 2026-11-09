@@ -899,11 +899,36 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - give a concrete recommendation and the steps.
 - **Rules:** no Hotel Link setting changed without authorization; the site stays private and bookings in Prueba.
 
+**BD-057 · 2026-11-09 · Owner · One email to Hotel Link support; P-8 updated.**
+- **Agreed:** research Check-Out Questions as a possible privacy solution. **Configuring it is not authorized.**
+- **Asked:** one email in English to Hotel Link support with the seven technical questions from `HOTEL-LINK-PRIVACIDAD.md`, covering:
+  - links to our privacy policy;
+  - a mandatory acceptance box and the record of the answer;
+  - Spanish and English;
+  - the meaning of the required "Country" field;
+  - asking for nationality as an optional question;
+  - access to and retention of the recorded answers;
+  - compatibility with the current booking flow.
+- **Also:** update P-8 to say Hotel Link asks for first name, surname, email, phone and country, keeping the required country apart from the optional nationality.
+- **Rules:** no setting changed; the policy stays a draft and the site private; nothing published and no bookings activated; no new phases.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-09 · Claude.** BD-057: `basecamp-website` commit 42ae5a9, documentation only. No Hotel Link setting was changed; the site and bookings are unchanged.
+  - **Support email:** `docs/HOTEL-LINK-PRIVACIDAD.md` section 5 now holds the email, ready for the owner to send. Its seven questions:
+    1. a clickable privacy link in a question, or a native privacy-link setting;
+    2. whether a mandatory single-box question forces the tick, and whether the answer is saved with its date and time;
+    3. Spanish and English text for each question;
+    4. what "Country" means, and whether it can be optional or renamed;
+    5. nationality as a separate optional question, stored apart from "Country";
+    6. where the answers can be seen, how long they are kept, correcting or deleting them, and a data processing agreement;
+    7. effect on the current link parameters, the payment and guarantee step and the booking policies box; booking engine only, not OTAs; mobile.
+  - **Privacy draft [P-8]:** Hotel Link requires first name, surname, email, phone and country. Country is Hotel Link's required field and its meaning is unknown. Nationality is the hotel's optional field for country statistics, neither derived from country nor replaced by it. The policy must also name the surname and country; the wording waits for Hotel Link's answer.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 63: running at the time of writing.
 
 - **2026-11-09 · Claude.** BD-056: `basecamp-website` commit 092fdc0, documentation only. No Hotel Link setting was changed; the site and bookings are unchanged.
   - **New `docs/HOTEL-LINK-PRIVACIDAD.md`.** Hotel Link's help centre and policies are blocked here, so they were read through search extracts.
