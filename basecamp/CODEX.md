@@ -886,11 +886,46 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no other site changes; Hotel Link stays in Prueba, the site stays private and the design unchanged.
 - **Then:** record the results and give the owner only the decisions they really need to take.
 
+**BD-056 · 2026-11-09 · Owner · Hotel Link booking flow checked; privacy link and consent to research.**
+- **Verified by the owner**, up to the final screen without confirming a booking:
+  1. Hotel Link requires first name, surname, email, phone and country.
+  2. The final screen has a box to accept the booking policies.
+  3. No privacy-policy box or link was seen.
+  4. The cancellation and payment policies match the earlier decisions.
+  5. The 13% IVA is shown correctly.
+- **Asked:**
+  - research whether Hotel Link can carry a privacy-policy link and a consent mechanism during the booking, checking Booking Engine, Booking Conditions, Check-Out Questions and the vendor's documentation first;
+  - review the difference between Hotel Link's required "Country" and the optional nationality for marketing statistics, without calling them equivalent unless verified;
+  - give a concrete recommendation and the steps.
+- **Rules:** no Hotel Link setting changed without authorization; the site stays private and bookings in Prueba.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-09 · Claude.** BD-056: `basecamp-website` commit 092fdc0, documentation only. No Hotel Link setting was changed; the site and bookings are unchanged.
+  - **New `docs/HOTEL-LINK-PRIVACIDAD.md`.** Hotel Link's help centre and policies are blocked here, so they were read through search extracts.
+  - **Findings:**
+    - **Check-out Questions** (Booking Engine, Setup) are the only documented way to add text and a guest answer before confirming. Types: Yes/No, text area, text field, multiple choice. Each can be optional or mandatory, and limited to room types and rate plans.
+    - **Booking Conditions** hold the property's deposit, balance and cancellation text, with nothing on privacy.
+    - **Data Protection** (cookie banner and privacy link) is documented for websites built with Hotel Link, not for the booking engine.
+    - **Hotel Link's own policy** deletes personal data 10 years after check-out.
+    - **"Country" is not nationality:** Hotel Link's guest profiles keep nationality and country as separate fields. What "Country" means in the booking form is not documented.
+  - **Recommendation (not configured):**
+    1. a mandatory consent question, multiple choice with one box, naming the controller, the purpose and the privacy policy address. A mandatory Yes/No would let a guest answer "No" and continue;
+    2. a separate optional nationality question;
+    3. do not use Hotel Link's "Country" for marketing statistics.
+  - **Order:** the owner asks Hotel Link support seven questions (draft in the document), then the policy is approved and published, then the questions are added with authorization and checked without confirming a booking.
+  - **Privacy draft:**
+    - new [P-8]: online bookings also require surname and country, but the approved sentences name only name, email and phone;
+    - [P-2] notes Hotel Link's 10-year retention.
+  - **Not verified:**
+    - whether a question can hold a clickable link, or carry its own ES and EN text;
+    - whether a mandatory multiple-choice question forces the tick;
+    - whether a ticked box meets the law's written-consent rule.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 62: running at the time of writing.
 
 - **2026-10-26 · Claude.** BD-055: `basecamp-website` commit b2caba4, documentation only; the built site and the preview privacy page are unchanged.
   - **Privacy draft:** the two approved sentences are in ES and EN, and [P-7] is closed.
