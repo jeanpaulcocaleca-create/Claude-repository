@@ -611,6 +611,10 @@
       'Hanging Garden continúa la historia: café sin prisa, plantas colgantes y una mesa que lo espera entre las nubes.',
     'Peace. Simplicity. Stewardship. Community.': 'Paz. Sencillez. Cuidado. Comunidad.',
     'The jewel of the cloud forest, and our neighbor.': 'La joya del bosque nuboso, y nuestro vecino.',
+    'Gabriel Barboza Villalobos, the orchid man of Monteverde, designed our garden with guarias, together with its owners.':
+      'Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde, diseñó nuestro jardín con guarias, junto a sus dueños.',
+    'Read his story': 'Conozca su historia',
+    'Gabriel Barboza, our garden': 'Gabriel Barboza, nuestro jardín',
     'from Monteverde, for the adventure ahead': 'desde Monteverde, para la aventura que viene',
     'Grown in the clouds': 'Cultivado entre las nubes',
     '100% Costa Rican coffee, locally sourced. Thank you for supporting our community and our forest.':

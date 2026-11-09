@@ -3548,3 +3548,77 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   is the commit the guide allows before the tag, with «Tests» run on it. Later the same day the owner approved the private preview (version 4, 1.4), said the team was told (1.8) and kept
   the accountant's owner-level rights (decisions 3 and 6). Still open before the tag: 1.9 (who is there: a manager with
   a PIN for 5.B, a person with a clock-in for 5.D) and, recommended, 1.6 (E-42's record).
+
+## D-068 · 2026-11-09 · The tribute to Gabriel Barboza Villalobos at hanginggardencafe.com/gabriel-barboza (one page, Spanish and English); v2026.11.08-1 becomes the tests' baseline (nothing published, no migration)
+
+- **The owner's request (2026-11-09):** a new page on the café's site at the fixed address
+  `https://hanginggardencafe.com/gabriel-barboza`, the one the QR of a physical plaque in the garden opens (printed, so
+  the address can never change), with the tribute the owner approved («Homenaje a Gabriel Barboza — página y placa»,
+  checked against AOS, Missouri Botanical Garden, Selby, Annals of Botany and Ambientico) as the ONLY source of its text:
+  no new biographical facts, no fact rewritten, «sin cambiar nada de la información». Structure: his portrait (wool cap,
+  grey T-shirt), full name, the line that he designed this café's garden with guarias together with its owners; «Por qué
+  este homenaje» (the house's own story, presented as such, apart from the scientific sources); «Su historia» (the
+  verified facts); the 1994–2019 timeline and the sources with their links as they are; a soft close (address, hours,
+  menu, WhatsApp, lodging at Basecamp Monteverde). Both languages in full with the site's language mechanism; the address
+  resolves directly. Never: a lack-of-degrees framing, birth or death dates, that he did the floral analyses of Atwood
+  1994 (he drew the plant habits and co-authored the species), that in 2019 he guided the Selby team in Monteverde (it was
+  Los Cusingos), «descubridor de seis» turned into «discovered six new species». SEO title given word for word.
+- **Built:** `website/gabriel-barboza.html`, hand-written (not by `tools/pages/build.js`), served by GitHub Pages at
+  `/gabriel-barboza` as it serves `/m` from `m.html` (no redirect, nothing in between). One address for both languages
+  because the plaque carries one QR: the page holds the full Spanish and the full English version
+  (`<div data-l="es">` / `<div data-l="en" lang="en">`) and shows one. Which one: the visitor's choice anywhere on the site
+  (lang.js's ES/EN switch, `hg_lang`), else the device's language (`es…` → Spanish), exactly the rule lang.js uses for
+  public pages (where the browser refuses storage, English, as lang.js does, so the switch and the page never disagree); a script in the head decides before the first paint, so neither version flashes. The title is the owner's,
+  word for word, in both languages (the brief gives one SEO title; a first draft's English title was dropped in review).
+  The switch flips the page without reloading (lang.js's `hg-lang` event). The body is `data-no-translate`:
+  lang.js does not word-translate this page, each version is the approved text. Without JavaScript both versions show,
+  Spanish first. Design: the site's tokens, fonts, bar and footer (`page.css`); the hero in the dark green of the site's
+  call-to-action boxes with the portrait in a cream frame with a gold rule; on phones the portrait comes first.
+- **Text:** taken from the approved tribute, section by section (hero, house history, history, achievements, the three
+  species, the *Lepanthes* finding, timeline, the 11 sources with their links unchanged, the close). Not published: the
+  tribute's internal plaque-production section and its closing note (both about making the plaque, not for visitors).
+  The English is a translation of that text: where the source quotes a Spanish sentence (the Missouri Botanical Garden
+  line, Ambientico's «experto poseedor de más de 450 especies» and «descubridor de seis») the English does not invent an
+  English quotation — it paraphrases the first and keeps the others in Spanish with an English gloss in brackets. The
+  sources' introduction says everything on the page comes from them «salvo la historia de nuestra casa» / «except our
+  house’s own story»: the approved sentence with the one exception the separate house-history section makes true. The commercial close says «Todos los días, 6:00 a. m. –
+  7:00 p. m.», «50 m al sur y 50 m al este de la iglesia», hanginggardencafe.com/m (link `m`), WhatsApp +506 6400 6601
+  (wa.me link, the number shown as text) and Basecamp Monteverde as the sister house's lodging.
+- **Photos:** only the family's portrait the tribute carries (`website/assets/gabriel-barboza.jpg`, 1110 × 1307, the
+  embedded file unchanged, committed to git: the publish step keeps files already in `website/assets/`), credited
+  «Fotografía facilitada por su familia». Not used: the tribute's third-party images (herbarium plates, other
+  photographers' orchid photos) and the home page's AI gallery placeholders. The owner's two photos of Gabriel working
+  at the café (light to be corrected) and his daughter's professional photos (unchanged) were sent as WhatsApp
+  `blob:` links, which only open inside the sender's browser: they wait for the files themselves (E-44).
+- **Where it lives on the site:** a short line in the home page's story section, under the timeline («Gabriel Barboza
+  Villalobos, the orchid man of Monteverde, designed our garden with guarias, together with its owners.» → «Read his
+  story»; Spanish in lang.js) and a link in the home footer; `website/sitemap.xml` lists it once (`build.js` adds the
+  URL, with no language alternates: both versions share the one address).
+- **Found in passing, not changed:** `page.css`'s `.cta` (the guide pages' call-to-action box) also gives the bar's
+  «Plan your visit» button (class `cta`) its 2.8rem top margin, so the guide pages' bar is about 121 px tall instead of
+  the home page's 60 px. The tribute page cancels it for itself (`#nav .navlinks a.cta{margin:0}`) and keeps the bar on
+  one line on phones; `page.css` and the guide pages stay as published (a separate change if the owner wants it).
+- **Tests:** browser spec 420 (8): the address answers 200 with no redirect, Spanish and English complete with the same
+  sections, years, species and links, the owner's title in both, description, canonical, og image and structured data,
+  the portrait loads with its description, the device language when nothing is chosen, the switch without reloading and
+  remembered, the browser that refuses storage (page and switch agree), every ruled-out claim absent in both languages
+  from the text, the attributes (description, og, alt) and the structured data (and every year on the page one of the
+  dated publications or the check date), at 320, 360 and 375 px nothing wider than the screen or outside its card and
+  the bar on one line, the home links in both languages, the sitemap entry.
+- **Independent review (4 reviewers, each finding checked by a skeptic):** fidelity to the approved text, the English
+  against the Spanish, the owner's brief point by point, the technical side. Confirmed and fixed: the English title a
+  first draft added (the owner's title is now the only one); the English quoting its own translation of Ambientico
+  (now the Spanish words with an English gloss); «from his collection» for «a partir de su recolecta» (now «from material
+  he collected»); the sources' introduction claiming the house story too (now «salvo la historia de nuestra casa»); the
+  visit card's text and buttons leaving the card under 345 px; the head script and lang.js disagreeing where storage is
+  refused; two tests that could not fail as written (G5 skipped attributes and structured data, G6 measured a clipped
+  page); the sitemap's same-address language alternates. Also brought back to the source: «¿Se queda en Monteverde?»
+  (the lodging line adds only the domain and «ofrece hospedaje» the brief asks for). Not changed (rejected as allowed by
+  the brief or style): the meta description's length.
+- **Baseline:** `v2026.11.08-1` (Proveedores, D-067) was published by the owner on 2026-11-09 03:17 UTC («Publish
+  website» run #59, gh-pages `005fab4`, pages run #55), so `tests/pantallas/BASE` moves to it (`6b01e47`) and
+  `no-tocar.sh` lists only this version's files: NEW `website/gabriel-barboza.html`, `website/assets/gabriel-barboza.jpg`;
+  CHANGED `website/index.html`, `website/lang.js`, `website/sitemap.xml`. Everything else under `website/`, every
+  migration and `pages.yml` stay byte for byte the published release. `tests/rehearsal/LIVE_PAGES` is not moved here: it
+  moves with D-067's post-activation record (stages 4.3–5 still to be reported by the owner).
+- **Not done (owner):** publishing (E-44). No migration, nothing in the database, no other page touched.
