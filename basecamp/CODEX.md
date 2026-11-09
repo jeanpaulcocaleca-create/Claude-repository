@@ -925,7 +925,7 @@ Newest first. Claude adds a line after every working session.
     - whether a question can hold a clickable link, or carry its own ES and EN text;
     - whether a mandatory multiple-choice question forces the tick;
     - whether a ticked box meets the law's written-consent rule.
-  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 62: running at the time of writing.
+  - **Checks:** `npm test` 89/89; browser checks 10/10, 27/27, 13/13, 41/41, 37/37. CI run 62: green.
 
 - **2026-10-26 · Claude.** BD-055: `basecamp-website` commit b2caba4, documentation only; the built site and the preview privacy page are unchanged.
   - **Privacy draft:** the two approved sentences are in ES and EN, and [P-7] is closed.
