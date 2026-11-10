@@ -5,8 +5,11 @@
    ES/EN switch without reloading. Its text comes only from the tribute the owner approved; the claims the owner ruled out
    never appear, in either language. The owner's adjustments of 2026-11-09 (G9): about don Gabriel only (the café's owners
    never named), the owner's highlighted line, no promotion inside the tribute (no Basecamp anywhere; the site's usual
-   footer only), a brief hero with the story below, the family's photograph unchanged. The home page links to it (story
-   and footer) and the sitemap lists it. */
+   footer only), a brief hero with the story below, the family's photograph unchanged. The sitemap lists it.
+   The home page leads to it (D-069, the owner's request of 2026-11-10: the first link was too discreet): a small card at
+   the end of «La historia», below the Monteverde timeline and the quetzal, with his photograph, the café's thanks for his
+   help with the garden's decoration, his name, «Un hombre y sus orquídeas», the owner's line and «Conozca su historia»
+   (G7 on a computer, G11 on phones); and the footer link. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -29,6 +32,77 @@ const QR_URL = 'https://hanginggardencafe.com/gabriel-barboza';
 const PLACA = path.join(ROOT, 'docs/placa-gabriel-barboza');
 /* the family's photograph as it came in the approved tribute (sha-256 of website/assets/gabriel-barboza.jpg) */
 const PHOTO_SHA = '148f96732fc065303caf889198c2fa71bf7bdd8f92232d175d74b44fc0c6827d';
+
+/* the home page's card (D-069), word for word, in both languages */
+const CARD = {
+  es: { label: 'Homenaje a Gabriel Barboza', kicker: 'Homenaje',
+        title: 'Hanging Garden se enorgullece de haber contado con la ayuda de don Gabriel en la decoración de nuestro jardín.',
+        name: 'Gabriel Barboza Villalobos', sub: 'Un hombre y sus orquídeas', line: LINE_ES, cta: 'Conozca su historia',
+        alt: 'Retrato de Gabriel Barboza sonriendo, con gorro de lana tejido y camiseta gris, frente al follaje verde de Monteverde',
+        links: ['Conozca su historia', 'Homenaje a Gabriel Barboza'] },
+  en: { label: 'A tribute to Gabriel Barboza', kicker: 'Tribute',
+        title: "Hanging Garden is proud to have had Don Gabriel's help in decorating our garden.",
+        name: 'Gabriel Barboza Villalobos', sub: 'One man and his orchids', line: LINE_EN, cta: 'Discover his story',
+        alt: 'Portrait of Gabriel Barboza smiling, wearing a knitted wool cap and a grey T-shirt, in front of the green foliage of Monteverde',
+        links: ['Discover his story', 'A tribute to Gabriel Barboza'] }
+};
+/* the home page in the given language (with an extra style sheet if given), the card shown (the story's reveal has run) */
+async function homeCard(pg, lang, css) {
+  await goto(pg, '/');
+  if (css) await pg.addStyleTag({ content: css });
+  await until(() => pg.evaluate((l) => document.documentElement.lang === l, lang), 5000, 'the home page in ' + lang);
+  await pg.evaluate(() => document.querySelector('#story > .gbcard').scrollIntoView({ block: 'center' }));
+  await until(() => pg.evaluate(() => { const c = getComputedStyle(document.querySelector('#story > .gbcard'));
+    return c.opacity === '1' && c.transform === 'none' && document.querySelector('.gbphoto img').complete; }), 8000, 'the card shown');
+}
+/* the card as the reader sees it: its words, its links, its place, its size and its photograph */
+const readCard = (pg) => pg.evaluate(() => {
+  /* what is read out: the text without the parts hidden from screen readers (the button's arrow) */
+  const said = (e) => { const k = e.cloneNode(true); k.querySelectorAll('[aria-hidden="true"]').forEach((h) => h.remove()); return k.textContent.replace(/\s+/g, ' ').trim(); };
+  const c = document.querySelector('#story > .gbcard'), t = (s) => said(c.querySelector(s));
+  const box = (e) => e.getBoundingClientRect(), img = c.querySelector('.gbphoto img'), ib = box(img), ic = getComputedStyle(img);
+  /* the picture itself: its box less the white mat (border) and any padding */
+  const iw = ib.width - parseFloat(ic.paddingLeft) - parseFloat(ic.paddingRight) - parseFloat(ic.borderLeftWidth) - parseFloat(ic.borderRightWidth);
+  const ih = ib.height - parseFloat(ic.paddingTop) - parseFloat(ic.paddingBottom) - parseFloat(ic.borderTopWidth) - parseFloat(ic.borderBottomWidth);
+  const altered = [];
+  for (let e = img; e && e.id !== 'story'; e = e.parentElement) {
+    const k = getComputedStyle(e);
+    if (k.filter !== 'none' || k.transform !== 'none' || k.opacity !== '1' || k.mixBlendMode !== 'normal' || k.clipPath !== 'none') altered.push(e.tagName + '.' + e.className);
+    /* nothing around it cuts it: a box that clips its overflow holds the whole photograph */
+    const eb = box(e);
+    if (e !== img && (k.overflowX !== 'visible' || k.overflowY !== 'visible') &&
+        (eb.left > ib.left + 0.5 || eb.top > ib.top + 0.5 || eb.right < ib.right - 0.5 || eb.bottom < ib.bottom - 0.5)) altered.push('cut by ' + e.tagName + '.' + e.className);
+  }
+  /* its rounded corners stay within the mat, so they never round off the picture itself */
+  for (const k of ['TopLeft', 'TopRight', 'BottomRight', 'BottomLeft']) {
+    const r = parseFloat(ic['border' + k + 'Radius']), bw = Math.min(parseFloat(ic['border' + k.replace(/Left|Right/, '') + 'Width']), parseFloat(ic['border' + k.replace(/Top|Bottom/, '') + 'Width']));
+    if (r > bw + 0.01) altered.push('corner ' + k + ' rounds the picture (' + r + ' px over a ' + bw + ' px mat)');
+  }
+  /* the page's thread (a line down the middle on computers) is painted behind the card, never across its text:
+     the topmost thing at the thread's place, at three heights of the card, belongs to the card */
+  const th = document.querySelector('.thread');
+  let over = null;
+  if (getComputedStyle(th).display !== 'none') {
+    const tb = box(th), x = tb.left + tb.width / 2, cb = box(c), was = th.style.pointerEvents;
+    th.style.pointerEvents = 'auto';
+    over = [0.3, 0.5, 0.7].every((f) => { const top = document.elementFromPoint(x, cb.top + cb.height * f); return !!top && c.contains(top); });
+    th.style.pointerEvents = was;
+  }
+  return { label: c.getAttribute('aria-label'), kicker: t('.kicker'), title: t('h3'), name: t('.gbname strong'), sub: t('.gbname em'), line: t('.gbline'),
+    cta: t('a.btn'), alt: img.getAttribute('alt'), src: img.getAttribute('src'),
+    hrefs: [...c.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')),
+    links: [...document.querySelectorAll('a[href="gabriel-barboza"]')].map(said), arrow: !!c.querySelector('a.btn [aria-hidden="true"]'),
+    oneLine: (() => { const n = c.querySelector('.gbname'), dot = getComputedStyle(n.querySelector('em'), '::before').content;
+      return { dot: dot !== 'none' && dot !== 'normal', same: Math.abs(box(n.querySelector('strong')).top - box(n.querySelector('em')).top) < 6 }; })(),
+    words: c.innerText.replace(/\s+/g, ' '), afterStory: c.previousElementSibling === document.querySelector('#story > .storygrid'),
+    last: c === document.getElementById('story').lastElementChild,
+    top: box(c).top, bottom: box(c).bottom, h: box(c).height, gridBottom: box(document.querySelector('#story > .storygrid')).bottom,
+    timelineBottom: box(document.querySelector('#story .timeline')).bottom, quetzalBottom: box(document.querySelector('#story .storyside')).bottom,
+    over,
+    ratio: iw / ih, objectFit: ic.objectFit, natural: img.naturalWidth / img.naturalHeight, loaded: img.complete && img.naturalWidth > 0, photoW: ib.width, altered };
+});
+const NO_OWNER = /owner|dueñ|propietari/i;
+const NO_PROMO = /Basecamp|WhatsApp|promo|descuento|discount|oferta|offer|reserv|book|pedid|order|\$|₡/i;
 
 /* what the reader sees: the text of the visible version */
 const shown = (pg) => pg.evaluate(() => document.getElementById('main').innerText);
@@ -318,8 +392,8 @@ module.exports.tests = [
       assert.deepStrictEqual(garden, [GARDEN_ES, GARDEN_EN]);
       const sole = [m.all, HTML.match(/<head>[\s\S]*<\/head>/)[0]].join(' ').match(SOLE_DESIGNER);
       assert.ok(!sole, 'nowhere the sole designer of the garden: found «' + (sole && sole[0]) + '»');
-      const home = fs.readFileSync(path.join(ROOT, 'website/index.html'), 'utf8').match(/<p class="tribute part">[\s\S]*?<\/p>/)[0];
-      assert.ok(!SOLE_DESIGNER.test(home), 'the home line claims no design of the garden');
+      const home = fs.readFileSync(path.join(ROOT, 'website/index.html'), 'utf8').match(/<aside class="gbcard part"[\s\S]*?<\/aside>/)[0];
+      assert.ok(!SOLE_DESIGNER.test(home), 'the home page\'s card claims no design of the garden');
       /* (6) the address the QR opens */
       assert.strictEqual(new URL(pg.url()).pathname, '/gabriel-barboza');
       assert.ok(HTML.includes('<link rel="canonical" href="https://hanginggardencafe.com/gabriel-barboza">'));
@@ -397,30 +471,140 @@ module.exports.tests = [
     }
   },
   {
-    name: 'G7: the home page leads to it (story and footer, in both languages) and the sitemap lists it once',
+    name: 'G7: the home page leads to it: a small card at the end of «La historia», below the timeline and the quetzal (his photograph, the café\'s thanks, the owner\'s line, «Conozca su historia»), and the footer; both languages; the sitemap lists it once',
     run: async ({ browser }) => {
-      const pg = await page(browser, { lang: 'es' });
-      await goto(pg, '/');
-      await until(() => pg.evaluate(() => document.documentElement.lang === 'es'), 5000, 'the home page in Spanish');
-      const es = await pg.evaluate(() => [...document.querySelectorAll('a[href="gabriel-barboza"]')].map((a) => a.textContent.trim()));
-      assert.deepStrictEqual(es, ['Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde: su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en nuestro jardín.',
-        'Conozca su historia', 'Homenaje a Gabriel Barboza']);
-      await pg.click('#story a.more');
-      await pg.waitForURL(/\/gabriel-barboza$/);
-      await pg.waitForLoadState('load');
-      assert.strictEqual(await pg.title(), TITLE_ES);
-      const en = await page(browser, { lang: 'en' });
-      await goto(en, '/');
-      const enLinks = await en.evaluate(() => [...document.querySelectorAll('a[href="gabriel-barboza"]')].map((a) => a.textContent.trim()));
-      assert.deepStrictEqual(enLinks, ['Gabriel Barboza Villalobos, the orchid man of Monteverde: his knowledge, generosity and love of orchids left a mark that continues to bloom in our garden.',
-        'Read his story', 'A tribute to Gabriel Barboza']);
-      /* the home page names no owner for the tribute either */
-      const story = await en.evaluate(() => document.querySelector('#story .tribute').textContent);
-      assert.ok(!/owner|dueñ|propietari/i.test(story), 'the home line names no owner');
+      const pages = [];
+      for (const lang of ['es', 'en']) {
+        const pg = await page(browser, { lang });
+        pages.push(pg);
+        await homeCard(pg, lang);
+        const c = await readCard(pg), want = CARD[lang];
+        assert.deepStrictEqual([c.label, c.kicker, c.title, c.name, c.sub, c.line, c.cta, c.alt], [want.label, want.kicker, want.title, want.name, want.sub, want.line, want.cta, want.alt], lang + ': the card, word for word');
+        assert.deepStrictEqual(c.links, want.links, lang + ': the home page leads to the tribute from the card and the footer, nowhere else');
+        assert.deepStrictEqual(c.hrefs, ['gabriel-barboza'], lang + ': one link in the card, to the tribute');
+        assert.ok(c.arrow, lang + ': the button\'s arrow is shown, and hidden from screen readers');
+        assert.ok(c.oneLine.dot && c.oneLine.same, lang + ': on a computer his name and «' + want.sub + '» share one line, a dot between them');
+        /* its place: the end of the story, after the timeline and the quetzal */
+        assert.ok(c.afterStory && c.last, lang + ': the card closes «La historia», right after the timeline and the quetzal');
+        assert.ok(c.top > c.gridBottom && c.top > c.timelineBottom && c.top > c.quetzalBottom, lang + ': below the timeline and the quetzal');
+        assert.ok(c.over, lang + ': the card lies over the page\'s thread, as the canopy does (the line does not cross its text)');
+        /* small but seen: shorter than a third of the screen on a computer */
+        assert.ok(c.h <= 340, lang + ': a small card (' + Math.round(c.h) + ' px high)');
+        /* the family's photograph, the same file as the tribute's, whole and unaltered */
+        assert.strictEqual(c.src, 'assets/gabriel-barboza.jpg');
+        assert.ok(c.loaded, lang + ': the photograph loads');
+        assert.ok(Math.abs(c.ratio - c.natural) / c.natural < 0.002, lang + ': shown whole, not cropped (' + c.ratio.toFixed(4) + ' vs ' + c.natural.toFixed(4) + ')');
+        assert.deepStrictEqual(c.altered, [], lang + ': nothing alters the photograph');
+        assert.strictEqual(c.objectFit, 'fill', lang + ': the picture is scaled, never cut to fit');
+        assert.ok(c.photoW >= 120, lang + ': the photograph is seen (' + Math.round(c.photoW) + ' px)');
+        /* about don Gabriel only: no owners, no promotion, never the garden's sole designer */
+        for (const [re, what] of [[NO_OWNER, 'no owners'], [NO_PROMO, 'no promotion'], [SOLE_DESIGNER, 'never the sole designer of the garden']]) {
+          const m = c.words.match(re);
+          assert.ok(!m, lang + ': ' + what + ' in the card: found «' + (m && m[0]) + '»');
+        }
+      }
+      /* «Conozca su historia» opens the tribute */
+      await pages[0].click('#story .gbcard a.btn');
+      await pages[0].waitForURL(/\/gabriel-barboza$/);
+      await pages[0].waitForLoadState('load');
+      assert.strictEqual(await pages[0].title(), TITLE_ES);
       const map = fs.readFileSync(path.join(ROOT, 'website/sitemap.xml'), 'utf8');
       assert.strictEqual((map.match(/<loc>https:\/\/hanginggardencafe\.com\/gabriel-barboza<\/loc>/g) || []).length, 1);
       assert.ok(!/href="https:\/\/hanginggardencafe\.com\/gabriel-barboza"/.test(map), 'no language alternates pointing at the one address');
-      assert.deepStrictEqual(pg.errors.concat(en.errors), []);
+      assert.deepStrictEqual(pages[0].errors.concat(pages[1].errors), []);
+    }
+  },
+  {
+    name: 'G11: the home page\'s card on phones from 320 px (also with wide fallback fonts): it fits, holds its text, stays short, the photograph whole beside the title, «Conozca su historia» easy to tap',
+    run: async ({ browser }) => {
+      /* DejaVu: GitHub's runner's fallback, and a phone whose web fonts do not load (see G6) */
+      const WIDE = 'body *{font-family:"DejaVu Sans",sans-serif !important}h1,h2,h3,.gbname em,.values{font-family:"DejaVu Serif",serif !important}';
+      const runs = [];
+      for (const width of [320, 360, 375, 390]) runs.push([width, 'default']);
+      for (const width of [320, 375]) runs.push([width, 'wide']);
+      for (const [width, fonts] of runs) for (const lang of ['es', 'en']) {
+        const ctx = await browser.newContext({ viewport: { width, height: 740 }, isMobile: true, hasTouch: true,
+                                               locale: lang === 'es' ? 'es-CR' : 'en-US', timezoneId: 'America/Costa_Rica' });
+        const pg = await page(browser, { context: ctx, lang });
+        await homeCard(pg, lang, fonts === 'wide' ? WIDE : null);
+        const at = lang + ' at ' + width + ' px, ' + fonts + ' fonts';
+        const c = await readCard(pg);
+        assert.deepStrictEqual([c.title, c.line, c.cta], [CARD[lang].title, CARD[lang].line, CARD[lang].cta], at);
+        const m = await pg.evaluate(() => {
+          const card = document.querySelector('#story > .gbcard'), box = (e) => e.getBoundingClientRect(), cb = box(card), cs = getComputedStyle(card);
+          const inner = cb.right - parseFloat(cs.paddingRight) + 1, left = cb.left + parseFloat(cs.paddingLeft) - 1;
+          const spill = [...card.querySelectorAll('*')].filter((e) => { const b = box(e); return b.width > 0 && b.height > 0 && (b.right > inner || b.left < left); })
+            .map((e) => e.tagName + '.' + String(e.className).trim());
+          /* and each line of text within the card: no word or line runs past its box or out of the card */
+          for (const e of card.querySelectorAll('.kicker, h3, .gbname strong, .gbname em, .gbline, a.btn')) {
+            if (e.scrollWidth > e.clientWidth + 1) spill.push(e.tagName + '.' + String(e.className).trim() + ' overflows its box');
+            const rg = document.createRange(); rg.selectNodeContents(e);
+            if ([...rg.getClientRects()].some((r) => r.width > 0 && (r.right > inner || r.left < left))) spill.push(e.tagName + '.' + String(e.className).trim() + ' text outside the card');
+          }
+          const ph = box(card.querySelector('.gbphoto')), h3 = box(card.querySelector('h3')), k = box(card.querySelector('.kicker')), cta = box(card.querySelector('a.btn'));
+          /* the arrow apart from the words (a touch screen's button is a flex box, which drops a space) */
+          const a = card.querySelector('a.btn'), rg = document.createRange(); rg.selectNodeContents(a.firstChild);
+          const words = [...rg.getClientRects()].pop(), arrow = box(a.querySelector('.arr'));
+          return { spill, inScreen: cb.left >= 0 && cb.right <= innerWidth, beside: ph.right <= h3.left && ph.right <= k.left && Math.abs(ph.top - k.top) < 12,
+                   ctaH: cta.height, ctaW: cta.width, h: cb.height, gap: arrow.left - words.right, coarse: matchMedia('(pointer:coarse)').matches };
+        });
+        assert.ok(m.inScreen, at + ': the card fits the screen');
+        assert.deepStrictEqual(m.spill, [], at + ': nothing outside the card');
+        assert.ok(m.beside, at + ': the photograph beside «Homenaje» and the title');
+        assert.ok(m.h <= 480, at + ': a short card (' + Math.round(m.h) + ' px high)');
+        assert.ok(m.coarse, at + ': measured as a touch screen');
+        assert.ok(m.gap >= 3, at + ': the arrow stands apart from «' + CARD[lang].cta + '» (' + m.gap.toFixed(1) + ' px)');
+        assert.ok(c.oneLine.same === false || !c.oneLine.dot, at + ': the dot never starts a line');
+        assert.ok(m.ctaH >= 44 && m.ctaW >= 44, at + ': «Conozca su historia» easy to tap (' + Math.round(m.ctaW) + ' × ' + Math.round(m.ctaH) + ')');
+        assert.ok(c.loaded && Math.abs(c.ratio - c.natural) / c.natural < 0.002, at + ': the photograph whole');
+        assert.deepStrictEqual(c.altered, [], at + ': nothing alters the photograph');
+        assert.ok(c.top > c.gridBottom, at + ': after the timeline and the quetzal');
+        assert.deepStrictEqual(pg.errors, [], at);
+        await ctx.close();
+      }
+    }
+  },
+  {
+    name: 'G12: between phone and computer (561–1000 px, also with wide fonts) the dot sits between his name and «Un hombre y sus orquídeas» only on one line; on small and short screens every section of the home page, «La historia» and its card included, appears',
+    run: async ({ browser }) => {
+      const WIDE = 'body *{font-family:"DejaVu Sans",sans-serif !important}h1,h2,h3,.gbname em,.values{font-family:"DejaVu Serif",serif !important}';
+      for (const fonts of ['default', 'wide']) for (const lang of ['es', 'en']) {
+        const pg = await page(browser, { lang, viewport: { width: 1000, height: 800 } });
+        await homeCard(pg, lang, fonts === 'wide' ? WIDE : null);
+        const bad = [];
+        for (let width = 561; width <= 1000; width += 13) {
+          await pg.setViewportSize({ width, height: 800 });
+          const o = (await readCard(pg)).oneLine;
+          if (o.dot && !o.same) bad.push(width);
+        }
+        assert.deepStrictEqual(bad, [], lang + ', ' + fonts + ' fonts: widths where the dot starts a line');
+        assert.deepStrictEqual(pg.errors, [], lang + ', ' + fonts + ' fonts');
+        await pg.context().close();
+      }
+      /* small and short screens: a section taller than about six screens never reached the reveal's 15 % and stayed
+         blank. On the published v2026.11.09-1 the whole «Menú» section never appeared at 320 × 568 (a small phone),
+         844 × 390 (a phone held sideways) or 1280 × 400 (a short window), nor «La historia» at 640 × 280; now a section
+         also appears when it fills half the screen. Scrolled through, the way a visitor does: every section appears */
+      for (const [width, height] of [[320, 568], [640, 280], [740, 300], [568, 320], [844, 390], [1280, 400]]) for (const lang of ['es', 'en']) {
+        const phone = width < 900;
+        const ctx = await browser.newContext({ viewport: { width, height }, isMobile: phone, hasTouch: phone, locale: lang === 'es' ? 'es-CR' : 'en-US', timezoneId: 'America/Costa_Rica' });
+        const pg = await page(browser, { context: ctx, lang });
+        await goto(pg, '/');
+        await until(() => pg.evaluate((l) => document.documentElement.lang === l, lang), 5000, 'the home page in ' + lang);
+        const hidden = await pg.evaluate(async () => {
+          document.documentElement.style.scrollBehavior = 'auto';
+          const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          for (let y = 0; y < document.documentElement.scrollHeight; y += Math.round(innerHeight / 4)) { scrollTo(0, y); await frame(); }
+          await new Promise((r) => setTimeout(r, 300));
+          return [...document.querySelectorAll('.rev')].filter((s) => !s.classList.contains('in')).map((s) => s.id || s.className);
+        });
+        const at = lang + ' at ' + width + ' × ' + height;
+        assert.deepStrictEqual(hidden, [], at + ': every section appears as it is scrolled through');
+        await pg.evaluate(() => document.querySelector('#story > .gbcard').scrollIntoView({ block: 'center' }));
+        await until(() => pg.evaluate(() => getComputedStyle(document.querySelector('#story > .gbcard')).opacity === '1'), 5000, at + ': the card shown');
+        assert.deepStrictEqual(pg.errors, [], at);
+        await ctx.close();
+      }
     }
   }
 ];

@@ -260,7 +260,7 @@
 <link rel="apple-touch-icon" href="assets/logo-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Figtree:wght@400;600&family=Dancing+Script:wght@600&family=Spline+Sans+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Figtree:wght@400;600&family=Dancing+Script:wght@600&family=Spline+Sans+Mono:wght@400&display=swap">
 <style>
 :root{
   --canvas:#F6F1E2;
@@ -397,10 +397,37 @@ section .lede{max-width:58ch;color:var(--text-secondary);font-size:1.08rem}
 .timeline h3{font-size:1.15rem;margin-bottom:.3rem}
 .timeline p{margin:0;color:var(--text-secondary);max-width:58ch}
 @media(max-width:640px){.timeline li{grid-template-columns:1fr}}
-.tribute{margin:2.6rem 0 0;padding:1.1rem 1.3rem;border-left:3px solid var(--gold);background:var(--panel);border-radius:0 14px 14px 0;max-width:60ch;line-height:1.55}
-.tribute a{color:var(--ink);text-decoration:none}
-.tribute a:hover{color:var(--accent)}
-.tribute a.more{display:inline-block;margin-top:.35rem;font-weight:600;color:var(--accent);text-decoration:underline;text-underline-offset:.3em;text-decoration-color:var(--gold)}
+/* the tribute to Gabriel Barboza (D-069): a small card at the end of the story, his photograph whole, the line approved
+   for his tribute and the way to his page */
+.gbcard{display:grid;grid-template-columns:auto 1fr;gap:1.7rem;align-items:center;max-width:800px;margin:3.5rem auto 0;
+  padding:1.3rem 1.6rem;background:var(--panel);border:1px solid var(--accent-muted);border-left:4px solid var(--gold);
+  border-radius:18px;box-shadow:0 10px 30px rgba(30,75,51,.10);position:relative;z-index:2}   /* over the thread, like the canopy */
+.gbphoto{margin:0;width:140px}
+.gbphoto img{display:block;width:100%;height:auto;border:4px solid #fff;border-radius:4px;box-shadow:0 6px 16px rgba(30,75,51,.18)}
+.gbtext{min-width:0}
+.gbtext .kicker{color:var(--gold);margin:0 0 .35rem}
+.gbtext h3{font-size:clamp(1.15rem,2.2vw,1.38rem);line-height:1.3;color:var(--accent);margin:0;text-wrap:balance}
+.gbname{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .6rem;margin:.55rem 0 .45rem}
+.gbname strong{font-weight:600;color:var(--ink)}
+.gbname em{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:500;color:var(--text-secondary)}
+.gbname em::before{content:'·';font-style:normal;color:var(--gold);margin-right:.6rem}
+/* name and title on one line only where both fit (wide screens); else one under the other, so the dot never starts a line */
+@media(max-width:900px){.gbname{flex-direction:column;gap:.05rem}.gbname em::before{content:none}}
+.gbline{margin:0 0 .9rem;font-size:.96rem;line-height:1.55;max-width:56ch}
+.gbcta{padding:.6em 1.3em;font-size:.95rem}
+.gbcta .arr{margin-left:.45em}   /* a margin, not a space: a touch screen's button is a flex box, which drops the space */
+/* phones: the photo beside the title, the rest under them, so the card stays short */
+@media(max-width:560px){.gbcard{grid-template-columns:84px minmax(0,1fr);grid-template-areas:"photo kicker" "photo title" "name name" "line line" "cta cta";
+    gap:0 .9rem;align-items:start;padding:1.15rem 1.1rem 1.25rem;margin-top:2.6rem}
+  .gbtext{display:contents}
+  .gbphoto{grid-area:photo;width:84px}
+  .gbphoto img{border-width:3px;border-radius:3px}
+  .gbtext .kicker{grid-area:kicker}
+  .gbtext h3{grid-area:title;font-size:1.06rem}
+  .gbname{grid-area:name;margin:.85rem 0 .4rem}
+  .gbline{grid-area:line;font-size:.93rem}
+  .gbcta{grid-area:cta;justify-self:start}}
+@media(max-width:360px){.gbcard{grid-template-columns:72px minmax(0,1fr);gap:0 .75rem;padding:1rem .95rem 1.1rem}.gbphoto{width:72px}.gbtext h3{font-size:1rem}}
 .values{margin-top:3rem;font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(1.2rem,2.6vw,1.8rem);color:var(--accent);text-align:center;letter-spacing:.02em}
 .ornament{color:var(--accent-muted);display:block;margin:2.5rem auto 0;width:min(320px,70%)}
 .ornament path{stroke:currentColor;fill:none;stroke-width:1.5;stroke-dasharray:600;stroke-dashoffset:var(--draw,600)}
@@ -759,7 +786,6 @@ footer .flinks a{margin:0 .2rem}
       <li><span class="year">1972</span><div><h3>The forest protected</h3><p>The Monteverde Cloud Forest Reserve is founded. The community protects the watershed instead of clearing it, and the world comes to walk under its canopy.</p></div></li>
       <li><span class="year">Today</span><div><h3>Your cup</h3><p>Hanging Garden continues the story: slow coffee, hanging plants, and a table waiting for you between the clouds.</p></div></li>
     </ul>
-    <p class="tribute part"><a href="gabriel-barboza">Gabriel Barboza Villalobos, the orchid man of Monteverde: his knowledge, generosity and love of orchids left a mark that continues to bloom in our garden.</a> <a class="more" href="gabriel-barboza">Read his story</a></p>
     <p class="values part">Peace. Simplicity. Stewardship. Community.</p>
     <svg class="ornament" viewBox="0 0 320 40" aria-hidden="true"><path class="drawline" d="M5 20 C60 5 100 35 160 20 C220 5 260 35 315 20 M150 20 q10 -14 20 0 q-10 14 -20 0"/></svg>
     </div>
@@ -770,6 +796,16 @@ footer .flinks a{margin:0 .2rem}
       </figure>
     </aside>
     </div>
+    <aside class="gbcard part" aria-label="A tribute to Gabriel Barboza">
+      <figure class="gbphoto"><img src="assets/gabriel-barboza.jpg" width="1110" height="1307" loading="lazy" alt="Portrait of Gabriel Barboza smiling, wearing a knitted wool cap and a grey T-shirt, in front of the green foliage of Monteverde"></figure>
+      <div class="gbtext">
+        <p class="kicker mono">Tribute</p>
+        <h3>Hanging Garden is proud to have had Don&nbsp;Gabriel's help in decorating our garden.</h3>
+        <p class="gbname"><strong>Gabriel Barboza Villalobos</strong><em>One man and his orchids</em></p>
+        <p class="gbline">His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.</p>
+        <a class="btn gbcta" href="gabriel-barboza">Discover his story<span class="arr" aria-hidden="true">→</span></a>
+      </div>
+    </aside>
   </section>
 
   <!-- CANOPY INTERLUDE -->
@@ -1004,16 +1040,17 @@ function pinToFinalStates(){
   finishBrew(true);
 }
 
-/* section entrances */
+/* section entrances: when 15 % of a section shows, or when it fills half the screen. The second rule is for a section
+   taller than about six screens (on a phone held sideways), which never reaches 15 % and so stayed blank (D-069) */
 var io=new IntersectionObserver(function(es){
   es.forEach(function(e){
-    if(e.isIntersecting){
+    if(e.isIntersecting&&(e.intersectionRatio>=0.15||e.intersectionRect.height>=innerHeight*0.5)){
       e.target.classList.add('in');
       setTimeout(function(){e.target.classList.add('done')},1400);
       io.unobserve(e.target);
     }
   });
-},{threshold:0.15});
+},{threshold:[0,0.05,0.1,0.15]});
 document.querySelectorAll('.rev').forEach(function(s){io.observe(s)});
 
 /* drip thread + ornament draw on scroll */

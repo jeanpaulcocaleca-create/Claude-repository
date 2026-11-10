@@ -611,9 +611,15 @@
       'Hanging Garden continúa la historia: café sin prisa, plantas colgantes y una mesa que lo espera entre las nubes.',
     'Peace. Simplicity. Stewardship. Community.': 'Paz. Sencillez. Cuidado. Comunidad.',
     'The jewel of the cloud forest, and our neighbor.': 'La joya del bosque nuboso, y nuestro vecino.',
-    'Gabriel Barboza Villalobos, the orchid man of Monteverde: his knowledge, generosity and love of orchids left a mark that continues to bloom in our garden.':
-      'Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde: su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en nuestro jardín.',
-    'Read his story': 'Conozca su historia',
+    'Tribute': 'Homenaje',
+    "Hanging Garden is proud to have had Don Gabriel's help in decorating our garden.":
+      'Hanging Garden se enorgullece de haber contado con la ayuda de don\u00a0Gabriel en la decoración de nuestro jardín.',
+    'One man and his orchids': 'Un hombre y sus orquídeas',
+    'His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.':
+      'Su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín.',
+    'Discover his story': 'Conozca su historia',
+    'Portrait of Gabriel Barboza smiling, wearing a knitted wool cap and a grey T-shirt, in front of the green foliage of Monteverde':
+      'Retrato de Gabriel Barboza sonriendo, con gorro de lana tejido y camiseta gris, frente al follaje verde de Monteverde',
     'A tribute to Gabriel Barboza': 'Homenaje a Gabriel Barboza',
     'from Monteverde, for the adventure ahead': 'desde Monteverde, para la aventura que viene',
     'Grown in the clouds': 'Cultivado entre las nubes',

@@ -3693,3 +3693,98 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   migration and `pages.yml` stay byte for byte the published release. `tests/rehearsal/LIVE_PAGES` is not moved here: it
   moves with D-067's post-activation record (stages 4.3–5 still to be reported by the owner).
 - **Not done (owner):** publishing (E-44). No migration, nothing in the database, no other page touched.
+- **Published by the owner (2026-11-10):** recovery copy `sitio-2026-11-09` on gh-pages `005fab4` (the live
+  v2026.11.08-1), release tag `v2026.11.09-1` on `c5e9590`, «Publish website» run #60 from the tag (04:04 UTC), gh-pages
+  `3ed4b85` («Publish website v2026.11.09-1 c5e9590…»), pages run #56 green; «Tests» #240 on the tag green (it finished
+  at 04:27, after the publish had started: green all the same). The tribute is live at
+  `https://hanginggardencafe.com/gabriel-barboza`. Still with the owner: printing the plaque and the additional photos
+  (E-44). The home page's link to it is replaced by a card (D-069).
+
+## D-069 · 2026-11-10 · The home page's card for don Gabriel at the end of «La historia»; v2026.11.09-1 (the tribute) becomes the tests' baseline (nothing published, no migration)
+
+- **The owner's request (2026-11-10, after publishing the tribute):** the home page's link was too discreet («lo busqué
+  dos veces y no lo encontré»): a section of its own, elegant, dedicated to don Gabriel only, with his original
+  photograph, his full name, the title «Un hombre y sus orquídeas», the approved line «Su conocimiento, generosidad y
+  amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín», a prominent «Conozca su historia»
+  to `/gabriel-barboza`, in a natural, visible place; the café's look, phones, Spanish and English; no owners, no
+  promotion, nothing saying he designed the whole garden («su contribución fue ayudar con la decoración y aportar
+  conocimientos, plantas y orquídeas»); the tribute page kept as approved; nothing in Caja, POS, inventory, accounting
+  or the database; screenshots for approval; nothing published, no tag. Then the place: «en la página La historia
+  debajo de la historia de Monteverde y el quetzal… no tiene que ser muy grande, algo pequeño notable». Then: «añada su
+  foto» and a title like «Hanging Garden se enorgullece de contar con la ayuda de Gabriel para la elaboración de nuestro
+  hermoso jardín» («esto es un ejemplo y puede usar algo más adecuado»).
+- **Built:** a small card closing the home page's story section (`#story`), right after the grid of the Monteverde
+  timeline and the quetzal (`<aside class="gbcard part">`, named «Homenaje a Gabriel Barboza» / «A tribute to Gabriel
+  Barboza» for screen readers): the family's portrait (the tribute's own file, `assets/gabriel-barboza.jpg`, whole, in a
+  white mat whose rounded corners stay within the mat: 140 px wide on computers and tablets, 84 px on phones, 72 px at
+  360 px and less), «Homenaje», the title, his name with «Un hombre y sus orquídeas» (on one line with a dot between them
+  only on screens wider than 900 px, where both always fit; one under the other below that, so the dot never starts a
+  line), the owner's line word for word and the button «Conozca su historia →» (the arrow drawn apart by a margin and
+  hidden from screen readers, which read «Conozca su historia»). The
+  English is source text in `index.html` and the Spanish in `lang.js`, like the rest of the home page; the photo's
+  description is the tribute page's, word for word, in both languages.
+- **The title:** «Hanging Garden se enorgullece de haber contado con la ayuda de don Gabriel en la decoración de nuestro
+  jardín.» (English: «Hanging Garden is proud to have had Don Gabriel's help in decorating our garden.»; «don» and
+  «Gabriel» joined by a no-break space, so a line never ends on «don»). The owner's
+  example, fitted to what the owner set on 2026-11-10: «la decoración» rather than «la elaboración» (which reads as
+  building or designing the garden), «haber contado» because the tribute tells his help in the past, «don Gabriel» as
+  the tribute calls him. Up for the owner's approval with the screenshots.
+- **Look:** the site's tokens and type (the cream panel, a gold rule on the left as on the tribute's cards, the green
+  title and button, Playfair Display, Figtree, Spline Sans Mono); the home page's Google Fonts link now also asks for
+  Playfair Display italic 500 for «Un hombre y sus orquídeas» (the browser would otherwise slant the upright letter). The
+  thread that runs down the middle of the home page on computers passes behind the card (as behind the canopy) instead
+  of crossing its text. It appears with the story section's usual reveal. Heights: about 280–330 px on computers (web
+  fonts / DejaVu); on phones the photograph sits beside «Homenaje» and the title and the rest goes under them: about
+  350–415 px from 320 to 414 px with the web fonts, under 480 px with DejaVu at 320 px (G11's limit).
+- **Replaced:** the line under the timeline («Gabriel Barboza Villalobos, the orchid man of Monteverde: …» → «Read his
+  story») and its two `lang.js` entries. **Kept:** the footer's «Homenaje a Gabriel Barboza». The tribute page is not
+  touched (the no-touch check now holds it byte for byte, see below).
+- **Also fixed: the home page's sections that never appeared.** Each section of the home page fades in when 15 % of it
+  is on the screen (`IntersectionObserver`, threshold 0.15). A section taller than about six screens never reaches 15 %,
+  so it stayed blank for good: on the published v2026.11.09-1 the whole «Menú» section never appeared at 320 × 568 (a
+  small phone), 844 × 390 (a phone held sideways) or 1280 × 400 (a short window), and «La historia» never appeared at
+  640 × 280; the card, which makes «La historia» taller, would have added more such sizes (found by the review below).
+  Now a section also appears when it fills half the screen (thresholds 0, 5, 10 and 15 %, so the check runs on the way
+  in); where 15 % was reachable nothing changes (computers and upright phones of 360 px and up reveal as before).
+- **Tests:** browser 420 now 12. G7 rewritten: the card word for word in both languages (the button as read out, «Conozca
+  su historia», its arrow shown and hidden from screen readers), its one link, the home page's links to the tribute
+  exactly the card's and the footer's, its place (the last thing in the story, below the timeline and the quetzal), over
+  the thread (what is painted at the thread's place, at three heights of the card, belongs to the card), his name and
+  the title on one line with the dot, at most 340 px high on a computer, the photograph the tribute's file, loaded, whole
+  within 0.2 % (its mat aside), scaled and never cut (`object-fit: fill`, no box around it clipping it, no corner
+  rounding the picture), nothing altering it, at least 120 px wide; no owners, no promotion and no «designed» words in
+  it; «Conozca su historia» opens the tribute; the sitemap entry. New G11, on touch phones of 320, 360, 375 and 390 px
+  (and 320 and 375 px with DejaVu forced), both languages: the card fits the screen, no box and no line of text outside
+  it, the photograph beside «Homenaje» and the title, at most 480 px high, the button at least 44 px for a finger with
+  its arrow at least 3 px from the words, the dot never starting a line, the photograph whole. New G12: from 561 to
+  1000 px (every 13 px, with the web fonts' fallback and with DejaVu, both languages) the dot only between name and
+  title on one line; at 320 × 568, 640 × 280, 740 × 300, 568 × 320, 844 × 390 and 1280 × 400, scrolled through, every
+  section of the home page appears, the card included. G9's no-sole-designer check reads the card. Each new check fails
+  on a broken copy of the home page: the card moved above the timeline; the photograph cropped by `object-fit`, by its
+  frame (`overflow:hidden`) or by rounded corners; a word changed; owners added; the phone layout removed; the card under
+  the thread three ways (no `z-index`, `position:static`, `#story{isolation:isolate}`); a title or line that does not
+  wrap; the published reveal; the dot rule removed; the arrow's space instead of its margin.
+- **Independent review (3 reviewers: the page, the words and the owner's rules, the tests; each finding checked by a
+  skeptic):** the words: nothing found. Confirmed and fixed: «La historia» (and «Menú») never appearing on short screens
+  (above); on touch screens the arrow glued to «Conozca su historia» (the button is a flex box there, which drops the
+  space: now a margin); between 561 and about 736 px the dot starting the line of «Un hombre y sus orquídeas» (now one
+  line only above 900 px); G7's thread check comparing the declared `z-index` numbers instead of what is painted.
+  Rejected as no defect, but the tests were hardened all the same: crops by the frame or by rounded corners (and the
+  phone's 1 px of corner rounding inside a 3 px mat, removed: the corners now match the mat), text running out of its
+  box. Rejected: the gold «Homenaje» label's contrast on the cream panel (2.93 : 1), the site's existing small-label
+  colour (as `.fcard .fk`, `.gcard .gk`; D-048 left it to the owner), not changed here.
+- **Baseline:** `v2026.11.09-1` (the tribute, D-068) was published by the owner, so `tests/pantallas/BASE` moves to it
+  (`c5e9590`) and `no-tocar.sh` lists only this version's files: NEW none; CHANGED `website/index.html`,
+  `website/lang.js`. Everything else under `website/` (the tribute page, its portrait and the sitemap included), every
+  migration and `pages.yml` stay byte for byte the published release; checked to fail with one byte added to
+  `gabriel-barboza.html`. `tests/rehearsal/LIVE_PAGES` is not moved (D-067's post-activation record).
+- **Found in passing, not changed:** on phones the published home page's bar is 108 px tall in Spanish («Planee su
+  visita» on three lines in a tall button) and at 320–360 px its ES/EN switch ends about 36 px past the screen's right
+  edge (measured the same on v2026.11.09-1 and on this version): the tribute page's bar had the same problem and was
+  fixed in D-068; for the home page, a separate change if the owner wants it. And a test that depends on the hour:
+  browser 080 (the POS taking sales offline, not touched here) dates its queued sales «15 minutes ago», which in the
+  first 15 minutes after midnight in Costa Rica is yesterday, so five of its cases fail from 00:00 to 00:15 (as they did
+  in this version's full run, at 05:59–06:15 UTC, and the same on the published pages); from 00:16 it passed 10 of 10.
+  The tests' fixture, not the POS: a separate change.
+- **Not done (owner):** approving the card from the screenshots, then publishing (E-45). No migration, nothing in the
+  database, no staff page touched.
