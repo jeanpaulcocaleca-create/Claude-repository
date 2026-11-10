@@ -171,10 +171,15 @@ module.exports.tests = [
     run: async ({ browser }) => {
       /* page.css clips the page sideways (html,body overflow-x), so a too-wide box would not scroll: it would be cut off.
          So every box is measured: inside the screen, and inside the card (its padding) that holds it */
-      for (const width of [320, 360, 375]) for (const lang of ['es', 'en']) {
+      /* and with wide fallback fonts forced (DejaVu, the default on GitHub's runner: there the bar did not fit at 320 px
+         while this machine's narrower fallback fit; a phone whose web fonts do not load is in the same case) */
+      const WIDE = 'body,body *:not(h1):not(h2):not(h3):not(b):not(.epithet):not(.destacado):not(.pull){font-family:"DejaVu Sans",sans-serif !important}' +
+                   'h1,h2,h3,b,.epithet,.destacado,.pull{font-family:"DejaVu Serif",serif !important}';
+      for (const fonts of ['default', 'wide']) for (const width of [320, 360, 375]) for (const lang of ['es', 'en']) {
         const ctx = await browser.newContext({ viewport: { width, height: 740 }, isMobile: true, hasTouch: true,
                                                locale: lang === 'es' ? 'es-CR' : 'en-US', timezoneId: 'America/Costa_Rica' });
         const pg = await open(browser, { context: ctx, lang });
+        if (fonts === 'wide') { await pg.addStyleTag({ content: WIDE }); await pg.evaluate(() => window.dispatchEvent(new Event('resize'))); await pg.waitForTimeout(100); }
         const m = await pg.evaluate(() => {
           const r = document.querySelector('#main > [data-l="' + document.documentElement.getAttribute('data-lang') + '"]');
           const box = (e) => e.getBoundingClientRect(), name = (e) => e.tagName + '.' + String(e.className).trim();
@@ -188,7 +193,7 @@ module.exports.tests = [
           const fig = box(r.querySelector('.portrait')), h1 = box(r.querySelector('h1')), nav = box(document.getElementById('nav'));
           return { wide, spill, figTop: fig.top, h1Top: h1.top, figW: fig.width, nav: nav.height, heroTop: box(r.querySelector('.hero')).top };
         });
-        const at = lang + ' at ' + width + ' px';
+        const at = lang + ' at ' + width + ' px, ' + fonts + ' fonts';
         assert.deepStrictEqual(m.wide, [], at + ': nothing wider than the screen');
         assert.deepStrictEqual(m.spill, [], at + ': nothing outside its card');
         assert.ok(m.nav <= 80, at + ': the bar stays on one line (' + m.nav + ' px)');

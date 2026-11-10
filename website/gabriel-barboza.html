@@ -141,8 +141,12 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
 /* the bar as on the home page: page.css's .cta (the call-to-action box) also gives the bar's «Plan your visit» its
    2.8rem top margin, which makes the bar twice as tall on the guide pages; not here */
 #nav .navlinks a.cta{margin:0}
-/* phones (the plaque's QR): the bar stays on one line, as on a wider screen */
-@media(max-width:480px){nav#nav{padding:.6rem 1rem}.navlogo span{display:none}.navlinks a.cta{white-space:nowrap;padding:.5em .9em}}
+/* phones (the plaque's QR): the bar stays one row and inside the screen, whatever fonts the phone has (with wide
+   fallback fonts, e.g. DejaVu, «Planee su visita» and the ES/EN switch did not fit at 320-340 px) */
+@media(max-width:480px){nav#nav{padding:.6rem 1rem;gap:.6rem}.navlogo{min-width:0}.navlogo span{display:none}
+  .navlinks{gap:.5rem;flex:none}.navlinks a.cta{white-space:nowrap;padding:.5em .9em}}
+@media(max-width:380px){nav#nav{padding:.55rem .75rem}.navlogo b{font-size:.9rem}
+  .navlinks a.cta{white-space:normal;text-align:center;line-height:1.15;font-size:.8rem;padding:.45em .75em;max-width:7.5rem}}
 /* printed: dark text on white (browsers drop backgrounds), his photograph kept */
 @media print{.chips{display:none}.hero{background:#fff;color:#000}
   .hero .kicker,.hero h1,.hero .epithet,.hero .destacado,.hero .lede,.portrait figcaption{color:#000}}

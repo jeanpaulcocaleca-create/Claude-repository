@@ -3612,6 +3612,14 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   or link and the sections in order; the photograph's bytes, served as they are, and at 320, 375 and 1280 px in both
   languages shown whole within 0.2 % with nothing altering it; the QR address). Checked that G9 fails on a copy of the
   page with «junto a sus dueños» put back, and on one with the 3 px crop put back.
+- **GitHub «Tests» red on `1b3af8f` (run #232), fixed:** browser 420 G6 at 320 px in Spanish: the bar's ES/EN switch
+  ran past the screen's edge. GitHub's runner falls back to the wide DejaVu fonts (the tests block the web fonts),
+  where «Planee su visita» (kept on one line on phones) and the switch did not fit at 320-340 px; this machine's
+  narrower fallback fit, so the local runs passed. A phone whose web fonts do not load is in the same case, so the page
+  is fixed, not the test: under 480 px the logo can shrink and the bar's gaps are smaller; under 380 px the button may
+  take two lines in a smaller letter. G6 now also runs every width with DejaVu forced: it fails on `1b3af8f`'s page as
+  GitHub did and passes on the fixed one; the bar measured 62-65 px from 320 to 375 px with the web fonts, this
+  machine's fallback and DejaVu.
 - **Second independent review (of the owner's adjustments; 3 reviewers, each finding checked by a skeptic):** the text
   outside the owner's points unchanged and the English mirroring the Spanish (no finding). Confirmed and fixed: the
   café's own voice left in «Historia de la casa» / «nuestra casa» / «our house»; the portrait still trimmed about 3 px
