@@ -612,9 +612,11 @@
     'Peace. Simplicity. Stewardship. Community.': 'Paz. Sencillez. Cuidado. Comunidad.',
     'The jewel of the cloud forest, and our neighbor.': 'La joya del bosque nuboso, y nuestro vecino.',
     'Tribute': 'Homenaje',
-    "Hanging Garden is proud to have had Don Gabriel's help in decorating our garden.":
-      'Hanging Garden se enorgullece de haber contado con la ayuda de don\u00a0Gabriel en la decoración de nuestro jardín.',
+    'Don Gabriel Barboza Villalobos left a special mark on our garden':
+      'Don\u00a0Gabriel Barboza Villalobos dejó una huella especial en nuestro jardín',
     'One man and his orchids': 'Un hombre y sus orquídeas',
+    'He contributed his knowledge, plants and orchids to the decoration of the garden.':
+      'Contribuyó con sus conocimientos, plantas y orquídeas a la decoración del jardín.',
     'His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.':
       'Su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín.',
     'Discover his story': 'Conozca su historia',

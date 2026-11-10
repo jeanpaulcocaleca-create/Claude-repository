@@ -320,8 +320,25 @@ nav.on-video .navlinks a{color:#F6EFE3;text-shadow:var(--tshadow)}
 nav:not(.on-video) .navlinks a{color:var(--ink)}
 .navlinks a.cta{background:var(--accent);color:#fff !important;text-shadow:none;padding:.5em 1.05em;border-radius:99px;transition:background .3s var(--ease)}
 .navlinks a.cta:hover{background:var(--accent-hover)}
-@media(max-width:720px){.navlinks a:not(.cta){display:none}}
+@media(max-width:720px){.navlinks a:not(.cta){display:none}.navlinks{gap:.7rem}}
 @media(pointer:coarse){.navlinks a{min-height:44px;display:inline-flex;align-items:center;justify-content:center}}
+/* phones: the bar stays one row and inside the screen, whatever fonts the phone has, as on the tribute page (D-068).
+   It was 108 px tall in Spanish («Planee su visita» on three lines) and at 320-360 px the ES/EN switch ran past the
+   screen's edge (D-069) */
+/* the bar keeps one row inside the screen with whatever fonts the device has (D-069). Its links never wrap; what does
+   not fit is dropped by the page's script (the classes below), in this order, and comes back when it fits again: the
+   logo's small line «Café · Monteverde», then «Ask us» (the chat button stays at the bottom corner), then «Gallery» and
+   «Our coffee». Menu, Story, «Plan your visit» and the ES/EN switch stay; on phones every link but «Plan your visit»,
+   as before. The whole bar needs about 900–1110 px depending on the fonts and the language */
+.navlinks a{white-space:nowrap}
+#nav.drop-span .navlogo span{display:none}
+#nav.drop-ask #chatNavOpen{display:none}
+#nav.drop-more .navlinks a[href="#galeria"],#nav.drop-more .navlinks a[href="coffee.html"]{display:none}
+@media(min-width:721px) and (max-width:1179px){.navlinks{gap:.9rem}}
+@media(max-width:480px){#nav{padding:.6rem 1rem;gap:.6rem}.navlogo{min-width:0}.navlogo span{display:none}
+  .navlinks{gap:.5rem;flex:none}.navlinks a.cta{padding:.5em .9em}}
+@media(max-width:380px){#nav{padding:.55rem .75rem}.navlogo b{font-size:.9rem}
+  .navlinks a.cta{white-space:normal;text-align:center;line-height:1.15;font-size:.8rem;padding:.45em .75em;max-width:7.5rem}}
 
 /* ===================== HERO (film) ===================== */
 .hero{position:relative;height:100vh;height:100svh;min-height:520px;overflow:hidden;background:#241a10}
@@ -407,27 +424,25 @@ section .lede{max-width:58ch;color:var(--text-secondary);font-size:1.08rem}
 .gbtext{min-width:0}
 .gbtext .kicker{color:var(--gold);margin:0 0 .35rem}
 .gbtext h3{font-size:clamp(1.15rem,2.2vw,1.38rem);line-height:1.3;color:var(--accent);margin:0;text-wrap:balance}
-.gbname{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .6rem;margin:.55rem 0 .45rem}
-.gbname strong{font-weight:600;color:var(--ink)}
-.gbname em{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:500;color:var(--text-secondary)}
-.gbname em::before{content:'·';font-style:normal;color:var(--gold);margin-right:.6rem}
-/* name and title on one line only where both fit (wide screens); else one under the other, so the dot never starts a line */
-@media(max-width:900px){.gbname{flex-direction:column;gap:.05rem}.gbname em::before{content:none}}
-.gbline{margin:0 0 .9rem;font-size:.96rem;line-height:1.55;max-width:56ch}
+.gbtitle{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:500;font-size:1.05rem;color:var(--text-secondary);margin:.3rem 0 .55rem}
+.gbwhat{margin:0 0 .35rem;font-size:.93rem;line-height:1.5;color:var(--text-secondary);max-width:60ch;text-wrap:pretty}
+.gbline{margin:0 0 .9rem;font-size:.96rem;line-height:1.55;max-width:56ch;text-wrap:pretty}
 .gbcta{padding:.6em 1.3em;font-size:.95rem}
 .gbcta .arr{margin-left:.45em}   /* a margin, not a space: a touch screen's button is a flex box, which drops the space */
 /* phones: the photo beside the title, the rest under them, so the card stays short */
-@media(max-width:560px){.gbcard{grid-template-columns:84px minmax(0,1fr);grid-template-areas:"photo kicker" "photo title" "name name" "line line" "cta cta";
+@media(max-width:560px){.gbcard{grid-template-columns:84px minmax(0,1fr);grid-template-areas:"photo kicker" "photo title" "sub sub" "what what" "line line" "cta cta";
     gap:0 .9rem;align-items:start;padding:1.15rem 1.1rem 1.25rem;margin-top:2.6rem}
   .gbtext{display:contents}
   .gbphoto{grid-area:photo;width:84px}
   .gbphoto img{border-width:3px;border-radius:3px}
   .gbtext .kicker{grid-area:kicker}
   .gbtext h3{grid-area:title;font-size:1.06rem}
-  .gbname{grid-area:name;margin:.85rem 0 .4rem}
+  .gbtitle{grid-area:sub;margin:.6rem 0 .3rem}
+  .gbwhat{grid-area:what;font-size:.9rem}
   .gbline{grid-area:line;font-size:.93rem}
   .gbcta{grid-area:cta;justify-self:start}}
-@media(max-width:360px){.gbcard{grid-template-columns:72px minmax(0,1fr);gap:0 .75rem;padding:1rem .95rem 1.1rem}.gbphoto{width:72px}.gbtext h3{font-size:1rem}}
+@media(max-width:360px){.gbcard{grid-template-columns:72px minmax(0,1fr);gap:0 .75rem;padding:1rem .95rem 1.1rem}.gbphoto{width:72px}.gbtext h3{font-size:1rem}
+  .gbwhat{font-size:.87rem}.gbline{font-size:.9rem;margin-bottom:.8rem}}
 .values{margin-top:3rem;font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(1.2rem,2.6vw,1.8rem);color:var(--accent);text-align:center;letter-spacing:.02em}
 .ornament{color:var(--accent-muted);display:block;margin:2.5rem auto 0;width:min(320px,70%)}
 .ornament path{stroke:currentColor;fill:none;stroke-width:1.5;stroke-dasharray:600;stroke-dashoffset:var(--draw,600)}
@@ -621,6 +636,33 @@ footer .flinks a{margin:0 .2rem}
     <a class="cta" href="#visit">Plan your visit</a>
   </div>
 </nav>
+<script>
+/* the bar keeps one row inside the screen (D-069): measured, not guessed from the width, since the room it needs
+   depends on the fonts the device has and on the language; what does not fit is dropped in order (see the CSS) and
+   comes back when it fits again. Here, right after the bar, so it is fitted before the first paint; again when its
+   content changes (lang.js adds the ES/EN switch and translates it), on resizing, when the fonts arrive and when the
+   language changes */
+(function(){
+  var nav=document.getElementById('nav'); if(!nav) return;
+  var steps=['drop-span','drop-ask','drop-more'], links=nav.querySelector('.navlinks'), logo=nav.querySelector('.navlogo b'), queued=false;
+  function fits(){
+    var r=document.createRange(); r.selectNodeContents(logo);
+    return nav.scrollWidth<=nav.clientWidth+1 && r.getClientRects().length<=1;
+  }
+  function fit(){
+    queued=false;
+    steps.forEach(function(c){nav.classList.remove(c)});
+    for(var i=0;i<steps.length&&!fits();i++) nav.classList.add(steps[i]);
+  }
+  function later(){ if(!queued){queued=true;requestAnimationFrame(fit);} }
+  fit();
+  if(window.MutationObserver) new MutationObserver(fit).observe(nav,{childList:true,subtree:true,characterData:true});
+  if(window.ResizeObserver){ var ro=new ResizeObserver(later); ro.observe(nav); ro.observe(links); }
+  addEventListener('resize',later);
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(later);
+  document.addEventListener('hg-lang',later);
+})();
+</script>
 
 <!-- ===== FILM HERO =====
      The film plays once on its own. The final still (assets/hero-ending.jpg) fades over the last frame,
@@ -800,8 +842,9 @@ footer .flinks a{margin:0 .2rem}
       <figure class="gbphoto"><img src="assets/gabriel-barboza.jpg" width="1110" height="1307" loading="lazy" alt="Portrait of Gabriel Barboza smiling, wearing a knitted wool cap and a grey T-shirt, in front of the green foliage of Monteverde"></figure>
       <div class="gbtext">
         <p class="kicker mono">Tribute</p>
-        <h3>Hanging Garden is proud to have had Don&nbsp;Gabriel's help in decorating our garden.</h3>
-        <p class="gbname"><strong>Gabriel Barboza Villalobos</strong><em>One man and his orchids</em></p>
+        <h3>Don&nbsp;Gabriel Barboza Villalobos left a special mark on our garden</h3>
+        <p class="gbtitle">One man and his orchids</p>
+        <p class="gbwhat">He contributed his knowledge, plants and orchids to the decoration of the garden.</p>
         <p class="gbline">His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.</p>
         <a class="btn gbcta" href="gabriel-barboza">Discover his story<span class="arr" aria-hidden="true">→</span></a>
       </div>
