@@ -3600,7 +3600,7 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   «Plan your visit» button (class `cta`) its 2.8rem top margin, so the guide pages' bar is about 121 px tall instead of
   the home page's 60 px. The tribute page cancels it for itself (`#nav .navlinks a.cta{margin:0}`) and keeps the bar on
   one line on phones; `page.css` and the guide pages stay as published (a separate change if the owner wants it).
-- **Tests:** browser spec 420 (9): the address answers 200 with no redirect, Spanish and English complete with the same
+- **Tests:** browser spec 420 (10): the address answers 200 with no redirect, Spanish and English complete with the same
   sections, years, species and links, the owner's title in both, description, canonical, og image and structured data,
   the portrait loads with its description, the device language when nothing is chosen, the switch without reloading and
   remembered, the browser that refuses storage (page and switch agree), every ruled-out claim absent in both languages
@@ -3658,6 +3658,34 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   owner's review and authorization; (6) the address stays `https://hanginggardencafe.com/gabriel-barboza` (both QR
   images of the approved tribute decode to exactly that address); (7) nothing published, no tag: the owner reviews the
   final Spanish and English first.
+- **The owner's approval and final adjustments (2026-11-10):** the design approved in Spanish and English, with:
+  (1) the garden told as it was: «Don Gabriel Barboza Villalobos contribuyó con su conocimiento y generosidad a la
+  decoración del jardín de Hanging Garden Café, ayudando a incorporar plantas y orquídeas que hoy forman parte de este
+  espacio. Su amor por la naturaleza dejó una huella que continúa floreciendo entre nosotros.» (English: «Don Gabriel
+  Barboza Villalobos contributed his knowledge and generosity to the decoration of the Hanging Garden Café garden,
+  helping to bring in plants and orchids that are part of this space today. His love of nature left a mark that
+  continues to bloom among us.»), in place of «Gabriel diseñó y decoró el jardín… y lo pobló de guarias», «las plantas
+  que él dispuso», «entre sus guarias» and the pull quote «usted está en su obra»; the description, og and structured
+  data now say «su huella en el jardín de Hanging Garden Café» (they said «el jardín de guarias que diseñó»); nothing on
+  the page or the home line says he alone designed or decorated the garden or set its plants (browser 420 G9 checks it);
+  (2) «Logros documentados» in chronological order, one list read straight down, one year per achievement: 1994,
+  1995 (the first orchid named for him), 2003 (explorer), 2003 (the *Orchids* profile), 2004 (the second orchid),
+  2005, 2006, 2019 (Selby); the two items that spanned years («Dos orquídeas llevan su nombre 1995 · 2004» and
+  «Reconocimiento internacional 2003 · 2019») split into their years so the list is strictly in order (a first draft
+  kept the orchids together and put 2004 before 2003: caught by the final check), every date, datum and reference
+  kept, no new achievement added (the timeline below keeps the year-by-year detail); (3) the approved design, the photograph, the history, species, recognitions and sources, both
+  languages, no owners, no promotion and the main line all kept; (4) the physical plaque made brief and elegant:
+  «Homenaje», his name, the dedication (the main line, in guillemets as the owner quoted it) and the QR with «Conozca su historia / Discover his story» and
+  the address under it, 30 × 40 cm (`docs/placa-gabriel-barboza/`, made by `tools/placa/build.js`); the tribute's
+  first plaque (with the story, the photograph and «Este jardín lo diseñó y lo decoró él… en colaboración con los
+  dueños») is not used; the QR remade at level H with the standard 4-module quiet zone, dark green on white (about
+  13 : 1), 72 mm on the plaque; read back with an independent reader (jsQR) as exactly
+  `https://hanginggardencafe.com/gabriel-barboza` from the SVG and the PNG at 100–1176 px and from the whole plaque at
+  600–1400 px; browser 420 G10 checks on every run that the three files hold exactly that code (a single module changed
+  fails it); (5) all in one change, tested in Spanish, English, small phones, links, photograph, QR and the no-touch
+  check; nothing in the POS, inventory, accounting, staff or database, no migration; (6) content and design final;
+  publication not yet authorized: no tag, no «Publish website»; the owner publishes later by hand, keeping a recovery
+  copy of the current site (E-44).
 - **Baseline:** `v2026.11.08-1` (Proveedores, D-067) was published by the owner on 2026-11-09 03:17 UTC («Publish
   website» run #59, gh-pages `005fab4`, pages run #55), so `tests/pantallas/BASE` moves to it (`6b01e47`) and
   `no-tocar.sh` lists only this version's files: NEW `website/gabriel-barboza.html`, `website/assets/gabriel-barboza.jpg`;

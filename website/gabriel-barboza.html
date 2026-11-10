@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gabriel Barboza Villalobos — El hombre de las orquídeas de Monteverde | Hanging Garden Café</title>
-<meta name="description" content="La historia de Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde: coautor científico, dos orquídeas con su nombre y el jardín de guarias que diseñó en Hanging Garden Café.">
+<meta name="description" content="La historia de Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde: coautor científico, dos orquídeas con su nombre y su huella en el jardín de Hanging Garden Café.">
 <link rel="canonical" href="https://hanginggardencafe.com/gabriel-barboza">
 <meta name="theme-color" content="#F6F1E2">
 <link rel="icon" type="image/png" href="assets/logo-512.png">
 <link rel="apple-touch-icon" href="assets/logo-512.png">
 <meta property="og:title" content="Gabriel Barboza Villalobos — El hombre de las orquídeas de Monteverde">
-<meta property="og:description" content="La historia de Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde, y el jardín de guarias que diseñó en Hanging Garden Café.">
+<meta property="og:description" content="La historia de Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde, y su huella en el jardín de Hanging Garden Café.">
 <meta property="og:url" content="https://hanginggardencafe.com/gabriel-barboza">
 <meta property="og:image" content="https://hanginggardencafe.com/assets/gabriel-barboza.jpg">
 <meta property="og:image:alt" content="Retrato de Gabriel Barboza sonriendo, con gorro de lana tejido y camiseta gris, frente al follaje verde de Monteverde">
@@ -37,7 +37,7 @@
  "@context": "https://schema.org",
  "@type": "Article",
  "headline": "Gabriel Barboza Villalobos — El hombre de las orquídeas de Monteverde",
- "description": "La historia de Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde, y el jardín de guarias que diseñó en Hanging Garden Café.",
+ "description": "La historia de Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde, y su huella en el jardín de Hanging Garden Café.",
  "inLanguage": ["es", "en"],
  "image": "https://hanginggardencafe.com/assets/gabriel-barboza.jpg",
  "mainEntityOfPage": "https://hanginggardencafe.com/gabriel-barboza",
@@ -98,14 +98,15 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
   border-left:3px solid var(--gold);padding:.2rem 0 .2rem 1.2rem;margin:2rem 0 .4rem;max-width:44ch}
 .pull small{display:block;font-family:'Figtree',system-ui,sans-serif;font-style:normal;font-size:.85rem;color:var(--text-secondary);margin-top:.6rem}
 
-/* why this tribute: his garden here, set apart from the sourced facts */
+/* why this tribute: his mark on this garden, set apart from the sourced facts */
 .casa{background:var(--panel);border:1px solid var(--accent-muted);border-radius:18px;padding:1.8rem clamp(1.2rem,4vw,2.4rem);max-width:820px}
 .casa p{max-width:64ch;font-size:1.06rem}
-.casa .pull{margin-top:1.2rem}
+.casa .jardin{font-family:'Playfair Display',Georgia,serif;font-size:clamp(1.15rem,2.4vw,1.35rem);line-height:1.45;color:var(--accent)}
 .casa .nota{font-size:.88rem;color:var(--text-secondary);border-top:1px dotted var(--accent-muted);padding-top:.9rem;margin:1.2rem 0 0}
 
 /* achievements */
-.logros{display:grid;grid-template-columns:1fr 1fr;gap:0 2.6rem}
+/* one list, oldest first, one year per achievement, read straight down (D-068: the owner asked for chronological order) */
+.logros{list-style:none;margin:0;padding:0;max-width:820px;border-bottom:1px solid var(--accent-muted)}
 .logro{display:grid;grid-template-columns:3.4rem 1fr;gap:1rem;padding:1.3rem 0;border-top:1px solid var(--accent-muted)}
 .logro .yr{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:1.2rem;color:var(--gold);line-height:1.2}
 .logro h3{margin:0 0 .35rem;font-family:'Figtree',system-ui,sans-serif;font-weight:600;font-size:1.02rem}
@@ -135,7 +136,7 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
 @media(max-width:860px){
   .hero .wrap{grid-template-columns:1fr;gap:2rem;padding-top:2.4rem}
   .portrait{order:-1}
-  .cols,.logros,.plates{grid-template-columns:1fr}
+  .cols,.plates{grid-template-columns:1fr}
   .tribute section{padding-top:2.4rem}
 }
 /* the bar as on the home page: page.css's .cta (the call-to-action box) also gives the bar's «Plan your visit» its
@@ -201,8 +202,8 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
     <div class="wrap">
       <h2>Por qué este homenaje</h2>
       <div class="casa">
-        <p>Este homenaje tiene una raíz cercana, y es la razón de que exista: <strong>Gabriel diseñó y decoró el jardín de Hanging Garden Café y lo pobló de guarias</strong> — la orquídea morada que es la flor nacional de Costa Rica. Quien hoy se sienta en este jardín está rodeado de las plantas que él dispuso. Por eso su placa vive aquí, entre sus guarias, y por eso esta página cuenta su historia.</p>
-        <p class="pull">Al sentarse entre estas plantas, usted está en su obra.</p>
+        <p class="jardin">Don Gabriel Barboza Villalobos contribuyó con su conocimiento y generosidad a la decoración del jardín de Hanging Garden Café, ayudando a incorporar plantas y orquídeas que hoy forman parte de este espacio. Su amor por la naturaleza dejó una huella que continúa floreciendo entre nosotros.</p>
+        <p>Por eso su placa vive aquí, y por eso esta página cuenta su historia.</p>
         <p class="nota">Lo que sigue en «Su historia» procede de las publicaciones científicas e institucionales citadas en «Fuentes».</p>
       </div>
     </div>
@@ -234,14 +235,16 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
     <div class="wrap">
       <h2>Logros documentados</h2>
       <p class="intro">Cada hecho de esta lista está respaldado por una publicación científica o institucional identificada en la sección de fuentes.</p>
-      <div class="logros">
-        <div class="logro"><div class="yr">1994</div><div><h3>Ilustrador botánico y coautor científico</h3><p>Como pasante de Marie Selby Botanical Gardens, ilustró las nuevas <i>Maxillaria</i> de Costa Rica de John T. Atwood (<i>Lindleyana</i> 9(4)) y co-describió con él <i>Maxillaria monteverdensis</i>.</p></div></div>
-        <div class="logro"><div class="yr">1995<br>2004</div><div><h3>Dos orquídeas llevan su nombre</h3><p><i>Stellilabium barbozae</i> (1995) y <i>Prosthechea barbozae</i> (2004) fueron nombradas en su honor — la segunda, a partir de una planta que él mismo recolectó y cultivó en Monteverde.</p></div></div>
-        <div class="logro"><div class="yr">2005</div><div><h3>Coautor de un descubrimiento notable</h3><p>Con Mario A. Blanco demostró en <i>Annals of Botany</i> la polinización por pseudocopulación en <i>Lepanthes glicensteinii</i> — un fenómeno que él observó primero en su propio jardín.</p></div></div>
-        <div class="logro"><div class="yr">2003</div><div><h3>Explorador de la flora de Monteverde</h3><p>Su recolecta dio a Costa Rica el primer registro de <i>Stellilabium fortunae</i>, hasta entonces considerada endémica de Panamá, y aportó el material tipo del híbrido natural <i>Oerstedella</i> ×<i>monteverdensis</i>.</p></div></div>
-        <div class="logro"><div class="yr">2006</div><div><h3>Una colección viva excepcional</h3><p>Su empresa Orquídeas de Monteverde reunió más de 450 especies, en su mayoría miniaturas, abiertas al público en recorridos educativos guiados por él.</p></div></div>
-        <div class="logro"><div class="yr">2003<br>2019</div><div><h3>Reconocimiento internacional</h3><p>La revista <i>Orchids</i> de la American Orchid Society le dedicó en 2003 el perfil «One Man and His Orchids», y Selby Gardens lo reconoció en 2019 como ex pasante y experto en orquídeas miniatura.</p></div></div>
-      </div>
+      <ol class="logros">
+        <li class="logro"><div class="yr">1994</div><div><h3>Ilustrador botánico y coautor científico</h3><p>Como pasante de Marie Selby Botanical Gardens, ilustró las nuevas <i>Maxillaria</i> de Costa Rica de John T. Atwood (<i>Lindleyana</i> 9(4)) y co-describió con él <i>Maxillaria monteverdensis</i>.</p></div></li>
+        <li class="logro"><div class="yr">1995</div><div><h3>La primera orquídea con su nombre</h3><p><i>Stellilabium barbozae</i> fue nombrada en su honor.</p></div></li>
+        <li class="logro"><div class="yr">2003</div><div><h3>Explorador de la flora de Monteverde</h3><p>Su recolecta dio a Costa Rica el primer registro de <i>Stellilabium fortunae</i>, hasta entonces considerada endémica de Panamá, y aportó el material tipo del híbrido natural <i>Oerstedella</i> ×<i>monteverdensis</i>.</p></div></li>
+        <li class="logro"><div class="yr">2003</div><div><h3>Reconocimiento internacional</h3><p>La revista <i>Orchids</i> de la American Orchid Society le dedicó el perfil «One Man and His Orchids».</p></div></li>
+        <li class="logro"><div class="yr">2004</div><div><h3>Una segunda orquídea con su nombre</h3><p><i>Prosthechea barbozae</i> fue nombrada en su honor, a partir de una planta que él mismo recolectó y cultivó en Monteverde.</p></div></li>
+        <li class="logro"><div class="yr">2005</div><div><h3>Coautor de un descubrimiento notable</h3><p>Con Mario A. Blanco demostró en <i>Annals of Botany</i> la polinización por pseudocopulación en <i>Lepanthes glicensteinii</i> — un fenómeno que él observó primero en su propio jardín.</p></div></li>
+        <li class="logro"><div class="yr">2006</div><div><h3>Una colección viva excepcional</h3><p>Su empresa Orquídeas de Monteverde reunió más de 450 especies, en su mayoría miniaturas, abiertas al público en recorridos educativos guiados por él.</p></div></li>
+        <li class="logro"><div class="yr">2019</div><div><h3>Reconocido por Selby Gardens</h3><p>Selby Gardens lo reconoció como ex pasante y experto en orquídeas miniatura.</p></div></li>
+      </ol>
     </div>
   </section>
 
@@ -365,8 +368,8 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
     <div class="wrap">
       <h2>Why this tribute</h2>
       <div class="casa">
-        <p>This tribute has a close root, and it is the reason it exists: <strong>Gabriel designed and decorated the garden of Hanging Garden Café and filled it with guarias</strong> — the purple orchid that is Costa Rica’s national flower. Anyone who sits in this garden today is surrounded by the plants he arranged. That is why his plaque lives here, among his guarias, and why this page tells his story.</p>
-        <p class="pull">Sitting among these plants, you are in his work.</p>
+        <p class="jardin">Don Gabriel Barboza Villalobos contributed his knowledge and generosity to the decoration of the Hanging Garden Café garden, helping to bring in plants and orchids that are part of this space today. His love of nature left a mark that continues to bloom among us.</p>
+        <p>That is why his plaque lives here, and why this page tells his story.</p>
         <p class="nota">What follows in “His story” comes from the scientific and institutional publications listed under “Sources”.</p>
       </div>
     </div>
@@ -398,14 +401,16 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
     <div class="wrap">
       <h2>Documented achievements</h2>
       <p class="intro">Every fact on this list is backed by a scientific or institutional publication identified in the sources section.</p>
-      <div class="logros">
-        <div class="logro"><div class="yr">1994</div><div><h3>Botanical illustrator and scientific co-author</h3><p>As an intern at Marie Selby Botanical Gardens, he illustrated John T. Atwood’s new Costa Rican <i>Maxillaria</i> (<i>Lindleyana</i> 9(4)) and co-described <i>Maxillaria monteverdensis</i> with him.</p></div></div>
-        <div class="logro"><div class="yr">1995<br>2004</div><div><h3>Two orchids bear his name</h3><p><i>Stellilabium barbozae</i> (1995) and <i>Prosthechea barbozae</i> (2004) were named in his honour — the second from a plant he himself collected and grew in Monteverde.</p></div></div>
-        <div class="logro"><div class="yr">2005</div><div><h3>Co-author of a remarkable discovery</h3><p>With Mario A. Blanco he demonstrated in <i>Annals of Botany</i> pollination by pseudocopulation in <i>Lepanthes glicensteinii</i> — a phenomenon he first observed in his own garden.</p></div></div>
-        <div class="logro"><div class="yr">2003</div><div><h3>Explorer of Monteverde’s flora</h3><p>His collecting gave Costa Rica its first record of <i>Stellilabium fortunae</i>, until then considered endemic to Panama, and provided the type material of the natural hybrid <i>Oerstedella</i> ×<i>monteverdensis</i>.</p></div></div>
-        <div class="logro"><div class="yr">2006</div><div><h3>An exceptional living collection</h3><p>His business, Orquídeas de Monteverde, gathered more than 450 species, most of them miniatures, open to the public on educational tours he guided himself.</p></div></div>
-        <div class="logro"><div class="yr">2003<br>2019</div><div><h3>International recognition</h3><p>The American Orchid Society’s magazine <i>Orchids</i> devoted the profile “One Man and His Orchids” to him in 2003, and Selby Gardens recognised him in 2019 as a former intern and miniature orchid expert.</p></div></div>
-      </div>
+      <ol class="logros">
+        <li class="logro"><div class="yr">1994</div><div><h3>Botanical illustrator and scientific co-author</h3><p>As an intern at Marie Selby Botanical Gardens, he illustrated John T. Atwood’s new Costa Rican <i>Maxillaria</i> (<i>Lindleyana</i> 9(4)) and co-described <i>Maxillaria monteverdensis</i> with him.</p></div></li>
+        <li class="logro"><div class="yr">1995</div><div><h3>The first orchid to bear his name</h3><p><i>Stellilabium barbozae</i> was named in his honour.</p></div></li>
+        <li class="logro"><div class="yr">2003</div><div><h3>Explorer of Monteverde’s flora</h3><p>His collecting gave Costa Rica its first record of <i>Stellilabium fortunae</i>, until then considered endemic to Panama, and provided the type material of the natural hybrid <i>Oerstedella</i> ×<i>monteverdensis</i>.</p></div></li>
+        <li class="logro"><div class="yr">2003</div><div><h3>International recognition</h3><p>The American Orchid Society’s magazine <i>Orchids</i> devoted the profile “One Man and His Orchids” to him.</p></div></li>
+        <li class="logro"><div class="yr">2004</div><div><h3>A second orchid bears his name</h3><p><i>Prosthechea barbozae</i> was named in his honour, from a plant he himself collected and grew in Monteverde.</p></div></li>
+        <li class="logro"><div class="yr">2005</div><div><h3>Co-author of a remarkable discovery</h3><p>With Mario A. Blanco he demonstrated in <i>Annals of Botany</i> pollination by pseudocopulation in <i>Lepanthes glicensteinii</i> — a phenomenon he first observed in his own garden.</p></div></li>
+        <li class="logro"><div class="yr">2006</div><div><h3>An exceptional living collection</h3><p>His business, Orquídeas de Monteverde, gathered more than 450 species, most of them miniatures, open to the public on educational tours he guided himself.</p></div></li>
+        <li class="logro"><div class="yr">2019</div><div><h3>Recognised by Selby Gardens</h3><p>Selby Gardens recognised him as a former intern and miniature orchid expert.</p></div></li>
+      </ol>
     </div>
   </section>
 

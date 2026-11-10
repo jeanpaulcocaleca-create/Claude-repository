@@ -20,6 +20,13 @@ const HTML = fs.readFileSync(path.join(ROOT, 'website/gabriel-barboza.html'), 'u
 /* the owner's highlighted line (2026-11-09) and its English */
 const LINE_ES = 'Su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín.';
 const LINE_EN = 'His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.';
+/* the garden as the owner put it (2026-11-10): he contributed to its decoration and helped bring in plants and orchids;
+   never that he alone designed or decorated it, or set all its plants */
+const GARDEN_ES = 'Don Gabriel Barboza Villalobos contribuyó con su conocimiento y generosidad a la decoración del jardín de Hanging Garden Café, ayudando a incorporar plantas y orquídeas que hoy forman parte de este espacio. Su amor por la naturaleza dejó una huella que continúa floreciendo entre nosotros.';
+const GARDEN_EN = 'Don Gabriel Barboza Villalobos contributed his knowledge and generosity to the decoration of the Hanging Garden Café garden, helping to bring in plants and orchids that are part of this space today. His love of nature left a mark that continues to bloom among us.';
+const SOLE_DESIGNER = /diseñ\p{L}*|design\p{L}*|(él|he) (solo|alone)|(lo|la) decoró|decorated (it|the garden)|pobló|filled it|plantas que él dispuso|plants he arranged|sus guarias|his guarias|en su obra|in his work|creó (el|este) jardín|created (the|this) garden/iu;
+const QR_URL = 'https://hanginggardencafe.com/gabriel-barboza';
+const PLACA = path.join(ROOT, 'docs/placa-gabriel-barboza');
 /* the family's photograph as it came in the approved tribute (sha-256 of website/assets/gabriel-barboza.jpg) */
 const PHOTO_SHA = '148f96732fc065303caf889198c2fa71bf7bdd8f92232d175d74b44fc0c6827d';
 
@@ -96,6 +103,13 @@ module.exports.tests = [
       assert.deepStrictEqual(parity.en, parity.es);
       assert.deepStrictEqual(parity.es.years, ['1994', '1995', '1998', '1999', '2003', '2004', '2005', '2006', '2008', '2019']);
       assert.strictEqual(parity.es.sections, 7);
+      /* «Logros documentados» in chronological order, one year per achievement, in both versions */
+      const order = await pg.evaluate(() => ['es', 'en'].map((l) => [...document.querySelectorAll('#main > [data-l="' + l + '"] .logros > .logro .yr')]
+        .map((y) => [...y.childNodes].filter((t) => t.nodeType === 3).map((t) => t.textContent.trim()).join(' '))));
+      assert.deepStrictEqual(order[0], ['1994', '1995', '2003', '2003', '2004', '2005', '2006', '2019']);
+      assert.deepStrictEqual(order[1], order[0]);
+      const firsts = order[0].map((y) => +y.slice(0, 4));
+      assert.deepStrictEqual(firsts, [...firsts].sort((a, b) => a - b), 'oldest first');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -298,9 +312,87 @@ module.exports.tests = [
         assert.deepStrictEqual(p2.errors, [], at);
         await ctx.close();
       }
+      /* the garden as the owner put it, word for word in Spanish and its English; nowhere that he alone designed or
+         decorated the garden or set all its plants: not in the page's text, attributes or structured data, nor the home line */
+      const garden = await pg.evaluate(() => ['es', 'en'].map((l) => document.querySelector('#main > [data-l="' + l + '"] .casa .jardin').textContent.replace(/\s+/g, ' ').trim()));
+      assert.deepStrictEqual(garden, [GARDEN_ES, GARDEN_EN]);
+      const sole = [m.all, HTML.match(/<head>[\s\S]*<\/head>/)[0]].join(' ').match(SOLE_DESIGNER);
+      assert.ok(!sole, 'nowhere the sole designer of the garden: found «' + (sole && sole[0]) + '»');
+      const home = fs.readFileSync(path.join(ROOT, 'website/index.html'), 'utf8').match(/<p class="tribute part">[\s\S]*?<\/p>/)[0];
+      assert.ok(!SOLE_DESIGNER.test(home), 'the home line claims no design of the garden');
       /* (6) the address the QR opens */
       assert.strictEqual(new URL(pg.url()).pathname, '/gabriel-barboza');
       assert.ok(HTML.includes('<link rel="canonical" href="https://hanginggardencafe.com/gabriel-barboza">'));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
+    name: 'G10: the plaque and its QR: the SVG, the PNG and the plaque carry exactly the code of the page\'s address, dark on light with a quiet zone; the plaque is brief',
+    run: async ({ browser }) => {
+      /* the expected code, made by the same library the café's screens use (qrcode-generator 1.4.4), level H */
+      const qrcode = require('qrcode-generator');
+      const q = qrcode(0, 'H'); q.addData(QR_URL, 'Byte'); q.make();
+      const n = q.getModuleCount(), QUIET = 4, size = n + 2 * QUIET;
+      const want = []; for (let r = 0; r < n; r++) { let row = ''; for (let c = 0; c < n; c++) row += q.isDark(r, c) ? '1' : '0'; want.push(row); }
+      /* the dark modules of an SVG path made of «Mx y hW vH h-W z» rectangles, in a square of `size` modules at (ox, oy) */
+      const fromPath = (d, ox, oy, unit) => {
+        const g = Array.from({ length: n }, () => Array(n).fill('0'));
+        for (const m of d.matchAll(/M([\d.]+) ([\d.]+)h([\d.]+)v([\d.]+)h-[\d.]+z/g)) {
+          const r = Math.round((+m[2] - oy) / unit) - QUIET, c0 = Math.round((+m[1] - ox) / unit) - QUIET, w = Math.round(+m[3] / unit);
+          assert.ok(r >= 0 && r < n && c0 >= 0 && c0 + w <= n, 'a module outside the code: the quiet zone is clear');
+          for (let c = c0; c < c0 + w; c++) g[r][c] = '1';
+        }
+        return g.map((row) => row.join(''));
+      };
+      /* contrast of the ink on the paper (WCAG formula): a phone reads it easily from about 3 : 1, here far more */
+      const lum = (hex) => { const v = hex.replace('#', '').match(/../g).map((x) => { const c = parseInt(x, 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+        return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+
+      /* the QR as SVG */
+      const svg = fs.readFileSync(path.join(PLACA, 'qr-gabriel-barboza.svg'), 'utf8');
+      assert.ok(svg.includes(`viewBox="0 0 ${size} ${size}"`), 'one unit per module, with the 4-module quiet zone');
+      const paperS = svg.match(/<rect width="\d+" height="\d+" fill="(#[0-9a-f]{6})"/i)[1], inkS = svg.match(/<path fill="(#[0-9a-f]{6})" d="([^"]+)"/i);
+      assert.deepStrictEqual(fromPath(inkS[2], 0, 0, 1), want, 'the SVG holds exactly the code of ' + QR_URL);
+      assert.ok(contrast(inkS[1], paperS) >= 7, 'dark ink on light paper (' + contrast(inkS[1], paperS).toFixed(1) + ' : 1)');
+
+      /* the QR as PNG, read pixel by pixel in the browser */
+      const pg = await page(browser, { lang: 'es' });
+      const pngB64 = fs.readFileSync(path.join(PLACA, 'qr-gabriel-barboza.png')).toString('base64');
+      const png = await pg.evaluate(async ([b64, size, n, QUIET]) => {
+        const im = new Image(); im.src = 'data:image/png;base64,' + b64; await im.decode();
+        const cv = document.createElement('canvas'); cv.width = im.width; cv.height = im.height; const x = cv.getContext('2d'); x.drawImage(im, 0, 0);
+        const px = im.width / size, rows = [];
+        const at = (r, c) => x.getImageData(Math.floor((c + 0.5) * px), Math.floor((r + 0.5) * px), 1, 1).data;
+        for (let r = 0; r < n; r++) { let row = ''; for (let c = 0; c < n; c++) { const d = at(r + QUIET, c + QUIET); row += d[0] + d[1] + d[2] < 384 ? '1' : '0'; } rows.push(row); }
+        let quietDark = 0;   /* every module of the 4-module margin, all around */
+        for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (r < QUIET || r >= QUIET + n || c < QUIET || c >= QUIET + n) { const d = at(r, c); if (d[0] + d[1] + d[2] < 384) quietDark++; }
+        const hex = (d) => '#' + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, '0')).join('');
+        let ink = null; for (let r = 0; r < n && !ink; r++) for (let c = 0; c < n && !ink; c++) { const d = at(r + QUIET, c + QUIET); if (d[0] + d[1] + d[2] < 384) ink = hex(d); }
+        return { w: im.width, h: im.height, rows, quietDark, ink, paper: hex(at(0, 0)) };
+      }, [pngB64, size, n, QUIET]);
+      assert.strictEqual(png.w, png.h, 'square');
+      assert.ok(png.w / size >= 10, 'at least 10 pixels per module for print (' + png.w + ' px)');
+      assert.deepStrictEqual(png.rows, want, 'the PNG holds exactly the code of ' + QR_URL);
+      assert.strictEqual(png.quietDark, 0, 'the quiet zone is clear');
+      assert.ok(contrast(png.ink, png.paper) >= 7, 'dark on light (' + contrast(png.ink, png.paper).toFixed(1) + ' : 1)');
+
+      /* the plaque: the same code, at least 5 cm, and brief: his name, the dedication, the invitation and the address */
+      const placa = fs.readFileSync(path.join(PLACA, 'placa-gabriel-barboza.svg'), 'utf8');
+      const box = placa.match(/<g id="qr">\s*<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="[\d.]+" fill="(#[0-9a-f]{6})"\/>\s*<path fill="(#[0-9a-f]{6})" shape-rendering="crispEdges" d="([^"]+)"/i);
+      assert.ok(box, 'the plaque carries the QR');
+      assert.ok(placa.includes('viewBox="0 0 300 400"') && /width="300mm" height="400mm"/.test(placa), '30 × 40 cm');
+      assert.ok(+box[3] >= 50, 'the QR is at least 5 cm wide on the plaque (' + box[3] + ' mm)');
+      assert.deepStrictEqual(fromPath(box[6], +box[1], +box[2], +box[3] / size), want, 'the plaque holds exactly the code of ' + QR_URL);
+      assert.ok(contrast(box[5], box[4]) >= 7, 'dark on light on the plaque');
+      const words = [...placa.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((x) => x[1].replace(/&amp;/g, '&')).join(' ').replace(/\s+/g, ' ').trim();
+      assert.strictEqual(words, 'HOMENAJE Gabriel Barboza Villalobos «' + LINE_ES.replace(/\.$/, '') + '» Conozca su historia / Discover his story hanginggardencafe.com/gabriel-barboza',
+        'the plaque says only: Homenaje, his name, the dedication (the owner\'s line), the invitation and the address');
+      assert.ok(!/Selby|Annals|Lepanthes|450|dueñ|propietari|Basecamp|diseñ|decor/i.test(words), 'no story, no owners, no promotion on the plaque');
+      /* the plaque opens in a browser as an image */
+      const ok = await pg.evaluate(async (b64) => { const im = new Image(); im.src = 'data:image/svg+xml;base64,' + b64; await im.decode(); return im.naturalWidth > 0; },
+        Buffer.from(placa).toString('base64'));
+      assert.ok(ok, 'the plaque file is a valid image');
       assert.deepStrictEqual(pg.errors, []);
     }
   },
