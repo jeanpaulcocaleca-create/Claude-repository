@@ -3,7 +3,10 @@
    It opens straight at /gabriel-barboza (no redirect, as GitHub Pages serves gabriel-barboza.html there), follows the
    language the visitor chose anywhere on the site (lang.js, hg_lang) or else the device's, and switches with the site's
    ES/EN switch without reloading. Its text comes only from the tribute the owner approved; the claims the owner ruled out
-   never appear, in either language. The home page links to it (story and footer) and the sitemap lists it. */
+   never appear, in either language. The owner's adjustments of 2026-11-09 (G9): about don Gabriel only (the café's owners
+   never named), the owner's highlighted line, no promotion inside the tribute (no Basecamp anywhere; the site's usual
+   footer only), a brief hero with the story below, the family's photograph unchanged. The home page links to it (story
+   and footer) and the sitemap lists it. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -14,6 +17,11 @@ const { page, goto, until, SITE, ROOT } = require('../lib');
 const TITLE_ES = 'Gabriel Barboza Villalobos — El hombre de las orquídeas de Monteverde | Hanging Garden Café';
 const TITLE_EN = TITLE_ES;
 const HTML = fs.readFileSync(path.join(ROOT, 'website/gabriel-barboza.html'), 'utf8');
+/* the owner's highlighted line (2026-11-09) and its English */
+const LINE_ES = 'Su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín.';
+const LINE_EN = 'His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.';
+/* the family's photograph as it came in the approved tribute (sha-256 of website/assets/gabriel-barboza.jpg) */
+const PHOTO_SHA = '148f96732fc065303caf889198c2fa71bf7bdd8f92232d175d74b44fc0c6827d';
 
 /* what the reader sees: the text of the visible version */
 const shown = (pg) => pg.evaluate(() => document.getElementById('main').innerText);
@@ -57,9 +65,8 @@ module.exports.tests = [
       assert.ok(img.w > 0, 'the portrait loads');
       assert.match(img.alt, /^Retrato de Gabriel Barboza .*gorro de lana.*camiseta gris/, 'descriptive alt text');
       const t = await shown(pg);
-      for (const want of ['Gabriel Barboza Villalobos', 'Diseñó el jardín de este café con guarias, junto a sus dueños.',
-        'Por qué este homenaje', 'Su historia', 'Cronología verificada', 'Fuentes', 'Santa Elena, Monteverde — 50 m al sur y 50 m al este de la iglesia.',
-        'Todos los días, 6:00 a. m. – 7:00 p. m.', 'hanginggardencafe.com/m', '+506 6400 6601', 'Basecamp Monteverde', 'Reserva Los Cusingos']) {
+      for (const want of ['Gabriel Barboza Villalobos', LINE_ES, 'Por qué este homenaje', 'Su historia', 'Cronología verificada', 'Fuentes',
+        'Reserva Los Cusingos']) {
         assert.ok(t.includes(want), 'shows: ' + want);
       }
       assert.deepStrictEqual(pg.errors, []);
@@ -72,9 +79,8 @@ module.exports.tests = [
       const s = await state(pg);
       assert.deepStrictEqual([s.lang, s.data, s.title, s.es, s.en], ['en', 'en', TITLE_EN, false, true]);
       const t = await shown(pg);
-      for (const want of ['He designed this café’s garden with guarias, together with its owners.', 'Why this tribute', 'His story',
-        'Verified timeline', 'Sources', 'Santa Elena, Monteverde — 50 m south and 50 m east of the church.', 'Every day, 6:00 am – 7:00 pm',
-        'Los Cusingos Reserve', '“descubridor de seis” (“discoverer of six”)']) {
+      for (const want of [LINE_EN, 'Why this tribute', 'His story', 'Verified timeline', 'Sources', 'Los Cusingos Reserve',
+        '“descubridor de seis” (“discoverer of six”)']) {
         assert.ok(t.includes(want), 'shows: ' + want);
       }
       const img = await pg.evaluate(() => document.querySelector('#main > [data-l="en"] .portrait img').alt);
@@ -89,7 +95,7 @@ module.exports.tests = [
       });
       assert.deepStrictEqual(parity.en, parity.es);
       assert.deepStrictEqual(parity.es.years, ['1994', '1995', '1998', '1999', '2003', '2004', '2005', '2006', '2008', '2019']);
-      assert.strictEqual(parity.es.sections, 8);
+      assert.strictEqual(parity.es.sections, 7);
       assert.deepStrictEqual(pg.errors, []);
     }
   },
@@ -141,8 +147,7 @@ module.exports.tests = [
         [/(gui[oó]|guided|guía)[^.]{0,120}(en|in) Monteverde[^.]{0,40}2019|2019[^.]{0,160}Selby[^.]{0,120}(en|in) Monteverde/i, '2019: the Selby tour was at Los Cusingos, not in Monteverde'],
         [/descubri[oó] seis|seis (nuevas )?especies nuevas|discovered six|six new species|seis especies nuevas para la ciencia/i, '«descubridor de seis» is quoted, never turned into «discovered six new species»']
       ];
-      /* the tribute itself «nació» / «was born» from the collaboration on the garden (the approved text): not a birth */
-      const about = text.replace('De esa colaboración nació este homenaje.', ' ').replace('This tribute was born from that collaboration.', ' ');
+      const about = text;
       /* what search results and link previews show too: the description, og tags, alt texts, labels and the structured data */
       const attrs = [...HTML.matchAll(/\b(?:content|alt|title|aria-label)="([^"]*)"/g)].map((x) => x[1]).join(' · ');
       const ld = [...HTML.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((x) => x[1]).join(' · ');
@@ -176,7 +181,7 @@ module.exports.tests = [
           const visible = (e) => { const b = box(e); return b.width > 0 && b.height > 0; };
           const wide = [...document.body.querySelectorAll('*')].filter((e) => !e.closest('.skip') && visible(e) && box(e).right > innerWidth + 1).map(name);
           const spill = [];
-          for (const card of r.querySelectorAll('.visita, .casa, .plate, .logro, .hero .wrap, .chips .wrap')) {
+          for (const card of r.querySelectorAll('.casa, .plate, .logro, .hero .wrap, .chips .wrap')) {
             const cb = box(card), cs = getComputedStyle(card), inner = cb.right - parseFloat(cs.paddingRight) + 1, left = cb.left + parseFloat(cs.paddingLeft) - 1;
             for (const e of card.querySelectorAll('*')) if (visible(e) && (box(e).right > inner || box(e).left < left)) spill.push(name(card) + ' > ' + name(e));
           }
@@ -215,14 +220,94 @@ module.exports.tests = [
     }
   },
   {
+    name: 'G9: the owner\'s adjustments: only don Gabriel (no owners), the owner\'s line, no promotion inside the tribute, the usual footer, a brief hero, the photo unchanged',
+    run: async ({ browser }) => {
+      const pg = await open(browser, { lang: 'es' });
+      const m = await pg.evaluate(() => {
+        const main = document.getElementById('main'), txt = (e) => e.textContent.replace(/\s+/g, ' ').trim();
+        const hero = (l) => { const h = document.querySelector('#main > [data-l="' + l + '"] .hero');
+          return { text: txt(h), lists: h.querySelectorAll('ul, ol, dl').length, links: h.querySelectorAll('a').length,
+                   line: txt(h.querySelector('.destacado')), kicker: txt(h.querySelector('.kicker')) }; };
+        const flinks = (l) => txt(document.querySelector('footer .flinks[data-l="' + l + '"]'));
+        return { all: txt(main), hrefs: [...main.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')), btns: main.querySelectorAll('.btn').length,
+          ids: [...document.querySelectorAll('#main > [data-l="es"] > section')].map((x) => x.id),
+          idsEn: [...document.querySelectorAll('#main > [data-l="en"] > section')].map((x) => x.id),
+          heroEs: hero('es'), heroEn: hero('en'), footEs: flinks('es'), footEn: flinks('en') };
+      });
+      /* (1) only don Gabriel: the café's owners are never named (his own business, Orquídeas de Monteverde, is his) */
+      const noOwnBusiness = m.all.replace(/propietario de Orquídeas de Monteverde/g, ' ').replace(/the owner of Orquídeas de Monteverde/g, ' ');
+      const owners = noOwnBusiness.match(/dueñ\p{L}*|propietari\p{L}*|owners?\b|co-?owner|nuestra casa|historia de la casa|our house/iu);
+      assert.ok(!owners, 'no owners named in the tribute: found «' + (owners && owners[0]) + '»');
+      const ownersAttr = HTML.match(/\b(?:content|alt|title|aria-label)="[^"]*(dueñ|propietari|owners?\b|nuestra casa|our house)[^"]*"/i);
+      assert.ok(!ownersAttr, 'no owners in the description, og tags or alt texts');
+      const ownersHead = (HTML.match(/<title>[\s\S]*?<\/title>/)[0] + [...HTML.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((x) => x[1]).join(' '))
+        .match(/dueñ|propietari|owners?\b|nuestra casa|our house|basecamp/i);
+      assert.ok(!ownersHead, 'no owners or Basecamp in the title or the structured data');
+      /* (2) the owner's highlighted line, word for word, and its English */
+      assert.deepStrictEqual([m.heroEs.line, m.heroEn.line], [LINE_ES, LINE_EN]);
+      /* (3) no promotion inside the tribute: no Basecamp anywhere on the page, no menu / WhatsApp / visit block, no buttons */
+      assert.ok(!/basecamp/i.test(HTML), 'Basecamp nowhere on the page');
+      const promo = m.all.match(/hospedaje|lodging|desayun\p{L}*|breakfast|reposter\p{L}*|pastr(y|ies)|WhatsApp|todos los días|every day|horario|opening hours|(?<!\p{L})venga a|come for|visítenos|visit us|(?<!\p{L})men[uú](?!\p{L})/iu);
+      assert.ok(!promo, 'no promotional text inside the tribute: found «' + (promo && promo[0]) + '»');
+      assert.deepStrictEqual([m.btns, m.hrefs.filter((h) => h === 'm' || /wa\.me|basecamp/.test(h))], [0, []]);
+      /* the site's usual footer: the same links as the guide pages' (es/cafe.html, coffee.html) */
+      const guideFoot = (f) => fs.readFileSync(path.join(ROOT, 'website', f), 'utf8').match(/<p class="flinks">([\s\S]*?)<\/p>/)[1]
+        .replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      assert.deepStrictEqual([m.footEs, m.footEn], [guideFoot('es/cafe.html'), guideFoot('coffee.html')]);
+      /* (4) brief and moving at the top, the story below: the hero holds the kicker, his name, the epithet, the line,
+         one short paragraph and the photograph; no list, no link; then the house's reason, his story, achievements,
+         species, the Lepanthes finding, the timeline and the sources, in that order */
+      for (const h of [m.heroEs, m.heroEn]) {
+        assert.deepStrictEqual([h.lists, h.links], [0, 0], 'no list or link in the hero');
+        assert.ok(h.text.length <= 520, 'a brief hero (' + h.text.length + ' characters)');
+      }
+      assert.deepStrictEqual([m.heroEs.kicker, m.heroEn.kicker], ['Homenaje', 'Tribute']);
+      assert.deepStrictEqual(m.ids, ['por-que', 'historia', 'logros', 'especies', 'lepanthes', 'cronologia', 'fuentes']);
+      assert.deepStrictEqual(m.idsEn, ['why', 'story-en', 'achievements', 'species', 'lepanthes-en', 'timeline', 'sources']);
+      /* (5) the family's photograph as it came: the same bytes, served as they are, shown whole (the image box has the
+         photo's own proportions, so object-fit crops nothing: within 0.2 %) and unaltered (no filter, transform, opacity,
+         blend or clip on it or around it), on phones and on a computer, in both languages */
+      const file = fs.readFileSync(path.join(ROOT, 'website/assets/gabriel-barboza.jpg'));
+      assert.strictEqual(require('crypto').createHash('sha256').update(file).digest('hex'), PHOTO_SHA, 'the photograph is the family\'s, unchanged');
+      const served = await pg.request.get(SITE + '/assets/gabriel-barboza.jpg');
+      assert.ok(Buffer.compare(await served.body(), file) === 0, 'served as it is');
+      for (const width of [320, 375, 1280]) for (const lang of ['es', 'en']) {
+        const ctx = await browser.newContext({ viewport: { width, height: 800 }, locale: lang === 'es' ? 'es-CR' : 'en-US' });
+        const p2 = await open(browser, { context: ctx, lang });
+        const ph = await p2.evaluate(() => {
+          const img = document.querySelector('#main > [data-l="' + document.documentElement.getAttribute('data-lang') + '"] .portrait img');
+          const cs = getComputedStyle(img), b = img.getBoundingClientRect();
+          const w = b.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - parseFloat(cs.borderLeftWidth) - parseFloat(cs.borderRightWidth);
+          const h = b.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth);
+          const altered = [];
+          for (let e = img; e && e.id !== 'main'; e = e.parentElement) {
+            const c = getComputedStyle(e);
+            if (c.filter !== 'none' || c.transform !== 'none' || c.opacity !== '1' || c.mixBlendMode !== 'normal' || c.clipPath !== 'none') altered.push(e.tagName + '.' + e.className);
+          }
+          return { ratio: w / h, natural: img.naturalWidth / img.naturalHeight, loaded: img.complete && img.naturalWidth > 0, altered };
+        });
+        const at = lang + ' at ' + width + ' px';
+        assert.ok(ph.loaded, at + ': the photograph loads');
+        assert.ok(Math.abs(ph.ratio - ph.natural) / ph.natural < 0.002, at + ': shown whole, not cropped (' + ph.ratio.toFixed(4) + ' vs ' + ph.natural.toFixed(4) + ')');
+        assert.deepStrictEqual(ph.altered, [], at + ': nothing alters the photograph');
+        assert.deepStrictEqual(p2.errors, [], at);
+        await ctx.close();
+      }
+      /* (6) the address the QR opens */
+      assert.strictEqual(new URL(pg.url()).pathname, '/gabriel-barboza');
+      assert.ok(HTML.includes('<link rel="canonical" href="https://hanginggardencafe.com/gabriel-barboza">'));
+      assert.deepStrictEqual(pg.errors, []);
+    }
+  },
+  {
     name: 'G7: the home page leads to it (story and footer, in both languages) and the sitemap lists it once',
     run: async ({ browser }) => {
       const pg = await page(browser, { lang: 'es' });
       await goto(pg, '/');
       await until(() => pg.evaluate(() => document.documentElement.lang === 'es'), 5000, 'the home page in Spanish');
       const es = await pg.evaluate(() => [...document.querySelectorAll('a[href="gabriel-barboza"]')].map((a) => a.textContent.trim()));
-      assert.deepStrictEqual(es, ['Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde, diseñó nuestro jardín con guarias, junto a sus dueños.',
-        'Conozca su historia', 'Gabriel Barboza, nuestro jardín']);
+      assert.deepStrictEqual(es, ['Gabriel Barboza Villalobos, el hombre de las orquídeas de Monteverde: su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en nuestro jardín.',
+        'Conozca su historia', 'Homenaje a Gabriel Barboza']);
       await pg.click('#story a.more');
       await pg.waitForURL(/\/gabriel-barboza$/);
       await pg.waitForLoadState('load');
@@ -230,8 +315,11 @@ module.exports.tests = [
       const en = await page(browser, { lang: 'en' });
       await goto(en, '/');
       const enLinks = await en.evaluate(() => [...document.querySelectorAll('a[href="gabriel-barboza"]')].map((a) => a.textContent.trim()));
-      assert.deepStrictEqual(enLinks, ['Gabriel Barboza Villalobos, the orchid man of Monteverde, designed our garden with guarias, together with its owners.',
-        'Read his story', 'Gabriel Barboza, our garden']);
+      assert.deepStrictEqual(enLinks, ['Gabriel Barboza Villalobos, the orchid man of Monteverde: his knowledge, generosity and love of orchids left a mark that continues to bloom in our garden.',
+        'Read his story', 'A tribute to Gabriel Barboza']);
+      /* the home page names no owner for the tribute either */
+      const story = await en.evaluate(() => document.querySelector('#story .tribute').textContent);
+      assert.ok(!/owner|dueñ|propietari/i.test(story), 'the home line names no owner');
       const map = fs.readFileSync(path.join(ROOT, 'website/sitemap.xml'), 'utf8');
       assert.strictEqual((map.match(/<loc>https:\/\/hanginggardencafe\.com\/gabriel-barboza<\/loc>/g) || []).length, 1);
       assert.ok(!/href="https:\/\/hanginggardencafe\.com\/gabriel-barboza"/.test(map), 'no language alternates pointing at the one address');

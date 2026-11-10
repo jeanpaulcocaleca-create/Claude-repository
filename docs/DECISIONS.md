@@ -3580,10 +3580,11 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   The English is a translation of that text: where the source quotes a Spanish sentence (the Missouri Botanical Garden
   line, Ambientico's «experto poseedor de más de 450 especies» and «descubridor de seis») the English does not invent an
   English quotation — it paraphrases the first and keeps the others in Spanish with an English gloss in brackets. The
-  sources' introduction says everything on the page comes from them «salvo la historia de nuestra casa» / «except our
-  house’s own story»: the approved sentence with the one exception the separate house-history section makes true. The commercial close says «Todos los días, 6:00 a. m. –
-  7:00 p. m.», «50 m al sur y 50 m al este de la iglesia», hanginggardencafe.com/m (link `m`), WhatsApp +506 6400 6601
-  (wa.me link, the number shown as text) and Basecamp Monteverde as the sister house's lodging.
+  sources' introduction says everything on the page comes from them «salvo lo dicho sobre este jardín» / «except what is
+  said about this garden» (first «salvo la historia de nuestra casa»; reworded with the owner's adjustments): the
+  approved sentence with the one exception the garden section and the owner's line make true. (The
+  first version's commercial close — address, hours, menu, WhatsApp, Basecamp — was removed at the owner's request; see
+  «The owner's adjustments» below.)
 - **Photos:** only the family's portrait the tribute carries (`website/assets/gabriel-barboza.jpg`, 1110 × 1307, the
   embedded file unchanged, committed to git: the publish step keeps files already in `website/assets/`), credited
   «Fotografía facilitada por su familia». Not used: the tribute's third-party images (herbarium plates, other
@@ -3591,20 +3592,33 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   at the café (light to be corrected) and his daughter's professional photos (unchanged) were sent as WhatsApp
   `blob:` links, which only open inside the sender's browser: they wait for the files themselves (E-44).
 - **Where it lives on the site:** a short line in the home page's story section, under the timeline («Gabriel Barboza
-  Villalobos, the orchid man of Monteverde, designed our garden with guarias, together with its owners.» → «Read his
-  story»; Spanish in lang.js) and a link in the home footer; `website/sitemap.xml` lists it once (`build.js` adds the
-  URL, with no language alternates: both versions share the one address).
+  Villalobos, the orchid man of Monteverde: his knowledge, generosity and love of orchids left a mark that continues to
+  bloom in our garden.» → «Read his story»; Spanish in lang.js, the owner's line with «nuestro jardín» because the home
+  page is read away from the garden) and «A tribute to Gabriel Barboza» in the home footer; `website/sitemap.xml` lists
+  it once (`build.js` adds the URL, with no language alternates: both versions share the one address).
 - **Found in passing, not changed:** `page.css`'s `.cta` (the guide pages' call-to-action box) also gives the bar's
   «Plan your visit» button (class `cta`) its 2.8rem top margin, so the guide pages' bar is about 121 px tall instead of
   the home page's 60 px. The tribute page cancels it for itself (`#nav .navlinks a.cta{margin:0}`) and keeps the bar on
   one line on phones; `page.css` and the guide pages stay as published (a separate change if the owner wants it).
-- **Tests:** browser spec 420 (8): the address answers 200 with no redirect, Spanish and English complete with the same
+- **Tests:** browser spec 420 (9): the address answers 200 with no redirect, Spanish and English complete with the same
   sections, years, species and links, the owner's title in both, description, canonical, og image and structured data,
   the portrait loads with its description, the device language when nothing is chosen, the switch without reloading and
   remembered, the browser that refuses storage (page and switch agree), every ruled-out claim absent in both languages
   from the text, the attributes (description, og, alt) and the structured data (and every year on the page one of the
   dated publications or the check date), at 320, 360 and 375 px nothing wider than the screen or outside its card and
-  the bar on one line, the home links in both languages, the sitemap entry.
+  the bar on one line, the home links in both languages, the sitemap entry; G9, the owner's adjustments below (no owner
+  named in the page, its attributes or the home line; the owner's line word for word; no Basecamp anywhere and no
+  promotional text or button inside the tribute; the footer's links exactly the guide pages'; a brief hero with no list
+  or link and the sections in order; the photograph's bytes, served as they are, and at 320, 375 and 1280 px in both
+  languages shown whole within 0.2 % with nothing altering it; the QR address). Checked that G9 fails on a copy of the
+  page with «junto a sus dueños» put back, and on one with the 3 px crop put back.
+- **Second independent review (of the owner's adjustments; 3 reviewers, each finding checked by a skeptic):** the text
+  outside the owner's points unchanged and the English mirroring the Spanish (no finding). Confirmed and fixed: the
+  café's own voice left in «Historia de la casa» / «nuestra casa» / «our house»; the portrait still trimmed about 3 px
+  by its frame's border; G9's photo check measuring only at 1280 px with a 1 % tolerance. Not changed, for the owner's
+  review: the footer is the site's usual one, word for word (its hours, address and El Trapiche line besides the
+  links); the home line says «en nuestro jardín» / «in our garden» where the owner's line says «en este jardín»
+  (read on the home page, away from the garden).
 - **Independent review (4 reviewers, each finding checked by a skeptic):** fidelity to the approved text, the English
   against the Spanish, the owner's brief point by point, the technical side. Confirmed and fixed: the English title a
   first draft added (the owner's title is now the only one); the English quoting its own translation of Ambientico
@@ -3615,6 +3629,27 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   page); the sitemap's same-address language alternates. Also brought back to the source: «¿Se queda en Monteverde?»
   (the lodging line adds only the domain and «ofrece hospedaje» the brief asks for). Not changed (rejected as allowed by
   the brief or style): the meta description's length.
+- **The owner's adjustments before authorizing the publication (2026-11-09, second message), all built:**
+  (1) the tribute is about don Gabriel only: the café's owners are named nowhere, nor is the café's own voice
+  («nuestra casa», «our house»): the hero; «Por qué este homenaje», now «Gabriel diseñó y decoró el jardín de Hanging
+  Garden Café y lo pobló de guarias», without «en colaboración con los dueños del café», and without the kicker
+  «Historia de la casa»; its note, now only «Lo que sigue en «Su historia» procede de las publicaciones científicas e
+  institucionales citadas en «Fuentes».»; the sources' introduction («salvo lo dicho sobre este jardín»); the home line
+  and the home footer link;
+  (2) the highlighted line is the owner's, word for word: «Su conocimiento, generosidad y amor por las orquídeas dejaron
+  una huella que continúa floreciendo en este jardín.» (English: «His knowledge, generosity and love of orchids left a
+  mark that continues to bloom in this garden.»); (3) his story is not used to promote anything: the closing card
+  (Basecamp lodging, breakfast, menu, WhatsApp, hours and address, buttons) is gone, Basecamp appears nowhere on the
+  page, and the footer is the site's usual footer, the guide pages' word for word (its hours, address and usual links);
+  (4) a brief, moving top: «Homenaje» / «Tribute», his name, the epithet, the owner's line, one short paragraph and his
+  photograph (the three fact chips went; those facts stay in «Logros» and the timeline); then the house's reason, his
+  story, achievements, species, the *Lepanthes* finding, the timeline and the sources; (5) his photograph is the
+  family's file unchanged (same bytes, sha-256 `148f9673…`), now shown whole: the inside of the frame takes the photo's
+  own proportions (1110 × 1307; `box-sizing:content-box`, since page.css makes every box border-box and the frame's
+  border would otherwise trim about 3 px), where the first version cropped it slightly to 4:5; the additional photos wait for the
+  owner's review and authorization; (6) the address stays `https://hanginggardencafe.com/gabriel-barboza` (both QR
+  images of the approved tribute decode to exactly that address); (7) nothing published, no tag: the owner reviews the
+  final Spanish and English first.
 - **Baseline:** `v2026.11.08-1` (Proveedores, D-067) was published by the owner on 2026-11-09 03:17 UTC («Publish
   website» run #59, gh-pages `005fab4`, pages run #55), so `tests/pantallas/BASE` moves to it (`6b01e47`) and
   `no-tocar.sh` lists only this version's files: NEW `website/gabriel-barboza.html`, `website/assets/gabriel-barboza.jpg`;

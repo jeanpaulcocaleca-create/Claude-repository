@@ -63,21 +63,21 @@ html.js[data-lang="es"] [data-l="en"],html.js[data-lang="en"] [data-l="es"]{disp
 main.tribute{padding:var(--navh,5.2rem) 0 0}
 .wrap{max-width:1100px;margin:0 auto;padding:0 max(16px,6vw)}
 
-/* the header: his portrait, his name and the line about this garden */
+/* the header: his portrait, his name and the line about his mark on this garden (brief; the story follows below) */
 .hero{background:#2C3A2E;color:#EDF2E6;background-image:radial-gradient(70% 90% at 85% 20%,rgba(185,138,53,.18),transparent 60%),radial-gradient(60% 80% at 10% 90%,rgba(155,176,154,.16),transparent 60%)}
 .hero .wrap{display:grid;grid-template-columns:1.25fr .75fr;gap:2.6rem;align-items:center;padding-top:3.4rem;padding-bottom:3.4rem}
 .hero .kicker{color:#E3C88F}
 .hero h1{font-size:clamp(2.4rem,6.4vw,4.4rem);line-height:1.02;margin:0 0 .6rem;color:#FCF8EC}
 .hero .epithet{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:clamp(1.15rem,2.6vw,1.5rem);color:#D8CFB4;margin:0 0 1.2rem}
 .hero .destacado{font-family:'Playfair Display',Georgia,serif;font-size:clamp(1.25rem,2.8vw,1.7rem);line-height:1.3;color:#FCF8EC;
-  border-left:3px solid var(--gold);padding:.2rem 0 .2rem 1.1rem;margin:0 0 1.3rem;max-width:30ch}
-.hero .lede{color:#C9D4C0;max-width:56ch;margin:0 0 1.4rem}
-.hero .facts{display:flex;flex-wrap:wrap;gap:.5rem;margin:0;padding:0;list-style:none}
-.hero .facts li{border:1px solid rgba(227,200,143,.5);color:#EDE3C8;border-radius:99px;padding:.3rem .9rem;font-size:.85rem}
+  border-left:3px solid var(--gold);padding:.2rem 0 .2rem 1.1rem;margin:0 0 1.3rem;max-width:34ch}
+.hero .lede{color:#C9D4C0;max-width:56ch;margin:0}
 .portrait{margin:0;justify-self:center;width:min(320px,80vw)}
-.portrait .frame{aspect-ratio:4/5;border:10px solid #FCF8EC;outline:2px solid var(--gold);outline-offset:-16px;overflow:hidden;border-radius:4px;
+.portrait .frame{box-sizing:content-box;aspect-ratio:1110/1307;border:10px solid #FCF8EC;outline:2px solid var(--gold);outline-offset:-16px;overflow:hidden;border-radius:4px;
   box-shadow:0 18px 44px rgba(0,0,0,.35);background:#FCF8EC}
-.portrait img{width:100%;height:100%;object-fit:cover;object-position:center 18%}
+/* the family's photograph whole and as it is: the frame's inside has the photo's own proportions (content-box: page.css
+   makes every box border-box, which would crop the photo by its frame's border), nothing cropped or filtered */
+.portrait img{display:block;width:100%;height:100%;object-fit:cover}
 .portrait figcaption{text-align:center;font-size:.85rem;color:#C9D4C0;margin-top:.8rem}
 
 /* the index */
@@ -98,7 +98,7 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
   border-left:3px solid var(--gold);padding:.2rem 0 .2rem 1.2rem;margin:2rem 0 .4rem;max-width:44ch}
 .pull small{display:block;font-family:'Figtree',system-ui,sans-serif;font-style:normal;font-size:.85rem;color:var(--text-secondary);margin-top:.6rem}
 
-/* why this tribute: the house's own story, set apart from the sourced facts */
+/* why this tribute: his garden here, set apart from the sourced facts */
 .casa{background:var(--panel);border:1px solid var(--accent-muted);border-radius:18px;padding:1.8rem clamp(1.2rem,4vw,2.4rem);max-width:820px}
 .casa p{max-width:64ch;font-size:1.06rem}
 .casa .pull{margin-top:1.2rem}
@@ -132,20 +132,6 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
 .fuentes li{margin-bottom:.6rem}
 .fuentes a{overflow-wrap:anywhere}
 
-/* visit */
-.visita{background:#2C3A2E;color:#EDF2E6;border-radius:24px;padding:2.4rem clamp(1.2rem,4vw,2.8rem);margin:1rem 0 0}
-.visita h2{color:#EDF2E6}
-.visita p{color:#C9D4C0;max-width:64ch}
-.visita dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.45rem 1rem;margin:1.4rem 0 1.6rem;font-size:1rem}
-.visita dt{font-weight:600;color:#EDF2E6}
-.visita dd{margin:0;color:#DCE4D3;min-width:0;overflow-wrap:anywhere}
-.visita dd a{color:#E3C88F}
-.visita .btns{display:flex;flex-wrap:wrap;gap:.6rem;margin:0 0 1.4rem}
-.visita .btns .btn{max-width:100%;overflow-wrap:anywhere;text-align:center}
-@media(max-width:420px){.visita .btns .btn{flex:1 1 100%}}
-.visita .hospedaje{font-size:.95rem;margin:0}
-.visita .hospedaje a{color:#E3C88F}
-
 @media(max-width:860px){
   .hero .wrap{grid-template-columns:1fr;gap:2rem;padding-top:2.4rem}
   .portrait{order:-1}
@@ -157,7 +143,9 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
 #nav .navlinks a.cta{margin:0}
 /* phones (the plaque's QR): the bar stays on one line, as on a wider screen */
 @media(max-width:480px){nav#nav{padding:.6rem 1rem}.navlogo span{display:none}.navlinks a.cta{white-space:nowrap;padding:.5em .9em}}
-@media print{.chips{display:none}.hero,.visita{background:#fff;color:#000}}
+/* printed: dark text on white (browsers drop backgrounds), his photograph kept */
+@media print{.chips{display:none}.hero{background:#fff;color:#000}
+  .hero .kicker,.hero h1,.hero .epithet,.hero .destacado,.hero .lede,.portrait figcaption{color:#000}}
 </style>
 </head>
 <body data-no-translate>
@@ -180,16 +168,11 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
   <header class="hero">
     <div class="wrap">
       <div>
-        <p class="kicker mono">Homenaje · Jardín de Hanging Garden Café</p>
+        <p class="kicker mono">Homenaje</p>
         <h1>Gabriel Barboza Villalobos</h1>
         <p class="epithet">«One man and his orchids» — un hombre y sus orquídeas</p>
-        <p class="destacado">Diseñó el jardín de este café con guarias, junto a sus dueños.</p>
+        <p class="destacado">Su conocimiento, generosidad y amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín.</p>
         <p class="lede">Orquideólogo de Monteverde: ilustrador botánico, explorador del bosque nuboso y guardián de las orquídeas miniatura. Dos especies de orquídeas llevan su nombre, y su jardín enseñó a miles de visitantes a mirar lo pequeño.</p>
-        <ul class="facts">
-          <li>Pasante en Selby Gardens, 1994</li>
-          <li>Coautor en <i>Annals of Botany</i>, 2005</li>
-          <li>Más de 450 especies en su colección</li>
-        </ul>
       </div>
       <figure class="portrait">
         <div class="frame"><img src="assets/gabriel-barboza.jpg" width="1110" height="1307" alt="Retrato de Gabriel Barboza sonriendo, con gorro de lana tejido y camiseta gris, frente al follaje verde de Monteverde"></div>
@@ -207,18 +190,16 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
       <a href="#lepanthes">El hallazgo de <i>Lepanthes</i></a>
       <a href="#cronologia">Cronología</a>
       <a href="#fuentes">Fuentes</a>
-      <a href="#visitenos">Visítenos</a>
     </div>
   </nav>
 
   <section id="por-que">
     <div class="wrap">
-      <p class="kicker mono">Historia de la casa</p>
       <h2>Por qué este homenaje</h2>
       <div class="casa">
-        <p>Este homenaje tiene una raíz cercana, y es la razón de que exista: <strong>Gabriel diseñó y decoró el jardín de Hanging Garden Café, en colaboración con los dueños del café, y lo pobló de guarias</strong> — la orquídea morada que es la flor nacional de Costa Rica. Quien hoy se sienta en este jardín está rodeado de las plantas que él dispuso. Por eso su placa vive aquí, entre sus guarias, y por eso esta página cuenta su historia.</p>
+        <p>Este homenaje tiene una raíz cercana, y es la razón de que exista: <strong>Gabriel diseñó y decoró el jardín de Hanging Garden Café y lo pobló de guarias</strong> — la orquídea morada que es la flor nacional de Costa Rica. Quien hoy se sienta en este jardín está rodeado de las plantas que él dispuso. Por eso su placa vive aquí, entre sus guarias, y por eso esta página cuenta su historia.</p>
         <p class="pull">Al sentarse entre estas plantas, usted está en su obra.</p>
-        <p class="nota">Esto es historia de nuestra casa, contada por los dueños de Hanging Garden. Lo que sigue en «Su historia» procede de las publicaciones científicas e institucionales citadas en «Fuentes».</p>
+        <p class="nota">Lo que sigue en «Su historia» procede de las publicaciones científicas e institucionales citadas en «Fuentes».</p>
       </div>
     </div>
   </section>
@@ -328,7 +309,7 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
   <section id="fuentes">
     <div class="wrap">
       <h2>Fuentes</h2>
-      <p class="intro">Todo lo afirmado en esta página, salvo la historia de nuestra casa, procede de estas publicaciones, verificadas el 9 de noviembre de 2026.</p>
+      <p class="intro">Todo lo afirmado en esta página, salvo lo dicho sobre este jardín, procede de estas publicaciones, verificadas el 9 de noviembre de 2026.</p>
       <ol class="fuentes">
         <li>Seaton, P. (2003). «One man and his orchids». <i>Orchids</i> 72: 758–763, American Orchid Society. Número de octubre de 2003: <a href="https://www.aos.org/orchids/orchids-magazine/orchids-october-2003">aos.org</a>. Reseña bibliográfica: Missouri Botanical Garden, <i>The Cutting Edge</i> XI(1), enero 2004: <a href="http://www.mobot.org/mobot/research/edge/jan04/jan04lit.shtml">mobot.org</a>.</li>
         <li>Atwood, J. T. (1994). «Two new species of Costa Rican <i>Maxillaria</i> (Orchidaceae), and a clarification of <i>Maxillaria bracteata</i>». <i>Lindleyana</i> 9(4): 239–242. PDF en Epidendra, Jardín Botánico Lankester (UCR): <a href="https://www.epidendra.com/taxones/Camaridium/Camaridium%20monteverdense/Atwood%201994.pdf">epidendra.com</a>.</li>
@@ -344,23 +325,6 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
       </ol>
     </div>
   </section>
-
-  <section id="visitenos">
-    <div class="wrap">
-      <div class="visita">
-        <h2>Este homenaje vive en Hanging Garden Café</h2>
-        <p>La placa se exhibe en el jardín de nuestro café, en Santa Elena de Monteverde — el mismo bosque nuboso que Gabriel recorrió toda su vida. Y no es un jardín cualquiera: fue Gabriel quien lo diseñó y lo decoró con guarias, trabajando junto a los dueños de Hanging Garden. De esa colaboración nació este homenaje. Si llegó hasta aquí por el QR, quédese un rato más entre sus plantas: venga a desayunar antes de entrar a la reserva, con café de especialidad de la finca El Trapiche y repostería recién horneada.</p>
-        <dl>
-          <dt>Horario</dt><dd>Todos los días, 6:00 a. m. – 7:00 p. m.</dd>
-          <dt>Dirección</dt><dd>Santa Elena, Monteverde — 50 m al sur y 50 m al este de la iglesia.</dd>
-          <dt>Menú</dt><dd><a href="m">hanginggardencafe.com/m</a></dd>
-          <dt>WhatsApp</dt><dd><a href="https://wa.me/50664006601" target="_blank" rel="noopener">+506 6400 6601</a></dd>
-        </dl>
-        <p class="btns"><a class="btn light" href="m">Ver el menú</a> <a class="btn wa" href="https://wa.me/50664006601" target="_blank" rel="noopener">Escribir por WhatsApp</a> <a class="btn ghost" href="index.html">hanginggardencafe.com</a></p>
-        <p class="hospedaje">¿Se queda en Monteverde? Nuestra casa hermana, <a href="https://basecampmonteverde.com" target="_blank" rel="noopener">Basecamp Monteverde</a> (basecampmonteverde.com), ofrece hospedaje en el centro de Santa Elena.</p>
-      </div>
-    </div>
-  </section>
 </div>
 
 <!-- ======================================== ENGLISH ======================================== -->
@@ -368,16 +332,11 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
   <header class="hero">
     <div class="wrap">
       <div>
-        <p class="kicker mono">Tribute · Hanging Garden Café garden</p>
+        <p class="kicker mono">Tribute</p>
         <h1>Gabriel Barboza Villalobos</h1>
         <p class="epithet">“One man and his orchids”</p>
-        <p class="destacado">He designed this café’s garden with guarias, together with its owners.</p>
+        <p class="destacado">His knowledge, generosity and love of orchids left a mark that continues to bloom in this garden.</p>
         <p class="lede">Monteverde’s orchidologist: botanical illustrator, explorer of the cloud forest and guardian of its miniature orchids. Two orchid species bear his name, and his garden taught thousands of visitors to look at the small things.</p>
-        <ul class="facts">
-          <li>Selby Gardens intern, 1994</li>
-          <li>Co-author in <i>Annals of Botany</i>, 2005</li>
-          <li>More than 450 species in his collection</li>
-        </ul>
       </div>
       <figure class="portrait">
         <div class="frame"><img src="assets/gabriel-barboza.jpg" width="1110" height="1307" alt="Portrait of Gabriel Barboza smiling, wearing a knitted wool cap and a grey T-shirt, in front of the green foliage of Monteverde"></div>
@@ -395,18 +354,16 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
       <a href="#lepanthes-en">The <i>Lepanthes</i> discovery</a>
       <a href="#timeline">Timeline</a>
       <a href="#sources">Sources</a>
-      <a href="#visit-us">Visit us</a>
     </div>
   </nav>
 
   <section id="why">
     <div class="wrap">
-      <p class="kicker mono">Our house’s story</p>
       <h2>Why this tribute</h2>
       <div class="casa">
-        <p>This tribute has a close root, and it is the reason it exists: <strong>Gabriel designed and decorated the garden of Hanging Garden Café, in collaboration with the café’s owners, and filled it with guarias</strong> — the purple orchid that is Costa Rica’s national flower. Anyone who sits in this garden today is surrounded by the plants he arranged. That is why his plaque lives here, among his guarias, and why this page tells his story.</p>
+        <p>This tribute has a close root, and it is the reason it exists: <strong>Gabriel designed and decorated the garden of Hanging Garden Café and filled it with guarias</strong> — the purple orchid that is Costa Rica’s national flower. Anyone who sits in this garden today is surrounded by the plants he arranged. That is why his plaque lives here, among his guarias, and why this page tells his story.</p>
         <p class="pull">Sitting among these plants, you are in his work.</p>
-        <p class="nota">This is our house’s own story, told by the owners of Hanging Garden. What follows in “His story” comes from the scientific and institutional publications listed under “Sources”.</p>
+        <p class="nota">What follows in “His story” comes from the scientific and institutional publications listed under “Sources”.</p>
       </div>
     </div>
   </section>
@@ -516,7 +473,7 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
   <section id="sources">
     <div class="wrap">
       <h2>Sources</h2>
-      <p class="intro">Everything stated on this page, except our house’s own story, comes from these publications, verified on 9 November 2026.</p>
+      <p class="intro">Everything stated on this page, except what is said about this garden, comes from these publications, verified on 9 November 2026.</p>
       <ol class="fuentes">
         <li>Seaton, P. (2003). “One man and his orchids”. <i>Orchids</i> 72: 758–763, American Orchid Society. October 2003 issue: <a href="https://www.aos.org/orchids/orchids-magazine/orchids-october-2003">aos.org</a>. Bibliographic review: Missouri Botanical Garden, <i>The Cutting Edge</i> XI(1), January 2004: <a href="http://www.mobot.org/mobot/research/edge/jan04/jan04lit.shtml">mobot.org</a>.</li>
         <li>Atwood, J. T. (1994). “Two new species of Costa Rican <i>Maxillaria</i> (Orchidaceae), and a clarification of <i>Maxillaria bracteata</i>”. <i>Lindleyana</i> 9(4): 239–242. PDF at Epidendra, Lankester Botanical Garden (UCR): <a href="https://www.epidendra.com/taxones/Camaridium/Camaridium%20monteverdense/Atwood%201994.pdf">epidendra.com</a>.</li>
@@ -532,33 +489,19 @@ main.tribute{padding:var(--navh,5.2rem) 0 0}
       </ol>
     </div>
   </section>
-
-  <section id="visit-us">
-    <div class="wrap">
-      <div class="visita">
-        <h2>This tribute lives at Hanging Garden Café</h2>
-        <p>The plaque is displayed in the garden of our café, in Santa Elena de Monteverde — the same cloud forest Gabriel walked all his life. And it is no ordinary garden: it was Gabriel who designed it and decorated it with guarias, working together with the owners of Hanging Garden. This tribute was born from that collaboration. If you came here through the QR code, stay a little longer among his plants: come for breakfast before entering the reserve, with specialty coffee from the El Trapiche farm and freshly baked pastries.</p>
-        <dl>
-          <dt>Hours</dt><dd>Every day, 6:00 am – 7:00 pm</dd>
-          <dt>Address</dt><dd>Santa Elena, Monteverde — 50 m south and 50 m east of the church.</dd>
-          <dt>Menu</dt><dd><a href="m">hanginggardencafe.com/m</a></dd>
-          <dt>WhatsApp</dt><dd><a href="https://wa.me/50664006601" target="_blank" rel="noopener">+506 6400 6601</a></dd>
-        </dl>
-        <p class="btns"><a class="btn light" href="m">See the menu</a> <a class="btn wa" href="https://wa.me/50664006601" target="_blank" rel="noopener">Message us on WhatsApp</a> <a class="btn ghost" href="index.html">hanginggardencafe.com</a></p>
-        <p class="hospedaje">Staying in Monteverde? Our sister house, <a href="https://basecampmonteverde.com" target="_blank" rel="noopener">Basecamp Monteverde</a> (basecampmonteverde.com), offers lodging in the centre of Santa Elena.</p>
-      </div>
-    </div>
-  </section>
 </div>
 
 </main>
 <footer>
   <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
+  <!-- the site's usual footer, as on the guide pages (es/cafe.html, coffee.html) -->
   <p><b>Hanging Garden Café</b> · Monteverde, Costa Rica · <a href="https://wa.me/50664006601" target="_blank" rel="noopener">+506 6400 6601</a></p>
-  <p data-l="es">Homenaje a Gabriel Barboza Villalobos · Santa Elena, Monteverde</p>
-  <p data-l="en" lang="en">A tribute to Gabriel Barboza Villalobos · Santa Elena, Monteverde</p>
-  <p class="flinks" data-l="es"><a href="index.html">Inicio</a> · <a href="m">Menú</a> · <a href="es/cafe.html">Nuestro café</a> · <a href="https://basecampmonteverde.com" target="_blank" rel="noopener">Basecamp Monteverde</a></p>
-  <p class="flinks" data-l="en" lang="en"><a href="index.html">Home</a> · <a href="m">Menu</a> · <a href="coffee.html">Our coffee</a> · <a href="https://basecampmonteverde.com" target="_blank" rel="noopener">Basecamp Monteverde</a></p>
+  <p data-l="es">Todos los días 6:00 – 19:00 · 50 metros sur y 50 metros este de la Iglesia, Santa Elena, Monteverde, Puntarenas 60109, Costa Rica</p>
+  <p data-l="en" lang="en">Every day 6:00 – 19:00 · 50 m south and 50 m east of the church, Santa Elena, Monteverde, Puntarenas 60109, Costa Rica</p>
+  <p data-l="es">Café 100 % costarricense · De origen local · Servimos con orgullo café de El Trapiche Monteverde</p>
+  <p data-l="en" lang="en">100% Costa Rican coffee · Locally sourced · Proudly serving coffee from El Trapiche Monteverde</p>
+  <p class="flinks" data-l="es"><a href="es/cafe.html">Nuestro café</a> · <a href="es/mejor-cafe-monteverde.html">El mejor café de Monteverde</a> · <a href="es/desayuno-monteverde.html">Desayuno antes de la reserva</a> · <a href="es/dia-de-lluvia-monteverde.html">Día de lluvia en Monteverde</a> · <a href="es/menu.html">Menú</a> · <a href="https://g.page/r/CfHitxq6bJ3AEBM/review" target="_blank" rel="noopener">Deje una reseña en Google</a></p>
+  <p class="flinks" data-l="en" lang="en"><a href="coffee.html">Our coffee</a> · <a href="best-coffee-monteverde.html">Best coffee in Monteverde</a> · <a href="breakfast-monteverde.html">Breakfast before the reserve</a> · <a href="rainy-day-monteverde.html">Rainy day in Monteverde</a> · <a href="menu.html">Menu</a> · <a href="https://g.page/r/CfHitxq6bJ3AEBM/review" target="_blank" rel="noopener">Leave a review on Google</a></p>
   <p data-l="es">Gracias por apoyar a nuestra comunidad y a nuestro bosque. Pura vida.</p>
   <p data-l="en" lang="en">Thank you for supporting our community and our forest. Pura vida.</p>
 </footer>
