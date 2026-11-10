@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="c5e959090f73">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menú · Pantalla A · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<!--
+  Canopy OS · SCREEN A: the menu with prices for the guests (docs/PANTALLAS.md, migrations 0036 and 0037).
+  * Read only: GET menu_categories (+ items) and GET rpc/pantalla_datos (this TV's settings, the server time and, when
+    the owner intercalates promotions, this TV's slides), both with the public key. Nothing is written, nobody signs in.
+  * Prices only from a verified read of this session, with its age measured (the larger of the monotonic clock and the
+    wall clock, counted from the moment the read STARTED); never stored on the device:
+      up to 2 min -> shown; 2 to 10 min -> shown with «Precios por confirmar en caja»;
+      older, never, or after a pause/resume until the next read -> no price at all, «Consulte los precios en la caja».
+  * The board (v2): every category is a block (its title first, then its items) packed in the Menu Manager's order
+    into explicit columns (3, 4 or 5 on a landscape TV; 1 or 2 turned), so a title never lands between another
+    category's items and every column starts with a title. A block that does not fit in what is left of a column
+    is cut there and continues at the top of the next column under its title with «(continúa)», as long as both
+    pieces keep two items or more; otherwise it moves whole. The columns of a page are filled to nearly the same
+    height, with no hole the next piece could have filled. The letter: one screen whenever the capital letter can stay
+    at or over the minimum (0.8 cm per metre); otherwise the fewest pages with the largest letter. Never under the
+    minimum. Density «compacta» and the English «debajo | en-linea | no» are the owner's choices per TV.
+  * Promotions: with promo_mode = intercalar the TV's slides (in force by the server's time, days and hours; a product
+    only while it can be sold) interrupt the menu every promo_every s for promo_seconds s, with a fade, and the same
+    page of the menu comes back. Nothing in force: the menu is never interrupted. The slides' prices follow the
+    menu's freshness rule. The slides live in memory only (never on the device). A slide is drawn by a copy of
+    Screen B's renderer (pantalla-promos.html), so a promotion looks the same on both TVs: the same letters per
+    metre, the same compositions (zones with presentations of their own, labels, fallback, framing, dissolve).
+  * Settings: built-in defaults < this TV's row (pantallas.html, read every 30 s) < the address, so a technician can
+    still override: ?tv=menu-1&pulgadas=55&distancia=3&giro=no|derecha|izquierda&escala=100&look=auto|dia|noche&pagina=28
+    &densidad=normal|compacta&ingles=debajo|en-linea|no&layout=auto|una-pantalla|paginas&promo=no|intercalar
+    &promo_cada=180&promo_seg=10&diag=1
+    Capital letter 1 cm per metre of reading distance (never under 0.8), titles 1.5x (1.3x compact), English 75 %.
+    giro=derecha turns the picture right, for a TV whose top edge ended up on the LEFT (like tv.html).
+  * From the TV's row only: which categories (null = all), sold-out items hidden or struck through (never a price), and
+    the hours (Costa Rica, UTC-6 all year): outside them the screen is black.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Figtree:wght@500;600;700;800&display=swap">
+<style>
+:root{
+  --bg:#0F2418; --ink:#F6F1E2; --soft:#C9D3BC; --gold:#DBB365; --cat:#A9C9A4; --line:#2E4A36;
+  --warn:#F2C14E; --warn-ink:#1B1405; --f:32px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%;margin:0}
+body{background:#0A1A10;overflow:hidden;cursor:none}
+.hg-lang{display:none !important}   /* no language switch: the screen shows both languages at once */
+
+/* the stage is sized and turned in pixels by orientar(), from the real window (like tv.html).
+   Every size is a multiple of --f (the pixel size of an item's name, chosen by the engine); the density «normal»
+   multipliers live here and «compacta» (#stage.compacta) tightens them */
+#stage{position:absolute;top:0;left:0;overflow:hidden;transform-origin:0 0;display:flex;flex-direction:column;
+  padding:2.2% 2.6%;color:var(--ink);font-family:'Figtree',system-ui,sans-serif;
+  background:radial-gradient(120% 90% at 50% 0%,#1A3A26 0%,var(--bg) 70%);
+  --tit:1.5;--lh:1.12;--en:.75;--padA:.12;--padB:.26;--h2mb:.2;--hdr:1.75;--hdrPad:.3;--mainTop:.55;--footTop:.25}
+#stage.compacta{--tit:1.3;--lh:1.06;--en:.72;--padA:.05;--padB:.12;--h2mb:.12;--hdr:1.5;--hdrPad:.2;--mainTop:.35;--footTop:.15}
+/* daylight look: a bright screen outshines the reflection of a window (same colours as tv.html's) */
+#stage.dia{--bg:#FFFBF1;--ink:#0F2618;--soft:#2F3F33;--gold:#7A4A00;--cat:#1E4B33;--line:#C9A253;background:#FFFBF1}
+/* outside the TV's hours: a black screen, nothing on it (the technician's box only with diag=1) */
+body.apagado,#stage.apagado{background:#000}
+#stage.apagado > :not(#diag){display:none !important}
+
+/* the header has one height in every state (page number, warning or not): the board below never changes size, so a
+   warning never moves the menu to other pages */
+header{display:flex;align-items:center;gap:calc(var(--f)*.8);font-size:calc(var(--f)*.72);height:calc(var(--f)*var(--hdr));overflow:hidden;
+  padding-bottom:calc(var(--f)*var(--hdrPad));border-bottom:2px solid var(--line)}
+.marca{font-family:'Playfair Display',Georgia,serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:.45em;white-space:nowrap;line-height:1.2;min-width:0;overflow:hidden}
+.marca svg{width:1.05em;height:1.05em;flex:none}
+.marca small{font-family:'Figtree',system-ui,sans-serif;font-weight:700;letter-spacing:.08em;color:var(--soft);font-size:.8em}
+/* the warning shrinks its letter to fit (ajustarAviso), never under 0.4 of the names */
+#aviso{flex:1;min-width:0;font-size:calc(var(--f)*.66);font-weight:800;line-height:1.08;background:var(--warn);color:var(--warn-ink);
+  border-radius:calc(var(--f)*.2);padding:calc(var(--f)*.08) calc(var(--f)*.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#aviso small{display:block;font-size:.79em;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.esp{flex:1}
+#pag{display:block;height:1.2em;line-height:1.2;font-weight:800;font-size:calc(var(--f)*.9);font-variant-numeric:tabular-nums;color:var(--soft);white-space:nowrap}
+
+main{flex:1;min-height:0;position:relative;margin-top:calc(var(--f)*var(--mainTop))}
+/* a page is a row of explicit columns; each column a stack of category blocks (never a CSS multi-column flow, so a
+   block is never cut between columns and a title never lands between another category's items) */
+.page,#medida{position:absolute;inset:0;display:flex;align-items:stretch;gap:calc(var(--f)*1.4);overflow:hidden}
+.page{opacity:0;visibility:hidden;transition:opacity .6s ease,visibility 0s linear .6s}
+.page.on{opacity:1;visibility:visible;transition:opacity .6s ease}
+.page.ya{transition:none}                    /* a rebuilt board replaces the old one at once, never through a blank */
+#medida{visibility:hidden;pointer-events:none}
+.col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
+
+.cat{flex:none}
+.cat h2{margin:0 0 calc(var(--f)*var(--h2mb));font-size:calc(var(--f)*var(--tit));font-weight:800;line-height:1.08;color:var(--cat);
+  display:flex;flex-wrap:wrap;align-items:baseline;column-gap:.4em}
+.cat h2 .cen{font-size:.5em;font-weight:700;color:var(--soft);letter-spacing:.04em}
+.cat h2 .cont{font-size:.5em;font-weight:700;color:var(--soft);letter-spacing:.02em}
+.it{padding:calc(var(--f)*var(--padA)) 0 calc(var(--f)*var(--padB))}
+.l1{font-size:var(--f);font-weight:700;line-height:var(--lh)}
+.pr{font-weight:800;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pr .cur{font-size:.8em;margin-right:.04em}
+.en{font-size:calc(var(--f)*var(--en));font-weight:500;color:var(--soft);line-height:var(--lh);margin-top:.04em}
+.l1 .en{display:inline;margin:0}             /* English in the line (ingles = en-linea): after the name, grey, smaller */
+/* sold out, when the TV is set to show it: struck through, a label, never a price */
+.it.agotado .es,.it.agotado .en{text-decoration:line-through;text-decoration-thickness:.08em;color:var(--soft)}
+.ago{display:inline-block;font-size:.75em;font-weight:800;color:var(--soft);white-space:nowrap;line-height:1.1;
+  border:.09em solid currentColor;border-radius:.3em;padding:0 .3em;vertical-align:.08em}
+
+footer{display:flex;align-items:baseline;justify-content:space-between;gap:1em;border-top:2px solid var(--line);
+  padding-top:calc(var(--f)*var(--footTop));font-size:calc(var(--f)*.55);color:var(--soft);font-weight:500}
+
+#vacio{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.4em}
+#vacio .t1{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:calc(var(--f)*2.2);color:var(--gold)}
+#vacio .t2{font-size:calc(var(--f)*1.1);font-weight:700}
+#vacio .t3{font-size:calc(var(--f)*.85);color:var(--soft)}
+
+/* === PROMO RENDERER (copied from pantalla-promos.html) · CSS === a slide of the TV over the menu, drawn exactly as
+   Screen B draws it (the same classes, colours and letters), with a fade in and out over the menu. #promo plays the
+   part of Screen B's stage and layer (.capa): it carries Screen B's colour tokens, so the slide keeps Screen B's look
+   whatever the menu's day look (a text-only slide, .claro, turns bright by day as on Screen B). Everything below
+   the first rule is Screen B's CSS as it is */
+#promo{position:absolute;inset:0;z-index:4;overflow:hidden;opacity:0;visibility:hidden;transition:opacity .8s ease,visibility 0s linear .8s;
+  background:var(--deep);color:var(--cream);font-family:'Figtree',system-ui,sans-serif;
+  --bg:#0F2418;--deep:#0A1A10;--cream:#F6F1E2;--soft:#C9D3BC;--gold:#DBB365;--leaf:#7FA381;--kick:#A9C9A4;--warn:#F2C14E;--warn-ink:#1B1405;--qr-ink:#0B1A10}
+#promo.on{opacity:1;visibility:visible;transition:opacity .8s ease}
+#promo.ya,#promo.ya.on{transition:none}      /* a slide that may no longer show (ended, sold out, unverified price) goes at once */
+/* the menu's English line (.en, above) must not reach the kicker's English span */
+#promo .kick .en{font-size:inherit;font-weight:inherit;line-height:inherit;margin:0;color:var(--soft)}
+
+.sl{position:absolute;inset:0;overflow:hidden;--g:16px}
+/* the brand background: no image, so it works without internet */
+.fondo{position:absolute;inset:0;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#1A3A26 0%,var(--bg) 70%)}
+.fondo .niebla{position:absolute;inset:-20%;background:
+  radial-gradient(45% 30% at 20% 30%,rgba(214,228,214,.10),transparent 70%),
+  radial-gradient(50% 32% at 80% 60%,rgba(214,228,214,.08),transparent 70%),
+  radial-gradient(40% 26% at 55% 15%,rgba(214,228,214,.07),transparent 70%);
+  animation:drift 46s ease-in-out infinite alternate}
+.fondo .hojaG{position:absolute;right:-8%;top:-14%;width:58%;height:auto;color:var(--leaf);opacity:.08}
+@keyframes drift{from{transform:translate3d(-2%,-1%,0) scale(1)}to{transform:translate3d(2%,1.5%,0) scale(1.06)}}
+/* a full-bleed photo; while it loads (or if it fails) the brand background shows */
+.foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s ease}
+.foto.ok{opacity:1;animation:kb 18s ease-in-out infinite alternate}
+@keyframes kb{from{transform:scale(1.02)}to{transform:scale(1.1)}}
+.velo{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,16,.5) 0%,rgba(10,26,16,0) 20%,
+  rgba(10,26,16,.28) 40%,rgba(10,26,16,.84) 66%,rgba(10,26,16,.95) 100%)}
+
+.sup{position:absolute;display:flex;align-items:center;gap:.45em;font-family:'Playfair Display',Georgia,serif;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--gold);white-space:nowrap;line-height:1.2;
+  text-shadow:0 2px 14px rgba(8,16,10,.7)}
+.sup svg{width:1.1em;height:1.1em;flex:none}
+.caja{position:absolute;display:flex;flex-direction:column}
+.txt{margin-top:auto;position:relative;text-shadow:0 2px 18px rgba(8,16,10,.8)}
+.confoto .txt::before{content:"";position:absolute;inset:calc(var(--g) * -1.2) calc(var(--g) * -1.6);z-index:-1;pointer-events:none;
+  border-radius:calc(var(--g) * 1.5);background:rgba(8,16,10,.5);filter:blur(calc(var(--g) * 1.4))}
+.claro .txt{margin:auto 0;text-align:center}
+
+.kick{font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--kick);line-height:1.2;margin-bottom:.5em}
+.kick .en{color:var(--soft)}
+.tit{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.08;margin:0;color:var(--cream);text-wrap:balance}
+.tit-en{font-weight:600;color:var(--soft);line-height:1.15;margin-top:.2em}
+.cuerpo{font-weight:600;line-height:1.25;margin-top:.7em;color:var(--cream)}
+.cuerpo-en{font-weight:500;line-height:1.25;margin-top:.2em;color:var(--soft)}
+.precio{font-weight:800;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.05;margin-top:.22em}
+.precio .cur{font-size:.8em;margin-right:.05em}
+.nota{width:fit-content;max-width:100%;background:var(--warn);color:var(--warn-ink);font-weight:800;line-height:1.2;
+  border-radius:.3em;padding:.12em .45em;margin-top:.35em;text-shadow:none}
+.pida{font-weight:700;color:var(--soft);line-height:1.2;margin-top:.55em}
+.claro .nota{margin-left:auto;margin-right:auto}
+
+/* the built-in brand slide */
+.k-propia .hojaM{display:block;margin:0 auto calc(var(--g) * .6);color:var(--gold)}
+.k-propia .tit{color:var(--gold);letter-spacing:.02em}
+.k-propia .linea{width:22%;height:2px;margin:calc(var(--g) * .9) auto;background:var(--gold);opacity:.55}
+.k-propia .lugar{font-weight:600;color:var(--soft);letter-spacing:.06em;line-height:1.2}
+
+/* invitations: the text and the QR code side by side (one above the other on a vertical TV) */
+.fila{margin:auto 0;display:flex;align-items:center;gap:calc(var(--g) * 2.2)}
+.fila .txt{margin:0;flex:1 1 0;min-width:0;text-align:left}
+.vertical .fila{flex-direction:column;align-items:stretch}
+.vertical .fila .txt{flex:none;text-align:center}
+.qrcol{flex:none;display:flex;flex-direction:column;align-items:center;align-self:center}
+.qrcard{background:#fff;border-radius:6px;line-height:0;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.qrcard svg{display:block}
+.dir{font-weight:700;color:var(--cream);white-space:nowrap;line-height:1.2;text-align:center;text-shadow:0 2px 12px rgba(8,16,10,.7)}
+.qrcard + .dir{margin-top:.45em}
+.dirsola{font-weight:800;color:var(--gold);white-space:nowrap;line-height:1.2;text-align:center}
+
+/* daylight look: slides without a photo turn bright (a dark screen mirrors the window); photos keep their dark veil */
+#stage.dia .claro{--cream:#0F2618;--soft:#2F3F33;--gold:#7A4A00;--kick:#2F6B3A;--leaf:#2F6B3A}
+#stage.dia .claro .fondo{background:#FFFBF1}
+#stage.dia .claro .niebla{display:none}
+#stage.dia .claro .hojaG{color:#7FA381;opacity:.1}
+#stage.dia .claro .txt,#stage.dia .claro .sup,#stage.dia .claro .dir{text-shadow:none}
+#stage.dia .claro .qrcard{box-shadow:0 0 0 2px #C9A253}
+
+/* a composition: zones that tile the stage (positioned in px by ajustarComposicion), each with two image layers that
+   dissolve into each other: the new one fades in OVER the old one, which stays opaque until the fade ends, so the
+   zone is never darker than a photo in between */
+.k-composicion .zonas{position:absolute;inset:0}
+.zona{position:absolute;overflow:hidden;background:var(--bg)}
+.zcapa{position:absolute;inset:0;opacity:0;z-index:1;transition:opacity var(--fundido,1s) ease}
+.zcapa.on{opacity:1}
+.zcapa.entra{z-index:2}
+.zcapa.ya{transition:none}
+.zcapa.sale .ztxt{opacity:0;transition-duration:.3s}
+.zfoto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+/* the veil under the labels: dark from about half the zone, so even the first line of a long name reads over a light photo */
+.zvelo{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,26,16,0) 22%,rgba(10,26,16,.55) 52%,rgba(10,26,16,.9) 100%)}
+.ztxt{position:absolute;left:var(--zp);right:var(--zp);bottom:var(--zp);text-shadow:0 2px 14px rgba(8,16,10,.8);
+  transition:opacity var(--fundido,1s) ease}
+.ztit{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.08;margin:0;color:var(--cream);text-wrap:balance}
+.ztit-en{font-weight:600;color:var(--soft);line-height:1.15;margin-top:.15em}
+.zsinen .ztit-en{display:none}   /* a layer whose name, English and price do not fit: the English goes first (ajustarZona) */
+.zprecio{font-weight:800;color:var(--gold);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.05;margin-top:.18em}
+.zprecio .cur{font-size:.8em;margin-right:.05em}
+.znota{width:fit-content;max-width:100%;background:var(--warn);color:var(--warn-ink);font-weight:800;line-height:1.2;
+  border-radius:.3em;padding:.1em .4em;margin-top:.3em;text-shadow:none}
+/* a zone with nothing to show and no fallback photo: the brand design, in the zone */
+.zmarca{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:var(--zp);text-shadow:0 2px 14px rgba(8,16,10,.6)}
+.zmarca .hojaM{display:block;margin:0 auto calc(var(--zp) * .4);color:var(--gold)}
+.zmarca .zmnombre{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.08;color:var(--gold);letter-spacing:.02em;text-wrap:balance}
+.zmarca .linea{width:22%;height:2px;margin:calc(var(--zp) * .5) auto;background:var(--gold);opacity:.55}
+.zmarca .lugar{font-weight:600;color:var(--soft);letter-spacing:.06em;line-height:1.2}
+#stage.dia .zclara{--cream:#0F2618;--soft:#2F3F33;--gold:#7A4A00;--leaf:#2F6B3A}
+#stage.dia .zclara .fondo{background:#FFFBF1}
+#stage.dia .zclara .niebla{display:none}
+#stage.dia .zclara .hojaG{color:#7FA381;opacity:.1}
+#stage.dia .zclara .zmarca{text-shadow:none}
+/* === end of the PROMO RENDERER (copied from pantalla-promos.html) CSS === */
+
+#diag{position:absolute;right:1%;bottom:1%;z-index:6;max-width:46%;background:rgba(0,0,0,.82);color:#fff;border-radius:8px;
+  font:500 calc(var(--f)*.36)/1.35 'Figtree',system-ui,sans-serif;padding:.6em .9em;white-space:pre-wrap}
+#diag b{color:#F2C14E}
+#fsHint{position:absolute;left:50%;top:1.5%;transform:translateX(-50%);z-index:5;background:rgba(10,26,16,.9);color:#F6F1E2;
+  font:700 calc(var(--f)*.5)/1.3 'Figtree',system-ui,sans-serif;padding:.5em 1.2em;border-radius:99px;white-space:nowrap;
+  opacity:0;transition:opacity .6s;pointer-events:none}
+#fsHint.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.page,.page.on,#promo,#promo.on,.foto,.zcapa,.ztxt{transition:none}.foto.ok,.fondo .niebla{animation:none}}
+</style>
+</head>
+<body>
+<div id="stage" data-no-translate>
+  <header>
+    <span class="marca" id="marca"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z"/></svg>Hanging Garden Café <small>· Menú · Menu</small></span>
+    <span id="aviso" role="status" hidden></span>
+    <span class="esp" id="esp"></span>
+    <span id="pag"></span>
+  </header>
+  <main id="main"><div id="medida" aria-hidden="true"></div><div id="vacio" hidden></div></main>
+  <footer><span id="nota">Precios en colones, IVA incluido · Prices in colones, tax (IVA) included</span></footer>
+  <div id="promo" aria-hidden="true"></div>
+  <div id="diag" hidden></div>
+  <div id="fsHint">Pulse OK en el control para pantalla completa · Press OK for full screen</div>
+</div>
+
+<script src="config.js?v=c5e959090f73"></script>
+<script src="lang.js?v=c5e959090f73"></script>
+<script>
+/* the screen updates itself after a release (version.js), without a notice to the guests, at any moment */
+window.HG_VERSION_NOTICE = function () {};
+window.HG_SAFE_TO_RELOAD = function () { return true; };
+</script>
+<script src="version.js?v=c5e959090f73" defer></script>
+<script>
+(function () {
+  'use strict';
+  var CFG = window.HG_CONFIG || {};
+  var DEMO = window.PANTALLA_DEMO || null;          /* the private demonstration supplies its own menu */
+  /* times in ms; only the tests and the demonstration shorten them (window.PANTALLA_TEST). pagina, promoCada and
+     promoSeg: 0 = the TV's settings; zona: ms per declared second of a zone's presentation; fundido: the dissolve
+     between a zone's photos (as on Screen B) */
+  var T = { fresco: 2 * 60000, vencido: 10 * 60000, cada: 30000, revisar: 1000, pagina: 0, copiaMax: 3 * 86400000, limite: 12000, reintento: 60000, promoCada: 0, promoSeg: 0,
+            zona: 1000, fundido: 1000 };
+  try {
+    var over = window.PANTALLA_TEST || {};
+    Object.keys(over).forEach(function (k) { if (k in T && Number(over[k]) > 0) T[k] = Number(over[k]); });
+  } catch (e) {}
+  var TICK = Math.min(T.cada, T.revisar);
+  /* a pause longer than 3 ticks in either clock (sleep, frozen tab, clock moved): prices unverified until a read.
+     Never under 3 s, so a busy device with test timings does not count as asleep */
+  var SALTO = Math.max(3 * TICK, 3000);
+  var SKIP = { 'Extras & Combos': 1 };               /* the till's helpers and the combo line: never on a screen */
+  var COPIA = 'hg-pantalla-menu';                    /* this TV's copy of the names (never the prices) */
+  var COPIA_TV = 'hg-pantalla-menu-tv';              /* this TV's copy of its settings row (no prices in it) */
+  var H6 = 6 * 3600000;                              /* Costa Rica: UTC-6 all year */
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage'), main = $('main'), medida = $('medida');
+
+  /* ---------- the address ---------- */
+  var Q = (function () {
+    var o = {};
+    /* the private demonstration has no address of its own: it passes the settings itself */
+    String(DEMO && typeof DEMO.ajustes === 'string' ? DEMO.ajustes : location.search).replace(/^\?/, '').split('&').forEach(function (kv) {
+      if (!kv) return; var i = kv.indexOf('='), k = i < 0 ? kv : kv.slice(0, i), v = i < 0 ? '' : kv.slice(i + 1);
+      try { o[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (e) {}
+    });
+    return o;
+  })();
+  var malos = [];                                    /* address values not valid (named in the diagnosis) */
+  var LIM = { pulgadas: [24, 110, 'inches'], distancia: [1, 15, 'distance_m'], escala: [70, 160, 'scale_pct'], pagina: [15, 60, 'page_seconds'],
+              promo_cada: [30, 900, 'promo_every'], promo_seg: [6, 30, 'promo_seconds'] };
+  var DEF = { pulgadas: 55, distancia: 3, escala: 100, pagina: 28, promo_cada: 180, promo_seg: 10,
+              giro: 'no', look: 'auto', densidad: 'normal', ingles: 'debajo', layout: 'auto', promo: 'no' };
+  var OPC = { giro: [/^(no|derecha|izquierda)$/, 'turn'], look: [/^(auto|dia|noche)$/, 'look'],
+              densidad: [/^(normal|compacta)$/, 'density'], ingles: [/^(debajo|en-linea|no)$/, 'english'],
+              layout: [/^(auto|una-pantalla|paginas)$/, 'layout'], promo: [/^(no|intercalar)$/, 'promo_mode'] };
+  var DIR = {};                                      /* the valid values the address gives */
+  Object.keys(LIM).forEach(function (k) {
+    if (Q[k] === undefined || Q[k] === '') return;
+    var n = Number(String(Q[k]).replace(',', '.'));
+    if (isFinite(n) && n >= LIM[k][0] && n <= LIM[k][1]) DIR[k] = n; else malos.push(k + '=' + Q[k]);
+  });
+  Object.keys(OPC).forEach(function (k) {
+    if (Q[k] === undefined || Q[k] === '') return;
+    if (OPC[k][0].test(Q[k])) DIR[k] = Q[k]; else malos.push(k + '=' + Q[k]);
+  });
+  var TV = String(Q.tv || '').trim().toLowerCase().slice(0, 40);
+  var TV_OK = /^[a-z0-9][a-z0-9-]{1,29}$/.test(TV);
+  if (TV && !TV_OK) malos.push('tv=' + Q.tv);
+
+  /* ---------- this TV's settings: defaults < its row in the database < the address ---------- */
+  var fila = null, filaDe = null;                    /* the row in use, and where from: 'base' (a read) or 'copia' */
+  var razon = null;                                  /* why there is no row */
+  var AJ = null, origen = {}, malosBase = [], paginaMs = 0;
+  var CAMPOS_FILA = ['id', 'kind', 'inches', 'distance_m', 'turn', 'scale_pct', 'look', 'page_seconds', 'category_ids', 'item_ids',
+                     'sold_out', 'on_from', 'on_to', 'updated_at', 'layout', 'density', 'english', 'promo_mode', 'promo_every', 'promo_seconds'];
+  function hm(s) {
+    var m = /^([01]\d|2[0-3]):([0-5]\d)/.exec(String(s || ''));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  }
+  function hhmm(m) { return ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2); }
+  function calcularAjustes() {
+    var f = fila, aj = { tv: TV || String(Q.tv || '').slice(0, 40), diag: Q.diag === '1' }, o = {};
+    malosBase = [];
+    Object.keys(LIM).forEach(function (k) {
+      var L = LIM[k], v = DEF[k], de = 'omision';
+      if (f && f[L[2]] != null) {
+        var n = Number(f[L[2]]);
+        if (isFinite(n) && n >= L[0] && n <= L[1]) { v = n; de = 'base'; } else malosBase.push(L[2] + '=' + f[L[2]]);
+      }
+      if (k in DIR) { v = DIR[k]; de = 'direccion'; }
+      aj[k] = v; o[k] = de;
+    });
+    Object.keys(OPC).forEach(function (k) {
+      var v = DEF[k], de = 'omision', b = f ? f[OPC[k][1]] : null;
+      if (b != null) { if (OPC[k][0].test(String(b))) { v = String(b); de = 'base'; } else malosBase.push(OPC[k][1] + '=' + b); }
+      if (k in DIR) { v = DIR[k]; de = 'direccion'; }
+      aj[k] = v; o[k] = de;
+    });
+    aj.agotados = f && f.sold_out === 'tachar' ? 'tachar' : 'ocultar';
+    aj.categorias = f && Array.isArray(f.category_ids) && f.category_ids.length
+      ? f.category_ids.map(function (x) { return String(x).toLowerCase(); }) : null;
+    /* the TV's products (item_ids, migration 0037): a summarized menu; null = every product of the categories it shows */
+    aj.productos = null;
+    if (f && Array.isArray(f.item_ids) && f.item_ids.length) {
+      var vistos = {}; aj.productos = [];
+      f.item_ids.forEach(function (x) { x = String(x).toLowerCase(); if (!vistos[x]) { vistos[x] = 1; aj.productos.push(x); } });
+    }
+    var a = f ? hm(f.on_from) : null, b = f ? hm(f.on_to) : null;
+    aj.desde = a !== null && b !== null && a !== b ? a : null;
+    aj.hasta = aj.desde !== null ? b : null;
+    aj.supuesto = o.pulgadas === 'omision' || o.distancia === 'omision';
+    AJ = aj; origen = o;
+    stage.classList.toggle('compacta', aj.densidad === 'compacta');
+  }
+  function aplicarAjustes() {
+    var giro = AJ && AJ.giro;
+    calcularAjustes();
+    if (giro !== AJ.giro) orientar();
+    paginaMs = T.pagina || AJ.pagina * 1000;
+    armarPaginas();
+    promoArmar();
+    derivar();
+  }
+  function copiaTv() {
+    try {
+      var v = JSON.parse(localStorage.getItem(COPIA_TV) || 'null'), e = v ? Date.now() - Number(v.at) : -1;
+      if (v && v.tv === TV && v.fila && typeof v.fila === 'object' && e >= 0 && e <= T.copiaMax) return v.fila;
+    } catch (e) {}
+    return null;
+  }
+  function fijarFila(f, por) {
+    fila = f; filaDe = f ? 'base' : null; razon = f ? null : por;
+    try {
+      if (f) {
+        var g = {}; CAMPOS_FILA.forEach(function (k) { if (k in f) g[k] = f[k]; });
+        localStorage.setItem(COPIA_TV, JSON.stringify({ at: Date.now(), tv: TV, fila: g }));
+      } else localStorage.removeItem(COPIA_TV);
+    } catch (e) {}
+    aplicarAjustes();
+  }
+
+  /* ---------- the server's time, and Costa Rica's (UTC-6 all year) ---------- */
+  var srv = null;                                    /* {ms: server time, perf, reloj: when it arrived} */
+  function ahoraMs() {
+    if (!srv) return Date.now();                     /* no server time yet: the device's clock */
+    var a = performance.now() - srv.perf, b = Date.now() - srv.reloj;
+    return srv.ms + Math.max(a, b >= 0 ? b : 0);
+  }
+  function minutoCR(ms) { var m = Math.floor(ms / 60000) - 360; return ((m % 1440) + 1440) % 1440; }
+  function diaCR(ms) { var d = new Date(ms - H6).getUTCDay(); return d === 0 ? 7 : d; }   /* 1 Monday … 7 Sunday */
+  function enHoras(m, a, b) { return a < b ? m >= a && m < b : m >= a || m < b; }      /* overnight allowed */
+  var apagadaDueno = false;         /* switched off by the owner in pantallas.html: black until a read says otherwise */
+  function encendida() {
+    if (apagadaDueno) return false;
+    if (AJ.desde === null) return true;
+    return enHoras(minutoCR(ahoraMs()), AJ.desde, AJ.hasta);
+  }
+
+  /* ---------- the menu: read only ---------- */
+  var crudo = null;                  /* the last good answer of this session (memory only, never stored) */
+  var menu = null;                   /* [{es, en, items:[{es, en, precio, agotado}]}] */
+  var deCopia = false;               /* the names on screen come from this TV's copy: no prices */
+  var okPerf = null, okReloj = null; /* when the last good read STARTED: monotonic clock and wall clock */
+  var okPerfDatos = null, okRelojDatos = null; /* the same for the last good pantalla_datos read (the slides' prices) */
+  var conEs = true, leyendo = false, leyendoDesde = 0, ultimoIntento = -1e12, lecturaN = 0, otraVez = false;
+  var dudoso = false, dudaN = 0;     /* after a pause or a resume: no price until a read that started after it */
+  var info = { estado: 'sin-verificar', maquetas: 0, categorias: 'todas', productos: 'todos' };
+
+  function plano(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+  function clave(s) {
+    s = plano(s).toLowerCase();
+    return s.normalize ? s.normalize('NFD').replace(/[̀-ͯ]/g, '') : s;
+  }
+  /* Spanish as on the QR menu: the Menu Manager's name_es, else the site's exact dictionary, else the name once */
+  function espanol(en, es) {
+    es = plano(es); if (es) return es;
+    var t = null; try { t = window.HG_EXACT ? window.HG_EXACT(en) : null; } catch (e) {}
+    return plano(t) || plano(en);
+  }
+  function limpiar(raw) {
+    if (!Array.isArray(raw)) throw new Error('respuesta inesperada');
+    var validas = raw.filter(function (c) { return c && plano(c.name) && !SKIP[plano(c.name)]; });
+    var elegidas = null;
+    info.categorias = 'todas'; info.categoriasFaltan = 0;
+    if (AJ.categorias) {
+      var set = {}, hay = 0;
+      AJ.categorias.forEach(function (id) { set[id] = 1; });
+      validas.forEach(function (c) { if (set[String(c.id).toLowerCase()]) hay++; });
+      if (hay) { elegidas = set; info.categorias = 'elegidas'; info.categoriasFaltan = AJ.categorias.length - hay; }
+      else info.categorias = 'no-existen';          /* none of them is in the menu any more: all, and the diagnosis says so */
+    }
+    /* the TV's products: only those, each under its category (a category left without one disappears below). A chosen
+       id is "gone" only when no valid category has it, whatever its availability or price: a sold-out choice still
+       exists and follows the sold_out rule; one in a category this TV does not show exists too, and does not show */
+    var elegidos = null;
+    info.productos = 'todos'; info.productosFaltan = 0;
+    if (AJ.productos) {
+      var setP = {}, hayP = 0;
+      AJ.productos.forEach(function (id) { setP[id] = 1; });
+      validas.forEach(function (c) {
+        (Array.isArray(c.menu_items) ? c.menu_items : []).forEach(function (i) {
+          var k = i ? String(i.id).toLowerCase() : '';
+          if (setP[k] === 1) { setP[k] = 2; hayP++; }
+        });
+      });
+      if (hayP) { elegidos = setP; info.productos = 'elegidos'; info.productosFaltan = AJ.productos.length - hayP; }
+      else info.productos = 'no-existen';           /* none of them is in the menu any more: every product, and the diagnosis says so */
+    }
+    var tachar = AJ.agotados === 'tachar';
+    var cats = validas.map(function (c, ci) {
+      if (elegidas && !elegidas[String(c.id).toLowerCase()]) return null;
+      var items = (Array.isArray(c.menu_items) ? c.menu_items : []).filter(function (i) {
+        if (elegidos && !(i && elegidos[String(i.id).toLowerCase()])) return false;
+        var p = Number(i && i.price_crc);
+        if (!i || !plano(i.name) || !(isFinite(p) && p > 0)) return false;
+        return i.available === true || (tachar && i.available === false);
+      }).sort(function (a, b) {
+        return ((Number(a.sort) || 0) - (Number(b.sort) || 0)) || String(a.name).localeCompare(String(b.name));
+      }).map(function (i) {
+        var en = plano(i.name), es = espanol(en, i.name_es), ago = i.available !== true;
+        return { es: es, en: clave(es) === clave(en) ? '' : en, precio: ago ? null : Math.round(Number(i.price_crc)), agotado: ago };
+      });
+      var en = plano(c.name), es = espanol(en, null);
+      return { es: es, en: clave(es) === clave(en) ? '' : en, sort: Number(c.sort) || 0, ci: ci, items: items };
+    }).filter(function (c) { return c && c.items.length; });
+    cats.sort(function (a, b) { return (a.sort - b.sort) || (a.ci - b.ci); });
+    /* how many of the chosen products are on the board (one in a hidden category, or without a price, exists but is not) */
+    info.productosEnPantalla = elegidos ? cats.reduce(function (n, c) { return n + c.items.length; }, 0) : null;
+    return cats.map(function (c) { return { es: c.es, en: c.en, items: c.items }; });
+  }
+  function derivar() { if (crudo) { try { menu = limpiar(crudo); } catch (e) {} } }
+
+  /* one GET; the time limit (12 s) covers the answer's body too */
+  async function pedir(url) {
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, T.limite) : null;
+    try {
+      var res = await fetch(url, { headers: { apikey: CFG.key, Authorization: 'Bearer ' + CFG.key }, cache: 'no-store',
+                                   signal: ctl ? ctl.signal : undefined });
+      var out = { status: res.status, ok: res.ok, body: null, text: '' };
+      if (res.ok) out.body = await res.json();
+      else { try { out.text = await res.text(); } catch (e) {} }
+      return out;
+    } finally { if (timer) clearTimeout(timer); }
+  }
+  async function leerMenu() {
+    if (DEMO && typeof DEMO.menu === 'function') return DEMO.menu();
+    for (var n = 0; n < 2; n++) {
+      var sel = 'id,name,sort,menu_items(id,name,price_crc,available,sort' + (conEs ? ',name_es' : '') + ')';
+      var r = await pedir(CFG.url + '/rest/v1/menu_categories?select=' + encodeURIComponent(sel) + '&order=sort');
+      if (r.ok) return r.body;
+      if (r.status === 400 && conEs && /name_es/.test(r.text)) { conEs = false; continue; }   /* menu-spanish.sql not applied */
+      throw new Error('menu ' + r.status);
+    }
+    throw new Error('menu');
+  }
+  async function leerDatos() {
+    if (DEMO) return typeof DEMO.datos === 'function' ? { status: 200, ok: true, body: await DEMO.datos() } : null;
+    if (!TV_OK) return null;
+    return pedir(CFG.url + '/rest/v1/rpc/pantalla_datos?p_tv=' + encodeURIComponent(TV));
+  }
+  function usarDatos(r, p0, r0) {
+    if (!r) return;
+    if (r.ok && r.body && typeof r.body === 'object') {
+      var b = r.body, t = Date.parse(b.now);
+      if (isFinite(t)) srv = { ms: t, perf: performance.now(), reloj: Date.now() };
+      if (b.ok === true && b.tv && typeof b.tv === 'object') {
+        apagadaDueno = false;
+        if (b.tv.kind && b.tv.kind !== 'menu') { promo.datos = []; fijarFila(null, 'otra-clase'); }
+        else { promo.datos = normalizarPromos(b.slides); precargar(); fijarFila(b.tv, null); if (p0 != null) { okPerfDatos = p0; okRelojDatos = r0; } }
+      } else if (b.ok === false && b.error === 'tv_apagada') { apagadaDueno = true; promo.datos = []; fijarFila(null, 'tv-apagada'); try { localStorage.removeItem(COPIA); } catch (e) {} }
+      else if (b.ok === false && b.error === 'unknown_tv') { apagadaDueno = false; promo.datos = []; fijarFila(null, 'tv-desconocida'); }
+    } else if (r.status === 404 || r.status === 400) { apagadaDueno = false; promo.datos = []; fijarFila(null, 'sin-funcion'); }   /* migration 0036 not applied */
+    /* anything else (a server error): the settings in use stay, and so do the slides (in force by their own dates) */
+  }
+  function guardar(m) {
+    if (apagadaDueno) return;        /* switched off by the owner: nothing kept, so a reboot without network stays black */
+    try {
+      localStorage.setItem(COPIA, JSON.stringify({ at: Date.now(), cats: m.map(function (c) {
+        return { es: c.es, en: c.en, items: c.items.filter(function (i) { return !i.agotado; }).map(function (i) { return { es: i.es, en: i.en }; }) };
+      }).filter(function (c) { return c.items.length; }),
+        muestra: { categorias: info.categorias, categoriasFaltan: info.categoriasFaltan || 0, productos: info.productos, productosFaltan: info.productosFaltan || 0, enPantalla: info.productosEnPantalla } }));
+    } catch (e) {}
+  }
+  function copiaMuestra() {   /* what the copy's names were filtered by, so a cold start's diagnosis says the same */
+    try { var v = JSON.parse(localStorage.getItem(COPIA) || 'null'); return v && v.muestra && typeof v.muestra === 'object' ? v.muestra : null; } catch (e) { return null; }
+  }
+  function copia() {
+    try {
+      var v = JSON.parse(localStorage.getItem(COPIA) || 'null'), edad = v ? Date.now() - Number(v.at) : -1;
+      if (!v || !Array.isArray(v.cats) || !(edad >= 0 && edad <= T.copiaMax)) return null;
+      var cats = v.cats.map(function (c) {
+        return { es: plano(c && c.es), en: plano(c && c.en), items: (c && Array.isArray(c.items) ? c.items : []).map(function (i) {
+          return { es: plano(i && i.es), en: plano(i && i.en), precio: null, agotado: false };
+        }).filter(function (i) { return i.es; }) };
+      }).filter(function (c) { return c.es && c.items.length; });
+      return cats.length ? cats : null;
+    } catch (e) { return null; }
+  }
+
+  /* ---------- how old the prices are ---------- */
+  function edad() {
+    if (okPerf === null) return Infinity;
+    var a = performance.now() - okPerf, b = Date.now() - okReloj;
+    return Math.max(a, b >= 0 ? b : 0);
+  }
+  function estado() {
+    if (!menu || deCopia || dudoso) return 'sin-verificar';
+    var e = edad();
+    return e <= T.fresco ? 'al-dia' : e <= T.vencido ? 'por-confirmar' : 'sin-verificar';
+  }
+  /* the slides' prices come with the pantalla_datos read, which can fail while the menu read goes on (or the other
+     way round): a promotion is as fresh as the OLDER of the two reads, so an old price never passes as current */
+  function edadDatos() {
+    if (okPerfDatos === null) return Infinity;
+    var a = performance.now() - okPerfDatos, b = Date.now() - okRelojDatos;
+    return Math.max(a, b >= 0 ? b : 0);
+  }
+  function estadoPromos() {
+    var st = estado();
+    if (st === 'sin-verificar') return st;
+    var e = edadDatos(), sd = e <= T.fresco ? 'al-dia' : e <= T.vencido ? 'por-confirmar' : 'sin-verificar';
+    return sd === 'sin-verificar' || st === 'sin-verificar' ? 'sin-verificar' : (sd === 'por-confirmar' || st === 'por-confirmar') ? 'por-confirmar' : 'al-dia';
+  }
+  function asentar(p) { return p.then(function (v) { return { ok: true, v: v }; }, function (e) { return { ok: false, e: e }; }); }
+
+  /* both reads at once; prices count from the moment they STARTED */
+  async function refrescar() {
+    var p0 = performance.now(), r0 = Date.now();
+    if (leyendo && p0 - leyendoDesde < 30000) { otraVez = true; return; }
+    var n = ++lecturaN, d0 = dudaN;
+    leyendo = true; leyendoDesde = p0; ultimoIntento = p0; otraVez = false;
+    var a = asentar(leerMenu()), b = asentar(leerDatos());
+    var rm = await a, rd = await b;
+    if (n !== lecturaN) return;                     /* a newer read took over from this stuck one */
+    try {
+      if (rd.ok) usarDatos(rd.v, p0, r0);
+      if (rm.ok) {
+        if (!Array.isArray(rm.v) || !rm.v.length) throw new Error('menú vacío');
+        var m = limpiar(rm.v);
+        crudo = rm.v; menu = m; deCopia = false; okPerf = p0; okReloj = r0;
+        if (d0 === dudaN) dudoso = false;
+        guardar(m);
+      }
+    } catch (e) { /* what is on screen stays; its age decides whether prices may show */ }
+    finally {
+      leyendo = false; pintar();
+      if (otraVez || d0 !== dudaN) { otraVez = false; setTimeout(refrescar, 0); }
+    }
+  }
+  function dudar(por) {
+    dudoso = true; dudaN++; info.duda = por;
+    pintar(); vivo();
+    refrescar();
+  }
+
+  /* ---------- the stage: size, turn, look ---------- */
+  var anchoE = 0, altoE = 0;
+  function orientar() {
+    var W = window.innerWidth || document.documentElement.clientWidth, H = window.innerHeight || document.documentElement.clientHeight;
+    if (AJ.giro !== 'no') {
+      stage.style.width = H + 'px'; stage.style.height = W + 'px';
+      stage.style.transform = AJ.giro === 'derecha' ? 'translate(' + W + 'px,0) rotate(90deg)' : 'translate(0,' + H + 'px) rotate(-90deg)';
+      anchoE = H; altoE = W;
+    } else {
+      stage.style.width = W + 'px'; stage.style.height = H + 'px'; stage.style.transform = '';
+      anchoE = W; altoE = H;
+    }
+  }
+  function aplicarLook() {
+    var dia = AJ.look === 'dia' ? true : AJ.look === 'noche' ? false : (function () { var m = minutoCR(ahoraMs()); return m >= 360 && m < 1080; })();
+    info.look = dia ? 'dia' : 'noche';
+    if (stage.classList.contains('dia') !== dia) stage.classList.toggle('dia', dia);
+  }
+  /* the long side of a 16:9 screen, in cm, from its diagonal in inches */
+  function largoCm() { return AJ.pulgadas * 2.54 * 16 / Math.sqrt(337); }
+
+  /* ---------- letter size: measured, not guessed ---------- */
+  var proporciones = {}, fuentesN = 0;               /* emptied whenever a web font finishes loading */
+  function proporcionH() {   /* cap height / font size of the font really in use (Figtree, or the TV's own if it did not load) */
+    var fam = getComputedStyle(stage).fontFamily;
+    if (proporciones[fam]) return proporciones[fam];
+    var r = 0.7;
+    try {
+      var cx = document.createElement('canvas').getContext('2d');
+      cx.font = '700 200px ' + fam;
+      var m = cx.measureText('H');
+      if (m.actualBoundingBoxAscent > 60 && m.actualBoundingBoxAscent < 190) r = m.actualBoundingBoxAscent / 200;
+    } catch (e) {}
+    return (proporciones[fam] = r);
+  }
+  /* the pixel font size whose capital letter is cap cm on this TV */
+  function letraPx(cap) { return cap * Math.max(anchoE, altoE) / largoCm() / proporcionH(); }
+
+  /* ---------- the board: blocks of one category each, packed into columns ---------- */
+  var DENS = { normal: { tit: 1.5, gap: 0.65 }, compacta: { tit: 1.3, gap: 0.35 } };   /* title × names; gap between blocks × names */
+  function densidad() { return DENS[AJ.densidad] || DENS.normal; }
+  function el(tag, cls, txt, r) {   /* r: the kind of text, for the promo renderer's fitting (data-r) */
+    var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt;
+    if (r) e.setAttribute('data-r', r);
+    return e;
+  }
+  function precioNodo(p) {
+    var s = el('span', 'pr'); s.appendChild(el('span', 'cur', '₡')); s.appendChild(document.createTextNode(Number(p).toLocaleString('fr-FR')));
+    return s;
+  }
+  function itemNodo(i, conPrecios) {
+    var d = el('div', i.agotado ? 'it agotado' : 'it'), l1 = el('div', 'l1');
+    l1.appendChild(el('span', 'es', i.es));
+    /* the English after the name (en-linea) stays on the same line while it fits, else it wraps like any text */
+    if (i.en && AJ.ingles === 'en-linea') { l1.appendChild(document.createTextNode(' ')); l1.appendChild(el('span', 'en', i.en)); }
+    /* an en space: the price may go to the next line, never cut, and then starts at the margin */
+    if (i.agotado) { l1.appendChild(document.createTextNode(' ')); l1.appendChild(el('span', 'ago', 'Agotado · Sold out')); }
+    else if (conPrecios && i.precio > 0) { l1.appendChild(document.createTextNode(' ')); l1.appendChild(precioNodo(i.precio)); }
+    d.appendChild(l1);
+    if (i.en && AJ.ingles === 'debajo') d.appendChild(el('div', 'en', i.en));
+    return d;
+  }
+  /* a category block, or the part of it from item a to item b; a continuation repeats the title with «(continúa)» */
+  function catNodo(c, a, b, conPrecios, cont) {
+    var s = el('section', 'cat'), h = el('h2');
+    h.appendChild(el('span', 'ces', c.es));
+    if (cont) h.appendChild(el('span', 'cont', '(continúa)'));
+    if (c.en && AJ.ingles !== 'no') h.appendChild(el('span', 'cen', c.en));
+    s.appendChild(h);
+    for (var k = a; k < b; k++) s.appendChild(itemNodo(c.items[k], conPrecios));
+    return s;
+  }
+  /* a category title is 1.5 times the names (1.3 compact); a word too long for its column («costarricenses») makes
+     only that title smaller, never under 1.25 times the names. Layout widths (offsetWidth/clientWidth): a turned TV's
+     screen box is not the element's width */
+  function titulos(root) {
+    var hs = root.querySelectorAll('h2 .ces'), tit = densidad().tit;
+    for (var i = 0; i < hs.length; i++) {
+      var h = hs[i], w = h.parentNode.clientWidth;
+      if (h.style.fontSize) h.style.fontSize = '';
+      var hw = h.offsetWidth;
+      if (hw > w + 1) h.style.fontSize = Math.max(1.25 / tit, (w - 1) / hw) + 'em';
+    }
+  }
+  /* a line wider than its column (a single word longer than the column: nothing can wrap it) */
+  function anchoMal(root) {
+    var ls = root.querySelectorAll('.l1, .en, h2');
+    for (var i = 0; i < ls.length; i++) if (ls[i].scrollWidth > ls[i].clientWidth + 1) return true;
+    return false;
+  }
+  /* a page whose columns do not hold what was packed in them */
+  function desborda(page) {
+    var cs = page.querySelectorAll('.col');
+    for (var i = 0; i < cs.length; i++) if (cs[i].scrollHeight > cs[i].clientHeight + 1) return true;
+    return anchoMal(page);
+  }
+  /* every block measured once at this letter and this number of columns (one layout of the whole menu in the hidden
+     measuring page, at the real column width): the title's height (and the taller title of a continuation, which
+     carries «(continúa)»), every item's height, the block's height */
+  function medir(f, cols, conPrecios) {
+    stage.style.setProperty('--f', f + 'px');
+    medida.textContent = '';
+    var c0 = el('div', 'col'); medida.appendChild(c0);
+    for (var k = 1; k < cols; k++) medida.appendChild(el('div', 'col'));
+    var nodos = menu.map(function (c) { var n = catNodo(c, 0, c.items.length, conPrecios, false); c0.appendChild(n); return n; });
+    var contis = menu.map(function (c) { var n = catNodo(c, 0, 1, conPrecios, true); c0.appendChild(n); return n; });
+    nodos.forEach(titulos); contis.forEach(titulos);
+    var H = medida.clientHeight, ancho = true;
+    function cabecera(n) { var h2 = n.querySelector('h2'), it = n.querySelector('.it'); return it ? it.offsetTop - h2.offsetTop : h2.offsetHeight; }
+    var bl = nodos.map(function (n, i) {
+      var its = n.querySelectorAll('.it');
+      if (anchoMal(n)) ancho = false;
+      return { ci: i, tit: cabecera(n), titCont: cabecera(contis[i]),
+               items: [].map.call(its, function (it) { return it.offsetHeight; }), total: n.offsetHeight };
+    });
+    medida.textContent = '';
+    return { f: f, H: H, bl: bl, ancho: ancho, gap: densidad().gap * f };
+  }
+  /* the height of the part of block b from item a to item k (a pixel of safety per line: heights are measured whole);
+     a continuation (a > 0) carries the taller title */
+  function altoParte(b, a, k) { var h = (a > 0 ? b.titCont : b.tit) + 1; for (var j = a; j < k; j++) h += b.items[j] + 1; return h; }
+  /* the columns, filled one after the other under the board's height (ranges {ci, a, b}: a block or what is left of
+     it, in the Menu Manager's order). A block goes whole when it fits in what is left of the column; otherwise it is
+     cut where the column ends and continues at the top of the next column under its title with «(continúa)», but
+     only when both pieces keep two items or more (a title never stands alone at the foot of a column, and a lone
+     item never follows a repeated title); otherwise it moves whole to the next column. A block taller than a whole
+     column is cut at the bottom of the column, as many items as fit. So every column starts with a title and no
+     column keeps a hole that the next piece could have filled. */
+  function llenar(m, M, g, rangos) {
+    var cs = [], cur = { partes: [], alto: 0 }, cabe = true;
+    function cerrar() { cs.push(cur); cur = { partes: [], alto: 0 }; }
+    function poner(ci, a, k) { var alto = altoParte(m.bl[ci], a, k); cur.partes.push({ ci: ci, a: a, b: k, cont: a > 0, alto: alto }); cur.alto += (cur.alto ? g : 0) + alto; }
+    rangos.forEach(function (r) {
+      var b = m.bl[r.ci], a = r.a, n = r.b;
+      while (a < n) {
+        var libre = M - cur.alto - (cur.alto ? g : 0);
+        if (altoParte(b, a, n) <= libre) { poner(r.ci, a, n); break; }
+        var k = a;                                                    /* how many items fit in what is left */
+        while (k < n && altoParte(b, a, k + 1) <= libre) k++;
+        if (n - k === 1 && k - a >= 3) k--;                           /* a lone last item would follow the repeated title: one less here (a block of three that does not fit a column goes 2 + 1, the fuller column first) */
+        if (cur.alto) {
+          if (k - a >= 2 && n - k >= 2) { poner(r.ci, a, k); cerrar(); a = k; continue; }   /* a clean cut */
+          cerrar(); continue;                                         /* it moves whole to the next column */
+        }
+        if (k <= a) { k = a + 1; if (altoParte(b, a, k) > M) cabe = false; }   /* taller than a column: as many as fit, one at least */
+        poner(r.ci, a, k); cerrar(); a = k;
+      }
+    });
+    if (cur.partes.length) cerrar();
+    return { cols: cs, cabe: cabe };
+  }
+  /* the pages: the columns filled under the board's height, in groups of the page's columns; then every page is
+     balanced (equilibrar); what is left under the board's height becomes spacing between a column's blocks, up to
+     1.2 names per gap. */
+  function empacar(m, cols) {
+    var H = m.H, g = m.gap;
+    var todo = llenar(m, H, g, m.bl.map(function (b, i) { return { ci: i, a: 0, b: b.items.length }; }));
+    var pags = [];
+    for (var i = 0; i < todo.cols.length; i += cols) pags.push(todo.cols.slice(i, i + cols));
+    pags = pags.map(function (pg) { return equilibrar(pg, m, H, g, cols); });
+    return { pags: pags, cabe: todo.cabe && m.ancho, H: H, g: g, f: m.f, bl: m.bl };
+  }
+  /* the balance of one page: the pieces the first filling put on it, dealt again over its columns, in order, so that
+     the columns are as even as possible: the lowest tallest column, then the least empty board under the columns
+     (summed as squares; the best of every way to deal them, not a greedy pass). Rules: a block the first filling kept whole
+     stays whole (an evener column is never worth another cut); a block it cut, or one taller than the board, may be
+     cut at any item boundary that leaves two items or more on each side (one, only when nothing else keeps the
+     first filling's columns); a column that starts inside a block carries its title with «(continúa)»; no column
+     over the board; never fewer columns than the first filling used. */
+  function equilibrar(pg, m, H, g, cols) {
+    var rangos = [], cortados = {}, usadas = 0;
+    pg.forEach(function (col) { if (col.partes.length) usadas++; col.partes.forEach(function (p) {
+      var u = rangos[rangos.length - 1];
+      if (u && u.ci === p.ci && u.b === p.a) { u.b = p.b; cortados[p.ci] = true; } else rangos.push({ ci: p.ci, a: p.a, b: p.b });
+    }); });
+    function rellenar(cs) { while (cs.length < cols) cs.push({ partes: [], alto: 0 }); return cs; }
+    /* the page as the renderer and the diagnosis read it: every column up to the tallest one (tope), the slack under the
+       board spread between a column's blocks (extra, up to 1.2 names per gap) */
+    function terminar(cs) {
+      rellenar(cs);
+      var tope = 0; cs.forEach(function (col) { tope = Math.max(tope, col.alto); });
+      cs.forEach(function (col) { col.limite = tope; col.tope = tope; col.extra = col.partes.length > 1 ? Math.max(0, Math.min(1.2 * m.f, (H - col.alto) / (col.partes.length - 1))) : 0; });
+      return cs;
+    }
+    if (!rangos.length) return terminar(pg);
+    /* the units: every item of a block the first filling cut (or one taller than the board); the whole range otherwise */
+    var U = [];
+    rangos.forEach(function (r) {
+      var b = m.bl[r.ci];
+      if (cortados[r.ci] || r.a > 0 || r.b < b.items.length || altoParte(b, r.a, r.b) > H) for (var t = r.a; t < r.b; t++) U.push({ ci: r.ci, a: t, b: t + 1, suelto: true, ra: r.a, rb: r.b });
+      else U.push({ ci: r.ci, a: r.a, b: r.b, suelto: false });
+    });
+    var n = U.length;
+    /* may a column end just before unit i? inside a block only where both sides keep two items (or one, relaxed) */
+    function cortable(i, minimo) {
+      if (i <= 0 || i >= n) return true;
+      var u = U[i], v = U[i - 1];
+      if (!u.suelto || !v.suelto || u.ci !== v.ci) return true;
+      return u.a - u.ra >= minimo && u.rb - u.a >= minimo;
+    }
+    /* a column [k, i) of the relaxed deal never ends on a lone item of a cut block under other pieces, nor on a block's
+       lone first item when one more would have fit (as the first filling: the fuller column first, 2 + 1 never 1 + 2) */
+    function valida(k, i, minimo) {
+      if (minimo >= 2 || i >= n) return true;
+      var u = U[i - 1], w = U[i];
+      if (!(u.suelto && w.suelto && w.ci === u.ci)) return true;   /* the column does not end inside a cut block */
+      var run = 0; for (var t = i - 1; t >= k && U[t].suelto && U[t].ci === u.ci; t--) run++;
+      if (run > 1) return true;
+      return i - k < 2 && altoCol(k, i + 1).h > H + 0.5;
+    }
+    /* a column [k, i): its real height (the gaps between its blocks included) and the height of its pieces alone (what
+       the cost counts, so two small blocks are spread over two columns rather than stacked beside an empty one) */
+    function altoCol(k, i) {
+      var h = 0, prev = null, huecos = 0;
+      for (var t = k; t < i; t++) {
+        var u = U[t], b = m.bl[u.ci];
+        if (prev === null || prev.ci !== u.ci) { if (prev !== null) { h += g; huecos++; } if (u.suelto) h += (u.a > 0 ? b.titCont : b.tit) + 1; }
+        h += u.suelto ? b.items[u.a] + 1 : altoParte(b, u.a, u.b);
+        prev = u;
+      }
+      return { h: h, piezas: h - huecos * g };
+    }
+    /* the deal of the units over the page's columns, exact, in two passes: first the lowest possible tallest column
+       (M); then, among the deals whose columns all stay under M, the one that leaves the least empty board under the
+       columns (the sum of the squares of what each column leaves empty, real heights; a column left empty counts as a
+       whole board, so a feasible split is always preferred to an empty column) */
+    function permitida(k, i, minimo) {
+      if (!cortable(k, minimo) || !valida(k, i, minimo)) return false;
+      /* a column cut out of the middle of one block (a cut at both ends) keeps minimo items too */
+      if (i - k < minimo && k > 0 && i < n && U[k].suelto && U[k - 1].suelto && U[k - 1].ci === U[k].ci && U[i].suelto && U[i].ci === U[k].ci && U[i - 1].ci === U[k].ci) return false;
+      return true;
+    }
+    function repartir(minimo) {
+      var alto = [], j, i, k;
+      for (k = 0; k < n; k++) { alto.push([]); for (i = k + 1; i <= n; i++) alto[k][i] = altoCol(k, i).h; }
+      /* 1) the lowest tallest column, with at most cols columns */
+      var mm = [], M = null;
+      for (j = 0; j <= cols; j++) mm.push([]);
+      mm[0][0] = 0;
+      for (j = 1; j <= cols; j++) for (i = j; i <= n; i++) {
+        if (!cortable(i, minimo)) continue;
+        var b1 = null;
+        for (k = j - 1; k < i; k++) {
+          if (mm[j - 1][k] === undefined || !permitida(k, i, minimo) || alto[k][i] > H + 0.5) continue;
+          var v = Math.max(mm[j - 1][k], alto[k][i]);
+          if (b1 === null || v < b1) b1 = v;
+        }
+        if (b1 !== null) mm[j][i] = b1;
+      }
+      for (j = 1; j <= cols; j++) if (mm[j][n] !== undefined && (M === null || mm[j][n] < M)) M = mm[j][n];
+      if (M === null) return null;
+      /* 2) under M, the least empty board */
+      var sq = [], padre = [];
+      for (j = 0; j <= cols; j++) { sq.push([]); padre.push([]); }
+      sq[0][0] = 0;
+      for (j = 1; j <= cols; j++) for (i = j; i <= n; i++) {
+        if (!cortable(i, minimo)) continue;
+        var best = null, bk = -1;
+        for (k = j - 1; k < i; k++) {
+          if (sq[j - 1][k] === undefined || !permitida(k, i, minimo) || alto[k][i] > M + 0.5) continue;
+          var c = sq[j - 1][k] + (H - alto[k][i]) * (H - alto[k][i]);
+          if (best === null || c < best - 1e-6) { best = c; bk = k; }
+        }
+        if (best !== null) { sq[j][i] = best; padre[j][i] = bk; }
+      }
+      var fin = null, fj = 0;
+      for (j = 1; j <= cols; j++) {
+        if (sq[j][n] === undefined) continue;
+        var tot = sq[j][n] + (cols - j) * H * H;
+        if (fin === null || tot < fin - 1e-6) { fin = tot; fj = j; }
+      }
+      if (fin === null) return null;
+      var cortes = [], at = n;
+      for (j = fj; j >= 1; j--) { cortes.unshift(at); at = padre[j][at]; }
+      cortes.unshift(0);
+      return cortes;   /* [0, i1, i2, …, n]: the units of column c are [cortes[c], cortes[c + 1]) */
+    }
+    var cortes = repartir(2);
+    if (!cortes || cortes.length - 1 < usadas) { var c1 = repartir(1); if (c1 && (!cortes || c1.length > cortes.length)) cortes = c1; }
+    if (!cortes) return terminar(pg);
+    var out = [];
+    for (var c = 0; c + 1 < cortes.length; c++) {
+      var col = { partes: [], alto: 0 };
+      for (var t = cortes[c]; t < cortes[c + 1]; t++) {
+        var u = U[t], ult = col.partes[col.partes.length - 1];
+        if (ult && u.suelto && ult.ci === u.ci && ult.b === u.a) { ult.b = u.b; ult.alto = altoParte(m.bl[u.ci], ult.a, ult.b); }
+        else col.partes.push({ ci: u.ci, a: u.a, b: u.b, cont: u.a > 0, alto: altoParte(m.bl[u.ci], u.a, u.b) });
+      }
+      col.partes.forEach(function (p, q) { col.alto += (q ? g : 0) + p.alto; });
+      out.push(col);
+    }
+    return terminar(out);
+  }
+
+  var paginas = [], pagIx = 0, firma = '';
+  function quitarPaginas() { [].slice.call(main.querySelectorAll('.page')).forEach(function (p) { p.remove(); }); paginas = []; mostrar(0); }
+  /* the letter and the columns: every number of columns is tried; for each, the fewest pages the minimum letter
+     gives (one screen whenever the capital can stay at or over the minimum: that is the one-screen rule of layout
+     auto and una-pantalla; the three layouts share this rule, and una-pantalla only adds a warning to the diagnosis
+     when it had to page) and then the largest letter, up to 1.25 times the target, that still gives that many pages.
+     A layout that cuts a word or an item is worse than any number of pages; when nothing fits even at the minimum
+     (a tiny screen read from far), the minimum letter and the fewest columns cut the least. Best: fewest pages, then
+     the largest letter; a tie keeps the first option (3 columns landscape, 1 column turned). */
+  function maquetar(conPrecios) {
+    var r = proporcionH();
+    var pxCm = Math.max(anchoE, altoE) / largoCm();
+    var base = AJ.distancia * AJ.escala / 100;                 /* cm of capital letter at 1 cm per metre */
+    var min = 0.8 * base, meta = 1.0 * base, max = 1.25 * base;
+    var fpx = function (cap) { return cap * pxCm / r; };
+    var opciones = altoE > anchoE ? [1, 2] : [3, 4, 5, 2];   /* 2 columns last: only when the narrower ones fail or page more */
+    var mejor = null, cache = {};
+    function plan(cap, cols) { var k = cols + '|' + cap.toFixed(4); if (!cache[k]) cache[k] = empacar(medir(fpx(cap), cols, conPrecios), cols); return cache[k]; }
+    function n(cap, cols) { var p = plan(cap, cols); return p.pags.length + (p.cabe ? 0 : 1000); }
+    opciones.forEach(function (cols) {
+      var nMin = n(min, cols), a, b, lim, cand;
+      if (nMin >= 1000) cand = { cols: cols, cap: min, n: 1000 + cols };   /* nothing fits even at the minimum: the least harm */
+      else {
+        var nMeta = n(meta, cols);
+        if (nMeta <= nMin) { a = meta; b = max; lim = nMeta; }  /* the target already gives the fewest pages: grow while it still fits */
+        else { a = min; b = meta; lim = nMin; }                 /* smaller, never under the minimum, only to save a page */
+        if (n(b, cols) <= lim) a = b;
+        else for (var k = 0; k < 7; k++) { var mid = (a + b) / 2; if (n(mid, cols) <= lim) a = mid; else b = mid; }
+        cand = { cols: cols, cap: Math.floor(a * 1000) / 1000, n: lim };
+      }
+      if (!mejor || cand.n < mejor.n || (cand.n === mejor.n && cand.cap > mejor.cap + 1e-6)) mejor = cand;
+    });
+    var P = plan(mejor.cap, mejor.cols);
+    stage.style.setProperty('--f', fpx(mejor.cap) + 'px');
+    /* the new pages first, the current one shown at once (no fade), then the old ones go: the board is never blank */
+    var viejas = [].slice.call(main.querySelectorAll('.page'));
+    var nuevas = P.pags.map(function (pg) {
+      var d = el('div', 'page');
+      pg.forEach(function (col) {
+        var c = el('div', 'col'); c.style.rowGap = (P.g + (col.extra || 0)) + 'px';
+        col.partes.forEach(function (p) { c.appendChild(catNodo(menu[p.ci], p.a, p.b, conPrecios, p.cont)); });
+        d.appendChild(c);
+      });
+      main.appendChild(d); titulos(d);
+      return d;
+    });
+    paginas = nuevas;
+    pagIx = paginas.length ? ((pagIx % paginas.length) + paginas.length) % paginas.length : 0;
+    if (paginas[pagIx]) paginas[pagIx].classList.add('ya', 'on');
+    viejas.forEach(function (p) { p.remove(); });
+    requestAnimationFrame(function () { requestAnimationFrame(function () { nuevas.forEach(function (p) { p.classList.remove('ya'); }); }); });
+    info.maquetas++;
+    info.capCm = mejor.cap; info.minCm = min; info.metaCm = meta; info.columnas = mejor.cols; info.paginas = paginas.length;
+    info.cabe = P.cabe && !paginas.some(function (p) { return desborda(p); }); info.pxPorCm = pxCm; info.fuentePx = fpx(mejor.cap); info.proporcionH = r;
+    info.letraPct = Math.round(mejor.cap / meta * 100); info.unaPantalla = paginas.length === 1;
+    info.layout = AJ.layout; info.densidad = AJ.densidad; info.ingles = AJ.ingles;
+    info.partes = P.pags.map(function (pg) {
+      var out = []; pg.forEach(function (col) { col.partes.forEach(function (p) { out.push({ categoria: menu[p.ci].es, desde: p.a, hasta: p.b, cont: p.cont }); }); }); return out;
+    });
+    info.maqueta = { alto: P.H, gap: P.g, paginas: P.pags.map(function (pg) {
+      return pg.map(function (col) { return { alto: col.alto, limite: col.limite, tope: col.tope, extra: col.extra || 0, bloques: col.partes.map(function (p) {
+        var b = P.bl[p.ci];
+        return { categoria: menu[p.ci].es, desde: p.a, hasta: p.b, n: b.items.length, cont: p.cont, alto: p.alto, titulo: b.tit, tituloCont: b.titCont, alturas: b.items.slice(p.a, p.b) };
+      }) }; });
+    }) };
+  }
+
+  function mostrar(i) {
+    pagIx = paginas.length ? ((i % paginas.length) + paginas.length) % paginas.length : 0;
+    paginas.forEach(function (p, k) { p.classList.toggle('on', k === pagIx); });
+    $('pag').textContent = paginas.length > 1 ? (pagIx + 1) + '/' + paginas.length : '';
+  }
+  var pagTimer = null, pagArmado = 0;
+  function armarPaginas(reiniciar) {
+    if (pagTimer && pagArmado === paginaMs && !reiniciar) return;
+    if (pagTimer) clearInterval(pagTimer);
+    pagArmado = paginaMs;
+    /* while a promotion is on screen the menu waits: the same page comes back when it ends, for its whole time */
+    pagTimer = setInterval(function () { if (paginas.length > 1 && !promo.actual) mostrar(pagIx + 1); }, paginaMs);
+  }
+
+  /* the warning is never cut: its letter shrinks to the header's width, never under 0.4 of the names */
+  function ajustarAviso() {
+    var av = $('aviso');
+    av.style.fontSize = '';
+    if (av.hidden) return;
+    var f = parseFloat(stage.style.getPropertyValue('--f')) || 32, min = 0.4 * f, sm = av.querySelector('small');
+    for (var k = 0; k < 8; k++) {
+      var need = Math.max(av.scrollWidth / Math.max(1, av.clientWidth), sm ? sm.scrollWidth / Math.max(1, sm.clientWidth) : 0);
+      var size = parseFloat(getComputedStyle(av).fontSize);
+      if (need <= 1 || size <= min + 0.01) break;
+      av.style.fontSize = Math.max(min, size / need * 0.97) + 'px';
+    }
+    info.avisoPx = parseFloat(getComputedStyle(av).fontSize); info.avisoMinPx = min;
+  }
+
+  function pintar(forzar) {
+    aplicarLook();
+    var st = estado(), conPrecios = st !== 'sin-verificar', off = !encendida(), hay = !!(menu && menu.length);
+    promoRevisar(estadoPromos(), off);
+    var f = JSON.stringify([st, off, anchoE, altoE, AJ.pulgadas, AJ.distancia, AJ.escala, AJ.densidad, AJ.ingles, AJ.layout, fuentesN, hay && menu.map(function (c) {
+      return [c.es, c.en, c.items.map(function (i) { return [i.es, i.en, i.agotado, conPrecios ? i.precio : 0]; })];
+    })]);
+    info.estado = st; info.edadMs = edad(); info.deCopia = deCopia; info.apagado = off; info.dudoso = dudoso;
+    if (f === firma && !forzar) { diagnostico(); return; }
+    firma = f;
+    stage.classList.toggle('apagado', off); document.body.classList.toggle('apagado', off);
+    var av = $('aviso'), vacio = $('vacio');
+    if (off) {                                                  /* outside the hours: black, no text, no price */
+      quitarPaginas();
+      av.hidden = true; av.textContent = ''; vacio.hidden = true; vacio.textContent = '';
+      info.paginas = 0; diagnostico();
+      return;
+    }
+    if (st === 'al-dia' || !hay) { av.hidden = true; av.textContent = ''; }
+    else {
+      av.hidden = false; av.textContent = '';
+      av.appendChild(document.createTextNode(st === 'por-confirmar' ? 'Precios por confirmar en caja' : 'Consulte los precios en la caja'));
+      av.appendChild(el('small', '', st === 'por-confirmar' ? 'Please confirm prices at the counter' : 'Please ask for prices at the counter'));
+    }
+    $('marca').hidden = !av.hidden; $('esp').hidden = !av.hidden;
+    $('nota').hidden = !conPrecios || !hay;
+    if (!hay) {
+      quitarPaginas();
+      stage.style.setProperty('--f', letraPx(AJ.distancia * AJ.escala / 100) + 'px');
+      vacio.hidden = false; vacio.textContent = '';
+      vacio.appendChild(el('div', 't1', 'Hanging Garden Café'));
+      vacio.appendChild(el('div', 't2', 'Consulte el menú y los precios en la caja'));
+      vacio.appendChild(el('div', 't3', 'Please ask for the menu and prices at the counter'));
+      info.paginas = 0;
+      diagnostico();
+      return;
+    }
+    vacio.hidden = true;
+    maquetar(conPrecios);
+    mostrar(pagIx);
+    /* a page that does not hold what was measured (something around the board changed size): measure once more */
+    if (paginas.some(function (p) { return desborda(p); })) { maquetar(conPrecios); mostrar(pagIx); }
+    ajustarAviso();
+    diagnostico();
+  }
+
+  /* ---------- promotions intercalated in the menu (promo_mode = intercalar, migration 0037) ----------
+     The slides come with pantalla_datos (this TV's, with the live menu data of their products); they are checked
+     again here as Screen B checks them, kept in memory only, and shown by turns: one every promo_every s, for
+     promo_seconds s, with a fade over the menu, which comes back on the same page. Nothing in force: no interruption. */
+  var ENLACES = {
+    resena: { url: 'https://www.tripadvisor.com/UserReview-g951347-d34058072-The_hanging_garden_cafe-Monteverde_Province_of_Puntarenas.html',
+              dir: ['tripadvisor.com', 'Hanging Garden Café'] },
+    menu: { url: 'https://hanginggardencafe.com/m', dir: ['hanginggardencafe.com/m'] }
+  };
+  /* the templates of a composition: each zone's place as fractions of the stage [x, y, w, h], in the zones' order */
+  var PLANTILLAS = {
+    '1': [[0, 0, 1, 1]],
+    '2-lado': [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]],
+    '3-grande-izq': [[0, 0, 2 / 3, 1], [2 / 3, 0, 1 / 3, 0.5], [2 / 3, 0.5, 1 / 3, 0.5]],
+    '3-grande-der': [[0, 0, 1 / 3, 0.5], [0, 0.5, 1 / 3, 0.5], [1 / 3, 0, 2 / 3, 1]],
+    '4-cuadricula': [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]],
+    '4-centro': [[0, 0, 3 / 8, 1], [3 / 8, 0, 2 / 8, 0.5], [3 / 8, 0.5, 2 / 8, 0.5], [5 / 8, 0, 3 / 8, 1]]
+  };
+  var LEAF = 'M17.6 3.3C9.5 3.6 4.6 9 4.4 15.9c0 1.8.4 3.4 1.2 4.8.5-4 2.3-8.1 5.9-11-2.7 3.5-4.2 7.8-4.3 11.6.7.3 1.5.4 2.3.4 3 0 5.6-1.2 7.4-3.3 2.6-3.1 3-9.6.7-15.1z';
+  var promo = { datos: [], actual: null, desde: 0, ultimo: null, proximo: 0, mostradas: 0, cadaMs: 0, segMs: 0, firma: '', limpiarT: null };
+  function foto(u) { u = plano(u); return /^https?:\/\/\S+$/i.test(u) && u.length <= 500 ? u : null; }
+  function cmp(a, b) { return (a.orden - b.orden) || (a.inicio - b.inicio) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); }
+  function entero(v, lo, hi, def) { var n = Number(v); return v == null || v === '' ? def : isFinite(n) && n >= lo && n <= hi ? n : null; }
+  /* a menu item as a slide may show it: only what the till sells as shown (available, a price above zero, a name,
+     never a till helper of Extras & Combos); otherwise null */
+  function articulo(it) {
+    var p = Number(it && it.price_crc);
+    if (!it || typeof it !== 'object' || it.sellable !== true || it.available !== true || !(isFinite(p) && p > 0) || !plano(it.name) ||
+        plano(it.category) === 'Extras & Combos') return null;
+    return { name: plano(it.name), name_es: plano(it.name_es), precio: Math.round(p), foto: foto(it.photo_url) };
+  }
+  /* the zones of a composition, checked one by one (as Screen B does): null when it cannot be used */
+  function zonasDe(d) {
+    var lugares = PLANTILLAS[d.template];
+    if (!lugares || !Array.isArray(d.zones) || d.zones.length !== lugares.length || d.usable === false) return null;
+    var zonas = [], alguna = false;
+    for (var i = 0; i < d.zones.length; i++) {
+      var z = d.zones[i];
+      if (!z || typeof z !== 'object' || !Array.isArray(z.entries)) return null;
+      var seg = entero(z.seconds, 4, 60, 8); if (seg === null) seg = 8;
+      var zona = { modo: z.mode === 'auto' ? 'auto' : 'fija', seg: seg, labels: z.labels !== false, respaldo: foto(z.fallback), entradas: [] };
+      z.entries.forEach(function (e) {
+        if (!e || typeof e !== 'object') return;
+        var it = e.item != null && typeof e.item === 'object' ? articulo(e.item) : null, f = foto(e.photo);
+        var fx = Array.isArray(e.focus) ? entero(e.focus[0], 0, 100, 50) : 50, fy = Array.isArray(e.focus) ? entero(e.focus[1], 0, 100, 50) : 50;
+        var zoom = entero(e.zoom, 100, 200, 100);
+        var en = { item: it, foto: f, focus: [fx === null ? 50 : fx, fy === null ? 50 : fy], zoom: zoom === null ? 100 : zoom,
+                   /* a product shows with its labels or its photo (its own or the menu's); without both there is nothing to draw */
+                   ok: e.item != null && typeof e.item === 'object' ? !!it && (zona.labels || !!(f || it.foto)) : !!f };
+        zona.entradas.push(en);
+        if (en.ok) alguna = true;
+      });
+      if (zona.modo === 'fija') zona.entradas = zona.entradas.slice(0, 1);
+      if (!zona.entradas.length) return null;
+      zonas.push(zona);
+    }
+    return alguna ? zonas : null;
+  }
+  /* what the server sent, checked again: anything odd is left out, never shown "for ever" or "every day" by mistake */
+  function normalizarPromos(lista) {
+    var out = [];
+    (Array.isArray(lista) ? lista : []).forEach(function (d) {
+      if (!d || typeof d !== 'object' || ['producto', 'marca', 'invitacion', 'composicion'].indexOf(d.kind) < 0) return;
+      if (d.status != null && d.status !== 'activa') return;
+      if (Array.isArray(d.screen_ids) && d.screen_ids.length && d.screen_ids.indexOf(TV) < 0) return;
+      var a = Date.parse(d.starts_at), b = Date.parse(d.ends_at), dias = null;
+      if (!isFinite(a) || !isFinite(b) || !(b > a)) return;
+      if (d.days != null) {
+        if (!Array.isArray(d.days)) return;
+        dias = d.days.map(Number).filter(function (n) { return n >= 1 && n <= 7 && n % 1 === 0; });
+        if (!dias.length) return;
+      }
+      var de = d.from_time == null ? null : hm(d.from_time), al = d.to_time == null ? null : hm(d.to_time);
+      if ((d.from_time != null && de === null) || (d.to_time != null && al === null) || (de === null) !== (al === null) || (de !== null && de === al)) return;
+      var s = { id: String(d.id == null ? '' : d.id), kind: d.kind, inicio: a, fin: b, dias: dias, desde: de, hasta: al, orden: Number(d.sort) || 0,
+                kick: [plano(d.kicker_es), plano(d.kicker_en)], tit: [plano(d.title_es), plano(d.title_en)],
+                cuerpo: [plano(d.body_es), plano(d.body_en)], foto: foto(d.photo_url), link: d.link, item: null };
+      if (!s.id) return;
+      if (d.kind === 'producto') { s.item = articulo(d.item); if (!s.item) return; }
+      else if (d.kind === 'composicion') { s.plantilla = d.template; s.zonas = zonasDe(d); if (!s.zonas) return; }
+      else if (!s.tit[0]) return;
+      if (d.kind === 'invitacion' && !ENLACES[d.link]) return;
+      out.push(s);
+    });
+    return out.sort(cmp);
+  }
+  function enVentana(s, ms) {
+    if (s.dias && s.dias.indexOf(diaCR(ms)) < 0) return false;
+    return s.desde === null || enHoras(minutoCR(ms), s.desde, s.hasta);
+  }
+  function vigente(s, ms) { return s.inicio <= ms && ms < s.fin && enVentana(s, ms); }
+  /* the slides that may show now: in force by the server's time, and a product only with verifiable prices */
+  function promoCandidatas(st) {
+    var ms = ahoraMs();
+    return promo.datos.filter(function (s) { return vigente(s, ms) && (s.kind !== 'producto' || st !== 'sin-verificar'); });
+  }
+  function promoArmar() {
+    var cada = T.promoCada || AJ.promo_cada * 1000, seg = T.promoSeg || AJ.promo_seg * 1000;
+    if (cada !== promo.cadaMs) { promo.cadaMs = cada; promo.proximo = performance.now() + cada; }
+    promo.segMs = seg;
+  }
+  /* every tick: the one on screen goes when its time is up (a fade) or when it may no longer show (at once); the
+     next one comes when its moment has come and something is in force */
+  function promoRevisar(st, off) {
+    var p = performance.now();
+    if (promo.actual) {
+      var vence = p - promo.desde >= promo.segMs, cur = null;
+      /* the slide as the last read left it (a new price, a product gone from a zone), as Screen B's revisar takes it */
+      if (!off && AJ.promo === 'intercalar') promoCandidatas(st).forEach(function (s) { if (s.id === promo.actual.id) cur = s; });
+      if (vence || !cur) { promoQuitar(!cur); return; }
+      promo.actual = cur;
+      promoPintar(st);
+      return;
+    }
+    if (off || AJ.promo !== 'intercalar' || p < promo.proximo) return;
+    var cands = promoCandidatas(st);
+    if (!cands.length) return;                                 /* nothing in force: the menu is never interrupted */
+    var s = cands[0];
+    if (promo.ultimo) { for (var i = 0; i < cands.length; i++) if (cmp(cands[i], promo.ultimo) > 0) { s = cands[i]; break; } }
+    promoMostrar(s, st);
+  }
+  function promoMostrar(s, st) {
+    var capa = $('promo');
+    clearTimeout(promo.limpiarT);
+    promo.actual = s; promo.desde = performance.now(); promo.ultimo = s; promo.mostradas++; promo.firma = '';
+    promoPintar(st, true);
+    capa.classList.remove('ya'); capa.classList.add('on');
+  }
+  /* the layer is emptied (and the zones' clocks stopped) once it is out of sight */
+  function promoQuitar(corte) {
+    var capa = $('promo');
+    recordarZonas(capa);
+    promo.actual = null; promo.firma = ''; promo.proximo = performance.now() + promo.cadaMs;
+    capa.classList.toggle('ya', !!corte); capa.classList.remove('on');
+    armarPaginas(true);
+    clearTimeout(promo.limpiarT);
+    promo.limpiarT = setTimeout(function () { if (!promo.actual) { pararZonas(capa); capa.textContent = ''; capa.classList.remove('ya'); } }, corte ? 0 : 900);
+  }
+  /* the slide on screen, drawn again only when what it shows changes (a price, the freshness, the look, the size):
+     as Screen B's alDia, in place (a composition keeps its zones and their clocks). nuevo: built afresh */
+  function promoPintar(st, nuevo) {
+    var s = promo.actual; if (!s) return;
+    var capa = $('promo'), vm = modelo(s, st), f = firmaDe(vm);
+    if (f === promo.firma && !nuevo) return;
+    promo.firma = f;
+    construir(capa, vm, nuevo ? null : capa);
+  }
+
+  /* === PROMO RENDERER (copied from pantalla-promos.html) === Screen B's renderer, copied function by function so a
+     promotion looks the same on both TVs: the product, brand and invitation slides (fitted for the distance: titles
+     1.2 cm per metre, prices 1.5, the QR code a tenth of the distance), and the compositions (zones that tile the
+     stage, each a presentation of its own with its own clock, labels with the live name and price, the fallback
+     photo or the brand design, the framing and the dissolve between two image layers). #promo is the layer the
+     slide is built in. What differs from Screen B is named where it happens: the slides are this TV's (promo.datos),
+     the look comes from the menu (info.look), a redraw is pintar(), the price freshness is the menu's (estado()),
+     and a composition stays promo_seconds (no dwell). No external script but the QR library (lint 13). */
+  var QR_JS = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+  var MARCA = { id: 'marca', kind: 'propia' };         /* Screen B's built-in brand slide (never shown here: nothing in force, nothing interrupts) */
+  $('promo').style.setProperty('--fundido', T.fundido + 'ms');
+  /* the photos of the slides read, fetched ahead so a slide never fades in on an empty background. Each one keeps
+     whether it loaded (ok true), failed (ok false) or is still on its way (null): a zone switches to a photo only
+     once it is here, and skips one that failed */
+  var precargas = {};
+  /* a photo that failed and then answered on a retry: the zones on screen decide again what to show (a fixed zone,
+     or a presentation left with one entry, has no clock that would notice it by itself) */
+  function fotoVolvio() {
+    var zn = document.querySelectorAll('.zona');
+    for (var i = 0; i < zn.length; i++) {
+      var z = zn[i]._z;
+      if (!z || !z.nodo || !z.nodo.isConnected) continue;
+      if (z.cambiando) z.pendiente = true; else aplicarCuadro(z, cuadroDeseado(z), 'fundido');
+    }
+  }
+  function cargar(u) {
+    var r = precargas[u];
+    /* a photo that failed is asked for again on a later read (one bad answer never hides an entry for the day) */
+    if (r && !(r.ok === false && performance.now() - r.desde > T.reintento)) return r;
+    var era = !!r;   /* a retry of a photo that failed */
+    r = precargas[u] = { im: new Image(), ok: null, avisar: [], desde: performance.now() };
+    r.im.referrerPolicy = 'no-referrer';
+    r.im.onload = function () { if (r.ok !== null) return; r.ok = true; r.avisar.splice(0).forEach(function (f) { try { f(true); } catch (e) {} }); if (era) fotoVolvio(); };
+    r.im.onerror = function () { if (r.ok !== null) return; r.ok = false; r.avisar.splice(0).forEach(function (f) { try { f(false); } catch (e) {} }); };
+    r.im.src = u;
+    /* a request that neither answers nor fails within the page's own limit counts as failed: a zone waiting for
+       it goes on (the product keeps its name, a photo-only entry is skipped) and the reads reach it again */
+    setTimeout(function () { if (r.ok === null) r.im.onerror(); }, T.limite);
+    return r;
+  }
+  /* calls f(ok) once the photo is here or has failed (at once if already known) */
+  function cuandoCargue(u, f) {
+    var r = cargar(u);
+    if (r.ok !== null) f(r.ok); else r.avisar.push(f);
+  }
+  function fotosDe(s) {
+    var us = [], u = s.foto || (s.item && s.item.foto);
+    if (u) us.push(u);
+    (s.zonas || []).forEach(function (z) {
+      if (z.respaldo) us.push(z.respaldo);
+      z.entradas.forEach(function (e) { var f = e.foto || (e.item && e.item.foto); if (f) us.push(f); });
+    });
+    return us;
+  }
+  function precargar() {
+    var nuevas = {};
+    promo.datos.forEach(function (s) {
+      fotosDe(s).forEach(function (u) { nuevas[u] = cargar(u); });
+    });
+    precargas = nuevas;
+    if (promo.datos.some(function (s) { return s.kind === 'invitacion'; })) cargarQR();
+  }
+
+  /* ---------- the QR library (the only script from the internet; without it, the address in text) ---------- */
+  var qrEstado = 'falta', qrIntento = -1e12;
+  function qrListo() { return typeof window.qrcode === 'function'; }
+  function cargarQR() {
+    if (qrListo()) { qrEstado = 'listo'; return; }
+    if (performance.now() - qrIntento < 60000) return;     /* one try a minute at most (a hung one too) */
+    qrEstado = 'cargando'; qrIntento = performance.now();
+    var s = document.createElement('script');
+    s.src = QR_JS; s.async = true;
+    s.onload = function () { qrEstado = qrListo() ? 'listo' : 'falta'; pintar(); };
+    s.onerror = function () { qrEstado = 'falta'; s.remove(); pintar(); };
+    document.head.appendChild(s);
+  }
+
+  /* ---------- letter size: measured, not guessed (the cache is the menu's, emptied when a web font loads) ---------- */
+  var lienzo = null;
+  function proporcion(e) {   /* cap height / font size of the font really in use (or the TV's own if it did not load) */
+    var cs = getComputedStyle(e), k = cs.fontWeight + ' ' + cs.fontFamily;
+    if (proporciones[k]) return proporciones[k];
+    var r = 0.7;
+    try {
+      lienzo = lienzo || document.createElement('canvas').getContext('2d');
+      lienzo.font = cs.fontWeight + ' 200px ' + cs.fontFamily;
+      var m = lienzo.measureText('H');
+      if (m.actualBoundingBoxAscent > 60 && m.actualBoundingBoxAscent < 190) r = m.actualBoundingBoxAscent / 200;
+    } catch (e) {}
+    return (proporciones[k] = r);
+  }
+  /* capital height of each kind of text, in cm per metre of reading distance */
+  var FACT = { k: 0.8, c: 0.9, ce: 0.8, p: 1.5, n: 0.8, pd: 0.8, s: 0.8, d: 0.8, ds: 1.0, bs: 0.9 };
+  var TIT_MIN = 1.0;
+  /* in a zone of a composition: the name 1.0 in a large zone, 0.8 in a small one; the price 1.2 x the name;
+     the English name and the note smaller, never under 0.6 */
+  var ZFACT = { grande: { zt: 1.0, zte: 0.8, zp: 1.2, zn: 0.7, zm: 1.0, zl: 0.7 }, pequena: { zt: 0.8, zte: 0.64, zp: 0.96, zn: 0.6, zm: 0.8, zl: 0.6 } };
+
+  function hoja(cls) {
+    var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'currentColor'); s.setAttribute('aria-hidden', 'true');
+    if (cls) s.setAttribute('class', cls);
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', LEAF); s.appendChild(p);
+    return s;
+  }
+  function fondoNodo() { var f = el('div', 'fondo'); f.appendChild(el('div', 'niebla')); f.appendChild(hoja('hojaG')); return f; }
+  function fotoNodo(u) {
+    var im = document.createElement('img');
+    im.className = 'foto'; im.alt = ''; im.decoding = 'async'; im.referrerPolicy = 'no-referrer';
+    im.onload = function () { im.classList.add('ok'); };
+    im.onerror = function () { im.remove(); };     /* no photo: the brand background stays */
+    im.src = u;
+    return im;
+  }
+  /* the QR code as squares of whole pixels, dark on white, with a quiet zone of 4 modules */
+  function qrNodo(url) {
+    var q = window.qrcode(0, 'M');
+    q.addData(url); q.make();
+    var n = q.getModuleCount(), d = '';
+    for (var y = 0; y < n; y++) {
+      for (var x = 0; x < n; x++) {
+        if (!q.isDark(y, x)) continue;
+        var x0 = x; while (x + 1 < n && q.isDark(y, x + 1)) x++;
+        d += 'M' + (x0 + 4) + ' ' + (y + 4) + 'h' + (x - x0 + 1) + 'v1h-' + (x - x0 + 1) + 'z';
+      }
+    }
+    var NS = 'http://www.w3.org/2000/svg', s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', '0 0 ' + (n + 8) + ' ' + (n + 8)); s.setAttribute('shape-rendering', 'crispEdges');
+    s.setAttribute('role', 'img'); s.setAttribute('aria-label', url);
+    var bg = document.createElementNS(NS, 'rect'); bg.setAttribute('width', n + 8); bg.setAttribute('height', n + 8); bg.setAttribute('fill', '#ffffff');
+    var p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', '#0B1A10');
+    s.appendChild(bg); s.appendChild(p);
+    return { svg: s, n: n };
+  }
+
+  /* what a slide shows (the same view model gives the same picture: re-drawn only when it changes) */
+  function par(es, en) { es = plano(es); en = plano(en); if (!es) { es = en; en = ''; } return [es, en && clave(en) !== clave(es) ? en : '']; }
+  function modelo(s, st) {
+    if (s === MARCA) return { id: 'marca', kind: 'propia' };
+    var m = { id: s.id, kind: s.kind, kick: par(s.kick[0], s.kick[1]), cuerpo: par(s.cuerpo[0], s.cuerpo[1]), foto: s.foto };
+    if (s.kind === 'producto') {
+      var es = espanol(s.item.name, s.item.name_es);
+      m.tit = es; m.titEn = clave(es) === clave(s.item.name) ? '' : s.item.name;
+      m.precio = s.item.precio; m.confirmar = st === 'por-confirmar';
+      m.foto = s.foto || s.item.foto || null;
+    } else if (s.kind === 'composicion') {
+      m.tit = ''; m.titEn = ''; m.foto = null; m.plantilla = s.plantilla; m.permanencia = s.permanencia;
+      m.zonas = s.zonas.map(function (z) {
+        return { modo: z.modo, seg: z.seg, labels: z.labels, respaldo: z.respaldo, entradas: z.entradas.map(function (e) {
+          var x = { ok: e.ok, producto: !!e.item, foto: e.foto || (e.item && e.item.foto) || null, focus: e.focus, zoom: e.zoom,
+                    tit: '', titEn: '', precio: null, confirmar: false };
+          if (e.item && z.labels) {   /* the live name and price, with the price rule of a product slide */
+            var nes = espanol(e.item.name, e.item.name_es);
+            x.tit = nes; x.titEn = clave(nes) === clave(e.item.name) ? '' : e.item.name;
+            if (st !== 'sin-verificar') { x.precio = e.item.precio; x.confirmar = st === 'por-confirmar'; }
+          }
+          return x;
+        }) };
+      });
+    } else {
+      var t = par(s.tit[0], s.tit[1]); m.tit = t[0]; m.titEn = t[1];
+      if (s.kind === 'invitacion') { m.link = s.link; m.url = ENLACES[s.link].url; m.dir = ENLACES[s.link].dir; m.qr = qrListo(); }
+    }
+    return m;
+  }
+  function firmaDe(vm) {
+    return JSON.stringify([vm, info.look, anchoE, altoE, AJ.pulgadas, AJ.distancia, AJ.escala, fuentesN]);
+  }
+  function construir(capa, vm, viejo) {
+    if (vm.kind === 'composicion') { construirComposicion(capa, vm, viejo); return; }
+    pararZonas(capa);
+    var sl = el('div', 'sl ' + (vm.foto ? 'confoto' : 'claro') + ' k-' + vm.kind + (altoE > anchoE ? ' vertical' : ''));
+    sl.setAttribute('data-id', vm.id); sl.setAttribute('data-kind', vm.kind);
+    sl.appendChild(fondoNodo());
+    if (vm.foto) {
+      var img = null;
+      if (viejo) { var o = viejo.querySelector('img.foto'); if (o && o.getAttribute('src') === vm.foto) img = o; }   /* no flash */
+      sl.appendChild(img || fotoNodo(vm.foto));
+      sl.appendChild(el('div', 'velo'));
+    }
+    if (vm.kind !== 'propia') { var sup = el('div', 'sup', null, 's'); sup.appendChild(hoja()); sup.appendChild(document.createTextNode('Hanging Garden Café')); sl.appendChild(sup); }
+    var caja = el('div', 'caja'), txt = el('div', 'txt');
+    sl.appendChild(caja);
+    if (vm.kind === 'propia') {
+      txt.appendChild(hoja('hojaM'));
+      txt.appendChild(el('h2', 'tit', 'Hanging Garden Café', 't'));
+      txt.appendChild(el('div', 'linea'));
+      txt.appendChild(el('div', 'lugar', 'Monteverde, Costa Rica', 'bs'));
+    } else {
+      if (vm.kick[0]) {
+        var k = el('div', 'kick', null, 'k');
+        k.appendChild(el('span', 'es', vm.kick[0]));
+        if (vm.kick[1]) k.appendChild(el('span', 'en', ' · ' + vm.kick[1]));
+        txt.appendChild(k);
+      }
+      txt.appendChild(el('h2', 'tit', vm.tit, 't'));
+      if (vm.titEn) txt.appendChild(el('div', 'tit-en', vm.titEn, 'te'));
+      if (vm.cuerpo[0]) txt.appendChild(el('div', 'cuerpo', vm.cuerpo[0], 'c'));
+      if (vm.cuerpo[1]) txt.appendChild(el('div', 'cuerpo-en', vm.cuerpo[1], 'ce'));
+      if (vm.kind === 'producto') {
+        var pr = el('div', 'precio', null, 'p');
+        pr.appendChild(el('span', 'cur', '₡')); pr.appendChild(document.createTextNode(Number(vm.precio).toLocaleString('fr-FR')));
+        txt.appendChild(pr);
+        if (vm.confirmar) txt.appendChild(el('div', 'nota', 'Precio por confirmar en caja · Please confirm the price at the counter', 'n'));
+        txt.appendChild(el('div', 'pida', 'Pídalo en la caja · Order at the counter', 'pd'));
+      }
+    }
+    if (vm.kind === 'invitacion') {
+      var fl = el('div', 'fila'), col = el('div', 'qrcol'), q = null;
+      if (vm.qr) { try { q = qrNodo(vm.url); } catch (e) { q = null; } }
+      if (q) {
+        var card = el('div', 'qrcard'); card.appendChild(q.svg); col.appendChild(card);
+        col.setAttribute('data-modulos', q.n);
+        vm.dir.forEach(function (l) { col.appendChild(el('div', 'dir', l, 'd')); });
+      } else {
+        col.classList.add('sinqr');
+        vm.dir.forEach(function (l) { col.appendChild(el('div', 'dirsola', l, 'ds')); });
+      }
+      fl.appendChild(txt); fl.appendChild(col); caja.appendChild(fl);
+    } else caja.appendChild(txt);
+    capa.textContent = ''; capa.appendChild(sl);
+    ajustar(sl, vm);
+  }
+  function mayor(lo, hi, ok) {   /* the largest value in [lo, hi] for which ok() holds, ok(lo) known true */
+    for (var i = 0; i < 7; i++) { var m = (lo + hi) / 2; if (ok(m)) lo = m; else hi = m; }
+    return lo;
+  }
+
+  /* ---------- a composition: zones that tile the stage, each a presentation of its own ----------
+     The zone's state lives on its node (zn._z): its entries as the last read left them, which entry is up, which
+     of its two image layers is in front, its clock. A read changes the entries and the labels in place; the clock
+     goes on. The layers are cleared, and the clocks stopped, only when the layer of the stage is emptied. */
+  /* where each zone's presentation was (slide id and place → the entry shown last): a composition that comes back after
+     other slides (Screen B's turns, Screen A's interludes) goes on from the next entry instead of starting again, so
+     every photo of a long presentation gets its turn */
+  var turnos = {};
+  function recordarZonas(capa) {   /* called the moment the layer leaves the screen: what each zone shows then */
+    var zs = capa.querySelectorAll('.zona');
+    for (var i = 0; i < zs.length; i++) { var z = zs[i]._z; if (z && z.slide && z.estado === 'entrada' && z.idx >= 0) turnos[z.slide + ':' + z.i] = z.idx; }
+  }
+  function pararZonas(capa) {
+    var zs = capa.querySelectorAll('.zona');
+    for (var i = 0; i < zs.length; i++) {
+      var z = zs[i]._z;
+      if (z) { clearTimeout(z.timer); z.timer = null; z.gen++; z.cambiando = false; z.pendiente = false; }
+    }
+  }
+  /* the places of the zones for this stage: the template's, or stacked in order on a turned (vertical) TV */
+  function lugaresDe(plantilla, n) {
+    if (altoE > anchoE) { var out = []; for (var i = 0; i < n; i++) out.push([0, i / n, 1, 1 / n]); return out; }
+    return PLANTILLAS[plantilla];
+  }
+  function mostrables(z) {
+    var n = 0;
+    for (var i = 0; i < z.entradas.length; i++) if (puedeMostrar(z, z.entradas[i])) n++;
+    return n;
+  }
+  /* an entry can be shown now: its product can be sold (or it is a photo only), and its photo is not known to be
+     broken (a product keeps showing without its photo when the zone writes its name) */
+  function puedeMostrar(z, e) {
+    if (!e.ok) return false;
+    var r = e.foto ? precargas[e.foto] : null;
+    if (e.foto && r && r.ok === false) return e.producto && z.labels;
+    return true;
+  }
+  function siguienteEntrada(z, desde) {
+    var n = z.entradas.length;
+    for (var k = 1; k <= n; k++) { var j = (desde + k + n) % n; if (puedeMostrar(z, z.entradas[j])) return j; }
+    return -1;
+  }
+  function cuadroEntrada(z, j) {   /* a product whose photo is known to be broken shows without it */
+    var e = z.entradas[j], r = e.foto ? precargas[e.foto] : null, rota = !!(e.foto && r && r.ok === false);
+    return { tipo: 'entrada', i: j, e: e, foto: rota ? null : e.foto, focus: rota ? [50, 50] : e.focus, zoom: rota ? 100 : e.zoom };
+  }
+  function cuadroVacio(z) { return z.respaldo ? { tipo: 'respaldo', i: -1, foto: z.respaldo, focus: [50, 50], zoom: 100 } : { tipo: 'marca', i: -1, foto: null }; }
+  function cuadroDeseado(z) {   /* what the zone should show now, keeping its entry while it can be shown */
+    var j = z.estado === 'entrada' && z.idx >= 0 && z.entradas[z.idx] && puedeMostrar(z, z.entradas[z.idx]) ? z.idx : siguienteEntrada(z, z.estado === 'entrada' ? z.idx : -1);
+    return j >= 0 ? cuadroEntrada(z, j) : cuadroVacio(z);
+  }
+  function claveDe(c) { return c.tipo + ':' + c.i + ':' + (c.foto || '') + ':' + (c.focus ? c.focus.join(',') : '') + ':' + (c.zoom || ''); }
+  /* the content of one image layer: the photo as framed (focus and zoom), the labels or the brand design */
+  function llenarCapa(capa, c, z) {
+    var im = capa.querySelector('img.zfoto');
+    if (im && im.getAttribute('src') !== c.foto) { im = null; }
+    capa.textContent = '';
+    if (c.foto) {
+      if (!im) { im = document.createElement('img'); im.className = 'zfoto'; im.alt = ''; im.decoding = 'async'; im.referrerPolicy = 'no-referrer'; im.src = c.foto; }
+      var fx = c.focus[0], fy = c.focus[1];
+      im.style.objectPosition = fx + '% ' + fy + '%'; im.style.transformOrigin = fx + '% ' + fy + '%';
+      im.style.transform = c.zoom && c.zoom !== 100 ? 'scale(' + (c.zoom / 100) + ')' : '';
+      capa.appendChild(im); capa.setAttribute('data-src', c.foto);
+    } else capa.removeAttribute('data-src');
+    if (c.tipo === 'marca') {
+      var mk = el('div', 'zmarca');
+      mk.appendChild(hoja('hojaM'));
+      mk.appendChild(el('div', 'zmnombre', 'Hanging Garden Café', 'zm'));
+      mk.appendChild(el('div', 'linea'));
+      mk.appendChild(el('div', 'lugar', 'Monteverde, Costa Rica', 'zl'));
+      capa.appendChild(mk);
+    } else if (c.tipo === 'entrada' && z.labels && c.e.tit) {
+      if (c.foto) capa.appendChild(el('div', 'zvelo'));
+      var t = el('div', 'ztxt');
+      t.appendChild(el('h3', 'ztit', c.e.tit, 'zt'));
+      if (c.e.titEn) t.appendChild(el('div', 'ztit-en', c.e.titEn, 'zte'));
+      if (c.e.precio != null) {
+        var pr = el('div', 'zprecio', null, 'zp');
+        pr.appendChild(el('span', 'cur', '₡')); pr.appendChild(document.createTextNode(Number(c.e.precio).toLocaleString('fr-FR')));
+        t.appendChild(pr);
+        if (c.e.confirmar) t.appendChild(el('div', 'znota', 'Precio por confirmar en caja · Please confirm the price at the counter', 'zn'));
+      }
+      capa.appendChild(t);
+    }
+  }
+  /* calls f once the layer's own image is painted (at once when there is none or it is already decoded) */
+  function cuandoPinte(capa, f) {
+    var im = capa.querySelector('img.zfoto'), hecho = false;
+    var ir = function () { if (hecho) return; hecho = true; f(); };
+    if (!im || im.complete) { ir(); return; }
+    im.addEventListener('load', ir); im.addEventListener('error', ir);
+    setTimeout(ir, 1500);
+  }
+  /* the switch: the next photo is loaded first (a failed one is skipped, a product keeps its name without it);
+     the new layer is filled and fitted, then fades in over the old one, which stays opaque until the fade ends */
+  function mostrarCuadro(z, c, modo, primera) {
+    if (z.cambiando) { z.pendiente = true; return; }   /* decided again once the switch under way ends */
+    var gen = z.gen; z.cambiando = true;
+    var seguir = function (ok) {
+      if (z.gen !== gen || !z.nodo.isConnected) return;
+      if (!ok && c.tipo === 'entrada') {
+        if (!(c.e.producto && z.labels)) {   /* a photo that failed: on to the next entry */
+          z.cambiando = false;
+          var j = siguienteEntrada(z, c.i);
+          if (j >= 0 && j !== c.i) mostrarCuadro(z, cuadroEntrada(z, j), modo, primera); else mostrarCuadro(z, cuadroVacio(z), modo, primera);
+          return;
+        }
+        c = { tipo: 'entrada', i: c.i, e: c.e, foto: null, focus: [50, 50], zoom: 100 };
+      }
+      if (!ok && c.tipo === 'respaldo') c = { tipo: 'marca', i: -1, foto: null };
+      var entra = z.capas[1 - z.frente], sale = z.capas[z.frente];
+      llenarCapa(entra, c, z);
+      ajustarZona(z, entra);
+      cuandoPinte(entra, function () {
+        if (z.gen !== gen || !z.nodo.isConnected) return;
+        var corte = modo === 'corte';
+        if (corte) { entra.classList.add('ya'); sale.classList.add('ya'); }
+        entra.classList.add('on'); entra.classList.add('entra'); sale.classList.add('sale');
+        z.frente = 1 - z.frente; z.idx = c.i; z.estado = c.tipo; z.clave = claveDe(c);
+        z.nodo.setAttribute('data-estado', c.tipo); z.nodo.setAttribute('data-entrada', c.i >= 0 ? String(c.i) : '');
+        z.nodo.classList.toggle('zclara', !c.foto);
+        programar(z, !!primera);           /* the zone's seconds count from the switch, not from the end of the fade */
+        var fin = function () {
+          if (z.gen !== gen) return;
+          sale.classList.add('ya'); sale.classList.remove('on'); sale.classList.remove('sale'); entra.classList.remove('entra');
+          sale.textContent = ''; sale.removeAttribute('data-src');
+          requestAnimationFrame(function () { requestAnimationFrame(function () { sale.classList.remove('ya'); entra.classList.remove('ya'); }); });
+          z.cambiando = false;
+          if (z.pendiente) { z.pendiente = false; aplicarCuadro(z, cuadroDeseado(z), 'fundido'); }
+          else if (!z.timer) programar(z, false);
+        };
+        if (corte) { requestAnimationFrame(function () { requestAnimationFrame(fin); }); return; }
+        /* the old layer goes only once the new one is fully opaque on screen: a slow TV browser may start the fade
+           late, so the clock alone is not enough; after the fade's time the layer is watched frame by frame, and
+           never for more than a second and a half beyond it */
+        var t0 = performance.now();
+        var vigilar = function () {
+          if (z.gen !== gen) return;
+          if (parseFloat(getComputedStyle(entra).opacity) >= 0.995 || performance.now() - t0 > T.fundido + 1500) fin();
+          else requestAnimationFrame(vigilar);
+        };
+        setTimeout(function () { requestAnimationFrame(vigilar); }, T.fundido);
+      });
+    };
+    if (c.foto) cuandoCargue(c.foto, seguir); else seguir(true);
+  }
+  /* what the zone should show, applied: the same frame (a new price, a new look) is written again in place, with
+     no fade and its clock untouched; a different one dissolves in */
+  function aplicarCuadro(z, c, modo) {
+    if (claveDe(c) !== z.clave) { mostrarCuadro(z, c, modo); return; }
+    llenarCapa(z.capas[z.frente], c, z);
+    z.nodo.classList.toggle('zclara', !c.foto);
+    ajustarZona(z);
+    if (z.modo !== 'auto' || mostrables(z) < 2) { clearTimeout(z.timer); z.timer = null; }
+    else if (!z.timer) programar(z, false);
+  }
+  /* the zone's clock: only a presentation («auto») with more than one entry to show has one. The first turn of
+     zone i lasts a quarter longer per position on EVERY start of the composition (the first one, and each time it
+     comes back after other slides or as the next interlude, going on from the next entry), so zones with the same
+     seconds never change together */
+  function programar(z, primera) {
+    clearTimeout(z.timer); z.timer = null;
+    if (z.modo !== 'auto' || mostrables(z) < 2) return;
+    var ms = z.seg * T.zona * (primera ? 1 + 0.25 * z.i : 1);
+    z.timer = setTimeout(function () {
+      z.timer = null;
+      if (!z.nodo.isConnected || z.cambiando) return;
+      var j = siguienteEntrada(z, z.estado === 'entrada' ? z.idx : -1);
+      mostrarCuadro(z, j >= 0 ? cuadroEntrada(z, j) : cuadroVacio(z), 'fundido');
+    }, ms);
+    z.desde = performance.now();
+  }
+  function nuevaZona(zv, i, n) {
+    var zn = el('div', 'zona'), a = el('div', 'zcapa'), b = el('div', 'zcapa');
+    zn.setAttribute('data-zona', String(i)); zn.setAttribute('data-modo', zv.modo); zn.setAttribute('data-estado', ''); zn.setAttribute('data-entrada', '');
+    zn.appendChild(fondoNodo()); zn.appendChild(a); zn.appendChild(b);
+    zn._z = { i: i, n: n, nodo: zn, capas: [a, b], frente: 0, idx: -1, estado: '', clave: '', timer: null, gen: 0, cambiando: false, pendiente: false,
+              modo: zv.modo, seg: zv.seg, labels: zv.labels, respaldo: zv.respaldo, entradas: zv.entradas, grande: true, k: 1, cabe: true, desde: 0 };
+    return zn;
+  }
+  function tomarZona(z, zv) { z.modo = zv.modo; z.seg = zv.seg; z.labels = zv.labels; z.respaldo = zv.respaldo; z.entradas = zv.entradas; z.nodo.setAttribute('data-modo', zv.modo); }
+  function construirComposicion(capa, vm, viejo) {
+    var sl = viejo ? viejo.querySelector('.sl.k-composicion') : null;
+    if (sl && sl.getAttribute('data-id') === vm.id && sl.getAttribute('data-template') === vm.plantilla && sl.querySelectorAll('.zona').length === vm.zonas.length &&
+        sl.classList.contains('vertical') === (altoE > anchoE)) {
+      actualizarComposicion(sl, vm);
+      return;
+    }
+    if (viejo) recordarZonas(capa);   /* rebuilt in place: its zones go on where they were (a fresh build may find a layer that left: stale zones, not recorded) */
+    pararZonas(capa);
+    sl = el('div', 'sl compo k-composicion' + (altoE > anchoE ? ' vertical' : ''));
+    sl.setAttribute('data-id', vm.id); sl.setAttribute('data-kind', 'composicion'); sl.setAttribute('data-template', vm.plantilla);
+    sl.appendChild(fondoNodo());
+    var zs = el('div', 'zonas');
+    vm.zonas.forEach(function (zv, i) { zs.appendChild(nuevaZona(zv, i, vm.zonas.length)); });
+    sl.appendChild(zs);
+    /* nothing over the zones: no slot title and no brand line (the owner, 2026-11-03: the products and the photos speak
+       for themselves). The slot's name (the kicker) stays the composition's name in the panel; its hours still switch
+       the compositions */
+    capa.textContent = ''; capa.appendChild(sl);
+    ajustarComposicion(sl, vm);
+    var zn = sl.querySelectorAll('.zona');
+    for (var i = 0; i < zn.length; i++) {
+      var z = zn[i]._z, ultima = turnos[vm.id + ':' + i], j = siguienteEntrada(z, ultima === undefined ? -1 : ultima);
+      z.slide = vm.id;
+      mostrarCuadro(z, j >= 0 ? cuadroEntrada(z, j) : cuadroVacio(z), 'corte', true);
+    }
+  }
+  /* a read (or the look, the size, the fonts) changed what the composition shows: each zone takes its new entries
+     and labels in place; one whose entry can no longer show moves on; its clock goes on */
+  function actualizarComposicion(sl, vm) {
+    var zn = sl.querySelectorAll('.zona');
+    ajustarComposicion(sl, vm);
+    for (var i = 0; i < zn.length; i++) {
+      var z = zn[i]._z, zv = vm.zonas[i];
+      tomarZona(z, zv);
+      if (z.cambiando) { z.pendiente = true; continue; }   /* decided once the switch under way ends */
+      aplicarCuadro(z, cuadroDeseado(z), 'fundido');
+    }
+  }
+  /* the places and the letters: each zone's box in px (a thin gap between zones) and each zone's letters for the
+     distance (fitted inside the zone) */
+  function ajustarComposicion(sl, vm) {
+    var n = vm.zonas.length, lug = lugaresDe(vm.plantilla, n), sep = Math.max(1, Math.round(0.002 * Math.min(anchoE, altoE)));
+    var zn = sl.querySelectorAll('.zona'), zonas = [];
+    for (var i = 0; i < zn.length; i++) {
+      var L = lug[i] || [0, 0, 1, 1], z = zn[i]._z;
+      var x0 = Math.round(L[0] * anchoE) + (L[0] > 0 ? sep : 0), y0 = Math.round(L[1] * altoE) + (L[1] > 0 ? sep : 0);
+      var x1 = Math.round((L[0] + L[2]) * anchoE) - (L[0] + L[2] < 0.999 ? sep : 0), y1 = Math.round((L[1] + L[3]) * altoE) - (L[1] + L[3] < 0.999 ? sep : 0);
+      zn[i].style.left = x0 + 'px'; zn[i].style.top = y0 + 'px'; zn[i].style.width = (x1 - x0) + 'px'; zn[i].style.height = (y1 - y0) + 'px';
+      z.grande = L[2] * L[3] >= 1 / 3 - 1e-9;
+      zn[i].setAttribute('data-tamano', z.grande ? 'grande' : 'pequena');
+      zn[i].style.setProperty('--zp', Math.max(8, Math.round(0.05 * Math.min(x1 - x0, y1 - y0))) + 'px');
+      ajustarZona(z);
+      zonas.push({ grande: z.grande, k: z.k, cabe: z.cabe });
+    }
+    var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100;
+    var kmin = 1, cabe = true;
+    zonas.forEach(function (q) { kmin = Math.min(kmin, q.k); cabe = cabe && q.cabe; });
+    medidas = { pxPorCm: pxCm, base: base, titulo: null, k: kmin, envuelto: false, cabe: cabe, qrCm: null, qrMinCm: null, qrModulos: null, qrPequeno: false,
+                plantilla: vm.plantilla, zonas: zonas };
+  }
+  /* a zone's letters: the name 1.0 cm/m in a large zone (0.8 in a small one), the price 1.2 x the name; when the
+     labels do not fit the zone at that letter, the English line goes first (the name and the price keep their size:
+     a small zone of the 32" TV read from 3 m cannot hold all three); only when they still do not fit, or the brand
+     design does not, everything in it shrinks together (never past 35 %), the English still hidden */
+  /* the letters of ONE layer (the one being drawn, by default the front one): the outgoing layer, still laid out while
+     it fades, must not make a short name small for its whole turn */
+  function ajustarZona(z, capa) {
+    var f = z.grande ? ZFACT.grande : ZFACT.pequena, pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100;
+    var zn = capa || z.capas[z.frente], zh = z.nodo.clientHeight || 1;
+    function aplicar() {
+      var ns = zn.querySelectorAll('[data-r]');
+      for (var i = 0; i < ns.length; i++) {
+        var e = ns[i], r = e.getAttribute('data-r');
+        e.style.fontSize = ((f[r] || 0.8) * base * z.k * pxCm / proporcion(e)) + 'px';
+      }
+      var hj = zn.querySelector('.hojaM'), zm = zn.querySelector('[data-r="zm"]');
+      if (hj && zm) hj.style.width = hj.style.height = (parseFloat(zm.style.fontSize) * 0.9) + 'px';
+    }
+    function cabe() {
+      var ts = zn.querySelectorAll('.ztxt, .zmarca');
+      for (var i = 0; i < ts.length; i++) {
+        var t = ts[i], tope = t.classList.contains('ztxt') ? 0.5 * zh : zh;
+        if (t.scrollHeight > tope + 1) return false;
+      }
+      var ns = zn.querySelectorAll('[data-r]');
+      for (var j = 0; j < ns.length; j++) if (ns[j].getClientRects().length && ns[j].scrollWidth > ns[j].clientWidth + 1) return false;
+      return true;
+    }
+    zn.classList.remove('zsinen');
+    z.k = 1; aplicar();
+    if (!cabe() && zn.querySelector('.ztit-en')) zn.classList.add('zsinen');   /* this layer's English, not the zone's: a short name keeps it */
+    if (!cabe()) { z.k = mayor(0.35, 1, function (v) { z.k = v; aplicar(); return cabe(); }); aplicar(); }
+    z.cabe = cabe();
+  }
+  /* the front layer of the zone writes a name whose English it had to hide (no room at the distance's letter) */
+  function sinIngles(z) { var c = z.capas[z.frente]; return c.classList.contains('zsinen') && !!c.querySelector('.ztit-en'); }
+  /* the zones of the composition on screen, for the diagnosis and the tests */
+  function estadoZonas() {
+    var actual = promo.actual;
+    if (!actual || actual.kind !== 'composicion') return null;
+    var sl = $('promo').querySelector('.sl.k-composicion'), zn = sl ? sl.querySelectorAll('.zona') : [], out = [];
+    for (var i = 0; i < zn.length; i++) {
+      var z = zn[i]._z, e = z.estado === 'entrada' && z.idx >= 0 ? z.entradas[z.idx] : null;
+      out.push({ modo: z.modo, seg: z.seg, labels: z.labels, estado: z.estado, entrada: z.idx, entradas: z.entradas.length, mostrables: mostrables(z),
+                 grande: z.grande, k: z.k, cabe: z.cabe, sinIngles: sinIngles(z), titulo: e ? e.tit : '', precio: e ? e.precio : null, cambiando: z.cambiando, reloj: !!z.timer });
+    }
+    return { plantilla: actual.plantilla, zonas: out };
+  }
+
+  /* ---------- fitting: the sizes for the distance; a long title smaller (never under 1.0 cm/m) then wrapped;
+     never anything outside the screen (the last resort makes everything smaller, and the diagnosis says so) ---------- */
+  var medidas = {};
+  function ajustar(sl, vm) {
+    var pxCm = Math.max(anchoE, altoE) / largoCm(), base = AJ.distancia * AJ.escala / 100;
+    var padX = Math.round(0.055 * anchoE), padY = Math.round(0.055 * altoE), vertical = altoE > anchoE;
+    var caja = sl.querySelector('.caja'), sup = sl.querySelector('.sup'), tit = sl.querySelector('.tit');
+    var col = sl.querySelector('.qrcol'), svg = col && col.querySelector('svg'), n = col ? Number(col.getAttribute('data-modulos')) || 0 : 0;
+    var ideal = vm.kind === 'propia' ? 1.6 : 1.2;
+    var st = { t: ideal, wrap: false, k: 1, qr: 0, qrMax: 0, mod: 0 };
+    var qrMin = AJ.distancia * 10 * pxCm;          /* the code's side: a tenth of the reading distance */
+    function aplicar() {
+      var ns = sl.querySelectorAll('[data-r]');
+      for (var i = 0; i < ns.length; i++) {
+        var e = ns[i], r = e.getAttribute('data-r');
+        var f = r === 't' ? st.t : r === 'te' ? Math.max(0.75 * st.t, FACT.k) : FACT[r];
+        e.style.fontSize = (f * base * st.k * pxCm / proporcion(e)) + 'px';
+      }
+      if (tit) tit.style.whiteSpace = st.wrap ? 'normal' : 'nowrap';
+      var g = FACT.k * base * st.k * pxCm;
+      sl.style.setProperty('--g', g + 'px');
+      var top = padY;
+      if (sup) {   /* the brand on top is decoration: it goes when it does not fit */
+        sup.style.display = ''; sup.style.left = padX + 'px'; sup.style.top = padY + 'px';
+        if (sup.scrollWidth > anchoE - 2 * padX + 1) sup.style.display = 'none'; else top = padY + sup.offsetHeight + g;
+      }
+      caja.style.left = padX + 'px'; caja.style.right = padX + 'px'; caja.style.top = top + 'px'; caja.style.bottom = padY + 'px';
+      if (svg) {
+        var mod = Math.max(1, Math.floor(st.qr * st.k / n));
+        if (mod * n < qrMin * st.k && (mod + 1) * n <= st.qrMax * st.k) mod++;
+        st.mod = mod; svg.style.width = svg.style.height = mod * (n + 8) + 'px';
+      }
+      var hj = sl.querySelector('.hojaM');
+      if (hj && tit) { var tf = parseFloat(tit.style.fontSize) * 0.9; hj.style.width = hj.style.height = tf + 'px'; }
+    }
+    function cabe() {
+      var hijo = caja.firstElementChild;
+      /* layout boxes only: the blurred backdrop behind a text (a pseudo-element past its edges) is not text */
+      if (hijo.offsetHeight > caja.clientHeight + 1 || hijo.offsetWidth > caja.clientWidth + 1) return false;
+      var ns = sl.querySelectorAll('[data-r]');
+      for (var i = 0; i < ns.length; i++) if (ns[i].getClientRects().length && ns[i].scrollWidth > ns[i].clientWidth + 1) return false;
+      if (col && (col.offsetWidth > caja.clientWidth + 1)) return false;
+      if (col && !vertical) { var tx = sl.querySelector('.fila > .txt'); if (tx && tx.clientWidth < 0.3 * caja.clientWidth) return false; }
+      return true;
+    }
+    function largo() { return !st.wrap && tit && tit.scrollWidth > tit.clientWidth + 1; }
+    if (svg && n) {   /* the code first: as big as the distance asks (and a little more when there is room) */
+      st.qr = qrMin; st.qrMax = qrMin; aplicar();
+      var dirH = col.offsetHeight - svg.parentNode.offsetHeight, tot = (n + 8) / n, H = caja.clientHeight, W = caja.clientWidth;
+      st.qrMax = vertical ? Math.min(W / tot, (0.62 * H - dirH) / tot) : Math.min((H - dirH) / tot, 0.5 * W / tot);
+      st.qr = Math.max(n, Math.min(1.2 * qrMin, st.qrMax));
+    }
+    aplicar();
+    if (!cabe()) {
+      if (largo()) {
+        st.t = TIT_MIN; aplicar();
+        if (!largo()) { st.t = mayor(TIT_MIN, ideal, function (v) { st.t = v; aplicar(); return !largo(); }); aplicar(); }
+        else { st.wrap = true; st.t = ideal; aplicar(); }      /* too long even at 1.0: it wraps, at its normal size */
+      }
+      if (!cabe()) {
+        var tope = st.t; st.t = TIT_MIN; aplicar();
+        if (cabe()) { st.t = mayor(TIT_MIN, tope, function (v) { st.t = v; aplicar(); return cabe(); }); aplicar(); }
+        else {
+          if (!st.wrap) { st.wrap = true; aplicar(); }
+          if (!cabe()) { st.k = mayor(0.2, 1, function (v) { st.k = v; aplicar(); return cabe(); }); aplicar(); }
+        }
+      }
+    }
+    medidas = { pxPorCm: pxCm, base: base, titulo: st.t * st.k, k: st.k, envuelto: st.wrap, cabe: cabe(),
+                qrCm: svg ? st.mod * n / pxCm : null, qrMinCm: svg ? AJ.distancia * 10 : null, qrModulos: n || null };
+    medidas.qrPequeno = !!svg && medidas.qrCm < medidas.qrMinCm - 0.05;
+  }
+  /* === end of the PROMO RENDERER (copied from pantalla-promos.html) === */
+
+  var RAZON = {
+    'sin-tv': 'la dirección no dice ?tv=',
+    'tv-no-valida': 'el nombre de la TV en la dirección no es válido',
+    'sin-funcion': 'la base de datos no tiene pantalla_datos: falta la migración 0036',
+    'tv-desconocida': 'la TV «' + TV + '» no existe o está desactivada en Pantallas',
+    'otra-clase': 'la TV «' + TV + '» no es una pantalla de menú',
+    'tv-apagada': 'la TV «' + TV + '» está apagada en Pantallas (pantalla negra)',
+    'sin-lectura': 'todavía sin respuesta de la base de datos'
+  };
+  function fuenteTexto() {
+    var s;
+    if (filaDe === 'base') s = 'base de datos (TV ' + TV + (fila.updated_at ? ', cambiados ' + fechaCR(fila.updated_at) : '') + ')';
+    else if (filaDe === 'copia') s = 'copia del aparato de los ajustes de la base de datos (todavía sin lectura)';
+    else s = 'dirección y valores por omisión (' + (RAZON[razon] || razon || '?') + ')';
+    var d = Object.keys(DIR);
+    return s + (d.length ? ' · de la dirección: ' + d.join(', ') : '');
+  }
+  function fechaCR(iso) {
+    var t = Date.parse(iso);
+    return isFinite(t) ? new Date(t - 6 * 3600000).toISOString().slice(0, 16).replace('T', ' ') : String(iso);
+  }
+  function promoTexto() {
+    if (AJ.promo !== 'intercalar') return 'no';
+    var vig = promoCandidatas(estadoPromos()), s = 'intercalar · cada ' + Math.round(promo.cadaMs / 1000) + ' s · ' + Math.round(promo.segMs / 1000) + ' s cada una · ' +
+        promo.datos.length + ' leídas · ' + vig.length + ' vigentes ahora';
+    if (promo.actual) s += ' · en pantalla: ' + promo.actual.kind + ' ' + promo.actual.id.slice(0, 8);
+    else if (!vig.length) s += ' · sin diapositivas vigentes: no interrumpe';
+    else s += ' · próxima en ' + Math.max(0, Math.round((promo.proximo - performance.now()) / 1000)) + ' s';
+    return s;
+  }
+  function diagnostico() {
+    var d = $('diag');
+    if (!AJ.diag) { d.hidden = true; return; }
+    d.hidden = false;
+    var e = info.edadMs === Infinity ? 'nunca' : Math.round(info.edadMs / 1000) + ' s';
+    d.innerHTML = '';
+    var add = function (k, v) { d.appendChild(el('b', '', k + ': ')); d.appendChild(document.createTextNode(v + '\n')); };
+    add('TV', (AJ.tv || '(sin nombre)') + ' · ' + AJ.pulgadas + '" · ' + AJ.distancia + ' m' + (AJ.supuesto ? ' (supuesto: falta pulgadas o distancia)' : '') +
+        ' · giro ' + AJ.giro + ' · escala ' + AJ.escala + ' %');
+    add('Origen', fuenteTexto());
+    add('Muestra', (info.categorias === 'elegidas' ? 'categorías elegidas' + (info.categoriasFaltan ? ' (' + info.categoriasFaltan + ' ya no existen)' : '')
+        : info.categorias === 'no-existen' ? 'TODAS: las categorías elegidas ya no existen en el menú' : 'todas las categorías') +
+        (info.productos === 'elegidos' ? ' · productos elegidos (' + ((AJ.productos ? AJ.productos.length : 0) - (info.productosFaltan || 0)) +
+            (info.productosEnPantalla != null && info.productosEnPantalla !== (AJ.productos ? AJ.productos.length : 0) - (info.productosFaltan || 0) ? ', ' + info.productosEnPantalla + ' en pantalla' : '') + ')' +
+            (info.productosFaltan ? ' (' + info.productosFaltan + ' ya no existen)' : '')
+         : info.productos === 'no-existen' ? ' · TODOS los productos: los elegidos ya no existen en el menú' : '') +
+        ' · agotados ' + (AJ.agotados === 'tachar' ? 'tachados' : 'ocultos'));
+    add('Horario', AJ.desde === null ? 'siempre encendida'
+        : hhmm(AJ.desde) + '–' + hhmm(AJ.hasta) + ' · ' + (info.apagado ? (apagadaDueno ? 'APAGADA en Pantallas' : 'APAGADA: fuera de horario') : 'encendida'));
+    add('Hora', 'Costa Rica ' + hhmm(minutoCR(ahoraMs())) + (srv ? ' (del servidor)' : ' (del aparato)') + ' · look ' + AJ.look + ' → ' + info.look);
+    add('Letra', info.capCm ? 'mayúscula ' + info.capCm.toFixed(2) + ' cm (mínimo ' + info.minCm.toFixed(2) + ', meta ' + info.metaCm.toFixed(2) + ')' : '–');
+    add('Maqueta', 'layout ' + AJ.layout + ' · densidad ' + AJ.densidad + ' · inglés ' + AJ.ingles + ' · ' + (info.columnas || '–') + ' columnas' +
+        (info.paginas ? ' · cabe en una pantalla: ' + (info.paginas === 1 ? 'sí' : 'no') + ' (letra ' + info.letraPct + ' % de la meta)' : '') +
+        (AJ.layout === 'una-pantalla' && info.paginas > 1 ? ' · NO CABE EN UNA PANTALLA AL MÍNIMO: menos productos, letra compacta, sin inglés o TV más grande' : ''));
+    add('Páginas', (info.paginas || 0) + ' · ' + (info.columnas || '–') + ' columnas · ' + Math.round(paginaMs / 1000) + ' s cada una' +
+        (info.paginas > 2 ? ' · MÁS DE 2: menos productos o TV más grande' : '') + (info.cabe === false ? ' · NO CABE: baje la escala o la distancia' : ''));
+    add('Promos', promoTexto());
+    var cz = estadoZonas();
+    if (cz) {
+      add('Composición', 'plantilla ' + cz.plantilla + ' · ' + cz.zonas.length + (cz.zonas.length === 1 ? ' zona' : ' zonas') + ' · ' +
+          Math.round(promo.segMs / 1000) + ' s' + (promo.actual.kick[0] ? ' · línea «' + promo.actual.kick[0] + '»' : ''));
+      cz.zonas.forEach(function (z, i) {
+        add('Zona ' + (i + 1), (z.modo === 'auto' ? 'presentación cada ' + z.seg + ' s' : 'foto fija') + ' · ' + z.mostrables + ' de ' + z.entradas +
+            (z.entradas === 1 ? ' entrada' : ' entradas') + ' con qué mostrar · ' + (z.labels ? 'con nombres y precios' : 'sin textos') + ' · ' +
+            (z.estado === 'entrada' ? 'muestra la ' + (z.entrada + 1) + (z.titulo ? ' (' + z.titulo + (z.precio != null ? ', precio' : ', sin precio') + ')' : ' (solo foto)')
+             : z.estado === 'respaldo' ? 'NADA QUE MOSTRAR: la foto de respaldo' : z.estado === 'marca' ? 'NADA QUE MOSTRAR: el diseño de marca' : 'cargando') +
+            (z.sinIngles ? ' · sin inglés (no cabe)' : '') + (z.k < 1 ? ' · letra al ' + Math.round(z.k * 100) + ' % (no cabe)' : ''));
+      });
+    }
+    add('Precios', info.estado + ' · última lectura hace ' + e + (deCopia ? ' · nombres de la copia del aparato' : '') +
+        (dudoso ? ' · sin verificar desde una pausa' : ''));
+    add('Versión', (window.HG_VERSION && HG_VERSION.build) || '?');
+    if (malos.length) add('Ajustes no válidos', malos.join(', '));
+    if (malosBase.length) add('Ajustes de la base no válidos', malosBase.join(', '));
+  }
+
+  /* ---------- full screen and a screen that stays on (as tv.html) ---------- */
+  function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  function goFull() {
+    if (isFull()) return;
+    var de = document.documentElement, fn = de.requestFullscreen || de.webkitRequestFullscreen;
+    if (!fn) return;
+    try { var p = fn.call(de); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  }
+  addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 23) goFull(); });
+  addEventListener('click', goFull);
+  var wakeLock = null;
+  async function keepAwake() {
+    try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function () { wakeLock = null; }); } }
+    catch (e) { wakeLock = null; }
+  }
+  function fsHint() {
+    var can = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+    if (!can || isFull()) return;
+    var h = $('fsHint'); h.classList.add('on');
+    setTimeout(function () { h.classList.remove('on'); }, 12000);
+  }
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (ev) {
+    document.addEventListener(ev, function () { $('fsHint').classList.remove('on'); setTimeout(function () { orientar(); pintar(); }, 300); });
+  });
+
+  /* ---------- the tick: reads on the monotonic clock; a pause in either clock makes prices unverified ---------- */
+  var vivoPerf = 0, vivoReloj = 0;
+  function vivo() { vivoPerf = performance.now(); vivoReloj = Date.now(); }
+  function tick() {
+    var dp = performance.now() - vivoPerf, dr = Date.now() - vivoReloj;
+    if (dp > SALTO || Math.abs(dr) > SALTO) { dudar('pausa'); return; }
+    if (performance.now() - ultimoIntento >= T.cada - 50) refrescar();
+    pintar(); vivo();
+  }
+  function alVolver() { dudar('vuelta'); keepAwake(); }
+  var fuenteT = null;
+  function fuentesCargadas() {   /* a web font finished loading: measure the letter again and lay out again */
+    clearTimeout(fuenteT);
+    fuenteT = setTimeout(function () { proporciones = {}; fuentesN++; pintar(true); }, 60);
+  }
+
+  /* ---------- start ---------- */
+  window.PANTALLA = {
+    info: function () {
+      var vig = promoCandidatas(estadoPromos());
+      return JSON.parse(JSON.stringify(Object.assign({}, info, {
+        pagina: pagIx, ajustes: AJ, origen: origen, fuente: filaDe || 'direccion', razon: razon, tiempos: T, paginaMs: paginaMs,
+        horaCR: hhmm(minutoCR(ahoraMs())), horaDe: srv ? 'servidor' : 'aparato', salto: SALTO, malos: malos, malosBase: malosBase,
+        promo: { modo: AJ.promo, cadaMs: promo.cadaMs, segMs: promo.segMs, leidas: promo.datos.length, vigentes: vig.map(function (s) { return s.id; }),
+                 enPantalla: promo.actual ? promo.actual.id : null, mostradas: promo.mostradas, composicion: estadoZonas(), medidas: medidas, qr: qrEstado,
+                 proximoMs: promo.actual ? null : Math.max(0, Math.round(promo.proximo - performance.now())) }
+      })));
+    },
+    refrescar: refrescar, mostrar: mostrar
+  };
+  fila = TV_OK ? copiaTv() : null;
+  filaDe = fila ? 'copia' : null;
+  razon = fila ? null : !TV ? 'sin-tv' : !TV_OK ? 'tv-no-valida' : 'sin-lectura';
+  calcularAjustes();
+  /* a cold start: the names copy (guardar) was saved already filtered by the copied row's categories and products */
+  if (filaDe === 'copia') {
+    var mu = copiaMuestra();
+    info.categorias = mu && mu.categorias ? mu.categorias : (AJ.categorias ? 'elegidas' : 'todas'); info.categoriasFaltan = mu ? Number(mu.categoriasFaltan) || 0 : 0;
+    info.productos = mu && mu.productos ? mu.productos : (AJ.productos ? 'elegidos' : 'todos'); info.productosFaltan = mu ? Number(mu.productosFaltan) || 0 : 0;
+    info.productosEnPantalla = mu && mu.enPantalla != null ? Number(mu.enPantalla) : null;
+  }
+  paginaMs = T.pagina || AJ.pagina * 1000;
+  promoArmar();
+  orientar();
+  var guardado = copia();
+  if (guardado) { menu = guardado; deCopia = true; }
+  pintar(); vivo();
+  refrescar();
+  setInterval(tick, TICK);
+  armarPaginas();
+  addEventListener('resize', function () { orientar(); pintar(); });
+  addEventListener('online', function () { refrescar(); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) alVolver(); });
+  addEventListener('pageshow', function (e) { if (e.persisted) alVolver(); });
+  document.addEventListener('resume', alVolver);
+  if (document.fonts) {
+    if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', fuentesCargadas);
+    if (document.fonts.ready) document.fonts.ready.then(fuentesCargadas);
+  }
+  fsHint(); keepAwake();
+})();
+</script>
+</body>
+</html>

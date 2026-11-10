@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="hg-build" content="c5e959090f73">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Pantallas · Hanging Garden</title>
+<meta name="robots" content="noindex">
+<!--
+  Canopy OS · the owner's page for the customer TVs (docs/PANTALLAS.md, migrations 0036 and 0037):
+  Screen A (pantalla-menu, the menu with prices; v2: layout, density, English, promotions intercalated) and Screen B
+  (pantalla-promos: products, brand, invitations and, v2, compositions of 1 to 4 zones, each a fixed photo or a
+  presentation of its own, built in a visual editor with a live preview of the real TV page).
+  * Only the owner: the owner's PIN on this device (HG_ACCESS.gate) or the owner login with the phone code. The server
+    checks it on every call (is_true_owner) and keeps every change in screen_changes; a manager's PIN opens nothing.
+  * Reads and writes only through the 0036/0037 functions. Prices and availability are never written here: product
+    slides and the products inside a composition read them from the menu on every screen read.
+  * Written in Spanish directly in the page (no strings in lang.js): the page root carries data-no-translate, and
+    lang.js (last) only translates the shared PIN screen of access.js.
+  * config.js does not list this page among the staff pages: pantallas.js refuses an unknown address by itself,
+    before any client exists.
+-->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M20 35h50v25a20 20 0 01-20 20H40a20 20 0 01-20-20zM70 40h8a10 10 0 010 20h-8' fill='none' stroke='%231E4B33' stroke-width='7'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Figtree:wght@400;600;700&family=Spline+Sans+Mono:wght@400&display=swap">
+<script src="config.js?v=c5e959090f73"></script>
+<script src="version.js?v=c5e959090f73" defer></script>
+<script src="keypad.js?v=c5e959090f73" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="access.js?v=c5e959090f73"></script>
+<script src="login.js?v=c5e959090f73"></script>
+<style>
+:root{
+  --canvas:#F6F1E2; --panel:#FCF8EC; --ink:#26392C; --accent:#1E4B33; --accent-hover:#143726; --muted:#C9CFB6;
+  --gold:#B98A35; --sec:#54634F; --ok:#4A7A4E; --bad:#A8402F;
+  --line:rgba(38,57,44,.16); --row:#F3EDDB; --sel:#E2EAD9; --chip:#EBE5D2; --warn:#7A5A16; --warn-bg:#F3E7C7; --bad-bg:#F4DDD6;
+  --info:#3A6690; --info-bg:#DCE7F2; --field:#FFFFFF;
+  --display:'Playfair Display',Georgia,serif; --body:'Figtree',system-ui,sans-serif; --mono:'Spline Sans Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;padding-bottom:4.5rem}
+.hg-lang{display:none !important}     /* the page is Spanish only: the language switch would change nothing here */
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;line-height:1.2}
+a{color:var(--accent)}
+button{font:inherit;cursor:pointer;border:none;border-radius:10px;padding:.5em 1em;background:var(--accent);color:#fff;font-weight:600;min-height:44px}
+button:hover{background:var(--accent-hover)}
+button:disabled{opacity:.5;cursor:default}
+button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--muted)}
+button.ghost:hover{background:var(--row)}
+button.danger{background:transparent;color:var(--bad);border:1.5px solid var(--bad)}
+button.danger:hover{background:var(--bad-bg)}
+button.small{min-height:36px;padding:.3em .8em;font-size:.85rem}
+button.linkbtn{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;font-size:.85rem;margin-top:.8rem;display:inline-block}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1.5px solid var(--muted);border-radius:10px;padding:.5em .7em;width:100%;min-height:44px}
+textarea{min-height:68px;resize:vertical}
+input[type=checkbox],input[type=radio]{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--accent);flex:none}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input.bad,textarea.bad,select.bad{border-color:var(--bad);background:#FFF8F5}
+label,.lbl{display:block;font-size:.82rem;color:var(--sec);margin:0 0 .25rem}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin:.5rem 0 0}
+.err:empty{min-height:0;margin:0}
+.err.ok{color:var(--ok)}
+.hint{font-size:.84rem;color:var(--sec);margin:.25rem 0 0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.card{background:var(--panel);border-radius:16px;padding:1.1rem;box-shadow:0 2px 14px rgba(30,75,51,.07);min-width:0}
+
+/* sign in and the closed doors, as on every owner page */
+.login{max-width:400px;width:calc(100% - 32px);margin:12vh auto 0;text-align:center}
+.login .cup{width:56px;margin:0 auto .8rem;color:var(--accent);display:block}
+.login h1{font-size:1.6rem}
+.login label{text-align:left;font-size:.85rem;margin:.9rem 0 .25rem}
+.login form button[type=submit]{width:100%;margin-top:1.2rem}
+.login .row{display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap;justify-content:center}
+.login .row > *{flex:1 1 160px}
+.login p{margin:.6rem 0 0}
+
+/* the page */
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+header.top{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.9rem 0 .7rem;border-bottom:1px solid var(--line);margin-bottom:.8rem}
+header.top .mark{width:40px;height:40px;border-radius:12px;background:var(--accent);color:#F6F1E2;display:grid;place-items:center;flex:none}
+header.top .mark svg{width:24px;height:24px}
+header.top .ttl{flex:1 1 220px;min-width:0}
+header.top h1{font-size:1.45rem}
+header.top .sub{color:var(--sec);font-size:.85rem}
+.who{font-size:.82rem;color:var(--sec);display:flex;align-items:center;gap:.45rem}
+.who i{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#fff;display:inline-grid;place-items:center;font-style:normal;font-weight:700;font-size:.75rem}
+nav.tabs{display:flex;flex-wrap:wrap;gap:.4rem;padding:.1rem 0 .8rem;margin:0 0 .6rem}
+nav.tabs button{flex:none;background:transparent;color:var(--sec);border:1.5px solid var(--muted);border-radius:99px;min-height:40px;padding:.3em 1em;font-size:.92rem}
+nav.tabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+nav.tabs button .n{display:inline-block;min-width:1.5em;margin-left:.35em;padding:0 .4em;border-radius:99px;background:rgba(255,255,255,.25);font-size:.8em}
+nav.tabs button[aria-selected="false"] .n{background:var(--chip);color:var(--sec)}
+.intro{font-size:.9rem;color:var(--sec);margin:0 0 1rem;max-width:70ch}
+.banner{border:1.5px solid var(--gold);background:var(--panel);border-radius:14px;padding:.8rem 1rem;margin:0 0 1rem;font-size:.92rem}
+.banner.bad{border-color:var(--bad);color:var(--bad)}
+.grid{display:grid;gap:1rem}
+.cards{grid-template-columns:repeat(auto-fill,minmax(min(100%,500px),1fr));align-items:start}
+.sec-h{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:1.4rem 0 .7rem}
+.sec-h h2{font-size:1.2rem;flex:1 1 auto}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--body);font-size:.76rem;padding:.15em .6em;border-radius:99px;font-weight:600;white-space:nowrap;background:var(--chip);color:var(--sec)}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip.plain::before{display:none}
+.c-ok{background:var(--sel);color:var(--ok)} .c-warn{background:var(--warn-bg);color:var(--warn)} .c-bad{background:var(--bad-bg);color:var(--bad)}
+.c-info{background:var(--info-bg);color:var(--info)} .c-mute{background:var(--chip);color:var(--sec)}
+
+/* a TV */
+.tv h2{font-size:1.2rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.tv .kind{font-size:.85rem;color:var(--sec);margin:.15rem 0 .8rem}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:.75rem .9rem}
+.fields .wide{grid-column:1/-1}
+.range{font-size:.75rem;color:var(--sec);font-weight:400}
+.checks{display:flex;flex-wrap:wrap;gap:.4rem}
+.checks label{display:flex;align-items:center;gap:.45rem;margin:0;padding:.45em .7em;border:1.5px solid var(--muted);border-radius:10px;background:var(--field);color:var(--ink);font-size:.88rem;cursor:pointer;min-height:44px}
+.checks label:has(input:checked){border-color:var(--accent);background:var(--sel)}
+.prods summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem;min-height:44px;display:inline-flex;align-items:center}
+.prods .pcat{font-family:var(--body);font-size:.82rem;font-weight:600;color:var(--sec);margin:.6rem 0 .3rem}
+.prods .checks label{min-height:38px;padding:.3em .6em;font-size:.84rem}
+.prods .hint{margin-top:.6rem}
+label.line{display:flex;align-items:center;gap:.55rem;color:var(--ink);font-size:.92rem;margin:0;min-height:44px;cursor:pointer}
+.addr{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.9rem;padding:.7rem .8rem;border-radius:12px;background:var(--row)}
+.addr code{flex:1 1 220px;min-width:0;font-family:var(--mono);font-size:.84rem;overflow-wrap:anywhere;user-select:all}
+.tv .acts{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.9rem}
+.tv .acts .sp{flex:1}
+.dirty{font-size:.8rem;color:var(--warn)}
+.preview{margin-top:.9rem}
+.pv{position:relative;overflow:hidden;border-radius:10px;background:#0A1A10;margin:0 auto;border:3px solid #1d211f}
+.pv iframe{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;pointer-events:none;background:#000}
+.pv.vertical{max-width:300px}
+/* under a menu TV's preview: what the real page measured (pages, columns, letter) or that it does not fit */
+.pvinfo{font-size:.9rem;font-weight:600;color:var(--ink);margin:.5rem 0 0}
+.pvinfo.bad{color:var(--bad)}
+
+/* slides */
+.slides{display:grid;gap:.6rem}
+.slide{display:grid;grid-template-columns:64px minmax(0,1fr);gap:.8rem;align-items:start;padding:.8rem;background:var(--panel);border-radius:14px;border:1.5px solid transparent}
+.slide.retirada{opacity:.62}
+.slide .ph{width:64px;height:64px;border-radius:10px;background:var(--row);overflow:hidden;display:grid;place-items:center;color:var(--sec);font-size:.7rem;text-align:center}
+.slide .ph img{width:100%;height:100%;object-fit:cover}
+.slide .t{font-weight:700;overflow-wrap:anywhere}
+.slide .t small{font-weight:400;color:var(--sec)}
+.slide .chips{display:flex;gap:.3rem;flex-wrap:wrap;margin:.3rem 0}
+.slide .meta{font-size:.82rem;color:var(--sec);display:grid;gap:.1rem}
+.slide .acts{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.55rem;align-items:center}
+.slide .confirm{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;margin-top:.55rem;padding:.55rem .7rem;border-radius:10px;background:var(--bad-bg);color:var(--bad);font-size:.88rem}
+.slide .confirm span{flex:1 1 200px}
+.empty{padding:1.2rem;color:var(--sec);text-align:center;background:var(--panel);border-radius:14px}
+
+/* the slide editor */
+.editor{border:2px solid var(--accent);margin-bottom:1rem}
+.editor h2{font-size:1.25rem;margin-bottom:.8rem}
+.editor fieldset{border:0;padding:0;margin:0 0 1.1rem;min-width:0}
+.editor legend{font-family:var(--display);font-size:1.02rem;padding:0;margin:0 0 .5rem}
+.kinds{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:.5rem}
+.kinds label{display:flex;gap:.6rem;align-items:flex-start;margin:0;padding:.6rem .7rem;border:1.5px solid var(--muted);border-radius:12px;background:var(--field);color:var(--ink);cursor:pointer;font-size:.92rem}
+.kinds label small{display:block;color:var(--sec);font-size:.78rem}
+.kinds label:has(input:checked){border-color:var(--accent);background:var(--sel)}
+.kinds label:has(input:disabled){cursor:default}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:.45rem;max-height:340px;overflow:auto;padding:.4rem;margin-top:.5rem;border:1.5px solid var(--muted);border-radius:12px;background:var(--canvas)}
+.pick{display:grid;grid-template-columns:48px minmax(0,1fr);gap:.55rem;align-items:center;text-align:left;background:var(--field);color:var(--ink);border:2px solid transparent;border-radius:10px;padding:.35rem;min-height:0;font-weight:400}
+.pick:hover{background:var(--field);border-color:var(--muted)}
+.pick[aria-pressed="true"]{border-color:var(--accent);background:var(--sel)}
+.pick .ph{width:48px;height:48px;border-radius:8px;background:var(--row);overflow:hidden;display:grid;place-items:center;font-size:.62rem;color:var(--sec);text-align:center;line-height:1.1}
+.pick .ph img{width:100%;height:100%;object-fit:cover}
+.pick b{display:block;font-size:.88rem;line-height:1.2;overflow-wrap:anywhere}
+.pick small{display:block;font-size:.76rem;color:var(--sec);line-height:1.25}
+.chosen{margin-top:.5rem;font-size:.9rem}
+.pair{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:.6rem .9rem;margin-bottom:.7rem}
+.cnt{float:right;font-family:var(--mono);font-size:.74rem;color:var(--sec)}
+.cnt.over{color:var(--bad);font-weight:700}
+.rule{font-size:.86rem;background:var(--row);border-radius:12px;padding:.7rem .85rem;margin:0 0 .8rem;color:var(--ink)}
+.rule b{color:var(--accent)}
+.photo{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-top:.5rem}
+.photo .ph{width:120px;height:80px;border-radius:10px;background:var(--row);overflow:hidden;display:grid;place-items:center;color:var(--sec);font-size:.75rem;text-align:center}
+.photo .ph img{width:100%;height:100%;object-fit:cover}
+.days{display:flex;gap:.3rem;flex-wrap:wrap}
+.days button{min-width:52px;min-height:44px;padding:.2em .5em;background:var(--field);color:var(--sec);border:1.5px solid var(--muted);font-weight:600}
+.days button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.editor .acts{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-top:.4rem}
+.editor .acts .sp{flex:1}
+
+/* a composition: the template (six small schemes), the zones laid out like the TV, each with its ordered entries */
+.tpls{display:flex;flex-wrap:wrap;gap:.5rem}
+.tpl{display:grid;gap:.35rem;justify-items:center;background:var(--field);color:var(--ink);border:2px solid var(--muted);border-radius:12px;padding:.5rem .6rem;font-weight:600;font-size:.8rem;min-height:0}
+.tpl:hover{background:var(--row)}
+.tpl[aria-pressed="true"]{border-color:var(--accent);background:var(--sel)}
+.mini{position:relative;display:block;width:72px;height:40px;border-radius:6px;background:var(--canvas);overflow:hidden;border:1px solid var(--muted)}
+.mini i{position:absolute;display:block;background:var(--accent);opacity:.5;border:1.5px solid var(--panel)}
+.zonesGrid{display:grid;gap:.7rem;margin-top:.8rem;align-items:start}
+.zone{grid-area:var(--ga);background:var(--row);border-radius:12px;padding:.7rem .75rem;min-width:0;display:grid;gap:.55rem;align-content:start;border:1.5px solid transparent}
+.zone.bad{border-color:var(--bad)}
+.zone h3{font-size:1rem;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.zone h3 span:first-child{flex:1 1 auto}
+.zone .swap{display:flex;gap:.25rem;flex-wrap:wrap}
+.zone .swap button{min-height:30px;padding:.15em .5em;font-size:.76rem}
+.zone .row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:start}
+.zone .row > div{flex:1 1 150px;min-width:0}
+.zone .checks label{min-height:38px;padding:.3em .6em;font-size:.84rem}
+.zone label.line{font-size:.84rem;min-height:0}
+.entries{list-style:none;margin:0;padding:0;display:grid;gap:.45rem}
+.entries li.hint{padding:.3rem 0}
+.entry{display:grid;grid-template-columns:104px minmax(0,1fr);gap:.55rem;background:var(--panel);border-radius:10px;padding:.45rem;border:1.5px solid transparent}
+.entry.bad{border-color:var(--bad);background:#FFF8F5}
+.frame{position:relative;width:104px;max-height:170px;border-radius:8px;overflow:hidden;background:var(--canvas);cursor:crosshair;touch-action:none;display:grid;place-items:center;color:var(--sec);font-size:.66rem;text-align:center;line-height:1.15;padding:.2rem;user-select:none;-webkit-user-select:none}
+.frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+.frame .dot{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid #fff;background:var(--gold);box-shadow:0 0 0 1px rgba(0,0,0,.45);pointer-events:none}
+.entry .einfo{display:grid;gap:.3rem;font-size:.82rem;min-width:0;align-content:start}
+.entry .einfo b{overflow-wrap:anywhere;font-size:.86rem}
+.entry .einfo small{color:var(--sec);font-size:.76rem}
+.entry .zoom{display:flex;align-items:center;gap:.4rem;margin:0;color:var(--ink);font-size:.8rem}
+.entry .zoom input{flex:1 1 60px;min-height:28px;padding:0;border:0;background:transparent;accent-color:var(--accent);width:auto}
+.entry .zoom span{font-family:var(--mono);font-size:.74rem;min-width:3.4em;text-align:right}
+.eacts{display:flex;gap:.3rem;flex-wrap:wrap}
+.eacts button{min-height:32px;padding:.15em .55em;font-size:.8rem}
+.zone .adds{display:flex;gap:.4rem;flex-wrap:wrap}
+.zone .adds button[aria-pressed="true"]{background:var(--sel);border-color:var(--accent)}
+.zone .zpick{display:grid;gap:.3rem}
+.zone .picker{max-height:240px;grid-template-columns:1fr}
+.zone .fb{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.82rem;padding-top:.3rem;border-top:1px solid var(--line)}
+.zone .fb .ph{width:72px;height:48px;border-radius:8px;background:var(--panel);overflow:hidden;display:grid;place-items:center;color:var(--sec);font-size:.68rem;text-align:center}
+.zone .fb .ph img{width:100%;height:100%;object-fit:cover}
+.zone .fb .fbt{flex:1 1 160px;display:grid;gap:.1rem}
+.zone .fb small{color:var(--sec)}
+.editor .pvbox{max-width:820px}
+@media (max-width:760px){
+  .zonesGrid{grid-template-columns:1fr !important;grid-template-areas:none !important}
+  .zone{grid-area:auto}
+}
+
+/* today */
+.today h2{font-size:1.15rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.today h3{font-family:var(--body);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--sec);margin:1rem 0 .4rem}
+.today ol{margin:0;padding:0;list-style:none;display:grid;gap:.4rem}
+.today li{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap;padding:.5rem .7rem;border-radius:10px;background:var(--row)}
+.today li b{flex:1 1 200px;overflow-wrap:anywhere}
+.today li span{font-size:.82rem;color:var(--sec)}
+.today li .zs{flex-basis:100%;font-size:.76rem}
+.today .none{font-size:.9rem;color:var(--sec);margin:0}
+
+/* the change log */
+.log{display:grid;gap:.45rem}
+.chg{background:var(--panel);border-radius:12px;padding:.65rem .85rem}
+.chg .l1{display:flex;gap:.5rem;flex-wrap:wrap;align-items:baseline}
+.chg .l1 b{overflow-wrap:anywhere}
+.chg .when{font-family:var(--mono);font-size:.78rem;color:var(--sec);white-space:nowrap}
+.chg .by{font-size:.85rem;color:var(--sec)}
+.chg details{margin-top:.35rem;font-size:.84rem}
+.chg summary{cursor:pointer;color:var(--accent);font-weight:600;min-height:32px;display:inline-flex;align-items:center}
+.chg table{border-collapse:collapse;width:100%;margin-top:.3rem}
+.chg th,.chg td{text-align:left;padding:.3rem .4rem;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.chg th{font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--sec);font-weight:400}
+.chg td.k{color:var(--sec);white-space:nowrap}
+.chg td.was{color:var(--bad)}
+.chg td.now{color:var(--ok)}
+
+.toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);z-index:2147482500;background:var(--ink);color:#FCF8EC;padding:.6em 1.2em;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.loading{color:var(--sec);padding:2rem 0;text-align:center}
+@media (max-width:560px){
+  header.top h1{font-size:1.25rem}
+  .slide{grid-template-columns:48px minmax(0,1fr)}
+  .slide .ph{width:48px;height:48px}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="pg" data-no-translate>
+
+  <div id="loginView" class="login card" hidden>
+    <svg class="cup" viewBox="0 0 100 80" aria-hidden="true"><path d="M15 20h50v22a18 18 0 01-18 18H33a18 18 0 01-18-18zM65 26h9a9 9 0 010 18h-9" fill="none" stroke="currentColor" stroke-width="7"/><path d="M33 2c-2 5 2 7 0 12M47 2c-2 5 2 7 0 12" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" opacity=".6"/></svg>
+    <h1>Pantallas</h1>
+    <p class="hint">Hanging Garden Café · las TV para los clientes · solo el dueño</p>
+    <form id="loginForm">
+      <label for="em">Correo electrónico</label>
+      <input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Contraseña</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button type="submit" id="loginBtn">Ingresar</button>
+      <p class="err" id="loginErr"></p>
+      <button type="button" class="linkbtn" id="forgotBtn">¿Olvidó su contraseña?</button>
+    </form>
+    <form id="codeForm" hidden>
+      <label for="codeIn">Código de la app del teléfono</label>
+      <input id="codeIn" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required>
+      <button type="submit">Confirmar</button>
+      <p class="err" id="codeErr"></p>
+    </form>
+  </div>
+
+  <div id="noView" class="login card" hidden>
+    <h1>Pantallas</h1>
+    <p id="noMsg"></p>
+    <div class="row">
+      <button type="button" class="ghost" id="noRetry" hidden>Reintentar</button>
+      <button type="button" class="ghost" id="noOut">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="ownerOnlyView" class="login card" hidden>
+    <h1>Pantallas</h1>
+    <p id="ownerOnlyMsg">Solo el dueño puede cambiar las pantallas. Abra con el PIN del dueño.</p>
+    <div class="row">
+      <button type="button" id="ownerOnlyLock">Cerrar y abrir con el PIN del dueño</button>
+    </div>
+  </div>
+
+  <div id="appView" class="wrap" hidden>
+    <header class="top">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="12.5" rx="1.8"/><path d="M8.5 20h7M12 16.5V20"/></svg></span>
+      <div class="ttl">
+        <h1>Pantallas para los clientes</h1>
+        <div class="sub">La TV del menú y la de promociones · Hanging Garden Café</div>
+      </div>
+      <span class="who" id="who"></span>
+      <button type="button" class="ghost small" id="outBtn">Cerrar sesión</button>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button type="button" role="tab" id="tab-tvs" aria-controls="sec-tvs" data-tab="tvs">Pantallas</button>
+      <button type="button" role="tab" id="tab-slides" aria-controls="sec-slides" data-tab="slides">Diapositivas<span class="n" id="nSlides"></span></button>
+      <button type="button" role="tab" id="tab-today" aria-controls="sec-today" data-tab="today">Hoy en pantalla</button>
+      <button type="button" role="tab" id="tab-log" aria-controls="sec-log" data-tab="log">Registro de cambios</button>
+    </nav>
+    <div id="pageErr" class="banner bad" role="alert" hidden></div>
+
+    <section id="sec-tvs" role="tabpanel" aria-labelledby="tab-tvs" hidden>
+      <p class="intro">Cada TV lee aquí sus ajustes y los toma sola en menos de un minuto. Los precios y lo que está agotado salen
+        siempre del Gestor del menú: esta página nunca los cambia.</p>
+      <div class="grid cards" id="tvList"></div>
+      <div class="sec-h"><h2>Agregar una TV</h2></div>
+      <form class="card" id="addTv" novalidate>
+        <div class="fields">
+          <div>
+            <label for="newId">Identificador <span class="range">(minúsculas, números y guiones: menu-2)</span></label>
+            <input id="newId" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="30" placeholder="promos-2">
+          </div>
+          <div>
+            <label for="newKind">Qué muestra</label>
+            <select id="newKind">
+              <option value="menu">El menú con precios (como la Pantalla A)</option>
+              <option value="promos">Promociones (como la Pantalla B)</option>
+            </select>
+          </div>
+          <div>
+            <label for="newName">Nombre <span class="range">(opcional)</span></label>
+            <input id="newName" maxlength="60" placeholder="Pantalla de la terraza">
+          </div>
+        </div>
+        <div class="tv acts"><button type="submit" id="addTvBtn">Agregar la TV</button></div>
+        <p class="err" id="addTvErr" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="sec-slides" role="tabpanel" aria-labelledby="tab-slides" hidden>
+      <p class="intro">Lo que muestra la TV de promociones (y la del menú, si intercala promociones): un producto del menú (con su
+        foto y su precio al día), la marca, una invitación con código QR, o una composición de 1 a 4 zonas, cada una con una
+        foto fija o una presentación propia. Cada diapositiva tiene inicio y fin; vencida, sale sola de la pantalla.</p>
+      <div id="editorHost"></div>
+      <div class="sec-h">
+        <h2>Diapositivas</h2>
+        <button type="button" class="ghost small" id="showRetired" aria-pressed="false" hidden></button>
+        <button type="button" class="ghost" id="sugerir">Programación sugerida</button>
+        <button type="button" class="ghost" id="newCompo">Nueva composición</button>
+        <button type="button" id="newSlide">Nueva diapositiva</button>
+      </div>
+      <p class="hint" id="sugerirMsg" role="status"></p>
+      <div class="slides" id="slideList"></div>
+    </section>
+
+    <section id="sec-today" role="tabpanel" aria-labelledby="tab-today" hidden>
+      <p class="intro">Qué sale ahora y qué empieza más tarde hoy en cada TV de promociones (y en las TV de menú que intercalan
+        promociones), con la hora del servidor y las mismas reglas que usa la pantalla (fechas, días, horas, TV, productos a
+        la venta y zonas con algo que mostrar).</p>
+      <div class="grid cards" id="todayList"></div>
+    </section>
+
+    <section id="sec-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+      <p class="intro">Los últimos 200 cambios, con la hora de Costa Rica y quién los hizo. Nadie, ni el dueño, puede cambiar
+        ni borrar este registro.</p>
+      <div class="log" id="logList"></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="photoFile" accept="image/*" hidden>
+</div>
+<script src="pantallas.js?v=c5e959090f73"></script>
+<script src="lang.js?v=c5e959090f73"></script>
+</body>
+</html>
