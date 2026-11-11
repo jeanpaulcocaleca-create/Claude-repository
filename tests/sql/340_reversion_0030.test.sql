@@ -13,6 +13,8 @@ select count(*) as versions_before from public.recipe_versions \gset
 
 -- after 0030 come 0031 to 0038: they are reverted first (newest first)
 \o /dev/null
+\ir ../../supabase/tools/reversion-0040.sql
+\ir ../../supabase/tools/reversion-0039.sql
 \ir ../../supabase/tools/reversion-0038.sql
 \ir ../../supabase/tools/reversion-0037.sql
 \ir ../../supabase/tools/reversion-0036.sql

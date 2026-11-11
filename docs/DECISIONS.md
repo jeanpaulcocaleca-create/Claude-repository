@@ -3108,3 +3108,850 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   así que los productos no se agregaron: cóbrelos después de esta venta.»; the risk is a cashier who misses the toast
   and never rings them. B (let the discount go as the × does, add them, authorize again) or C (keep the discounted
   ticket apart and the items as a new order) only if the owner chooses; recommended A, and B if items get forgotten.
+
+## D-066 · 2026-11-05 · v2026.11.04-1 published; the tests' baseline moves to it; migration 0039 goes to Proveedores
+
+- **What happened:** the owner published `v2026.11.04-1` (9d3f6ad, the POS discounts of D-065) with «Publish website»
+  on 2026-11-05 at 13:23 UTC (run #58, «pages build and deployment» #54, both green). gh-pages is `77a5fb1`
+  («Publish website v2026.11.04-1 9d3f6ad…», `version.json` build `9d3f6ad1e0e4`). Checked from the repository the
+  same day: every published page and script is the tag's `website/` byte for byte once the build stamps are taken out
+  (`__BUILD__` and `?v=9d3f6ad1e0e4`); `CNAME` and `assets/` are unchanged from `44a0dab`; `live-site-check.sh` passes.
+  On 2026-11-05 the owner also wrote that migration 0038 is installed in production. The activation record that
+  `docs/ACTIVACION-DESCUENTOS.md` «Registro» asks for (the `applied_at` of 0038, the checks before and after, the
+  registered tills, the old window's state) is the owner's to give; nothing here invents it, and E-42 stays open
+  until it is written down.
+- **Not done in the publication:** the guide's step 4.1 (a `sitio-AAAA-MM-DD` tag on the previous site `44a0dab`
+  before publishing) was not done; no `sitio-2026-11-04` or `sitio-2026-11-05` tag exists. The way back of the
+  guide's 6.1 still works: republishing `v2026.11.03-1` rebuilds `44a0dab` exactly (every page and script compared,
+  only the build stamps differ), and the rehearsal proved `44a0dab` and `77a5fb1` on a copy migrated through 0038
+  (12 of 12 live-page tests each). Only the guide's fallback, «la copia exacta guardada en 4.1», does not exist, and
+  it can no longer be made from GitHub's form because gh-pages now names `77a5fb1`. The owner was told the same day.
+- **The baseline moves (as 66d2672 did for D-065):** `tests/pantallas/BASE` names `v2026.11.04-1` / 9d3f6ad;
+  `tests/rehearsal/LIVE_PAGES` names `77a5fb1`, the pages live today and the way back of the next version;
+  `tests/pantallas/no-tocar.sh` starts the next version with empty NEW and CHANGED lists, so the discounts' files are
+  back under the byte-for-byte rule.
+- **Migration 0039 is Proveedores (D-067).** D-065 and its guide called the old discount window's retirement (Q5)
+  «la 0039». `canopy.migration_begin` only accepts the number after the last one applied, so a Proveedores migration
+  numbered 0040 could not be applied before a 0039 exists, and Q5 is an undecided owner choice. The retirement takes
+  the next free number when the owner decides it; `docs/ACTIVACION-DESCUENTOS.md` now says «una migración
+  posterior». D-065's text stays as written.
+
+## D-067 · 2026-11-07 · Proveedores: one page for suppliers, ordering with checkboxes, receiving by anyone on shift, invoices and SINPE/card payments (0039, 0040; nothing applied, nothing published)
+
+- **The owner's request (2026-11-05):** fold Inventario → «Pedidos» and «Proveedores» into one new page: a supplier list
+  (search, add, edit, deactivate, badges for open orders and deliveries to receive); a supplier file with its SINPE and
+  its own product catalog (usual price, presentation, units per presentation, linked inventory item, preferred
+  supplier); ordering with checkboxes (tick, set the quantity, untick, a live total, «Crear pedido»); an editable order
+  document with an automatic number and Copy / PDF / Print (the owner's definitive three, no WhatsApp or email
+  integration); receiving with ordered vs received vs real price, «Todo recibido correctamente», partial deliveries,
+  never stock twice, price differences recorded without overwriting the catalog price; receiving by any employee on
+  shift without a further PIN (a server-validated work session); payments by SINPE (confirmation number mandatory) or
+  card (reference optional), Pendiente / Parcialmente pagado / Pagado, independent from receiving (before or after);
+  several suppliers per inventory item with different packs (2 boxes of 12 → +24 base units); low-stock alerts reusing
+  the existing levels that open the preferred supplier's file with the item highlighted; nothing historical deleted;
+  Spanish first; the Canopy OS look kept. Built on its own branch `claude/proveedores` (draft PR #8) from `9d3f6ad` =
+  `v2026.11.04-1`, the release live since 2026-11-05 with 0000–0038 applied (D-066).
+- **Built on the branch (nothing applied, nothing published):**
+  - `supabase/migrations/0039_proveedores.sql` (127 531 bytes; additive, one transaction, safe to run again after its
+    reversal): seven tables (`vendor_items` each supplier's catalog, `purchase_drafts` one open draft per supplier,
+    `purchase_receipt_lines` what each delivery brought per order line, `supplier_advances` every payment registered in
+    Proveedores, `vendor_pay_info` the SINPE apart from `vendors`, `work_sessions` «Recibe en este aparato» (with
+    `confirmed_at`, the PIN moment, and `last_receipt_at`, the last delivery: the 15 minutes of decision 2),
+    `staff_pin_changes` when each PIN changed, so a POS sign-in from before it starts no work session), each with
+    row security on, everything revoked and select for `canopy_backup`, rows never deleted by any function; nullable or
+    defaulted columns on `purchase_orders` (`version`), `purchase_lines` (`vendor_item_id`, `pack_label`, `pack_qty`,
+    `ordered_unit_cost`, `pos`, `removed_at`), `purchase_receipts` (`staff_id`, `work_session_id`, `note`, `origin`,
+    `close_requested`, `corrects`) and `supplier_payments` (`method`, `advance_id`, `po_id`); backfills into the new
+    tables only (the catalog from each item's supplier and from the past orders' (supplier, item, presentation), the
+    receipt lines from the past deliveries' moves); seven triggers (`stock_items_vendor_catalog`: a supplier chosen for
+    an item, also by the published Inventario page, always gets a catalog row and the save never fails because of it;
+    `purchase_lines_protect_new`: a page writing directly can never set the new line columns; `purchase_orders_version`,
+    `purchase_lines_po_version`, `purchase_receipts_po_version`: every change moves the order's version;
+    `time_entries_work_session_end`, `staff_work_session_end`: a clock-out, a PIN change or a deactivation ends the
+    work sessions); 56 functions (17 public: `turno_aqui`, `turno_desde_caja`, `turno_estado`, `turno_terminar`,
+    `proveedor_guardar`, `proveedor_producto_guardar`, `proveedor_borrador_guardar`, `proveedor_borrador_descartar`,
+    `proveedor_pedido_crear`, `_editar`, `_cancelar`, `_cerrar`, `_confirmar`, `_asignar`, `proveedor_recibir`,
+    `proveedor_recepcion_corregir`, `proveedores_alertas`; 39 internal, `_prov_fresh_window` and `_prov_fresh_until`
+    (the 15 minutes of decision 2) among them, revoked from every client). No existing function, rule or record
+    changes.
+  - `supabase/migrations/0040_proveedores_pagos.sql` (84 850 bytes): account 1160 «Anticipos a proveedores» required to
+    exist active as an asset (it is in the approved chart since 0013; inserted only if missing; any other name, type or
+    an inactive 1160 refuses the migration), the mappings `supplier_advance` and `from_advance` → 1160,
+    `supplier_payments_paid_from_check` dropped and re-added with `'advance'` (the one expand of an existing object);
+    23 functions (11 public: `proveedores_lista`, `proveedores_por_recibir`, `proveedor_ficha`, `proveedor_pedido`,
+    `proveedor_historial`, `proveedor_factura_registrar`, `proveedor_factura_anular`, `proveedor_anticipos_aplicar`,
+    `proveedor_pago_registrar`, `proveedor_pago_anular`, `proveedores_bitacora`; 12 internal, `_prov_sinpe_taken`,
+    `_prov_alloc_guard` and `_prov_apply_guard` among them); two constraint triggers on existing tables
+    (`supplier_payment_allocations_within_invoice`, `supplier_payments_within_advance`: decision 18); and three
+    existing functions redefined: `supplier_invoice_save` (0025's body plus two steps, decision 16),
+    `supplier_payment_save` (0029's body plus three steps) and `expense_pay` (0035's body plus one step), decision 18.
+  - `supabase/tools/reversion-0040.sql` and `reversion-0039.sql` (in that order; each refuses while its migration is
+    not applied or a later one is): they drop only their own functions and triggers and their ledger row, and
+    `reversion-0040.sql` puts back the exact 0025, 0029 and 0035 texts of `supplier_invoice_save`,
+    `supplier_payment_save` and `expense_pay` and drops its two triggers; no data, no table, column, rule, index,
+    account or mapping is deleted. 0039 and 0040 then apply again, copying into the new
+    tables what the published page did meanwhile.
+  - `website/proveedores.html` + `website/proveedores.js` (the hub, the supplier file with Pedir / Pedidos / Pagos /
+    Productos, the order document, receiving (the bar «Recibe: … · PIN vigente hasta las HH:MM» and the picker with the
+    name already chosen, decision 2), the payment, invoice, correction and void windows; a hand-written PDF 1.4
+    writer, no new external script); `website/lang.js` (413 entries); `inventory.html` (the Orders and Vendors sections,
+    their windows and code removed; their tabs, «Pedir a proveedores →» and a «Pedir» on each Today alert lead to
+    Proveedores; Stock, Recipes, History and By month untouched), `home.html`, `time.html` (a nav link only),
+    `contabilidad.js` (the links, the dollar-invoice hint, and the integration of decisions 16 and 18), `config.js`
+    (`proveedores` in `STAFF`).
+  - Tools: `release-check.sql` (series 0–40, the 28 new public functions), `production-snapshot.sql` (regenerated),
+    `consistency-check.sql` (eight `after` checks, each 0 on a sound copy), `anonimizar.sql` (every new text column
+    classified; the SINPE cleared, payment references replaced one by one with their key recomputed, `work_sessions`
+    and `staff_pin_changes` emptied); the rehearsal (`after-window.sql` 5b, `compare.py`, live pages, reset pages); `no-tocar.sh` (NEW: the two
+    migrations and the page; CHANGED: the six website files).
+  - Guides: `docs/ACTIVACION-PROVEEDORES.md` (E-43) and `docs/PROVEEDORES.md` (the owner's and the staff's guide).
+- **Decisions inside the build:**
+  1. **Preferred supplier = `stock_items.vendor_id`**, the single source that `inventory_stats`, `stock_forecast` and
+     the published page read; a catalog row is "preferred" when its supplier is the item's. `proveedor_producto_guardar`
+     is the one way to change a catalog price; receiving never touches it.
+  2. **The work session and its guarantee (owner decision 1 in E-43; the owner's correction of 2026-11-07).** An
+     employee receives without a PIN per delivery, but the identification is individual and short-lived: their own PIN
+     on that device («Estoy en turno aquí», `turno_aqui`; not clocked in yet → the same PIN clocks them in), or the
+     POS's «¿Quién cobra?» PIN typed on the same device within the same 15 minutes (`turno_desde_caja`, silent, from
+     the device's own operator token; the session's `confirmed_at` is the POS `started_at`; an older POS PIN answers
+     `confirm` with the person's name and mints nothing), counts for 15 minutes (`_prov_fresh_window`,
+     `work_sessions.confirmed_at`) and is extended by each delivery recorded with it (`last_receipt_at`;
+     `_prov_fresh_until` = the later of the two + 15 minutes, answered as `fresh_until` by `turno_aqui`,
+     `turno_desde_caja`, `turno_estado` and `proveedor_recibir`). Then every use (the lists, opening an order,
+     receiving) answers `idle` and the page asks the same person's PIN again, their name already chosen
+     (`turno_estado` names them, no token; a receive form typed before the PIN expired is kept for that person and
+     comes back after their PIN); the stale session is not ended, only replaced by the new one. Nobody receives as
+     the last person who identified on a shared device. The server proves at every use that THIS person typed THEIR
+     OWN PIN on THIS device sign-in (the JWT `session_id`) during THEIR open shift (entry open, under 16 hours), with
+     the PIN unchanged (`pin_fp`) and the person active, and that the PIN or the last delivery is less than 15 minutes
+     old (`idle` is answered after `not_on_shift` and before `moved`); one receiver per device sign-in. A POS operator
+     sign-in starts one only when it began during that person's own shift (5 minutes' grace before the clock-in) and
+     after their last PIN change (`staff_pin_changes`): another person's open shift, or an earlier sign-in, grants
+     nothing (second review). Tokens are stored only as sha256; audit rows carry 7-hex session tags. A new sign-in of
+     the same login moves the session only through `turno_estado`, which rotates the token (not when used elsewhere
+     in the last 2 minutes, at most 6 an hour, never onto a sign-in that already has a receiver). **Residual limit,
+     stated to the owner:** within those 15 minutes a device left unattended is still that person (the bar names them,
+     «Recibe: … · PIN vigente hasta las HH:MM», and «¿No es usted? Cambiar» is one tap away); after them, nobody.
+     `time.html`'s punch mints nothing (the review's B1: the clock tablet does not collect everyone's identity);
+     Proveedores never arms the idle sign-out on a café tablet.
+  3. **What an employee may do:** read the orders to receive (sent / partially received) with exact key sets (no money,
+     totals, contact, SINPE or note) and receive. Never booked beyond the pending quantity (the excess is recorded as
+     `extra_reported_packs` and in the audit); a typed price is stored only as `observed_pack_price`; the booked price
+     is the expected one; `stock_items.cost_per_pack` is never touched by an employee receipt. «Avisar que no llega el
+     resto» only sets `close_requested`; management closes.
+  4. **Receiving:** what each delivery brought is kept per order line next to its move; a delivery never adds stock
+     twice (the receipt id is the request id, the order's version is checked under the order's lock, a retry answers
+     `repeat`); management may book more than ordered (`p_extra_ok`) and a typed price outside a third to three times
+     the expected one only after «¿Seguro?» (`p_price_ok`); a management receipt with a typed price updates the item's
+     last price (`cost_per_pack`) as today. `purchase_receipts.total_crc` = Σ the moves as booked.
+  5. **Corrections are new records:** `proveedor_recepcion_corregir` creates a correcting receipt with signed purchase
+     moves at the corrected line's booked cost, only while those deliveries are uninvoiced; a received order may go back
+     to partially received. The received records themselves are never edited.
+  6. **Payments go through 1160 first** (Dr 1160 / Cr 1110 for SINPE and debit card, Cr 2160 for the credit card, key
+     `supadv:<id>`, on the payment's date) and are applied to invoices as `supplier_payments` rows with
+     `paid_from = 'advance'` and an allocation (Dr 2101 / Cr 1160, key `suppay:<id>`, on the day applied), so every
+     existing read (`_invoice_open`, `ap_aging`, `po_pending`, `vendor_history`, `purchases_list`, Contabilidad) sees
+     them. Applying happens only in explicit calls (`proveedor_factura_registrar`, `proveedor_pago_registrar`,
+     `proveedor_anticipos_aplicar`, and `supplier_payment_save` before it takes money: decision 18), never from a
+     trigger, so `supplier_invoice_save` answers as before (the review's M6) and the published page's receive-and-pay
+     applies them before it pays. Rationale for the pass-through instead of paying invoices
+     directly (the review's m10, not adopted): one code path before and after the invoice, one owner-visible record per
+     transfer, one SINPE uniqueness rule; the bank side is one entry on the payment date, which the bank matching sees.
+     An advance tagged with an order waits for that order's invoices; only an advance without order, or whose order is
+     closed and fully invoiced, goes to the supplier's other open invoices, oldest first; never again to an invoice
+     where one of its applications was voided. On an invoice that covers several orders, each order's own (tagged)
+     payments count for it up to its share of the invoice, and the rest of the invoice's payments go to the orders still
+     owing on it, in proportion to what each still owes there (`_prov_dinero`): a paid invoice reads paid for every
+     order it covers, with no phantom «a favor» on one and no phantom balance on another (final review).
+  7. **SINPE:** the confirmation number is mandatory (4–40 of `[A-Za-z0-9 ./-]`, starting alphanumeric; its key at
+     least 4 characters) and one transfer is registered once across every supplier, formatting variants included,
+     also against the bank payments (`supplier_payments` `bank`) and expense payments already in the books, and the
+     other way round: a bank payment in Contabilidad or a bank expense payment with a live Proveedores SINPE number is
+     refused (`_prov_sinpe_taken`, decision 18); the unique index `supplier_advances_sinpe_once` is the final guard. A card payment equal to one of the last 10 minutes asks
+     first (`possible_duplicate`).
+  8. **The balance and its IVA allowance:** before an invoice exists the payment ceiling adds the supplier's usual IVA
+     rate (13 % when none) to the uninvoiced deliveries and the order's pending estimate, labelled «estimado, IVA
+     incl.»: a tolerance, not a tax rule. More than the balance + ₡1 needs a reason (≥ 5) and owner level (an owner-role
+     PIN in the call on an owner-level unlock, the owner with the phone code or the accountant); the excess stays «a
+     favor». A payment tagged to an order is held, too, to what the supplier is owed overall (the lower of the order's
+     balance and the supplier's). Every other path that would leave money in our favour is held to the same level: cancel, edit, close,
+     receive-and-close and corrections compute the supplier's excess (`_prov_excess`: advances and applied payments
+     beyond the invoices, the uninvoiced deliveries and the open estimates with their IVA allowance) before and after,
+     under the vendor lock, and a manager gets `credit_needs_owner` with the amount, nothing changed (second review). Voiding a Proveedores payment: the books door without a PIN, or the owner level with an owner-role PIN.
+     Voiding an invoice: the books door only, as `supplier_invoice_void`.
+  9. **The published page's drawer payouts** (a receipt's `payout_id` left by `po_receipt_settle` in pending/review) are
+     documented by `proveedor_factura_registrar` with `supplier_payment_save('payout')` in the same transaction and
+     count as paid meanwhile («Pagado en caja ₡X · falta la factura»), so nothing is paid twice (the review's B2).
+  10. **A delivery after the day's register close posts at once:** when `ledger_auto_post` is on and today's register is
+      closed, `proveedor_recibir` and `proveedor_recepcion_corregir` call `acct.post_day(today, 'recepción después del
+      cierre')` in a sub-block (only the delta, as a re-close would); a failure is logged (`ledger_post_failed`) and
+      never fails the delivery. The published page's late receipts are unchanged.
+  11. **SINPE in `vendor_pay_info`, not in `vendors`** (whose policy lets any manager unlock write it directly): written
+      only by `proveedor_guardar` at owner level (an owner-role PIN in the same call, the one recorded, or the owner
+     with the phone code) or the books door, audited before/after (`vendor_sinpe`), shown «SINPE
+      cambiado el … por …» for 30 days; returned only by `proveedor_ficha` and the payment form to managers, never by
+      the list; `vendors.payment_notes` stays books-door only (shown read-only beside it there).
+  12. **Alerts reuse `inventory_stats(30)`** (out, low, soon; reorder point, par level, use over the lead days) and
+      never re-suggest what is on order with any supplier: `suggest_packs` = ceil(max(suggested − on order, 0) /
+      presentation); an item out or low with nothing on order suggests its usual quantity or 1. No second rule.
+  13. **The order document:** Copy (plain Spanish text, no prices, staff, SINPE or internal ids), PDF (the page's own
+      writer: A4, Helvetica, WinAnsi, «₡» → «CRC», several pages with «Página n de m»; the share sheet when the device
+      offers it, else a download) and Print (only `#printDoc`); «Incluir precios» for PDF and Print, on by default.
+  14. **Concurrency:** one lock order everywhere (the order, its lines in id order, then every stock item the delivery
+      or correction moves, at once in id order, then the receipts; payments and invoices take the orders for share
+      before the vendor, `supplier_invoice_save` included). The items are taken with a 300 ms lock wait
+      (`_prov_lock_items`): when a sale holds one, the delivery answers `busy` with nothing booked and the page says
+      so; the sale never waits long and is never the deadlock victim. A deadlock left inside a new function is answered
+      `changed` and the page reloads.
+  15. **Two migrations:** a single 0039 was over the 131 072 bytes of lint rule 15 (139 KB), so 0039 holds the writes,
+      the work sessions, the alerts and the `supplier_advances` table, and 0040 the reads, the money helpers, invoices,
+      payments, applications and account 1160; each with its reversal and its reversal test (520, 525).
+  16. **Contabilidad, only to integrate (the owner's «no alteres… contabilidad fuera de lo estrictamente necesario»):**
+      (a) 0040 redefines `supplier_invoice_save` with two steps before its 0025 body: it takes the deliveries' orders
+      for share (so a Proveedores correction in flight finishes first, or waits and answers «invoiced»), and when it
+      invoices deliveries it also takes the uninvoiced Proveedores corrections OF THOSE DELIVERIES (by `corrects`,
+      corrections of corrections too), which would otherwise stay uninvoiced forever, never another delivery's of the
+      same order (that would book a false 5103 difference on both invoices); `proveedor_factura_registrar` follows the
+      same rule; everything else is 0025's text, and `reversion-0040.sql` restores it exactly;
+      (b) `contabilidad.js` applies Proveedores payments (`proveedor_anticipos_aplicar`) after an invoice is saved and
+      before a payment is recorded (one applied that way stops the new payment and reopens the form with the new
+      balance; since the owner's correction only a convenience: the server applies first on every route, decision
+      18), asks before voiding an applied Proveedores payment («Esto solo deshace la aplicación…»), merges the
+      new read `proveedores_bitacora(from, to)` (acct.can_read; invoices, voids, payments, applications, SINPE changes)
+      into its Audit tab, and in «New invoice» counts a delivery's Proveedores corrections with it (read from
+      `proveedor_ficha`; shown «corregido −₡X → ₡Y» on the delivery), so «Recibido al costo» is what the server books;
+      the supplier card's payment method is its own element, so lang.js translates it («Transferencia o SINPE», «Pago
+      aplicado (Proveedores)»). Before 0040 those calls fail quietly and the page works as before.
+  17. **Never twice from the page:** an order is created with the page's request id and the draft's version; an id
+      already used while a newer draft is open answers `draft_changed` with `stale_request` (the page takes a new id
+      and says «Este aparato ya había hecho el pedido Nº n…»), never a `repeat` that opens the old order; no version
+      while a draft is open answers `draft_changed`. A receipt id already spent, sent again with the order's current
+      version, answers `changed` with `receipt_used` («Su entrega anterior ya quedó guardada…»); only the real retry
+      (the version from before that delivery) is a `repeat`. «Crear pedido» stays off while a conflict notice shows. A
+      draft save whose answer was lost is recognised on the next answer (one version on, what it sent), never a false
+      «changed on another device». A receive form typed on a device is kept for the person who typed it (the person on
+      shift, or the management unlock): another person starts from the order and is told, so an employee's count or
+      the price an employee saw never goes in under a manager's name (final review).
+  18. **Payments never twice, on the server, every route (the owner's correction of 2026-11-07).** Every route that
+      records or applies a supplier payment is guarded in the database, not only in the pages: (a)
+      `supplier_payment_save` (Contabilidad's «Registrar pago», the published Inventario page's `po_receipt_settle` and
+      any direct call) is redefined in 0040 with 0029's text plus three steps after the input checks and under the
+      vendor lock: a `bank` payment whose reference key (lowercase, `[a-z0-9]` only, at least 4 characters with a
+      digit) is a live Proveedores SINPE number answers `duplicate_reference` (vendor, date, amount); the Proveedores
+      payments are applied to the supplier's open invoices first (`_prov_aplicar`, Dr 2101 / Cr 1160); what is owed is
+      computed after that (`more_than_owed` carries `owed` and `applied_crc`; success carries `applied_crc`); (b)
+      `expense_pay` (0035's text plus one step): a bank expense payment with a live Proveedores SINPE number answers
+      `duplicate_reference`; (c) `_prov_sinpe_taken(key, only_advances)` is the one lookup (`proveedor_pago_registrar`
+      uses it with `false`: advances, bank supplier payments and bank expense payments; the two Contabilidad functions
+      with `true`); (d) two constraint triggers are the last guard whatever writes, a direct row included:
+      `supplier_payment_allocations_within_invoice` (before insert or update: an invoice's live allocations plus the
+      new one never above its `total_crc` + 0.005, else `prov:over_allocated`) and `supplier_payments_within_advance`
+      (before insert or update of `amount_crc`, `advance_id` or `voided_at`: a Proveedores payment's live applications
+      never above its `amount_crc` + 0.005, else `prov:over_applied`). `reversion-0040.sql` restores the 0029 and 0035
+      texts and drops the two triggers. Contabilidad's client-side pre-apply (decision 16 b) stays only as a
+      convenience: the server applies first in any case, and the page reads `applied_crc` from the answer («{x}
+      pagados en Proveedores se aplicaron primero…» reopens the form on `more_than_owed`; «Pago registrado · {x}
+      pagados en Proveedores aplicados primero» on success; `duplicate_reference`: «Ese número de SINPE ya está
+      registrado en Proveedores: la misma transferencia no se registra dos veces.»). What is not covered, by design: a
+      cash payment from the POS drawer (Contabilidad records it), and a Contabilidad bank reference that is not a SINPE
+      number (no digit, or a key under 4 characters), which is not cross-checked.
+- **Superseded, explicitly** (the earlier texts stay as written):
+  - **D-041 decision 1** (receiving needs the owner areas opened with a manager's PIN): any employee on shift receives
+    through a work session (decision 2 above); management still receives with its unlock.
+  - **D-041's «the five order options and the page's design stay»:** the order is a document with Copy / PDF / Print;
+    the Orders tab's WhatsApp, email and share buttons go with it (on an iPad the PDF itself opens the share sheet).
+  - **`docs/RECIBIR-PEDIDO.md`'s «Pagos por banco o tarjeta sin factura no se admiten»** and «un anticipo… no tiene
+    camino hoy (la cuenta 1160… nadie la usa)»: a payment may come before receiving or the invoice, through 1160.
+  - **D-057's SINPE/payment details off the manager tablet:** the SINPE (a new field) is visible to managers, editable
+    only at owner level or the books door; `payment_notes` stays books-door only.
+  - **D-057's «Supplier invoices and payments from Inventory (receive + pay with the PIN) are untouched»** and
+    Contabilidad's Compras keeping «Recibir»/«Pagar» in Inventario: receiving, invoices and payments move to
+    Proveedores; Contabilidad links there.
+  - **D-022's «received purchase lines can't be edited»** stays true for the records; what changes is that a wrong
+    delivery is now corrected by a new correcting receipt (`proveedor_recepcion_corregir`), where
+    `docs/RECIBIR-PEDIDO.md` said «no existe anular entrega».
+  - **CHECKLIST row 82's «Pedido sugerido» / «Crear todos los pedidos»** on Inventario → Hoy: removed; the alerts with
+    their suggestion live in Proveedores, one supplier at a time.
+  - **Cash payments are no longer offered where purchasing happens** (the owner's two methods are SINPE and card):
+    Inventario's «Efectivo de la caja registradora» goes with its receive window; Contabilidad keeps cash, petty cash
+    and payouts (owner decision 2 in E-43).
+  - **New postings:** 1160 for payments before they are applied (decision 6), and the late-receipt day posting
+    (decision 10), which `docs/RECIBIR-PEDIDO.md` («No se adelanta el asiento de la compra… al momento de recibir») did
+    not foresee; both only while `ledger_auto_post` is on as the owner set it (D-059). Information for the accountant:
+    A-15.
+- **Tests (local test cluster only):** SQL `510_proveedores_catalogo` (70), `511_proveedores_pedidos` (76),
+  `512_proveedores_recibir` (73), `513_proveedores_turnos` (94), `514_proveedores_pagos` (172),
+  `515_proveedores_alertas` (17), `516_proveedores_lecturas` (67: who may call what and the exact keys an employee
+  reads; the purchase history and its paging), `517_proveedores_saldo_favor` (41: the owner-role PIN for the SINPE, the POS sign-in bound to its own shift
+  and PIN, nothing leaves money in our favour without the owner), `518_proveedores_revision` (104: the second review's
+  corrections, section by section), `520_reversion_0039` (58) and `525_reversion_0040` (27);
+  `tests/sql/concurrency-proveedores.sh` (30; two receipts of one order at once, the same payment twice, one SINPE for
+  two suppliers, a payment against a receipt, a receipt against a sale of the same items, an invoice against a
+  correction of its delivery in both orders, a delivery whose items a sale holds answering `busy` while the sale goes
+  through, and Contabilidad's bank payment of a whole invoice against a Proveedores SINPE for its order at the same
+  instant (both finish, one pays and the other is refused, the invoice never allocated above its total, the supplier
+  never paid twice, the ledger balanced); a synchronisation that never happened counts as a failure). After the owner's
+  corrections of 2026-11-07: 513 §5 (the 15 minutes: `idle` at the minute on the lists, an order and a delivery with
+  nothing booked, the session not ended and replaced by the same PIN; a delivery extending them from itself; `idle`
+  before `moved`; the POS PIN within or outside them, `confirm` with the name), 514 §9–10 (1160 an active asset with
+  its two mappings, never offered for an invoice; every payment route guarded: Contabilidad's «Registrar pago» after a
+  SINPE applies it first and refuses the whole total, the SINPE number in every spelling and not a voided, card or
+  short one, a bank expense payment, the published page's route refusing or paying once, the two triggers on direct
+  rows, the ledger and 1160 after it all), 516 (the 79 new functions; `fresh_until` among `turno_estado`'s keys), 520
+  and 525 (the three texts restored, the triggers gone), browser 413 (the PIN asked again after 15 idle minutes with
+  the name chosen and the typed quantity kept, the bar's hour, a delivery moving it), 414 (the server's stop on
+  Contabilidad's whole-total payment and on a SINPE number with the page's own pre-apply disabled; a bank expense
+  payment), 415 (a POS PIN of 15 minutes asked again, one of 5 minutes not, the bar's hour) and the rehearsal's 5b (the
+  old page's receive-and-settle paying the whole total while a SINPE waited: refused, nothing saved, the remainder paid
+  once); the reversal chains of SQL 340, 360, 370, 400, 420, 450, 470,
+  480 and 500 revert 0040 and 0039 first; browser `410_proveedores_centro` (10), `411_proveedores_pedir` (16),
+  `412_proveedores_documento` (6), `413_proveedores_recibir` (15), `414_proveedores_pagos` (15),
+  `415_proveedores_aparatos` (6); `160_purchasing` and `290_receive` rewritten through Proveedores; 300 and 340
+  updated; the POS's `070_tabs` Q-b (two tabs, failing uploads) opens its second tab on the device's own sign-in: the
+  test seeded a second session into the shared storage, the two tabs then refreshed each other's tokens in a loop and,
+  under load, tab B's round never ended (red once on GitHub on `9d2f6f9`; reproduced here 2 in 12 on the published
+  `v2026.11.04-1` as well, so not this version's; with the fix 48 of 48, half of them on the published site); `pos.html` is untouched; the rehearsal on copies migrated through 0040 (0000–0040 in 1.7 s; 0039 in 74 ms, 0040 in 36 ms), the
+  live pages `77a5fb1` on them (14 tests, the Orders tab of the published Inventario among them), reset pages (2);
+  no-tocar (base `v2026.11.04-1`). Full `tests/run.sh` on 2026-11-07 (05:23–05:48 UTC, 25 minutes): lint, SQL 68/68
+  files, backups, rehearsal, live pages 14/14 + 14/14, reset pages 2/2, no-tocar, browser 369/370 (`414` read a list
+  before `lang.js` had translated it; it now waits, 3 × 10/10). The browser step again on the final tree: 369/370
+  (`415` «an expired sign-in», once; 25/25 alone and 20/20 under load since, and its wait now reports what it saw);
+  365/370 from 00:13 Costa Rica time (the five of `080_open_local`, whose sales «rung 15 minutes ago» fell on the day
+  before: the time window the activation guides already name; 10/10 at 00:30); then 370/370 (00:33–00:52 Costa Rica
+  time). The SQL suite also on an en_US.UTF-8 cluster as CI's (68/68). After the traceability audit below, the full
+  `tests/run.sh` again on 2026-11-07 (09:11–09:37 UTC, 26 minutes): lint, SQL 68/68 files, backups, rehearsal, live
+  pages 14/14 + 14/14, reset pages 2/2, browser 379/379, no-tocar. Measured there: a habitual order with «Repetir último
+  pedido» 3 taps and 0.37 s of machine time from opening the file to the document; six products ticked one by one with
+  two quantities changed, 10 taps and one key, 0.87 s; a correct delivery received by an employee, 2 taps and 0.23 s.
+  With a person's 2–3 s per tap, both orders stay well inside the request's 30–60 seconds and the delivery inside its
+  two minutes. After the owner's corrections, the full `tests/run.sh` again on 2026-11-07 (14:17–14:43 UTC, 27
+  minutes): lint, SQL 68/68 files (concurrency: descuentos 53, proveedores 30), backups, rehearsal, live pages 14/14 +
+  14/14, reset pages 2/2, browser 383/383, no-tocar. The run before it (382/383) caught `414` «a payment before
+  receiving» failing 1 in 6 under load: the SINPE number landed in the amount box, because a window's deferred focus
+  (30 ms after it opens, on its first field) fired after the test had already moved on to the number; `openModal` now
+  leaves the focus alone when it is already inside the window (a person who taps a field in that instant keeps it),
+  16/16 under load since. GitHub's «Tests» on `c67a933` (run 42406192667) was red on two POS tests, both the tests'
+  own timing, neither a concurrency fault of the pages (`pos.html`, `login.js` and `access.js` are the published ones,
+  byte for byte): `070_tabs` Q-b mocked every `pos_record_sale` answer as 401 «JWT expired», new tokens included;
+  `login.js` renews a token the database calls expired, so the two tabs renewed it without end (183 renewals and some
+  4 000 requests in 18 s here, traced request by request) and on the slower runner tab B's round never ended within the
+  10 s wait; the mock now refuses the sign-in without calling the token expired (a real server accepts the renewed
+  token): Q-b takes 1 s instead of 11–25. `402_descuentos_cajas` item 36 read the device key as soon as the station
+  window's line read «registered», but that text was the previous opening's (the page repaints it only when
+  `descuento_estado` answers, after the rebind by key), so the test read the key before the rebind's answer brought the
+  new one; reproduced here by slowing every rebind answer 600 ms (the same assertion failed) and fixed by emptying the
+  line before opening the window and waiting for the fresh one with no rebind on its way (600 ms slower it passes).
+  Then the full `tests/run.sh` again (20:17–20:44 UTC, 28 minutes: lint, SQL 68/68 files, backups, rehearsal, live pages
+  14/14 + 14/14, reset pages 2/2, browser 383/383 with Q-b in 0.9 s, no-tocar), and GitHub's «Tests» on that commit is
+  the confirmation the owner asked for before deciding the activation.
+- **Independent review (three rounds):** the first (before the first commit) is in the decisions above (B1, B2, M6,
+  m10). The second ran on the committed branch with five reviewers (security, integrity, accounting, requirements,
+  compatibility), each finding checked by an independent verifier that tried to refute it: 40 findings, 2 refuted (an
+  employee on shift does not see supplier prices; `consistency-check` does count days never posted), 38 confirmed (5 of
+  them in part), all 38 fixed, each with the test that now proves it. The main ones: the SINPE could be changed with a
+  manager's unlock alone (now an owner-role PIN in the same call, decision 11); a POS sign-in from before the shift or
+  a PIN change started a work session (decision 2); a manager could leave money in our favour by cancelling, editing,
+  closing or correcting (decision 8); the employee read the owner's sign-in email on a delivery made by the owner (now
+  «Dueño»); a line could show another size's presentation; a spent receipt id reused after a lost answer was a silent
+  «repeat» (decision 17); a Proveedores correction stayed uninvoiced when the invoice came from Contabilidad, and
+  Contabilidad did not apply Proveedores payments (decision 16); the Pagos tab labelled every estimate «IVA incl.» and
+  proposed the order's total instead of its balance; «Crear pedido» dropped the draft's version and the keepalive
+  beacon made a false conflict; a ticked product retired from the catalog stayed in the draft. The other 25: a
+  correction slipping past an invoice in flight, a receipt and a sale deadlocking (decision 14), an order id reused
+  after a lost answer, a create while the draft was in conflict, old deliveries that could not be corrected and
+  corrections not capped by what the delivery brought, one invoice over several orders counting a payment twice, the
+  supplier's «a favor» counting prepaid undelivered orders, a drawer payout up to ₡0.99 above the invoice, dollar
+  amounts not rounded before conversion, Contabilidad's audit not showing Proveedores' money events, re-applying 0039
+  after a reversal reviving presentations the owner had changed, a normal prepayment counted by `consistency-check`,
+  the concurrency script passing with no overlap at all, two stray files at the repository root (`tr.out`, `ts.out`),
+  and eleven page details (the accountant offered «Recibir» and stuck on a wrong screen, the hub's six alerts taken A–Z
+  instead of the most urgent, money read from a 60-second cache of the supplier file, «the owner» left in English, the
+  alert's prefilled quantity appended to instead of replaced, «Salir de este aparato» undone by the POS sign-in, a typed
+  receive form blocking every later reload, two error codes without text, an invoice switched to dollars keeping the
+  colones subtotal, the PDF's title garbled, the editor's «×» under 44 px). The third, final round reviewed every change
+  since `9d2f6f9` with the same five dimensions and a skeptic per dimension: 13 findings, 1 refuted (a drawer payout's
+  ₡0.99 spill), 12 confirmed and fixed with their tests: a correction invoiced with another delivery of the same order
+  (decision 16); the payments of an invoice over several orders split so that one order read a balance already paid
+  and a manager could pay it again (decision 6, and the ceiling of decision 8); an old page's delivery shown in units
+  next to a box that counts presentations (the server now gives it in the line's presentations); a receive form
+  carried from one person to another (decision 17); the draft's lost save answer (decision 17); the invoice window
+  losing its ticks on a resume and overwriting a typed number or subtotal; Contabilidad's form showing a difference the
+  server does not book, and its payment methods in English; a «difference {x}» pattern swallowing «difference with the
+  invoice {x}» in lang.js; the rollback guide warning only about Inventario (6.1 and E-43 now name Contabilidad); and
+  two wording fixes in the guide (1.3, «Qué se probó»).
+- **Traceability audit (after `ef66d8a`):** every point of the owner's request (sections 1–18, its mandatory tests of
+  section 15 included) traced to its code, its test and its document by five auditors, each gap checked by a skeptic who
+  tried to refute it: 370 points, 336 met with evidence, 7 deliberate and documented (Órdenes folded in with the walk-in
+  «Recibir» left in Existencias; no photos or invoice readers, D-042; a manager never leaves money in our favour,
+  decision 8; receiving on the device that knows the person, decision 2; 1160 for payments ahead, decision 6), 22
+  confirmed gaps, none blocking, all closed: two defects (Contabilidad turned a failed «apply the Proveedores payments»
+  into «nothing to apply» and could then record a bank payment of an invoice a SINPE had already paid: it now records
+  nothing and says so; the Pedidos tab's heading read the POS's «Órdenes abiertas»: now «Pedidos abiertos»), «Ver más»
+  paging on the date alone (two orders made at the same moment at a page edge: one skipped; now date and id), the
+  list's «Editar» (each supplier card of someone who may edit opens the file with «Editar proveedor» open, where
+  «Desactivar» is), the SINPE hint (the number is not a bank verification), `consistency-check`'s count of references
+  pointing nowhere, the paragraph on what could not be tested in development (`docs/ACTIVACION-PROVEEDORES.md`), and the
+  missing tests: the purchase history and its paging, an open register untouched by receipts, payments, invoices and
+  corrections, payments never moving stock, a confirmed delivery and its moves impossible to delete or change from a
+  page, the log keeping what was ordered, received before, now and still pending, the hub's partial badge and the
+  Pedidos list, the Pedir rows' presentation and price, a product without a usual price, the search by code and
+  presentation, the usual and last quantities as suggestions, an order ticked one by one timed, real taps on touch, and
+  Contabilidad's side of the Proveedores payments (applied on an invoice and before a payment, the stop when that
+  check fails, the confirm before voiding an applied payment).
+- **Not done, on purpose:** nothing applied (0039, 0040), no tag, no publication (E-43); no cash in Proveedores; the
+  walk-in «Recibir» in Inventario → Existencias left as it is (`stock_receive`, owner decision 4; the D-037 gap stays);
+  no photos, files or invoice readers (D-042); no received e-invoice acceptance (A-02, A-10); no WhatsApp or email
+  integration; the POS, `access.js`, `login.js` and `keypad.js` unchanged; no punch change in `time.html`; the old
+  `po_*` functions and the published page's direct writes keep working; the recipes' stage-3 alerts (CHECKLIST row 119)
+  not started; the old discount window's retirement (Q5) still takes a later number.
+- **Known limits:** 1160 is mapped under `from_advance` (a `from_%` key), so it is not
+  in `ap_aging.accounts` and is not offered as the account of an invoice without deliveries; a cash payment made from the
+  POS drawer for a Proveedores order is not seen by Proveedores until it is recorded in Contabilidad; an expected
+  delivery date can be changed but not cleared; a delivery whose items a sale is using answers «busy» and is tapped
+  again; an old page's delivery of an item ordered on several lines of one order cannot be corrected in Proveedores
+  (the page says so; Contabilidad's correction paths are unchanged); every route that records a supplier payment
+  applies the Proveedores payments first on the server (decision 18), so a page from before this version still open
+  on a device, or a direct call, no longer skips that step; what remains: the cash payment from the POS drawer above,
+  and a Contabilidad bank reference that is not a SINPE number (no digit, or a key under 4 characters), which is not
+  cross-checked, by design; `consistency-check` still shows a payment left unapplied
+  (`vendors_unapplied_with_open_invoices`); some
+  references 0039 adds have no foreign key on purpose: `purchase_receipts.staff_id` and `staff_pin_changes.staff_id`
+  (security and history records never in the way of a staff tool), `purchase_receipts.work_session_id` (the
+  anonymizer empties `work_sessions` on a copy), `work_sessions.time_entry_id` (`manager_delete_shift` deletes entries),
+  `supplier_payments.po_id` (lock order) and `purchase_receipts.corrects`: only the SECURITY DEFINER functions write
+  them, from rows they hold locked, and `consistency-check` counts a correction or a payment pointing nowhere
+  (`proveedores_dangling_references`, expected 0); the published Inventario page's receive-and-settle
+  (`po_receipt_settle`, 0029, not redefined) answers and logs «pagado / saldo» from its own payments only, so after a
+  Proveedores payment was applied first inside the same call its toast and its `po_settle` audit line can show a stale
+  balance (the invoice, the books and Proveedores are right; the way-back guide says so); the two ceilings differ by
+  design: Contabilidad's payment is capped at the supplier's open invoices as a whole (0029's rule, an excess goes to
+  the oldest due invoice), Proveedores' at the order's balance, and no obligation is paid twice either way (514 §10,
+  concurrency case 8); on a touch screen, a button right below an open number pad (for
+  example «Estoy en turno aquí» after the PIN, or «Guardar pago» after the amount) can need a second tap, because
+  `keypad.js` hides the pad as the field loses the focus and the button moves before the tap ends: the pad's own ✓ saves
+  the form in one tap; `keypad.js` is shared with the POS and is not changed here (a separate task).
+- **Records:** E-43 (activation and the owner's decisions), A-15 (information for the accountant), CHECKLIST rows 82–84,
+  102, 112, 113, 119 and 141 updated and the new row 156, `docs/MIGRACIONES.md` (0039 and 0040), `docs/PRUEBAS.md`
+  («Pruebas automáticas de Proveedores»), `docs/RECIBIR-PEDIDO.md` (superseded note), `docs/PERSONAL-NUEVO.md`
+  («Recibir un pedido»), `docs/PROVEEDORES.md`, `docs/ACTIVACION-PROVEEDORES.md`.
+- **The owner's decisions for the activation (2026-11-08, guide 1.7):** the eight decisions given in writing, copied
+  into E-43. Decision 1 word for word as the guide proposed, plus two instructions for the team (every receipt is
+  recorded under the person who records it — built: the receipt and its audit row carry the work session's person; PINs
+  are never shared — Equipo refuses a PIN two people share since 0033, the discount window since 0038, and Proveedores
+  binds the session to the person's own PIN, so a shared PIN would only misname who received). 2, 5, 7 and 8 as the
+  guide's 2, 5, 7 and 8. 3 and 6 say «owner level», which here means an owner-role PIN, the owner with the phone code or
+  the accountant (E-18); 6 as built also covers whatever would leave the supplier owing the café (the guide's 6). 4 is
+  read as option A (Existencias → «Recibir» stays as built): the owner asked to keep it available without forcing
+  anyone into Proveedores and named no letter. Conditions: nothing in production yet, no publication or migration
+  without the owner's express go, Guía Turista off, the register records pending reconciliation untouched, E-42
+  installed and pending its operational validation. Stage 2 (the tag) waits for the owner's authorization; this record
+  is the commit the guide allows before the tag, with «Tests» run on it. Later the same day the owner approved the private preview (version 4, 1.4), said the team was told (1.8) and kept
+  the accountant's owner-level rights (decisions 3 and 6). Still open before the tag: 1.9 (who is there: a manager with
+  a PIN for 5.B, a person with a clock-in for 5.D) and, recommended, 1.6 (E-42's record).
+
+## D-068 · 2026-11-09 · The tribute to Gabriel Barboza Villalobos at hanginggardencafe.com/gabriel-barboza (one page, Spanish and English); v2026.11.08-1 becomes the tests' baseline (nothing published, no migration)
+
+- **The owner's request (2026-11-09):** a new page on the café's site at the fixed address
+  `https://hanginggardencafe.com/gabriel-barboza`, the one the QR of a physical plaque in the garden opens (printed, so
+  the address can never change), with the tribute the owner approved («Homenaje a Gabriel Barboza — página y placa»,
+  checked against AOS, Missouri Botanical Garden, Selby, Annals of Botany and Ambientico) as the ONLY source of its text:
+  no new biographical facts, no fact rewritten, «sin cambiar nada de la información». Structure: his portrait (wool cap,
+  grey T-shirt), full name, the line that he designed this café's garden with guarias together with its owners; «Por qué
+  este homenaje» (the house's own story, presented as such, apart from the scientific sources); «Su historia» (the
+  verified facts); the 1994–2019 timeline and the sources with their links as they are; a soft close (address, hours,
+  menu, WhatsApp, lodging at Basecamp Monteverde). Both languages in full with the site's language mechanism; the address
+  resolves directly. Never: a lack-of-degrees framing, birth or death dates, that he did the floral analyses of Atwood
+  1994 (he drew the plant habits and co-authored the species), that in 2019 he guided the Selby team in Monteverde (it was
+  Los Cusingos), «descubridor de seis» turned into «discovered six new species». SEO title given word for word.
+- **Built:** `website/gabriel-barboza.html`, hand-written (not by `tools/pages/build.js`), served by GitHub Pages at
+  `/gabriel-barboza` as it serves `/m` from `m.html` (no redirect, nothing in between). One address for both languages
+  because the plaque carries one QR: the page holds the full Spanish and the full English version
+  (`<div data-l="es">` / `<div data-l="en" lang="en">`) and shows one. Which one: the visitor's choice anywhere on the site
+  (lang.js's ES/EN switch, `hg_lang`), else the device's language (`es…` → Spanish), exactly the rule lang.js uses for
+  public pages (where the browser refuses storage, English, as lang.js does, so the switch and the page never disagree); a script in the head decides before the first paint, so neither version flashes. The title is the owner's,
+  word for word, in both languages (the brief gives one SEO title; a first draft's English title was dropped in review).
+  The switch flips the page without reloading (lang.js's `hg-lang` event). The body is `data-no-translate`:
+  lang.js does not word-translate this page, each version is the approved text. Without JavaScript both versions show,
+  Spanish first. Design: the site's tokens, fonts, bar and footer (`page.css`); the hero in the dark green of the site's
+  call-to-action boxes with the portrait in a cream frame with a gold rule; on phones the portrait comes first.
+- **Text:** taken from the approved tribute, section by section (hero, house history, history, achievements, the three
+  species, the *Lepanthes* finding, timeline, the 11 sources with their links unchanged, the close). Not published: the
+  tribute's internal plaque-production section and its closing note (both about making the plaque, not for visitors).
+  The English is a translation of that text: where the source quotes a Spanish sentence (the Missouri Botanical Garden
+  line, Ambientico's «experto poseedor de más de 450 especies» and «descubridor de seis») the English does not invent an
+  English quotation — it paraphrases the first and keeps the others in Spanish with an English gloss in brackets. The
+  sources' introduction says everything on the page comes from them «salvo lo dicho sobre este jardín» / «except what is
+  said about this garden» (first «salvo la historia de nuestra casa»; reworded with the owner's adjustments): the
+  approved sentence with the one exception the garden section and the owner's line make true. (The
+  first version's commercial close — address, hours, menu, WhatsApp, Basecamp — was removed at the owner's request; see
+  «The owner's adjustments» below.)
+- **Photos:** only the family's portrait the tribute carries (`website/assets/gabriel-barboza.jpg`, 1110 × 1307, the
+  embedded file unchanged, committed to git: the publish step keeps files already in `website/assets/`), credited
+  «Fotografía facilitada por su familia». Not used: the tribute's third-party images (herbarium plates, other
+  photographers' orchid photos) and the home page's AI gallery placeholders. The owner's two photos of Gabriel working
+  at the café (light to be corrected) and his daughter's professional photos (unchanged) were sent as WhatsApp
+  `blob:` links, which only open inside the sender's browser: they wait for the files themselves (E-44).
+- **Where it lives on the site:** a short line in the home page's story section, under the timeline («Gabriel Barboza
+  Villalobos, the orchid man of Monteverde: his knowledge, generosity and love of orchids left a mark that continues to
+  bloom in our garden.» → «Read his story»; Spanish in lang.js, the owner's line with «nuestro jardín» because the home
+  page is read away from the garden) and «A tribute to Gabriel Barboza» in the home footer; `website/sitemap.xml` lists
+  it once (`build.js` adds the URL, with no language alternates: both versions share the one address).
+- **Found in passing, not changed:** `page.css`'s `.cta` (the guide pages' call-to-action box) also gives the bar's
+  «Plan your visit» button (class `cta`) its 2.8rem top margin, so the guide pages' bar is about 121 px tall instead of
+  the home page's 60 px. The tribute page cancels it for itself (`#nav .navlinks a.cta{margin:0}`) and keeps the bar on
+  one line on phones; `page.css` and the guide pages stay as published (a separate change if the owner wants it).
+- **Tests:** browser spec 420 (10): the address answers 200 with no redirect, Spanish and English complete with the same
+  sections, years, species and links, the owner's title in both, description, canonical, og image and structured data,
+  the portrait loads with its description, the device language when nothing is chosen, the switch without reloading and
+  remembered, the browser that refuses storage (page and switch agree), every ruled-out claim absent in both languages
+  from the text, the attributes (description, og, alt) and the structured data (and every year on the page one of the
+  dated publications or the check date), at 320, 360 and 375 px nothing wider than the screen or outside its card and
+  the bar on one line, the home links in both languages, the sitemap entry; G9, the owner's adjustments below (no owner
+  named in the page, its attributes or the home line; the owner's line word for word; no Basecamp anywhere and no
+  promotional text or button inside the tribute; the footer's links exactly the guide pages'; a brief hero with no list
+  or link and the sections in order; the photograph's bytes, served as they are, and at 320, 375 and 1280 px in both
+  languages shown whole within 0.2 % with nothing altering it; the QR address). Checked that G9 fails on a copy of the
+  page with «junto a sus dueños» put back, and on one with the 3 px crop put back.
+- **GitHub «Tests» red on `1b3af8f` (run #232), fixed:** browser 420 G6 at 320 px in Spanish: the bar's ES/EN switch
+  ran past the screen's edge. GitHub's runner falls back to the wide DejaVu fonts (the tests block the web fonts),
+  where «Planee su visita» (kept on one line on phones) and the switch did not fit at 320-340 px; this machine's
+  narrower fallback fit, so the local runs passed. A phone whose web fonts do not load is in the same case, so the page
+  is fixed, not the test: under 480 px the logo can shrink and the bar's gaps are smaller; under 380 px the button may
+  take two lines in a smaller letter. G6 now also runs every width with DejaVu forced: it fails on `1b3af8f`'s page as
+  GitHub did and passes on the fixed one; the bar measured 62-65 px from 320 to 375 px with the web fonts, this
+  machine's fallback and DejaVu.
+- **Second independent review (of the owner's adjustments; 3 reviewers, each finding checked by a skeptic):** the text
+  outside the owner's points unchanged and the English mirroring the Spanish (no finding). Confirmed and fixed: the
+  café's own voice left in «Historia de la casa» / «nuestra casa» / «our house»; the portrait still trimmed about 3 px
+  by its frame's border; G9's photo check measuring only at 1280 px with a 1 % tolerance. Not changed, for the owner's
+  review: the footer is the site's usual one, word for word (its hours, address and El Trapiche line besides the
+  links); the home line says «en nuestro jardín» / «in our garden» where the owner's line says «en este jardín»
+  (read on the home page, away from the garden).
+- **Independent review (4 reviewers, each finding checked by a skeptic):** fidelity to the approved text, the English
+  against the Spanish, the owner's brief point by point, the technical side. Confirmed and fixed: the English title a
+  first draft added (the owner's title is now the only one); the English quoting its own translation of Ambientico
+  (now the Spanish words with an English gloss); «from his collection» for «a partir de su recolecta» (now «from material
+  he collected»); the sources' introduction claiming the house story too (now «salvo la historia de nuestra casa»); the
+  visit card's text and buttons leaving the card under 345 px; the head script and lang.js disagreeing where storage is
+  refused; two tests that could not fail as written (G5 skipped attributes and structured data, G6 measured a clipped
+  page); the sitemap's same-address language alternates. Also brought back to the source: «¿Se queda en Monteverde?»
+  (the lodging line adds only the domain and «ofrece hospedaje» the brief asks for). Not changed (rejected as allowed by
+  the brief or style): the meta description's length.
+- **The owner's adjustments before authorizing the publication (2026-11-09, second message), all built:**
+  (1) the tribute is about don Gabriel only: the café's owners are named nowhere, nor is the café's own voice
+  («nuestra casa», «our house»): the hero; «Por qué este homenaje», now «Gabriel diseñó y decoró el jardín de Hanging
+  Garden Café y lo pobló de guarias», without «en colaboración con los dueños del café», and without the kicker
+  «Historia de la casa»; its note, now only «Lo que sigue en «Su historia» procede de las publicaciones científicas e
+  institucionales citadas en «Fuentes».»; the sources' introduction («salvo lo dicho sobre este jardín»); the home line
+  and the home footer link;
+  (2) the highlighted line is the owner's, word for word: «Su conocimiento, generosidad y amor por las orquídeas dejaron
+  una huella que continúa floreciendo en este jardín.» (English: «His knowledge, generosity and love of orchids left a
+  mark that continues to bloom in this garden.»); (3) his story is not used to promote anything: the closing card
+  (Basecamp lodging, breakfast, menu, WhatsApp, hours and address, buttons) is gone, Basecamp appears nowhere on the
+  page, and the footer is the site's usual footer, the guide pages' word for word (its hours, address and usual links);
+  (4) a brief, moving top: «Homenaje» / «Tribute», his name, the epithet, the owner's line, one short paragraph and his
+  photograph (the three fact chips went; those facts stay in «Logros» and the timeline); then the house's reason, his
+  story, achievements, species, the *Lepanthes* finding, the timeline and the sources; (5) his photograph is the
+  family's file unchanged (same bytes, sha-256 `148f9673…`), now shown whole: the inside of the frame takes the photo's
+  own proportions (1110 × 1307; `box-sizing:content-box`, since page.css makes every box border-box and the frame's
+  border would otherwise trim about 3 px), where the first version cropped it slightly to 4:5; the additional photos wait for the
+  owner's review and authorization; (6) the address stays `https://hanginggardencafe.com/gabriel-barboza` (both QR
+  images of the approved tribute decode to exactly that address); (7) nothing published, no tag: the owner reviews the
+  final Spanish and English first.
+- **The owner's approval and final adjustments (2026-11-10):** the design approved in Spanish and English, with:
+  (1) the garden told as it was: «Don Gabriel Barboza Villalobos contribuyó con su conocimiento y generosidad a la
+  decoración del jardín de Hanging Garden Café, ayudando a incorporar plantas y orquídeas que hoy forman parte de este
+  espacio. Su amor por la naturaleza dejó una huella que continúa floreciendo entre nosotros.» (English: «Don Gabriel
+  Barboza Villalobos contributed his knowledge and generosity to the decoration of the Hanging Garden Café garden,
+  helping to bring in plants and orchids that are part of this space today. His love of nature left a mark that
+  continues to bloom among us.»), in place of «Gabriel diseñó y decoró el jardín… y lo pobló de guarias», «las plantas
+  que él dispuso», «entre sus guarias» and the pull quote «usted está en su obra»; the description, og and structured
+  data now say «su huella en el jardín de Hanging Garden Café» (they said «el jardín de guarias que diseñó»); nothing on
+  the page or the home line says he alone designed or decorated the garden or set its plants (browser 420 G9 checks it);
+  (2) «Logros documentados» in chronological order, one list read straight down, one year per achievement: 1994,
+  1995 (the first orchid named for him), 2003 (explorer), 2003 (the *Orchids* profile), 2004 (the second orchid),
+  2005, 2006, 2019 (Selby); the two items that spanned years («Dos orquídeas llevan su nombre 1995 · 2004» and
+  «Reconocimiento internacional 2003 · 2019») split into their years so the list is strictly in order (a first draft
+  kept the orchids together and put 2004 before 2003: caught by the final check), every date, datum and reference
+  kept, no new achievement added (the timeline below keeps the year-by-year detail); (3) the approved design, the photograph, the history, species, recognitions and sources, both
+  languages, no owners, no promotion and the main line all kept; (4) the physical plaque made brief and elegant:
+  «Homenaje», his name, the dedication (the main line, in guillemets as the owner quoted it) and the QR with «Conozca su historia / Discover his story» and
+  the address under it, 30 × 40 cm (`docs/placa-gabriel-barboza/`, made by `tools/placa/build.js`); the tribute's
+  first plaque (with the story, the photograph and «Este jardín lo diseñó y lo decoró él… en colaboración con los
+  dueños») is not used; the QR remade at level H with the standard 4-module quiet zone, dark green on white (about
+  13 : 1), 72 mm on the plaque; read back with an independent reader (jsQR) as exactly
+  `https://hanginggardencafe.com/gabriel-barboza` from the SVG and the PNG at 100–1176 px and from the whole plaque at
+  600–1400 px; browser 420 G10 checks on every run that the three files hold exactly that code (a single module changed
+  fails it); (5) all in one change, tested in Spanish, English, small phones, links, photograph, QR and the no-touch
+  check; nothing in the POS, inventory, accounting, staff or database, no migration; (6) content and design final;
+  publication not yet authorized: no tag, no «Publish website»; the owner publishes later by hand, keeping a recovery
+  copy of the current site (E-44).
+- **Baseline:** `v2026.11.08-1` (Proveedores, D-067) was published by the owner on 2026-11-09 03:17 UTC («Publish
+  website» run #59, gh-pages `005fab4`, pages run #55), so `tests/pantallas/BASE` moves to it (`6b01e47`) and
+  `no-tocar.sh` lists only this version's files: NEW `website/gabriel-barboza.html`, `website/assets/gabriel-barboza.jpg`;
+  CHANGED `website/index.html`, `website/lang.js`, `website/sitemap.xml`. Everything else under `website/`, every
+  migration and `pages.yml` stay byte for byte the published release. `tests/rehearsal/LIVE_PAGES` is not moved here: it
+  moves with D-067's post-activation record (stages 4.3–5 still to be reported by the owner).
+- **Not done (owner):** publishing (E-44). No migration, nothing in the database, no other page touched.
+- **Published by the owner (2026-11-10):** recovery copy `sitio-2026-11-09` on gh-pages `005fab4` (the live
+  v2026.11.08-1), release tag `v2026.11.09-1` on `c5e9590`, «Publish website» run #60 from the tag (04:04 UTC), gh-pages
+  `3ed4b85` («Publish website v2026.11.09-1 c5e9590…»), pages run #56 green; «Tests» #240 on the tag green (it finished
+  at 04:27, after the publish had started: green all the same). The tribute is live at
+  `https://hanginggardencafe.com/gabriel-barboza`. Still with the owner: printing the plaque and the additional photos
+  (E-44). The home page's link to it is replaced by a card (D-069).
+
+## D-069 · 2026-11-10 · The home page's card for don Gabriel at the end of «La historia», sections that never appeared, the bar on phones; v2026.11.09-1 (the tribute) becomes the tests' baseline (nothing published, no migration)
+
+- **The owner's request (2026-11-10, after publishing the tribute):** the home page's link was too discreet («lo busqué
+  dos veces y no lo encontré»): a section of its own, elegant, dedicated to don Gabriel only, with his original
+  photograph, his full name, the title «Un hombre y sus orquídeas», the approved line «Su conocimiento, generosidad y
+  amor por las orquídeas dejaron una huella que continúa floreciendo en este jardín», a prominent «Conozca su historia»
+  to `/gabriel-barboza`, in a natural, visible place; the café's look, phones, Spanish and English; no owners, no
+  promotion, nothing saying he designed the whole garden («su contribución fue ayudar con la decoración y aportar
+  conocimientos, plantas y orquídeas»); the tribute page kept as approved; nothing in Caja, POS, inventory, accounting
+  or the database; screenshots for approval; nothing published, no tag. Then the place: «en la página La historia
+  debajo de la historia de Monteverde y el quetzal… no tiene que ser muy grande, algo pequeño notable». Then: «añada su
+  foto» and a title like «Hanging Garden se enorgullece de contar con la ayuda de Gabriel para la elaboración de nuestro
+  hermoso jardín» («esto es un ejemplo y puede usar algo más adecuado»).
+- **The owner's final adjustments (2026-11-10, approving the design's direction):** (1) the title simplified to «Don
+  Gabriel Barboza Villalobos dejó una huella especial en nuestro jardín»; (2) the approved line kept, with a brief line
+  that he contributed his knowledge, plants and orchids to the garden's decoration; (3) the fix of the menu that
+  disappeared on small screens kept (below); (4) the home bar and its ES/EN switch no longer running over on phones
+  (below); (5) the tribute page, its photograph and the café's systems untouched; one change, Spanish and English
+  checked, every test run, final screenshots; nothing published, no tag, until the owner approves the result.
+- **Built:** a small card closing the home page's story section (`#story`), right after the grid of the Monteverde
+  timeline and the quetzal (`<aside class="gbcard part">`, named «Homenaje a Gabriel Barboza» / «A tribute to Gabriel
+  Barboza» for screen readers): the family's portrait (the tribute's own file, `assets/gabriel-barboza.jpg`, whole, in a
+  white mat whose rounded corners stay within the mat: 140 px wide on computers and tablets, 84 px on phones, 72 px at
+  360 px and less), «Homenaje», the title, «Un hombre y sus orquídeas», the line on his help, the owner's line word for
+  word and the button «Conozca su historia →» (the arrow drawn apart by a margin and hidden from screen readers, which
+  read «Conozca su historia»). The
+  English is source text in `index.html` and the Spanish in `lang.js`, like the rest of the home page; the photo's
+  description is the tribute page's, word for word, in both languages.
+- **The words (final, the owner's adjustments):** title «Don Gabriel Barboza Villalobos dejó una huella especial en
+  nuestro jardín» (English: «Don Gabriel Barboza Villalobos left a special mark on our garden»; a heading, so no full
+  stop, as the owner wrote it; «Don» and «Gabriel» joined by a no-break space); under it «Un hombre y sus orquídeas» /
+  «One man and his orchids»; then «Contribuyó con sus conocimientos, plantas y orquídeas a la decoración del jardín.» /
+  «He contributed his knowledge, plants and orchids to the decoration of the garden.» (the owner's words: his help with
+  the decoration, never the design of the whole garden); then the approved line. His full name is now in the title, so
+  the separate name line went. The first title («Hanging Garden se enorgullece de haber contado con la ayuda de don
+  Gabriel en la decoración de nuestro jardín.», the owner's example fitted to «la decoración») was replaced by the
+  owner's.
+- **Look:** the site's tokens and type (the cream panel, a gold rule on the left as on the tribute's cards, the green
+  title and button, Playfair Display, Figtree, Spline Sans Mono); the home page's Google Fonts link now also asks for
+  Playfair Display italic 500 for «Un hombre y sus orquídeas» (the browser would otherwise slant the upright letter). The
+  thread that runs down the middle of the home page on computers passes behind the card (as behind the canopy) instead
+  of crossing its text. It appears with the story section's usual reveal. Heights: about 300–325 px on computers (web
+  fonts / DejaVu); on phones the photograph sits beside «Homenaje» and the title and the rest goes under them: about
+  340–400 px from 320 to 414 px with the web fonts, at most about 445 px with DejaVu at 320 px (G11's limit: 480).
+- **Replaced:** the line under the timeline («Gabriel Barboza Villalobos, the orchid man of Monteverde: …» → «Read his
+  story») and its two `lang.js` entries. **Kept:** the footer's «Homenaje a Gabriel Barboza». The tribute page is not
+  touched (the no-touch check now holds it byte for byte, see below).
+- **Also fixed: the home page's sections that never appeared.** Each section of the home page fades in when 15 % of it
+  is on the screen (`IntersectionObserver`, threshold 0.15). A section taller than about six screens never reaches 15 %,
+  so it stayed blank for good: on the published v2026.11.09-1 the whole «Menú» section never appeared at 320 × 568 (a
+  small phone), 844 × 390 (a phone held sideways) or 1280 × 400 (a short window), and «La historia» never appeared at
+  640 × 280; the card, which makes «La historia» taller, would have added more such sizes (found by the review below).
+  Now a section also appears when it fills half the screen (thresholds 0, 5, 10 and 15 %, so the check runs on the way
+  in); where 15 % was reachable nothing changes (computers and upright phones of 360 px and up reveal as before).
+- **The bar on phones (the owner's point 4).** On the published v2026.11.09-1 the home page's bar was 108 px tall on
+  phones in Spanish («Planee su visita» on three lines) and at 320–360 px its ES/EN switch ended up to about 36 px past
+  the screen's right edge; on tablets and phones held sideways (721 to about 1000 px) its links took two rows, up to
+  about 1080 px with wide fallback fonts (DejaVu), and past the edge at about 744–760 px with them. The room the whole
+  bar needs in one row depends on the fonts the device has and on the language: about 900 px (English, the site's
+  fonts) to about 1110 px (Spanish, DejaVu). So the bar is fitted by measuring, not by fixed widths: its links never
+  wrap, and a short script right after the bar (so it is fitted before the first paint) drops what does not fit, in
+  this order, and brings it back when it fits again (when the bar's content changes, as lang.js adds the ES/EN switch
+  and translates; on resizing; when the fonts arrive; when the language changes): the logo's small line «Café · Monteverde», then
+  «Pregúntenos» (the chat button stays at the bottom corner), then «Galería» and «Nuestro café»; Menú, Historia,
+  «Planee su visita» and the ES/EN switch stay. So an iPad with the site's fonts keeps every link it has room for (a
+  first version used fixed widths sized for the widest fonts, and hid links that fitted: changed after the review).
+  On phones (720 px and less) only «Planee su visita», as before; as on the tribute page (D-068), at 480 px and less
+  smaller margins and no «Café · Monteverde», at 380 px and less a smaller logo letter and the button may take two
+  lines in a smaller letter. Measured from 320 to 1366 px, both languages, with the site's fonts, the fallback and
+  DejaVu: one row, 45–73 px, nothing past the edge or on top of anything; on the narrowest phones «Hanging Garden»
+  takes two lines, as on the published bar (65 px at 380 px and less; 73 px at about 381–420 px, up to about 470 px
+  with DejaVu).
+- **Tests:** browser 420 now 13. G7 rewritten: the card word for word in both languages (the button as read out, «Conozca
+  su historia», its arrow shown and hidden from screen readers), its one link, the home page's links to the tribute
+  exactly the card's and the footer's, its place (the last thing in the story, below the timeline and the quetzal), over
+  the thread (what is painted at the thread's place, at three heights of the card, belongs to the card), at most 340 px
+  high on a computer, the photograph the tribute's file, loaded, whole
+  within 0.2 % (its mat aside), scaled and never cut (`object-fit: fill`, no box around it clipping it, no corner
+  rounding the picture), nothing altering it, at least 120 px wide; no owners, no promotion and no «designed» words in
+  it; «Conozca su historia» opens the tribute; the sitemap entry. New G11, on touch phones of 320, 360, 375 and 390 px
+  (and 320 and 375 px with DejaVu forced), both languages: the card fits the screen, no box and no line of text outside
+  it, the photograph beside «Homenaje» and the title, at most 480 px high, the button at least 44 px for a finger with
+  its arrow at least 3 px from the words, the photograph whole. New G12: from 561 to 1000 px (every 13 px, with the web
+  fonts' fallback and with DejaVu, both languages) no box, line or word outside the card; at 320 × 568, 640 × 280,
+  740 × 300, 568 × 320, 844 × 390 and 1280 × 400, scrolled through, every section of the home page appears, the card
+  included. New G13, the bar: at 29 widths from 320 to 1366 px (touch below 1000), both languages, the web fonts'
+  fallback and DejaVu: at most 80 px high, nothing past the screen's edges, nothing on top of anything else, the ES/EN
+  switch whole (and it switches the language at the narrowest width; at 768 px the bar fits again in the other
+  language); above 720 px it fits in one row with «Hanging Garden» on one line, it drops in order, the links shown
+  are those of its drop level, and it drops no more than it must (the last thing dropped, shown again, does not fit),
+  also after switching the language and back at 768 px (what was dropped for the other language comes back); on phones
+  only «Planee su visita»; and in a browser without ResizeObserver, at 760, 800 and 900 px, it is fitted on loading. G9's no-sole-designer check reads the card. Each new check fails on a broken copy of the home page:
+  the card moved above the timeline; the photograph cropped by `object-fit`, by its frame (`overflow:hidden`) or by
+  rounded corners; a word changed; owners added; the phone layout removed; the card under the thread three ways (no
+  `z-index`, `position:static`, `#story{isolation:isolate}`); a title or line that does not wrap (on phones and from 561
+  to 1000 px); the published reveal; the arrow's space instead of its margin; the published bar; the bar without its
+  rule under 380 px; the bar without its script; a script that drops everything, one that drops in another order, one
+  that does not refit when the language changes, one that does not follow the bar's content (without ResizeObserver).
+- **Second and third independent reviews (of the owner's final adjustments; 5 reviewers: the bar, the words, the tests,
+  then the fitting script and the tests again; each finding checked by a skeptic).** Fixed: D-069, the spec's header
+  and G7's name still describing the first card (stale words); fixed widths sized for the widest fonts hid links that
+  fit with the site's fonts on tablets (the skeptic called it a fair trade-off; changed all the same to the measured
+  fit, which keeps the navigation the owner's site has); the language check at 768 px not proving that dropped links
+  come back; with reduced motion (the page shown at once, without its fade-in) the bar painted unfitted until the
+  page's main script, at the end, ran: up to 1.4 s on a slow link (confirmed; fixed by placing the script right after
+  the bar: 0 unfitted frames measured on slow links); one frame unfitted after lang.js adds the switch and, in browsers
+  without ResizeObserver, no refit then (the skeptic called these negligible; fixed all the same: the script follows
+  the bar's content). Rejected: «Hanging Garden» on two lines on
+  the narrowest phones (as on the published bar and the tribute page; documented above); the site's web fonts not
+  measured on GitHub (the tests block them; measured here with the real fonts: every check passes); no loop or
+  oscillation found (no «ResizeObserver loop» error; settled states equal a fresh fit at every width).
+- **Independent review of the first version of the card (3 reviewers: the page, the words and the owner's rules, the
+  tests; each finding checked by a skeptic):** the words (of the first title): nothing found. Confirmed and fixed: «La historia» (and «Menú») never appearing on short screens
+  (above); on touch screens the arrow glued to «Conozca su historia» (the button is a flex box there, which drops the
+  space: now a margin); between 561 and about 736 px the dot starting the line of «Un hombre y sus orquídeas» (then
+  kept on one line only above 900 px; the name line and its dot went with the owner's title, which carries his full
+  name); G7's thread check comparing the declared `z-index` numbers instead of what is painted.
+  Rejected as no defect, but the tests were hardened all the same: crops by the frame or by rounded corners (and the
+  phone's 1 px of corner rounding inside a 3 px mat, removed: the corners now match the mat), text running out of its
+  box. Rejected: the gold «Homenaje» label's contrast on the cream panel (2.93 : 1), the site's existing small-label
+  colour (as `.fcard .fk`, `.gcard .gk`; D-048 left it to the owner), not changed here.
+- **Baseline:** `v2026.11.09-1` (the tribute, D-068) was published by the owner, so `tests/pantallas/BASE` moves to it
+  (`c5e9590`) and `no-tocar.sh` lists only this version's files: NEW none; CHANGED `website/index.html`,
+  `website/lang.js`. Everything else under `website/` (the tribute page, its portrait and the sitemap included), every
+  migration and `pages.yml` stay byte for byte the published release; checked to fail with one byte added to
+  `gabriel-barboza.html`. `tests/rehearsal/LIVE_PAGES` is not moved (D-067's post-activation record).
+- **Found in passing, not changed:** a test that depends on the hour:
+  browser 080 (the POS taking sales offline, not touched here) dates its queued sales «15 minutes ago», which in the
+  first 15 minutes after midnight in Costa Rica is yesterday, so five of its cases fail from 00:00 to 00:15 (as they did
+  in this version's full run, at 05:59–06:15 UTC, and the same on the published pages); from 00:16 it passed 10 of 10.
+  The tests' fixture, not the POS: a separate change.
+- **Not done (owner):** approving the card from the screenshots, then publishing (E-45). No migration, nothing in the
+  database, no staff page touched.
+
+## D-070 · 2026-11-11 · The family's seven corrections to the tribute to don Gabriel (`/gabriel-barboza`): three orchids with his name, Atwood, the first garden, the current names, the garden's figures; what the sources confirm and what is the family's (nothing published, no migration)
+
+- **The request (owner, 2026-11-11):** don Gabriel's family reviewed the published tribute (D-068) and sent seven
+  observations: (1) three orchids are dedicated to him, not two: «Prosthechea barbozaei · Lepanthes barbosae ·
+  Telipogon barbozae», spelling and references checked before publishing; (2) John T. Atwood «era director del
+  departamento de investigación» and Gabriel «colaboró ilustrando el complejo de especies del género de orquídeas
+  Maxillaria»; during those taxonomic studies he «participó en el descubrimiento y descripción de una especie para Costa
+  Rica y Panamá, actualmente denominada Camaridium monteverdense»; nothing undocumented attributed to him; (3) according
+  to the family, he created Monteverde's first orchid garden, the reference to his garden and living collection in
+  Cerro Plano kept; (4) the 1995 orchid: *Telipogon barbozae* as the current name, *Stellilabium barbozae* kept as the
+  original with a brief note on the change of genus; (5) the 1994 orchid: *Camaridium monteverdense* as the current name,
+  *Maxillaria monteverdensis* kept as the original, with its reference; (6) «Unas 200 especies» → «Poco más de 400
+  especies» in the Monteverde Orchid Garden paragraph; (7) «una veintena de especies hermanas en el mismo jardín» →
+  «una veintena de individuos en el mismo jardín» (English: individual plants, not species). Both languages; the whole
+  page checked for contradictions; names, synonyms and attributions checked against reliable botanical sources; what
+  cannot be corroborated is flagged for the owner's approval, not dropped; the design, the photographs, the structure
+  and the tone kept; the home page's mentions checked; nothing in the POS, inventory, accounting, suppliers or the
+  database; tests and an independent review; nothing published, no tag, until the owner approves.
+- **What the sources say (checked on 2026-11-11; two researchers per claim, then a skeptic; several botanical hosts
+  were not reachable from this session — IPNI, POWO, Epidendra, mobot.org, journals.flvc.org — so part rests on the
+  search engines' excerpts of those pages, marked as such in the research notes):**
+  - *Lepanthes barbosae* Luer, *Lindleyana* 10(3): 135 (1995): accepted (Kew POWO), endemic to Costa Rica; named for
+    Gabriel, «a local orchid grower who first collected the sp. and for whom it was named» (Missouri Botanical Garden,
+    *The Cutting Edge* IX(1), January 2002). Luer spelled it with «s»; the name keeps that spelling (never «barbozae»).
+    **Confirmed: the third orchid.** The page had missed it.
+  - *Prosthechea barbozae* Pupulin, *Selbyana* 25(1): 20 (2004): published as «barbozaei»; corrected to «barbozae» under
+    the Code (the genitive of a surname ending in -a adds -e), as Missouri's *Cutting Edge* (July 2005) notes and WFO
+    uses. **The family's spelling is the original one, not the accepted one:** the page keeps *barbozae* and says it was
+    published as «barbozaei».
+  - *Telipogon barbozae* (J.T.Atwood & Dressler) N.H.Williams & Dressler, *Lankesteriana* 5(3): 169 (2005); basionym
+    *Stellilabium barbozae* J.T.Atwood & Dressler, *Selbyana* 16(2): 239–241 (1995); moved after Williams, Whitten &
+    Dressler's DNA study found *Stellilabium* within *Telipogon*; accepted by the 2023 catalogue of Costa Rica's orchids
+    (Lankester). **Confirmed.**
+  - *Camaridium monteverdense* (J.T.Atwood & Barboza) M.A.Blanco, *Lankesteriana* 7(3): 521 (2007, Blanco et al.,
+    «Generic realignments in Maxillariinae»); basionym *Maxillaria monteverdensis* J.T.Atwood & G. Barboza, *Lindleyana*
+    9(4): 241–242 (1994). **Accepted by the Costa Rican authority (Lankester: Epidendra, the 2023 catalogue) and by the
+    2014 checklist of Panama's orchids; Kew (POWO/WCVP) and World Flora Online still accept *Maxillaria monteverdensis*,
+    with *Camaridium* as a synonym.** So the page presents *Camaridium* as the current name, as the family asked, and
+    says it is the name the catalogue of Costa Rica's orchids uses. Panama: the 2014 checklist (Bogarín et al.,
+    *Lankesteriana* 14(3)), which lists only species backed by Panamanian specimens, includes it.
+  - Atwood: the documented positions are Selby's orchid curator and director of its Orchid Identification Center (JSTOR
+    Global Plants: «Orchid Curator and Director of the Orchid Identification Center»); **no source found calls him «director del departamento de
+    investigación»** (Selby's Director of Research in 1992–1999 was Margaret Lowman). The page uses the documented title.
+  - The 1994 paper («Two new species of Costa Rican *Maxillaria* … and a clarification of *Maxillaria bracteata*»)
+    separates two new species from plants confused under *M. bracteata*; Gabriel drew their habits and co-authored one
+    of them. «Complex» is not the paper's word, so the page says «un grupo de especies … que se confundían bajo un mismo
+    nombre, *Maxillaria bracteata*».
+  - **Not found in any source:** that Gabriel took part in finding *M. monteverdensis* (the type, Atwood 89-33, has
+    Atwood alone as collector; Gabriel is recorded as his co-collector only from 1995); that his garden was Monteverde's
+    first orchid garden (no source says so; today's «Monteverde Orchid Garden» in Santa Elena credits Álvaro «Papo»
+    Salazar as its founder — whether it is the same garden as Gabriel's «Orquídeas de Monteverde» in Cerro Plano, which
+    the page, after the 2005 *Annals of Botany* study, calls «el Monteverde Orchid Garden», is not settled by the sources); «poco más de 400
+    especies» (the 2005 study gave about 200 native species at the time of the study; *Ambientico* 2006, «más de 450»);
+    «una veintena de individuos» of *Lepanthes glicensteinii* (the study speaks of about 20 *Lepanthes* species in the
+    garden). These four are written on the page as the family's, where they are said («según su familia», «según recuerda su
+    familia») and in the sources' introduction, not as the publications', and are listed for the owner's approval
+    (E-46).
+- **Changed on the page (both languages):** the top: «Tres especies de orquídeas llevan su nombre»; the note under it:
+  what the family contributes is marked as such. «Su historia»: Atwood as specialist in *Maxillaria*, Selby's orchid
+  curator and director of its Orchid Identification Center; Gabriel illustrated the group of *Maxillaria* confused under
+  *M. bracteata* (he drew the habits of the two new species); during that study he took part in describing one of them,
+  is its co-author, a species now known from Costa Rica and Panama and called *Camaridium monteverdense*; «Según su
+  familia, participó también en su hallazgo»; his garden in Cerro Plano kept, with «según su familia, fue el primer
+  jardín de orquídeas de Monteverde». «Logros documentados»: 1994 «dibujó los hábitos de las dos nuevas *Maxillaria* de
+  Costa Rica de John T. Atwood (*Lindleyana* 9(4): 239–242) y co-describió con él *Maxillaria monteverdensis*, hoy
+  *Camaridium monteverdense*»; 1995 «Dos orquídeas con su nombre» / «Two orchids named in his honour» (*Stellilabium
+  barbozae*, now *Telipogon barbozae*, and *Lepanthes barbosae*, «a partir de una planta que él fue el primero en
+  recolectar»); 2004 «Una tercera orquídea con su nombre». «Cuatro nombres que quedan en la ciencia» (was «Tres»): four
+  cards, two by two (one column on phones): *Telipogon barbozae*, «nombre científico actual», with the original name, its
+  1995 reference and the 2005 DNA study; *Lepanthes barbosae* (new: Luer, *Lindleyana* 10: 135, «dedicada a Gabriel,
+  quien fue el primero en recolectarla»; the «s» explained); *Prosthechea barbozae* (published as «barbozaei»);
+  *Camaridium monteverdense*, «nombre científico actual», tagged «Co-descrita por él · 1994» (was «Descrita por él»: he
+  is its co-author), the combination cited as published and recorded, «(J.T.Atwood & Barboza) M.A.Blanco» (Lankesteriana,
+  IPNI, Epidendra; a «G. Barboza» there was tried and undone after the review: the original name keeps the 1994 byline,
+  «J.T.Atwood & G. Barboza»), with *Maxillaria monteverdensis*, its 1994 reference, Blanco's 2007 transfer, «el nombre
+  que usan hoy el Jardín Botánico Lankester de la Universidad de Costa Rica y la lista de las orquídeas de Panamá», and
+  also known from Panama. The *Lepanthes glicensteinii* paragraph: «que según su familia reunía poco más de 400 especies
+  de la zona», «de la que, según recuerda su familia, crecían una veintena de individuos» (English: «some twenty
+  individual plants»). The timeline: 1994 and 1995 with the current names, 1995 the two species, 2004 «la tercera».
+  «Fuentes»: «consultadas en noviembre de 2026» (was «verificadas el 9 de noviembre»: the entries added on 11 November
+  were read in the botanical catalogues' records and the search engines' excerpts, not opened whole); the family's
+  contributions named; new entries for Luer 1995, Williams, Whitten & Dressler 2005, Blanco et al. 2007 (with Lankester's
+  Epidendra record) and the Panama checklist; Atwood's position at Selby (JSTOR Global Plants); the «barbozaei»
+  correction under Pupulin 2004. The meta description: «tres orquídeas». «La primera orquídea con su nombre» went: both
+  1995 names, and which came first is not known.
+- **Kept:** the portrait, the structure (the same seven parts), the design (the cards' grid goes from three columns to
+  two because there are four), the tone, *Ambientico*'s «más de 450 especies» (a quotation, 2006: with the family's «poco
+  más de 400» in the past tense of the 1999–2002 story the two read as a sequence; which period the family means is asked
+  in E-46), the plaque (it names no orchid). The home page's card and footer name no orchid and no figure: nothing to
+  change there. *Stellilabium fortunae* (2003) and *Oerstedella* ×*monteverdensis* stay under the names they were
+  published with that year; their current names were not checked in this session (a later change, if wanted).
+- **Tests:** browser 420 now 14. G5: the years now include 2007 and 2014 (the new sources), the habit drawings counted in
+  «Su historia» and the 1994 achievement. New G14, both versions: the four cards' names, in this order, and tags; «Tres
+  especies» / «Three orchid species» and «tres orquídeas» in the description; nothing left of «two» or of a «first» or
+  «second» orchid; the current and original names with their references (Telipogon, Camaridium) and the authorities
+  named for *Camaridium*; the published spellings (no *Lepanthes barbozae*, «barbozaei» only quoted as the original
+  spelling); «fue el primero en recolectarla»; Atwood's documented titles and not «director del departamento de
+  investigación»; the habit drawings, no «complex»; Costa Rica and Panama; the family's four statements word for word
+  with their attribution; the replaced words gone; the sources «consulted». Checked to fail on eight broken copies: «Dos
+  especies» back, *Lepanthes barbozae*, «unas 200 especies», the garden's attribution removed, «sister species» in
+  English, «director del departamento de investigación», the original name relabelled, Panama dropped in English.
+  `no-tocar.sh`: `website/gabriel-barboza.html` joins CHANGED (with `index.html` and `lang.js`).
+- **Independent review (3 reviewers: the facts against the sources, the page's coherence in both languages and the home
+  page, the tests and the layout measured from 320 to 1440 px; each finding checked by a skeptic).** Fixed: the family's
+  two figures in the *Lepanthes* story marked as theirs where they are said (they were marked only in the sources'
+  introduction); «verificadas el 9 y el 11 de noviembre» → «consultadas en noviembre de 2026» (the 11 November entries rest
+  on catalogue records and excerpts); *Camaridium*'s «current» tied to the authorities the page cites (Lankester's
+  Epidendra and the Panama checklist) instead of an uncited catalogue; the 1994 achievement narrowed to the documented
+  habit drawings (it said «un grupo de *Maxillaria*»); the English 1995 heading «Two orchids bear his name» (read alone,
+  two in all) → «Two orchids named in his honour»; «Descrita por él» → «Co-descrita por él»; «la recolectó por primera
+  vez» (ambiguous: his own first time?) → «fue el primero en recolectarla»; G14's Spanish check missed a capitalised «La
+  primera orquídea» (now case-blind), did not read the species section's count (now does: «Cuatro nombres… tres
+  especies… una cuarta») and nothing measured the two-column grid above phone width (now at 900, 1280 and 1440 px, both
+  languages, with DejaVu too). Rejected or left: the two figures «poco más de 400» and *Ambientico*'s «más de 450» read
+  as a sequence, not a contradiction (which years the family means: E-46); «first orchid garden» next to the name
+  «Monteverde Orchid Garden» (attributed; the relation to today's Santa Elena garden is for the family, E-46);
+  *Stellilabium fortunae* (2003) without its current name (as published then; not verifiable here). The reviewer who
+  measured the layout found nothing outside the species section moved, and no box or text past the screen or its card
+  at 33 widths.
+- **Not done (owner):** approving the corrections and the family's statements from the screenshots (E-46), then
+  publishing. No migration, nothing in the database, no staff page, the POS, inventory, accounting or suppliers touched.

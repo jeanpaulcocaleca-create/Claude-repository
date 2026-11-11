@@ -4,7 +4,8 @@
    Writes: website/coffee.html, website/best-coffee-monteverde.html, website/breakfast-monteverde.html,
            website/rainy-day-monteverde.html, website/menu.html and their Spanish twins under website/es/,
            the FAQ + guide cards + FAQ markup inside website/index.html (between the faq / guides markers),
-           the FAQ dictionary block inside website/lang.js, and website/sitemap.xml.
+           the FAQ dictionary block inside website/lang.js, and website/sitemap.xml (which also lists the hand-written
+           tribute page website/gabriel-barboza.html, D-068).
    The menu page is read from the menu on the home page, so prices live in one place. */
 'use strict';
 const fs = require('fs');
@@ -300,6 +301,15 @@ for (const p of C.PAGES) for (const lang of ['en', 'es']) urls.push(`  <url>
     <xhtml:link rel="alternate" hreflang="x-default" href="${pageUrl(p, 'en')}"/>
     <changefreq>monthly</changefreq>
     <priority>${p.key === 'menu' ? '0.9' : '0.8'}</priority>
+  </url>`);
+/* the tribute to Gabriel Barboza Villalobos (D-068): one hand-written page, both languages at one address (the QR on the
+   garden plaque points to it), so it is listed once, with no language alternates (there is no other address to point
+   to), and the builder never writes it */
+urls.push(`  <url>
+    <loc>${C.SITE}/gabriel-barboza</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
   </url>`);
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">

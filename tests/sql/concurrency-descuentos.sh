@@ -58,7 +58,7 @@ gone() { echo "select not exists (select 1 from pg_stat_activity where datname =
 gate_close() {
   ( PGAPPNAME="gate-$1" psql -X -q -d "$DB" -c "select pg_advisory_lock(hashtextextended('conc485.$1', 0)); select pg_sleep(120);" >/dev/null 2>&1 || true ) &
   until_t "select exists (select 1 from pg_locks l join pg_stat_activity a using (pid) where a.datname = '$DB' and a.application_name = 'gate-$1' and l.locktype = 'advisory' and l.granted)" \
-    || echo "  FAIL  gate $1 could not be closed"
+    || { echo "  FAIL  gate $1 could not be closed"; fail=$((fail + 1)); }
 }
 gate_open() { q -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = '$DB' and application_name = 'gate-$1'" >/dev/null; }
 gate_sql() { echo "select pg_advisory_xact_lock_shared(hashtextextended('conc485.$1', 0));"; }
@@ -103,7 +103,7 @@ ok "2) (place A stopped by 12 wrong codes)" "$(q -c "select state from public._d
 # another connection holds the café-wide registration lock B and the place locks C of places A and B
 ( PGAPPNAME=conc-hold psql -X -q -d "$DB" -c "begin; select pg_advisory_xact_lock(hashtextextended('canopy.discount_tills', 0)), pg_advisory_xact_lock(hashtextextended('canopy.discount_slot:$SA', 0)), pg_advisory_xact_lock(hashtextextended('canopy.discount_slot:$SB', 0)); select pg_sleep(120); commit;" >/dev/null 2>&1 || true ) &
 until_t "select count(*) = 3 from pg_locks l join pg_stat_activity a using (pid) where a.datname = '$DB' and a.application_name = 'conc-hold' and l.locktype = 'advisory' and l.granted" \
-  || echo "  FAIL  the lock holder never got its locks"
+  || { echo "  FAIL  the lock holder never got its locks"; fail=$((fail + 1)); }
 lt() {  # session, sql: under lock_timeout 200ms, the R: answer or the error
   dev "$1" "set lock_timeout = '200ms';
 $2" | q 2>&1 | grep -E '^R:|ERROR' | head -1 | sed -E 's/^R://; s/.*ERROR: +//' || true
@@ -156,10 +156,10 @@ for order in clear_first approval_first; do
   ok "3) ($order) Ana locked at the name-picked boxes" "$(q -c "select locked_until > now() from public.staff where id = '$ANA'")" t
   gate_close g1; gate_close g2
   start conc-t1; p1=$bg; start conc-t2; p2=$bg
-  until_t "$(waiting conc-t1)" && until_t "$(waiting conc-t2)" || echo "  FAIL  3) ($order) the two connections never reached the gate"
+  until_t "$(waiting conc-t1)" && until_t "$(waiting conc-t2)" || { echo "  FAIL  3) ($order) the two connections never reached the gate"; fail=$((fail + 1)); }
   if [ "$order" = clear_first ]; then
     gate_open g1   # pin_lock_clear: Bea's row (held), then Ana's: it waits for till B
-    until_t "$(waiting conc-t1 row)" || echo "  FAIL  3) ($order) pin_lock_clear never waited for Ana's row"
+    until_t "$(waiting conc-t1 row)" || { echo "  FAIL  3) ($order) pin_lock_clear never waited for Ana's row"; fail=$((fail + 1)); }
     gate_open g2
   else
     gate_open g2   # the approval goes first: it must not wait for Bea's row, which till C holds
@@ -179,9 +179,9 @@ select 'R:' || (public._pin_locks_clear_all('owner (SQL Editor)') ->> 'cleared')
 SQL
 gate_close g2
 start conc-t2; p2=$bg
-until_t "$(waiting conc-t2)" || echo "  FAIL  3) (tool) the approval never reached the gate"
+until_t "$(waiting conc-t2)" || { echo "  FAIL  3) (tool) the approval never reached the gate"; fail=$((fail + 1)); }
 start conc-t3; p3=$bg
-until_t "$(waiting conc-t3 row)" || echo "  FAIL  3) (tool) _pin_locks_clear_all never waited for Ana's row"
+until_t "$(waiting conc-t3 row)" || { echo "  FAIL  3) (tool) _pin_locks_clear_all never waited for Ana's row"; fail=$((fail + 1)); }
 gate_open g2
 finish "$p2" "$p3"
 ok "3) (tool) _pin_locks_clear_all finishes" "$(outcome conc-t3)" 2
@@ -208,7 +208,7 @@ commit;
 SQL
 gate_close g3
 start conc-ta; pa=$bg; start conc-tb; pb=$bg
-until_t "$(waiting conc-ta)" && until_t "$(waiting conc-tb)" || echo "  FAIL  3) (each other) the two tills never reached the gate"
+until_t "$(waiting conc-ta)" && until_t "$(waiting conc-tb)" || { echo "  FAIL  3) (each other) the two tills never reached the gate"; fail=$((fail + 1)); }
 gate_open g3
 finish "$pa" "$pb"
 ok "3) (each other) Ana's discount for Bea at till B finishes" "$(outcome conc-ta)" Bea
@@ -262,9 +262,9 @@ SQL
   gate_close "$gate"
   if [ "$first" = remove ]; then a="c4-$first-rm"; b="c4-$first-ds"; else a="c4-$first-ds"; b="c4-$first-rm"; fi
   start "$a"; p1=$bg
-  until_t "$(waiting "$a")" || echo "  FAIL  4 ($first) the first call never reached the gate"
+  until_t "$(waiting "$a")" || { echo "  FAIL  4 ($first) the first call never reached the gate"; fail=$((fail + 1)); }
   start "$b"; p2=$bg
-  until_t "$(waiting "$b" row)" || echo "  FAIL  4 ($first) the second call never waited for the first one's row"
+  until_t "$(waiting "$b" row)" || { echo "  FAIL  4 ($first) the second call never waited for the first one's row"; fail=$((fail + 1)); }
   gate_open "$gate"
   finish "$p1" "$p2"
   local drm dds
@@ -318,10 +318,10 @@ ok "5) (Luis's Empleado sale, with a Latte that takes milk from stock)" "$(day "
 # a) another connection holds Luis's per-employee lock: Ana's void of the sale must wait for it before any stock row
 ( PGAPPNAME=c5-hold psql -X -q -d "$DB" -c "begin; select pg_advisory_xact_lock($EKEY); select pg_sleep(120); commit;" >/dev/null 2>&1 || true ) &
 until_t "select exists (select 1 from pg_locks l join pg_stat_activity a using (pid) where a.datname = '$DB' and a.application_name = 'c5-hold' and l.locktype = 'advisory' and l.granted)" \
-  || echo "  FAIL  5a) the lock holder never got Luis's lock"
+  || { echo "  FAIL  5a) the lock holder never got Luis's lock"; fail=$((fail + 1)); }
 dev conc-b "select 'R:' || public.manager_void_order('$ANA', '4826', '$O1', 'prueba 5')::text;" > "$TMP/c5-void.sql"
 start c5-void; pv=$bg
-until_t "$(waiting c5-void)" || echo "  FAIL  5a) the void never waited for the per-employee lock"
+until_t "$(waiting c5-void)" || { echo "  FAIL  5a) the void never waited for the per-employee lock"; fail=$((fail + 1)); }
 ok "5a) while the void waits for Luis's lock it holds no stock row (the milk can be locked at once)" \
    "$(q -c "select 'R:' || count(*) from (select 1 from public.stock_items where id = '$MILK' for update nowait) x" 2>&1 | grep -oE 'R:[0-9]+|could not obtain lock' | head -1)" "R:1"
 q -c "select pg_terminate_backend(pid) from pg_stat_activity where datname = '$DB' and application_name = 'c5-hold'" >/dev/null
@@ -332,7 +332,7 @@ A1="$(emp_sale "$O2")"
 te0="$(q -c "select count(*) from public.audit_log where action = 'discount_trigger_error'")"
 ( PGAPPNAME=c5-hold2 psql -X -q -d "$DB" -c "begin; select 1 from public.discount_approvals where id = '$A1' for update; select pg_sleep(120); commit;" >/dev/null 2>&1 || true ) &
 until_t "select exists (select 1 from pg_stat_activity where datname = '$DB' and application_name = 'c5-hold2' and wait_event = 'PgSleep')" \
-  || echo "  FAIL  5b) the row holder never started"
+  || { echo "  FAIL  5b) the row holder never started"; fail=$((fail + 1)); }
 ok "5b) a lock timeout inside the day's trigger fails the void (raised again, never swallowed)" \
    "$(dev conc-b "set lock_timeout = '200ms'; select 'R:' || public.manager_void_order('$ANA', '4826', '$O2', 'prueba 5b')::text;" | q 2>&1 | grep -E '^R:|ERROR' | head -1 | sed -E 's/^R://; s/.*ERROR: +//')" \
    "canceling statement due to lock timeout"
@@ -380,9 +380,9 @@ SQL
   local pe pw w0; w0="$(q -c "select coalesce(max(id), 0) from public.audit_log")"
   gate_close g6
   start c6-eq; pe=$bg
-  until_t "$(waiting c6-eq)" || echo "  FAIL  6) ($1) the owner's save never reached the gate"
+  until_t "$(waiting c6-eq)" || { echo "  FAIL  6) ($1) the owner's save never reached the gate"; fail=$((fail + 1)); }
   start c6-win; pw=$bg
-  until_t "$(waiting c6-win row)" || echo "  FAIL  6) ($1) the window call never waited for $3's row"
+  until_t "$(waiting c6-win row)" || { echo "  FAIL  6) ($1) the window call never waited for $3's row"; fail=$((fail + 1)); }
   gate_open g6
   finish "$pe" "$pw"
   ok "6) ($1) the owner's save in Equipo committed" "$(outcome c6-eq)" true

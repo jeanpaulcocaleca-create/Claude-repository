@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Canopy OS · «no tocar» v3 (docs/PANTALLAS.md, the owner's condition 2 of 2026-10-31; since D-065 the POS discounts).
+# Canopy OS · «no tocar» v3 (docs/PANTALLAS.md, the owner's condition 2 of 2026-10-31; since D-067 Proveedores).
 # The café's pages (website/: Caja, Cocina, Contabilidad, menú QR, TV, pantallas, …), the database migrations and the
 # publishing workflow stay byte for byte those of the last release the owner published (tests/pantallas/BASE); a
 # version under construction only ADDS the files in NEW below and CHANGES the files in CHANGED below. It proves:
@@ -17,11 +17,11 @@
 set -euo pipefail
 export LC_ALL=C GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# the POS discounts (D-065): the only new file they may add (migration 0038) and the only files of BASE they may change
-# (the POS window, its texts, the sales report, the approvals log, Home's settings labels, the accountant's package);
-# the customer screens' files, published with v2026.11.03-1, are back under the byte-for-byte rule
-NEW=(supabase/migrations/0038_descuentos_caja.sql)
-CHANGED=(website/pos.html website/lang.js website/sales.html website/time.html website/home.html website/contabilidad.js)
+# The home page's card for the tribute to Gabriel Barboza Villalobos (D-069) and his family's corrections to the tribute
+# page (D-070): no new file; the only files of BASE it may change are the home page, its Spanish strings and the tribute
+# page's text. His portrait and the sitemap, published with v2026.11.09-1 (D-068), stay byte for byte
+NEW=()
+CHANGED=(website/index.html website/lang.js website/gabriel-barboza.html)
 PATHS=(website supabase/migrations .github/workflows/pages.yml)
 fail() { echo "  FAIL  no tocar: $*"; exit 1; }
 

@@ -23,7 +23,7 @@ publicada hoy (`v2026.11.03-1`); lo comprueba «Tests» en cada ejecución.
 
 **No incluye (y no se enciende con esta guía):** la cortesía Guía Turista, que nace **apagada** hasta la respuesta del
 contador (A-13, sección 7); apagar la ventana de descuento anterior, que es **su** último paso y cuando usted quiera
-(4.6); la migración 0039 que más adelante retira esa ventana; ningún cambio de cuentas de ingreso, PIN o permisos
+(4.6); una migración posterior que más adelante retira esa ventana (D-066: la 0039 es la de Proveedores); ningún cambio de cuentas de ingreso, PIN o permisos
 (E-05 y E-06 siguen como están); nada de impuestos, facturación electrónica ni planilla.
 
 **La versión:** el último commit de la rama `claude/descuentos-caja`, con «Tests» en verde (PR #7, en borrador): el
@@ -698,7 +698,7 @@ bitácora vemos desde dónde y cuándo.
 13. Preguntar al contador si el 30 % de Empleado es salario en especie (A-14); no hay nada construido para eso.
 14. Revisar en el informe, después de unas semanas, si alguna caja honesta se detuvo; cambiar un límite necesita una
     migración nueva.
-15. Aprobar más adelante la 0039, que retira la ventana anterior (Q5).
+15. Aprobar más adelante una migración posterior que retire la ventana anterior (Q5; la 0039 es la de Proveedores, D-066).
 16. Decidir, sin apuro (no detiene la activación), qué hace la Caja con los productos tocados para una cuenta que se
     cerró mientras tanto cuando el pedido del ticket tiene un descuento (sección 0, «Con un descuento puesto»). Lo
     construido y probado es **A**: no los suma y avisa «… cóbrelos después de esta venta.»; nada se cobra de más ni de

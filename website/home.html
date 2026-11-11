@@ -82,7 +82,8 @@ h2.section{font-size:1.1rem;margin:0 0 .8rem}
 .bkcard.amber{border-color:var(--gold)} .bkcard.red{border-color:var(--bad)}
 .invhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.4rem}
 .invhead .btnlink{display:inline-flex;align-items:center;min-height:36px;padding:.3em .9em;border-radius:10px;border:1.5px solid var(--muted);color:var(--accent);text-decoration:none;font-weight:600;font-size:.85rem}
-.invrow{display:flex;justify-content:space-between;gap:.6rem;padding:.4rem 0;border-bottom:1px solid rgba(201,207,182,.5);font-size:.92rem}
+.invrow{display:flex;justify-content:space-between;gap:.6rem;padding:.4rem 0;border-bottom:1px solid rgba(201,207,182,.5);font-size:.92rem;color:inherit;text-decoration:none;min-height:44px;align-items:center}
+.invrow:hover b{text-decoration:underline}
 .invrow:last-child{border-bottom:0}
 .invrow .s{color:var(--sec);font-size:.84rem}
 .invpill{display:inline-block;padding:.1em .55em;border-radius:99px;font-size:.72rem;font-weight:600;margin-left:.4em;vertical-align:middle}
@@ -144,7 +145,7 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   </div>
 
   <div class="card invcard" id="invCard" hidden>
-    <div class="invhead"><h2 class="section" style="margin:0">Before it runs out</h2><a class="ghost btnlink small" href="inventory.html">Open inventory</a></div>
+    <div class="invhead"><h2 class="section" style="margin:0">Before it runs out</h2><span><a class="ghost btnlink small" href="inventory.html">Open inventory</a> <a class="ghost btnlink small" href="proveedores.html">Order from suppliers</a></span></div>
     <div id="invList"></div>
   </div>
 
@@ -179,6 +180,11 @@ button.linkbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 8l8-4 8 4v9l-8 4-8-4zM4 8l8 4 8-4M12 12v9"/></svg>
       <span class="t">Inventory</span>
       <span class="d">What is on the shelf, what each sale uses, and what to order before it runs out.</span>
+    </a>
+    <a class="tile" href="proveedores.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4"/></svg>
+      <span class="t">Suppliers</span>
+      <span class="d">Orders, receiving and payments to suppliers.</span>
     </a>
     <a class="tile" href="contabilidad.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h11l3 3v15H5zM8 9h8M8 13h8M8 17h5"/></svg>
@@ -423,7 +429,8 @@ async function loadInventoryAlerts(){
   var items = a.items || [];
   if (!items.length){ card.hidden = true; return; }
   items.forEach(function(i){
-    var d = document.createElement('div'); d.className = 'invrow';
+    /* each row opens the item's preferred supplier in Proveedores, the item highlighted (D-067) */
+    var d = document.createElement('a'); d.className = 'invrow'; d.href = 'proveedores.html#alerta=' + encodeURIComponent(i.id);
     var label = {out: 'Out of stock', low: 'Low', soon: 'Running out'}[i.status];
     var today = new Date(); today.setHours(0,0,0,0);
     var exp = i.expires_on && (new Date(i.expires_on + 'T12:00:00') - today) <= 3 * 86400000;

@@ -63,7 +63,7 @@ module.exports.tests = [
           }
         }
       }
-      assert.strictEqual(pins, 20, 'every PIN box was checked (19 on the pages, the time clock team editor and its approvals log included, and the PIN screen)');
+      assert.strictEqual(pins, 22, 'every PIN box was checked (21 on the pages: the time clock team editor and its approvals log, and Proveedores\' receiver, payment and void boxes, included; and the PIN screen)');
 
       const pg = await page(browser, { login: 'cafe', lang: 'es' });
       await homeGate(pg);
