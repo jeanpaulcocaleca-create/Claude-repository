@@ -3833,3 +3833,125 @@ Major technical decisions, newest last. Each one says what was decided, why, and
   The tests' fixture, not the POS: a separate change.
 - **Not done (owner):** approving the card from the screenshots, then publishing (E-45). No migration, nothing in the
   database, no staff page touched.
+
+## D-070 · 2026-11-11 · The family's seven corrections to the tribute to don Gabriel (`/gabriel-barboza`): three orchids with his name, Atwood, the first garden, the current names, the garden's figures; what the sources confirm and what is the family's (nothing published, no migration)
+
+- **The request (owner, 2026-11-11):** don Gabriel's family reviewed the published tribute (D-068) and sent seven
+  observations: (1) three orchids are dedicated to him, not two: «Prosthechea barbozaei · Lepanthes barbosae ·
+  Telipogon barbozae», spelling and references checked before publishing; (2) John T. Atwood «era director del
+  departamento de investigación» and Gabriel «colaboró ilustrando el complejo de especies del género de orquídeas
+  Maxillaria»; during those taxonomic studies he «participó en el descubrimiento y descripción de una especie para Costa
+  Rica y Panamá, actualmente denominada Camaridium monteverdense»; nothing undocumented attributed to him; (3) according
+  to the family, he created Monteverde's first orchid garden, the reference to his garden and living collection in
+  Cerro Plano kept; (4) the 1995 orchid: *Telipogon barbozae* as the current name, *Stellilabium barbozae* kept as the
+  original with a brief note on the change of genus; (5) the 1994 orchid: *Camaridium monteverdense* as the current name,
+  *Maxillaria monteverdensis* kept as the original, with its reference; (6) «Unas 200 especies» → «Poco más de 400
+  especies» in the Monteverde Orchid Garden paragraph; (7) «una veintena de especies hermanas en el mismo jardín» →
+  «una veintena de individuos en el mismo jardín» (English: individual plants, not species). Both languages; the whole
+  page checked for contradictions; names, synonyms and attributions checked against reliable botanical sources; what
+  cannot be corroborated is flagged for the owner's approval, not dropped; the design, the photographs, the structure
+  and the tone kept; the home page's mentions checked; nothing in the POS, inventory, accounting, suppliers or the
+  database; tests and an independent review; nothing published, no tag, until the owner approves.
+- **What the sources say (checked on 2026-11-11; two researchers per claim, then a skeptic; several botanical hosts
+  were not reachable from this session — IPNI, POWO, Epidendra, mobot.org, journals.flvc.org — so part rests on the
+  search engines' excerpts of those pages, marked as such in the research notes):**
+  - *Lepanthes barbosae* Luer, *Lindleyana* 10(3): 135 (1995): accepted (Kew POWO), endemic to Costa Rica; named for
+    Gabriel, «a local orchid grower who first collected the sp. and for whom it was named» (Missouri Botanical Garden,
+    *The Cutting Edge* IX(1), January 2002). Luer spelled it with «s»; the name keeps that spelling (never «barbozae»).
+    **Confirmed: the third orchid.** The page had missed it.
+  - *Prosthechea barbozae* Pupulin, *Selbyana* 25(1): 20 (2004): published as «barbozaei»; corrected to «barbozae» under
+    the Code (the genitive of a surname ending in -a adds -e), as Missouri's *Cutting Edge* (July 2005) notes and WFO
+    uses. **The family's spelling is the original one, not the accepted one:** the page keeps *barbozae* and says it was
+    published as «barbozaei».
+  - *Telipogon barbozae* (J.T.Atwood & Dressler) N.H.Williams & Dressler, *Lankesteriana* 5(3): 169 (2005); basionym
+    *Stellilabium barbozae* J.T.Atwood & Dressler, *Selbyana* 16(2): 239–241 (1995); moved after Williams, Whitten &
+    Dressler's DNA study found *Stellilabium* within *Telipogon*; accepted by the 2023 catalogue of Costa Rica's orchids
+    (Lankester). **Confirmed.**
+  - *Camaridium monteverdense* (J.T.Atwood & Barboza) M.A.Blanco, *Lankesteriana* 7(3): 521 (2007, Blanco et al.,
+    «Generic realignments in Maxillariinae»); basionym *Maxillaria monteverdensis* J.T.Atwood & G. Barboza, *Lindleyana*
+    9(4): 241–242 (1994). **Accepted by the Costa Rican authority (Lankester: Epidendra, the 2023 catalogue) and by the
+    2014 checklist of Panama's orchids; Kew (POWO/WCVP) and World Flora Online still accept *Maxillaria monteverdensis*,
+    with *Camaridium* as a synonym.** So the page presents *Camaridium* as the current name, as the family asked, and
+    says it is the name the catalogue of Costa Rica's orchids uses. Panama: the 2014 checklist (Bogarín et al.,
+    *Lankesteriana* 14(3)), which lists only species backed by Panamanian specimens, includes it.
+  - Atwood: the documented positions are Selby's orchid curator and director of its Orchid Identification Center (JSTOR
+    Global Plants: «Orchid Curator and Director of the Orchid Identification Center»); **no source found calls him «director del departamento de
+    investigación»** (Selby's Director of Research in 1992–1999 was Margaret Lowman). The page uses the documented title.
+  - The 1994 paper («Two new species of Costa Rican *Maxillaria* … and a clarification of *Maxillaria bracteata*»)
+    separates two new species from plants confused under *M. bracteata*; Gabriel drew their habits and co-authored one
+    of them. «Complex» is not the paper's word, so the page says «un grupo de especies … que se confundían bajo un mismo
+    nombre, *Maxillaria bracteata*».
+  - **Not found in any source:** that Gabriel took part in finding *M. monteverdensis* (the type, Atwood 89-33, has
+    Atwood alone as collector; Gabriel is recorded as his co-collector only from 1995); that his garden was Monteverde's
+    first orchid garden (no source says so; today's «Monteverde Orchid Garden» in Santa Elena credits Álvaro «Papo»
+    Salazar as its founder — whether it is the same garden as Gabriel's «Orquídeas de Monteverde» in Cerro Plano, which
+    the page, after the 2005 *Annals of Botany* study, calls «el Monteverde Orchid Garden», is not settled by the sources); «poco más de 400
+    especies» (the 2005 study gave about 200 native species at the time of the study; *Ambientico* 2006, «más de 450»);
+    «una veintena de individuos» of *Lepanthes glicensteinii* (the study speaks of about 20 *Lepanthes* species in the
+    garden). These four are written on the page as the family's, where they are said («según su familia», «según recuerda su
+    familia») and in the sources' introduction, not as the publications', and are listed for the owner's approval
+    (E-46).
+- **Changed on the page (both languages):** the top: «Tres especies de orquídeas llevan su nombre»; the note under it:
+  what the family contributes is marked as such. «Su historia»: Atwood as specialist in *Maxillaria*, Selby's orchid
+  curator and director of its Orchid Identification Center; Gabriel illustrated the group of *Maxillaria* confused under
+  *M. bracteata* (he drew the habits of the two new species); during that study he took part in describing one of them,
+  is its co-author, a species now known from Costa Rica and Panama and called *Camaridium monteverdense*; «Según su
+  familia, participó también en su hallazgo»; his garden in Cerro Plano kept, with «según su familia, fue el primer
+  jardín de orquídeas de Monteverde». «Logros documentados»: 1994 «dibujó los hábitos de las dos nuevas *Maxillaria* de
+  Costa Rica de John T. Atwood (*Lindleyana* 9(4): 239–242) y co-describió con él *Maxillaria monteverdensis*, hoy
+  *Camaridium monteverdense*»; 1995 «Dos orquídeas con su nombre» / «Two orchids named in his honour» (*Stellilabium
+  barbozae*, now *Telipogon barbozae*, and *Lepanthes barbosae*, «a partir de una planta que él fue el primero en
+  recolectar»); 2004 «Una tercera orquídea con su nombre». «Cuatro nombres que quedan en la ciencia» (was «Tres»): four
+  cards, two by two (one column on phones): *Telipogon barbozae*, «nombre científico actual», with the original name, its
+  1995 reference and the 2005 DNA study; *Lepanthes barbosae* (new: Luer, *Lindleyana* 10: 135, «dedicada a Gabriel,
+  quien fue el primero en recolectarla»; the «s» explained); *Prosthechea barbozae* (published as «barbozaei»);
+  *Camaridium monteverdense*, «nombre científico actual», tagged «Co-descrita por él · 1994» (was «Descrita por él»: he
+  is its co-author), the combination cited as published and recorded, «(J.T.Atwood & Barboza) M.A.Blanco» (Lankesteriana,
+  IPNI, Epidendra; a «G. Barboza» there was tried and undone after the review: the original name keeps the 1994 byline,
+  «J.T.Atwood & G. Barboza»), with *Maxillaria monteverdensis*, its 1994 reference, Blanco's 2007 transfer, «el nombre
+  que usan hoy el Jardín Botánico Lankester de la Universidad de Costa Rica y la lista de las orquídeas de Panamá», and
+  also known from Panama. The *Lepanthes glicensteinii* paragraph: «que según su familia reunía poco más de 400 especies
+  de la zona», «de la que, según recuerda su familia, crecían una veintena de individuos» (English: «some twenty
+  individual plants»). The timeline: 1994 and 1995 with the current names, 1995 the two species, 2004 «la tercera».
+  «Fuentes»: «consultadas en noviembre de 2026» (was «verificadas el 9 de noviembre»: the entries added on 11 November
+  were read in the botanical catalogues' records and the search engines' excerpts, not opened whole); the family's
+  contributions named; new entries for Luer 1995, Williams, Whitten & Dressler 2005, Blanco et al. 2007 (with Lankester's
+  Epidendra record) and the Panama checklist; Atwood's position at Selby (JSTOR Global Plants); the «barbozaei»
+  correction under Pupulin 2004. The meta description: «tres orquídeas». «La primera orquídea con su nombre» went: both
+  1995 names, and which came first is not known.
+- **Kept:** the portrait, the structure (the same seven parts), the design (the cards' grid goes from three columns to
+  two because there are four), the tone, *Ambientico*'s «más de 450 especies» (a quotation, 2006: with the family's «poco
+  más de 400» in the past tense of the 1999–2002 story the two read as a sequence; which period the family means is asked
+  in E-46), the plaque (it names no orchid). The home page's card and footer name no orchid and no figure: nothing to
+  change there. *Stellilabium fortunae* (2003) and *Oerstedella* ×*monteverdensis* stay under the names they were
+  published with that year; their current names were not checked in this session (a later change, if wanted).
+- **Tests:** browser 420 now 14. G5: the years now include 2007 and 2014 (the new sources), the habit drawings counted in
+  «Su historia» and the 1994 achievement. New G14, both versions: the four cards' names, in this order, and tags; «Tres
+  especies» / «Three orchid species» and «tres orquídeas» in the description; nothing left of «two» or of a «first» or
+  «second» orchid; the current and original names with their references (Telipogon, Camaridium) and the authorities
+  named for *Camaridium*; the published spellings (no *Lepanthes barbozae*, «barbozaei» only quoted as the original
+  spelling); «fue el primero en recolectarla»; Atwood's documented titles and not «director del departamento de
+  investigación»; the habit drawings, no «complex»; Costa Rica and Panama; the family's four statements word for word
+  with their attribution; the replaced words gone; the sources «consulted». Checked to fail on eight broken copies: «Dos
+  especies» back, *Lepanthes barbozae*, «unas 200 especies», the garden's attribution removed, «sister species» in
+  English, «director del departamento de investigación», the original name relabelled, Panama dropped in English.
+  `no-tocar.sh`: `website/gabriel-barboza.html` joins CHANGED (with `index.html` and `lang.js`).
+- **Independent review (3 reviewers: the facts against the sources, the page's coherence in both languages and the home
+  page, the tests and the layout measured from 320 to 1440 px; each finding checked by a skeptic).** Fixed: the family's
+  two figures in the *Lepanthes* story marked as theirs where they are said (they were marked only in the sources'
+  introduction); «verificadas el 9 y el 11 de noviembre» → «consultadas en noviembre de 2026» (the 11 November entries rest
+  on catalogue records and excerpts); *Camaridium*'s «current» tied to the authorities the page cites (Lankester's
+  Epidendra and the Panama checklist) instead of an uncited catalogue; the 1994 achievement narrowed to the documented
+  habit drawings (it said «un grupo de *Maxillaria*»); the English 1995 heading «Two orchids bear his name» (read alone,
+  two in all) → «Two orchids named in his honour»; «Descrita por él» → «Co-descrita por él»; «la recolectó por primera
+  vez» (ambiguous: his own first time?) → «fue el primero en recolectarla»; G14's Spanish check missed a capitalised «La
+  primera orquídea» (now case-blind), did not read the species section's count (now does: «Cuatro nombres… tres
+  especies… una cuarta») and nothing measured the two-column grid above phone width (now at 900, 1280 and 1440 px, both
+  languages, with DejaVu too). Rejected or left: the two figures «poco más de 400» and *Ambientico*'s «más de 450» read
+  as a sequence, not a contradiction (which years the family means: E-46); «first orchid garden» next to the name
+  «Monteverde Orchid Garden» (attributed; the relation to today's Santa Elena garden is for the family, E-46);
+  *Stellilabium fortunae* (2003) without its current name (as published then; not verifiable here). The reviewer who
+  measured the layout found nothing outside the species section moved, and no box or text past the screen or its card
+  at 33 widths.
+- **Not done (owner):** approving the corrections and the family's statements from the screenshots (E-46), then
+  publishing. No migration, nothing in the database, no staff page, the POS, inventory, accounting or suppliers touched.

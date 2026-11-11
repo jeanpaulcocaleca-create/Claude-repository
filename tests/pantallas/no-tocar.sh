@@ -17,11 +17,11 @@
 set -euo pipefail
 export LC_ALL=C GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# The home page's card for the tribute to Gabriel Barboza Villalobos (D-069): no new file, and the only files of BASE it
-# may change are the home page and its Spanish strings; the tribute page, its portrait and the sitemap, published with
-# v2026.11.09-1 (D-068), are back under the byte-for-byte rule
+# The home page's card for the tribute to Gabriel Barboza Villalobos (D-069) and his family's corrections to the tribute
+# page (D-070): no new file; the only files of BASE it may change are the home page, its Spanish strings and the tribute
+# page's text. His portrait and the sitemap, published with v2026.11.09-1 (D-068), stay byte for byte
 NEW=()
-CHANGED=(website/index.html website/lang.js)
+CHANGED=(website/index.html website/lang.js website/gabriel-barboza.html)
 PATHS=(website supabase/migrations .github/workflows/pages.yml)
 fail() { echo "  FAIL  no tocar: $*"; exit 1; }
 

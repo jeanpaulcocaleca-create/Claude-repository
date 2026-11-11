@@ -11,7 +11,9 @@
    Gabriel Barboza Villalobos dejó una huella especial en nuestro jardín», «Un hombre y sus orquídeas», a line on his help
    with the garden's decoration, the owner's line and «Conozca su historia» (G7 on a computer, G11 on phones, G12 in
    between); and the footer link. The same version makes every home section appear on small and short screens (G12) and
-   keeps the home bar in one row inside the screen at every width (G13). */
+   keeps the home bar in one row inside the screen at every width (G13). His family's corrections of 2026-11-11 (D-070,
+   G14): three orchids named in his honour with their published spellings, the current names first and the original
+   names kept, Atwood's documented title, and the family's own recollections and figures marked as theirs. */
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
@@ -263,11 +265,11 @@ module.exports.tests = [
       }
       /* and no date of his life: every year on the page is one of the dated publications and events, or the check date */
       const years = [...new Set(text.match(/(?<!\d)(1[89]\d\d|20\d\d)(?!\d)/g))].sort();
-      assert.deepStrictEqual(years, ['1994', '1995', '1996', '1998', '1999', '2001', '2002', '2003', '2004', '2005', '2006', '2008', '2019', '2026']);
+      assert.deepStrictEqual(years, ['1994', '1995', '1996', '1998', '1999', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2014', '2019', '2026']);
       /* what the owner asked for instead is there, in both versions */
       assert.strictEqual((text.match(/Los Cusingos/g) || []).length, 2, 'Los Cusingos in both versions');
       assert.strictEqual((text.match(/«descubridor de seis»|“descubridor de seis”/g) || []).length, 2, 'the quote as Ambientico wrote it, in both versions');
-      assert.strictEqual((text.match(/dibujó los hábitos|drew the habits/g) || []).length, 2, 'the drawings of the plant habits, in both versions');
+      assert.strictEqual((text.match(/dibujó los hábitos|drew the habits/g) || []).length, 4, 'the drawings of the plant habits, in «Su historia» and in the 1994 achievement (D-070), in both versions');
     }
   },
   {
@@ -719,6 +721,107 @@ module.exports.tests = [
         assert.strictEqual(r.ro, 'undefined', at);
         assert.ok(r.now && r.h <= 80, at + ': the bar fits in one row (' + r.h + ' px)');
         assert.notStrictEqual(r.back, true, at + ': it drops no more than it must');
+        assert.deepStrictEqual(pg.errors, [], at);
+        await ctx.close();
+      }
+    }
+  },
+  {
+    name: 'G14: the family\'s corrections (D-070): three orchids in his honour, with their published spellings; the current names first and the original names kept; Atwood\'s documented title; the family\'s own figures and recollections marked as theirs, in both languages',
+    run: async ({ browser }) => {
+      const read = async (lang) => {
+        const pg = await open(browser, { lang });
+        const r = await pg.evaluate((l) => {
+          const v = document.querySelector('#main > [data-l="' + l + '"]'), t = (e) => e.textContent.replace(/\s+/g, ' ').trim();
+          return { text: t(v), plates: [...v.querySelectorAll('.plate')].map((p) => ({ tag: t(p.querySelector('.tag')), name: t(p.querySelector('h3')), autor: t(p.querySelector('.autor')), hoy: t(p.querySelector('.hoy')) })),
+                   desc: document.querySelector('meta[name=description]').content };
+        }, lang);
+        assert.deepStrictEqual(pg.errors, [], lang);
+        return r;
+      };
+      const es = await read('es'), en = await read('en');
+      /* (1) three orchids named in his honour, and the species he co-described; current names first */
+      const names = ['Telipogon barbozae', 'Lepanthes barbosae', 'Prosthechea barbozae', 'Camaridium monteverdense'];
+      assert.deepStrictEqual(es.plates.map((p) => p.name), names);
+      assert.deepStrictEqual(en.plates.map((p) => p.name), names);
+      assert.deepStrictEqual(es.plates.map((p) => p.tag), ['Nombrada en su honor · 1995', 'Nombrada en su honor · 1995', 'Nombrada en su honor · 2004', 'Co-descrita por él · 1994']);
+      assert.deepStrictEqual(en.plates.map((p) => p.tag), ['Named in his honour · 1995', 'Named in his honour · 1995', 'Named in his honour · 2004', 'Co-described by him · 1994']);
+      assert.ok(es.text.includes('Tres especies de orquídeas llevan su nombre') && en.text.includes('Three orchid species bear his name'), 'three species bear his name');
+      assert.ok(/tres orquídeas con su nombre/.test(es.desc), 'the description says three');
+      /* the species section counts what it shows: three names in his honour and one he co-signed */
+      assert.ok(es.text.includes('Cuatro nombres que quedan en la ciencia') && es.text.includes('El apellido de Gabriel quedó escrito en tres especies — y su firma de coautor, en una cuarta.'));
+      assert.ok(en.text.includes('Four names that remain in science') && en.text.includes('Gabriel’s surname was written into three species — and his signature as co-author into a fourth.'));
+      for (const [l, v, gone] of [['es', es, /Dos especies de orquídeas|la primera orquídea|primera especie nombrada|segunda orquídea|Tres nombres que quedan|dos de ellos|en un tercero/i],
+                                   ['en', en, /Two orchid species|Two orchids bear|first orchid to bear|first species named|second orchid|Three names that remain|two of them|into a third/i]]) {
+        const m = v.text.match(gone); assert.ok(!m, l + ': nothing left of «two orchids» or of a «first» one (both 1995 names, order unknown): «' + (m && m[0]) + '»');
+      }
+      /* (4) 1995: Telipogon barbozae now, Stellilabium barbozae the original name, the change of genus explained */
+      assert.match(es.plates[0].autor, /^\(J\.T\.Atwood & Dressler\) N\.H\.Williams & Dressler · nombre científico actual$/);
+      assert.match(es.plates[0].hoy, /^Nombre original: Stellilabium barbozae J\.T\.Atwood & Dressler \(Selbyana 16: 239–241, 1995\)\. En 2005, un estudio de ADN mostró que el género Stellilabium forma parte de Telipogon/);
+      assert.match(en.plates[0].hoy, /^Original name: Stellilabium barbozae J\.T\.Atwood & Dressler \(Selbyana 16: 239–241, 1995\)\. In 2005 a DNA study showed that the genus Stellilabium belongs within Telipogon/);
+      /* (5) 1994: Camaridium monteverdense now, Maxillaria monteverdensis the original name with its reference */
+      /* the combination as published (Lankesteriana 7(3): 521) and recorded (IPNI, Epidendra); the original name keeps the 1994 byline, «G. Barboza» */
+      assert.match(es.plates[3].autor, /^\(J\.T\.Atwood & Barboza\) M\.A\.Blanco · nombre científico actual$/);
+      assert.match(en.plates[3].autor, /^\(J\.T\.Atwood & Barboza\) M\.A\.Blanco · current scientific name$/);
+      assert.match(es.plates[3].hoy, /^Nombre original: Maxillaria monteverdensis J\.T\.Atwood & G\. Barboza \(Lindleyana 9: 241–242, 1994\)\./);
+      assert.match(en.plates[3].hoy, /^Original name: Maxillaria monteverdensis J\.T\.Atwood & G\. Barboza \(Lindleyana 9: 241–242, 1994\)\./);
+      /* «current» as the authorities the page cites use it (Kew and WFO still keep Maxillaria: for the owner, E-46) */
+      assert.match(es.plates[3].hoy, /el nombre que usan hoy el Jardín Botánico Lankester de la Universidad de Costa Rica y la lista de las orquídeas de Panamá\.$/);
+      assert.match(en.plates[3].hoy, /the name used today by the Lankester Botanical Garden of the University of Costa Rica and by the checklist of the orchids of Panama\.$/);
+      /* spellings as published: barbosae (Luer, with s); barbozae, the corrected spelling of the 2004 «barbozaei», named as such */
+      for (const [l, v] of [['es', es], ['en', en]]) {
+        assert.ok(!/Lepanthes barbozae|Telipogon barbosae|Stellilabium barbosae|Prosthechea barbosae/.test(v.text), l + ': no mixed-up spelling');
+        const odd = [...v.text.matchAll(/(.)barbozaei/g)].map((x) => x[1]);
+        assert.ok(odd.length >= 1 && odd.every((c) => c === '«' || c === '“'), l + ': «barbozaei» only quoted, as the original spelling');
+      }
+      /* Lepanthes barbosae: he was the first to collect the species (MBG, Cutting Edge 2002), said unambiguously */
+      assert.ok(!/recolectó por primera vez/.test(es.text), 'not «la recolectó por primera vez» (his own first time?)');
+      assert.ok(es.plates[1].hoy && es.text.includes('dedicada a Gabriel, quien fue el primero en recolectarla') && en.text.includes('dedicated to Gabriel, who was the first to collect it'));
+      /* (2) Atwood's documented title, Gabriel's documented work */
+      assert.ok(es.text.includes('curador de orquídeas de Selby y director de su Centro de Identificación de Orquídeas') && en.text.includes('Selby’s orchid curator and director of its Orchid Identification Center'));
+      assert.ok(!/director del departamento de investigaci|director of (the )?research/i.test(es.text + en.text), 'not «director del departamento de investigación» (Selby\'s director of research then was another person; for the owner\'s approval)');
+      assert.ok(es.text.includes('Costa Rica y Panamá') && en.text.includes('Costa Rica and Panama'));
+      /* 1994: the documented drawings (the habits of Atwood's two new species), not a whole «group» or «complex» */
+      assert.ok(es.text.includes('dibujó los hábitos de las dos nuevas Maxillaria de Costa Rica de John T. Atwood (Lindleyana 9(4): 239–242)'));
+      assert.ok(en.text.includes('he drew the habits of John T. Atwood’s two new Costa Rican Maxillaria (Lindleyana 9(4): 239–242)'));
+      assert.ok(!/complejo de especies|species complex/.test(es.text + en.text), 'no «complex»: not the 1994 paper\'s word');
+      /* (3, 6, 7) the family's recollections, marked as theirs */
+      assert.ok(es.text.includes('su propio jardín y colección viva en Cerro Plano; según su familia, fue el primer jardín de orquídeas de Monteverde'));
+      assert.ok(en.text.includes('his own garden and living collection in Cerro Plano; according to his family, it was Monteverde’s first orchid garden'));
+      assert.ok(es.text.includes('Según su familia, participó también en su hallazgo') && en.text.includes('According to his family, he also took part in finding it'));
+      assert.ok(es.text.includes('que según su familia reunía poco más de 400 especies de la zona') && en.text.includes('which according to his family held just over 400 local species'));
+      assert.ok(es.text.includes('una orquídea miniatura de la que, según recuerda su familia, crecían una veintena de individuos en el mismo jardín') && en.text.includes('a miniature orchid of which, as his family recalls, some twenty individual plants grew in the same garden'));
+      assert.ok(!/unas 200 especies|some 200 local|especies hermanas|sister species/.test(es.text + en.text), 'the replaced wording is gone');
+      /* the sources added on 11 November were read in the catalogues' records, not opened whole: «consulted», not «verified» */
+      assert.ok(es.text.includes('procede de estas publicaciones, consultadas en noviembre de 2026, salvo') && en.text.includes('comes from these publications, consulted in November 2026, except'));
+      assert.ok(!/verificadas el 9|verified on 9/.test(es.text + en.text));
+      assert.match(es.text, /salvo lo dicho sobre este jardín y lo que aporta su familia: que su jardín fue el primero de orquídeas de Monteverde, que participó también en el hallazgo de Maxillaria monteverdensis y las cifras de su jardín de Cerro Plano/);
+      assert.match(en.text, /except what is said about this garden and what his family has contributed: that his garden was Monteverde’s first orchid garden, that he also took part in finding Maxillaria monteverdensis, and the figures for his garden in Cerro Plano/);
+      /* the four cards two by two on computers and tablets (861 px and up; phones: one column, G6), each row level,
+         nothing outside its card, with the site's fonts' fallback and with DejaVu */
+      for (const fonts of ['default', 'wide']) for (const width of [900, 1280, 1440]) for (const lang of ['es', 'en']) {
+        const ctx = await browser.newContext({ viewport: { width, height: 900 }, locale: lang === 'es' ? 'es-CR' : 'en-US', timezoneId: 'America/Costa_Rica' });
+        const pg = await open(browser, { context: ctx, lang });
+        if (fonts === 'wide') await pg.addStyleTag({ content: WIDE_FONTS });
+        const g = await pg.evaluate((l) => {
+          const box = (e) => e.getBoundingClientRect(), name = (e) => e.tagName + '.' + String(e.className).trim();
+          const plates = [...document.querySelectorAll('#main > [data-l="' + l + '"] .plate')], spill = [];
+          for (const card of plates) {
+            const cb = box(card), cs = getComputedStyle(card), inner = cb.right - parseFloat(cs.paddingRight) + 1, left = cb.left + parseFloat(cs.paddingLeft) - 1;
+            for (const e of card.querySelectorAll('*')) { const b = box(e); if (b.width > 0 && b.height > 0 && (b.right > inner || b.left < left)) spill.push(name(e)); }
+            for (const e of card.querySelectorAll('h3, p')) if (e.scrollWidth > e.clientWidth + 1) spill.push(name(e) + ' overflows its box');
+          }
+          return { n: plates.length, lefts: [...new Set(plates.map((p) => Math.round(box(p).left)))].length,
+                   rows: [[0, 1], [2, 3]].map(([a, b]) => [box(plates[a]).top - box(plates[b]).top, box(plates[a]).bottom - box(plates[b]).bottom]),
+                   order: plates.map((p) => Math.round(box(p).top)), spill, wide: document.documentElement.scrollWidth > innerWidth };
+        }, lang);
+        const at = lang + ' at ' + width + ' px, ' + fonts + ' fonts';
+        assert.strictEqual(g.n, 4, at);
+        assert.strictEqual(g.lefts, 2, at + ': two columns');
+        assert.ok(g.rows.every(([t, b]) => Math.abs(t) <= 1 && Math.abs(b) <= 1), at + ': the two cards of each row level: ' + JSON.stringify(g.rows));
+        assert.ok(g.order[2] > g.order[0], at + ': two rows');
+        assert.deepStrictEqual(g.spill, [], at + ': nothing outside its card');
+        assert.ok(!g.wide, at + ': nothing wider than the screen');
         assert.deepStrictEqual(pg.errors, [], at);
         await ctx.close();
       }
