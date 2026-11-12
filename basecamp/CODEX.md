@@ -926,11 +926,31 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - no DNS, GoDaddy, Hotel Link, payment, content, design or launch changes;
   - nothing published or activated without authorization.
 
+**BD-059 · 2026-11-12 · Owner · Domain connected; preview password forgotten.**
+- **Reported by the owner:** `monteverdebasecamp.com` is connected to Cloudflare Pages: Active, SSL on, and it asks for a user and password. The owner does not remember the preview credentials.
+- **Asked:**
+  - explain how the user and password are set today;
+  - give concrete steps in the Cloudflare panel to set new credentials safely, with no password in chat or GitHub, preferably without code changes;
+  - keep every route protected, `/admin/` included.
+- **Rules:** no design, booking or other setting changes; nothing published and no real bookings.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-12 · Claude.** BD-059: instructions only. No code, deployment or Cloudflare change by Claude.
+  - **How the password works today:** `functions/_middleware.js` reads the Secret `PREVIEW_PASSWORD` from the Pages project.
+    - The user name is ignored: any word works, only the password counts.
+    - The same gate runs on every route and on every address of the deployment: `pages.dev`, the custom domain, branch previews and per-deployment addresses.
+    - Cloudflare never shows a Secret's value, so the old one cannot be recovered, only replaced.
+  - **Owner's steps:**
+    1. Create the new password in a password manager.
+    2. Replace `PREVIEW_PASSWORD` (type Secret) in Settings → Variables and Secrets, for Production and also for Preview.
+    3. Retry the latest Production deployment, so the new value takes effect. It is the same commit, with no new content.
+    4. Check in a private window, and with `curl`, that every page and `/admin/` return 401 without the password.
+  - **Note:** the domain is now on Cloudflare (BQ-07). The automatic check (`check-preview.js`) still tests only the `pages.dev` address.
 
 - **2026-11-09 · Claude.** BD-058: investigation only. No code, deployment or Cloudflare change.
   - **Code:** `functions/_middleware.js` is unchanged since 8178e15. It runs on every route: there is no `_routes.json` and no `_worker.js`. It only lets a request through when the Basic password matches, and with no password set it answers 503.
