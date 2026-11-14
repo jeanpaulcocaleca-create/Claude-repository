@@ -934,11 +934,53 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - keep every route protected, `/admin/` included.
 - **Rules:** no design, booking or other setting changes; nothing published and no real bookings.
 
+**BD-060 · 2026-11-14 · Owner · Prepare the public launch; nothing executed in production.**
+- **Verified by the owner:**
+  - the domain and SSL;
+  - the home and room pages in ES and EN;
+  - the password prompt;
+  - the Hotel Link address with the right dates and guests.
+- **Authorized:** prepare the public launch. **Not authorized:** production changes that remove protections or turn on real bookings.
+- **Asked:** a final audit and a launch plan covering:
+  1. temporary functions, test messages, public passwords and launch locks;
+  2. `/admin/`, admin interfaces and private data after the general password goes;
+  3. privacy, cookies, booking and cancellation terms, and pending legal approvals;
+  4. Hotel Link: official link, data passed, no duplicates, and what a full booking and cancellation still need;
+  5. SEO, sitemap, robots, Google indexing and consent-respecting measurement;
+  6. phones without critical errors;
+  7. a publishing procedure with backup, checks and immediate rollback.
+- **Rules:**
+  - keep the design and content; no paid services; no changes to Hotel Link, DNS or outside systems without authorization;
+  - remove no security control; nothing published and no real bookings; no unneeded changes.
+- **Deliver:** a short summary: what is ready, what is really missing, critical risks, the exact publishing steps and the decisions to approve.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-14 · Claude.** BD-060 prepared. `basecamp-website` branch `launch-switch` (commit f270abe), draft PR jeanpaulcocaleca-create/basecamp-website#1, not merged. Production is unchanged.
+  - **Audit findings:**
+    - **Blocker:** the privacy page, still in test, would go public saying «Contenido de prueba… lo revisará un abogado» and describing Google Analytics and Meta Pixel. The final policy must replace it.
+    - **Booking:** with Prueba, the public build sends Book to WhatsApp; with «Activo» simulated, it opens the exact Hotel Link address (intercepted, not opened).
+    - **Content:** the 5 test guides stay out of the public build automatically. No cookies, trackers or consent banner while no measurement ID is set.
+    - **Phones:** 22 public pages on iPhone 13 and Pixel 5 show no errors, broken files or overflow and no serious or critical axe findings; all 38 internal links work.
+  - **Launch switch:**
+    - **Gate:** the password gate opens only `monteverdebasecamp.com` and `www`, and only when Production carries `BASECAMP_PUBLIC=authorized`. `/admin/` keeps the password in any letter case or encoding, and so do `pages.dev`, branch and deployment addresses.
+    - **Build:** the public build adds `_routes.json` excluding `/assets/`, `/img/` and `/fonts/` from the Function. The preview build has none.
+    - **Checks:** new `scripts/check-public.js` and a CI job, skipped until the repository variable `BASECAMP_LAUNCHED` is `yes`.
+    - **Procedure:** `docs/LANZAMIENTO.md` holds the audit, the steps and the rollback.
+  - **Checks:**
+    - `npm test` 91/91; `check:browser` all green;
+    - the local Pages emulator with a throwaway password returned 401 for every `/admin/` bypass, for GET, HEAD, POST and OPTIONS, on the public host, and 401 everywhere on `pages.dev` and branch hosts;
+    - CI on the branch (run 65): green. The branch address `launch-switch.basecamp-website-b99.pages.dev`, deployed by Cloudflare with the new gate, asks for the password on all 21 routes, and the public check job was skipped as intended.
+  - **Still needed before launch:**
+    - the final privacy text: [P-2], [P-6], [P-8] and [FECHA], and loading it;
+    - the booking path: A, Hotel Link live after one real booking and its cancellation, or B, WhatsApp first;
+    - `web-basecamp.webp` rights;
+    - GitHub 2FA and the token's expiry;
+    - a Search Console DNS TXT record, which needs authorization.
 
 - **2026-11-12 · Claude.** BD-059: instructions only. No code, deployment or Cloudflare change by Claude.
   - **How the password works today:** `functions/_middleware.js` reads the Secret `PREVIEW_PASSWORD` from the Pages project.
