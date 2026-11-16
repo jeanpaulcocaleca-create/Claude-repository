@@ -954,11 +954,45 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
   - remove no security control; nothing published and no real bookings; no unneeded changes.
 - **Deliver:** a short summary: what is ready, what is really missing, critical risks, the exact publishing steps and the decisions to approve.
 
+**BD-061 · 2026-11-16 · Owner · Continue launch preparation; decisions on the BD-060 report.**
+1. **Privacy:**
+   - approved: answer requests within five business days, and document surname and country when they are required;
+   - no retention period is published without a verified legal basis;
+   - prepare the final ES and EN text for approval.
+2. **Bookings:** launch with Hotel Link live, but only after one controlled real booking whose cancellation, guarantee and applicable charges are verified. Bookings are not activated yet.
+3. **`web-basecamp.webp`:** identify its origin and licence. If the rights cannot be confirmed, replace it with an authorized image.
+4. **SEO:** prepare the Google Search Console TXT verification and the `www` → `monteverdebasecamp.com` redirect, and show the exact DNS changes before applying them.
+5. **Date:** as soon as the blockers are closed.
+6. **Protection:** keep `/admin/`, admin interfaces and every pages.dev address protected, and never remove the security middleware.
+7. **Rules:**
+   - do not merge PR #1 yet;
+   - do not change `BASECAMP_PUBLIC` or `BASECAMP_LIVE_BOOKING`;
+   - publish nothing without the final authorization;
+   - no new features and no rebuilding of what works.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-16 · Claude.** BD-061: `basecamp-website` branch `launch-content` (commit f7b057b), draft PR jeanpaulcocaleca-create/basecamp-website#2, not merged. PR #1 is not merged either. Production and Cloudflare are unchanged.
+  - **Final privacy policy (ES and EN)** in `content/pages/privacy.json`, status `confirmed`:
+    - five business days to answer;
+    - name and surname, email, phone, and country only for online bookings (Hotel Link requires it) are the required data;
+    - nationality stays optional and is kept apart from Hotel Link's country;
+    - retention stated without years: as long as needed for the stay and the accounting and tax obligations; Hotel Link keeps its own data under its policy;
+    - the approved sentence «Sin estos tres datos…» becomes «Sin estos datos no podemos confirmar la reserva»;
+    - the date is to be updated on publication day.
+  - **`web-basecamp.webp`:** uploaded by the owner from the dashboard on 2026-10-23 (304f013). It has no EXIF, XMP or content credentials and measures 1536 × 1024; its origin and licence cannot be confirmed.
+    - The café section goes back to `illustration-hanging-vines.webp`: the project's own code-made art (`scripts/generate-art.js`), with its visible "Illustration, not a photo of Basecamp" note.
+    - `web-basecamp.webp` stays in the repository but is not published.
+    - Better option, if the owner confirms the rights: `image-1.webp`, a real photo of the Hanging Garden Café counter the owner uploaded on 2026-10-21.
+  - **New `docs/LANZAMIENTO-PROPIETARIO.md`:**
+    - a controlled booking and cancellation protocol (guarantee, holds, commissions, emails, OTA availability);
+    - the exact DNS changes, not applied: a TXT `@` record with Google's value; AAAA `www` `100::` proxied; a 301 redirect rule from www to the apex that keeps the path and query.
+  - **Checks:** `npm test` 89/89; `check:browser` all green; a public build of the branch shows the final policy without the test label and the café illustration with its note. CI on the branch (run 66): green; `launch-content.basecamp-website-b99.pages.dev` asks for the password on all 21 routes.
+  - **This environment cannot read the domain's DNS,** so the owner checks for existing `www` and TXT records first.
 
 - **2026-11-14 · Claude.** BD-060 prepared. `basecamp-website` branch `launch-switch` (commit f270abe), draft PR jeanpaulcocaleca-create/basecamp-website#1, not merged. Production is unchanged.
   - **Audit findings:**
