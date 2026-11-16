@@ -970,11 +970,42 @@ Package «The Monteverde Guides Library», from the owner through Lapis.
    - publish nothing without the final authorization;
    - no new features and no rebuilding of what works.
 
+**BD-062 · 2026-11-16 · Owner · BD-060 and BD-061 proposals approved; conditional merge.**
+1. **Café photo:** use `image-1.webp`, the real photo of Hanging Garden Café. The owner confirms commercial-use rights.
+2. **Privacy:** the ES and EN policy is approved, subject to a last consistency and legal check.
+3. **Hotel Link:** prepare the final integration.
+4. **SEO:** prepare Search Console, SEO and the `www` redirect, checking the existing DNS records first.
+5. **Merge:** PR #1 and PR #2 are approved, provided their tests pass and there are no conflicts.
+6. **Protection:** keep `/admin/`, admin interfaces and test environments protected.
+7. **Limits:** no paid services and no new features.
+- **Conditional authorization:**
+  - merge to `main` only after confirming that the tests pass and the site stays private;
+  - do not turn on `BASECAMP_PUBLIC` or `BASECAMP_LIVE_BOOKING`;
+  - a controlled booking and its cancellation must be verified before real bookings are activated.
+
 ---
 
 ## 10. Status log
 
 Newest first. Claude adds a line after every working session.
+
+- **2026-11-16 · Claude.** BD-062: PR #1 and PR #2 merged into `basecamp-website` `main` (merge commits 781b6bd and 05806aa) after their CI runs passed (67 and 68) and with no conflicts. `BASECAMP_PUBLIC` and `BASECAMP_LIVE_BOOKING` are not set, and the booking state on `main` is still "test".
+  - **Content:**
+    - the café section uses `image-1.webp`, with ES and EN descriptions and no illustration note;
+    - the privacy policy adds one sentence for Law 8968 art. 5.1 a: Rutas Turisticas SRL is responsible for the database of booking details and messages.
+  - **CI:** the preview check now also runs against `monteverdebasecamp.com` on `main` until `BASECAMP_LAUNCHED` is "yes".
+  - **CI run 69 on `main`:** green.
+    - Tests pass.
+    - `basecamp-website-b99.pages.dev` and `monteverdebasecamp.com` refuse visitors without the password on all 21 routes, and http redirects to https on both.
+    - The public check job was skipped, as intended.
+    - Locally, the merged `main` passed 91/91 tests and every `check:browser` suite; its build is the private preview, with no `_routes.json`.
+  - **DNS, read through public DNS-over-HTTPS:**
+    - Cloudflare nameservers; no DNSSEC;
+    - the apex and `www` are proxied, so a `www` record already exists;
+    - no TXT and no MX at the apex;
+    - GoDaddy leftovers `_dmarc` and `_domainconnect`.
+  - **Rollback tag:** the `pre-lanzamiento` tag on 42ae5a9 could not be pushed, because the connection dropped on every try. The rollback point is commit 42ae5a9 and its Cloudflare deployment, which this session cannot see.
+  - **Owner's minimal steps:** `docs/LANZAMIENTO-PROPIETARIO.md` §0 (Hotel Link controlled booking, Cloudflare `BASECAMP_PUBLIC`, GitHub `BASECAMP_LAUNCHED`, DNS, then live bookings).
 
 - **2026-11-16 · Claude.** BD-061: `basecamp-website` branch `launch-content` (commit f7b057b), draft PR jeanpaulcocaleca-create/basecamp-website#2, not merged. PR #1 is not merged either. Production and Cloudflare are unchanged.
   - **Final privacy policy (ES and EN)** in `content/pages/privacy.json`, status `confirmed`:
